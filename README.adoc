@@ -1,4 +1,4 @@
-LuaMetaTeX
+== LuaMetaTeX
 
 This is a follow up on the LuaTeX project. The source is considered part of the ConTeXt distribution
 and managed by the ConTeXt development team and the ConTeXt user group. That way we can guarantee
