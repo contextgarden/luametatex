@@ -37,3 +37,5 @@ have been (and are) reported in user group publications aas well as several docu
 distribution. The mailing list archives and contextgarden wiki are also a source of information.
 
 Hans Hagen
+
+image::luametatex.svg[LuaMetaTeX,100%]
