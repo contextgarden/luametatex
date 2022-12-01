@@ -117,9 +117,9 @@ static void   mp_set_double_half_from_addition   (mp_number *A, mp_number *B, mp
 static void   mp_set_double_half_from_subtraction(mp_number *A, mp_number *B, mp_number *C);
 static void   mp_wrapup_numeric_token            (MP mp, unsigned char *start, unsigned char *stop);
 static char  *mp_double_number_tostring          (MP mp, mp_number *n);
-inline double mp_double_make_fraction (double p, double q) { return (p / q) * fraction_multiplier; }
-inline double mp_double_take_fraction (double p, double q) { return (p * q) / fraction_multiplier; }
-inline double mp_double_make_scaled   (double p, double q) { return  p / q; }
+inline static double mp_double_make_fraction (double p, double q) { return (p / q) * fraction_multiplier; }
+inline static double mp_double_take_fraction (double p, double q) { return (p * q) / fraction_multiplier; }
+inline static double mp_double_make_scaled   (double p, double q) { return  p / q; }
 
 math_data *mp_initialize_double_math(MP mp)
 {
@@ -960,7 +960,7 @@ typedef struct mp_double_random_info {
     long *ptr;
 } mp_double_random_info;
 
-mp_double_random_info mp_double_random_data = {
+static mp_double_random_info mp_double_random_data = {
     .dummy   = -1,
     .started = -1,
     .ptr     = &mp_double_random_data.dummy

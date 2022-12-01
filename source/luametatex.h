@@ -87,9 +87,9 @@
 # include "tex/textypes.h"
 
 # define luametatex_version          210
-# define luametatex_revision         02
-# define luametatex_version_string   "2.10.02"
-# define luametatex_development_id   20221019
+# define luametatex_revision         03
+# define luametatex_version_string   "2.10.03"
+# define luametatex_development_id   20221201
 
 # define luametatex_name_camelcase   "LuaMetaTeX"
 # define luametatex_name_lowercase   "luametatex"
@@ -313,6 +313,7 @@ extern version_state_info lmt_version_state;
 # include "lua/lmtlanguagelib.h"
 # include "lua/lmtfontlib.h"
 # include "lua/lmtlualib.h"
+# include "lua/lmtluaclib.h"
 # include "lua/lmttexlib.h"
 # include "lua/lmtenginelib.h"
 

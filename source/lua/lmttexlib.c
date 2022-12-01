@@ -1402,9 +1402,9 @@ static halfword texlib_aux_make_glue(lua_State *L, int top, int slot)
             if (slot <= top) {
                 glue_shrink(value) = lmt_toroundnumber(L, slot++);
                 if (slot <= top) {
-                    glue_stretch_order(value) = lmt_tohalfword(L, slot++);
+                    glue_stretch_order(value) = tex_checked_glue_order(lmt_tohalfword(L, slot++));
                     if (slot <= top) {
-                        glue_shrink_order(value) = lmt_tohalfword(L, slot++);
+                        glue_shrink_order(value) = tex_checked_glue_order(lmt_tohalfword(L, slot++));
                     }
                 }
             }
@@ -2173,7 +2173,7 @@ return 0;
 
 static int texlib_getmathcode(lua_State* L)
 {
-    mathcodeval mval = { 0, 0, 0 };
+    mathcodeval mval = tex_no_math_code();
     int ch = lmt_checkinteger(L, -1);
     if (character_in_range(ch)) {
         mval = tex_get_math_code(ch);
@@ -2192,7 +2192,7 @@ static int texlib_getmathcode(lua_State* L)
 
 static int texlib_getmathcodes(lua_State* L)
 {
-    mathcodeval mval = { 0, 0, 0 };
+    mathcodeval mval = tex_no_math_code();
     int ch = lmt_checkinteger(L, -1);
     if (character_in_range(ch)) {
         mval = tex_get_math_code(ch);
@@ -2466,9 +2466,9 @@ static int texlib_set_item(lua_State* L, int index, int prefixes)
                                     if (slot <= top) {
                                         glue_shrink(value) = lmt_toroundnumber(L, slot++);
                                         if (slot <= top) {
-                                            glue_stretch_order(value) = lmt_tohalfword(L, slot++);
+                                            glue_stretch_order(value) = tex_checked_glue_order(lmt_tohalfword(L, slot++));
                                             if (slot <= top) {
-                                                glue_shrink_order(value) = lmt_tohalfword(L, slot);
+                                                glue_shrink_order(value) = tex_checked_glue_order(lmt_tohalfword(L, slot));
                                             }
                                         }
                                     }
@@ -2603,6 +2603,7 @@ static int texlib_aux_convert(lua_State *L, int cur_code)
      /* case lua_token_string_code: */ /* arg token list */
         case string_code:              /* arg token */
         case cs_string_code:           /* arg token */
+        case cs_active_code:           /* arg token */
         case detokenized_code:         /* arg token */
         case meaning_code:             /* arg token */
         case to_mathstyle_code:
@@ -2877,8 +2878,8 @@ static int texlib_setmath(lua_State *L)
                         glue_amount(p) = lmt_optroundnumber(L, slot++, 0);
                         glue_stretch(p) = lmt_optroundnumber(L, slot++, 0);
                         glue_shrink(p) = lmt_optroundnumber(L, slot++, 0);
-                        glue_stretch_order(p) = lmt_optroundnumber(L, slot++, 0);
-                        glue_shrink_order(p) = lmt_optroundnumber(L, slot, 0);
+                        glue_stretch_order(p) = tex_checked_glue_order(lmt_optroundnumber(L, slot++, 0));
+                        glue_shrink_order(p) = tex_checked_glue_order(lmt_optroundnumber(L, slot, 0));
                         tex_def_math_parameter(style, param, (scaled) p, level, indirect_math_regular);
                         break;
                     }
@@ -4385,7 +4386,7 @@ static int texlib_setboxdir(lua_State *L)
 {
     int index = lmt_tointeger(L, 1);
     if (index >= 0 && index <= max_box_register_index) {
-        tex_set_box_dir(index, lmt_tointeger(L, 2));
+        tex_set_box_dir(index, lmt_tosingleword(L, 2));
     } else {
         texlib_aux_show_box_index_error(L);
     }
@@ -4536,8 +4537,8 @@ static int texlib_mathchardef(lua_State *L)
         if (tex_define_permitted(cs, flags)) {
             mathcodeval m;
             mathdictval d;
-            m.class_value = lmt_tointeger(L, 2);
-            m.family_value = lmt_tointeger(L, 3);
+            m.class_value = (short) lmt_tointeger(L, 2);
+            m.family_value = (short) lmt_tointeger(L, 3);
             m.character_value = lmt_tointeger(L, 4);
             d.properties = lmt_optquarterword(L, 6, 0);
             d.group = lmt_optquarterword(L, 7, 0);
@@ -5002,6 +5003,27 @@ static int texlib_getkerneloptionvalues(lua_State *L)
     return 1;
 }
 
+static int texlib_getcharactertagvalues(lua_State *L)
+{
+    lua_createtable(L, 2, 12);
+    lua_set_string_by_index(L, no_tag,          "normal");
+    lua_set_string_by_index(L, ligatures_tag,   "ligatures");
+    lua_set_string_by_index(L, kerns_tag,       "kerns");
+    lua_set_string_by_index(L, list_tag,        "list");
+    lua_set_string_by_index(L, callback_tag,    "callback");
+    lua_set_string_by_index(L, extensible_tag,  "extensible");
+    lua_set_string_by_index(L, horizontal_tag,  "horizontal");
+    lua_set_string_by_index(L, vertical_tag,    "vertical");
+    lua_set_string_by_index(L, extend_last_tag, "extendlast");
+    lua_set_string_by_index(L, inner_left_tag,  "innerleft");
+    lua_set_string_by_index(L, inner_right_tag, "innerright");
+    lua_set_string_by_index(L, italic_tag,      "italic");
+    lua_set_string_by_index(L, n_ary_tag,       "nary");
+    lua_set_string_by_index(L, radical_tag,     "radical");
+    lua_set_string_by_index(L, punctuation_tag, "punctuation");
+    return 1;
+}
+
 static int texlib_getshapingpenaltiesvalues(lua_State *L)
 {
     lua_createtable(L, 2, 2);
@@ -5139,7 +5161,7 @@ static int texlib_getdiscstatevalues(lua_State *L)
 
 static int texlib_getmathcontrolvalues(lua_State *L)
 {
-    lua_createtable(L, 2, 21);
+    lua_createtable(L, 2, 23);
     lua_set_string_by_index(L, math_control_use_font_control,            "usefontcontrol");
     lua_set_string_by_index(L, math_control_over_rule,                   "overrule");
     lua_set_string_by_index(L, math_control_under_rule,                  "underrule");
@@ -5163,13 +5185,18 @@ static int texlib_getmathcontrolvalues(lua_State *L)
     lua_set_string_by_index(L, math_control_analyze_script_nucleus_box,  "analyzescriptnucleusbox");
     lua_set_string_by_index(L, math_control_accent_top_skew_with_offset, "accenttopskewwithoffset");
     lua_set_string_by_index(L, math_control_ignore_kern_dimensions,      "ignorekerndimensions");
+    lua_set_string_by_index(L, math_control_ignore_flat_accents,         "ignoreflataccents");
+    lua_set_string_by_index(L, math_control_extend_accents,              "extendaccents");
     return 1;
 }
 
 static int texlib_gettextcontrolvalues(lua_State *L)
 {
-    lua_createtable(L, 1, 0);
+    lua_createtable(L, 2, 2);
     lua_set_string_by_index(L, text_control_collapse_hyphens, "collapsehyphens");
+    lua_set_string_by_index(L, text_control_base_ligaturing,  "baseligaturing");
+    lua_set_string_by_index(L, text_control_base_kerning,     "basekerning");
+    lua_set_string_by_index(L, text_control_none_protected,   "noneprotected");
     return 1;
 }
 
@@ -5462,6 +5489,7 @@ static const struct luaL_Reg texlib_function_list[] = {
     { "getprimitiveorigins",        texlib_getprimitiveorigins        },
     { "getfrozenparvalues",         texlib_getfrozenparvalues         },
     { "getshapingpenaltiesvalues",  texlib_getshapingpenaltiesvalues  },
+    { "getcharactertagvalues",      texlib_getcharactertagvalues      }, 
     { "getkerneloptionvalues",      texlib_getkerneloptionvalues      },
     { "getspecialmathclassvalues",  texlib_getspecialmathclassvalues  },
     { "getlargestusedmark",         texlib_getlargestusedmark         },

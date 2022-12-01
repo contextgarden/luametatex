@@ -130,8 +130,9 @@ typedef enum node_types {
     align_stack_node,
     noad_state_node,
     if_node,
-    unhyphenated_node, /*tex These are both active nodes. */
-    hyphenated_node,   /*tex These are both active nodes. */
+    /*tex These two are active nodes. */
+    unhyphenated_node, 
+    hyphenated_node,   
     delta_node,
     passive_node,
 } node_types;
@@ -988,17 +989,17 @@ typedef enum rule_codes {
 # define first_rule_code   normal_rule_code
 # define last_rule_code    strut_rule_code
 
-# define rule_node_size       7
-# define rule_width(a)        vlink(a,2)
-# define rule_x_offset(a)     vinfo(a,2)
-# define rule_depth(a)        vlink(a,3)
-# define rule_y_offset(a)     vinfo(a,3)
-# define rule_height(a)       vlink(a,4)
-# define rule_data(a)         vinfo(a,4)
-# define rule_left(a)         vinfo(a,5)
-# define rule_right(a)        vlink(a,5)
-# define rule_font(a)         vinfo(a,6)
-# define rule_character(a)    vlink(a,6)
+# define rule_node_size    7
+# define rule_width(a)     vlink(a,2)
+# define rule_x_offset(a)  vinfo(a,2)
+# define rule_depth(a)     vlink(a,3)
+# define rule_y_offset(a)  vinfo(a,3)
+# define rule_height(a)    vlink(a,4)
+# define rule_data(a)      vinfo(a,4)
+# define rule_left(a)      vinfo(a,5)
+# define rule_right(a)     vlink(a,5)
+# define rule_font(a)      vinfo(a,6)
+# define rule_character(a) vlink(a,6)
 
 # define rule_total(a) (rule_height(a) + rule_depth(a))
 
@@ -1057,36 +1058,36 @@ typedef enum rule_codes {
 
 */
 
-//define glyph_node_size       12
-# define glyph_node_size       13
-# define glyph_character(a)    vinfo(a,2)
-# define glyph_font(a)         vlink(a,2)
-# define glyph_data(a)         vinfo(a,3)   /*tex We had that unused, so now it's like an attribute. */
-# define glyph_state(a)        vlink(a,3)   /*tex A user field (can be handy in \LUA). */
-# define glyph_language(a)     vinfo(a,4)
-# define glyph_script(a)       vlink(a,4)
-# define glyph_options(a)      vinfo(a,5)
-# define glyph_hyphenate(a)    vlink(a,5)
-# define glyph_protected(a)    vinfo00(a,6)
-# define glyph_lhmin(a)        vinfo01(a,6)
-# define glyph_rhmin(a)        vinfo02(a,6)
-# define glyph_discpart(a)     vinfo03(a,6)
-# define glyph_expansion(a)    vlink(a,6)
-# define glyph_x_scale(a)      vinfo(a,7)
-# define glyph_y_scale(a)      vlink(a,7)
-# define glyph_scale(a)        vinfo(a,8)
-# define glyph_raise(a)        vlink(a,8)
-# define glyph_left(a)         vinfo(a,9)
-# define glyph_right(a)        vlink(a,9)
-# define glyph_x_offset(a)     vinfo(a,10)
-# define glyph_y_offset(a)     vlink(a,10)
-//define glyph_input_file(a)   vinfo(a,11) /* aka glyph_synctex_tag  */
-//define glyph_input_line(a)   vlink(a,11) /* aka glyph_synctex_line */
-# define glyph_properties(a)   vinfo0(a,11)
-# define glyph_group(a)        vinfo1(a,11)
-# define glyph_index(a)        vlink(a,11)
-# define glyph_input_file(a)   vinfo(a,12) 
-# define glyph_input_line(a)   vlink(a,12) 
+//define glyph_node_size     12
+# define glyph_node_size     13
+# define glyph_character(a)  vinfo(a,2)
+# define glyph_font(a)       vlink(a,2)
+# define glyph_data(a)       vinfo(a,3)   /*tex We had that unused, so now it's like an attribute. */
+# define glyph_state(a)      vlink(a,3)   /*tex A user field (can be handy in \LUA). */
+# define glyph_language(a)   vinfo(a,4)
+# define glyph_script(a)     vlink(a,4)
+# define glyph_options(a)    vinfo(a,5)
+# define glyph_hyphenate(a)  vlink(a,5)
+# define glyph_protected(a)  vinfo00(a,6)
+# define glyph_lhmin(a)      vinfo01(a,6)
+# define glyph_rhmin(a)      vinfo02(a,6)
+# define glyph_discpart(a)   vinfo03(a,6)
+# define glyph_expansion(a)  vlink(a,6)
+# define glyph_x_scale(a)    vinfo(a,7)
+# define glyph_y_scale(a)    vlink(a,7)
+# define glyph_scale(a)      vinfo(a,8)
+# define glyph_raise(a)      vlink(a,8)
+# define glyph_left(a)       vinfo(a,9)
+# define glyph_right(a)      vlink(a,9)
+# define glyph_x_offset(a)   vinfo(a,10)
+# define glyph_y_offset(a)   vlink(a,10)
+//define glyph_input_file(a) vinfo(a,11) /* aka glyph_synctex_tag  */
+//define glyph_input_line(a) vlink(a,11) /* aka glyph_synctex_line */
+# define glyph_properties(a) vinfo0(a,11)
+# define glyph_group(a)      vinfo1(a,11)
+# define glyph_index(a)      vlink(a,11)
+# define glyph_input_file(a) vinfo(a,12) 
+# define glyph_input_line(a) vlink(a,12) 
 
 # define get_glyph_data(a)      ((halfword) glyph_data(a))
 # define get_glyph_state(a)     ((halfword) glyph_state(a))
@@ -1477,6 +1478,10 @@ typedef enum specification_options {
 
 # define specification_n(a,n)     (specification_repeat(a) ? ((n - 1) % specification_count(a) + 1) : (n > specification_count(a) ? specification_count(a) : n))
 
+/* interesting: 1Kb smaller bin: */
+
+// inline static halfword specification_n(halfword a, halfword n) { return specification_repeat(a) ? ((n - 1) % specification_count(a) + 1) : (n > specification_count(a) ? specification_count(a) : n); }
+
 extern void            tex_null_specification_list     (halfword a);
 extern void            tex_new_specification_list      (halfword a, halfword n, halfword o);
 extern void            tex_dispose_specification_list  (halfword a);
@@ -1555,36 +1560,36 @@ typedef enum simple_choice_subtypes {
 
     \starttabulate[|l|l|l|l|l|l|]
     \FL
-    \BC            \BC noad       \BC accent            \BC fraction         \BC radical         \NC fence  \NC \NR
-    \ML                                                                                          \NC        
-    \NC vlink  2   \NC new_hlist  \NC                   \NC                  \NC                 \NC        \NC \NR
-    \ML                                                                                          \NC        
-    \NC vinfo  2   \NC nucleus    \NC                   \NC                  \NC                 \NC        \NC \NR
-    \NC vlink  3   \NC supscr     \NC                   \NC numerator        \NC                 \NC        \NC \NR
-    \NC vinfo  3   \NC subscr     \NC                   \NC denominator      \NC                 \NC        \NC \NR
-    \NC vlink  4   \NC supprescr  \NC                   \NC                  \NC                 \NC        \NC \NR
-    \NC vinfo  4   \NC subprescr  \NC                   \NC                  \NC                 \NC        \NC \NR
-    \ML                                                                                          \NC        
-    \NC vlink  5   \NC italic     \NC                   \NC                  \NC                 \NC        \NC \NR
-    \NC vinfo  5   \NC width      \NC                   \NC                  \NC                 \NC        \NC \NR
-    \NC vlink  6   \NC height     \NC                   \NC                  \NC                 \NC        \NC \NR
-    \NC vinfo  6   \NC depth      \NC                   \NC                  \NC                 \NC        \NC \NR
-    \ML                                                                                          \NC        
-    \NC vlink  7   \NC options    \NC                   \NC                  \NC                 \NC        \NC \NR
-    \NC vinfo  7   \NC style      \NC                   \NC                  \NC                 \NC        \NC \NR
-    \NC vlink  8   \NC family     \NC                   \NC                  \NC                 \NC        \NC \NR
-    \NC vinfo  8   \NC class      \NC                   \NC                  \NC                 \NC        \NC \NR
-    \NC vlink  9   \NC source     \NC                   \NC                  \NC                 \NC        \NC \NR
-    \NC vinfo  9   \NC prime      \NC                   \NC                  \NC                 \NC        \NC \NR
-    \NC vlink 10   \NC leftslack  \NC                   \NC                  \NC                 \NC        \NC \NR
-    \NC vinfo 10   \NC rightslack \NC                   \NC                  \NC                 \NC        \NC \NR
-    \ML                                                                                          \NC       
-    \NC vlink 11   \NC extra_1    \NC top_character     \NC rule_thickness   \NC degree          \NC list   \NC \NR
-    \NC vinfo 11   \NC extra_2    \NC bot_character     \NC left_delimiter   \NC left_delimiter  \NC source \NC \NR
-    \NC vlink 12   \NC extra_3    \NC overlay_character \NC right_delimiter  \NC right_delimiter \NC top    \NC \NR
-    \NC vinfo 12   \NC extra_4    \NC fraction          \NC middle_delimiter \NC                 \NC bottom \NC \NR
-    \NC vlink 13   \NC extra_5    \NC topovershoot      \NC                  \NC height          \NC        \NC \NR
-    \NC vinfo 13   \NC extra_6    \NC botovershoot      \NC                  \NC depth           \NC        \NC \NR
+    \BC            \BC noad       \BC accent            \BC fraction         \BC radical         \NC fence        \NC \NR
+    \ML                                                                                          \NC              
+    \NC vlink  2   \NC new_hlist  \NC                   \NC                  \NC                 \NC              \NC \NR
+    \ML                                                                                          \NC              
+    \NC vinfo  2   \NC nucleus    \NC                   \NC                  \NC                 \NC              \NC \NR
+    \NC vlink  3   \NC supscr     \NC                   \NC numerator        \NC                 \NC              \NC \NR
+    \NC vinfo  3   \NC subscr     \NC                   \NC denominator      \NC                 \NC              \NC \NR
+    \NC vlink  4   \NC supprescr  \NC                   \NC                  \NC                 \NC              \NC \NR
+    \NC vinfo  4   \NC subprescr  \NC                   \NC                  \NC                 \NC              \NC \NR
+    \ML                                                                                          \NC              
+    \NC vlink  5   \NC italic     \NC                   \NC                  \NC                 \NC              \NC \NR
+    \NC vinfo  5   \NC width      \NC                   \NC                  \NC                 \NC              \NC \NR
+    \NC vlink  6   \NC height     \NC                   \NC                  \NC                 \NC              \NC \NR
+    \NC vinfo  6   \NC depth      \NC                   \NC                  \NC                 \NC              \NC \NR
+    \ML                                                                                          \NC              
+    \NC vlink  7   \NC options    \NC                   \NC                  \NC                 \NC              \NC \NR
+    \NC vinfo  7   \NC style      \NC                   \NC                  \NC                 \NC              \NC \NR
+    \NC vlink  8   \NC family     \NC                   \NC                  \NC                 \NC              \NC \NR
+    \NC vinfo  8   \NC class      \NC                   \NC                  \NC                 \NC              \NC \NR
+    \NC vlink  9   \NC source     \NC                   \NC                  \NC                 \NC              \NC \NR
+    \NC vinfo  9   \NC prime      \NC                   \NC                  \NC                 \NC              \NC \NR
+    \NC vlink 10   \NC leftslack  \NC                   \NC                  \NC                 \NC              \NC \NR
+    \NC vinfo 10   \NC rightslack \NC                   \NC                  \NC                 \NC              \NC \NR
+    \ML                                                                                          \NC              
+    \NC vlink 11   \NC extra_1    \NC top_character     \NC rule_thickness   \NC degree          \NC list         \NC \NR
+    \NC vinfo 11   \NC extra_2    \NC bot_character     \NC left_delimiter   \NC left_delimiter  \NC source       \NC \NR
+    \NC vlink 12   \NC extra_3    \NC overlay_character \NC right_delimiter  \NC right_delimiter \NC top          \NC \NR
+    \NC vinfo 12   \NC extra_4    \NC fraction          \NC middle_delimiter \NC                 \NC bottom       \NC \NR
+    \NC vlink 13   \NC extra_5    \NC topovershoot      \NC                  \NC height          \NC topovershoot \NC \NR
+    \NC vinfo 13   \NC extra_6    \NC botovershoot      \NC                  \NC depth           \NC botovershoot \NC \NR
     \LL
     \stoptabulate
 
@@ -1596,15 +1601,15 @@ typedef enum simple_choice_subtypes {
 
 */
 
-# define noad_state_node_size       6
-# define noad_state_topright(a)     vlink(a,2)
-# define noad_state_bottomright(a)  vinfo(a,2)
-# define noad_state_topleft(a)      vlink(a,3)
-# define noad_state_bottomleft(a)   vinfo(a,3)
-# define noad_state_height(a)       vlink(a,4)
-# define noad_state_depth(a)        vinfo(a,4)
-# define noad_state_toptotal(a)     vlink(a,5)
-# define noad_state_bottomtotal(a)  vinfo(a,5)
+# define noad_state_node_size      6
+# define noad_state_topright(a)    vlink(a,2)
+# define noad_state_bottomright(a) vinfo(a,2)
+# define noad_state_topleft(a)     vlink(a,3)
+# define noad_state_bottomleft(a)  vinfo(a,3)
+# define noad_state_height(a)      vlink(a,4)
+# define noad_state_depth(a)       vinfo(a,4)
+# define noad_state_toptotal(a)    vlink(a,5)
+# define noad_state_bottomtotal(a) vinfo(a,5)
 
 # define noad_size            14
 # define noad_new_hlist(a)    vlink(a,2)    /*tex the translation of an mlist; a bit confusing name */
@@ -1754,7 +1759,7 @@ inline static void tex_add_noad_option    (halfword a, halfword r) { noad_option
 inline static void tex_remove_noad_option (halfword a, halfword r) { noad_options(a) &= ~(r | noad_options(a)); }
 inline static int  tex_has_noad_option    (halfword a, halfword r) { return (noad_options(a) & r) == r; }
 
-inline int has_noad_no_script_option(halfword n, halfword option)
+inline static int has_noad_no_script_option(halfword n, halfword option)
 {
     switch (node_type(n)) {
         case simple_noad:
@@ -1767,10 +1772,10 @@ inline int has_noad_no_script_option(halfword n, halfword option)
     return 0;
 }
 
-# define has_noad_option_nosubscript(a)        has_noad_no_script_option(a, noad_option_no_sub_script)
-# define has_noad_option_nosupscript(a)        has_noad_no_script_option(a, noad_option_no_super_script)
-# define has_noad_option_nosubprescript(a)     has_noad_no_script_option(a, noad_option_no_sub_pre_script)
-# define has_noad_option_nosupprescript(a)     has_noad_no_script_option(a, noad_option_no_super_pre_script)
+# define has_noad_option_nosubscript(a)    has_noad_no_script_option(a, noad_option_no_sub_script)
+# define has_noad_option_nosupscript(a)    has_noad_no_script_option(a, noad_option_no_super_script)
+# define has_noad_option_nosubprescript(a) has_noad_no_script_option(a, noad_option_no_sub_pre_script)
+# define has_noad_option_nosupprescript(a) has_noad_no_script_option(a, noad_option_no_super_pre_script)
 
 # define has_noad_option_shiftedsubscript(a)    (has_option(noad_options(a), noad_option_shifted_sub_script))
 # define has_noad_option_shiftedsupscript(a)    (has_option(noad_options(a), noad_option_shifted_super_script))
@@ -1880,13 +1885,13 @@ typedef enum math_modifier_types {
 
 /*tex accent noads: todo, left and right offsets and options */
 
-# define accent_noad_size         noad_size
-# define accent_top_character     noad_extra_1 /*tex the |top_accent_chr| field of an accent noad */
-# define accent_bottom_character  noad_extra_2 /*tex the |bot_accent_chr| field of an accent noad */
-# define accent_middle_character  noad_extra_3 /*tex the |overlay_accent_chr| field of an accent noad */
-# define accent_fraction          noad_extra_4
-# define accent_top_overshoot     noad_extra_5
-# define accent_bot_overshoot     noad_extra_6
+# define accent_noad_size        noad_size
+# define accent_top_character    noad_extra_1 /*tex the |top_accent_chr| field of an accent noad */
+# define accent_bottom_character noad_extra_2 /*tex the |bot_accent_chr| field of an accent noad */
+# define accent_middle_character noad_extra_3 /*tex the |overlay_accent_chr| field of an accent noad */
+# define accent_fraction         noad_extra_4
+# define accent_top_overshoot    noad_extra_5
+# define accent_bot_overshoot    noad_extra_6
 
 typedef enum math_accent_subtypes {
     bothflexible_accent_subtype,
@@ -1906,8 +1911,8 @@ typedef enum math_accent_subtypes {
 # define fence_delimiter_list   noad_extra_1    // not really a list
 # define fence_delimiter_top    noad_extra_3
 # define fence_delimiter_bottom noad_extra_4
-//define fence_delimiter_first  noad_extra_5
-//define fence_delimiter_last   noad_extra_6
+# define fence_top_overshoot    noad_extra_5
+# define fence_bottom_overshoot noad_extra_6
 
 typedef enum fence_subtypes {
     unset_fence_side,
@@ -1965,6 +1970,7 @@ typedef enum fraction_subtypes {
 # define radical_degree          noad_extra_1
 # define radical_left_delimiter  noad_extra_2
 # define radical_right_delimiter noad_extra_3
+# define radical_size            noad_extra_4
 # define radical_height          noad_extra_5
 # define radical_depth           noad_extra_6
 
@@ -2004,14 +2010,14 @@ typedef enum math_kernel_options {
     math_kernel_has_italic_shape     = 0x0080,
 } math_kernel_options;
 
-# define math_kernel_node_size 5
-# define kernel_math_family(a)        vinfo(a,2)
-# define kernel_math_character(a)     vlink(a,2)
-# define kernel_math_options(a)       vinfo(a,3)
-# define kernel_math_list(a)          vlink(a,3)
-# define kernel_math_properties(a)    vinfo0(a,4)  /* for characters */
-# define kernel_math_group(a)         vinfo1(a,4)  /* for characters */
-# define kernel_math_index(a)         vlink(a,4)   /* for characters */
+# define math_kernel_node_size     5
+# define kernel_math_family(a)     vinfo(a,2)
+# define kernel_math_character(a)  vlink(a,2)
+# define kernel_math_options(a)    vinfo(a,3)
+# define kernel_math_list(a)       vlink(a,3)
+# define kernel_math_properties(a) vinfo0(a,4)  /* for characters */
+# define kernel_math_group(a)      vinfo1(a,4)  /* for characters */
+# define kernel_math_index(a)      vlink(a,4)   /* for characters */
 
 # define math_kernel_node_has_option(a,b) ((kernel_math_options(a) & b) == b)
 # define math_kernel_node_set_option(a,b) kernel_math_options(a) = (kernel_math_options(a) | b)
@@ -2021,6 +2027,26 @@ typedef enum math_kernel_options {
     in traditional \TEX\ fonts where a base character can come from one font, and the extensible
     from another, but in \OPENTYPE\ math font that doesn't happen.
 */
+    
+/* It could be: */
+
+// # define math_delimiter_node_size     4
+// # define delimiter_small_family(a)    vinfo00(a,2)  
+// # define delimiter_large_family(a)    vinfo01(a,2)  
+// # define delimiter_reserved_1         vinfo02(a,2)  
+// # define delimiter_reserved_2         vinfo03(a,2)  
+// # define delimiter_reserved_3         vlink(a,2)  
+// # define delimiter_small_character(a) vinfo(a,3)
+// # define delimiter_large_character(a) vlink(a,3)
+
+/* And some day (we then even assume traditionally to be mapped onto wide): */
+
+// # define math_delimiter_node_size 3
+// # define delimiter_family(a)      vinfo00(a,2)  
+// # define delimiter_reserved_1     vinfo01(a,2)  
+// # define delimiter_reserved_2     vinfo02(a,2)  
+// # define delimiter_reserved_3     vinfo03(a,2)  
+// # define delimiter_character(a)   vlink(a,2)
 
 # define math_delimiter_node_size     4
 # define delimiter_small_family(a)    vinfo(a,2) /*tex |family| for small delimiter */
@@ -2493,9 +2519,10 @@ inline static void tex_attach_attribute_list_attribute(halfword target, halfword
 # define attach_current_attribute_list tex_build_attribute_list /* (target) */
 
 # define set_current_attribute_state(v) do { \
-    current_attribute_state = v; \
+      current_attribute_state = v; \
 } while (0)
 
+/*
 # define change_attribute_register(a,id,value) do { \
     if (eq_value(id) != value) { \
         if (is_global(a)) { \
@@ -2512,6 +2539,9 @@ inline static void tex_attach_attribute_list_attribute(halfword target, halfword
         set_current_attribute_state(attribute_cache_disabled); \
     } \
 } while (0)
+*/
+
+extern void tex_change_attribute_register(halfword a, halfword id, halfword value);
 
 # define save_attribute_state_before() do { \
     halfword c = current_attribute_state; \
@@ -2538,15 +2568,20 @@ inline static void tex_attach_attribute_list_attribute(halfword target, halfword
     is used in the \LUA\ interface is stored alongside.
 */
 
-extern void     tex_print_short_node_contents (halfword n);
-extern void     tex_show_node_list            (halfword n, int threshold, int max);
-extern halfword tex_actual_box_width          (halfword r, scaled base_width);
-extern void     tex_print_name                (halfword p, const char *what);
-extern void     tex_print_node_list           (halfword n, const char *what, int threshold, int max);
-/*     void     tex_print_node_and_details    (halfword p); */
-/*     void     tex_print_subtype_and_attributes_info (halfword p, halfword s, node_info *data); */
-extern void     tex_print_extended_subtype    (halfword p, quarterword s);
-extern void     tex_aux_show_dictionary       (halfword p, halfword properties, halfword group, halfword index, halfword font, halfword character);
+extern void        tex_print_short_node_contents         (halfword n);
+extern const char *tex_aux_subtype_str                   (halfword n);
+extern void        tex_show_node_list                    (halfword n, int threshold, int max);
+extern halfword    tex_actual_box_width                  (halfword r, scaled base_width);
+extern void        tex_print_name                        (halfword p, const char *what);
+extern void        tex_print_node_list                   (halfword n, const char *what, int threshold, int max);
+/*     void        tex_print_node_and_details            (halfword p); */
+/*     void        tex_print_subtype_and_attributes_info (halfword p, halfword s, node_info *data); */
+extern void        tex_print_extended_subtype            (halfword p, quarterword s);
+extern void        tex_aux_show_dictionary               (halfword p, halfword properties, halfword group, halfword index, halfword font, halfword character);
+
+/*tex 
+    Basic node management:
+*/
 
 extern halfword tex_new_node        (quarterword i, quarterword j);
 extern void     tex_flush_node_list (halfword n);
@@ -2596,23 +2631,8 @@ typedef enum glue_signs {
 
 # define normal_glue_multiplier 0.0
 
-inline halfword tex_checked_glue_sign(halfword sign)
-{
-    if ((sign < min_glue_sign) || (sign > max_glue_sign)) {
-        return normal_glue_sign;
-    } else {
-        return sign;
-    }
-}
-
-inline halfword tex_checked_glue_order(halfword order)
-{
-    if ((order < min_glue_order) || (order > max_glue_order)) {
-        return normal_glue_order;
-    } else {
-        return order;
-    }
-}
+inline static halfword tex_checked_glue_sign  (halfword sign)  { return ((sign  < min_glue_sign ) || (sign  > max_glue_sign )) ? normal_glue_sign  : sign ; }
+inline static halfword tex_checked_glue_order (halfword order) { return ((order < min_glue_order) || (order > max_glue_order)) ? normal_glue_order : order; }
 
 /*tex
     These are reserved nodes that sit at the start of main memory. We could actually just allocate
@@ -2625,7 +2645,6 @@ inline halfword tex_checked_glue_order(halfword order)
 
     Changing this to real nodes makes sense but is also tricky due to initializations ... some day
     (we need to store stuff in teh states then and these are not saved!).
-
 
 */
 
@@ -2683,6 +2702,8 @@ extern scaledwhd tex_glyph_dimensions_ex  (halfword p); /* x/y scaled, expansion
 extern halfword  tex_kern_dimension       (halfword p);
 extern halfword  tex_kern_dimension_ex    (halfword p); /* expansion included */
 
+extern scaled    tex_effective_glue       (halfword parent, halfword glue);
+
 extern scaledwhd tex_pack_dimensions      (halfword p);
 
 extern halfword  tex_list_node_mem_usage  (void);
@@ -2723,13 +2744,9 @@ typedef enum special_node_list_types { /* not in sycn with the above .. maybe ad
  // best_page_break_type
 } special_node_list_types;
 
-extern int         tex_is_special_node_list  (halfword n, int *istail);
-extern halfword    tex_get_special_node_list (special_node_list_types list, halfword *tail);
-extern void        tex_set_special_node_list (special_node_list_types list, halfword head);
-
-extern scaled      tex_effective_glue        (halfword parent, halfword glue);
-
-extern const char *tex_aux_subtype_str       (halfword n );
+extern int      tex_is_special_node_list  (halfword n, int *istail);
+extern halfword tex_get_special_node_list (special_node_list_types list, halfword *tail);
+extern void     tex_set_special_node_list (special_node_list_types list, halfword head);
 
 # endif
 

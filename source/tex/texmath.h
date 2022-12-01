@@ -282,7 +282,7 @@ typedef enum math_atom_font_options {
     math_atom_math_font_option = 2,
 } math_atom_font_options;
 
-inline int math_parameter_value_type(int n)
+inline static int math_parameter_value_type(int n)
 {
     if (n < last_math_parameter) {
         return lmt_interface.math_parameter_values[n].type;
@@ -330,7 +330,7 @@ typedef enum math_style_variants {
 
 /*
 
-These are the mandate font parameters per \url {https://docs.microsoft.com/en-us/typography/opentype/spec/math}:
+These are the mandate font parameters: % https://docs.microsoft.com/en-us/typography/opentype/spec/math
 
 \starttabulate[|T|p|]
 \NC ScriptPercentScaleDown                   \NC Percentage of scaling down for level 1 superscripts and subscripts. Suggested value: 80 pct. \NC \NR
@@ -352,10 +352,10 @@ These are the mandate font parameters per \url {https://docs.microsoft.com/en-us
 \NC SuperscriptBottomMaxWithSubscript        \NC The maximum level to which the (ink) bottom of superscript can be pushed to increase the gap between superscript and subscript, before subscript starts being moved down. Suggested: 4/5 x-height. \NC \NR
 \NC SpaceAfterScript                         \NC Extra white space to be added after each subscript and superscript. Suggested: 0.5 pt for a 12 pt font. (Note that, in some math layout implementations, a constant value, such as 0.5 pt, may be used for all text sizes. Some implementations may use a constant ratio of text size, such as 1/24 of em.) \NC \NR
 \NC UpperLimitGapMin                         \NC Minimum gap between the (ink) bottom of the upper limit, and the (ink) top of the base operator. \NC \NR
-\NC UpperLimitBaselineRiseMin                \NC Minimum distance between baseline of upper limit and (ink) top of the base operator.
+\NC UpperLimitBaselineRiseMin                \NC Minimum distance between baseline of upper limit and (ink) top of the base operator. \NC \NR
 \NC LowerLimitGapMin                         \NC Minimum gap between (ink) top of the lower limit, and (ink) bottom of the base operator. \NC \NR
 \NC LowerLimitBaselineDropMin                \NC Minimum distance between baseline of the lower limit and (ink) bottom of the base operator. \NC \NR
-\NC StackTopShiftUp                          \NC Standard shift up applied to the top element of a stack.
+\NC StackTopShiftUp                          \NC Standard shift up applied to the top element of a stack. \NC \NR
 \NC StackTopDisplayStyleShiftUp              \NC Standard shift up applied to the top element of a stack in display style. \NC \NR
 \NC StackBottomShiftDown                     \NC Standard shift down applied to the bottom element of a stack. Positive for moving in the downward direction. \NC \NR
 \NC StackBottomDisplayStyleShiftDown         \NC Standard shift down applied to the bottom element of a stack in display style. Positive for moving in the downward direction. \NC \NR
@@ -563,7 +563,7 @@ extern scaled   tex_get_math_x_parameter_default (int style, int param, scaled d
 
 extern scaled   tex_get_math_y_parameter         (int style, int param);
 extern scaled   tex_get_math_y_parameter_checked (int style, int param);
-extern scaled   tex_get_math_y_parameter_default (int style, int paramm, scaled dflt);
+extern scaled   tex_get_math_y_parameter_default (int style, int param, scaled dflt);
 
 extern scaled   tex_get_font_math_parameter      (int font, int size, int param);
 extern scaled   tex_get_font_math_x_parameter    (int font, int size, int param);
@@ -624,6 +624,9 @@ extern void        tex_run_text_math_spec        (void);
 
 extern void     tex_set_default_math_codes       (void);
 
+extern int      tex_check_active_math_char       (int character);
+extern int      tex_pass_active_math_char        (int character);
+
 /*tex The runners in maincontrol: */
 
 extern void     tex_run_math_left_brace        (void);
@@ -663,20 +666,22 @@ typedef enum math_control_codes {
     math_control_accent_skew_apply           = 0x000040,
     math_control_apply_ordinary_kern_pair    = 0x000080,
     math_control_apply_vertical_italic_kern  = 0x000100,
-    math_control_apply_ordinary_italic_kern  = 0x000200,
-    math_control_apply_char_italic_kern      = 0x000400, /* traditional */
-    math_control_rebox_char_italic_kern      = 0x000800, /* traditional */
-    math_control_apply_boxed_italic_kern     = 0x001000,
-    math_control_staircase_kern              = 0x002000,
-    math_control_apply_text_italic_kern      = 0x004000,
-    math_control_check_text_italic_kern      = 0x008000,
-    math_control_check_space_italic_kern     = 0x010000,
-    math_control_apply_script_italic_kern    = 0x020000,
-    math_control_analyze_script_nucleus_char = 0x040000,
-    math_control_analyze_script_nucleus_list = 0x080000,
-    math_control_analyze_script_nucleus_box  = 0x100000, 
-    math_control_accent_top_skew_with_offset = 0x200000, 
-    math_control_ignore_kern_dimensions      = 0x400000, /* for bad fonts (like xits fence depths) */
+    math_control_apply_ordinary_italic_kern  = 0x0000200,
+    math_control_apply_char_italic_kern      = 0x0000400, /* traditional */
+    math_control_rebox_char_italic_kern      = 0x0000800, /* traditional */
+    math_control_apply_boxed_italic_kern     = 0x0001000,
+    math_control_staircase_kern              = 0x0002000,
+    math_control_apply_text_italic_kern      = 0x0004000,
+    math_control_check_text_italic_kern      = 0x0008000,
+    math_control_check_space_italic_kern     = 0x0010000,
+    math_control_apply_script_italic_kern    = 0x0020000,
+    math_control_analyze_script_nucleus_char = 0x0040000,
+    math_control_analyze_script_nucleus_list = 0x0080000,
+    math_control_analyze_script_nucleus_box  = 0x0100000, 
+    math_control_accent_top_skew_with_offset = 0x0200000, 
+    math_control_ignore_kern_dimensions      = 0x0400000, /* for bad fonts (like xits fence depths) */
+    math_control_ignore_flat_accents         = 0x0800000, 
+    math_control_extend_accents              = 0x1000000, 
 } math_control_codes;
 
 /*tex This is what we use for \OPENTYPE\ in \CONTEXT: */

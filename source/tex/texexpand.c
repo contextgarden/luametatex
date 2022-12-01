@@ -251,7 +251,7 @@ void tex_expand_current_token(void)
                             case expand_token_code:
                                 {
                                     /* we can share code with lmtokenlib .. todo */
-                                    halfword cat = tex_scan_category_code();
+                                    halfword cat = tex_scan_category_code(0);
                                     halfword chr = tex_scan_char_number(0);
                                     /* too fragile: 
                                         halfword tok = null;
@@ -304,6 +304,7 @@ void tex_expand_current_token(void)
                                             case spacer_cmd:
                                             case letter_cmd:
                                             case other_char_cmd:
+                                            case active_char_cmd: /* new */
                                                 cur_tok = token_val(cmd, eq_value(cur_cs));
                                                 break;
                                         }
@@ -320,6 +321,20 @@ void tex_expand_current_token(void)
                                         /* Use expand_current_token so that protected lua call are dealt with too? */
                                         tex_back_input(cur_tok);
                                     }
+                                    break;
+                                }
+                            case expand_active_code:
+                                {
+                                    tex_get_token();
+                                    if (cur_cmd == active_char_cmd) {
+                                        cur_cs = tex_active_to_cs(cur_chr, ! lmt_hash_state.no_new_cs);
+                                        if (cur_cs) {
+                                            cur_tok = cs_token_flag + cur_cs;
+                                        } else {
+                                            cur_tok = token_val(cur_cmd, cur_chr);
+                                        }
+                                    }
+                                    tex_back_input(cur_tok);
                                     break;
                                 }
                             case semi_expand_code:
@@ -528,13 +543,22 @@ void tex_expand_current_token(void)
                 default:
                     /* Maybe ... or maybe an option */
                  // if (lmt_expand_state.cs_name_level == 0) {
-                        /*tex Complain about an undefined macro */
-                        tex_handle_error(
-                            normal_error_type,
-                            "Undefined control sequence %m", cur_cs,
-                            "The control sequence at the end of the top line of your error message was never\n"
-                            "\\def'ed. You can just continue as I'll forget about whatever was undefined."
-                        );
+                        if (tex_cs_state(cur_cs) == cs_undefined_error) { 
+                            /*tex Complain about an undefined macro */
+                            tex_handle_error(
+                                normal_error_type,
+                                "Undefined control sequence %m", cur_cs,
+                                "The control sequence at the end of the top line of your error message was never\n"
+                                "\\def'ed. You can just continue as I'll forget about whatever was undefined."
+                            );
+                        } else { 
+                            /*tex We ended up in a situation that is unlikely to happen in traditional \TEX. */
+                            tex_handle_error(
+                                normal_error_type,
+                                "Control sequence expected instead of %C", cur_cmd, cur_chr,
+                                "You injected something that confused the parser, maybe by using some Lua call."
+                            );
+                        }
                  // }
                     break;
             }
@@ -609,12 +633,12 @@ static int tex_aux_collect_cs_tokens(halfword *p, int *n)
             case spacer_cmd:
             case letter_cmd:
             case other_char_cmd:
+            case active_char_cmd: /* new */
               // cur_tok = token_val(cur_cmd, cur_chr);
               // *p = tex_store_new_token(*p, cur_tok);
                  *p = tex_store_new_token(*p, token_val(cur_cmd, cur_chr));
                  *n += 1;
                  break;
-         /* case active_char_cmd: */
          /* case comment_cmd: */
          /* case invalid_char_cmd: */
             /*
@@ -1027,7 +1051,7 @@ static void tex_aux_macro_call(halfword cs, halfword cmd, halfword chr)
                             s = null;
                             goto BAD;
                         }
-                        break;
+                     // break;
                     case thrash_match_token:
                         match = 0;
                         thrash = 1;

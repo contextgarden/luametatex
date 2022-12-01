@@ -161,13 +161,12 @@ void tex_compact_tokens(void)
 {
     int nc = 0;
  // memoryword *target = allocate_array(sizeof(memoryword), (size_t) token_memory_state.tokens_data.allocated, 0);
-    memoryword *target = aux_allocate_clear_array(sizeof(memoryword), (size_t) lmt_token_memory_state.tokens_data.allocated, 0);
-    halfword *mapper = aux_allocate_array(sizeof(halfword), (size_t) lmt_token_memory_state.tokens_data.allocated, 0);
+    memoryword *target = aux_allocate_clear_array(sizeof(memoryword), lmt_token_memory_state.tokens_data.allocated, 0);
+    halfword *mapper = aux_allocate_array(sizeof(halfword), lmt_token_memory_state.tokens_data.allocated, 0);
     int nofluacmds = 0;
     if (target && mapper) {
-     // memset((void *) target, 0, ((size_t) token_memory_state.tokens_data.allocated) * sizeof(memoryword));
-        memset((void *) mapper, -1, ((size_t) lmt_token_memory_state.tokens_data.allocated) * sizeof(halfword));
         memoryword *tokens = lmt_token_memory_state.tokens;
+        memset((void *) mapper, -1, ((size_t) lmt_token_memory_state.tokens_data.allocated) * sizeof(halfword));
         /* also reset available */
         for (int cs = 0; cs < (eqtb_size + lmt_hash_state.hash_data.ptr + 1); cs++) {
             switch (eq_type(cs)) {
@@ -574,12 +573,10 @@ static const char *tex_aux_special_cmd_string(halfword cmd, halfword chr, const 
         case begin_local_cmd        : return "[[special cmd: begin local call]]";
         case end_local_cmd          : return "[[special cmd: end local call]]";
      // case prefix_cmd             : return "[[special cmd: enforced]]";
-        case prefix_cmd             : return "\\always";
+        case prefix_cmd             : return "\\always ";
         default                     : printf("[[unknown cmd: (%i,%i)]\n", cmd, chr); return unknown;
     }
 }
-
-halfword nn = 0;
 
 halfword tex_show_token_list(halfword p, halfword q, int l, int asis)
 {
@@ -628,6 +625,7 @@ halfword tex_show_token_list(halfword p, halfword q, int l, int asis)
                     case spacer_cmd:
                     case letter_cmd:
                     case other_char_cmd:
+                    case active_char_cmd: /* new */
                     case ignore_cmd: /* new */
                         tex_print_tex_str(chr);
                         break;
@@ -694,7 +692,7 @@ halfword tex_show_token_list(halfword p, halfword q, int l, int asis)
 } while (0)
 */
 
-inline halfword get_unichar_from_buffer(int *b)
+inline static halfword get_unichar_from_buffer(int *b)
 {
     halfword a = (halfword) ((const unsigned char) *(lmt_fileio_state.io_buffer + *b));
     if (a <= 0x80) {
@@ -794,7 +792,6 @@ halfword tex_scan_character(const char *s, int left_brace, int skip_space, int s
                 } else {
                     goto DONE;
                 }
-                break;
             case relax_cmd:
                 if (skip_relax) {
                     break;
@@ -1036,14 +1033,13 @@ int tex_scan_keyword_case_sensitive(const char *s)
 halfword tex_active_to_cs(int c, int force)
 {
     halfword cs = -1;
-    if (c > 0) {
-        /*tex This is not that efficient: we can make a helper that doesn't use an alloc. */
-        char utfbytes[8] = { '\xEF', '\xBF', '\xBF', 0 };
+    if (c >= 0 && c <= max_character_code) {
+        char utfbytes[8] = { active_character_first, active_character_second, active_character_third, 0 };
         aux_uni2string((char *) &utfbytes[3], c);
         cs = tex_string_locate(utfbytes, (size_t) utf8_size(c) + 3, force);
     }
     if (cs < 0) {
-        cs = tex_string_locate("\xEF\xBF\xBF", 4, force); /*tex Including the zero sentinel. */
+        cs = tex_string_locate(active_character_unknown, 4, force); /*tex Including the zero sentinel. */
     }
     return cs;
 }
@@ -1199,10 +1195,18 @@ static int tex_aux_get_next_file(void)
             case mid_line_state    + active_char_cmd:
             case new_line_state    + active_char_cmd:
             case skip_blanks_state + active_char_cmd:
-                /*tex Process an active-character.  */
-                cur_cs = tex_active_to_cs(cur_chr, ! lmt_hash_state.no_new_cs);
-                cur_cmd = eq_type(cur_cs);
-                cur_chr = eq_value(cur_cs);
+                /*tex Process an active-character. */
+                if ((lmt_input_state.scanner_status == scanner_is_tolerant || lmt_input_state.scanner_status == scanner_is_matching) && tex_pass_active_math_char(cur_chr)) {
+                    /*tex We need to intercept a delimiter in arguments. */
+                } else if ((lmt_input_state.scanner_status == scanner_is_defining || lmt_input_state.scanner_status == scanner_is_absorbing) && tex_pass_active_math_char(cur_chr)) {
+                    /*tex We are storing stuff in a token list or macro body. */
+                } else if ((cur_mode == mmode || lmt_nest_state.math_mode) && tex_check_active_math_char(cur_chr)) {
+                    /*tex We have an intercept. */
+                } else { 
+                    cur_cs = tex_active_to_cs(cur_chr, ! lmt_hash_state.no_new_cs);
+                    cur_cmd = eq_type(cur_cs);
+                    cur_chr = eq_value(cur_cs);
+                }
                 lmt_input_state.cur_input.state = mid_line_state;
                 break;
             case mid_line_state    + superscript_cmd:
@@ -2734,6 +2738,7 @@ void tex_run_convert_tokens(halfword code)
                 break;
             }
         case cs_string_code:
+        case cs_active_code:
             {
                 int saved_selector;
                 int saved_scanner_status = lmt_input_state.scanner_status;
@@ -2741,7 +2746,18 @@ void tex_run_convert_tokens(halfword code)
                 tex_get_token();
                 lmt_input_state.scanner_status = saved_scanner_status;
                 push_selector;
-                if (cur_cs) {
+                if (code == cs_active_code) {
+                    // tex_print_char(active_first);
+                    // tex_print_char(active_second);
+                    // tex_print_char(active_third);
+                    tex_print_str(active_character_namespace);
+                    if (cur_cmd == active_char_cmd) {
+                        tex_print_char(cur_chr);
+                    } else {
+                        /*tex So anything else will just inject the hash (abstraction, saves a command). */
+                        tex_back_input(cur_tok);
+                    }
+                } else if (cur_cs) {
                     tex_print_cs_name(cur_cs);
                 } else {
                     tex_print_tex_str(cur_chr);
@@ -3082,6 +3098,13 @@ char *tex_tokenlist_to_tstring(int pp, int inhibit_par, int *siz, int skippreamb
         /*tex We need to go beyond the reference. */
         int p = token_link(pp);
         if (p) {
+            int e = escape_char_par;  /*tex The serialization of the escape, normally a backlash. */
+            int n = '0';              /*tex The character after |#|, so |#0| upto |#9| */
+            int min = 0;
+            int max = lmt_token_memory_state.tokens_data.top;
+            int skip = 0;
+            int tail = p; 
+            int count = 0;
             if (lmt_token_state.bufmax > default_buffer_size) {
                 /* Let's start fresh and small. */
                 aux_deallocate_array(lmt_token_state.buffer);
@@ -3093,13 +3116,6 @@ char *tex_tokenlist_to_tstring(int pp, int inhibit_par, int *siz, int skippreamb
                 lmt_token_state.bufmax = default_buffer_size;
             }
             lmt_token_state.bufloc = 0;
-            int e = escape_char_par;  /*tex The serialization of the escape, normally a backlash. */
-            int n = '0';              /*tex The character after |#|, so |#0| upto |#9| */
-            int min = 0;
-            int max = lmt_token_memory_state.tokens_data.top;
-            int skip = 0;
-            int tail = p; 
-            int count = 0;
             if (skippreamble) {
                 skip = get_token_parameters(pp);
             }
@@ -3126,6 +3142,7 @@ char *tex_tokenlist_to_tstring(int pp, int inhibit_par, int *siz, int skippreamb
                             case spacer_cmd:
                             case letter_cmd:
                             case other_char_cmd:
+                            case active_char_cmd:
                                 if (! skip) {
                                     tex_aux_append_uchar_to_buffer(chr);
                                 }
@@ -3339,7 +3356,7 @@ void tex_set_tex_attribute_register(int j, halfword v, int flags, int internal)
     if (j > lmt_node_memory_state.max_used_attribute) {
         lmt_node_memory_state.max_used_attribute = j;
     }
-    change_attribute_register(flags, register_attribute_location(j), v);
+    tex_change_attribute_register(flags, register_attribute_location(j), v);
     tex_word_define(flags, internal ? internal_attribute_location(j) : register_attribute_location(j), v);
 }
 

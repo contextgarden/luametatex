@@ -347,23 +347,16 @@ inline static int tokenlib_aux_to_valid_index(int cmd, int chr)
             case internal_command_item:
             case reference_command_item:
             case data_command_item:
-                {
-                    halfword c = chr;
-                    switch (item.base) {
-                        case ignore_entry:
-                            return 0;
-                        case direct_entry:
-                            break;
-                        default:
-                            chr -= item.base;
-                            break;
-                    }
-                    if (c >= item.min && c <= item.max) {
-                        return c;
-                    } else {
-                        return item.min;
-                    }
+                switch (item.base) {
+                    case ignore_entry:
+                        return 0;
+                    case direct_entry:
+                        break;
+                    default:
+                        chr -= item.base;
+                        break;
                 }
+                return (chr >= item.min && chr <= item.max) ? chr : item.min;
             case token_command_item:
             case node_command_item:
                 return item.fixedvalue;
@@ -1881,6 +1874,7 @@ static int tokenlib_scan_next_char(lua_State *L)
             break;
         case letter_cmd:
         case other_char_cmd:
+        case active_char_cmd: /* needs testing */
             {
                 char buffer[6];
                 char *uindex = aux_uni2string((char *) buffer, (unsigned int) cur_chr);
@@ -2147,7 +2141,7 @@ static int tokenlib_future_expand(lua_State *L)
                 return 0;
         }
     }
-    return 0;
+ // return 0;
 }
 
 static int tokenlib_scan_code(lua_State *L)
@@ -2735,8 +2729,9 @@ static int tokenlib_get_fields(lua_State *L)
                 size_t l;
                 const char *str = lua_tolstring(L, 1, &l);
                 if (l > 0) {
+                    halfword cs; 
                     lua_createtable(L, 0, onlyflags ? 0 : 5);
-                    halfword cs = tex_string_locate(str, l, 0);
+                    cs = tex_string_locate(str, l, 0);
                     cmd = eq_type(cs);
                     chr = eq_value(cs);
                     flags = eq_flag(cs);
@@ -3075,6 +3070,8 @@ static int tokenlib_push_macro(lua_State *L) // todo: just store cmd and flag to
     /*tex
         We need to check for a valid hit, but what is best here, for instance using |(cmd >= call_cmd)|
         is not okay as we miss a lot then.
+
+        Active characters: maybe when we pass a number ... 
     */
     if (lua_type(L, 1) == LUA_TSTRING) {
         size_t lname = 0;
@@ -3090,6 +3087,15 @@ static int tokenlib_push_macro(lua_State *L) // todo: just store cmd and flag to
             tokenlib_aux_make_new_package(L, cmd, eq_flag(cs), chr, cs, global);
             return 1;
         }
+    }
+    return 0;
+}
+
+static int tokenlib_pop_macro(lua_State *L)
+{
+    lua_token_package *p = tokenlib_aux_check_ispackage(L, 1);
+    if (p) {
+        tex_forced_define(p->how, p->cs, p->flag, p->cmd, p->chr);
     }
     return 0;
 }
@@ -3133,15 +3139,6 @@ static int tokenlib_get_expansion(lua_State* L)
     return 1;
 }
 
-static int tokenlib_pop_macro(lua_State *L)
-{
-    lua_token_package *p = tokenlib_aux_check_ispackage(L, 1);
-    if (p) {
-        tex_forced_define(p->how, p->cs, p->flag, p->cmd, p->chr);
-    }
-    return 0;
-}
-
 static int tokenlib_save_lua(lua_State *L)
 {
     halfword f = lmt_tohalfword(L, 1);
@@ -3174,10 +3171,11 @@ static int tokenlib_set_lua(lua_State *L)
         size_t lname = 0;
         const char *name = lua_tolstring(L, 1, &lname);
         if (name) {
+            halfword cs; 
             int flags = 0;
             int funct = lmt_tointeger(L, 2); /*tex todo: check range */
             lmt_check_for_flags(L, 3, &flags, 1, 1);
-            halfword cs = tex_string_locate(name, lname, 1);
+            cs = tex_string_locate(name, lname, 1);
             if (tex_define_permitted(cs, flags)) {
                 if (is_value(flags)) {
                     tex_define(flags, cs, lua_value_cmd, funct);
