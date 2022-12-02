@@ -32,16 +32,18 @@ Bugs can be reported to the ConTeXt mailing lists (support or development) or th
 a report should come with a (MEW) ConTeXt .tex file that illustrates the issue. The code repository
 is managed by the ConTeXt user group and its compile farm team (aka contextgarden built bot).
 
-* reference implementation : https://github.com/contextgarden/context.git     (main)
+* reference implementation : https://github.com/contextgarden/context.git
 
-* compile farm subset      : https://github.com/contextgarden/luametatex.git  (main) 
+* compile farm subset      : https://github.com/contextgarden/luametatex.git 
 
-* unstable work copy       : https://github.com/contextgarden/luametatex.git  (work) 
+* unstable work copy       : https://github.com/contextgarden/luametatex/tree/work
 
-The first repository has what we use in ConTeXt. The second nornmally has the same code and is used 
+The first repository has what we use in ConTeXt. The second normally has the same code and is used 
 by the compile farm. The third repository is (can) be used by us for testing new features and playing
 around with the code. That one is not to be used because it can have issues and we don't run the test 
-suite every time we submit; code can come and go. 
+suite every time we submit; code can come and go. Accumulated patches and additions in work become 
+a combined push into main after which we just wipe work and make a new clone which will then be used
+by the compile farm. 
 
 All kind of aspects of the LuaMetaTeX engine, its development, experiment, ideas and implementation
 have been (and are) reported in user group publications aas well as several documents in the ConTeXt
