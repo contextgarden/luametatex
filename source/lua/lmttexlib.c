@@ -27,7 +27,8 @@
 
 /*tex
     Due to the nature of the accessors, this is the module with most metatables. However, we
-    provide getters and setters too. Users can choose what they like most.
+    provide getters and setters too. Users can choose what they like most. If needed we can use 
+    fast metatable resolvers but there is no real need. 
 */
 
 # define TEX_METATABLE_ATTRIBUTE "tex.attribute"
