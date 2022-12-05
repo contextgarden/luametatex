@@ -2787,6 +2787,16 @@ void tex_run_convert_tokens(halfword code)
                 pop_selector;
                 break;
             }
+        /*
+        case cs_lastname_code:
+            if (lmt_scanner_state.last_cs_name != null_cs) {
+                int saved_selector;
+                push_selector;
+                tex_print_cs_name(lmt_scanner_state.last_cs_name);
+                pop_selector;
+            }
+            break;
+        */
         case detokenized_code:
             {
                 int saved_selector;

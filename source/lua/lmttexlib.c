@@ -2605,6 +2605,7 @@ static int texlib_aux_convert(lua_State *L, int cur_code)
         case string_code:              /* arg token */
         case cs_string_code:           /* arg token */
         case cs_active_code:           /* arg token */
+     /* case cs_lastname_code:      */ /* arg token */
         case detokenized_code:         /* arg token */
         case meaning_code:             /* arg token */
         case to_mathstyle_code:
