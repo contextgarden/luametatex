@@ -4802,6 +4802,24 @@ inline static int tex_aux_raise_prime_composed(halfword target)
     return mainclass >= 0 ? tex_math_has_class_option(mainclass, raise_prime_option) : 0;                
 }
 
+static halfword tex_aux_shift_to_kern(halfword target, halfword box, scaled shift)
+{
+    halfword result; 
+    if (box_source_anchor(box)) { 
+        halfword kern = tex_new_kern_node(shift, vertical_math_kern_subtype);
+        tex_attach_attribute_list_copy(kern, target);
+        tex_couple_nodes(kern, box);
+        result = tex_vpack(kern, 0, packing_additional, max_dimen, (singleword) math_direction_par, holding_none_option);
+        tex_attach_attribute_list_copy(result, target);
+        node_subtype(result) = math_scripts_list;
+        box_shift_amount(result) = shift;
+    } else { 
+        box_shift_amount(box) = shift;
+        result = box;
+    }
+    return result;
+}
+
 static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic, int style, scaled supshift, scaled subshift, scaled supdrop, kernset *kerns)
 {
     halfword result = null;
@@ -5225,8 +5243,7 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
                 } else if (supkern) {
                     tex_aux_prepend_hkern_to_box_list(postsupdata.box, supkern, math_shape_kern_subtype, "post sup shape");
                 }
-                box_shift_amount(postsupdata.box) = -shift_up;
-                result = postsupdata.box;
+                result = tex_aux_shift_to_kern(target, postsupdata.box, -shift_up);
                 if (presupdata.kern) {
                     kern_amount(presupdata.kern) += -supkern - subkern - italicmultiplier * italic;
                     kern_amount(postsupdata.kern) += supkern + subkern + italicmultiplier * italic;
@@ -5240,8 +5257,7 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
             } else if (subkern) {
                 tex_aux_prepend_hkern_to_box_list(postsubdata.box, subkern, math_shape_kern_subtype, "post sub shape");
             }
-            box_shift_amount(postsubdata.box) = shift_down;
-            result = postsubdata.box;
+            result = tex_aux_shift_to_kern(target, postsubdata.box, shift_down);
             if (presubdata.kern) {
                 kern_amount(presubdata.kern) += -subkern;
                 kern_amount(postsubdata.kern) += subkern;
