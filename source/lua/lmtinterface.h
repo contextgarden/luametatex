@@ -1279,6 +1279,7 @@ make_lua_key(L, smaller);\
 make_lua_key(L, smallfamily);\
 make_lua_key(L, some_item);\
 make_lua_key(L, source);\
+make_lua_key(L, sourceonnucleus);\
 make_lua_key(L, space);\
 make_lua_key(L, spaceafterscript);\
 make_lua_key(L, SpaceAfterScript);\
@@ -1650,6 +1651,10 @@ extern lmt_keys_info lmt_keys;
 # define lmt_checkhalfword(L,i)    (halfword)    luaL_checkinteger(L,i)
 # define lmt_opthalfword(L,i,j)    (halfword)    luaL_optinteger(L,i,j)
 
+# define lmt_tofullword(L,i)       (fullword)    lua_tointeger(L,i)
+# define lmt_checkfullword(L,i)    (fullword)    luaL_checkinteger(L,i)
+# define lmt_optfullword(L,i,j)    (fullword)    luaL_optinteger(L,i,j)
+
 # define lmt_toscaled(L,i)         (scaled)      lua_tointeger(L,i)
 # define lmt_checkscaled(L,i)      (scaled)      luaL_checkinteger(L,i)
 # define lmt_optscaled(L,i,j)      (scaled)      luaL_optinteger(L,i,j)
@@ -1658,9 +1663,9 @@ extern lmt_keys_info lmt_keys;
 # define lmt_checkquarterword(L,i) (quarterword) luaL_checkinteger(L,i)
 # define lmt_optquarterword(L,i,j) (quarterword) luaL_optinteger(L,i,j)
 
-# define lmt_tosingleword(L,i)     (singleword) lua_tointeger(L,i)
-# define lmt_checksingleword(L,i)  (singleword) luaL_checkinteger(L,i)
-# define lmt_optsingleword(L,i,j)  (singleword) luaL_optinteger(L,i,j)
+# define lmt_tosingleword(L,i)     (singleword)  lua_tointeger(L,i)
+# define lmt_checksingleword(L,i)  (singleword)  luaL_checkinteger(L,i)
+# define lmt_optsingleword(L,i,j)  (singleword)  luaL_optinteger(L,i,j)
 
 # undef lround
 # include <math.h>

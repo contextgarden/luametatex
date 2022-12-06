@@ -3740,7 +3740,7 @@ halfword tex_scan_macro_normal(void)
     return result;
 }
 
-# define optimize_grouping 0
+# define optimize_grouping 1
 
 halfword tex_scan_macro_expand(void)
 {

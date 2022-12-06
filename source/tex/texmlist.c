@@ -6231,22 +6231,46 @@ static void tex_aux_show_math_list(const char *fmt, halfword list)
     tex_end_diagnostic();
 }
 
+static halfword tex_aux_check_source(halfword current, halfword list, int repack)
+{
+    if (list && noad_source(current)) {
+        switch (node_type(list)) {
+            case hlist_node:
+            case vlist_node:
+             // printf("anchoring to list: %i\n", noad_source(current));
+                box_source_anchor(list) = noad_source(current);
+                tex_set_box_geometry(list, anchor_geometry);
+                noad_source(current) = 0; 
+                break;
+            default:
+                if (repack) {
+                    if (tracing_math_par >= 2) {
+                        tex_begin_diagnostic();
+                        tex_print_format("[math: packing due to source field %D]", noad_source(current));
+                        tex_end_diagnostic();
+                    }
+                    list = tex_hpack(list, 0, packing_additional, direction_unknown, holding_none_option);
+                 // printf("anchoring to wrapped list: %i\n", noad_source(current));
+                    tex_attach_attribute_list_copy(list, current);
+                    box_source_anchor(list) = noad_source(current);
+                    noad_source(current) = 0; 
+                    tex_set_box_geometry(list, anchor_geometry);
+                    noad_new_hlist(current) = list;
+                    node_subtype(list) = math_pack_list;
+                }
+                break;
+        }
+    } else {
+        /* can't happen as we already checked before the call */
+    }
+    return list; 
+}
+
 static void tex_aux_wrapup_nucleus_and_add_scripts(halfword current, halfword nxt, int current_style, halfword *italic, kernset *kerns)
 {
     halfword p = tex_aux_check_nucleus_complexity(current, italic, current_style, lmt_math_state.size, kerns);
     if (p && noad_source(current)) {
-        switch (node_type(p)) {
-            case hlist_node:
-            case vlist_node:
-                if (! box_source_anchor(p)) {
-                    box_source_anchor(p) = noad_source(current);
-                    tex_set_box_geometry(p, anchor_geometry);
-                }
-                break;
-            default:
-                /*tex Todo: maybe pack and assign! */
-                break;
-        }
+        p = tex_aux_check_source(current, p, has_noad_option_source_on_nucleus(current));
     }
     if (noad_has_scripts(current)) {
         scaled drop = 0;
@@ -6730,28 +6754,7 @@ static void tex_mlist_to_hlist_finalize_list(mliststate *state)
                                     current_subtype = disc_class(box_list(list));
                                 }
                                 if (list && noad_source(current)) {
-                                    if (tracing_math_par >= 2) {
-                                        tex_begin_diagnostic();
-                                        tex_print_format("[math: packing due to source field %D]", noad_source(current));
-                                        tex_end_diagnostic();
-                                    }
-                                    switch (node_type(list)) {
-                                        case hlist_node:
-                                        case vlist_node:
-                                            if (! box_source_anchor(list)) {
-                                                box_source_anchor(list) = noad_source(current);
-                                                tex_set_box_geometry(list, anchor_geometry);
-                                            }
-                                            break;
-                                        default:
-                                            list = tex_hpack(list, 0, packing_additional, direction_unknown, holding_none_option);
-                                            tex_attach_attribute_list_copy(list, current);
-                                            box_source_anchor(list) = noad_source(current);
-                                            tex_set_box_geometry(list, anchor_geometry);
-                                            noad_new_hlist(current) = list;
-                                            node_subtype(list) = math_pack_list;
-                                            break;
-                                    }
+                                    tex_aux_check_source(current, list, 1);
                                 } 
                                 break;
                             }

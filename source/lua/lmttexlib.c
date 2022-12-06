@@ -4789,6 +4789,7 @@ static int texlib_getnoadoptionvalues(lua_State *L)
     lua_push_key_at_index(L, unrolllist,            noad_option_unroll_list);
     lua_push_key_at_index(L, followedbyspace,       noad_option_followed_by_space);
     lua_push_key_at_index(L, proportional,          noad_option_proportional);
+    lua_push_key_at_index(L, sourceonnucleus,       noad_option_source_on_nucleus);
     return 1;
 }
 
