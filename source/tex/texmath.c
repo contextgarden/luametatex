@@ -164,6 +164,14 @@ void tex_math_copy_char_data(halfword target, halfword source, int wipelist)
     }
 }
 
+static inline void tex_math_set_scripts_options(halfword n)
+{
+    switch (math_scripts_mode_par) { 
+        case 1: noad_options(n) |= noad_option_fixed_super_or_sub_script; break;
+        case 2: noad_options(n) |= noad_option_fixed_super_and_sub_script; break;
+    }
+}
+
 // static const math_styles map_cramped_style[] = { /*tex cramp the style */
 //     cramped_display_style,
 //     cramped_display_style,
@@ -2004,6 +2012,7 @@ static void tex_aux_append_math_char(mathcodeval mval, mathdictval dval, int aut
                 math_kernel_node_set_option(q, math_kernel_no_italic_correction);
             }
             node_subtype(p) = tex_aux_set_math_char(q, &mval, &dval);
+            tex_math_set_scripts_options(p);
             tex_tail_append(p);
         }
     }
@@ -2420,6 +2429,7 @@ static void tex_aux_math_math_component(halfword target, int append)
 void tex_run_math_math_component(void)
 {
     halfword n = tex_new_node(simple_noad, ordinary_noad_subtype);
+    tex_math_set_scripts_options(n);
     tex_aux_math_math_component(n, 1);
 }
 
@@ -4552,7 +4562,7 @@ static void tex_aux_finish_displayed_math(int atleft, halfword eqnumber, halfwor
 }
 
 /*tex
-*
+
     A |math_node|, which occurs only in horizontal lists, appears before and after mathematical
     formulas. The |subtype| field is |before| before the formula and |after| after it. There is a
     |surround| field, which represents the amount of surrounding space inserted by |\mathsurround|.

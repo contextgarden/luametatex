@@ -4289,125 +4289,69 @@ static halfword tex_aux_analyze_script(halfword init, scriptdata *data)
 /*tex
 
     These prescripts are kind of special. For instance, should top and bottom scripts be aligned?
-    When there is are two top or two bottom, should we then just use the maxima?
+    When there is are two top or two bottom, should we then just use the maxima? Watch out, the 
+    implementation changed wrt \LUATEX. 
 
 */
 
-static void tex_aux_get_math_sup_shifts(halfword sup, halfword style, scaled *shift_up)
+static void tex_aux_get_math_sup_shifts(halfword target, halfword sup, halfword style, scaled *shift_up)
 {
-    switch (math_scripts_mode_par) {
-        case 1:
-            *shift_up = tex_get_math_y_parameter_checked(style, math_parameter_superscript_shift_up);
-            break;
-        case 2:
-            *shift_up = tex_get_math_y_parameter_checked(style, math_parameter_superscript_shift_up);
-            break;
-        case 3:
-            *shift_up = tex_get_math_y_parameter_checked(style, math_parameter_superscript_shift_up)
-                      + tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down)
-                      - tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down);
-            break;
-        case 4:
-            *shift_up = tex_get_math_y_parameter_checked(style, math_parameter_superscript_shift_up)
-                      + tex_half_scaled(tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down)
-                      - tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down));
-            break;
-        case 5:
-            *shift_up = tex_get_math_y_parameter_checked(style, math_parameter_superscript_shift_up)
-                      + tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down)
-                      - tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down);
-            break;
-        default:
-            {
-                scaled clr = tex_get_math_y_parameter_checked(style, math_parameter_superscript_shift_up);
-                scaled bot = tex_get_math_y_parameter_checked(style, math_parameter_superscript_bottom_min);
-                if (*shift_up < clr) {
-                    *shift_up = clr;
-                }
-                clr = box_depth(sup) + bot;
-                if (*shift_up < clr) {
-                    *shift_up = clr;
-                }
-                break;
-            }
+    if (has_noad_option_fixed_super_or_sub_script(target) || has_noad_option_fixed_super_and_sub_script(target)) { 
+        *shift_up = tex_get_math_y_parameter_checked(style, math_parameter_superscript_shift_up);
+    } else { 
+        scaled clr = tex_get_math_y_parameter_checked(style, math_parameter_superscript_shift_up);
+        scaled bot = tex_get_math_y_parameter_checked(style, math_parameter_superscript_bottom_min);
+        if (*shift_up < clr) {
+            *shift_up = clr;
+        }
+        clr = box_depth(sup) + bot;
+        if (*shift_up < clr) {
+            *shift_up = clr;
+        }
     }
 }
 
-static void tex_aux_get_math_sub_shifts(halfword sub, halfword style, scaled *shift_down)
+static void tex_aux_get_math_sub_shifts(halfword target, halfword sub, halfword style, scaled *shift_down)
 {
-    switch (math_scripts_mode_par) {
-        case 1:
-            *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down);
-            break;
-        case 2:
-            *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down);
-            break;
-        case 3:
-            *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down);
-            break;
-        case 4:
-            *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down)
-                        + tex_half_scaled(tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down)
-                        - tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down)) ;
-            break;
-        case 5:
-            *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down);
-            break;
-        default:
-            {
-                scaled clr = tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down);
-                scaled top = tex_get_math_y_parameter_checked(style, math_parameter_subscript_top_max);
-                if (*shift_down < clr) {
-                    *shift_down = clr;
-                }
-                clr = box_height(sub) - top;
-                if (*shift_down < clr) {
-                    *shift_down = clr;
-                }
-                break;
-            }
+    if (has_noad_option_fixed_super_or_sub_script(target)) { 
+        *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down);
+    } else if (has_noad_option_fixed_super_and_sub_script(target)) { 
+        *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down);
+    } else { 
+        scaled clr = tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down);
+        scaled top = tex_get_math_y_parameter_checked(style, math_parameter_subscript_top_max);
+        if (*shift_down < clr) {
+            *shift_down = clr;
+        }
+        clr = box_height(sub) - top;
+        if (*shift_down < clr) {
+            *shift_down = clr;
+        }
     }
 }
 
-static void tex_aux_get_math_sup_sub_shifts(halfword sup, halfword sub, halfword style, scaled *shift_up, scaled *shift_down)
+static void tex_aux_get_math_sup_sub_shifts(halfword target, halfword sup, halfword sub, halfword style, scaled *shift_up, scaled *shift_down)
 {
-    switch (math_scripts_mode_par) {
-        case 1:
-            *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down);
-            break;
-        case 2:
-            *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down);
-            break;
-        case 3:
-            *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down);
-            break;
-        case 4:
-            *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down)
-                        + tex_half_scaled(tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down)
-                        - tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down));
-            break;
-        case 5:
-            *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down);
-            break;
-        default:
-            {
-                scaled clr = tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down);
-                scaled gap = tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_vgap);
-                scaled bot = tex_get_math_y_parameter_checked(style, math_parameter_superscript_subscript_bottom_max);
-                if (*shift_down < clr) {
-                    *shift_down = clr;
-                }
-                clr = gap - ((*shift_up - box_depth(sup)) - (box_height(sub) - *shift_down));
-                if (clr > 0) {
-                    *shift_down += clr;
-                    clr = bot - (*shift_up - box_depth(sup));
-                    if (clr > 0) {
-                        *shift_up += clr;
-                        *shift_down -= clr;
-                    }
-                }
-                break;
+    if (has_noad_option_fixed_super_or_sub_script(target)) { 
+        *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down);
+    } else if (has_noad_option_fixed_super_and_sub_script(target)) { 
+        *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down);
+    } else { 
+        scaled clr = tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down);
+        scaled gap = tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_vgap);
+        scaled bot = tex_get_math_y_parameter_checked(style, math_parameter_superscript_subscript_bottom_max);
+        if (*shift_down < clr) {
+            *shift_down = clr;
+        }
+        clr = gap - ((*shift_up - box_depth(sup)) - (box_height(sub) - *shift_down));
+        if (clr > 0) {
+            *shift_down += clr;
+            clr = bot - (*shift_up - box_depth(sup));
+            if (clr > 0) {
+                *shift_up += clr;
+                *shift_down -= clr;
             }
+        }
     }
 }
 
@@ -5196,9 +5140,9 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
         /* */
         if (postsupdata.box) {
             /* Do we still want to chain these sups or should we combine it? */
-            tex_aux_get_math_sup_shifts(postsupdata.box, style, &shift_up); /* maybe only in else branch */
+            tex_aux_get_math_sup_shifts(target, postsupdata.box, style, &shift_up); /* maybe only in else branch */
             if (postsubdata.box) {
-                tex_aux_get_math_sup_sub_shifts(postsupdata.box, postsubdata.box, style, &shift_up, &shift_down);
+                tex_aux_get_math_sup_sub_shifts(target, postsupdata.box, postsubdata.box, style, &shift_up, &shift_down);
                 tex_aux_get_sup_kern(kernel, &postsupdata, shift_up, supshift, &supkern, kerns);
                 tex_aux_get_sub_kern(kernel, &postsubdata, shift_down, subshift, &subkern, kerns);
                 if (primestate == prime_at_begin_location) {
@@ -5250,7 +5194,7 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
                 }
             }
         } else {
-            tex_aux_get_math_sub_shifts(postsubdata.box, style, &shift_down);
+            tex_aux_get_math_sub_shifts(target, postsubdata.box, style, &shift_down);
             tex_aux_get_sub_kern(kernel, &postsubdata, shift_down, subshift, &subkern, kerns);
             if (primestate == prime_at_begin_location) {
                 subkern = 0;
@@ -5291,8 +5235,8 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
     if (presubdata.box) {
         if (presupdata.box) {
             /* Do we still want to chain these sups or should we combine it? */
-            tex_aux_get_math_sup_shifts(presupdata.box, style, &shift_up);
-            tex_aux_get_math_sup_sub_shifts(presupdata.box, presubdata.box, style, &shift_up, &shift_down);
+            tex_aux_get_math_sup_shifts(target, presupdata.box, style, &shift_up);
+            tex_aux_get_math_sup_sub_shifts(target, presupdata.box, presubdata.box, style, &shift_up, &shift_down);
             prekern = box_width(presupdata.box);
             // test: what with negative extra kerns and what with a negative width
             if (! splitscripts) {
@@ -5313,7 +5257,7 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
                 box_shift_amount(preresult) = shift_down;
             }
         } else {
-            tex_aux_get_math_sub_shifts(presubdata.box, style, &shift_down);
+            tex_aux_get_math_sub_shifts(target, presubdata.box, style, &shift_down);
             if (! splitscripts) {
                 prekern = box_width(presubdata.box);
                 presubdata.box = tex_aux_combine_script(target, kernelsize.wd, presubdata.box, null, &presubdata.kern, &postsubdata.kern);
@@ -5322,7 +5266,7 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
             preresult = presubdata.box;
         }
     } else if (presupdata.box) {
-        tex_aux_get_math_sup_shifts(presupdata.box, style, &shift_up);
+        tex_aux_get_math_sup_shifts(target, presupdata.box, style, &shift_up);
         if (! splitscripts) {
             prekern = box_width(presupdata.box);
             presupdata.box = tex_aux_combine_script(target, kernelsize.wd, presupdata.box, null, &presupdata.kern, &postsupdata.kern);

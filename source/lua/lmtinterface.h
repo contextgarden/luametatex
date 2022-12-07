@@ -675,6 +675,8 @@ make_lua_key(L, first);\
 make_lua_key(L, fixedboth);\
 make_lua_key(L, fixedbottom);\
 make_lua_key(L, fixedtop);\
+make_lua_key(L, fixedsuperorsubscript);\
+make_lua_key(L, fixedsuperandsubscript);\
 make_lua_key(L, flags);\
 make_lua_key(L, flataccent);\
 make_lua_key(L, flattenedaccentbasedepth);\
