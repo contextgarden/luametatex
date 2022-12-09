@@ -84,8 +84,45 @@ halfword tex_sanitize_dir_state(halfword first, halfword last, halfword initial)
 }
 
 /*tex
-    Here we inject the cancel variants of the (reverse) stack into the list, after |tail|. 
+    Here we inject the nodes that inititialize and cancel the direction states as stored in the 
+    (reverse) stack into the list, after |tail|. 
 */
+
+void tex_append_dir_state(void)
+{
+    halfword dir = lmt_dir_state.text_dir_ptr;
+    halfword tail = cur_list.tail;    
+    halfword first = null;
+    halfword last = null;
+    if (tracing_paragraph_lists) {
+        tex_begin_diagnostic();
+        tex_print_format("[paragraph: dirstate]");
+        tex_show_box(dir);
+        tex_end_diagnostic();
+    }
+    while (dir) {
+        if ((node_next(dir)) || (dir_direction(dir) != par_direction_par)) {
+            halfword tmp = tex_new_dir(normal_dir_subtype, dir_direction(dir));
+            tex_attach_attribute_list_copy(tmp, tail);
+            tex_try_couple_nodes(tmp, first);
+            first = tmp; 
+            if (! last) {
+                last = tmp; 
+            } 
+        }
+        dir = node_next(dir);
+    }
+    if (first) { 
+        if (tracing_paragraph_lists) {
+            tex_begin_diagnostic();
+            tex_print_format("[paragraph: injected dirs]");
+            tex_show_box(first);
+            tex_end_diagnostic();
+        }
+        tex_couple_nodes(cur_list.tail, first);
+        cur_list.tail = last; 
+    }
+}
 
 halfword tex_complement_dir_state(halfword tail)
 {

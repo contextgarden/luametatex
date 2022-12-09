@@ -2938,42 +2938,6 @@ void tex_tail_prepend(halfword n)
     }
 }
 
-static void tex_aux_insert_dirstate(void)
-{
-    halfword dir = lmt_dir_state.text_dir_ptr;
-    halfword tail = cur_list.tail;    
-    halfword first = null;
-    halfword last = null;
-    if (tracing_paragraph_lists) {
-        tex_begin_diagnostic();
-        tex_print_format("[paragraph: dirstate]");
-        tex_show_box(dir);
-        tex_end_diagnostic();
-    }
-    while (dir) {
-        if ((node_next(dir)) || (dir_direction(dir) != par_direction_par)) {
-            halfword tmp = tex_new_dir(normal_dir_subtype, dir_direction(dir));
-            tex_attach_attribute_list_copy(tmp, tail);
-            tex_try_couple_nodes(tmp, first);
-            first = tmp; 
-            if (! last) {
-                last = tmp; 
-            } 
-        }
-        dir = node_next(dir);
-    }
-    if (first) { 
-        if (tracing_paragraph_lists) {
-            tex_begin_diagnostic();
-            tex_print_format("[paragraph: injected dirs]");
-            tex_show_box(first);
-            tex_end_diagnostic();
-        }
-        tex_couple_nodes(cur_list.tail, first);
-        cur_list.tail = last; 
-    }
-}
-
 void tex_begin_paragraph(int doindent, int context)
 {
     int indented = doindent;
@@ -3004,7 +2968,7 @@ void tex_begin_paragraph(int doindent, int context)
     /*tex Add local paragraph node */
     tex_tail_append(tex_new_par_node(vmode_par_par_subtype));
     /*tex Dir nodes end up before the indent box. */
-    tex_aux_insert_dirstate();
+    tex_append_dir_state();
     tex_aux_insert_parindent(indented);
     if (tracing_paragraph_lists) {
         tex_begin_diagnostic();
