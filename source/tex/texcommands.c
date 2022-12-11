@@ -1303,10 +1303,15 @@ void tex_initialize_commands(void)
         cs_text(deep_frozen_cs_protection_code) = tex_maketexstring("inaccessible");
 
         cs_text(deep_frozen_cs_end_write_code) = tex_maketexstring("endwrite");
-        set_eq_level(deep_frozen_cs_end_write_code, level_one);
         set_eq_type(deep_frozen_cs_end_write_code, call_cmd);
         set_eq_flag(deep_frozen_cs_end_write_code, 0);
         set_eq_value(deep_frozen_cs_end_write_code, null);
+        set_eq_level(deep_frozen_cs_end_write_code, level_one);
+
+        /*tex The empty list reference should be reassigned after compacting! */
+
+        lmt_token_state.empty = get_reference_token();
+        tex_add_token_reference(lmt_token_state.empty);
 
         lmt_string_pool_state.reserved = lmt_string_pool_state.string_pool_data.ptr;
         lmt_hash_state.no_new_cs = 1;

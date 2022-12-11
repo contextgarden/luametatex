@@ -1244,6 +1244,10 @@ static void tex_aux_run_text_boundary(void) {
         case protrusion_boundary:
             boundary_data(n) = tex_scan_int(0, NULL);
             break;
+        case page_boundary:
+            /* or maybe force vmode */
+            tex_scan_int(0, NULL);
+            break;
         default:
             break;
     }
@@ -1260,6 +1264,7 @@ static void tex_aux_run_math_boundary(void) {
                 break;
             }
         case protrusion_boundary:
+        case page_boundary:
             tex_scan_int(0, NULL);
             break;
     }
@@ -4674,7 +4679,14 @@ static void tex_aux_set_let(int a, int force)
                 a = add_global_flag(a);
             }
             if (force || tex_define_permitted(cur_cs, a)) {
-                tex_define(a, cur_cs, tex_flags_to_cmd(a), get_reference_token());
+                /*tex 
+                    The commented line permits plenty empty definitions, a |\let| can run out of 
+                    ref count so maybe some day \unknown 
+                */
+             // halfword empty = get_reference_token();
+                halfword empty = lmt_token_state.empty;
+                tex_add_token_reference(empty);
+                tex_define(a, cur_cs, tex_flags_to_cmd(a), empty);
             }
             return;
         default:
@@ -4711,7 +4723,7 @@ static void tex_aux_set_let(int a, int force)
         }
         tex_define_inherit(a, p, (singleword) newf, (singleword) cmd, cur_chr);
     } else {
-        tex_define(a, p, (singleword) cur_cmd, cur_chr);
+        tex_define(a, p, (singleword) cur_cmd, cur_chr); 
     }
 }
 

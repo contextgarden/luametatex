@@ -108,7 +108,7 @@ typedef struct token_state_info {
     char     *buffer;
     int       bufloc;
     int       bufmax;
-    int       padding;
+    int       empty;
 } token_state_info;
 
 extern token_state_info lmt_token_state;

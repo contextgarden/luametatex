@@ -555,9 +555,7 @@ void tex_conditional_if(halfword code, int unless)
             }
             goto RESULT;
         case if_zero_int_code:
-            {
-                result = tex_scan_int(0, NULL) == 0;
-            }
+            result = tex_scan_int(0, NULL) == 0;
             goto RESULT;
         case if_abs_dim_code:
         case if_dim_code:
@@ -587,15 +585,10 @@ void tex_conditional_if(halfword code, int unless)
             }
             goto RESULT;
         case if_zero_dim_code:
-            {
-                result = tex_scan_dimen(0, 0, 0, 0, NULL) == 0;
-            }
+            result = tex_scan_dimen(0, 0, 0, 0, NULL) == 0;
             goto RESULT;
         case if_odd_code:
-            {
-                halfword v = tex_scan_int(0, NULL);
-                result = odd(v);
-            }
+            result = odd(tex_scan_int(0, NULL));
             goto RESULT;
         case if_vmode_code:
             result = abs(cur_list.mode) == vmode;

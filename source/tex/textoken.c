@@ -92,7 +92,7 @@ token_state_info lmt_token_state = {
     .buffer         = NULL,
     .bufloc         = 0,
     .bufmax         = 0,
-    .padding        = 0,
+    .empty          = null, 
 };
 
 /*tex Some properties are dumped in the format so these are aet already! */
@@ -212,6 +212,7 @@ void tex_compact_tokens(void)
                     }
             }
         }
+        lmt_token_state.empty = mapper[lmt_token_state.empty];
      // print(dump_state.format_identifier);
         tex_print_format("tokenlist compacted from %i to %i entries, ", lmt_token_memory_state.tokens_data.top, nc);
         if (nofluacmds) {
