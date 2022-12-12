@@ -130,10 +130,11 @@ extern token_state_info lmt_token_state;
 # define max_token_reference 0x0FFFFFFF
 
 # define get_token_parameters(a) (lmt_token_memory_state.tokens[a].hulf1 >> 28)
-# define get_token_reference(a)  (lmt_token_memory_state.tokens[a].hulf1 & 0x0FFFFFFF)
+# define get_token_reference(a)  (lmt_token_memory_state.tokens[a].hulf1 & max_token_reference)
 
 # define set_token_parameters(a,b) lmt_token_memory_state.tokens[a].hulf1 += ((b) << 28)  /* normally the variable is still zero here */
 
+# define set_token_reference(a,b)  lmt_token_memory_state.tokens[a].hulf1 += (b)
 # define add_token_reference(a)    lmt_token_memory_state.tokens[a].hulf1 += 1            /* we are way off the parameter count */
 # define sub_token_reference(a)    lmt_token_memory_state.tokens[a].hulf1 -= 1            /* we are way off the parameter count */
 # define inc_token_reference(a,b)  lmt_token_memory_state.tokens[a].hulf1 += (b)          /* we are way off the parameter count */

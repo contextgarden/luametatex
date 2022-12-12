@@ -468,8 +468,9 @@ halfword lmt_token_list_from_lua(lua_State *L, int slot)
                     if (s[i] == ascii_space) {
                         tok = token_val(spacer_cmd, s[i]);
                     } else {
-                        int k = (int) aux_str2uni((const unsigned char *) (s + i));
-                        i = i + (size_t) (utf8_size(k)) - 1;
+                        int kl; 
+                        int k = (int) aux_str2uni_len((const unsigned char *) (s + i), &kl);
+                        i = i + kl - 1;
                         tok = token_val(other_char_cmd, k);
                     }
                     p = tex_store_new_token(p, tok);
@@ -737,15 +738,15 @@ static void tokenlib_aux_to_token(lua_State *L, int i, int m, int *head, int *ta
                 const unsigned char *p = (const unsigned char *) s;
                 size_t n = aux_utf8len(s, l);
                 for (size_t j = 0; j < n; j++) {
-                    int ch = *p;
-                    halfword x = tex_get_available_token(tokenlib_aux_to_token_val(aux_str2uni(p)));
+                    int xl; 
+                    halfword x = tex_get_available_token(tokenlib_aux_to_token_val(aux_str2uni_len(p, &xl)));
                     if (*head) {
                         token_link(*tail) = x;
                     } else {
                         *head = x;
                     }
                     *tail = x;
-                    p += utf8_size(ch);
+                    p += xl;
                 }
                 break;
             }
@@ -3229,11 +3230,14 @@ static int tokenlib_set_macro(lua_State *L) /* todo: protected */
                 slot = lmt_check_for_flags(L, slot, &flags, 1, 1);
             }
             if (tex_define_permitted(cs, flags)) { /* we check before we allocate */
-                halfword h = get_reference_token();
-                halfword t = h;
-                if (lstr > 0) {
+                halfword h;
+                if (lstr > 0) { 
+                    h = get_reference_token();
                     /*tex Options: 1=create (will trigger an error), 2=ignore. */
-                    tex_parse_str_to_tok(h, &t, ct, str, lstr, lua_toboolean(L, slot++) ? 2 : 1);
+                    tex_parse_str_to_tok(h, null, ct, str, lstr, lua_toboolean(L, slot++) ? 2 : 1);
+                } else { 
+                    h = lmt_token_state.empty;
+                 // tex_add_token_reference(h);
                 }
                 tex_define(flags, cs, tex_flags_to_cmd(flags), h);
             }

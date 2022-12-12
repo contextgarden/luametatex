@@ -1311,7 +1311,8 @@ void tex_initialize_commands(void)
         /*tex The empty list reference should be reassigned after compacting! */
 
         lmt_token_state.empty = get_reference_token();
-        tex_add_token_reference(lmt_token_state.empty);
+     // tex_add_token_reference(lmt_token_state.empty);
+        set_token_reference(lmt_token_state.empty, max_token_reference);
 
         lmt_string_pool_state.reserved = lmt_string_pool_state.string_pool_data.ptr;
         lmt_hash_state.no_new_cs = 1;

@@ -4685,7 +4685,7 @@ static void tex_aux_set_let(int a, int force)
                 */
              // halfword empty = get_reference_token();
                 halfword empty = lmt_token_state.empty;
-                tex_add_token_reference(empty);
+             // tex_add_token_reference(empty);
                 tex_define(a, cur_cs, tex_flags_to_cmd(a), empty);
             }
             return;
