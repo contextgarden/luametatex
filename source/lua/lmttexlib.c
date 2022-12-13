@@ -903,7 +903,7 @@ static const char *texlib_aux_scan_integer_part(lua_State *L, const char *ss, in
   DONE:
     if (overflow) {
         luaL_error(L, "number too big");
-        result = infinity;
+        result = max_integer;
     } else if (vacuous) {
         luaL_error(L, "missing number, treated as zero") ;
     }
@@ -1246,6 +1246,9 @@ int lmt_check_for_flags(lua_State *L, int slot, int *flags, int prefixes, int nu
                         } else if (lua_key_eq(str, value)) {
                             slot += 1;
                             *flags = add_value_flag(*flags);
+                        } else if (lua_key_eq(str, constant)) {
+                            slot += 1;
+                            *flags = add_constant_flag(*flags);
                         } else if (lua_key_eq(str, conditional) || lua_key_eq(str, condition)) {
                             /* condition will go, conditional stays */
                             slot += 1;
@@ -2690,7 +2693,7 @@ static int texlib_aux_scan_internal(lua_State *L, int cmd, int code, int values)
         default:
             {
                 int texstr = tex_the_scanned_result();
-                char *str = tex_to_cstring(texstr);
+                const char *str = tex_to_cstring(texstr);
                 if (str) {
                     lua_pushstring(L, str);
                 } else {
@@ -3582,7 +3585,7 @@ static int texlib_enableprimitives(lua_State *L)
                     for (int cs = 0; cs < prim_size; cs++) {
                         strnumber s = get_prim_text(cs);
                         if (s > 0) {
-                            char *prm = tex_to_cstring(s);
+                            const char *prm = tex_to_cstring(s);
                             texlib_aux_enableprimitive(pre, lpre, prm);
                         }
                     }

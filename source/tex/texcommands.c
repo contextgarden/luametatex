@@ -774,10 +774,12 @@ void tex_initialize_commands(void)
         tex_primitive(tex_command,    "def",                            def_cmd,                def_code,                                 0);
         tex_primitive(tex_command,    "xdef",                           def_cmd,                global_expanded_def_code,                 0);
         tex_primitive(tex_command,    "gdef",                           def_cmd,                global_def_code,                          0);
+        tex_primitive(luatex_command, "cdef",                           def_cmd,                constant_def_code,                        0);
         tex_primitive(luatex_command, "edefcsname",                     def_cmd,                expanded_def_csname_code,                 0);
         tex_primitive(luatex_command, "defcsname",                      def_cmd,                def_csname_code,                          0);
         tex_primitive(luatex_command, "xdefcsname",                     def_cmd,                global_expanded_def_csname_code,          0);
         tex_primitive(luatex_command, "gdefcsname",                     def_cmd,                global_def_csname_code,                   0);
+        tex_primitive(luatex_command, "cdefcsname",                     def_cmd,                constant_def_csname_code,                 0);
 
         tex_primitive(tex_command,    "scriptfont",                     define_family_cmd,      script_size,                              0);
         tex_primitive(tex_command,    "scriptscriptfont",               define_family_cmd,      script_script_size,                       0);
@@ -961,6 +963,7 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "semiprotected",                  prefix_cmd,             semiprotected_code,                       0);
         tex_primitive(luatex_command, "enforced",                       prefix_cmd,             enforced_code,                            0);
         tex_primitive(luatex_command, "inherited",                      prefix_cmd,             inherited_code,                           0);
+        tex_primitive(luatex_command, "constant",                       prefix_cmd,             constant_code,                            0);
 
         tex_primitive(tex_command,    "long",                           prefix_cmd,             long_code,                                0);
         tex_primitive(tex_command,    "outer",                          prefix_cmd,             outer_code,                               0);

@@ -1096,19 +1096,19 @@ void tex_conditional_if(halfword code, int unless)
      //     }
         default:
             {
-                int class;
+                int category;
                 strnumber u = tex_save_cur_string();
                 int save_scanner_status = lmt_input_state.scanner_status;
                 lmt_input_state.scanner_status = scanner_is_normal;
                 lmt_token_state.luacstrings = 0;
-                class = lmt_function_call_by_class(code - last_if_test_code, 0, &result);
+                category = lmt_function_call_by_category(code - last_if_test_code, 0, &result);
                 tex_restore_cur_string(u);
                 lmt_input_state.scanner_status = save_scanner_status;
                 if (lmt_token_state.luacstrings > 0) {
                     tex_lua_string_start();
                     /* bad */
                 }
-                switch (class) {
+                switch (category) {
                     case lua_value_integer_code:
                     case lua_value_cardinal_code:
                     case lua_value_dimension_code:

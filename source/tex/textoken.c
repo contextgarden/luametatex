@@ -480,6 +480,9 @@ void tex_print_meaning(halfword code)
                 tex_print_cs(cur_cs);
                 return;
             } else {
+                if (cur_chr && get_token_reference(cur_chr) == max_token_reference) {
+                    tex_print_str("constant ");
+                }
                 switch (code) {
                     case meaning_code:
                     case meaning_full_code:
@@ -908,7 +911,7 @@ int tex_scan_optional_keyword(const char *s)
 
 /*tex
     Here we know that the first character(s) matched so we are in the middle of a keyword already
-    which means a different loop than the previous one.
+    which means a different loop than the previous one. 
 */
 
 int tex_scan_mandate_keyword(const char *s, int offset)

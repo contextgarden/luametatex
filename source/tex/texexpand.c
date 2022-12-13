@@ -615,7 +615,6 @@ inline static int tex_aux_uni_to_buffer(unsigned char *b, int m, int c)
     much sense. It also long token lists that never (should) match anyway.
 */
 
-
 static int tex_aux_collect_cs_tokens(halfword *p, int *n)
 {
     while (1) {
@@ -650,7 +649,17 @@ static int tex_aux_collect_cs_tokens(halfword *p, int *n)
             */
             case call_cmd:
             case tolerant_call_cmd:
-                tex_aux_macro_call(cur_cs, cur_cmd, cur_chr);
+                if (get_token_reference(cur_chr) == max_token_reference) { // ! get_token_parameters(cur_chr)) {
+                    /* we avoid the macro stack and expansion and we don't trace either */
+                    halfword h = token_link(cur_chr);
+                    while (h) {
+                        *p = tex_store_new_token(*p, token_info(h));
+                        *n += 1;
+                        h = token_link(h);
+                    }
+                } else {
+                    tex_aux_macro_call(cur_cs, cur_cmd, cur_chr);
+                }
                 break;
             case end_cs_name_cmd:
                 return 1;
@@ -677,7 +686,7 @@ int tex_is_valid_csname(void)
             tex_get_x_or_protected(); /* we skip unprotected ! */
         } while (cur_cmd != end_cs_name_cmd);
         goto FINISH;
-        /* no real gain: */
+        /* no real gain as we hardly ever end up here */
      // while (1) {
      //     tex_get_token();
      //     if (cur_cmd == end_cs_name_cmd) {
