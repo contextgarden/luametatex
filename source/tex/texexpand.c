@@ -88,7 +88,8 @@ inline static void tex_aux_expand_after(void)
     if (cur_cmd > max_command_cmd) {
         tex_expand_current_token();
     } else {
-        tex_back_input(t2);
+         tex_back_input(t2);
+      /* token_link(t1) = t2; */ /* no gain, rarely happens */
     }
     tex_back_input(t1);
 }

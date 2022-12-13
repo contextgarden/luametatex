@@ -2669,6 +2669,19 @@ inline static int tokenlib_get_parameters(lua_State *L)
     return 0;
 }
 
+inline static int tokenlib_get_constant(lua_State *L)
+{
+    lua_token *n = tokenlib_aux_check_istoken(L, 1);
+    halfword tok = token_info(n->token);
+    int result = 0;
+    if (tok >= cs_token_flag && is_call_cmd(eq_type(tok - cs_token_flag))) {
+        halfword v = eq_value(tok - cs_token_flag);
+        result = v && get_token_reference(v) == max_token_reference;
+    }
+    lua_pushboolean(L, result);
+    return 1;
+}
+
 static int tokenlib_getfield(lua_State *L)
 {
     const char *s = lua_tostring(L, 2);
@@ -2712,6 +2725,8 @@ static int tokenlib_getfield(lua_State *L)
         return tokenlib_get_flags(L);
     } else if (lua_key_eq(s, parameters)) {
         return tokenlib_get_parameters(L);
+    } else if (lua_key_eq(s, constant)) {
+        return tokenlib_get_constant(L);
     } else {
         lua_pushnil(L);
     }
@@ -3395,7 +3410,7 @@ static int tokenlib_set_char(lua_State *L) /* also in texlib */
 
 /* a weird place, these should be in tex */
 
-static int tokenlib_set_constant(lua_State *L, singleword cmd, halfword min, halfword max)
+static int tokenlib_set_constant_value(lua_State *L, singleword cmd, halfword min, halfword max)
 {
     int top = lua_gettop(L);
     if (top >= 2) {
@@ -3416,7 +3431,7 @@ static int tokenlib_set_constant(lua_State *L, singleword cmd, halfword min, hal
     return 0;
 }
 
-static int tokenlib_get_constant(lua_State *L, halfword cmd)
+static int tokenlib_get_constant_value(lua_State *L, halfword cmd)
 {
     if (lua_type(L, 1) == LUA_TSTRING) {
         size_t l;
@@ -3435,32 +3450,32 @@ static int tokenlib_get_constant(lua_State *L, halfword cmd)
 
 static int tokenlib_set_integer(lua_State *L)
 {
-    return tokenlib_set_constant(L, integer_cmd, min_integer, max_integer);
+    return tokenlib_set_constant_value(L, integer_cmd, min_integer, max_integer);
 }
 
 static int tokenlib_set_dimension(lua_State *L)
 {
-    return tokenlib_set_constant(L, dimension_cmd, min_dimen, max_dimen);
+    return tokenlib_set_constant_value(L, dimension_cmd, min_dimen, max_dimen);
 }
 
 // static int tokenlib_set_gluespec(lua_State *L)
 // {
-//     return tokenlib_set_constant(L, gluespec_cmd, min_dimen, max_dimen);
+//     return tokenlib_set_constant_value(L, gluespec_cmd, min_dimen, max_dimen);
 // }
 
 static int tokenlib_get_integer(lua_State *L)
 {
-    return tokenlib_get_constant(L, integer_cmd);
+    return tokenlib_get_constant_value(L, integer_cmd);
 }
 
 static int tokenlib_get_dimension(lua_State *L)
 {
-    return tokenlib_get_constant(L, dimension_cmd);
+    return tokenlib_get_constant_value(L, dimension_cmd);
 }
 
 // static int tokenlib_get_gluespec(lua_State *L)
 // {
-//     return tokenlib_get_constant(L, gluespec_cmd);
+//     return tokenlib_get_constant_value(L, gluespec_cmd);
 // }
 
 /*
@@ -3582,6 +3597,7 @@ static const struct luaL_Reg tokenlib_function_list[] = {
     { "getinstance",         tokenlib_get_instance          },
     { "getflags",            tokenlib_get_flags             },
     { "getparameters",       tokenlib_get_parameters        },
+    { "getconstant",         tokenlib_get_constant          },
     { "getmacro",            tokenlib_get_macro             },
     { "getmeaning",          tokenlib_get_meaning           },
     { "getcmdchrcs",         tokenlib_get_cmdchrcs          },
