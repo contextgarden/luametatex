@@ -3615,9 +3615,10 @@ inline static int tex_aux_valid_macro_preamble(halfword *p, int *counter, halfwo
                 *hash_brace = cur_tok;
                 *p = tex_store_new_token(*p, cur_tok);
                 *p = tex_store_new_token(*p, end_match_token);
-                set_token_parameters(h, *counter - zero_token + 1);
+                set_token_preamble(h, 1);
+                set_token_parameters(h, *counter - zero_token);
                 return 1;
-            } else if (*counter == nine_token) {
+            } else if (*counter == F_token_l) {
                 tex_aux_too_many_parameters_error();
             } else {
                 switch (cur_tok) {
@@ -3672,7 +3673,13 @@ inline static int tex_aux_valid_macro_preamble(halfword *p, int *counter, halfwo
                     default:
                         ++*counter;
                         if (cur_tok != *counter) {
-                            tex_aux_parameters_order_error();
+                            if (cur_tok >= A_token_l && cur_tok <= F_token_l) {
+                                *counter += gap_match_count;
+                                cur_tok += match_token - letter_token;
+                                break;
+                            } else { 
+                                tex_aux_parameters_order_error();
+                            }
                         }
                         cur_tok += match_token - other_token;
                         break;
@@ -3685,7 +3692,8 @@ inline static int tex_aux_valid_macro_preamble(halfword *p, int *counter, halfwo
     }
     if (h != *p) {
         *p = tex_store_new_token(*p, end_match_token);
-        set_token_parameters(h, *counter - zero_token + 1);
+        set_token_preamble(h, 1);
+        set_token_parameters(h, *counter - zero_token);
     }
     if (cur_cmd == right_brace_cmd) {
         ++lmt_input_state.align_state;
@@ -3724,8 +3732,12 @@ halfword tex_scan_macro_normal(void)
                 if (cur_cmd == parameter_cmd) {
                     /*tex Keep the |#|. */
                 } else if (cur_tok <= zero_token || cur_tok > counter) {
-                    tex_aux_illegal_parameter_in_body_error();
-                    cur_tok = s;
+                    if (cur_tok >= A_token_l && cur_tok <= F_token_l) {
+                        cur_tok = token_val(parameter_reference_cmd, cur_chr - '0' - gap_match_count);
+                    } else {
+                        tex_aux_illegal_parameter_in_body_error();
+                        cur_tok = s;
+                    }
                 } else {
                     cur_tok = token_val(parameter_reference_cmd, cur_chr - '0');
                 }
@@ -3802,8 +3814,12 @@ halfword tex_scan_macro_expand(void)
                         if (cur_cmd == parameter_cmd) {
                             /*tex Keep the |#|. */
                         } else if (cur_tok <= zero_token || cur_tok > counter) {
-                            tex_aux_illegal_parameter_in_body_error();
-                            cur_tok = s;
+                            if (cur_tok >= A_token_l && cur_tok <= F_token_l) {
+                                cur_tok = token_val(parameter_reference_cmd, cur_chr - '0' - gap_match_count);
+                            } else {
+                                tex_aux_illegal_parameter_in_body_error();
+                                cur_tok = s;
+                            }
                         } else {
                             cur_tok = token_val(parameter_reference_cmd, cur_chr - '0');
                         }

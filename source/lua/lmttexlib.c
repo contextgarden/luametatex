@@ -4119,7 +4119,7 @@ static int texlib_runlocal(lua_State *L)
                 } else {
                     halfword ref = eq_value(cs);
                     halfword head = token_link(ref);
-                    if (head && get_token_parameters(ref)) {
+                    if (head && get_token_preamble(ref)) {
                         tex_local_control_message("macro takes arguments and is ignored");
                         return 0;
                     } else {
@@ -4608,7 +4608,7 @@ static int texlib_setdimensionvalue(lua_State *L)
 static int texlib_aux_getvalue(lua_State *L, halfword level, halfword cs)
 {
     halfword chr = eq_value(cs);
-    if (chr && ! get_token_parameters(chr)) {
+    if (chr && ! get_token_preamble(chr)) { /* or get_token_parameters as we don't want trailing # */
         halfword value = 0;
         tex_begin_inserted_list(tex_get_available_token(cs_token_flag + cs));
         if (tex_scan_tex_value(level, &value)) {

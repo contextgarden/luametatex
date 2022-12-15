@@ -963,8 +963,7 @@ void tex_conditional_if(halfword code, int unless)
                     halfword t = token_info(lmt_input_state.cur_input.loc);
                     lmt_input_state.cur_input.loc = token_link(lmt_input_state.cur_input.loc);
                     if (t < cs_token_flag && token_cmd(t) == parameter_reference_cmd) {
-                      // result = token_info(input_state.parameter_stack[input_state.cur_input.parameter_start + token_chr(t) - 1]) != null ? 1 : 2;
-                         result = lmt_input_state.parameter_stack[lmt_input_state.cur_input.parameter_start + token_chr(t) - 1] != null ? 1 : 2;
+                        result = lmt_input_state.parameter_stack[lmt_input_state.cur_input.parameter_start + token_chr(t) - 1] != null ? 1 : 2;
                     }
                 }
                 goto CASE;

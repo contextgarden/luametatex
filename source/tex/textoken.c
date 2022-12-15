@@ -495,7 +495,7 @@ void tex_print_meaning(halfword code)
                         tex_print_cs(cur_cs);
                         tex_print_char(' ');
                         if (cur_chr && token_link(cur_chr)) {
-                            halfword body = get_token_parameters(cur_chr) ? tex_show_token_list(token_link(cur_chr), null, default_token_show_max, 1) : token_link(cur_chr);
+                            halfword body = get_token_preamble(cur_chr) ? tex_show_token_list(token_link(cur_chr), null, default_token_show_max, 1) : token_link(cur_chr);
                             tex_print_char('{');
                             if (body) {
                                 tex_show_token_list(body, null, default_token_show_max, 0);
@@ -600,7 +600,7 @@ halfword tex_show_token_list(halfword p, halfword q, int l, int asis)
 {
     if (p) {
         /*tex the highest parameter number, as an \ASCII\ digit */
-        unsigned char n = '0';
+        unsigned char n = 0;
         int min = 0;
         int max = lmt_token_memory_state.tokens_data.top;
         lmt_print_state.tally = 0;
@@ -657,6 +657,8 @@ halfword tex_show_token_list(halfword p, halfword q, int l, int asis)
                         tex_print_tex_str(match_visualizer);
                         if (chr <= 9) {
                             tex_print_char(chr + '0');
+                        } else if (chr <= max_match_count) {
+                            tex_print_char(chr + '0' + gap_match_count);
                         } else {
                             tex_print_char('!');
                             return null;
@@ -668,7 +670,7 @@ halfword tex_show_token_list(halfword p, halfword q, int l, int asis)
                             ++n;
                         }
                         tex_print_char(chr ? chr : '0');
-                        if (n > '9') {
+                        if (n > max_match_count) {
                             /*tex Can this happen at all? */
                             return null;
                         } else {
@@ -3152,7 +3154,7 @@ char *tex_tokenlist_to_tstring(int pp, int inhibit_par, int *siz, int skippreamb
         int p = token_link(pp);
         if (p) {
             int e = escape_char_par;  /*tex The serialization of the escape, normally a backlash. */
-            int n = '0';              /*tex The character after |#|, so |#0| upto |#9| */
+            int n = 0;                /*tex The character after |#|, so |#0| upto |#9| */
             int min = 0;
             int max = lmt_token_memory_state.tokens_data.top;
             int skip = 0;
@@ -3170,7 +3172,7 @@ char *tex_tokenlist_to_tstring(int pp, int inhibit_par, int *siz, int skippreamb
             }
             lmt_token_state.bufloc = 0;
             if (skippreamble) {
-                skip = get_token_parameters(pp);
+                skip = get_token_preamble(pp);
             }
             while (p) {
                 if (p < min || p > max) {
@@ -3213,12 +3215,14 @@ char *tex_tokenlist_to_tstring(int pp, int inhibit_par, int *siz, int skippreamb
                                     tex_aux_append_char_to_buffer(match_visualizer);
                                     if (chr <= 9) {
                                         tex_aux_append_char_to_buffer(chr + '0');
+                                    } else if (chr <= max_match_count) {
+                                        tex_aux_append_char_to_buffer(chr + '0' + gap_match_count);
                                     } else {
-                                        tex_aux_append_char_to_buffer('!');
+                                        tex_aux_append_char_to_buffer('!'); 
                                         goto EXIT;
                                     }
                                 } else {
-                                    if (chr > 9) {
+                                    if (chr > max_match_count) {
                                         goto EXIT;
                                     }
                                 }
@@ -3231,9 +3235,14 @@ char *tex_tokenlist_to_tstring(int pp, int inhibit_par, int *siz, int skippreamb
                                     ++n;
                                 }
                                 if (! skip) {
-                                    tex_aux_append_char_to_buffer(chr ? chr : '0');
+                                 // tex_aux_append_char_to_buffer(chr ? chr : '0');
+                                    if (chr <= 9) {
+                                        tex_aux_append_char_to_buffer(chr + '0');
+                                    } else if (chr <= max_match_count) {
+                                        tex_aux_append_char_to_buffer(chr + '0' + gap_match_count);
+                                    }
                                 }
-                                if (n > '9') {
+                                if (n > max_match_count) {
                                     goto EXIT;
                                 }
                                 break;
