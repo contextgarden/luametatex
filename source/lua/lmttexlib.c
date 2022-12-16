@@ -1302,7 +1302,8 @@ static int texlib_aux_check_for_index(
     int         register_cmd,
     int         internal_base,
     int         register_base,
-    int         max_index
+    int         max_index,
+    int         constant_cmd
 ) {
     *index = -1;
     switch (lua_type(L, slot)) {
@@ -1317,6 +1318,9 @@ static int texlib_aux_check_for_index(
                 } else if (eq_type(cs) == register_cmd) {
                     *index = eq_value(cs) - register_base;
                     return 0;
+                } else if (eq_type(cs) == constant_cmd) {
+                    *index = cs;
+                    return 2;
                 } else {
                     luaL_error(L, "incorrect %s name", what);
                     return -1;
@@ -1357,7 +1361,7 @@ static int texlib_setdimen(lua_State *L)
     int flags = 0;
     int index = 0;
     int slot = lmt_check_for_flags(L, 1, &flags, 1, 0);
-    int state = texlib_aux_check_for_index(L, slot++, "dimen", &index, internal_dimen_cmd, register_dimen_cmd, internal_dimen_base, register_dimen_base, max_dimen_register_index);
+    int state = texlib_aux_check_for_index(L, slot++, "dimen", &index, internal_dimen_cmd, register_dimen_cmd, internal_dimen_base, register_dimen_base, max_dimen_register_index, dimension_cmd);
     if (state >= 0) {
         halfword value = 0;
         switch (lua_type(L, slot)) {
@@ -1380,9 +1384,13 @@ static int texlib_setdimen(lua_State *L)
                 luaL_error(L, "unsupported dimen value type");
                 break;
         }
-        tex_set_tex_dimen_register(index, value, flags, state);
-        if (state == 1 && lua_toboolean(L, slot)) {
-            tex_update_par_par(internal_dimen_cmd, index);
+        if (state == 2) {
+            tex_define(flags, index, dimension_cmd, value);
+        } else {
+            tex_set_tex_dimen_register(index, value, flags, state);
+            if (state == 1 && lua_toboolean(L, slot)) {
+                tex_update_par_par(internal_dimen_cmd, index);
+            }
         }
     }
     return 0;
@@ -1391,8 +1399,16 @@ static int texlib_setdimen(lua_State *L)
 static int texlib_getdimen(lua_State *L)
 {
     int index;
-    int state = texlib_aux_check_for_index(L, 1, "dimen", &index, internal_dimen_cmd, register_dimen_cmd, internal_dimen_base, register_dimen_base, max_dimen_register_index);
-    lua_pushinteger(L, state >= 0 ? tex_get_tex_dimen_register(index, state) : 0);
+    int state = texlib_aux_check_for_index(L, 1, "dimen", &index, internal_dimen_cmd, register_dimen_cmd, internal_dimen_base, register_dimen_base, max_dimen_register_index, dimension_cmd);
+    lua_pushinteger(L, state >= 0 ? (state == 2 ? eq_value(index) : tex_get_tex_dimen_register(index, state)) : 0);
+ // halfword value;
+ // switch (state) { 
+ //     case 0 : value = dimen_parameter(index); break;
+ //     case 1 : value = dimen_parameter(index); break;
+ //     case 2 : value = eq_value(index); break;
+ //     default: value = 0;
+ // }
+ // lua_pushinteger(L, value);
     return 1;
 }
 
@@ -1469,13 +1485,17 @@ static int texlib_setskip(lua_State *L)
     int flags = 0;
     int index = 0;
     int slot = lmt_check_for_flags(L, 1, &flags, 1, 0);
-    int state = texlib_aux_check_for_index(L, slot++, "skip", &index, internal_glue_cmd, register_glue_cmd, internal_glue_base, register_glue_base, max_glue_register_index);
+    int state = texlib_aux_check_for_index(L, slot++, "skip", &index, internal_glue_cmd, register_glue_cmd, internal_glue_base, register_glue_base, max_glue_register_index, gluespec_cmd);
     if (state >= 0) {
-         halfword value = texlib_aux_get_glue_spec(L, slot++);
-         tex_set_tex_skip_register(index, value, flags, state);
-         if (state == 1 && lua_toboolean(L, slot)) {
-             tex_update_par_par(internal_glue_cmd, index);
-         }
+        halfword value = texlib_aux_get_glue_spec(L, slot++);
+        if (state == 2) {
+            tex_define(flags, index, gluespec_cmd, value);
+        } else {
+            tex_set_tex_skip_register(index, value, flags, state);
+            if (state == 1 && lua_toboolean(L, slot)) {
+                tex_update_par_par(internal_glue_cmd, index);
+            }
+        }
     }
     return 0;
 }
@@ -1483,8 +1503,8 @@ static int texlib_setskip(lua_State *L)
 static int texlib_getskip(lua_State *L)
 {
     int index;
-    int state = texlib_aux_check_for_index(L, 1, "skip", &index, internal_glue_cmd, register_glue_cmd, internal_glue_base, register_glue_base, max_glue_register_index);
-    halfword value = state >= 0 ? tex_get_tex_skip_register(index, state) : null;
+    int state = texlib_aux_check_for_index(L, 1, "skip", &index, internal_glue_cmd, register_glue_cmd, internal_glue_base, register_glue_base, max_glue_register_index, gluespec_cmd);
+    halfword value = state >= 0 ? (state == 2 ? eq_value(index) : tex_get_tex_skip_register(index, state)) : null;
     lmt_push_node_fast(L, tex_copy_node(value ? value : zero_glue));
     return 1;
 }
@@ -1501,9 +1521,14 @@ static int texlib_setglue(lua_State *L)
     int flags = 0;
     int index = 0;
     int slot = lmt_check_for_flags(L, 1, &flags, 1, 0);
-    int state = texlib_aux_check_for_index(L, slot++, "skip", &index, internal_glue_cmd, register_glue_cmd, internal_glue_base, register_glue_base, max_glue_register_index);
+    int state = texlib_aux_check_for_index(L, slot++, "skip", &index, internal_glue_cmd, register_glue_cmd, internal_glue_base, register_glue_base, max_glue_register_index, gluespec_cmd);
     if (state >= 0) {
-        tex_set_tex_skip_register(index, texlib_aux_make_glue(L, lua_gettop(L), slot), flags, state);
+        halfword value = texlib_aux_make_glue(L, lua_gettop(L), slot);
+        if (state == 2) {
+            tex_define(flags, index, gluespec_cmd, value);
+        } else {
+            tex_set_tex_skip_register(index, value, flags, state);
+        }
     }
     return 0;
 }
@@ -1512,8 +1537,8 @@ static int texlib_getglue(lua_State *L)
 {
     int index;
     int all = (lua_type(L, 2) == LUA_TBOOLEAN) ? lua_toboolean(L, 2) : 1;
-    int state = texlib_aux_check_for_index(L, 1, "skip", &index, internal_glue_cmd, register_glue_cmd, internal_glue_base, register_glue_base, max_glue_register_index);
-    halfword value = state >= 0 ? tex_get_tex_skip_register(index, state) : null;
+    int state = texlib_aux_check_for_index(L, 1, "skip", &index, internal_glue_cmd, register_glue_cmd, internal_glue_base, register_glue_base, max_glue_register_index, gluespec_cmd);
+    halfword value = state >= 0 ? (state == 2 ? eq_value(index) : tex_get_tex_skip_register(index, state)) : null;
     if (! value) {
         lua_pushinteger(L, 0);
         if (all) {
@@ -1543,16 +1568,23 @@ static int texlib_setmuskip(lua_State *L)
     int flags = 0;
     int index = 0;
     int slot = lmt_check_for_flags(L, 1, &flags, 1, 0);
-    int state = texlib_aux_check_for_index(L, slot++, "muskip", &index, internal_mu_glue_cmd, register_mu_glue_cmd, internal_mu_glue_base, register_mu_glue_base, max_mu_glue_register_index);
-    tex_set_tex_mu_skip_register(index, texlib_aux_get_glue_spec(L, slot), flags, state);
+    int state = texlib_aux_check_for_index(L, slot++, "muskip", &index, internal_mu_glue_cmd, register_mu_glue_cmd, internal_mu_glue_base, register_mu_glue_base, max_mu_glue_register_index, mugluespec_cmd);
+    if (state >= 0) {
+        halfword value =texlib_aux_get_glue_spec(L, slot);
+        if (state == 2) {
+            tex_define(flags, index, mugluespec_cmd, value);
+        } else {
+            tex_set_tex_mu_skip_register(index, value, flags, state);
+        }
+    }
     return 0;
 }
 
 static int texlib_getmuskip(lua_State *L)
 {
     int index;
-    int state = texlib_aux_check_for_index(L, 1, "muskip", &index, internal_mu_glue_cmd, register_mu_glue_cmd, internal_mu_glue_base, register_mu_glue_base, max_mu_glue_register_index);
-    halfword value = state >= 0 ? tex_get_tex_mu_skip_register(index, state) : null;
+    int state = texlib_aux_check_for_index(L, 1, "muskip", &index, internal_mu_glue_cmd, register_mu_glue_cmd, internal_mu_glue_base, register_mu_glue_base, max_mu_glue_register_index, mugluespec_cmd);
+    halfword value = state >= 0 ? (state == 2 ? eq_value(index) : tex_get_tex_mu_skip_register(index, state)) : null;
     lmt_push_node_fast(L, tex_copy_node(value ? value : zero_glue));
     return 1;
 }
@@ -1567,10 +1599,14 @@ static int texlib_setmuglue(lua_State *L)
     int flags = 0;
     int index = 0;
     int slot = lmt_check_for_flags(L, 1, &flags, 1, 0);
-    int state = texlib_aux_check_for_index(L, slot++, "muskip", &index, internal_mu_glue_cmd, register_mu_glue_cmd, internal_mu_glue_base, register_mu_glue_base, max_mu_glue_register_index);
-    halfword value = texlib_aux_make_glue(L, lua_gettop(L), slot);
+    int state = texlib_aux_check_for_index(L, slot++, "muskip", &index, internal_mu_glue_cmd, register_mu_glue_cmd, internal_mu_glue_base, register_mu_glue_base, max_mu_glue_register_index, mugluespec_cmd);
     if (state >= 0) {
-         tex_set_tex_mu_skip_register(index, value, flags, state);
+        halfword value = texlib_aux_make_glue(L, lua_gettop(L), slot);
+        if (state == 2) {
+            tex_define(flags, index, mugluespec_cmd, value);
+        } else {
+            tex_set_tex_mu_skip_register(index, value, flags, state);
+        }
     }
     return 0;
 }
@@ -1579,8 +1615,8 @@ static int texlib_getmuglue(lua_State *L)
 {
     int index;
     int all = (lua_type(L, 2) == LUA_TBOOLEAN) ? lua_toboolean(L, 2) : 1;
-    int state = texlib_aux_check_for_index(L, 1, "muskip", &index, internal_mu_glue_cmd, register_mu_glue_cmd, internal_mu_glue_base, register_mu_glue_base, max_mu_glue_register_index);
-    halfword value = state >= 0 ? tex_get_tex_mu_skip_register(index, state) : null;
+    int state = texlib_aux_check_for_index(L, 1, "muskip", &index, internal_mu_glue_cmd, register_mu_glue_cmd, internal_mu_glue_base, register_mu_glue_base, max_mu_glue_register_index, mugluespec_cmd);
+    halfword value = state >= 0 ? (state == 2 ? eq_value(index) : tex_get_tex_mu_skip_register(index, state)) : null;
     if (! value) {
         lua_pushinteger(L, 0);
         return 1;
@@ -1603,12 +1639,16 @@ static int texlib_setcount(lua_State *L)
     int flags = 0;
     int index = 0;
     int slot = lmt_check_for_flags(L, 1, &flags, 1, 0);
-    int state = texlib_aux_check_for_index(L, slot++, "count", &index, internal_int_cmd, register_int_cmd, internal_int_base, register_int_base, max_int_register_index);
+    int state = texlib_aux_check_for_index(L, slot++, "count", &index, internal_int_cmd, register_int_cmd, internal_int_base, register_int_base, max_int_register_index, integer_cmd);
     if (state >= 0) {
         halfword value = lmt_optinteger(L, slot++, 0);
-        tex_set_tex_count_register(index, value, flags, state);
-        if (state == 1 && lua_toboolean(L, slot)) {
-            tex_update_par_par(internal_int_cmd, index);
+        if (state == 2) {
+            tex_define(flags, index, integer_cmd, value);
+        } else {
+            tex_set_tex_count_register(index, value, flags, state);
+            if (state == 1 && lua_toboolean(L, slot)) {
+                tex_update_par_par(internal_int_cmd, index);
+            }
         }
     }
     return 0;
@@ -1617,8 +1657,8 @@ static int texlib_setcount(lua_State *L)
 static int texlib_getcount(lua_State *L)
 {
     int index;
-    int state = texlib_aux_check_for_index(L, 1, "count", &index, internal_int_cmd, register_int_cmd, internal_int_base, register_int_base, max_int_register_index);
-    lua_pushinteger(L, state >= 0 ? tex_get_tex_count_register(index, state) : 0);
+    int state = texlib_aux_check_for_index(L, 1, "count", &index, internal_int_cmd, register_int_cmd, internal_int_base, register_int_base, max_int_register_index, integer_cmd);
+    lua_pushinteger(L, state >= 0 ? (state == 2 ? eq_value(index) : tex_get_tex_count_register(index, state)) : 0);
     return 1;
 }
 
@@ -1634,7 +1674,7 @@ static int texlib_setattribute(lua_State *L)
     int flags = 0;
     int index = 0;
     int slot = lmt_check_for_flags(L, 1, &flags, 1, 0);
-    int state = texlib_aux_check_for_index(L, slot++, "attribute", &index, internal_attribute_cmd, register_attribute_cmd, internal_attribute_base, register_attribute_base, max_attribute_register_index);
+    int state = texlib_aux_check_for_index(L, slot++, "attribute", &index, internal_attribute_cmd, register_attribute_cmd, internal_attribute_base, register_attribute_base, max_attribute_register_index, 0);
     if (state >= 0) {
         halfword value = lmt_optinteger(L, slot++, unused_attribute_value);
         tex_set_tex_attribute_register(index, value, flags, state);
@@ -1645,7 +1685,7 @@ static int texlib_setattribute(lua_State *L)
 static int texlib_getattribute(lua_State *L)
 {
     int index;
-    int state = texlib_aux_check_for_index(L, 1, "attribute", &index, internal_attribute_cmd, register_attribute_cmd, internal_attribute_base, register_attribute_base, max_attribute_register_index);
+    int state = texlib_aux_check_for_index(L, 1, "attribute", &index, internal_attribute_cmd, register_attribute_cmd, internal_attribute_base, register_attribute_base, max_attribute_register_index, 0);
     lua_pushinteger(L, state >= 0 ? tex_get_tex_attribute_register(index, state) : 0);
     return 1;
 }
@@ -1666,7 +1706,7 @@ static int texlib_settoks(lua_State *L)
     int flags = 0;
     int index = 0;
     int slot = lmt_check_for_flags(L, 1, &flags, 1, 0);
-    int state = texlib_aux_check_for_index(L, slot++, "toks", &index, internal_toks_cmd, register_toks_cmd, internal_toks_base, register_toks_base,max_toks_register_index);
+    int state = texlib_aux_check_for_index(L, slot++, "toks", &index, internal_toks_cmd, register_toks_cmd, internal_toks_base, register_toks_base,max_toks_register_index, 0);
     if (state >= 0) {
         lstring value = { .c = NULL, .l = 0 };
         switch (lua_type(L, slot)) {
@@ -1691,7 +1731,7 @@ static int texlib_scantoks(lua_State *L) // TODO
     int index = 0;
     int flags = 0;
     int slot = lmt_check_for_flags(L, 1, &flags, 1, 0);
-    int state = texlib_aux_check_for_index(L, slot++, "toks", &index, internal_toks_cmd, register_toks_cmd, internal_toks_base, register_toks_base,max_toks_register_index);
+    int state = texlib_aux_check_for_index(L, slot++, "toks", &index, internal_toks_cmd, register_toks_cmd, internal_toks_base, register_toks_base,max_toks_register_index, 0);
     if (state >= 0) {
         lstring value = { .c = NULL, .l = 0 };
         int cattable = lmt_checkinteger(L, slot++);
@@ -1714,7 +1754,7 @@ static int texlib_gettoks(lua_State *L)
 {
     int index;
     int slot = 1;
-    int state = texlib_aux_check_for_index(L, slot++, "toks", &index, internal_toks_cmd, register_toks_cmd, internal_toks_base, register_toks_base, max_toks_register_index);
+    int state = texlib_aux_check_for_index(L, slot++, "toks", &index, internal_toks_cmd, register_toks_cmd, internal_toks_base, register_toks_base, max_toks_register_index, 0);
     if (state >= 0) {
         if (lua_toboolean(L, slot)) {
             lmt_token_register_to_lua(L, state ? toks_parameter(index) : toks_register(index));
