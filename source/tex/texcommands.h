@@ -362,6 +362,9 @@ typedef enum arithmic_codes {
     advance_code,
     multiply_code,
     divide_code,
+    advance_by_code,
+    multiply_by_code,
+    divide_by_code,
  /* bitwise_and_code, */
  /* bitwise_xor_code, */
  /* bitwise_or_code,  */

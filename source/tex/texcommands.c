@@ -316,6 +316,9 @@ void tex_initialize_commands(void)
         tex_primitive(tex_command,    "advance",                        arithmic_cmd,           advance_code,                             0);
         tex_primitive(tex_command,    "divide",                         arithmic_cmd,           divide_code,                              0);
         tex_primitive(tex_command,    "multiply",                       arithmic_cmd,           multiply_code,                            0);
+        tex_primitive(tex_command,    "advanceby",                      arithmic_cmd,           advance_by_code,                          0);
+        tex_primitive(tex_command,    "divideby",                       arithmic_cmd,           divide_by_code,                           0);
+        tex_primitive(tex_command,    "multiplyby",                     arithmic_cmd,           multiply_by_code,                         0);
 
         /*tex We combined the after thingies into one category:*/
 
@@ -985,7 +988,7 @@ void tex_initialize_commands(void)
         tex_primitive(tex_command,    "muskipdef",                      shorthand_def_cmd,      mu_skip_def_code,                         0);
         tex_primitive(tex_command,    "skipdef",                        shorthand_def_cmd,      skip_def_code,                            0);
         tex_primitive(tex_command,    "toksdef",                        shorthand_def_cmd,      toks_def_code,                            0);
-     /* tex_primitive(tex_command,    "stringdef",                      shorthand_def_cmd,      string_def_code,                          0); */
+     /* tex_primitive(luatex_command, "stringdef",                      shorthand_def_cmd,      string_def_code,                          0); */
         tex_primitive(luatex_command, "Umathchardef",                   shorthand_def_cmd,      math_xchar_def_code,                      0);
         tex_primitive(luatex_command, "Umathdictdef",                   shorthand_def_cmd,      math_dchar_def_code,                      0);
         tex_primitive(luatex_command, "attributedef",                   shorthand_def_cmd,      attribute_def_code,                       0);
