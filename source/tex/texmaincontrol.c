@@ -3597,11 +3597,13 @@ static int tex_aux_valid_arithmic(int cmd, int *index, int *level, int *varcmd, 
             *level = glue_val_level;
             *original = cur_chr;
             *simple = gluespec_cmd;
+            return 1;
         case mugluespec_cmd:
             *index = cur_cs;
-            *simple = mugluespec_cmd;
             *level = mu_val_level;
             *original = cur_chr;
+            *simple = mugluespec_cmd;
+            return 1;
         default:
             tex_handle_error(
                 normal_error_type,

@@ -1144,7 +1144,7 @@ static int texlib_error(lua_State *L)
 
 */
 
-inline static int texlib_aux_valid_register_index(lua_State *L, int slot, int cmd, int base, int max)
+inline static int texlib_aux_valid_register_index(lua_State *L, int slot, int cmd, int base, int max, int constant_cmd)
 {
     int index = -1;
     switch (lua_type(L, slot)) {
@@ -1155,6 +1155,8 @@ inline static int texlib_aux_valid_register_index(lua_State *L, int slot, int cm
                 int cs = tex_string_locate(str, len, 0);
                 if (eq_type(cs) == cmd) {
                     index = eq_value(cs) - base;
+                } else if (eq_type(cs) == constant_cmd) {
+                    return cs; // way above max
                 }
             }
             break;
@@ -1166,6 +1168,8 @@ inline static int texlib_aux_valid_register_index(lua_State *L, int slot, int cm
             break;
     }
     if (index >= 0 && index <= max) {
+        return index;
+    } else if (index < (eqtb_size + lmt_hash_state.hash_data.ptr + 1) && eq_type(index) == constant_cmd) {
         return index;
     } else {
         return -1;
@@ -1194,9 +1198,9 @@ static int texlib_get_register_index(lua_State *L)
     return 1;
 }
 
-inline static int texlib_aux_checked_register(lua_State *L, int cmd, int base, int max)
+inline static int texlib_aux_checked_register(lua_State *L, int cmd, int base, int max, int constant_cmd)
 {
-    int index = texlib_aux_valid_register_index(L, 1, cmd, base, max);
+    int index = texlib_aux_valid_register_index(L, 1, cmd, base, max, constant_cmd);
     if (index >= 0) {
         lua_pushinteger(L, index);
     } else {
@@ -1330,6 +1334,9 @@ static int texlib_aux_check_for_index(
             *index = lmt_tointeger(L, slot);
             if (*index >= 0 && *index <= max_index) {
                 return 0;
+            } else if (*index < (eqtb_size + lmt_hash_state.hash_data.ptr + 1) && eq_type(*index) == constant_cmd) {
+                // needs testing
+                return 2;
             } else {
                 return -1;
             }
@@ -1351,7 +1358,7 @@ static int texlib_get(lua_State *L);
 
 static int texlib_isdimen(lua_State *L)
 {
-    return texlib_aux_checked_register(L, register_dimen_cmd, register_dimen_base, max_dimen_register_index);
+    return texlib_aux_checked_register(L, register_dimen_cmd, register_dimen_base, max_dimen_register_index, dimension_cmd);
 }
 
 /* [global] name|index integer|dimension|false|nil */
@@ -1475,7 +1482,7 @@ static halfword texlib_aux_get_glue_spec(lua_State *L, int slot)
 
 static int texlib_isskip(lua_State *L)
 {
-    return texlib_aux_checked_register(L, register_glue_cmd, register_glue_base, max_glue_register_index);
+    return texlib_aux_checked_register(L, register_glue_cmd, register_glue_base, max_glue_register_index, gluespec_cmd);
 }
 
 /* [global] name|index gluespec|false|nil */
@@ -1511,7 +1518,7 @@ static int texlib_getskip(lua_State *L)
 
 static int texlib_isglue(lua_State *L)
 {
-    return texlib_aux_checked_register(L, register_glue_cmd, register_glue_base, max_glue_register_index);
+    return texlib_aux_checked_register(L, register_glue_cmd, register_glue_base, max_glue_register_index, gluespec_cmd);
 }
 
 /* [global] slot [width] [stretch] [shrink] [stretch_order] [shrink_order] */
@@ -1560,7 +1567,7 @@ static int texlib_getglue(lua_State *L)
 
 static int texlib_ismuskip(lua_State *L)
 {
-    return texlib_aux_checked_register(L, register_mu_glue_cmd, register_mu_glue_base, max_mu_glue_register_index);
+    return texlib_aux_checked_register(L, register_mu_glue_cmd, register_mu_glue_base, max_mu_glue_register_index, mugluespec_cmd);
 }
 
 static int texlib_setmuskip(lua_State *L)
@@ -1591,7 +1598,7 @@ static int texlib_getmuskip(lua_State *L)
 
 static int texlib_ismuglue(lua_State *L)
 {
-    return texlib_aux_checked_register(L, register_mu_glue_cmd, register_mu_glue_base, max_mu_glue_register_index);
+    return texlib_aux_checked_register(L, register_mu_glue_cmd, register_mu_glue_base, max_mu_glue_register_index, mugluespec_cmd);
 }
 
 static int texlib_setmuglue(lua_State *L)
@@ -1631,7 +1638,7 @@ static int texlib_getmuglue(lua_State *L)
 
 static int texlib_iscount(lua_State *L)
 {
-    return texlib_aux_checked_register(L, register_int_cmd, register_int_base, max_int_register_index);
+    return texlib_aux_checked_register(L, register_int_cmd, register_int_base, max_int_register_index, integer_cmd);
 }
 
 static int texlib_setcount(lua_State *L)
@@ -1664,7 +1671,7 @@ static int texlib_getcount(lua_State *L)
 
 static int texlib_isattribute(lua_State *L)
 {
-    return texlib_aux_checked_register(L, register_attribute_cmd, register_attribute_base, max_attribute_register_index);
+    return texlib_aux_checked_register(L, register_attribute_cmd, register_attribute_base, max_attribute_register_index, -1);
 }
 
 /*tex there are no system set attributes so this is a bit overkill */
@@ -1696,7 +1703,7 @@ static int texlib_getattribute(lua_State *L)
 
 static int texlib_istoks(lua_State *L)
 {
-    return texlib_aux_checked_register(L, register_toks_cmd, register_toks_base, max_toks_register_index);
+    return texlib_aux_checked_register(L, register_toks_cmd, register_toks_base, max_toks_register_index, -1);
 }
 
 /* [global] name|integer string|nil */
