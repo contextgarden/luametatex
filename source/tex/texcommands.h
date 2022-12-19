@@ -334,7 +334,7 @@ typedef enum tex_command_code {
 
 # define is_referenced_cmd(cmd)     (cmd >= call_cmd)
 # define is_nodebased_cmd(cmd)      (cmd >= gluespec_cmd && cmd <= fontspec_cmd)
-
+# define is_constant_cmd(cmd)       (cmd >= integer_cmd && cmd <= gluespec_cmd)
 
 # if (main_control_mode == 1)
 

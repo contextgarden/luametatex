@@ -1156,7 +1156,7 @@ inline static int texlib_aux_valid_register_index(lua_State *L, int slot, int cm
                 if (eq_type(cs) == cmd) {
                     index = eq_value(cs) - base;
                 } else if (eq_type(cs) == constant_cmd) {
-                    return cs; // way above max
+                    return 0xFFFF + cs; // way above max
                 }
             }
             break;
@@ -1334,12 +1334,14 @@ static int texlib_aux_check_for_index(
             *index = lmt_tointeger(L, slot);
             if (*index >= 0 && *index <= max_index) {
                 return 0;
-            } else if (*index < (eqtb_size + lmt_hash_state.hash_data.ptr + 1) && eq_type(*index) == constant_cmd) {
-                // needs testing
-                return 2;
-            } else {
-                return -1;
+            } else { 
+                halfword i = *index - 0xFFFF;
+                if (i < (eqtb_size + lmt_hash_state.hash_data.ptr + 1) && eq_type(i) == constant_cmd) {
+                    *index = i;
+                    return 2;
+                }
             }
+            return -1;
         default:
             luaL_error(L, "%s name or valid index expected", what);
             return -1;

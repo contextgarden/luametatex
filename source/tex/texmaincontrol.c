@@ -4754,6 +4754,10 @@ static void tex_aux_set_let(int a, int force)
         singleword newf = 0;
         singleword cmd = (singleword) cur_cmd;
         if (is_aliased(a)) {
+            /*tex 
+                Aliases only work for non constants: else make a |\def| of it or we need some 
+                pointer to the original but as the meaning can change. Too tricky. 
+            */
             newf = oldf;
         } else {
             oldf = remove_overload_flags(oldf);

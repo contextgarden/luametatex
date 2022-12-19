@@ -719,7 +719,10 @@ typedef enum attribute_codes {
 # define internal_specification_location(a) (internal_specification_base + (a))
 # define internal_specification_number(a)   ((a) - internal_specification_base)
 
-# define eqtb_size (internal_specification_base + number_specification_pars)
+# define eqtb_size       (internal_specification_base + number_specification_pars)
+# define eqtb_max_so_far (eqtb_size + lmt_hash_state.hash_data.ptr + 1)
+
+/* below: top or ptr +1 ? */
 
 # define eqtb_indirect_range(n) ((n < internal_glue_base) || ((n > eqtb_size) && (n <= lmt_hash_state.hash_data.top)))
 # define eqtb_out_of_range(n)   ((n >= undefined_control_sequence) && ((n <= eqtb_size) || n > lmt_hash_state.hash_data.top))
