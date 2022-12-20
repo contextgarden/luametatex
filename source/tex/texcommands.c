@@ -880,9 +880,11 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "tpack",                          make_box_cmd,           tpack_code,                               0);
         tex_primitive(luatex_command, "vpack",                          make_box_cmd,           vpack_code,                               0);
         tex_primitive(luatex_command, "hpack",                          make_box_cmd,           hpack_code,                               0);
+        tex_primitive(luatex_command, "dpack",                          make_box_cmd,           dpack_code,                               0);
         tex_primitive(tex_command,    "vtop",                           make_box_cmd,           vtop_code,                                0);
         tex_primitive(tex_command,    "vbox",                           make_box_cmd,           vbox_code,                                0);
         tex_primitive(tex_command,    "hbox",                           make_box_cmd,           hbox_code,                                0);
+        tex_primitive(luatex_command, "dbox",                           make_box_cmd,           dbox_code,                                0);
         tex_primitive(luatex_command, "insertbox",                      make_box_cmd,           insert_box_code,                          0);
         tex_primitive(luatex_command, "insertcopy",                     make_box_cmd,           insert_copy_code,                         0);
         tex_primitive(luatex_command, "localleftboxbox",                make_box_cmd,           local_left_box_box_code,                  0);

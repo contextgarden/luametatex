@@ -569,6 +569,9 @@ void tex_show_save_groups(void)
             case vtop_group:
                 package = "vtop";
                 break;
+            case dbox_group:
+                package = "dbox";
+                break;
             case align_group:
                 if (alignmentstate == 0) {
                     package = (mode == -vmode) ? "halign" : "valign";

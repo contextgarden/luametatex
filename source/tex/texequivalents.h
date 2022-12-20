@@ -971,6 +971,7 @@ typedef enum tex_group_codes {
     adjusted_hbox_group, /*tex code for |\hbox| in vertical mode */
     vbox_group,          /*tex code for |\vbox| */
     vtop_group,          /*tex code for |\vtop| */
+    dbox_group,          /*tex code for |\dbox| */
     align_group,         /*tex code for |\halign|, |\valign| */
     no_align_group,      /*tex code for |\noalign| */
     output_group,        /*tex code for output routine */
@@ -1015,6 +1016,7 @@ typedef enum tex_par_context_codes {
     vmode_par_context,
     vbox_par_context,
     vtop_par_context,
+    dbox_par_context,
     vcenter_par_context,
     vadjust_par_context,
     insert_par_context,
