@@ -1262,6 +1262,7 @@ inline static singleword tex_flags_to_cmd(int flags)
 
 extern int  tex_define_permitted   (halfword cs, halfword prefixes);
 extern void tex_define             (int g, halfword p, singleword cmd, halfword chr);
+extern void tex_define_again       (int g, halfword p, singleword cmd, halfword chr);
 extern void tex_define_inherit     (int g, halfword p, singleword flag, singleword cmd, halfword chr);
 extern void tex_define_swapped     (int g, halfword p1, halfword p2, int force);
 extern void tex_forced_define      (int g, halfword p, singleword flag, singleword cmd, halfword chr);

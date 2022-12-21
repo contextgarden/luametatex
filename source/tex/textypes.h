@@ -208,6 +208,7 @@ extern halfword tex_badness(
 # define default_output_box                       255
 
 /*tex
+
     For practical reasons all these registers were max'd to 64K but that really makes no sense for
     e.g. glue and mu glue and even attributes. Imagine using more than 8K attributes: we get long
     linked lists, slow lookup, lots of copying, need plenty node memory. These large ranges also
@@ -225,10 +226,12 @@ extern halfword tex_badness(
     use less than in \LUATEX\ because we got rid of some parallel array so there it would have more
     impact).
 
+    At some point we might actually drop these maxima indeed as we really don't need that many 
+    if these registers and if (say) 16K is not enough, then nothing is. 
+
 */
 
 # if 1
-
     # define max_toks_register_index      0xFFFF /* 0xFFFF 0xFFFF 0x7FFF */ /* 64 64 32 */
     # define max_box_register_index       0xFFFF /* 0xFFFF 0xFFFF 0x7FFF */ /* 64 64 32 */
     # define max_int_register_index       0xFFFF /* 0xFFFF 0xFFFF 0x3FFF */ /* 64 64 16 */
@@ -239,10 +242,10 @@ extern halfword tex_badness(
 
 # else
 
-    # define max_toks_register_index      0x7FFF
+    # define max_toks_register_index      0x3FFF
     # define max_box_register_index       0x7FFF
-    # define max_int_register_index       0x3FFF
-    # define max_dimen_register_index     0x3FFF
+    # define max_int_register_index       0x1FFF
+    # define max_dimen_register_index     0x1FFF
     # define max_attribute_register_index 0x1FFF
     # define max_glue_register_index      0x1FFF
     # define max_mu_glue_register_index   0x1FFF

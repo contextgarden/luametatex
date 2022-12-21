@@ -369,6 +369,8 @@ typedef enum arithmic_codes {
  /* bitwise_xor_code, */
  /* bitwise_or_code,  */
  /* bitwise_not_code, */
+ /* advance_by_plus_one_code,  */
+ /* advance_by_minus_one_code, */
 } arithmic_codes;
 
 # define last_arithmic_code divide_code
@@ -693,6 +695,8 @@ typedef enum shorthand_def_codes {
     mugluespec_def_code,
  /* mathspec_def_code, */
     fontspec_def_code,
+ /* integer_def_csname_code,   */
+ /* dimension_def_csname_code, */
 } shorthand_def_codes;
 
 # define last_shorthand_def_code fontspec_def_code

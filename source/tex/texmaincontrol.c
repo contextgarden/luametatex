@@ -3826,6 +3826,24 @@ static void tex_aux_arithmic_register(int a, int code)
                     }
                     break;
                 }
+            /*
+            case advance_by_plus_one_code:
+            case advance_by_minus_one_code:
+                {
+                    switch (level) {
+                        case int_val_level:
+                        case attr_val_level:
+                            original += code == advance_by_plus_one_code ? 1 : -1;
+                            if (simple) {
+                                tex_define(a, index, simple, original);
+                            } else {
+                                tex_aux_update_register(a, level, index, original, varcmd);
+                            }
+                            break;
+                    }
+                    break;
+                }
+            */
         }
     }
 }
@@ -4229,17 +4247,20 @@ static void tex_aux_set_box(int a)
     \foo = 123\foo|.
 */
 
-inline static void tex_aux_define(int a, halfword p, singleword cmd, halfword v)
-{
-    /* we already set the flags and pushed on the stack */ /* tex_define(a, p, cmd, v); */
-    (void) a;
-    set_eq_type(p, cmd);
-    set_eq_value(p, v);
-}
-
 static void tex_aux_set_shorthand_def(int a, int force)
 {
     halfword code = cur_chr;
+    /*
+    switch (code) { 
+        case integer_def_csname_code:
+        case dimension_def_csname_code:
+            cur_cs = tex_create_csname();
+            break;
+        default:           
+            tex_get_r_token();
+            break;
+    }
+    */
     tex_get_r_token();
     if (force || tex_define_permitted(cur_cs, a)) {
         /* can we optimize the dual define, like no need to destroy in second call */
@@ -4250,92 +4271,94 @@ static void tex_aux_set_shorthand_def(int a, int force)
             case char_def_code:
                 {
                     halfword chr = tex_scan_char_number(0); /* maybe 1 */
-                    tex_aux_define(a, p, char_given_cmd, chr);
+                    tex_define_again(a, p, char_given_cmd, chr);
                     break;
                 }
             case math_char_def_code:
                 {
                     mathcodeval mval = tex_scan_mathchar(tex_mathcode);
-                    tex_aux_define(a, p, mathspec_cmd, tex_new_math_spec(mval, tex_mathcode));
+                    tex_define_again(a, p, mathspec_cmd, tex_new_math_spec(mval, tex_mathcode));
                     break;
                 }
             case math_dchar_def_code:
                 {
                     mathdictval dval = tex_scan_mathdict();
                     mathcodeval mval = tex_scan_mathchar(umath_mathcode);
-                    tex_aux_define(a, p, mathspec_cmd, tex_new_math_dict_spec(dval, mval, umath_mathcode));
+                    tex_define_again(a, p, mathspec_cmd, tex_new_math_dict_spec(dval, mval, umath_mathcode));
                     break;
                 }
             case math_xchar_def_code:
                 {
                     mathcodeval mval = tex_scan_mathchar(umath_mathcode);
-                    tex_aux_define(a, p, mathspec_cmd, tex_new_math_spec(mval, umath_mathcode));
-                   break;
+                    tex_define_again(a, p, mathspec_cmd, tex_new_math_spec(mval, umath_mathcode));
+                    break;
                 }
             case count_def_code:
                 {
                     halfword n = tex_scan_int_register_number();
-                    tex_aux_define(a, p, register_int_cmd, register_int_location(n));
+                    tex_define_again(a, p, register_int_cmd, register_int_location(n));
                     break;
                 }
             case attribute_def_code:
                 {
                     halfword n = tex_scan_attribute_register_number();
-                    tex_aux_define(a, p, register_attribute_cmd, register_attribute_location(n));
+                    tex_define_again(a, p, register_attribute_cmd, register_attribute_location(n));
                     break;
                 }
             case dimen_def_code:
                 {
                     scaled n = tex_scan_dimen_register_number();
-                    tex_aux_define(a, p, register_dimen_cmd, register_dimen_location(n));
+                    tex_define_again(a, p, register_dimen_cmd, register_dimen_location(n));
                     break;
                 }
             case skip_def_code:
                 {
                     halfword n = tex_scan_glue_register_number();
-                    tex_aux_define(a, p, register_glue_cmd, register_glue_location(n));
+                    tex_define_again(a, p, register_glue_cmd, register_glue_location(n));
                     break;
                 }
             case mu_skip_def_code:
                 {
                     halfword n = tex_scan_mu_glue_register_number();
-                    tex_aux_define(a, p, register_mu_glue_cmd, register_mu_glue_location(n));
+                    tex_define_again(a, p, register_mu_glue_cmd, register_mu_glue_location(n));
                     break;
                 }
             case toks_def_code:
                 {
                     halfword n = tex_scan_toks_register_number();
-                    tex_aux_define(a, p, register_toks_cmd, register_toks_location(n));
+                    tex_define_again(a, p, register_toks_cmd, register_toks_location(n));
                     break;
                 }
             case lua_def_code:
                 {
                     halfword v = tex_scan_function_reference(1);
-                    tex_aux_define(a, p, is_protected(a) ? lua_protected_call_cmd : lua_call_cmd, v);
+                    tex_define_again(a, p, is_protected(a) ? lua_protected_call_cmd : lua_call_cmd, v);
                 }
                 break;
             case integer_def_code:
+         /* case integer_def_csname_code: */
                 {
                     halfword v = tex_scan_int(1, NULL);
-                    tex_aux_define(a, p, integer_cmd, v);
+                    tex_define_again(a, p, integer_cmd, v);
                 }
                 break;
             case dimension_def_code:
+         /* case dimension_def_csname_code: */
                 {
                     scaled v = tex_scan_dimen(0, 0, 0, 1, NULL);
-                    tex_aux_define(a, p, dimension_cmd, v);
+                    tex_define_again(a, p, dimension_cmd, v);
                 }
                 break;
             case gluespec_def_code:
                 {
                     halfword v = tex_scan_glue(glue_val_level, 1);
-                    tex_aux_define(a, p, gluespec_cmd, v);
+                    tex_define_again(a, p, gluespec_cmd, v);
                 }
                 break;
             case mugluespec_def_code:
                 {
                     halfword v = tex_scan_glue(mu_val_level, 1);
-                    tex_aux_define(a, p, mugluespec_cmd, v);
+                    tex_define_again(a, p, mugluespec_cmd, v);
                 }
                 break;
             /*
@@ -4747,13 +4770,13 @@ static void tex_aux_set_let(int a, int force)
                 a = add_global_flag(a);
             }
             if (force || tex_define_permitted(cur_cs, a)) {
-                /*tex 
-                    The commented line permits plenty empty definitions, a |\let| can run out of 
-                    ref count so maybe some day \unknown 
-                */
+             // /*tex 
+             //     The commented line permits plenty empty definitions, a |\let| can run out of 
+             //     ref count so maybe some day \unknown 
+             // */
              // halfword empty = get_reference_token();
-                halfword empty = lmt_token_state.empty;
              // tex_add_token_reference(empty);
+                halfword empty = lmt_token_state.empty;
                 tex_define(a, cur_cs, tex_flags_to_cmd(a), empty);
             }
             return;

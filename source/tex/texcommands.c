@@ -319,6 +319,8 @@ void tex_initialize_commands(void)
         tex_primitive(tex_command,    "advanceby",                      arithmic_cmd,           advance_by_code,                          0);
         tex_primitive(tex_command,    "divideby",                       arithmic_cmd,           divide_by_code,                           0);
         tex_primitive(tex_command,    "multiplyby",                     arithmic_cmd,           multiply_by_code,                         0);
+     /* tex_primitive(tex_command,    "advancebyplusone",               arithmic_cmd,           advance_by_plus_one_code,                 0); */
+     /* tex_primitive(tex_command,    "advancebyminusone",              arithmic_cmd,           advance_by_minus_one_code,                0); */
 
         /*tex We combined the after thingies into one category:*/
 
@@ -1001,6 +1003,8 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "mugluespecdef",                  shorthand_def_cmd,      mugluespec_def_code,                      0);
      /* tex_primitive(luatex_command, "mathspecdef",                    shorthand_def_cmd,      mathspec_def_code,                        0); */
         tex_primitive(luatex_command, "fontspecdef",                    shorthand_def_cmd,      fontspec_def_code,                        0);
+     /* tex_primitive(luatex_command, "integerdefcsname",               shorthand_def_cmd,      integer_def_csname_code,                  0); */
+     /* tex_primitive(luatex_command, "dimensiondefcsname",             shorthand_def_cmd,      dimension_def_csname_code,                0); */
 
         tex_primitive(tex_command,    "noindent",                       begin_paragraph_cmd,    noindent_par_code,                        0);
         tex_primitive(tex_command,    "indent",                         begin_paragraph_cmd,    indent_par_code,                          0);
