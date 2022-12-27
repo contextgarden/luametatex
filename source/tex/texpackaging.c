@@ -2358,28 +2358,6 @@ void tex_finish_vcenter_group(void)
     }
 }
 
-inline static scaled tex_aux_checked_dimen1(halfword v)
-{
-    if (v > max_dimen) {
-        return max_dimen;
-    } else if (v < -max_dimen) {
-        return -max_dimen;
-    } else {
-        return v;
-    }
-}
-
-inline static scaled tex_aux_checked_dimen2(halfword v)
-{
-    if (v > max_dimen) {
-        return max_dimen;
-    } else if (v < 0) {
-        return 0;
-    } else {
-        return v;
-    }
-}
-
 static scaled tex_aux_first_height(halfword boxnode) 
 {
     halfword list = box_list(boxnode);
