@@ -895,10 +895,9 @@ static int tex_aux_set_cur_val_by_some_cmd(int code)
 
 static void tex_aux_set_cur_val_by_auxiliary_cmd(int chr)
 {
-    halfword mode = abs(cur_list.mode);
     switch (chr) {
         case space_factor_code:
-            if (mode == hmode) {
+            if (is_h_mode(cur_list.mode)) {
                 cur_val = cur_list.space_factor;
             } else {
                 tex_handle_error(normal_error_type, "Improper %C", set_auxiliary_cmd, chr,
@@ -910,7 +909,7 @@ static void tex_aux_set_cur_val_by_auxiliary_cmd(int chr)
             cur_val_level = int_val_level;
             break;
         case prev_depth_code:
-            if (mode == vmode) {
+            if (is_v_mode(cur_list.mode)) {
                 cur_val = cur_list.prev_depth;
             } else {
                 tex_handle_error(normal_error_type, "Improper %C", set_auxiliary_cmd, chr,
@@ -922,7 +921,7 @@ static void tex_aux_set_cur_val_by_auxiliary_cmd(int chr)
             cur_val_level = dimen_val_level;
             break;
         case prev_graf_code:
-            if (mode == nomode) {
+            if (cur_list.mode == nomode) {
                 /*tex So |prev_graf=0| within |\write|, not that we have that. */
                 cur_val = 0;
             } else {

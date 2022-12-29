@@ -810,7 +810,7 @@ static void tex_aux_run_no_align(void)
     tex_new_save_level(no_align_group);
     ++lmt_alignment_state.no_align_level;
     tex_aux_trace_no_align("entering");
-    if (cur_list.mode == -vmode) {
+    if (cur_list.mode == internal_vmode) {
         tex_normal_paragraph(no_align_par_context);
     }
 }
@@ -823,7 +823,7 @@ static int tex_aux_nested_no_align(void)
         tex_new_save_level(no_align_group);
         ++lmt_alignment_state.no_align_level;
         tex_aux_trace_no_align("entering");
-        if (cur_list.mode == -vmode) {
+        if (cur_list.mode == internal_vmode) {
             tex_normal_paragraph(no_align_par_context);
         }
     }
@@ -925,7 +925,7 @@ void tex_run_alignment_initialize(void)
         value that produces the correct baseline calculations.
     */
     if (cur_list.mode == mmode) {
-        cur_list.mode = -vmode;
+        cur_list.mode = internal_vmode;
         cur_list.prev_depth = lmt_nest_state.nest[lmt_nest_state.nest_data.ptr - 2].prev_depth;
     } else if (cur_list.mode > 0) {
         cur_list.mode = -cur_list.mode;
@@ -1060,7 +1060,7 @@ void tex_finish_alignment_group(void)
 static void tex_aux_initialize_span(halfword p)
 {
     tex_push_nest();
-    if (cur_list.mode == -hmode) {
+    if (cur_list.mode == restricted_hmode) {
         cur_list.space_factor = 1000;
     } else {
         cur_list.prev_depth = ignore_depth_criterium_par;
@@ -1082,7 +1082,7 @@ static void tex_aux_initialize_row(void)
 {
     tex_push_nest();
     cur_list.mode = (- hmode - vmode) - cur_list.mode; /* weird code : - 3 - cur_list.mode : so a buogus line */
-    if (cur_list.mode == -hmode) {                     
+    if (cur_list.mode == restricted_hmode) {                     
         cur_list.space_factor = 0;
     } else {
         cur_list.prev_depth = 0;
@@ -1302,7 +1302,7 @@ static int tex_aux_finish_column(void)
                     size = box_size(lmt_alignment_state.cur_align);
                     packing = packing_exactly;
                 }
-                if (cur_list.mode == -hmode) {
+                if (cur_list.mode == restricted_hmode) {
                     lmt_packaging_state.post_adjust_tail = lmt_alignment_state.cur_post_adjust_tail;
                     lmt_packaging_state.pre_adjust_tail = lmt_alignment_state.cur_pre_adjust_tail;
                     lmt_packaging_state.post_migrate_tail = lmt_alignment_state.cur_post_migrate_tail;
@@ -1396,7 +1396,7 @@ static int tex_aux_finish_column(void)
 static void tex_aux_finish_row(void)
 {
     halfword row;
-    if (cur_list.mode == -hmode) {
+    if (cur_list.mode == restricted_hmode) {
         row = tex_filtered_hpack(cur_list.head, cur_list.tail, 0, packing_additional, finish_row_group, direction_unknown, 0, null, 0, 0);
         tex_pop_nest();
         if (lmt_alignment_state.cur_pre_adjust_head != lmt_alignment_state.cur_pre_adjust_tail) {
@@ -1712,7 +1712,7 @@ static void tex_aux_finish_align(void)
         alignment is overfull or underfull.
 
     */
-    if (cur_list.mode == -vmode) {
+    if (cur_list.mode == internal_vmode) {
         halfword rule_save = overfull_rule_par;
         /*tex Prevent the rule from being packaged. */
         overfull_rule_par = 0; 
@@ -1757,7 +1757,7 @@ static void tex_aux_finish_align(void)
                         */
                         halfword preptr;
                         halfword colptr;
-                        if (cur_list.mode == -vmode) {
+                        if (cur_list.mode == internal_vmode) {
                          /* tex_aux_change_list_type(rowptr, hlist_node); */ /* too much */
                             node_type(rowptr) = hlist_node;
                             box_width(rowptr) = box_width(preroll);
@@ -1829,11 +1829,11 @@ static void tex_aux_finish_align(void)
                                 }
                                 preptr = node_next(preptr);
                                 {
-                                    halfword box = tex_new_null_box_node(cur_list.mode == -vmode ? hlist_node : vlist_node, align_cell_list);
+                                    halfword box = tex_new_null_box_node(cur_list.mode == internal_vmode ? hlist_node : vlist_node, align_cell_list);
                                     tex_couple_nodes(tail, box);
                                     tex_attach_attribute_list_attribute(box, lmt_alignment_state.attr_list);
                                     total += box_width(preptr);
-                                    if (cur_list.mode == -vmode) {
+                                    if (cur_list.mode == internal_vmode) {
                                         box_width(box) = box_width(preptr);
                                     } else {
                                         box_height(box) = box_width(preptr);
@@ -1841,7 +1841,7 @@ static void tex_aux_finish_align(void)
                                     tail = box;
                                 }
                             }
-                            if (cur_list.mode == -vmode) {
+                            if (cur_list.mode == internal_vmode) {
                                 /*tex
                                     Make the unset node |r| into an |hlist_node| of width |w|,
                                     setting the glue as if the width were |t|.

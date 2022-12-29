@@ -797,7 +797,7 @@ static void tex_aux_scan_local_box(int code) {
     tex_new_save_level(local_box_group);
     tex_scan_left_brace();
     tex_push_nest();
-    cur_list.mode = -hmode;
+    cur_list.mode = restricted_hmode;
     cur_list.space_factor = 1000;
 }
 
@@ -1525,23 +1525,11 @@ static void tex_aux_run_lua_function_call(void)
 /*tex
 
     The |main_control| uses a jump table, and |init_main_control| sets that table up. We need to
-    assign an entry for {\em each} of the three modes!
+    assign an entry for {\em each} of the three modes! The jump table is gone. 
 
     For mode-independent commands, the following macro is useful. Also, there is a list of cases
     where the user has probably gotten into or out of math mode by mistake. \TEX\ will insert a
     dollar sign and rescan the current token, and it makes sense to have a macro for that as well.
-
-*/
-
-# if (main_control_mode == 0)
-
-    typedef void (*main_control_function)(void);
-
-    static main_control_function *jump_table;
-
-# endif
-
-/*tex
 
     Here is |main_control| itself. It is quite short nowadays.  The initializer is at the end of
     this file which saves a nunch of forward declarations.
@@ -1613,7 +1601,7 @@ void tex_local_control(int obeymode)
     lmt_main_control_state.local_level += 1;
     lmt_main_control_state.control_state = goto_next_state;
     if (! obeymode) {
-        cur_list.mode = -hmode;
+        cur_list.mode = restricted_hmode;
     }
     while (1) {
         if (lmt_main_control_state.control_state == goto_skip_token_state) {
@@ -1863,7 +1851,7 @@ halfword tex_local_scan_box(void)
 {
     int old_mode = cur_list.mode;
     int old_level = lmt_main_control_state.local_level;
-    cur_list.mode = -hmode;
+    cur_list.mode = restricted_hmode;
     tex_aux_scan_box(lua_scan_flag, 0, null_flag, -1);
     if (lmt_main_control_state.local_level == old_level) {
         /*tex |\directlua{print(token.scan_list())}\hbox{!}| (n n) */
@@ -2215,7 +2203,7 @@ static void tex_aux_run_discretionary(void)
                 tex_new_save_level(discretionary_group);
                 tex_scan_left_brace();
                 tex_push_nest();
-                cur_list.mode = -hmode;
+                cur_list.mode = restricted_hmode;
                 cur_list.space_factor = default_space_factor; /* hm, quite hard coded */
             }
             break;
@@ -2399,7 +2387,7 @@ static void tex_aux_finish_discretionary(void)
         tex_new_save_level(discretionary_group);
         tex_scan_left_brace();
         tex_push_nest();
-        cur_list.mode = -hmode;
+        cur_list.mode = restricted_hmode;
         cur_list.space_factor = default_space_factor;
     } else {
         tex_confusion("finish discretionary");
@@ -6260,32 +6248,6 @@ static void tex_aux_run_show_whatever(void)
 
 */
 
-# if (main_control_mode == 0)
-
-# define register_runner(A,B,C,D) \
-    jump_table[vmode+(A)] = B; \
-    jump_table[hmode+(A)] = C; \
-    jump_table[mmode+(A)] = D
-
-# define register_simple(A,B) \
-    jump_table[vmode+(A)] = B; \
-    jump_table[hmode+(A)] = B; \
-    jump_table[mmode+(A)] = B
-
-# define register_asmath(A,B,C) \
-    jump_table[vmode+(A)] = B; \
-    jump_table[hmode+(A)] = B; \
-    jump_table[mmode+(A)] = C
-
-inline static void init_main_control(void)
-{
-
-    jump_table = lmt_memory_malloc((mmode + max_command_cmd + 1) * sizeof(main_control_function)) ;
-
-    if (jump_table) {
-
-# elif (main_control_mode == 1)
-
 # define register_runner(A,B,C,D) \
     case A: \
         switch (mode) { \
@@ -6305,31 +6267,6 @@ inline static void tex_aux_big_switch(int mode, int cmd)
 {
 
     switch (cmd) {
-
-# else
-
-# define register_runner(A,B,C,D) \
-        case (vmode + A): B(); break; \
-        case (hmode + A): C(); break; \
-        case (mmode + A): D(); break;
-
-# define register_simple(A,B) \
-        case (vmode + A): B(); break; \
-        case (hmode + A): B(); break; \
-        case (mmode + A): B(); break;
-
-# define register_asmath(A,B,C) \
-        case (vmode + A): B(); break; \
-        case (hmode + A): B(); break; \
-        case (mmode + A): C(); break;
-
-inline static void tex_aux_big_switch(int mode, int cmd)
-{
-
-    switch (mode + cmd) {
-
-# endif
-
         /*tex These have the same handler for each mode: */
 
         register_simple(arithmic_cmd,           tex_run_prefixed_command);
@@ -6482,26 +6419,13 @@ inline static void tex_aux_big_switch(int mode, int cmd)
 
         /*tex The next is unlikely to happen but compilers like the check. */
 
-# if (main_control_mode == 0)
-    } else {
-# else
         default:
             printf("cmd code %i", cmd);
             tex_confusion("unknown cmd code");
             break;
-# endif
     }
 
 }
-
-# if (main_control_mode == 0)
-
-inline static void tex_aux_big_switch(int mode, int cmd)
-{
-    (jump_table[mode + cmd])();
-}
-
-# endif
 
 /*tex
     Some preset values no longer make sense, like family 1 for some math symbols but we keep them

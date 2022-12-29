@@ -591,13 +591,13 @@ void tex_conditional_if(halfword code, int unless)
             result = odd(tex_scan_int(0, NULL));
             goto RESULT;
         case if_vmode_code:
-            result = abs(cur_list.mode) == vmode;
+            result = is_v_mode(cur_list.mode);
             goto RESULT;
         case if_hmode_code:
-            result = abs(cur_list.mode) == hmode;
+            result = is_h_mode(cur_list.mode);
             goto RESULT;
         case if_mmode_code:
-            result = abs(cur_list.mode) == mmode;
+            result = is_m_mode(cur_list.mode);
             goto RESULT;
         case if_inner_code:
             result = cur_list.mode < nomode;

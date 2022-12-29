@@ -580,7 +580,7 @@ void tex_show_save_groups(void)
                 break;
             case align_group:
                 if (alignmentstate == 0) {
-                    package = (mode == -vmode) ? "halign" : "valign";
+                    package = (mode == internal_vmode) ? "halign" : "valign";
                     alignmentstate = 1;
                     goto FOUND1;
                 } else {
@@ -692,7 +692,7 @@ void tex_show_save_groups(void)
                     scaled shift = tex_aux_save_value(saved_full_spec_item_shift);
                     if (shift != null_flag) { 
                         /*tex We passed the safeguard. */
-                        singleword cmd = (abs(lmt_nest_state.nest[pointer].mode) == vmode) ? hmove_cmd : vmove_cmd;
+                        singleword cmd = is_v_mode(lmt_nest_state.nest[pointer].mode) ? hmove_cmd : vmove_cmd;
                         tex_print_cmd_chr(cmd, (shift > 0) ? move_forward_code : move_backward_code);
                         tex_print_dimension(abs(shift), pt_unit);
                     }

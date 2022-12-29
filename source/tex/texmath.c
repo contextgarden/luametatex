@@ -315,7 +315,7 @@ static void tex_aux_unsave_math(void)
 /*tex
 
     Sometimes it is necessary to destroy an mlist. The following subroutine empties the current
-    list, assuming that |abs(mode) = mmode|.
+    list, assuming that |abs(mode) = mmode|  aka |is_m_mode(mode)|.
 
 */
 
@@ -1225,7 +1225,7 @@ static void tex_aux_push_math(quarterword group, int style)
     cur_list.math_end = math_end_class_par;
     cur_list.math_main_style = style;
     tex_push_nest();
-    cur_list.mode = -mmode;
+    cur_list.mode = inline_mmode;
     cur_list.incomplete_noad = null;
     cur_list.math_style = style;
     tex_aux_new_save_level_math(group);
@@ -3047,12 +3047,12 @@ void tex_run_math_choice(void) {
 
 int tex_current_math_style(void)
 {
-    return (abs(cur_list.mode) == mmode) ? cur_list.math_style : -1;
+    return is_m_mode(cur_list.mode) ? cur_list.math_style : -1;
 }
 
 int tex_current_math_main_style(void)
 {
-    return (abs(cur_list.mode) == mmode) ? cur_list.math_main_style : -1;
+    return is_m_mode(cur_list.mode) ? cur_list.math_main_style : -1;
 }
 
 void tex_finish_math_choice(void)

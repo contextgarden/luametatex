@@ -4087,7 +4087,7 @@ static int texlib_getinputstateline(lua_State *L)
 
 static int texlib_forcehmode(lua_State *L)
 {
-    if (abs(cur_list.mode) == vmode) {
+    if (is_v_mode(cur_list.mode)) {
         if (lua_type(L, 1) == LUA_TBOOLEAN) {
             tex_begin_paragraph(lua_toboolean(L, 1), force_par_begin);
         } else {
@@ -4743,7 +4743,7 @@ static int texlib_getmodevalues(lua_State *L)
 
 static int texlib_getmode(lua_State *L)
 {
-    lua_pushinteger(L, abs(cur_list.mode));
+    lua_pushinteger(L, tex_normalized_mode(cur_list.mode));
     return 1;
 }
 
