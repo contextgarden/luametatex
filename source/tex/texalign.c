@@ -199,10 +199,11 @@
     limit that (and redundant boxes and glue are the only things we can do here). It actually
     also saves a bit of runtime. This feature has not been tested yet with |\span| and |\omit|.
 
-*/
+    The |\noalign| command accepts a couple of keywords that specify options to be applied to the 
+    next row. These options are similar to the ones for boxes. 
 
-/*
-    Todo: lefttabskip righttabskip middletabskip
+    Maybe: lefttabskip righttabskip middletabskip
+
 */
 
 typedef struct alignment_row_state { 
@@ -239,8 +240,8 @@ typedef struct alignment_state_info {
     halfword cell_source;           
     halfword wrap_source;           /*tex There's also a field in the row_state. */
     halfword callback;
- // halfword reverse;       // todo 
- // halfword discard_skips; // todo 
+ /* halfword reverse;            */ /* maybe */
+ /* halfword discard_skips;      */ /* maybe */
     halfword row_state_set;
     halfword padding;
     alignment_row_state row_state; 
@@ -267,8 +268,8 @@ static alignment_state_info lmt_alignment_state = {
     .cell_source           = 0,
     .wrap_source           = 0,
     .callback              = 0,
- // .reverse               = 0, 
- // .discard_skips         = 0,
+ /* .reverse               = 0, */
+ /* .discard_skips         = 0, */
     .row_state_set         = 0, 
     .padding               = 0,
     .row_state = { 
@@ -305,9 +306,9 @@ static void tex_aux_wipe_row_state(void)
 typedef enum saved_align_items {
     saved_align_specification,
     saved_align_reverse,
-    saved_align_discard,
-    saved_align_noskips, /*tex Saving is not needed but it doesn't hurt either */
-    saved_align_callback,
+    saved_align_discard, 
+    saved_align_noskips,  /*tex currently fetched from the state (not used anyway) */
+    saved_align_callback, /*tex currently fetched from the state */
     saved_align_n_of_items,
 } saved_align_items;
 
@@ -338,7 +339,7 @@ inline static void tex_aux_change_list_type(halfword n, quarterword type)
     box_d_offset(n) = 0;    /* box_span_count                              */
     box_x_offset(n) = 0;    /*                     align_record_u_part     */
     box_y_offset(n) = 0;    /*                     align_record_v_part     */
- // box_geometry(n) = 0;    /* box_size                                    */
+ /* box_geometry(n) = 0; */ /* box_size                                    */
     box_orientation(n) = 0; /* box_size                                    */
 }
 
@@ -623,10 +624,10 @@ static void tex_aux_scan_align_spec(quarterword c)
     add_attribute_reference(attrlist);
     tex_set_saved_record(saved_align_specification, box_spec_save_type, mode, amount);
     /* We save them but could put them in the state as we do for some anyway. */
-    tex_set_saved_record(saved_align_reverse, box_reverse_save_type, reverse, 0);
-    tex_set_saved_record(saved_align_discard, box_discard_save_type, noskips ? 0 : discard, 0);
-    tex_set_saved_record(saved_align_noskips, box_noskips_save_type, noskips, 0);
-    tex_set_saved_record(saved_align_callback, box_callback_save_type, callback, 0);
+    tex_set_saved_record(saved_align_reverse, box_reverse_save_type, 0, reverse);
+    tex_set_saved_record(saved_align_discard, box_discard_save_type, 0, noskips ? 0 : discard);
+    tex_set_saved_record(saved_align_noskips, box_noskips_save_type, 0, noskips);
+    tex_set_saved_record(saved_align_callback, box_callback_save_type, 0, callback);
     lmt_save_state.save_stack_data.ptr += saved_align_n_of_items;
     tex_new_save_level(c);
     if (! brace) {
@@ -1566,6 +1567,11 @@ static void tex_aux_strip_zero_tab_skips(halfword q)
     }
 }
 
+/*tex 
+    We currently have a mix of states but maybe some day we will exposer the save stack and then it
+    is handy to have the state values there. So for now I keep this (as reminder). 
+*/
+
 static void tex_aux_finish_align(void)
 {
     /*tex a shared register for the list operations (others are localized) */
@@ -1574,7 +1580,7 @@ static void tex_aux_finish_align(void)
     scaled offset = 0;
     /*tex something new */
     halfword reverse = 0;
-    halfword callback = lmt_alignment_state.callback;
+    halfword callback = lmt_alignment_state.callback; /* see below for variant */
     halfword discard = normalize_line_mode_permitted(normalize_line_mode_par, discard_zero_tab_skips_mode);
     /*tex The |align_group| was for individual entries: */
     if (cur_group != align_group) {
@@ -1591,8 +1597,9 @@ static void tex_aux_finish_align(void)
     }
     lmt_save_state.save_stack_data.ptr -= saved_align_n_of_items;
     lmt_packaging_state.pack_begin_line = -cur_list.mode_line;
-    reverse = saved_level(saved_align_reverse);            /* we can as well save these in the state */
-    discard = discard || saved_level(saved_align_discard); /* we can as well save these in the state */
+    reverse = saved_value(saved_align_reverse);            /* we can as well save these in the state */
+    discard = discard || saved_value(saved_align_discard); /* we can as well save these in the state */
+ /* callback = saved_value(saved_align_callback); */       /* already fetched from the state */
     /*tex
         All content is available now so this is a perfect spot for some processing. However, we
         cannot mess with the unset boxes (as these can have special properties). The main reason

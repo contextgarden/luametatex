@@ -94,7 +94,7 @@ save_state_info lmt_save_state = {
     .current_level    = 0,
     .current_group    = 0,
     .current_boundary = 0,
-    .padding          = 0,
+ // .padding          = 0,
 };
 
 /*tex
@@ -517,7 +517,7 @@ static int tex_aux_saved_box_spec(halfword *packing, halfword *amount)
 {
     int i = tex_aux_found_save_type(box_spec_save_type);
     if (i) {
-        *packing = saved_level(i);
+        *packing = saved_extra(i);
         *amount = saved_value(i);
     } else {
         *packing = 0;

@@ -6158,7 +6158,7 @@ static void tex_aux_run_show_whatever(void)
                 halfword head = tex_the_value_toks(the_code, NULL, 0);
                 tex_print_nlp();
                 tex_print_str("> ");
-                tex_show_token_list(head, null, default_token_show_max, 0);
+                tex_show_token_list(head, 0);
                 tex_flush_token_list(head);
                 goto COMMON_ENDING;
             }
@@ -6181,7 +6181,7 @@ static void tex_aux_run_show_whatever(void)
                 halfword head = tex_the_detokenized_toks(NULL);
                 tex_print_nlp();
                 tex_print_str("> ");
-                tex_show_token_list(head, null, default_token_show_max, 0);
+                tex_show_token_list(head, 0);
                 tex_flush_token_list(head);
                 goto COMMON_ENDING;
             }

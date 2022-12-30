@@ -67,7 +67,7 @@
 
 static void tex_aux_scan_full_spec(halfword context, quarterword c, quarterword spec_direction, int just_pack, scaled shift, halfword slot)
 {
-    quarterword spec_code = packing_additional;
+    quarterword spec_packing = packing_additional;
     int spec_amount = 0;
     halfword attrlist = null;
     halfword orientation = 0;
@@ -99,7 +99,7 @@ static void tex_aux_scan_full_spec(halfword context, quarterword c, quarterword 
                         }
                         break;
                     case 'o': case 'O':
-                        spec_code = packing_exactly;
+                        spec_packing = packing_exactly;
                         spec_amount = tex_scan_dimen(0, 0, 0, 0, NULL);
                         break;
                     default:
@@ -111,7 +111,7 @@ static void tex_aux_scan_full_spec(halfword context, quarterword c, quarterword 
                 switch (tex_scan_character("dntxDNTX", 0, 0, 0)) {
                     case 'd': case 'D':
                         if (tex_scan_mandate_keyword("adapt", 2)) {
-                            spec_code = packing_adapted;
+                            spec_packing = packing_adapted;
                             spec_amount = tex_scan_limited_scale(0);
                         }
                         break;
@@ -164,7 +164,7 @@ static void tex_aux_scan_full_spec(halfword context, quarterword c, quarterword 
                         break;
                     case 'p': case 'P':
                         if (tex_scan_mandate_keyword("spread", 2)) {
-                            spec_code = packing_additional;
+                            spec_packing = packing_additional;
                             spec_amount = tex_scan_dimen(0, 0, 0, 0, NULL);
                         }
                         break;
@@ -301,7 +301,7 @@ static void tex_aux_scan_full_spec(halfword context, quarterword c, quarterword 
     /* */
     tex_set_saved_record(saved_full_spec_item_context, box_context_save_type, slot, context); /* slot fits in a quarterword */
     /*tex Traditionally these two are packed into one record: */
-    tex_set_saved_record(saved_full_spec_item_packaging, box_spec_save_type, spec_code, spec_amount);
+    tex_set_saved_record(saved_full_spec_item_packaging, box_spec_save_type, spec_packing, spec_amount);
     /*tex Adjust |text_dir_ptr| for |scan_spec|: */
     if (spec_direction != direction_unknown) {
         tex_set_saved_record(saved_full_spec_item_direction, box_direction_save_type, spec_direction, lmt_dir_state.text_dir_ptr);
@@ -2413,7 +2413,7 @@ void tex_package(singleword nature)
     halfword boxnode = null; /*tex Aka |cur_box|. */
     tex_unsave();
     lmt_save_state.save_stack_data.ptr -= saved_full_spec_n_of_items;
-    slot = saved_level(saved_full_spec_item_context);
+    slot = saved_extra(saved_full_spec_item_context);
     context = saved_value(saved_full_spec_item_context);
     spec = saved_value(saved_full_spec_item_packaging);
     dirptr = saved_value(saved_full_spec_item_direction);
@@ -2430,16 +2430,16 @@ void tex_package(singleword nature)
     state = saved_value(saved_full_spec_item_state);
     retain = saved_value(saved_full_spec_item_retain);
     if (cur_list.mode == restricted_hmode) {
-        boxnode = tex_filtered_hpack(cur_list.head, cur_list.tail, spec, saved_level(saved_full_spec_item_packaging),
-            grp, saved_level(saved_full_spec_item_direction), justpack, attrlist, state, retain);
+        boxnode = tex_filtered_hpack(cur_list.head, cur_list.tail, spec, saved_extra(saved_full_spec_item_packaging),
+            grp, saved_extra(saved_full_spec_item_direction), justpack, attrlist, state, retain);
         node_subtype(boxnode) = hbox_list;
         if (saved_value(saved_full_spec_item_reverse)) {
             box_list(boxnode) = tex_reversed_node_list(box_list(boxnode));
         }
         box_package_state(boxnode) = hbox_package_state;
     } else {
-        boxnode = tex_filtered_vpack(node_next(cur_list.head), spec, saved_level(saved_full_spec_item_packaging),
-            maxdepth, grp, saved_level(saved_full_spec_item_direction), justpack, attrlist, state, retain);
+        boxnode = tex_filtered_vpack(node_next(cur_list.head), spec, saved_extra(saved_full_spec_item_packaging),
+            maxdepth, grp, saved_extra(saved_full_spec_item_direction), justpack, attrlist, state, retain);
         tex_aux_set_vnature(boxnode, nature);
     }
     if (dirptr) {

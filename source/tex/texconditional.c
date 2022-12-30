@@ -89,9 +89,10 @@ static void tex_aux_pass_text(void)
                     }
                 case or_else_code:
                 case or_unless_code:
-                    do {
-                        tex_get_next();
-                    } while (cur_cmd == spacer_cmd);
+                    tex_get_next_non_spacer();
+                 // do {
+                 //     tex_get_next();
+                 // } while (cur_cmd == spacer_cmd);
                     break;
                 default:
                    ++level;
@@ -143,9 +144,10 @@ static int tex_aux_pass_text_x(int tracing_ifs, int tracing_commands)
                         } else if (tracing_ifs) {
                             tex_show_cmd_chr(cur_cmd, cur_chr);
                         }
-                        do {
-                            tex_get_next();
-                        } while (cur_cmd == spacer_cmd);
+                        tex_get_next_non_spacer();
+                     // do {
+                     //     tex_get_next();
+                     // } while (cur_cmd == spacer_cmd);
                         if (lmt_condition_state.if_limit == if_code) {
                             if (cur_cmd == if_test_cmd && cur_chr >= first_real_if_test_code) {
                                 goto OKAY;
@@ -1216,7 +1218,6 @@ void tex_conditional_if(halfword code, int unless)
     } else {
         /*tex Wait for |\fi|. */
 //lmt_condition_state.if_step = code;
-
         lmt_condition_state.if_limit = fi_code;
     }
 }
@@ -1234,9 +1235,10 @@ void tex_conditional_fi_or_else(void)
         tex_show_cmd_chr(if_test_cmd, cur_chr);
     }
     if (cur_chr == or_else_code || cur_chr == or_unless_code) {
-        do {
-            tex_get_next();
-        } while (cur_cmd == spacer_cmd);
+        tex_get_next_non_spacer();
+     // do {
+     //     tex_get_next();
+     // } while (cur_cmd == spacer_cmd);
     } else if (cur_chr > lmt_condition_state.if_limit) {
         if (lmt_condition_state.if_limit == if_code) {
             /*tex

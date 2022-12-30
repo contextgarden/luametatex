@@ -3070,7 +3070,7 @@ halfword tex_the_detokenized_toks(halfword *tail)
     halfword head = tex_scan_general_text(tail);
     int saved_selector;
     push_selector;
-    tex_show_token_list(head, null, extreme_token_show_max, 0);
+    tex_show_token_list(head, 0);
     pop_selector;
     tex_flush_token_list(head);
     return tex_cur_str_toks(tail);

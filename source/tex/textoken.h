@@ -351,11 +351,13 @@ extern void       tex_undump_token_mem            (dumpstream f);
 extern void       tex_print_meaning               (halfword code);
 extern void       tex_flush_token_list            (halfword p);
 extern void       tex_flush_token_list_head_tail  (halfword h, halfword t, int n);
-extern halfword   tex_show_token_list             (halfword p, halfword q, int l, int asis); /* Here |l| will go away. */
+extern void       tex_show_token_list_context     (halfword p, halfword q);
+extern void       tex_show_token_list             (halfword p, int asis);
 extern void       tex_token_show                  (halfword p, int max);
 /*     void       tex_add_token_ref               (halfword p); */
 /*     void       tex_delete_token_ref            (halfword p); */
 extern void       tex_get_next                    (void);
+extern void       tex_get_next_non_spacer         (void);
 extern halfword   tex_scan_character              (const char *s, int left_brace, int skip_space, int skip_relax);
 extern int        tex_scan_optional_keyword       (const char *s);
 extern int        tex_scan_mandate_keyword        (const char *s, int offset);

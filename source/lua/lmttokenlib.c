@@ -856,7 +856,7 @@ static int tokenlib_scan_csname(lua_State *L)
     int t;
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     if (lua_toboolean(L, 1)) {
-        /*tex unchecked (maybe backport this option to luatex) */
+        /*tex Not here: |tex_get_next_non_spacer()| unless we adapt more later on. */
         do {
             tex_get_token();
         } while (cur_tok == space_token);
@@ -864,7 +864,7 @@ static int tokenlib_scan_csname(lua_State *L)
         /*tex checked */
         tex_get_next();
     }
-    t = cur_cs ? cs_token_flag + cur_cs : token_val (cur_cmd, cur_chr);
+    t = cur_cs ? cs_token_flag + cur_cs : token_val(cur_cmd, cur_chr);
     if (t >= cs_token_flag) {
         int allocated = 0;
         unsigned char *s = tokenlib_aux_get_cs_text(t - cs_token_flag, &allocated);

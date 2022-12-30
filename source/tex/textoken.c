@@ -352,24 +352,13 @@ void tex_increment_token_reference(halfword p, int n)
     }
 }
 
-// void tex_delete_token_reference(halfword p)
-// {
-//     if (p) {
-//         if (get_token_reference(p)) {
-//             sub_token_reference(p);
-//         } else {
-//             tex_flush_token_list(p);
-//         }
-//     }
-// }
-
 void tex_delete_token_reference(halfword p)
 {
     if (p) {
         halfword r = get_token_reference(p);
         if (! r) {
             tex_flush_token_list(p);
-        } if(r < max_token_reference) {
+        } if (r < max_token_reference) {
             sub_token_reference(p);
         }
     }
@@ -499,12 +488,7 @@ void tex_print_meaning(halfword code)
                         tex_print_cs(cur_cs);
                         tex_print_char(' ');
                         if (cur_chr && token_link(cur_chr)) {
-                            halfword body = get_token_preamble(cur_chr) ? tex_show_token_list(token_link(cur_chr), null, default_token_show_max, 1) : token_link(cur_chr);
-                            tex_print_char('{');
-                            if (body) {
-                                tex_show_token_list(body, null, default_token_show_max, 0);
-                            }
-                            tex_print_char('}');
+                            tex_show_token_list(token_link(cur_chr), get_token_preamble(cur_chr));
                         }
                         return;
                 }
@@ -600,42 +584,119 @@ static const char *tex_aux_special_cmd_string(halfword cmd, halfword chr, const 
     }
 }
 
-halfword tex_show_token_list(halfword p, halfword q, int l, int asis)
+void tex_show_token_list(halfword p, int asis)
+{
+    if (p) {
+        unsigned char n = 0;
+        int max = lmt_token_memory_state.tokens_data.top;
+        while (p) {
+            if (p < 0 || p > max) {
+                tex_print_str(error_string_clobbered(41));
+                return;
+            } else if (token_info(p) >= cs_token_flag) {
+                tex_print_cs_checked(token_info(p) - cs_token_flag);
+            } else if (token_info(p) > 0) {
+                int cmd = token_cmd(token_info(p));
+                int chr = token_chr(token_info(p));
+                switch (cmd) {
+                    case left_brace_cmd:
+                    case right_brace_cmd:
+                    case math_shift_cmd:
+                    case alignment_tab_cmd:
+                    case superscript_cmd:
+                    case subscript_cmd:
+                    case spacer_cmd:
+                    case letter_cmd:
+                    case other_char_cmd:
+                    case active_char_cmd: /* new */
+                    case ignore_cmd: /* new */
+                        tex_print_tex_str(chr);
+                        break;
+                    case parameter_cmd:
+                        if (! lmt_token_state.in_lua_escape && (lmt_expand_state.cs_name_level == 0)) {
+                            tex_print_tex_str(chr);
+                        }
+                        tex_print_tex_str(chr);
+                        break;
+                    case parameter_reference_cmd:
+                        tex_print_tex_str(match_visualizer);
+                        if (chr <= 9) {
+                            tex_print_char(chr + '0');
+                        } else if (chr <= max_match_count) {
+                            tex_print_char(chr + '0' + gap_match_count);
+                        } else {
+                            tex_print_char('!');
+                            return;
+                        }
+                        break;
+                    case match_cmd:
+                        tex_print_char(match_visualizer);
+                        if (is_valid_match_ref(chr)) {
+                            ++n;
+                        }
+                        tex_print_char(chr ? chr : '0');
+                        if (n > max_match_count) {
+                            return;
+                        } else {
+                            break;
+                        }
+                    case end_match_cmd:
+                        if (asis) {
+                            tex_print_char('{');
+                        } else if (chr == 0) {
+                            tex_print_str("->");
+                        }
+                        break;
+                    case ignore_something_cmd:
+                        break;
+                    case set_font_cmd:
+                        tex_print_format("[font->%s]", font_original(cur_val));
+                        break;
+                    case end_paragraph_cmd:
+                        tex_print_format("%e%s", "par ");
+                        break;
+                    default:
+                        tex_print_str(tex_aux_special_cmd_string(cmd, chr, error_string_bad(43)));
+                        break;
+                }
+            } else {
+                tex_print_str(error_string_bad(42));
+            }
+            p = token_link(p);
+        }
+        if (asis) {
+            tex_print_char('}');
+        }
+    }
+}
+
+void tex_show_token_list_context(halfword p, halfword q)
 {
     if (p) {
         /*tex the highest parameter number, as an \ASCII\ digit */
         unsigned char n = 0;
-        int min = 0;
         int max = lmt_token_memory_state.tokens_data.top;
         lmt_print_state.tally = 0;
-//        if (l <= 0) {
-            l = extreme_token_show_max;
-//        }
-        while (p && (lmt_print_state.tally < l)) {
+        while (p) {
             if (p == q) {
                 /*tex Do magic computation. We only end up here in context showing. */
                 tex_set_trick_count();
             }
             /*tex Display token |p|, and |return| if there are problems. */
-            if (p < min || p > max) {
+            if (p < 0 || p > max) {
                 tex_print_str(error_string_clobbered(41));
-                return null;
+                return;
             } else if (token_info(p) >= cs_token_flag) {
              // if (! ((print_state.inhibit_par_tokens) && (token_info(p) == token_state.par_token))) {
                     tex_print_cs_checked(token_info(p) - cs_token_flag);
              // }
-            } else if (token_info(p) < 0) {
-                tex_print_str(error_string_bad(42));
-            } else if (token_info(p) == 0) {
-                tex_print_str(error_string_bad(44));
-            } else {
+            } else if (token_info(p) > 0) {
                 int cmd = token_cmd(token_info(p));
                 int chr = token_chr(token_info(p));
                 /*
                     Display the token (|cmd|,|chr|). The procedure usually \quote {learns} the character
                     code used for macro parameters by seeing one in a |match| command before it runs
-                    into any |out_param| commands.
-
+                    into any |out_param| commands. This is probably not true any longer. 
                 */
                 switch (cmd) {
                     case left_brace_cmd:
@@ -665,7 +726,7 @@ halfword tex_show_token_list(halfword p, halfword q, int l, int asis)
                             tex_print_char(chr + '0' + gap_match_count);
                         } else {
                             tex_print_char('!');
-                            return null;
+                            return;
                         }
                         break;
                     case match_cmd:
@@ -676,16 +737,12 @@ halfword tex_show_token_list(halfword p, halfword q, int l, int asis)
                         tex_print_char(chr ? chr : '0');
                         if (n > max_match_count) {
                             /*tex Can this happen at all? */
-                            return null;
+                            return;
                         } else {
                             break;
                         }
                     case end_match_cmd:
-                        if (asis) {
-                            return token_link(p);
-                        } else if (chr == 0) {
-                            tex_print_str("->");
-                        }
+                        tex_print_str("->");
                         break;
                     case ignore_something_cmd:
                         break;
@@ -699,6 +756,10 @@ halfword tex_show_token_list(halfword p, halfword q, int l, int asis)
                         tex_print_str(tex_aux_special_cmd_string(cmd, chr, error_string_bad(43)));
                         break;
                 }
+         // } else if (token_info(p) == 0) {
+         //     tex_print_str(error_string_bad(44));
+            } else {
+                tex_print_str(error_string_bad(42));
             }
             p = token_link(p);
         }
@@ -706,7 +767,6 @@ halfword tex_show_token_list(halfword p, halfword q, int l, int asis)
             tex_print_str_esc("ETC.");
         }
     }
-    return p;
 }
 
 /*
@@ -739,7 +799,7 @@ inline static halfword get_unichar_from_buffer(int *b)
 void tex_token_show(halfword p, int max)
 {
     if (p && token_link(p)) {
-        tex_show_token_list(token_link(p), null, max, 0);
+        tex_show_token_list(token_link(p), 0);
     }
 }
 
@@ -2062,6 +2122,43 @@ void tex_get_next(void)
     }
 }
 
+void tex_get_next_non_spacer(void)
+{
+    while (1) {
+        cur_cs = 0;
+        if (lmt_input_state.cur_input.state != token_list_state) {
+            /*tex Input from external file, |goto restart| if no input found. */
+            if (! tex_aux_get_next_file()) {
+                continue;
+            } else {
+                /*tex Check align state later on! */
+            }
+        } else if (! lmt_input_state.cur_input.loc) {
+            /*tex List exhausted, resume previous level. */
+            tex_end_token_list();
+            continue;
+        } else if (! tex_aux_get_next_tokenlist()) {
+            /*tex Parameter needs to be expanded. */
+            continue;
+        }
+        switch (cur_cmd) { 
+            case spacer_cmd:
+                continue;
+            case alignment_tab_cmd:
+            case alignment_cmd:
+                if (lmt_input_state.align_state == 0) {
+                    /*tex If an alignment entry has just ended, take appropriate action. */
+                    tex_insert_alignment_template();
+                    continue;
+                } else {
+                    return;
+                }
+            default:
+                return;
+        }
+    }
+}
+
 /*tex
 
     Since |get_next| is used so frequently in \TEX, it is convenient to define three related
@@ -2834,7 +2931,7 @@ void tex_run_convert_tokens(halfword code)
                 lmt_input_state.scanner_status = saved_scanner_status;
                 t = tex_get_available_token(cur_tok);
                 push_selector;
-                tex_show_token_list(t, null, extreme_token_show_max, 0);
+                tex_show_token_list(t, 0);
                 tex_put_available_token(t);
                 pop_selector;
                 break;

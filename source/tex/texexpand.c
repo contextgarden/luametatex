@@ -1355,7 +1355,7 @@ static void tex_aux_macro_call(halfword cs, halfword cmd, halfword chr)
                     if (tracing) {
                         tex_begin_diagnostic();
                         tex_print_format("%c%c<-", match_visualizer, '0' + nofscanned + (nofscanned > 9 ? gap_match_count : 0));
-                        tex_show_token_list(pstack[nofscanned - 1], null, default_token_show_max, 0);
+                        tex_show_token_list(pstack[nofscanned - 1], 0);
                         tex_end_diagnostic();
                     }
                 } else {
@@ -1449,7 +1449,7 @@ static void tex_aux_macro_call(halfword cs, halfword cmd, halfword chr)
             This comes last, after the cleanup and the start of the macro list.
         */
         if (nofscanned) {
-            tex_copy_pstack_to_param_stack(&pstack[0], nofscanned);
+            tex_copy_to_parameter_stack(&pstack[0], nofscanned);
         }
       EXIT:
         lmt_expand_state.arguments = nofarguments;
