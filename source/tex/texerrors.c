@@ -42,7 +42,7 @@ error_state_info lmt_error_state = {
     .last_warning       = NULL,
     .last_error_context = NULL,
     .help_text          = NULL,
-    .print_buffer       = "",
+ /* .print_buffer       = "", */
     .intercept          = 0,
     .last_intercept     = 0,
     .interaction        = 0,
@@ -521,10 +521,11 @@ void tex_normal_warning(const char *t, const char *p)
 
 int tex_formatted_error(const char *t, const char *fmt, ...)
 {
+    char print_buffer[print_buffer_size]; 
     va_list args;
     va_start(args, fmt);
-    vsnprintf(lmt_error_state.print_buffer, print_buffer_size, fmt, args);
-    return tex_normal_error(t, lmt_error_state.print_buffer);
+    vsnprintf(print_buffer, print_buffer_size, fmt, args);
+    return tex_normal_error(t, print_buffer);
     /*
     va_end(args);
     return 0;
@@ -533,19 +534,21 @@ int tex_formatted_error(const char *t, const char *fmt, ...)
 
 void tex_formatted_warning(const char *t, const char *fmt, ...)
 {
+    char print_buffer[print_buffer_size]; 
     va_list args;
     va_start(args, fmt);
-    vsnprintf(lmt_error_state.print_buffer, print_buffer_size, fmt, args);
-    tex_normal_warning(t, lmt_error_state.print_buffer);
+    vsnprintf(print_buffer, print_buffer_size, fmt, args);
+    tex_normal_warning(t, print_buffer);
     va_end(args);
 }
 
 void tex_emergency_message(const char *t, const char *fmt, ...)
 {
+    char print_buffer[print_buffer_size]; 
     va_list args;
     va_start(args, fmt);
-    vsnprintf(lmt_error_state.print_buffer, print_buffer_size, fmt, args);
-    fprintf(stdout,"%s : %s\n",t,lmt_error_state.print_buffer);
+    vsnprintf(print_buffer, print_buffer_size, fmt, args);
+    fprintf(stdout,"%s : %s\n", t, print_buffer);
     va_end(args);
 }
 

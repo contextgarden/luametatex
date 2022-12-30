@@ -980,7 +980,7 @@ static void tex_aux_macro_call(halfword cs, halfword cmd, halfword chr)
             } else {
                 /* maybe move the preamble scanner to here */
             }
-            tex_token_show(chr, default_token_show_max);
+            tex_token_show(chr);
         }
         tex_end_diagnostic();
     }

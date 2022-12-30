@@ -3126,7 +3126,7 @@ strnumber tex_the_scanned_result(void)
             break;
         case tok_val_level:
             if (cur_val) {
-                tex_token_show(cur_val, extreme_token_show_max);
+                tex_token_show(cur_val);
                 break;
             } else {
                 r = get_nullstr();

@@ -338,11 +338,11 @@ extern void     tex_increment_token_reference (halfword p, int n);
 
 # define no_expand_flag special_char /* no_expand_relax_code */
 
-/*tex  A few special values: */
+/*tex  A few special values; these are no longer used as we always go for maxima. */
 
 # define default_token_show_min 32
-# define default_token_show_max 2500
-# define extreme_token_show_max 0x3FFFFFFF
+# define default_token_show_max 2500       
+# define extreme_token_show_max 0x3FFFFFFF 
 
 /*tex  All kind of helpers: */
 
@@ -353,7 +353,7 @@ extern void       tex_flush_token_list            (halfword p);
 extern void       tex_flush_token_list_head_tail  (halfword h, halfword t, int n);
 extern void       tex_show_token_list_context     (halfword p, halfword q);
 extern void       tex_show_token_list             (halfword p, int asis);
-extern void       tex_token_show                  (halfword p, int max);
+extern void       tex_token_show                  (halfword p);
 /*     void       tex_add_token_ref               (halfword p); */
 /*     void       tex_delete_token_ref            (halfword p); */
 extern void       tex_get_next                    (void);

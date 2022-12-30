@@ -5947,7 +5947,7 @@ static strnumber tex_aux_scan_string(void)
     halfword result = tex_scan_toks_expand(0, NULL, 0);
  // saved_selector = lmt_print_state.selector;
     lmt_print_state.selector = new_string_selector_code;
-    tex_token_show(result, extreme_token_show_max);
+    tex_token_show(result);
     tex_flush_token_list(result);
     lmt_print_state.selector = saved_selector;
     return tex_make_string(); /* todo: we can use take_string instead but happens only @ error */

@@ -826,15 +826,13 @@ extern save_state_info lmt_save_state;
 /*tex
 
     We use the notation |saved(k)| to stand for an item that appears in location |save_ptr + k| of
-    the save stack.
-
-    The level field is also available for other purposes, so maybe we need an alias that is more
-    generic.
+    the save stack. The level field is also available for other purposes, so we have |extra| as an 
+    more generic alias.
 
 */
 
 # define save_type(A)   lmt_save_state.save_stack[(A)].saved_type  /*tex classifies a |save_stack| entry */
-# define save_extra(A)  lmt_save_state.save_stack[(A)].saved_extra /*tex a more generic alias: to be used */
+# define save_extra(A)  lmt_save_state.save_stack[(A)].saved_extra /*tex a more generic alias */
 # define save_level(A)  lmt_save_state.save_stack[(A)].saved_level /*tex saved level for regions 5 and 6, or group code, or ...  */
 # define save_value(A)  lmt_save_state.save_stack[(A)].saved_value /*tex |eqtb| location or token or |save_stack| location or ... */
 # define save_word(A)   lmt_save_state.save_stack[(A)].saved_word  /*tex |eqtb| entry */

@@ -232,7 +232,7 @@ void tex_show_validity(void)
     }
     if (p) {
         tex_print_ln();
-        tex_token_show(p, default_token_show_max > lmt_error_state.line_limits.size - 10 ? lmt_error_state.line_limits.size - 10 : default_token_show_max);
+        tex_token_show(p);
         tex_print_ln();
     }
 }
@@ -708,7 +708,7 @@ void tex_begin_token_list(halfword t, quarterword kind)
                     break;
             }
             tex_print_str("->");
-            tex_token_show(t, default_token_show_max);
+            tex_token_show(t);
             tex_end_diagnostic();
         }
     }

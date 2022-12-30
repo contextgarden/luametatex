@@ -498,7 +498,7 @@ void tex_print_meaning(halfword code)
             tex_print_cmd_chr((singleword) cur_cmd, cur_chr);
             tex_print_char(':');
             tex_print_nlp();
-            tex_token_show(tex_get_some_mark(cur_chr, 0), default_token_show_max);
+            tex_token_show(tex_get_some_mark(cur_chr, 0));
             return;
         case lua_value_cmd:
         case lua_call_cmd:
@@ -531,7 +531,7 @@ void tex_print_meaning(halfword code)
     tex_print_char(':');
   DETAILS:
     tex_print_nlp();
-    tex_token_show(cur_chr, default_token_show_max);
+    tex_token_show(cur_chr);
 }
 
 /*tex
@@ -608,8 +608,8 @@ void tex_show_token_list(halfword p, int asis)
                     case spacer_cmd:
                     case letter_cmd:
                     case other_char_cmd:
-                    case active_char_cmd: /* new */
-                    case ignore_cmd: /* new */
+                    case active_char_cmd:
+                    case ignore_cmd: 
                         tex_print_tex_str(chr);
                         break;
                     case parameter_cmd:
@@ -653,7 +653,8 @@ void tex_show_token_list(halfword p, int asis)
                         tex_print_format("[font->%s]", font_original(cur_val));
                         break;
                     case end_paragraph_cmd:
-                        tex_print_format("%e%s", "par ");
+                     /* tex_print_format("%e%s", "par "); */
+                        tex_print_str_esc("par ");
                         break;
                     default:
                         tex_print_str(tex_aux_special_cmd_string(cmd, chr, error_string_bad(43)));
@@ -750,7 +751,8 @@ void tex_show_token_list_context(halfword p, halfword q)
                         tex_print_format("[font->%s]", font_original(cur_val));
                         break;
                     case end_paragraph_cmd:
-                        tex_print_format("%e%s", "par ");
+                     /* tex_print_format("%e%s", "par "); */
+                        tex_print_str_esc("par ");
                         break;
                     default:
                         tex_print_str(tex_aux_special_cmd_string(cmd, chr, error_string_bad(43)));
@@ -796,7 +798,7 @@ inline static halfword get_unichar_from_buffer(int *b)
 
 */
 
-void tex_token_show(halfword p, int max)
+void tex_token_show(halfword p)
 {
     if (p && token_link(p)) {
         tex_show_token_list(token_link(p), 0);
@@ -3151,7 +3153,7 @@ strnumber tex_tokens_to_string(halfword p)
     } else {
         int saved_selector = lmt_print_state.selector;
         lmt_print_state.selector = new_string_selector_code;
-        tex_token_show(p, extreme_token_show_max);
+        tex_token_show(p);
         lmt_print_state.selector = saved_selector;
         return tex_make_string();
     }

@@ -1823,7 +1823,7 @@ void tex_aux_show_eqtb(halfword n)
         tex_print_cmd_chr(eq_type(n), eq_value(n));
         if (eq_type(n) >= call_cmd) {
             tex_print_char(':');
-            tex_token_show(eq_value(n), default_token_show_min);
+            tex_token_show(eq_value(n));
         }
     } else {
         switch (eq_type(n)) {
@@ -1835,7 +1835,7 @@ void tex_aux_show_eqtb(halfword n)
                 tex_print_int(register_toks_number(n));
               TOKS:
                 tex_print_char('=');
-                tex_token_show(eq_value(n), default_token_show_min);
+                tex_token_show(eq_value(n));
                 break;
             case internal_box_reference_cmd:
                 tex_print_cmd_chr(eq_type(n), n);
