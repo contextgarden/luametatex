@@ -266,7 +266,7 @@ halfword tex_get_available_token(halfword t)
         lmt_token_memory_state.available = token_link(p);
     } else if (lmt_token_memory_state.tokens_data.top < lmt_token_memory_state.tokens_data.allocated) {
         p = ++lmt_token_memory_state.tokens_data.top;
-     } else {
+    } else {
         tex_aux_bump_token_memory();
         p = ++lmt_token_memory_state.tokens_data.top;
     }
@@ -336,8 +336,8 @@ void tex_add_token_reference(halfword p)
 {
     if (get_token_reference(p) < max_token_reference) {
         add_token_reference(p);
- //   } else {
- //       tex_overflow_error("reference count", max_token_reference);
+ // } else {
+ //     tex_overflow_error("reference count", max_token_reference);
     }
 }
 
@@ -564,6 +564,9 @@ void tex_print_meaning(halfword code)
 
     In \LUAMETATEX\ we have some more node types and token types so we also have additional tracing.
     Because there is some more granularity in for instance nodes (subtypes) more detail is reported.
+
+    It made sense to split the |tex_show_token_list| funciton in two, ine specialized for showing 
+    the context. That saves some testing and passing arguments. 
 
 */
 
@@ -869,7 +872,6 @@ static next_line_retval tex_aux_next_line(void);
 halfword tex_scan_character(const char *s, int left_brace, int skip_space, int skip_relax)
 {
     halfword save_cur_cs = cur_cs;
-//    (void) skip_space; /* some day */
     while (1) {
         tex_get_x_token();
         switch (cur_cmd) {
@@ -1004,8 +1006,8 @@ int tex_scan_mandate_keyword(const char *s, int offset)
                     goto BAD_NEWS;
                 }
                 break;
-         // case spacer_cmd:  /* normally spaces are not pushed back */
-         // case relax_cmd:   /* normally not, should be option  */
+         // case spacer_cmd: /* normally spaces are not pushed back */
+         // case relax_cmd:  /* normally not, should be option  */
          //     if (done) {
          //         back_input(cur_tok);
          //         goto BAD_NEWS;
@@ -1014,7 +1016,7 @@ int tex_scan_mandate_keyword(const char *s, int offset)
          //     }
          // default:
          //     goto BAD_NEWS;
-            case spacer_cmd:  /* normally spaces are not pushed back */
+            case spacer_cmd: /* normally spaces are not pushed back */
                 if (done) {
                     goto BAD_NEWS;
                 } else {
@@ -1880,12 +1882,12 @@ static next_line_retval tex_aux_next_line(void)
             switch (lmt_input_state.cur_input.name) {
                 case io_lua_input_code:
                     {
-                        halfword n = null;
+                        halfword result = null;
                         int cattable = 0;
                         int partial = 0;
                         int finalline = 0;
-                        int t = lmt_cstring_input(&n, &cattable, &partial, &finalline);
-                        switch (t) {
+                        int type = lmt_cstring_input(&result, &cattable, &partial, &finalline);
+                        switch (type) {
                             case eof_tex_input:
                                 lmt_token_state.force_eof = 1;
                                 break;
@@ -1903,24 +1905,24 @@ static next_line_retval tex_aux_next_line(void)
                                 break;
                             case token_tex_input:
                                 /*tex token */
-                                if (n >= cs_token_flag && eq_type(n - cs_token_flag) == input_cmd && eq_value(n - cs_token_flag) == end_of_input_code && lmt_input_state.cur_input.index > 0) {
+                                if (result >= cs_token_flag && eq_type(result - cs_token_flag) == input_cmd && eq_value(result - cs_token_flag) == end_of_input_code && lmt_input_state.cur_input.index > 0) {
                                     tex_end_file_reading();
                                 }
-                                tex_back_input(n);
+                                tex_back_input(result);
                                 return next_line_restart;
                             case token_list_tex_input:
                                 /*tex token */
-                                tex_begin_backed_up_list(n);
+                                tex_begin_backed_up_list(result);
                                 return next_line_restart;
                             case node_tex_input:
                                 /*tex node */
-                                if (node_token_overflow(n)) {
-                                    tex_back_input(token_val(ignore_cmd, node_token_lsb(n)));
-                                    tex_reinsert_token(token_val(node_cmd, node_token_msb(n)));
+                                if (node_token_overflow(result)) {
+                                    tex_back_input(token_val(ignore_cmd, node_token_lsb(result)));
+                                    tex_reinsert_token(token_val(node_cmd, node_token_msb(result)));
                                     return next_line_restart;
                                 } else {
                                     /*tex |0x10FFFF == 1114111| */
-                                    tex_back_input(token_val(node_cmd, n));
+                                    tex_back_input(token_val(node_cmd, result));
                                     return next_line_restart;
                                 }
                             default:
@@ -1933,12 +1935,12 @@ static next_line_retval tex_aux_next_line(void)
                 case io_token_eof_input_code:
                     {
                         /* can be simplified but room for extensions now */
-                        halfword n = null;
+                        halfword result = null;
                         int cattable = 0;
                         int partial = 0;
                         int finalline = 0;
-                        int t = lmt_cstring_input(&n, &cattable, &partial, &finalline);
-                        switch (t) {
+                        int type = lmt_cstring_input(&result, &cattable, &partial, &finalline);
+                        switch (type) {
                             case eof_tex_input:
                                 lmt_token_state.force_eof = 1;
                                 if (lmt_input_state.cur_input.name == io_token_eof_input_code && every_eof_par) {

@@ -21,7 +21,7 @@ typedef struct in_state_record {
     union          { unsigned short index; unsigned short token_type;      }; /*tex: So, no macro but name. */
     union          { halfword       limit; halfword       parameter_start; }; /*tex: So, no macro but name. */
     halfword       name;
-    signed short   cattable;    /*tex The category table used by the current line (see |textoken.c|). */
+    short          cattable;    /*tex The category table used by the current line (see |textoken.c|). */
     unsigned short partial;     /*tex Is the current line partial (see |textoken.c|)? */
     int            state_file;  /*tex Here we stack the tag of the current file. */
     int            state_line;  /*tex Not used. */

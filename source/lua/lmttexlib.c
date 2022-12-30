@@ -199,31 +199,31 @@ inline static void texlib_aux_reset_spindle(int i)
 
 inline static spindle_rope *texlib_aux_new_rope(void)
 {
-    spindle_rope *r;
+    spindle_rope *rope;
     if (lmt_spindle_state.rope_cache) {
-        r = lmt_spindle_state.rope_cache;
-        lmt_spindle_state.rope_cache = r->next;
+        rope = lmt_spindle_state.rope_cache;
+        lmt_spindle_state.rope_cache = rope->next;
     } else {
-        r = (spindle_rope *) lmt_memory_malloc(sizeof(spindle_rope));
+        rope = (spindle_rope *) lmt_memory_malloc(sizeof(spindle_rope));
         ++lmt_spindle_state.rope_count;
-        if (r) {
-            r->next = NULL;
+        if (rope) {
+            rope->next = NULL;
         } else {
             tex_overflow_error("spindle", sizeof(spindle_rope));
         }
     }
-    return r;
+    return rope;
 }
 
-inline static void texlib_aux_dispose_rope(spindle_rope *r)
+inline static void texlib_aux_dispose_rope(spindle_rope *rope)
 {
-    if (r) {
+    if (rope) {
         if (lmt_spindle_state.rope_count > MAX_ROPE_CACHE) {
-            lmt_memory_free(r);
+            lmt_memory_free(rope);
             --lmt_spindle_state.rope_count;
         } else {
-            r->next = lmt_spindle_state.rope_cache;
-            lmt_spindle_state.rope_cache = r;
+            rope->next = lmt_spindle_state.rope_cache;
+            lmt_spindle_state.rope_cache = rope;
         }
     }
 }
@@ -249,7 +249,7 @@ static void texlib_aux_initialize(void)
 static int texlib_aux_store(lua_State *L, int i, int partial, int cattable)
 {
     size_t tsize = 0;
-    spindle_rope *rn = NULL;
+    spindle_rope *rope = NULL;
     unsigned char kind = unset_lua_input;
     spindle_data data = { .h = 0 };
     switch (lua_type(L, i)) {
@@ -368,94 +368,94 @@ static int texlib_aux_store(lua_State *L, int i, int partial, int cattable)
             return 0;
     }
     lmt_token_state.luacstrings++;
-    rn = texlib_aux_new_rope();
+    rope = texlib_aux_new_rope();
     /* set */
-    rn->tsize = (unsigned) tsize;
-    rn->next = NULL;
-    rn->kind = kind;
-    rn->partial = (unsigned char) partial;
-    rn->cattable = (short) cattable;
-    rn->data = data;
+    rope->tsize = (unsigned) tsize;
+    rope->next = NULL;
+    rope->kind = kind;
+    rope->partial = (unsigned char) partial;
+    rope->cattable = (short) cattable;
+    rope->data = data;
     /* add */
     if (write_spindle.head) {
-        write_spindle.tail->next = rn;
+        write_spindle.tail->next = rope;
     } else {
-        write_spindle.head = rn;
+        write_spindle.head = rope;
     }
-    write_spindle.tail = rn;
+    write_spindle.tail = rope;
     write_spindle.complete = 0;
     return 1;
 }
 
 static void texlib_aux_store_token(halfword token, int partial, int cattable)
 {
-    spindle_rope *rn = texlib_aux_new_rope();
+    spindle_rope *rope = texlib_aux_new_rope();
     /* set */
-    rn->tsize = 0;
-    rn->next = NULL;
-    rn->kind = token_lua_input;
-    rn->partial = (unsigned char) partial;
-    rn->cattable = (short) cattable;
-    rn->data.h = token;
+    rope->tsize = 0;
+    rope->next = NULL;
+    rope->kind = token_lua_input;
+    rope->partial = (unsigned char) partial;
+    rope->cattable = (short) cattable;
+    rope->data.h = token;
     /* add */
     if (write_spindle.head) {
-        write_spindle.tail->next = rn;
+        write_spindle.tail->next = rope;
     } else {
-        write_spindle.head = rn;
+        write_spindle.head = rope;
     }
-    write_spindle.tail = rn;
+    write_spindle.tail = rope;
     write_spindle.complete = 0;
     lmt_token_state.luacstrings++;
 }
 
 static void lmx_aux_store_string(char *str, int len, int cattable)
 {
-    spindle_rope *rn = texlib_aux_new_rope();
-    rn->data.h = 0; /* wipes */
+    spindle_rope *rope = texlib_aux_new_rope();
+    rope->data.h = 0; /* wipes */
     if (len > PACKED_SIZE) {
-        rn->data.t = lmt_memory_malloc((size_t) len + 1);
-        if (rn->data.t) {
-            memcpy(rn->data.t, str, (size_t) len + 1);
+        rope->data.t = lmt_memory_malloc((size_t) len + 1);
+        if (rope->data.t) {
+            memcpy(rope->data.t, str, (size_t) len + 1);
         } else {
             len = 0;
         }
-        rn->kind = string_lua_input;
+        rope->kind = string_lua_input;
     } else {
         for (int i = 0; i < len; i++) {
             /* when we end up here we often don't have that many bytes */
-            rn->data.c[i] = (unsigned char) str[i];
+            rope->data.c[i] = (unsigned char) str[i];
         }
-        rn->kind = packed_lua_input;
+        rope->kind = packed_lua_input;
     }
     /* set */
-    rn->tsize = (unsigned) len;
-    rn->next = NULL;
-    rn->partial = FULL_LINE;
-    rn->cattable = (unsigned char) cattable;
+    rope->tsize = (unsigned) len;
+    rope->next = NULL;
+    rope->partial = FULL_LINE;
+    rope->cattable = (unsigned char) cattable;
     /* add */
     if (write_spindle.head) {
-        write_spindle.tail->next = rn;
+        write_spindle.tail->next = rope;
     } else {
-        write_spindle.head = rn;
+        write_spindle.head = rope;
     }
-    write_spindle.tail = rn;
+    write_spindle.tail = rope;
     write_spindle.complete = 0;
     lmt_token_state.luacstrings++;
 }
 
 static int texlib_aux_cprint(lua_State *L, int partial, int cattable, int startstrings)
 {
-    int n = lua_gettop(L);
-    int t = lua_type(L, startstrings);
-    if (n > startstrings && cattable != no_catcode_table_preset && t == LUA_TNUMBER) {
+    int top = lua_gettop(L);
+    int type = lua_type(L, startstrings);
+    if (top > startstrings && cattable != no_catcode_table_preset && type == LUA_TNUMBER) {
         cattable = lmt_tointeger(L, startstrings);
         ++startstrings;
         if (cattable != default_catcode_table_preset && cattable != no_catcode_table_preset && ! tex_valid_catcode_table(cattable)) {
             cattable = default_catcode_table_preset;
         }
-        t = lua_type(L, startstrings);
+        type = lua_type(L, startstrings);
     }
-    if (t == LUA_TTABLE) {
+    if (type == LUA_TTABLE) {
         for (int i = 1;; i++) {
             lua_rawgeti(L, startstrings, i);
             if (texlib_aux_store(L, -1, partial, cattable)) {
@@ -466,7 +466,7 @@ static int texlib_aux_cprint(lua_State *L, int partial, int cattable, int starts
             }
         }
     } else {
-        for (int i = startstrings; i <= n; i++) {
+        for (int i = startstrings; i <= top; i++) {
             texlib_aux_store(L, i, partial, cattable);
         }
     }
@@ -659,22 +659,20 @@ static int texlib_isprintable(lua_State* L)
             okay = 1;
             break;
         case LUA_TUSERDATA :
-            {
-                if (lua_getmetatable(L, 1)) {
-                    lua_get_metatablelua(token_instance);
-                    if (lua_rawequal(L, -1, -2)) {
+            if (lua_getmetatable(L, 1)) {
+                lua_get_metatablelua(token_instance);
+                if (lua_rawequal(L, -1, -2)) {
+                    okay = 1;
+                    // lua_pop(L, 2);
+                } else {
+                    lua_get_metatablelua(node_instance);
+                    if (lua_rawequal(L, -1, -3)) {
                         okay = 1;
-                     // lua_pop(L, 2);
-                    } else {
-                        lua_get_metatablelua(node_instance);
-                        if (lua_rawequal(L, -1, -3)) {
-                            okay = 1;
-                        }
-                     // lua_pop(L, 3);
                     }
+                    // lua_pop(L, 3);
                 }
-                break;
             }
+            break;
     }
     lua_pushboolean(L, okay);
     return 1;
@@ -682,85 +680,85 @@ static int texlib_isprintable(lua_State* L)
 
 /*tex We actually don't need to copy and could read from the string. */
 
-int lmt_cstring_input(halfword *n, int *cattable, int *partial, int *finalline)
+int lmt_cstring_input(halfword *result, int *cattable, int *partial, int *finalline)
 {
-    spindle_rope *t = read_spindle.head;
-    int ret = eof_tex_input ;
+    spindle_rope *rope = read_spindle.head;
+    int type = eof_tex_input ;
     if (! read_spindle.complete) {
         read_spindle.complete = 1;
         read_spindle.tail = NULL;
     }
-    if (t) {
-        switch (t->kind) {
+    if (rope) {
+        switch (rope->kind) {
             case string_lua_input:
                 {
-                    if (t->data.t) {
+                    if (rope->data.t) {
                         /*tex put that thing in the buffer */
-                        int strsize = (int) t->tsize;
+                        int strsize = (int) rope->tsize;
                         int newlast = lmt_fileio_state.io_first + strsize;
                         lmt_fileio_state.io_last = lmt_fileio_state.io_first;
                         if (tex_room_in_buffer(newlast)) {
-                            memcpy(&lmt_fileio_state.io_buffer[lmt_fileio_state.io_last], &t->data.t[0], sizeof(unsigned char) * strsize);
+                            memcpy(&lmt_fileio_state.io_buffer[lmt_fileio_state.io_last], &rope->data.t[0], sizeof(unsigned char) * strsize);
                             lmt_fileio_state.io_last = newlast;
-                            lmt_memory_free(t->data.t);
-                            t->data.t = NULL;
+                            lmt_memory_free(rope->data.t);
+                            rope->data.t = NULL;
                         } else {
-                            return ret;
+                            return type;
                         }
                     }
-                    *cattable = t->cattable;
-                    *partial = t->partial;
-                    *finalline = (t->next == NULL);
-                    ret = string_tex_input;
+                    *cattable = rope->cattable;
+                    *partial = rope->partial;
+                    *finalline = (rope->next == NULL);
+                    type = string_tex_input;
                     break;
                 }
             case packed_lua_input:
                 {
-                    unsigned strsize = t->tsize;
+                    unsigned strsize = rope->tsize;
                     int newlast = lmt_fileio_state.io_first + strsize;
                     lmt_fileio_state.io_last = lmt_fileio_state.io_first;
                     if (tex_room_in_buffer(newlast)) {
                         for (unsigned i = 0; i < strsize; i++) {
                             /* when we end up here we often don't have that many bytes */
-                            lmt_fileio_state.io_buffer[lmt_fileio_state.io_last + i] = t->data.c[i];
+                            lmt_fileio_state.io_buffer[lmt_fileio_state.io_last + i] = rope->data.c[i];
                         }
                         lmt_fileio_state.io_last = newlast;
-                        *cattable = t->cattable;
-                        *partial = t->partial;
-                        *finalline = (t->next == NULL);
-                        ret = string_tex_input;
+                        *cattable = rope->cattable;
+                        *partial = rope->partial;
+                        *finalline = (rope->next == NULL);
+                        type = string_tex_input;
                     } else {
-                        return ret;
+                        return type;
                     }
                     break;
                 }
             case token_lua_input:
                 {
-                    *n = t->data.h;
-                    ret = token_tex_input;
+                    *result = rope->data.h;
+                    type = token_tex_input;
                     break;
                 }
             case token_list_lua_input:
                 {
-                    *n = t->data.h;
-                    ret = token_list_tex_input;
+                    *result = rope->data.h;
+                    type = token_list_tex_input;
                     break;
                 }
             case node_lua_input:
                 {
-                    *n = t->data.h;
-                    ret = node_tex_input;
+                    *result = rope->data.h;
+                    type = node_tex_input;
                     break;
                 }
         }
         texlib_aux_dispose_rope(read_spindle.tail);
-        read_spindle.tail = t;
-        read_spindle.head = t->next;
+        read_spindle.tail = rope;
+        read_spindle.head = rope->next;
     } else {
         texlib_aux_dispose_rope(read_spindle.tail);
         read_spindle.tail = NULL;
     }
-    return ret;
+    return type;
 }
 
 /*tex Open for reading, and make a new one for writing. */
@@ -785,19 +783,19 @@ void lmt_cstring_start(void)
 
 void lmt_cstring_close(void)
 {
-    spindle_rope *t;
+    spindle_rope *rope;
     spindle_rope *next = read_spindle.head;
     while (next) {
         if (next->kind == string_tex_input && next->data.t) {
             lmt_memory_free(next->data.t);
             next->data.t = NULL;
         }
-        t = next;
+        rope = next;
         next = next->next;
-        if (t == read_spindle.tail) {
+        if (rope == read_spindle.tail) {
             read_spindle.tail = NULL;
         }
-        texlib_aux_dispose_rope(t);
+        texlib_aux_dispose_rope(rope);
     }
     read_spindle.head = NULL;
     texlib_aux_dispose_rope(read_spindle.tail);
@@ -816,12 +814,12 @@ static const char *texlib_aux_scan_integer_part(lua_State *L, const char *ss, in
     int negative = 0;     /*tex should the answer be negated? */
     int vacuous = 1;      /*tex have no digits appeared? */
     int overflow = 0;
-    int c = 0;            /*tex the current character */
-    const char *s = ss;   /*tex where we stopped in the string |ss| */
+    int chr = 0;          /*tex the current character */
+    const char *str = ss; /*tex where we stopped in the string |ss| */
     long long result = 0; /*tex return value */
     while (1) {
-        c = *s++;
-        switch (c) {
+        chr = *str++;
+        switch (chr) {
             case ' ':
             case '+':
                 break;
@@ -830,71 +828,71 @@ static const char *texlib_aux_scan_integer_part(lua_State *L, const char *ss, in
                 break;
             case '\'':
                 {
-                    int d;
+                    int digit;
                     *radix_ret = 8;
-                    c = *s++;
-                    while (c) {
-                        if ((c >= '0') && (c <= '0' + 7)) {
-                            d = c - '0';
+                    chr = *str++;
+                    while (chr) {
+                        if ((chr >= '0') && (chr <= '0' + 7)) {
+                            digit = chr - '0';
                         } else {
                             break;
                         }
                         if (! overflow) {
                             vacuous = 0;
-                            result = result * 8 + d;
+                            result = result * 8 + digit;
                             if (result > max_integer) {
                                 overflow = 1;
                             }
                         }
-                        c = *s++;
+                        chr = *str++;
                     }
                     goto DONE;
                 }
             case '"':
                 {
-                    int d;
+                    int digit;
                     *radix_ret = 16;
-                    c = *s++;
-                    while (c) {
-                        if ((c >= '0') && (c <= '0' + 9)) {
-                            d = c - '0';
-                        } else if ((c <= 'A' + 5) && (c >= 'A')) {
-                            d = c - 'A' + 10;
-                        } else if ((c <= 'a' + 5) && (c >= 'a')) {
+                    chr = *str++;
+                    while (chr) {
+                        if ((chr >= '0') && (chr <= '0' + 9)) {
+                            digit = chr - '0';
+                        } else if ((chr <= 'A' + 5) && (chr >= 'A')) {
+                            digit = chr - 'A' + 10;
+                        } else if ((chr <= 'a' + 5) && (chr >= 'a')) {
                             /*tex Actually \TEX\ only handles uppercase. */
-                            d = c - 'a' + 10;
+                            digit = chr - 'a' + 10;
                         } else {
                             goto DONE;
                         }
                         if (! overflow) {
                             vacuous = 0;
-                            result = result * 16 + d;
+                            result = result * 16 + digit;
                             if (result > max_integer) {
                                 overflow = 1;
                             }
                         }
-                        c = *s++;
+                        chr = *str++;
                     }
                     goto DONE;
                 }
             default:
                 {
-                    int d;
+                    int digit;
                     *radix_ret = 10;
-                    while (c) {
-                        if ((c >= '0') && (c <= '0' + 9)) {
-                            d = c - '0';
+                    while (chr) {
+                        if ((chr >= '0') && (chr <= '0' + 9)) {
+                            digit = chr - '0';
                         } else {
                             goto DONE;
                         }
                         if (! overflow) {
                             vacuous = 0;
-                            result = result * 10 + d;
+                            result = result * 10 + digit;
                             if (result > max_integer) {
                                 overflow = 1;
                             }
                         }
-                        c = *s++;
+                        chr = *str++;
                     }
                     goto DONE;
                 }
@@ -911,10 +909,10 @@ static const char *texlib_aux_scan_integer_part(lua_State *L, const char *ss, in
         result = -result;
     }
     *ret = (int) result;
-    if (c != ' ' && s > ss) {
-        s--;
+    if (chr != ' ' && str > ss) {
+        str--;
     }
-    return s;
+    return str;
 }
 
 /*tex
@@ -925,23 +923,23 @@ static const char *texlib_aux_scan_integer_part(lua_State *L, const char *ss, in
 
 static const char *texlib_aux_scan_dimen_part(lua_State * L, const char *ss, int *ret)
 {
-    int negative = 0;                               /*tex should the answer be negated? */
-    int fraction = 0;                               /*tex numerator of a fraction whose denominator is $2^{16}$ */
+    int negative = 0;  /*tex should the answer be negated? */
+    int fraction = 0;  /*tex numerator of a fraction whose denominator is $2^{16}$ */
     int numerator;
     int denominator;
-    scaled special;                                 /*tex an internal dimension */
+    scaled special;    /*tex an internal dimension */
     int result = 0;
-    int radix = 0;                                  /*tex the current radix */
-    int remainder = 0;                              /*tex the to be remainder */
-    int saved_error = lmt_scanner_state.arithmic_error; /*tex to save |arith_error|  */
-    const char *s = NULL;
+    int radix = 0;     
+    int remainder = 0; 
+    int saved_error = lmt_scanner_state.arithmic_error; 
+    const char *str = NULL;
     if (ss && (*ss == '.' || *ss == ',')) {
-        s = ss;
+        str = ss;
         goto FRACTION;
     } else {
-        s = texlib_aux_scan_integer_part(L, ss, &result, &radix);
+        str = texlib_aux_scan_integer_part(L, ss, &result, &radix);
     }
-    if (! (char) *s) {
+    if (! (char) *str) {
         /* error, no unit, assume scaled points */
         goto ATTACH_FRACTION;
     }
@@ -950,91 +948,91 @@ static const char *texlib_aux_scan_dimen_part(lua_State * L, const char *ss, int
         result = -result;
     }
   FRACTION:
-    if ((radix == 0 || radix == 10) && (*s == '.' || *s == ',')) {
+    if ((radix == 0 || radix == 10) && (*str == '.' || *str == ',')) {
         unsigned k = 0;
         unsigned char digits[18];
-        s++;
+        str++;
         while (1) {
-            int c = *s++;
-            if ((c > '0' + 9) || (c < '0')) {
+            unsigned char chr = *str++;
+            if ((chr > '0' + 9) || (chr < '0')) {
                 break;
             } else if (k < 17) {
-                digits[k++] = (unsigned char) c - '0';
+                digits[k++] = (unsigned char) chr - '0';
             }
         }
         fraction = tex_round_decimals_digits(digits, k);
-        if (*s != ' ') {
-            --s;
+        if (*str != ' ') {
+            --str;
         }
     }
     /* the unit can have spaces in front */
 /*UNIT: */
-    while ((char) *s == ' ') {
-        s++;
+    while ((char) *str == ' ') {
+        str++;
     }
     /* We dropped the |nd| and |nc| units as well as the |true| prefix. */
-    if (! (char) *s) {
+    if (! (char) *str) {
         goto ATTACH_FRACTION;
-    } else if (strncmp(s, "pt", 2) == 0) {
-        s += 2;
+    } else if (strncmp(str, "pt", 2) == 0) {
+        str += 2;
         goto ATTACH_FRACTION;
-    } else if (strncmp(s, "mm", 2) == 0) {
-        s += 2;
+    } else if (strncmp(str, "mm", 2) == 0) {
+        str += 2;
         numerator = 7227;
         denominator = 2540;
         goto CONVERSION;
-    } else if (strncmp(s, "cm", 2) == 0) {
-        s += 2;
+    } else if (strncmp(str, "cm", 2) == 0) {
+        str += 2;
         numerator = 7227;
         denominator = 254;
         goto CONVERSION;
-    } else if (strncmp(s, "sp", 2) == 0) {
-        s += 2;
+    } else if (strncmp(str, "sp", 2) == 0) {
+        str += 2;
         goto DONE;
-    } else if (strncmp(s, "bp", 2) == 0) {
-        s += 2;
+    } else if (strncmp(str, "bp", 2) == 0) {
+        str += 2;
         numerator = 7227;
         denominator = 7200;
         goto CONVERSION;
-    } else if (strncmp(s, "in", 2) == 0) {
-        s += 2;
+    } else if (strncmp(str, "in", 2) == 0) {
+        str += 2;
         numerator = 7227;
         denominator = 100;
         goto CONVERSION;
-    } else if (strncmp(s, "dd", 2) == 0) {
-        s += 2;
+    } else if (strncmp(str, "dd", 2) == 0) {
+        str += 2;
         numerator = 1238;
         denominator = 1157;
         goto CONVERSION;
-    } else if (strncmp(s, "cc", 2) == 0) {
-        s += 2;
+    } else if (strncmp(str, "cc", 2) == 0) {
+        str += 2;
         numerator = 14856;
         denominator = 1157;
         goto CONVERSION;
-    } else if (strncmp(s, "pc", 2) == 0) {
-        s += 2;
+    } else if (strncmp(str, "pc", 2) == 0) {
+        str += 2;
         numerator = 12;
         denominator = 1;
         goto CONVERSION;
-    } else if (strncmp(s, "dk", 2) == 0) {
-        s += 2;
+    } else if (strncmp(str, "dk", 2) == 0) {
+        str += 2;
         numerator = 49838;
         denominator = 7739;
         goto CONVERSION;
-    } else if (strncmp(s, "em", 2) == 0) {
-        s += 2;
+    } else if (strncmp(str, "em", 2) == 0) {
+        str += 2;
         special = tex_get_font_em_width(cur_font_par);
         goto SPECIAL;
-    } else if (strncmp(s, "ex", 2) == 0) {
-        s += 2;
+    } else if (strncmp(str, "ex", 2) == 0) {
+        str += 2;
         special = tex_get_font_ex_height(cur_font_par);
         goto SPECIAL;
-    } else if (strncmp(s, "px", 2) == 0) {
-        s += 2;
+    } else if (strncmp(str, "px", 2) == 0) {
+        str += 2;
         special = px_dimen_par;
         goto SPECIAL;
-    } else if (strncmp(s, "mu", 2) == 0) {
-        s += 2;
+    } else if (strncmp(str, "mu", 2) == 0) {
+        str += 2;
         goto ATTACH_FRACTION;
  /* } else if (strncmp(s, "true", 4) == 0) { */
  /*     s += 4;                              */
@@ -1065,10 +1063,10 @@ static const char *texlib_aux_scan_dimen_part(lua_State * L, const char *ss, int
     *ret = negative ? - result : result;
     lmt_scanner_state.arithmic_error = saved_error;
     /* only when we want to report junk */
-    while ((char) *s == ' ') {
-        s++;
+    while ((char) *str == ' ') {
+        str++;
     }
-    return s;
+    return str;
 }
 
 static int texlib_aux_dimen_to_number(lua_State *L, const char *s)
@@ -1412,10 +1410,16 @@ static int texlib_getdimen(lua_State *L)
     lua_pushinteger(L, state >= 0 ? (state == 2 ? eq_value(index) : tex_get_tex_dimen_register(index, state)) : 0);
  // halfword value;
  // switch (state) { 
- //     case 0 : value = dimen_parameter(index); break;
- //     case 1 : value = dimen_parameter(index); break;
- //     case 2 : value = eq_value(index); break;
- //     default: value = 0;
+ //     case 0 : 
+ //     case 1 : 
+ //         value = dimen_parameter(index); 
+ //         break;
+ //     case 2 : 
+ //         value = eq_value(index); 
+ //         break;
+ //     default: 
+ //         value = 0;
+ //         break;   
  // }
  // lua_pushinteger(L, value);
     return 1;
@@ -1786,25 +1790,25 @@ static int texlib_getmark(lua_State *L)
         lua_pushinteger(L, lmt_mark_state.mark_data.ptr);
         return 1;
     } else if (lua_type(L, 1) == LUA_TSTRING) {
-        int mrk = -1;
+        int mark = -1;
         const char *s = lua_tostring(L, 1);
         if (lua_key_eq(s, top)) {
-            mrk = top_marks_code;
+            mark = top_marks_code;
         } else if (lua_key_eq(s, first)) {
-            mrk = first_marks_code;
+            mark = first_marks_code;
         } else if (lua_key_eq(s, bottom)) {
-            mrk = bot_marks_code;
+            mark = bot_marks_code;
         } else if (lua_key_eq(s, splitfirst)) {
-            mrk = split_first_marks_code;
+            mark = split_first_marks_code;
         } else if (lua_key_eq(s, splitbottom)) {
-            mrk = split_bot_marks_code;
+            mark = split_bot_marks_code;
         } else if (lua_key_eq(s, current)) {
-            mrk = current_marks_code;
+            mark = current_marks_code;
         }
-        if (mrk >= 0) {
-            int num = lmt_optinteger(L, 2, 0);
-            if (num >= 0 && num <= lmt_mark_state.mark_data.ptr) {
-                halfword ptr = tex_get_some_mark(mrk, num);
+        if (mark >= 0) {
+            int index = lmt_optinteger(L, 2, 0);
+            if (index >= 0 && index <= lmt_mark_state.mark_data.ptr) {
+                halfword ptr = tex_get_some_mark(mark, index);
                 if (ptr) {
                     char *str = tex_tokenlist_to_tstring(ptr, 1, NULL, 0, 0, 0, 0);
                     if (str) {
@@ -1829,9 +1833,9 @@ int lmt_get_box_id(lua_State *L, int i, int report)
     switch (lua_type(L, i)) {
         case LUA_TSTRING:
             {
-                size_t k = 0;
-                const char *s = lua_tolstring(L, i, &k);
-                int cs = tex_string_locate(s, k, 0);
+                size_t len = 0;
+                const char *str = lua_tolstring(L, i, &len);
+                int cs = tex_string_locate(str, len, 0);
                 int cmd = eq_type(cs);
                 switch (cmd) {
                     case char_given_cmd:
@@ -1874,29 +1878,29 @@ static int texlib_splitbox(lua_State *L)
     int index = lmt_get_box_id(L, 1, 1);
     if (index >= 0) {
         if (lua_isnumber(L, 2)) {
-            int m = packing_additional;
+            int packing = packing_additional;
             switch (lua_type(L, 3)) {
                 case LUA_TSTRING:
                     {
-                        const char *s = lua_tostring(L, 3);
-                        if (lua_key_eq(s, exactly)) {
-                            m = packing_exactly;
-                        } else if (lua_key_eq(s, additional)) {
-                            m = packing_additional;
+                        const char *str = lua_tostring(L, 3);
+                        if (lua_key_eq(str, exactly)) {
+                            packing = packing_exactly;
+                        } else if (lua_key_eq(str, additional)) {
+                            packing = packing_additional;
                         }
                         break;
                     }
                 case LUA_TNUMBER:
                     {
-                        m = lmt_tointeger(L, 3);
-                        if (m != packing_exactly && m != packing_additional) {
-                            m = packing_exactly;
+                        packing = lmt_tointeger(L, 3);
+                        if (packing != packing_exactly && packing != packing_additional) {
+                            packing = packing_exactly;
                             luaL_error(L, "wrong mode in splitbox");
                         }
                         break;
                     }
             }
-            lmt_node_list_to_lua(L, tex_vsplit(index, lmt_toroundnumber(L, 2), m));
+            lmt_node_list_to_lua(L, tex_vsplit(index, lmt_toroundnumber(L, 2), packing));
         } else {
             /* maybe a warning */
             lua_pushnil(L);
@@ -1921,33 +1925,32 @@ static int texlib_setbox(lua_State *L)
     int slot = lmt_check_for_flags(L, 1, &flags, 1, 0);
     int index = lmt_get_box_id(L, slot++, 1);
     if (index >= 0) {
-        int n = null;
+        halfword box = null;
         switch (lua_type(L, slot)) {
             case LUA_TBOOLEAN:
-                n = lua_toboolean(L, slot);
-                if (n) {
+                if (lua_toboolean(L, slot)) {
                     return 0;
                 } else {
-                    n = null;
+                    box = null;
+                    break;
                 }
-                break;
             case LUA_TNIL:
             case LUA_TNONE:
                 break;
             default:
-                n = lmt_node_list_from_lua(L, slot);
-                if (n) {
-                    switch (node_type(n)) {
+                box = lmt_node_list_from_lua(L, slot);
+                if (box) {
+                    switch (node_type(box)) {
                         case hlist_node:
                         case vlist_node:
                             break;
                         default:
-                            return luaL_error(L, "invalid node type %s passed", get_node_name(node_type(n)));
+                            return luaL_error(L, "invalid node type %s passed", get_node_name(node_type(box)));
                     }
                 }
                 break;
         }
-        tex_set_tex_box_register(index, n, flags, 0);
+        tex_set_tex_box_register(index, box, flags, 0);
     }
     return 0;
 }
@@ -3442,12 +3445,12 @@ static int texlib_scale(lua_State *L)
 
 static int texlib_definefont(lua_State *L)
 {
-    size_t l;
+    size_t len;
     int slot = 1;
     int flags = (lua_isboolean(L, slot) && lua_toboolean(L, slot++)) ? add_global_flag(0) : 0;
-    const char *csname = lua_tolstring(L, slot++, &l);
+    const char *csname = lua_tolstring(L, slot++, &len);
     halfword id = lmt_tohalfword(L, slot++);
-    int cs = tex_string_locate(csname, l, 1);
+    int cs = tex_string_locate(csname, len, 1);
     lmt_check_for_flags(L, slot, &flags, 1, 1);
     tex_define(flags, cs, set_font_cmd, id);
     return 0;
@@ -3610,16 +3613,16 @@ static void texlib_aux_enableprimitive(const char *pre, size_t prel, const char 
 static int texlib_enableprimitives(lua_State *L)
 {
     if (lua_gettop(L) == 2) {
-        size_t lpre;
-        const char *pre = luaL_checklstring(L, 1, &lpre);
+        size_t prelen;
+        const char *prefix = luaL_checklstring(L, 1, &prelen);
         switch (lua_type(L, 2)) {
             case LUA_TTABLE:
                 {
                     int i = 1;
                     while (1) {
                         if (lua_rawgeti(L, 2, i) == LUA_TSTRING) {
-                            const char *prm = lua_tostring(L, 3);
-                            texlib_aux_enableprimitive(pre, lpre, prm);
+                            const char *primitive = lua_tostring(L, 3);
+                            texlib_aux_enableprimitive(prefix, prelen, primitive);
                         } else {
                             lua_pop(L, 1);
                             break;
@@ -3634,8 +3637,8 @@ static int texlib_enableprimitives(lua_State *L)
                     for (int cs = 0; cs < prim_size; cs++) {
                         strnumber s = get_prim_text(cs);
                         if (s > 0) {
-                            const char *prm = tex_to_cstring(s);
-                            texlib_aux_enableprimitive(pre, lpre, prm);
+                            const char *primitive = tex_to_cstring(s);
+                            texlib_aux_enableprimitive(prefix, prelen, primitive);
                         }
                     }
                 }
@@ -4110,20 +4113,20 @@ static int texlib_runlocal(lua_State *L)
 {
  // int obeymode = lua_toboolean(L, 4);
     int obeymode = 1; /* always 1 */
-    halfword tok = -1;
-    int mac = 0 ;
+    halfword token = -1;
+    int ismacro = 0 ;
     switch (lua_type(L, 1)) {
         case LUA_TFUNCTION:
             {
                 /* todo: also a variant that calls an already registered function */
-                int ref;
-                halfword r, t;
+                int reference;
+                halfword c, e;
                 lua_pushvalue(L, 1);
-                ref = luaL_ref(L, LUA_REGISTRYINDEX);
-                r = tex_get_available_token(token_val(end_local_cmd, 0));
-                t = tex_get_available_token(token_val(lua_local_call_cmd, ref));
-                token_link(t) = r;
-                tex_begin_inserted_list(t);
+                reference = luaL_ref(L, LUA_REGISTRYINDEX);
+                c = tex_get_available_token(token_val(lua_local_call_cmd, reference));
+                e = tex_get_available_token(token_val(end_local_cmd, 0));
+                token_link(c) = e;
+                tex_begin_inserted_list(c);
                 if (lmt_token_state.luacstrings > 0) {
                     tex_lua_string_start();
                 }
@@ -4131,15 +4134,15 @@ static int texlib_runlocal(lua_State *L)
                     tex_local_control_message("entering token scanner via function");
                 }
                 tex_local_control(obeymode);
-                luaL_unref(L, LUA_REGISTRYINDEX, ref);
+                luaL_unref(L, LUA_REGISTRYINDEX, reference);
                 return 0;
             }
         case LUA_TNUMBER:
             {
                 halfword k = lmt_checkhalfword(L, 1);
                 if (k >= 0 && k <= 65535) {
-                    tok = toks_register(k);
-                    goto TOK;
+                    token = toks_register(k);
+                    goto WRAPUP;
                 } else {
                     tex_local_control_message("invalid token register number");
                     return 0;
@@ -4155,8 +4158,8 @@ static int texlib_runlocal(lua_State *L)
                     // todo: use the better register helpers and range checkers
                     switch (cmd) {
                         case register_toks_cmd:
-                            tok = toks_register(register_toks_number(eq_value(cs)));
-                            goto TOK;
+                            token = toks_register(register_toks_number(eq_value(cs)));
+                            goto WRAPUP;
                         case undefined_cs_cmd:
                             tex_local_control_message("undefined macro or token register");
                             return 0;
@@ -4172,22 +4175,22 @@ static int texlib_runlocal(lua_State *L)
                         tex_local_control_message("macro takes arguments and is ignored");
                         return 0;
                     } else {
-                        tok = cs_token_flag + cs;
-                        mac = 1 ;
-                        goto TOK;
+                        token = cs_token_flag + cs;
+                        ismacro = 1 ;
+                        goto WRAPUP;
                     }
                 }
             }
         case LUA_TUSERDATA:
             /* no checking yet */
-            tok = token_info(lmt_token_code_from_lua(L, 1));
-            mac = 1;
-            goto TOK;
+            token = token_info(lmt_token_code_from_lua(L, 1));
+            ismacro = 1;
+            goto WRAPUP;
         default:
             return 0;
     }
-  TOK:
-    if (tok < 0) {
+  WRAPUP:
+    if (token < 0) {
         /* nothing to do */
     } else if (lmt_input_state.scanner_status != scanner_is_defining || lua_toboolean(L, 2)) {
         // todo: make list
@@ -4196,10 +4199,10 @@ static int texlib_runlocal(lua_State *L)
             tex_begin_inserted_list(tex_get_available_token(token_val(right_brace_cmd, 0)));
         }
         tex_begin_inserted_list(tex_get_available_token(token_val(end_local_cmd, 0)));
-        if (mac) {
-            tex_begin_inserted_list(tex_get_available_token(tok));
+        if (ismacro) {
+            tex_begin_inserted_list(tex_get_available_token(token));
         } else {
-            tex_begin_token_list(tok, local_text);
+            tex_begin_token_list(token, local_text);
         }
         if (grouped) {
             tex_begin_inserted_list(tex_get_available_token(token_val(left_brace_cmd, 0)));
@@ -4209,19 +4212,19 @@ static int texlib_runlocal(lua_State *L)
             tex_lua_string_start();
         }
         if (tracing_nesting_par > 2) {
-            if (mac) {
+            if (ismacro) {
                 tex_local_control_message("entering token scanner via macro");
             } else {
                 tex_local_control_message("entering token scanner via register");
             }
         }
         tex_local_control(obeymode);
-    } else if (mac) {
-        tex_back_input(tok);
+    } else if (ismacro) {
+        tex_back_input(token);
     } else {
         halfword h = null;
         halfword t = null;
-        halfword r = token_link(tok);
+        halfword r = token_link(token);
         while (r) {
             t = tex_store_new_token(t, token_info(r));
             if (! h) {
@@ -4529,26 +4532,26 @@ static int texlib_fatalerror(lua_State *L)
 static int texlib_lastnodetype(lua_State *L)
 {
     halfword tail = cur_list.tail;
-    int t = -1;
-    int s = -1;
+    int type = -1;
+    int subtype = -1;
     if (tail) {
         halfword mode = cur_list.mode;
         if (mode != nomode && tail != contribute_head && node_type(tail) != glyph_node) {
-            t = node_type(tail);
-            s = node_subtype(tail);
+            type = node_type(tail);
+            subtype = node_subtype(tail);
         } else if (mode == vmode && tail == cur_list.head) {
-            t = lmt_page_builder_state.last_node_type;
-            s = lmt_page_builder_state.last_node_subtype;
+            type = lmt_page_builder_state.last_node_type;
+            subtype = lmt_page_builder_state.last_node_subtype;
         } else if (mode == nomode || tail == cur_list.head) {
             /* already -1 */
         } else {
-            t = node_type(tail);
-            s = node_subtype(tail);
+            type = node_type(tail);
+            subtype = node_subtype(tail);
         }
     }
-    if (t >= 0) {
-        lua_pushinteger(L, t);
-        lua_pushinteger(L, s);
+    if (type >= 0) {
+        lua_pushinteger(L, type);
+        lua_pushinteger(L, subtype);
     } else {
         lua_pushnil(L);
         lua_pushnil(L);
@@ -4560,10 +4563,10 @@ static int texlib_lastnodetype(lua_State *L)
 
 static int texlib_chardef(lua_State *L)
 {
-    size_t l;
-    const char *s = lua_tolstring(L, 1, &l);
-    if (s) {
-        int cs = tex_string_locate(s, l, 1);
+    size_t len;
+    const char *str = lua_tolstring(L, 1, &len);
+    if (len > 0) {
+        int cs = tex_string_locate(str, len, 1);
         int flags = 0;
         lmt_check_for_flags(L, 3, &flags, 1, 0);
         if (tex_define_permitted(cs, flags)) {
@@ -4582,23 +4585,23 @@ static int texlib_chardef(lua_State *L)
 
 static int texlib_mathchardef(lua_State *L)
 {
-    size_t l;
-    const char *s = lua_tolstring(L, 1, &l);
-    if (s) {
-        int cs = tex_string_locate(s, l, 1);
+    size_t len;
+    const char *str = lua_tolstring(L, 1, &len);
+    if (len > 0) {
+        int cs = tex_string_locate(str, len, 1);
         int flags = 0;
         lmt_check_for_flags(L, 5, &flags, 1, 0);
         if (tex_define_permitted(cs, flags)) {
-            mathcodeval m;
-            mathdictval d;
-            m.class_value = (short) lmt_tointeger(L, 2);
-            m.family_value = (short) lmt_tointeger(L, 3);
-            m.character_value = lmt_tointeger(L, 4);
-            d.properties = lmt_optquarterword(L, 6, 0);
-            d.group = lmt_optquarterword(L, 7, 0);
-            d.index = lmt_optinteger(L, 8, 0);
-            if (class_in_range(m.class_value) && family_in_range(m.family_value) && character_in_range(m.character_value)) {
-                tex_define(flags, cs, mathspec_cmd, tex_new_math_dict_spec(d, m, umath_mathcode));
+            mathcodeval mval;
+            mathdictval dval;
+            mval.class_value = (short) lmt_tointeger(L, 2);
+            mval.family_value = (short) lmt_tointeger(L, 3);
+            mval.character_value = lmt_tointeger(L, 4);
+            dval.properties = lmt_optquarterword(L, 6, 0);
+            dval.group = lmt_optquarterword(L, 7, 0);
+            dval.index = lmt_optinteger(L, 8, 0);
+            if (class_in_range(mval.class_value) && family_in_range(mval.family_value) && character_in_range(mval.character_value)) {
+                tex_define(flags, cs, mathspec_cmd, tex_new_math_dict_spec(dval, mval, umath_mathcode));
             } else {
                 tex_normal_error("lua", "mathchardef needs proper class, family and character codes");
             }
@@ -4611,10 +4614,10 @@ static int texlib_mathchardef(lua_State *L)
 
 static int texlib_setintegervalue(lua_State *L)
 {
-    size_t l;
-    const char *s = lua_tolstring(L, 1, &l);
-    if (s) {
-        int cs = tex_string_locate(s, l, 1);
+    size_t len;
+    const char *str = lua_tolstring(L, 1, &len);
+    if (len > 0) {
+        int cs = tex_string_locate(str, len, 1);
         int flags = 0;
         lmt_check_for_flags(L, 3, &flags, 1, 0);
         if (tex_define_permitted(cs, flags)) {
@@ -4631,10 +4634,10 @@ static int texlib_setintegervalue(lua_State *L)
 
 static int texlib_setdimensionvalue(lua_State *L)
 {
-    size_t l;
-    const char *s = lua_tolstring(L, 1, &l);
-    if (s) {
-        int cs = tex_string_locate(s, l, 1);
+    size_t len;
+    const char *str = lua_tolstring(L, 1, &len);
+    if (len > 0) {
+        int cs = tex_string_locate(str, len, 1);
         int flags = 0;
         lmt_check_for_flags(L, 3, &flags, 1, 0);
         if (tex_define_permitted(cs, flags)) {
@@ -4672,10 +4675,10 @@ static int texlib_aux_getvalue(lua_State *L, halfword level, halfword cs)
 static int texlib_getintegervalue(lua_State *L) /* todo, now has duplicate in tokenlib */
 {
     if (lua_type(L, 1) == LUA_TSTRING) {
-        size_t l;
-        const char *s = lua_tolstring(L, 1, &l);
-        if (l > 0) {
-            int cs = tex_string_locate(s, l, 0);
+        size_t len;
+        const char *str = lua_tolstring(L, 1, &len);
+        if (len > 0) {
+            int cs = tex_string_locate(str, len, 0);
             switch (eq_type(cs)) {
                 case integer_cmd:
                     lua_pushinteger(L, eq_value(cs));
@@ -4697,10 +4700,10 @@ static int texlib_getintegervalue(lua_State *L) /* todo, now has duplicate in to
 static int texlib_getdimensionvalue(lua_State *L) /* todo, now has duplicate in tokenlib */
 {
     if (lua_type(L, 1) == LUA_TSTRING) {
-        size_t l;
-        const char *s = lua_tolstring(L, 1, &l);
-        if (l > 0) {
-            int cs = tex_string_locate(s, l, 0);
+        size_t len;
+        const char *str = lua_tolstring(L, 1, &len);
+        if (len > 0) {
+            int cs = tex_string_locate(str, len, 0);
             switch (eq_type(cs)) {
                 case dimension_cmd:
                     lua_pushinteger(L, eq_value(cs));
