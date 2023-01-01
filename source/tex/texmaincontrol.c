@@ -5649,15 +5649,251 @@ void tex_get_r_token(void)
     atom panalties but that's all. No need for more code.
 */
 
+// void tex_assign_internal_int_value(int a, halfword p, int val)
+// {
+//     switch (internal_int_number(p)) {
+//         case par_direction_code:
+//             {
+//                 check_direction_value(val);
+//                 tex_word_define(a, p, val);
+//             }
+//             break;
+//         case math_direction_code:
+//             {
+//                 check_direction_value(val);
+//                 tex_word_define(a, p, val);
+//             }
+//             break;
+//         case text_direction_code:
+//             {
+//                 check_direction_value(val);
+//                 tex_inject_text_or_line_dir(val, 0);
+//                 tex_word_define(a, p, val);
+//                 /*tex Plus: */
+//                 update_tex_internal_dir_state(internal_dir_state_par + 1);
+//             }
+//             break;
+//         case line_direction_code:
+//             {
+//                 check_direction_value(val);
+//                 tex_inject_text_or_line_dir(val, 1);
+//                 p = internal_int_location(text_direction_code);
+//                 tex_word_define(a, p, val);
+//                 /*tex Plus: */
+//                 update_tex_internal_dir_state(internal_dir_state_par + 1);
+//             }
+//             break;
+//         case cat_code_table_code:
+//             if (tex_valid_catcode_table(val)) {
+//                 if (val != cat_code_table_par) {
+//                     tex_word_define(a, p, val);
+//                 }
+//             } else {
+//                 tex_handle_error(
+//                     normal_error_type,
+//                     "Invalid \\catcode table",
+//                     "You can only switch to a \\catcode table that is initialized using\n"
+//                     "\\savecatcodetable or \\initcatcodetable, or to table 0"
+//                 );
+//             }
+//             break;
+//         case glyph_scale_code:
+//         case glyph_x_scale_code:
+//         case glyph_y_scale_code:
+//             if (! val) {
+//                 /* maybe an error message */
+//                 return;
+//             } else {
+//                 /* todo: check for reasonable */
+//                 goto DEFINE;
+//             }
+//         case glyph_text_scale_code:
+//         case glyph_script_scale_code:
+//         case glyph_scriptscript_scale_code:
+//             /* here zero is a signal */
+//             if (val < min_limited_scale || val > max_limited_scale) {
+//                 tex_handle_error(
+//                     normal_error_type,
+//                     "Invalid \\glyph..scale",
+//                     "The value for \\glyph..scale has to be between 0 and 1000 where\n"
+//                     "a value of zero forces font percentage scaling to be used."
+//                 );
+//                 val = max_limited_scale;
+//             }
+//             goto DEFINE;
+//         case math_begin_class_code:
+//         case math_end_class_code:
+//         case math_left_class_code:
+//         case math_right_class_code:
+//             if (! valid_math_class_code(val)) {
+//                 val = unset_noad_class;
+//             }
+//             tex_word_define(a, p, val);
+//             break;
+//         case output_box_code:
+//             if (val < 0 || val > max_box_index) {
+//                 tex_handle_error(
+//                     normal_error_type,
+//                     "Invalid \\outputbox",
+//                     "The value for \\outputbox has to be between 0 and " LMT_TOSTRING(max_box_index) "."
+//                 );
+//             } else {
+//                 tex_word_define(a, p, val);
+//             }
+//             break;
+//         case new_line_char_code:
+//             if (val > max_newline_character) {
+//                 tex_handle_error(
+//                     normal_error_type,
+//                     "Invalid \\newlinechar",
+//                     "The value for \\newlinechar has to be no higher than " LMT_TOSTRING(max_newline_character) ".\n"
+//                     "Your invalid assignment will be ignored."
+//                 );
+//             }
+//             else {
+//                 tex_word_define(a, p, val);
+//             }
+//             break;
+//         case end_line_char_code:
+//             if (val > 127) {
+//                 tex_handle_error(
+//                     normal_error_type,
+//                     "Invalid \\endlinechar",
+//                     "The value for \\endlinechar has to be no higher than 127."
+//                 );
+//             }
+//             else {
+//                 tex_word_define(a, p, val);
+//             }
+//             break;
+//         case language_code:
+//             /* this is |\language| */
+//             if (val < 0) {
+//                 val = 0;
+//             }
+//             if (tex_is_valid_language(val)) {
+//                 update_tex_language(a, val);
+//             }
+//             else {
+//                 tex_handle_error(
+//                     normal_error_type,
+//                     "Invalid \\language",
+//                     "The value for \\language has to be defined and in the range 0 .. " LMT_TOSTRING(max_n_of_languages) "."
+//                 );
+//             }
+//             break;
+//         case font_code:
+//             if (val < 0) {
+//                 val = 0;
+//             }
+//             if (tex_is_valid_font(val)) {
+//                 tex_set_cur_font(a, val);
+//             }
+//             else {
+//                 tex_handle_error(
+//                     normal_error_type,
+//                     "Invalid \\fontid",
+//                     "The value for \\fontid has to be defined and in the range 0 .. " LMT_TOSTRING(max_n_of_fonts) "."
+//                 );
+//             }
+//             break;
+//         case hyphenation_mode_code:
+//             if (val < 0) {
+//                 val = 0;
+//             }
+//             /* We don't update |\uchyph| here. */
+//             tex_word_define(a, p, val);
+//             break;
+//         case uc_hyph_code:
+//             /*tex For old times sake. */
+//             tex_word_define(a, p, val);
+//             /*tex But we do use this instead. */
+//             val = val ? set_hyphenation_mode(hyphenation_mode_par, uppercase_hyphenation_mode) : unset_hyphenation_mode(hyphenation_mode_par, uppercase_hyphenation_mode);
+//             tex_word_define(a, internal_int_location(hyphenation_mode_code), val);
+//             break;
+//         case local_interline_penalty_code:
+//         case local_broken_penalty_code:
+//             /*tex
+//                 If we are defining subparagraph penalty levels while we are in hmode, then we
+//                 put out a whatsit immediately, otherwise we leave it alone. This mechanism might
+//                 not be sufficiently powerful, and some other algorithm, searching down the stack,
+//                 might be necessary. Good first step.
+//             */
+//             tex_word_define(a, p, val);
+//             if (cur_mode == hmode) {
+//                 /*tex Add local paragraph node */
+//                 tex_tail_append(tex_new_par_node(penalty_par_subtype));
+//                 update_tex_internal_par_state(internal_par_state_par + 1);
+//             }
+//             break;
+//         case adjust_spacing_code:
+//             if (val < adjust_spacing_off) {
+//                 val = adjust_spacing_off;
+//             }
+//             else if (val > adjust_spacing_font) {
+//                 val = adjust_spacing_font;
+//             }
+//             goto DEFINE;
+//         case protrude_chars_code:
+//             if (val < protrude_chars_off) {
+//                 val = protrude_chars_off;
+//             }
+//             else if (val > protrude_chars_advanced) {
+//                 val = protrude_chars_advanced;
+//             }
+//             goto DEFINE;
+//         case glyph_options_code:
+//             if (val < glyph_option_normal_glyph) {
+//                 val = glyph_option_normal_glyph;
+//             } else if (val > glyph_option_all) {
+//                 val = glyph_option_all;
+//             }
+//             goto DEFINE;
+//         case overload_mode_code:
+//             if (overload_mode_par == 255) {
+//                 return;
+//             } else {
+//                 goto DEFINE;
+//             }
+//         /* We only synchronize these four one way. */
+//         case post_binary_penalty_code:
+//             tex_word_define(a, internal_int_location(first_math_post_penalty_code + binary_noad_subtype), val);
+//             tex_word_define(a, internal_int_location(first_math_display_post_penalty_code + binary_noad_subtype), val);
+//             break;
+//         case post_relation_penalty_code:
+//             tex_word_define(a, internal_int_location(first_math_post_penalty_code + relation_noad_subtype), val);
+//             tex_word_define(a, internal_int_location(first_math_display_post_penalty_code + relation_noad_subtype), val);
+//             break;
+//         case pre_binary_penalty_code:
+//             tex_word_define(a, internal_int_location(first_math_pre_penalty_code + binary_noad_subtype), val);
+//             tex_word_define(a, internal_int_location(first_math_display_pre_penalty_code + binary_noad_subtype), val);
+//             break;
+//         case pre_relation_penalty_code:
+//             tex_word_define(a, internal_int_location(first_math_pre_penalty_code + relation_noad_subtype), val);
+//             tex_word_define(a, internal_int_location(first_math_display_pre_penalty_code + relation_noad_subtype), val);
+//             break;
+//         /* We could do this, but then we also need to do day and check it per month. */ /*
+//         case month_code:
+//             if (val < 1) {
+//                 val = 1;
+//             } else if (val > 12) {
+//                 val = 12;
+//             }
+//             goto DEFINE;
+//         */
+//         default:
+//           DEFINE:
+//             tex_word_define(a, p, val);
+//             if (is_frozen(a) && cur_mode == hmode) {
+//                 tex_update_par_par(internal_int_cmd, internal_int_number(p));
+//             }
+//     }
+// }
+
 void tex_assign_internal_int_value(int a, halfword p, int val)
 {
     switch (internal_int_number(p)) {
         case par_direction_code:
-            {
-                check_direction_value(val);
-                tex_word_define(a, p, val);
-            }
-            break;
         case math_direction_code:
             {
                 check_direction_value(val);
@@ -5700,13 +5936,13 @@ void tex_assign_internal_int_value(int a, halfword p, int val)
         case glyph_scale_code:
         case glyph_x_scale_code:
         case glyph_y_scale_code:
-            if (! val) {
-                /* maybe an error message */
-                return;
+            /* todo: check for reasonable */
+            if (val) {
+                tex_word_define(a, p, val);
             } else {
-                /* todo: check for reasonable */
-                goto DEFINE;
+                /* maybe an error message */
             }
+            break;
         case glyph_text_scale_code:
         case glyph_script_scale_code:
         case glyph_scriptscript_scale_code:
@@ -5720,7 +5956,8 @@ void tex_assign_internal_int_value(int a, halfword p, int val)
                 );
                 val = max_limited_scale;
             }
-            goto DEFINE;
+            tex_word_define(a, p, val);
+            break;
         case math_begin_class_code:
         case math_end_class_code:
         case math_left_class_code:
@@ -5833,7 +6070,7 @@ void tex_assign_internal_int_value(int a, halfword p, int val)
             else if (val > adjust_spacing_font) {
                 val = adjust_spacing_font;
             }
-            goto DEFINE;
+            goto DEFINE; /* par property */
         case protrude_chars_code:
             if (val < protrude_chars_off) {
                 val = protrude_chars_off;
@@ -5841,20 +6078,20 @@ void tex_assign_internal_int_value(int a, halfword p, int val)
             else if (val > protrude_chars_advanced) {
                 val = protrude_chars_advanced;
             }
-            goto DEFINE;
+            goto DEFINE; /* par property */
         case glyph_options_code:
             if (val < glyph_option_normal_glyph) {
                 val = glyph_option_normal_glyph;
             } else if (val > glyph_option_all) {
                 val = glyph_option_all;
             }
-            goto DEFINE;
+            tex_word_define(a, p, val);
+            break;
         case overload_mode_code:
-            if (overload_mode_par == 255) {
-                return;
-            } else {
-                goto DEFINE;
+            if (overload_mode_par != 255) {
+                tex_word_define(a, p, val);
             }
+            break;
         /* We only synchronize these four one way. */
         case post_binary_penalty_code:
             tex_word_define(a, internal_int_location(first_math_post_penalty_code + binary_noad_subtype), val);
