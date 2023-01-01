@@ -203,7 +203,7 @@ void tex_aux_check_text_strut_rule(halfword rule, halfword style)
 halfword tex_get_rule_font(halfword n, halfword style)
 {
     halfword fnt = rule_font(n);
-    if (fnt > rule_font_fam_offset) {
+    if (fnt >= rule_font_fam_offset) {
         halfword fam = fnt - rule_font_fam_offset;
         if (fam_par_in_range(fam)) {
             fnt = tex_fam_fnt(fam, tex_size_of_style(style));
@@ -219,7 +219,7 @@ halfword tex_get_rule_font(halfword n, halfword style)
 halfword tex_get_rule_family(halfword n)
 {
     halfword fnt = rule_font(n);
-    if (fnt > rule_font_fam_offset) {
+    if (fnt >= rule_font_fam_offset) {
         halfword fam = fnt - rule_font_fam_offset;
         if (fam_par_in_range(fam)) {
             return fam;

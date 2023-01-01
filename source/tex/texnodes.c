@@ -2728,10 +2728,10 @@ void tex_show_node_list(halfword p, int threshold, int max)
                         tex_print_format(", yoffset %R", rule_y_offset(p));
                     }
                     if (rule_font(p)) {
-                        if (rule_font(p) < 0 || rule_font(p) >= rule_font_fam_offset) {
-                            tex_print_format(", font %F", rule_font(p));
-                        } else {
+                        if (rule_font(p) >= rule_font_fam_offset) {
                             tex_print_format(", family %i", rule_font(p) - rule_font_fam_offset);
+                        } else {
+                            tex_print_format(", font %F", rule_font(p) < 0 ? 0 : rule_font(p));
                         }
                     }
                     if (rule_character(p)) {
