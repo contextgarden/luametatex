@@ -41,13 +41,17 @@
 
 condition_state_info lmt_condition_state = {
     .cond_ptr   = null,
-    .if_limit   = 0,
     .cur_if     = 0,
+    .cur_unless = 0,
+    .if_step    = 0,
+    .if_unless  = 0,
+    .if_limit   = 0,
     .if_line    = 0,
     .skip_line  = 0,
     .chk_num    = 0,
     .chk_dim    = 0,
     .if_nesting = 0,
+    .padding    = 0,
 };
 
 /*tex

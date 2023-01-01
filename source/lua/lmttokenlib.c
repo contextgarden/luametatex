@@ -1853,10 +1853,27 @@ static int tokenlib_scan_char(lua_State *L)
     return 1;
 }
 
+static const char *token_cmd_to_string[15] = { 
+    "\\", /*  0 escape_cmd        */
+    "{",  /*  1 left_brace_cmd    */
+    "}",  /*  2 right_brace_cmd   */
+    "$",  /*  3 math_shift_cmd    */
+    "&",  /*  4 alignment_tab_cmd */
+    "\n", /*  5 end_line_cmd      */
+    "#",  /*  6 parameter_cmd     */
+    "^",  /*  7 superscript_cmd   */
+    "_",  /*  8 subscript_cmd     */
+    "",   /*  9 ignore_cmd        */
+    " ",  /* 10 spacer_cmd        */
+    "",   /* 11 letter_cmd        */
+    "",   /* 12 other_char_cmd    */
+    "",   /* 13 active_char_cmd   */
+    "%"   /* 14 comment_cmd       */
+};
+
 static int tokenlib_scan_next_char(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
-    const char mapping[14][2] = { "\\", "{", "}", "$", "&", "\n", "#", "^", "_", " ", "", "", "", "%" };
     tex_get_token();
     switch (cur_cmd) {
         case escape_cmd:
@@ -1871,7 +1888,7 @@ static int tokenlib_scan_next_char(lua_State *L)
         case ignore_cmd:
         case spacer_cmd:
         case comment_cmd:
-            lua_pushstring(L, mapping[cur_cmd]);
+            lua_pushstring(L, token_cmd_to_string[cur_cmd]);
             break;
         case letter_cmd:
         case other_char_cmd:

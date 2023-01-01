@@ -4755,6 +4755,7 @@ void mp_print_variable_name (MP mp, mp_node p)
             goto FOUND;
         } else if (p->name_type != mp_attribute_operation) {
             mp_confusion(mp, "variable");
+            return;
         } else {
             r = mp_new_symbolic_node(mp);
             /* the hash address */
@@ -21313,16 +21314,16 @@ static void mp_scan_secondary (MP mp)
         }
         mp_get_x_next(mp);
         mp_scan_primary(mp);
-        if (d != mp_primary_def_command) {
-            mp_do_binary(mp, p, c);
-        } else {
+        if (d == mp_primary_def_command) {
             mp_back_input(mp);
             mp_binary_mac(mp, p, cc, mac_name);
             mp_decr_mac_ref(cc);
             mp_get_x_next(mp);
             goto RESTART;
+        } else {
+            mp_do_binary(mp, p, c);
+            goto CONTINUE;
         }
-        goto CONTINUE;
     }
 }
 
@@ -21365,16 +21366,16 @@ static void mp_scan_tertiary (MP mp)
         }
         mp_get_x_next(mp);
         mp_scan_secondary(mp);
-        if (d != mp_secondary_def_command) {
-            mp_do_binary(mp, p, c);
-        } else {
+        if (d == mp_secondary_def_command) {
             mp_back_input(mp);
             mp_binary_mac(mp, p, cc, mac_name);
             mp_decr_mac_ref(cc);
             mp_get_x_next(mp);
             goto RESTART;
+        } else {
+            mp_do_binary(mp, p, c);
+            goto CONTINUE;
         }
-        goto CONTINUE;
     }
 }
 

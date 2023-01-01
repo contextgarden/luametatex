@@ -3639,7 +3639,7 @@ static void tex_aux_arithmic_register(int a, int code)
                     }
                     /*tex There is no overflow detection for addition, just wraparound. */
                     if (simple) {
-                        tex_define(a, index, simple, value);
+                        tex_define(a, index, (singleword) simple, value);
                     } else {
                         tex_aux_update_register(a, level, index, value, varcmd);
                     }
@@ -3675,7 +3675,7 @@ static void tex_aux_arithmic_register(int a, int code)
                     if (lmt_scanner_state.arithmic_error) {
                         tex_aux_arithmic_overflow_error(level, value);
                     } else if (simple) {
-                        tex_define(a, index, simple, value);
+                        tex_define(a, index, (singleword) simple, value);
                     } else {
                         tex_aux_update_register(a, level, index, value, varcmd);
                     }
@@ -3709,7 +3709,7 @@ static void tex_aux_arithmic_register(int a, int code)
                     if (lmt_scanner_state.arithmic_error) {
                         tex_aux_arithmic_overflow_error(level, value);
                     } else if (simple) {
-                        tex_define(a, index, simple, value);
+                        tex_define(a, index, (singleword) simple, value);
                     } else {
                         tex_aux_update_register(a, level, index, value, varcmd);
                     }
@@ -5396,7 +5396,7 @@ static void tex_aux_set_constant_register(halfword cmd, halfword cs, halfword fl
             v = tex_scan_glue(mu_val_level, 1);
             break;
     }
-    tex_define(flags, cs, cmd, v);
+    tex_define(flags, cs, (singleword) cmd, v);
 }
 
 void tex_run_prefixed_command(void)

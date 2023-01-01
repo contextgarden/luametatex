@@ -416,6 +416,18 @@ typedef union memoryword {
     void          *P;
 } memoryword;
 
+typedef union tokenword {
+    union { 
+        halfword info;
+        halfword val;
+        struct  { 
+            int cmd:8; 
+            int chr:24; 
+        };
+    };
+    halfword link; 
+} tokenword;
+
 /*tex
 
     These symbolic names will be used in the definitions of tokens and nodes, the core data
