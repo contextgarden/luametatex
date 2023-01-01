@@ -3365,30 +3365,6 @@ scaled tex_glyph_depth(halfword p) /* not used */
     return d < 0 ? 0 : d;
 }
 
-// scaledwhd tex_glyph_dimensions(halfword p)
-// {
-//     scaledwhd whd = { 0, 0, 0, 0 };
-//     scaled x = glyph_x_offset(p);
-//     scaled y = glyph_y_offset(p);
-//     whd.ht = tex_char_height_from_glyph(p) + glyph_raise(p);
-//     whd.dp = tex_char_depth_from_glyph(p) - glyph_raise(p);
-//     whd.wd = tex_char_width_from_glyph(p) - (glyph_left(p) + glyph_right(p));
-//     if (x && tex_has_glyph_option(p, glyph_option_apply_x_offset)) {
-//         whd.wd += x;
-//     }
-//     if (y && tex_has_glyph_option(p, glyph_option_apply_y_offset)) {
-//         whd.ht += y;
-//         whd.dp -= y;
-//     }
-//     if (whd.ht < 0) {
-//         whd.ht = 0;
-//     }
-//     if (whd.dp < 0) {
-//         whd.dp = 0;
-//     }
-//     return whd;
-// }
-
 scaledwhd tex_glyph_dimensions(halfword p)
 {
     scaledwhd whd = tex_char_whd_from_glyph(p);
@@ -3412,33 +3388,6 @@ scaledwhd tex_glyph_dimensions(halfword p)
     }
     return whd;
 }
-
-// scaledwhd tex_glyph_dimensions_ex(halfword p)
-// {
-//     scaledwhd whd = { 0, 0, 0, 0 };
-//     scaled x = glyph_x_offset(p);
-//     scaled y = glyph_y_offset(p);
-//     whd.ht = tex_char_height_from_glyph(p) + glyph_raise(p);
-//     whd.dp = tex_char_depth_from_glyph(p) - glyph_raise(p);
-//     whd.wd = tex_char_width_from_glyph(p) - (glyph_left(p) + glyph_right(p));
-//     if (x && tex_has_glyph_option(p, glyph_option_apply_x_offset)) {
-//         whd.wd += x;
-//     }
-//     if (y && tex_has_glyph_option(p, glyph_option_apply_y_offset)) {
-//         whd.ht += y;
-//         whd.dp -= y;
-//     }
-//     if (whd.ht < 0) {
-//         whd.ht = 0;
-//     }
-//     if (whd.dp < 0) {
-//         whd.dp = 0;
-//     }
-//     if (whd.wd && glyph_expansion(p)) {
-//         whd.wd = tex_ext_xn_over_d(whd.wd, 1000000 + glyph_expansion(p), 1000000);
-//     }
-//     return whd;
-// }
 
 scaledwhd tex_glyph_dimensions_ex(halfword p)
 {
@@ -3467,37 +3416,10 @@ scaledwhd tex_glyph_dimensions_ex(halfword p)
     return whd;
 }
 
-
 scaled tex_glyph_total(halfword p)
 {
- // scaled ht = tex_char_height_from_glyph(p);
- // scaled dp = tex_char_depth_from_glyph(p);
- // if (ht < 0) {
- //     ht = 0;
- // }
- // if (dp < 0) {
- //     dp = 0;
- // }
- // return ht + dp;
     return tex_char_total_from_glyph(p);
 }
-
-// int tex_glyph_has_dimensions(halfword p)
-// {
-//     scaled offset = glyph_x_offset(p);
-//     scaled amount = tex_char_width_from_glyph(p);
-//     if (offset && tex_has_glyph_option(p, glyph_option_apply_x_offset)) {
-//         amount += offset;
-//     }
-//     amount -= (glyph_left(p) + glyph_right(p));
-//     if (amount) {
-//         return 1;
-//     } else {
-//         amount = tex_char_total_from_glyph(p);
-//         /* here offset and raise just moves */
-//         return amount != 0;
-//     }
-// }
 
 int tex_glyph_has_dimensions(halfword p)
 {
@@ -4689,8 +4611,8 @@ halfword tex_flatten_discretionaries(halfword head, int *count, int nest)
                     if (list) {
                         box_list(current) = tex_flatten_discretionaries(list, count, nest);
                     }
-                    break;
                 }
+                break;
         }
         current = next;
     }
