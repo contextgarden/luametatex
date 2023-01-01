@@ -187,15 +187,14 @@ void tex_aux_check_text_strut_rule(halfword rule, halfword style)
             halfword fnt = tex_get_rule_font(rule, style);
             halfword chr = rule_character(rule);
             if (fnt > 0 && chr && tex_char_exists(fnt, chr)) {
+                scaledwhd whd = tex_char_whd_from_font(fnt, chr);
                 if (ht == null_flag) {
-                    ht = tex_char_height_from_font(fnt, chr);
+                    rule_height(rule) = whd.ht;
                 }
                 if (dp == null_flag) {
-                    dp = tex_char_depth_from_font(fnt, chr);
+                    rule_depth(rule) = whd.dp;
                 }
             }
-            rule_height(rule) = ht;
-            rule_depth(rule) = dp;
         }
     }
 }

@@ -221,7 +221,7 @@ void tex_initialize_nesting(void)
     cur_list.mode = vmode;
     cur_list.head = contribute_head;
     cur_list.tail = contribute_head;
-    cur_list.delim = null;
+    cur_list.delimiter = null;
     cur_list.prev_graf = 0;
     cur_list.mode_line = 0;
     cur_list.prev_depth = ignore_depth; /*tex |ignore_depth_criterium_par| is not yet available! */
@@ -274,7 +274,7 @@ void tex_push_nest(void)
         cur_list.mode = top->mode;
         cur_list.head = tex_new_temp_node();
         cur_list.tail = cur_list.head;
-        cur_list.delim = null;
+        cur_list.delimiter = null;
         cur_list.prev_graf = 0;
         cur_list.mode_line = lmt_input_state.input_line;
         cur_list.prev_depth = top->prev_depth;

@@ -3226,7 +3226,7 @@ static void texlib_get_nest_field(lua_State *L, const char *field, list_state_re
         /* we no longer check for special list nodes here so beware of next-of-tail */
         lmt_push_node_fast(L, r->tail);
     } else if (lua_key_eq(field, delimiter)) {
-        lmt_push_node_fast(L, r->delim);
+        lmt_push_node_fast(L, r->delimiter);
     } else if (lua_key_eq(field, prevgraf)) {
         lua_pushinteger(L, r->prev_graf);
     } else if (lua_key_eq(field, modeline)) {
@@ -3257,7 +3257,7 @@ static void texlib_set_nest_field(lua_State *L, int n, const char *field, list_s
     } else if (lua_key_eq(field, tail)) {
         r->tail = lmt_check_isnode(L, n);
     } else if (lua_key_eq(field, delimiter)) {
-        r->delim = lmt_check_isnode(L, n);
+        r->delimiter = lmt_check_isnode(L, n);
     } else if (lua_key_eq(field, prevgraf)) {
         r->prev_graf = lmt_tointeger(L, n);
     } else if (lua_key_eq(field, modeline)) {

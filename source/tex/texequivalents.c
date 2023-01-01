@@ -675,7 +675,7 @@ void tex_show_save_groups(void)
                 goto FOUND2;
             case math_fence_group:
                 /* kind of ugly ... maybe also save that one */ /* todo: operator */
-                tex_print_str_esc((node_subtype(lmt_nest_state.nest[pointer + 1].delim) == left_fence_side) ? "left" : "middle");
+                tex_print_str_esc((node_subtype(lmt_nest_state.nest[pointer + 1].delimiter) == left_fence_side) ? "left" : "middle");
                 goto FOUND2;
             default:
                 tex_confusion("show groups");

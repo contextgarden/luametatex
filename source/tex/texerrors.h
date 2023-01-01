@@ -38,7 +38,7 @@ typedef struct error_state_info {
     int          set_box_allowed;
     int          history;
     int          error_count;
-    int          err_old_setting;
+    int          saved_selector;
     int          in_error;
     int          long_help_seen;
     int          context_indent;

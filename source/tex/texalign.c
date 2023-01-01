@@ -353,6 +353,10 @@ inline static void tex_aux_change_list_type(halfword n, quarterword type)
     and such. But then it even makes sense to have explicit commands (in addition to the seperator)
     to tags individual cells. It's too much hassle for now and the advantages are not that large.
 
+    This code has a history so changing it now is tricky. For instance we could the top of the align 
+    stack instead of the copied values. On the other hand, working with copies makes that we can 
+    mess with these. And the gain would be little anywya, if at all. 
+
 */
 
 static void tex_aux_push_alignment(void)

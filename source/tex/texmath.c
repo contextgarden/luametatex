@@ -1938,7 +1938,7 @@ static void tex_aux_append_math_fence(halfword fence, quarterword mathclass)
                 node_subtype(fence) = left_fence_side;
                 node_next(cur_list.head) = fence;
                 cur_list.tail = fence;
-                cur_list.delim = fence;
+                cur_list.delimiter = fence;
             }
             break;
         case close_noad_subtype:
@@ -1962,7 +1962,7 @@ static void tex_aux_append_math_fence(halfword fence, quarterword mathclass)
                 node_subtype(fence) = middle_fence_side;
                 node_next(cur_list.head) = q;
                 cur_list.tail = fence;
-                cur_list.delim = fence;
+                cur_list.delimiter = fence;
             }
             break;
     }
@@ -3740,11 +3740,11 @@ static halfword tex_aux_finish_math_list(halfword p)
         if (p) {
             halfword numerator = fraction_numerator(cur_list.incomplete_noad);
             q = kernel_math_list(numerator);
-            if ((node_type(q) != fence_noad) || (node_subtype(q) != left_fence_side) || (! cur_list.delim)) {
+            if ((node_type(q) != fence_noad) || (node_subtype(q) != left_fence_side) || (! cur_list.delimiter)) {
                 tex_confusion("right fence");
             }
-            kernel_math_list(numerator) = node_next(cur_list.delim);
-            node_next(cur_list.delim) = cur_list.incomplete_noad;
+            kernel_math_list(numerator) = node_next(cur_list.delimiter);
+            node_next(cur_list.delimiter) = cur_list.incomplete_noad;
             node_next(cur_list.incomplete_noad) = p;
         } else {
             q = cur_list.incomplete_noad;
@@ -4171,7 +4171,7 @@ void tex_run_math_fence(void)
                     tex_aux_push_math(math_fence_group, style);
                     node_next(cur_list.head) = fence;
                     cur_list.tail = fence;
-                    cur_list.delim = fence;
+                    cur_list.delimiter = fence;
                     tex_set_saved_record(saved_operator_item_variant, operator_variant_save_type, 0, math_limits_top);
                     lmt_save_state.save_stack_data.ptr += saved_operator_n_of_items;
                     tex_aux_push_math(math_operator_group, tex_math_style_variant(style, math_parameter_superscript_variant));

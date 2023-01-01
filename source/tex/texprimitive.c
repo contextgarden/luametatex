@@ -174,8 +174,8 @@ static int tex_aux_room_in_hash(void)
     Because we seldom use uppercase we get many misses, multiplying a chr j[k] by k actually gives
     a better spread.
 
-    Making a \CONTEXT\ format takes some 250.000 hash calculations while the \LUAMETATEX\ needs
-    some 1.7 million for just over 250 pages (with an average string length of 15).
+    Making a \CONTEXT\ format takes some 250.000 hash calculations while the \LUAMETATEX\ manual 
+    needs some 1.7 million for just over 250 pages (with an average string length of 15).
 
     The primitive hash lookups are needed when we initialize and when we lookup an internal
     variable.
