@@ -3603,11 +3603,17 @@ static void tex_aux_arithmic_register(int a, int code)
                         case int_val_level:
                         case attr_val_level:
                         case dimen_val_level:
-                            value += original;
-                            break;
+                            if (value) {
+                                value += original;
+                                break;
+                            } else { 
+                                return;
+                            }
                         case glue_val_level:
                         case mu_val_level:
-                            {
+                            if (tex_glue_is_zero(value)) {
+                                return;
+                            } else {
                                 /* Compute the sum of two glue specs */
                                 halfword newvalue = tex_new_glue_spec_node(value);
                                 tex_flush_node(value);
@@ -3650,70 +3656,78 @@ static void tex_aux_arithmic_register(int a, int code)
             case multiply_by_code:
                 {
                     halfword amount = tex_scan_int(0, NULL);
-                    switch (level) {
-                        case int_val_level:
-                        case attr_val_level:
-                            value = tex_multiply_integers(original, amount);
-                            break;
-                        case dimen_val_level:
-                            value = tex_nx_plus_y(original, amount, 0);
-                            break;
-                        case glue_val_level:
-                        case mu_val_level:
-                            {
-                                halfword newvalue = tex_new_glue_spec_node(original);
-                                glue_amount(newvalue) = tex_nx_plus_y(glue_amount(original), amount, 0);
-                                glue_stretch(newvalue) = tex_nx_plus_y(glue_stretch(original), amount, 0);
-                                glue_shrink(newvalue) = tex_nx_plus_y(glue_shrink(original), amount, 0);
-                                value = newvalue;
+                    if (amount == 1) {
+                        return;
+                    } else { 
+                        switch (level) {
+                            case int_val_level:
+                            case attr_val_level:
+                                value = tex_multiply_integers(original, amount);
                                 break;
-                            }
-                        default:
-                            /* error */
-                            break;
+                            case dimen_val_level:
+                                value = tex_nx_plus_y(original, amount, 0);
+                                break;
+                            case glue_val_level:
+                            case mu_val_level:
+                                {
+                                    halfword newvalue = tex_new_glue_spec_node(original);
+                                    glue_amount(newvalue) = tex_nx_plus_y(glue_amount(original), amount, 0);
+                                    glue_stretch(newvalue) = tex_nx_plus_y(glue_stretch(original), amount, 0);
+                                    glue_shrink(newvalue) = tex_nx_plus_y(glue_shrink(original), amount, 0);
+                                    value = newvalue;
+                                    break;
+                                }
+                            default:
+                                /* error */
+                                break;
+                        }
+                        if (lmt_scanner_state.arithmic_error) {
+                            tex_aux_arithmic_overflow_error(level, value);
+                        } else if (simple) {
+                            tex_define(a, index, (singleword) simple, value);
+                        } else {
+                            tex_aux_update_register(a, level, index, value, varcmd);
+                        }
+                        break;
                     }
-                    if (lmt_scanner_state.arithmic_error) {
-                        tex_aux_arithmic_overflow_error(level, value);
-                    } else if (simple) {
-                        tex_define(a, index, (singleword) simple, value);
-                    } else {
-                        tex_aux_update_register(a, level, index, value, varcmd);
-                    }
-                    break;
                 }
             case divide_code:
                 tex_scan_optional_keyword("by");
             case divide_by_code:
                 {
                     halfword amount = tex_scan_int(0, NULL);
-                    switch (level) {
-                        case int_val_level:
-                        case attr_val_level:
-                        case dimen_val_level:
-                            value = tex_x_over_n(original, amount);
-                            break;
-                        case glue_val_level:
-                        case mu_val_level:
-                            {
-                                halfword newvalue = tex_new_glue_spec_node(original);
-                                glue_amount(newvalue) = tex_x_over_n(glue_amount(original), amount);
-                                glue_stretch(newvalue) = tex_x_over_n(glue_stretch(original), amount);
-                                glue_shrink(newvalue) = tex_x_over_n(glue_shrink(original), amount);
-                                value = newvalue;
+                    if (amount == 1) {
+                        return;
+                    } else { 
+                        switch (level) {
+                            case int_val_level:
+                            case attr_val_level:
+                            case dimen_val_level:
+                                value = tex_x_over_n(original, amount);
                                 break;
-                            }
-                        default:
-                            /* error */
-                            break;
+                            case glue_val_level:
+                            case mu_val_level:
+                                {
+                                    halfword newvalue = tex_new_glue_spec_node(original);
+                                    glue_amount(newvalue) = tex_x_over_n(glue_amount(original), amount);
+                                    glue_stretch(newvalue) = tex_x_over_n(glue_stretch(original), amount);
+                                    glue_shrink(newvalue) = tex_x_over_n(glue_shrink(original), amount);
+                                    value = newvalue;
+                                    break;
+                                }
+                            default:
+                                /* error */
+                                break;
+                        }
+                        if (lmt_scanner_state.arithmic_error) {
+                            tex_aux_arithmic_overflow_error(level, value);
+                        } else if (simple) {
+                            tex_define(a, index, (singleword) simple, value);
+                        } else {
+                            tex_aux_update_register(a, level, index, value, varcmd);
+                        }
+                        break;
                     }
-                    if (lmt_scanner_state.arithmic_error) {
-                        tex_aux_arithmic_overflow_error(level, value);
-                    } else if (simple) {
-                        tex_define(a, index, (singleword) simple, value);
-                    } else {
-                        tex_aux_update_register(a, level, index, value, varcmd);
-                    }
-                    break;
                 }
             /*
             case advance_by_plus_one_code:

@@ -1011,16 +1011,17 @@ inline static int tex_aux_equal_eq(halfword p, singleword cmd, singleword flag, 
             case register_toks_cmd:
                 /*tex Again we have references. */
                 if (eq_value(p) == chr) {
-            //  if (eq_value(p) == chr && eq_level(p) == cur_level) {
+             // if (eq_value(p) == chr && eq_level(p) == cur_level) {
                     return 1;
                 } else {
                     return 0;
                 }
-         // case dimension_cmd:
-         // case integer_cmd:
-         //     if (eq_type(p) == cmd && eq_value(p) == chr && eq_level(p) == cur_level) {
-         //         return 1;
-         //     }
+            case dimension_cmd:
+            case integer_cmd:
+                if (eq_type(p) == cmd && eq_value(p) == chr) {
+             // if (eq_type(p) == cmd && eq_value(p) == chr && eq_level(p) == cur_level) {
+                    return 1;
+                }
             default:
                 /*tex
                     We can best also check the level because for integer defs etc we run into
@@ -1303,7 +1304,9 @@ void tex_define_swapped(int g, halfword p1, halfword p2, int force)
                goto NOTDONE;
            }
         }
-        {
+        if (v1 == v2)  {
+            return; 
+        } else {
             switch (t1) {
                 case register_int_cmd:
                 case register_attribute_cmd:

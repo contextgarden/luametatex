@@ -126,8 +126,11 @@ static void texlib_aux_show_half_error(lua_State *L, int i)
 
 */
 
-# define FULL_LINE         0
-# define PARTIAL_LINE      1
+typedef enum line_modes {
+    full_line_mode    = 0,
+    partial_line_mode = 1,
+} line_modes;
+
 # define PACKED_SIZE       8
 # define INITIAL_SIZE     32
 # define MAX_ROPE_CACHE 5000
@@ -246,7 +249,7 @@ static void texlib_aux_initialize(void)
     We could convert strings into tokenlists here but conceptually the split is cleaner.
 */
 
-static int texlib_aux_store(lua_State *L, int i, int partial, int cattable)
+static int texlib_aux_store(lua_State *L, int i, int partial, int cattable, int append)
 {
     size_t tsize = 0;
     spindle_rope *rope = NULL;
@@ -274,8 +277,22 @@ static int texlib_aux_store(lua_State *L, int i, int partial, int cattable)
                 } else {
                     /*tex
                         We could append to a previous but partial interferes and in practice it then
-                        never can be done.
+                        never can be done. How often do we print char by char? 
                     */
+                 // if (append && write_spindle.tail && partial && partial == write_spindle.tail->partial) {
+                 //     if (write_spindle.tail->kind == packed_lua_input && write_spindle.tail->cattable == cattable) {
+                 //         size_t s = write_spindle.tail->tsize;
+                 //         if (tsize + s <= PACKED_SIZE) { 
+                 //             for (unsigned i = 0; i < tsize; i++) {
+                 //                 write_spindle.tail->data.c[s++] = (unsigned char) sttemp[i];
+                 //             }   
+                 //             write_spindle.tail->tsize += tsize;
+                 //          // lmt_token_state.luacstrings++; /* already set */
+                 //          // write_spindle.complete = 0; /* already set */
+                 //             return 1;
+                 //         }
+                 //     }
+                 // }
                     for (unsigned i = 0; i < tsize; i++) {
                         /*tex When we end up here we often don't have that many bytes. */
                         data.c[i] = (unsigned char) sttemp[i];
@@ -430,7 +447,7 @@ static void lmx_aux_store_string(char *str, int len, int cattable)
     /* set */
     rope->tsize = (unsigned) len;
     rope->next = NULL;
-    rope->partial = FULL_LINE;
+    rope->partial = full_line_mode,
     rope->cattable = (unsigned char) cattable;
     /* add */
     if (write_spindle.head) {
@@ -458,7 +475,7 @@ static int texlib_aux_cprint(lua_State *L, int partial, int cattable, int starts
     if (type == LUA_TTABLE) {
         for (int i = 1;; i++) {
             lua_rawgeti(L, startstrings, i);
-            if (texlib_aux_store(L, -1, partial, cattable)) {
+            if (texlib_aux_store(L, -1, partial, cattable, i > 1)) {
                 lua_pop(L, 1);
             } else {
                 lua_pop(L, 1);
@@ -467,7 +484,7 @@ static int texlib_aux_cprint(lua_State *L, int partial, int cattable, int starts
         }
     } else {
         for (int i = startstrings; i <= top; i++) {
-            texlib_aux_store(L, i, partial, cattable);
+            texlib_aux_store(L, i, partial, cattable, i > startstrings);
         }
     }
     return 0;
@@ -500,7 +517,7 @@ void lmt_cstring_print(int cattable, const char *s, int ispartial)
     lua_settop(L, 0);
     lua_pushinteger(L, cattable);
     lua_pushstring(L, s);
-    texlib_aux_cprint(L, ispartial ? PARTIAL_LINE : FULL_LINE, default_catcode_table_preset, 1);
+    texlib_aux_cprint(L, ispartial ? partial_line_mode : full_line_mode, default_catcode_table_preset, 1);
     lua_settop(L, top);
 }
 
@@ -508,21 +525,21 @@ void lmt_cstring_print(int cattable, const char *s, int ispartial)
 
 static int texlib_write(lua_State *L)
 {
-    return texlib_aux_cprint(L, FULL_LINE, no_catcode_table_preset, 1);
+    return texlib_aux_cprint(L, full_line_mode, no_catcode_table_preset, 1);
 }
 
 /* lua.print */
 
 static int texlib_print(lua_State *L)
 {
-    return texlib_aux_cprint(L, FULL_LINE, default_catcode_table_preset, 1);
+    return texlib_aux_cprint(L, full_line_mode, default_catcode_table_preset, 1);
 }
 
 /* lua.sprint */
 
 static int texlib_sprint(lua_State *L)
 {
-    return texlib_aux_cprint(L, PARTIAL_LINE, default_catcode_table_preset, 1);
+    return texlib_aux_cprint(L, partial_line_mode, default_catcode_table_preset, 1);
 }
 
 static int texlib_mprint(lua_State *L)
@@ -531,7 +548,7 @@ static int texlib_mprint(lua_State *L)
     if (tracing_nesting_par > 2) {
         tex_local_control_message("entering local control via (run) macro");
     }
-    texlib_aux_store_token(token_val(end_local_cmd, 0), PARTIAL_LINE, default_catcode_table_preset);
+    texlib_aux_store_token(token_val(end_local_cmd, 0), partial_line_mode, default_catcode_table_preset);
     if (lmt_token_state.luacstrings > 0) {
         tex_lua_string_start();
     }
@@ -541,14 +558,14 @@ static int texlib_mprint(lua_State *L)
         int cs = tex_string_locate(name, lname, 0);
         int cmd = eq_type(cs);
         if (is_call_cmd(cmd)) {
-            texlib_aux_store_token(cs_token_flag + cs, PARTIAL_LINE, default_catcode_table_preset);
+            texlib_aux_store_token(cs_token_flag + cs, partial_line_mode, default_catcode_table_preset);
             ++ini;
         } else {
             tex_local_control_message("invalid (mprint) macro");
         }
     }
     if (lua_gettop(L) >= ini) {
-        texlib_aux_cprint(L, PARTIAL_LINE, default_catcode_table_preset, ini);
+        texlib_aux_cprint(L, partial_line_mode, default_catcode_table_preset, ini);
     }
     if (tracing_nesting_par > 2) {
         tex_local_control_message("entering local control via mprint");
@@ -565,7 +582,7 @@ static int texlib_pushlocal(lua_State *L)
     if (tracing_nesting_par > 2) {
         tex_local_control_message("pushing local control");
     }
-    texlib_aux_store_token(token_val(end_local_cmd, 0), PARTIAL_LINE, default_catcode_table_preset);
+    texlib_aux_store_token(token_val(end_local_cmd, 0), partial_line_mode, default_catcode_table_preset);
     if (lmt_token_state.luacstrings > 0) {
         tex_lua_string_start();
     }
@@ -598,7 +615,7 @@ static int texlib_cprint(lua_State *L)
     if (lua_type(L, 2) == LUA_TTABLE) {
         for (int i = 1; ; i++) {
             lua_rawgeti(L, 2, i);
-            if (texlib_aux_store(L, -1, PARTIAL_LINE, cattable)) {
+            if (texlib_aux_store(L, -1, partial_line_mode, cattable, i > 1)) {
                 lua_pop(L, 1);
             } else {
                 lua_pop(L, 1);
@@ -608,7 +625,7 @@ static int texlib_cprint(lua_State *L)
     } else {
         int n = lua_gettop(L);
         for (int i = 2; i <= n; i++) {
-            texlib_aux_store(L, i, PARTIAL_LINE, cattable);
+            texlib_aux_store(L, i, partial_line_mode, cattable, i > 2);
         }
     }
     return 0;
@@ -639,7 +656,7 @@ static int texlib_tprint(lua_State *L)
         for (int j = startstrings; ; j++) {
             lua_pushinteger(L, j);
             lua_gettable(L, -2);
-            if (texlib_aux_store(L, -1, PARTIAL_LINE, cattable)) {
+            if (texlib_aux_store(L, -1, partial_line_mode, cattable, j > startstrings)) {
                 lua_pop(L, 1);
             } else {
                 lua_pop(L, 1);
@@ -717,11 +734,12 @@ int lmt_cstring_input(halfword *result, int *cattable, int *partial, int *finall
                     unsigned strsize = rope->tsize;
                     int newlast = lmt_fileio_state.io_first + strsize;
                     lmt_fileio_state.io_last = lmt_fileio_state.io_first;
-                    if (tex_room_in_buffer(newlast)) {
-                        for (unsigned i = 0; i < strsize; i++) {
-                            /* when we end up here we often don't have that many bytes */
-                            lmt_fileio_state.io_buffer[lmt_fileio_state.io_last + i] = rope->data.c[i];
-                        }
+                    if (tex_room_in_buffer(newlast)) { 
+                        memcpy(&lmt_fileio_state.io_buffer[lmt_fileio_state.io_last], &rope->data.c[0], sizeof(unsigned char) * strsize);
+                     // for (unsigned i = 0; i < strsize; i++) {
+                     //     /* when we end up here we often don't have that many bytes */
+                     //     lmt_fileio_state.io_buffer[lmt_fileio_state.io_last + i] = rope->data.c[i];
+                     // }
                         lmt_fileio_state.io_last = newlast;
                         *cattable = rope->cattable;
                         *partial = rope->partial;
