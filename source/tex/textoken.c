@@ -1777,59 +1777,61 @@ static int tex_aux_scan_control_sequence(void)
 
 static void tex_aux_file_warning(void)
 {
-    halfword cond_ptr = lmt_save_state.save_stack_data.ptr;  /*tex saved value of |save_ptr| or |cond_ptr| */
-    int cur_if = cur_group;                                  /*tex saved value of |cur_group| or |cur_if| */
-    int cur_unless = 0;
-    int if_step = 0;
-    int if_unless = 0;
-    int if_limit = cur_level;                                /*tex saved value of |cur_level| or |if_limit| */
-    int if_line = 0;                                         /*tex saved value of |if_line| */
-    lmt_save_state.save_stack_data.ptr = cur_boundary;
-    while (lmt_input_state.in_stack[lmt_input_state.in_stack_data.ptr].group != lmt_save_state.save_stack_data.ptr) {
-        --cur_level;
-        tex_print_nlp();
-        tex_print_format("Warning: end of file when %G is incomplete", 1);
-        cur_group = save_level(lmt_save_state.save_stack_data.ptr);
-        lmt_save_state.save_stack_data.ptr = save_value(lmt_save_state.save_stack_data.ptr);
-    }
-    /*tex Restore old values. */
-    lmt_save_state.save_stack_data.ptr = cond_ptr;
-    cur_level = (quarterword) if_limit;
-    cur_group = (quarterword) cur_if;
-    cond_ptr = lmt_condition_state.cond_ptr;
-    cur_if = lmt_condition_state.cur_if;
-    cur_unless = lmt_condition_state.cur_unless;
-    if_step = lmt_condition_state.if_step;
-    if_unless = lmt_condition_state.if_unless;
-    if_limit = lmt_condition_state.if_limit;
-    if_line = lmt_condition_state.if_line;
-    while (lmt_input_state.in_stack[lmt_input_state.in_stack_data.ptr].if_ptr != lmt_condition_state.cond_ptr) {
-        /* todo, more info */
-        tex_print_nlp();
-        tex_print_format("Warning: end of file when %C", if_test_cmd, lmt_condition_state.cur_if);
-        if (lmt_condition_state.if_limit == fi_code) {
-            tex_print_str_esc("else");
+    {
+     // save_state_info saved_save_stack_data = lmt_save_state;
+        halfword saved_stack_ptr = lmt_save_state.save_stack_data.ptr;
+        quarterword saved_group = cur_group;
+        quarterword saved_level = cur_level;
+        lmt_save_state.save_stack_data.ptr = cur_boundary;
+        while (lmt_input_state.in_stack[lmt_input_state.in_stack_data.ptr].group != lmt_save_state.save_stack_data.ptr) {
+            --cur_level;
+            tex_print_nlp();
+            tex_print_format("Warning: end of file when %G is incomplete", 1);
+            cur_group = save_level(lmt_save_state.save_stack_data.ptr);
+            lmt_save_state.save_stack_data.ptr = save_value(lmt_save_state.save_stack_data.ptr);
         }
-        if (lmt_condition_state.if_line) {
-            tex_print_format(" entered on line %i", lmt_condition_state.if_line);
-        }
-        tex_print_str(" is incomplete");
-        lmt_condition_state.cur_if = if_limit_subtype(lmt_condition_state.cond_ptr);
-        lmt_condition_state.cur_unless = if_limit_unless(lmt_condition_state.cond_ptr);
-        lmt_condition_state.if_step = if_limit_step(lmt_condition_state.cond_ptr);
-        lmt_condition_state.if_unless = if_limit_stepunless(lmt_condition_state.cond_ptr);
-        lmt_condition_state.if_limit = if_limit_type(lmt_condition_state.cond_ptr);
-        lmt_condition_state.if_line = if_limit_line(lmt_condition_state.cond_ptr);
-        lmt_condition_state.cond_ptr = node_next(lmt_condition_state.cond_ptr);
+     // lmt_save_state = saved_save_stack_data;
+        lmt_save_state.save_stack_data.ptr = saved_stack_ptr;
+        cur_level = saved_level;
+        cur_group = saved_group;
     }
-    /*tex restore old values */
-    lmt_condition_state.cond_ptr = cond_ptr;
-    lmt_condition_state.cur_if = cur_if;
-    lmt_condition_state.cur_unless = cur_unless;
-    lmt_condition_state.if_step = if_step;
-    lmt_condition_state.if_unless = if_unless;
-    lmt_condition_state.if_limit = if_limit;
-    lmt_condition_state.if_line = if_line;
+    {
+        condition_state_info saved_condition_state = lmt_condition_state;
+     // halfword cond_ptr = lmt_condition_state.cond_ptr;
+     // int cur_if = lmt_condition_state.cur_if;
+     // int cur_unless = lmt_condition_state.cur_unless;
+     // int if_step = lmt_condition_state.if_step;
+     // int if_unless = lmt_condition_state.if_unless;
+     // int if_limit = lmt_condition_state.if_limit;
+     // int if_line = lmt_condition_state.if_line;
+        while (lmt_input_state.in_stack[lmt_input_state.in_stack_data.ptr].if_ptr != lmt_condition_state.cond_ptr) {
+            /* todo, more info */
+            tex_print_nlp();
+            tex_print_format("Warning: end of file when %C", if_test_cmd, lmt_condition_state.cur_if);
+            if (lmt_condition_state.if_limit == fi_code) {
+                tex_print_str_esc("else");
+            }
+            if (lmt_condition_state.if_line) {
+                tex_print_format(" entered on line %i", lmt_condition_state.if_line);
+            }
+            tex_print_str(" is incomplete");
+            lmt_condition_state.cur_if = if_limit_subtype(lmt_condition_state.cond_ptr);
+            lmt_condition_state.cur_unless = if_limit_unless(lmt_condition_state.cond_ptr);
+            lmt_condition_state.if_step = if_limit_step(lmt_condition_state.cond_ptr);
+            lmt_condition_state.if_unless = if_limit_stepunless(lmt_condition_state.cond_ptr);
+            lmt_condition_state.if_limit = if_limit_type(lmt_condition_state.cond_ptr);
+            lmt_condition_state.if_line = if_limit_line(lmt_condition_state.cond_ptr);
+            lmt_condition_state.cond_ptr = node_next(lmt_condition_state.cond_ptr);
+        }
+        lmt_condition_state = saved_condition_state;
+     // lmt_condition_state.cond_ptr = cond_ptr;
+     // lmt_condition_state.cur_if = cur_if;
+     // lmt_condition_state.cur_unless = cur_unless;
+     // lmt_condition_state.if_step = if_step;
+     // lmt_condition_state.if_unless = if_unless;
+     // lmt_condition_state.if_limit = if_limit;
+     // lmt_condition_state.if_line = if_line;
+    }
     tex_print_nlp();
     if (tracing_nesting_par > 1) {
         tex_show_context();

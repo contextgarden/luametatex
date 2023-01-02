@@ -224,6 +224,11 @@ static void tex_aux_if_warning(void)
     }
 }
 
+/*tex 
+    We can consider a dedicated condition stack so that we can copy faster. Or we can just emulate
+    an if node in |lmt_condition_state|. 
+*/
+
 static void tex_aux_push_condition_stack(int code, int unless)
 {
     halfword p = tex_get_node(if_node_size);

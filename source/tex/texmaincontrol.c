@@ -1893,7 +1893,7 @@ static void tex_aux_wrapup_local_scan_box(void)
 static void tex_aux_run_insert_dollar_sign(void)
 {
     tex_back_input(cur_tok);
-    cur_tok = math_shift_token + '$';
+    cur_tok = dollar_token_m;
     tex_handle_error(
         insert_error_type,
         "Missing $ inserted",
@@ -2000,20 +2000,33 @@ static void tex_aux_run_end_job(void) {
 
 */
 
+static const int glue_filler_codes[] = { 
+    fil_glue,
+    fill_glue,
+    filll_glue,
+    fil_neg_glue,
+};
+
 static void tex_aux_run_glue(void)
 {
     switch (cur_chr) {
+     // case fil_code:
+     //     tex_tail_append(tex_new_glue_node(fil_glue, user_skip_glue));
+     //     break;
+     // case fill_code:
+     //     tex_tail_append(tex_new_glue_node(fill_glue, user_skip_glue));
+     //     break;
+     // case filll_code: /*tex aka |ss_code| */
+     //     tex_tail_append(tex_new_glue_node(filll_glue, user_skip_glue));
+     //     break;
+     // case fil_neg_code:
+     //     tex_tail_append(tex_new_glue_node(fil_neg_glue, user_skip_glue));
+     //     break;
         case fil_code:
-            tex_tail_append(tex_new_glue_node(fil_glue, user_skip_glue));
-            break;
         case fill_code:
-            tex_tail_append(tex_new_glue_node(fill_glue, user_skip_glue));
-            break;
-        case filll_code: /*tex aka |ss_code| */
-            tex_tail_append(tex_new_glue_node(filll_glue, user_skip_glue));
-            break;
+        case filll_code:
         case fil_neg_code:
-            tex_tail_append(tex_new_glue_node(fil_neg_glue, user_skip_glue));
+            tex_tail_append(tex_new_glue_node(glue_filler_codes[cur_chr], user_skip_glue));
             break;
         case skip_code:
             {
