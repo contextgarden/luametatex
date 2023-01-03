@@ -4502,23 +4502,26 @@ void tex_shift_specification_list(halfword a, int n, int rotate)
                 specification_pointer(a) = b;
             }
         } else {
-            halfword o = 0;
-            halfword m = 0;
-            memoryword *b = NULL;
-            if (n > 0 && c > 0 && n < c) {
-                size_t s = 0;
-                memoryword *p = specification_pointer(a);
-                o = specification_options(a);
-                m = c - n;
-                b = tex_aux_allocate_specification(m, &s);
-                memcpy(b, p + n, s);
+            /* changed: zero check, else we wipe */
+            if (n > 0) { 
+                halfword o = 0;
+                halfword m = 0;
+                memoryword *b = NULL;
+                if (n > 0 && c > 0 && n < c) {
+                    size_t s = 0;
+                    memoryword *p = specification_pointer(a);
+                    o = specification_options(a);
+                    m = c - n;
+                    b = tex_aux_allocate_specification(m, &s);
+                    memcpy(b, p + n, s);
+                }
+                if (c > 0) {
+                    tex_aux_deallocate_specification(specification_pointer(a), c);
+                }
+                specification_pointer(a) = b;
+                specification_count(a) = m;
+                specification_options(a) = o;
             }
-            if (c > 0) {
-                tex_aux_deallocate_specification(specification_pointer(a), c);
-            }
-            specification_pointer(a) = b;
-            specification_count(a) = m;
-            specification_options(a) = o;
         }
     }
 }
