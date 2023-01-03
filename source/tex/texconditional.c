@@ -94,9 +94,7 @@ static void tex_aux_pass_text(void)
                 case or_else_code:
                 case or_unless_code:
                     tex_get_next_non_spacer();
-                 // do {
-                 //     tex_get_next();
-                 // } while (cur_cmd == spacer_cmd);
+                    /*tex So we skip the token after |\orelse| or |\orunless| without testing it! */
                     break;
                 default:
                    ++level;
@@ -149,9 +147,6 @@ static int tex_aux_pass_text_x(int tracing_ifs, int tracing_commands)
                             tex_show_cmd_chr(cur_cmd, cur_chr);
                         }
                         tex_get_next_non_spacer();
-                     // do {
-                     //     tex_get_next();
-                     // } while (cur_cmd == spacer_cmd);
                         if (lmt_condition_state.if_limit == if_code) {
                             if (cur_cmd == if_test_cmd && cur_chr >= first_real_if_test_code) {
                                 goto OKAY;
@@ -1245,9 +1240,6 @@ void tex_conditional_fi_or_else(void)
     }
     if (cur_chr == or_else_code || cur_chr == or_unless_code) {
         tex_get_next_non_spacer();
-     // do {
-     //     tex_get_next();
-     // } while (cur_cmd == spacer_cmd);
     } else if (cur_chr > lmt_condition_state.if_limit) {
         if (lmt_condition_state.if_limit == if_code) {
             /*tex

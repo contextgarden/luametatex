@@ -5368,9 +5368,8 @@ static void tex_aux_set_combine_toks(halfword a)
     tex_run_combine_the_toks();
 }
 
-static int tex_aux_set_some_item(halfword a)
+static int tex_aux_set_some_item(void)
 {
-    (void) a;
     switch (cur_chr) {
         case lastpenalty_code:  
             lmt_page_builder_state.last_penalty = tex_scan_int(1, NULL);
@@ -5577,7 +5576,7 @@ void tex_run_prefixed_command(void)
             tex_aux_set_combine_toks(flags);
             break;
         case some_item_cmd: 
-            if (! tex_aux_set_some_item(flags)) {
+            if (! tex_aux_set_some_item()) {
                 tex_aux_run_illegal_case();
             } 
             break;
@@ -6493,6 +6492,7 @@ inline static void tex_aux_big_switch(int mode, int cmd)
         case dimension_cmd: 
         case gluespec_cmd: 
         case mugluespec_cmd: 
+        case combine_toks_cmd:
         case some_item_cmd:          tex_run_prefixed_command();       break;
         case fontspec_cmd:           tex_run_font_spec();              break;
         case iterator_value_cmd: 
@@ -6530,27 +6530,26 @@ inline static void tex_aux_big_switch(int mode, int cmd)
 
         /* */
 
-        case math_fraction_cmd:    mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_run_math_fraction();         break;
-        case delimiter_number_cmd: mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_run_math_delimiter_number(); break;
-        case math_fence_cmd:       mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_run_math_fence();            break;
-        case math_modifier_cmd:    mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_run_math_modifier();         break;
-        case math_accent_cmd:      mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_run_math_accent();           break;
-        case math_choice_cmd:      mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_run_math_choice();           break;
-        case math_component_cmd:   mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_run_math_math_component();   break;
-        case math_style_cmd:       mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_run_math_style();            break;
-        case mkern_cmd:            mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_aux_run_mkern();             break;
-        case mskip_cmd:            mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_aux_run_mglue();             break;
-        case math_radical_cmd:     mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_run_math_radical();          break;
+        case math_fraction_cmd:    mode == mmode ? tex_run_math_fraction()         : tex_aux_run_insert_dollar_sign(); break;
+        case delimiter_number_cmd: mode == mmode ? tex_run_math_delimiter_number() : tex_aux_run_insert_dollar_sign(); break;
+        case math_fence_cmd:       mode == mmode ? tex_run_math_fence()            : tex_aux_run_insert_dollar_sign(); break;
+        case math_modifier_cmd:    mode == mmode ? tex_run_math_modifier()         : tex_aux_run_insert_dollar_sign(); break;
+        case math_accent_cmd:      mode == mmode ? tex_run_math_accent()           : tex_aux_run_insert_dollar_sign(); break;
+        case math_choice_cmd:      mode == mmode ? tex_run_math_choice()           : tex_aux_run_insert_dollar_sign(); break;
+        case math_component_cmd:   mode == mmode ? tex_run_math_math_component()   : tex_aux_run_insert_dollar_sign(); break;
+        case math_style_cmd:       mode == mmode ? tex_run_math_style()            : tex_aux_run_insert_dollar_sign(); break;
+        case mkern_cmd:            mode == mmode ? tex_aux_run_mkern()             : tex_aux_run_insert_dollar_sign(); break;
+        case mskip_cmd:            mode == mmode ? tex_aux_run_mglue()             : tex_aux_run_insert_dollar_sign(); break;
+        case math_radical_cmd:     mode == mmode ? tex_run_math_radical()          : tex_aux_run_insert_dollar_sign(); break;
         case subscript_cmd:          
         case superscript_cmd:        
-        case math_script_cmd:      mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_run_math_script();           break;
+        case math_script_cmd:      mode == mmode ? tex_run_math_script()           : tex_aux_run_insert_dollar_sign(); break;
 
-        case equation_number_cmd:  mode == mmode ? tex_aux_run_illegal_case()       : tex_run_math_equation_number();  break;
-        case left_brace_cmd:       mode == mmode ? tex_aux_run_left_brace()         : tex_run_math_left_brace();       break;
+        case equation_number_cmd:  mode == mmode ? tex_run_math_equation_number()  : tex_aux_run_illegal_case();       break;
+        case left_brace_cmd:       mode == mmode ? tex_run_math_left_brace()       : tex_aux_run_left_brace();         break;
 
         /* */
 
-        case math_char_number_cmd: mode == vmode ? tex_aux_run_math_non_math() : tex_run_text_math_char_number(); break;
         case vadjust_cmd:          mode == vmode ? tex_aux_run_illegal_case()  : tex_run_vadjust();               break;
         case discretionary_cmd:    mode == vmode ? tex_aux_run_new_paragraph() : tex_aux_run_discretionary();     break;
         case explicit_space_cmd:   mode == vmode ? tex_aux_run_new_paragraph() : tex_aux_run_space();             break;
@@ -6561,6 +6560,13 @@ inline static void tex_aux_big_switch(int mode, int cmd)
 
         /* */
 
+        case math_char_number_cmd:
+            switch (mode) { 
+                case vmode: tex_aux_run_math_non_math();     break;
+                case hmode: tex_run_text_math_char_number(); break;
+                case mmode: tex_run_math_math_char_number(); break;
+            } 
+            break;
         case italic_correction_cmd:
             switch (mode) { 
                 case vmode: tex_aux_run_illegal_case();           break;
