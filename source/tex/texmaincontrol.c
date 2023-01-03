@@ -391,10 +391,8 @@ static void tex_aux_set_lua_value(int a) {
 */
 
 static void tex_aux_run_math_space(void) {
-    if (! disable_spaces_par) {
-        if (node_type(cur_list.tail) == simple_noad) {
-            noad_options(cur_list.tail) |= noad_option_followed_by_space;
-        }
+    if (! disable_spaces_par && node_type(cur_list.tail) == simple_noad) {
+        noad_options(cur_list.tail) |= noad_option_followed_by_space;
     }
 }
 
@@ -780,10 +778,10 @@ static void tex_aux_run_move(void) {
 */
 
 typedef enum saved_localbox_items {
-    saved_localbox_item_location = 0,
-    saved_localbox_item_index = 1,
-    saved_localbox_item_options = 2,
-    saved_localbox_n_of_items = 3,
+    saved_localbox_item_location,
+    saved_localbox_item_index,
+    saved_localbox_item_options,
+    saved_localbox_n_of_items,
 } saved_localbox_items;
 
 static void tex_aux_scan_local_box(int code) {
@@ -5676,247 +5674,6 @@ void tex_get_r_token(void)
     atom panalties but that's all. No need for more code.
 */
 
-// void tex_assign_internal_int_value(int a, halfword p, int val)
-// {
-//     switch (internal_int_number(p)) {
-//         case par_direction_code:
-//             {
-//                 check_direction_value(val);
-//                 tex_word_define(a, p, val);
-//             }
-//             break;
-//         case math_direction_code:
-//             {
-//                 check_direction_value(val);
-//                 tex_word_define(a, p, val);
-//             }
-//             break;
-//         case text_direction_code:
-//             {
-//                 check_direction_value(val);
-//                 tex_inject_text_or_line_dir(val, 0);
-//                 tex_word_define(a, p, val);
-//                 /*tex Plus: */
-//                 update_tex_internal_dir_state(internal_dir_state_par + 1);
-//             }
-//             break;
-//         case line_direction_code:
-//             {
-//                 check_direction_value(val);
-//                 tex_inject_text_or_line_dir(val, 1);
-//                 p = internal_int_location(text_direction_code);
-//                 tex_word_define(a, p, val);
-//                 /*tex Plus: */
-//                 update_tex_internal_dir_state(internal_dir_state_par + 1);
-//             }
-//             break;
-//         case cat_code_table_code:
-//             if (tex_valid_catcode_table(val)) {
-//                 if (val != cat_code_table_par) {
-//                     tex_word_define(a, p, val);
-//                 }
-//             } else {
-//                 tex_handle_error(
-//                     normal_error_type,
-//                     "Invalid \\catcode table",
-//                     "You can only switch to a \\catcode table that is initialized using\n"
-//                     "\\savecatcodetable or \\initcatcodetable, or to table 0"
-//                 );
-//             }
-//             break;
-//         case glyph_scale_code:
-//         case glyph_x_scale_code:
-//         case glyph_y_scale_code:
-//             if (! val) {
-//                 /* maybe an error message */
-//                 return;
-//             } else {
-//                 /* todo: check for reasonable */
-//                 goto DEFINE;
-//             }
-//         case glyph_text_scale_code:
-//         case glyph_script_scale_code:
-//         case glyph_scriptscript_scale_code:
-//             /* here zero is a signal */
-//             if (val < min_limited_scale || val > max_limited_scale) {
-//                 tex_handle_error(
-//                     normal_error_type,
-//                     "Invalid \\glyph..scale",
-//                     "The value for \\glyph..scale has to be between 0 and 1000 where\n"
-//                     "a value of zero forces font percentage scaling to be used."
-//                 );
-//                 val = max_limited_scale;
-//             }
-//             goto DEFINE;
-//         case math_begin_class_code:
-//         case math_end_class_code:
-//         case math_left_class_code:
-//         case math_right_class_code:
-//             if (! valid_math_class_code(val)) {
-//                 val = unset_noad_class;
-//             }
-//             tex_word_define(a, p, val);
-//             break;
-//         case output_box_code:
-//             if (val < 0 || val > max_box_index) {
-//                 tex_handle_error(
-//                     normal_error_type,
-//                     "Invalid \\outputbox",
-//                     "The value for \\outputbox has to be between 0 and " LMT_TOSTRING(max_box_index) "."
-//                 );
-//             } else {
-//                 tex_word_define(a, p, val);
-//             }
-//             break;
-//         case new_line_char_code:
-//             if (val > max_newline_character) {
-//                 tex_handle_error(
-//                     normal_error_type,
-//                     "Invalid \\newlinechar",
-//                     "The value for \\newlinechar has to be no higher than " LMT_TOSTRING(max_newline_character) ".\n"
-//                     "Your invalid assignment will be ignored."
-//                 );
-//             }
-//             else {
-//                 tex_word_define(a, p, val);
-//             }
-//             break;
-//         case end_line_char_code:
-//             if (val > 127) {
-//                 tex_handle_error(
-//                     normal_error_type,
-//                     "Invalid \\endlinechar",
-//                     "The value for \\endlinechar has to be no higher than 127."
-//                 );
-//             }
-//             else {
-//                 tex_word_define(a, p, val);
-//             }
-//             break;
-//         case language_code:
-//             /* this is |\language| */
-//             if (val < 0) {
-//                 val = 0;
-//             }
-//             if (tex_is_valid_language(val)) {
-//                 update_tex_language(a, val);
-//             }
-//             else {
-//                 tex_handle_error(
-//                     normal_error_type,
-//                     "Invalid \\language",
-//                     "The value for \\language has to be defined and in the range 0 .. " LMT_TOSTRING(max_n_of_languages) "."
-//                 );
-//             }
-//             break;
-//         case font_code:
-//             if (val < 0) {
-//                 val = 0;
-//             }
-//             if (tex_is_valid_font(val)) {
-//                 tex_set_cur_font(a, val);
-//             }
-//             else {
-//                 tex_handle_error(
-//                     normal_error_type,
-//                     "Invalid \\fontid",
-//                     "The value for \\fontid has to be defined and in the range 0 .. " LMT_TOSTRING(max_n_of_fonts) "."
-//                 );
-//             }
-//             break;
-//         case hyphenation_mode_code:
-//             if (val < 0) {
-//                 val = 0;
-//             }
-//             /* We don't update |\uchyph| here. */
-//             tex_word_define(a, p, val);
-//             break;
-//         case uc_hyph_code:
-//             /*tex For old times sake. */
-//             tex_word_define(a, p, val);
-//             /*tex But we do use this instead. */
-//             val = val ? set_hyphenation_mode(hyphenation_mode_par, uppercase_hyphenation_mode) : unset_hyphenation_mode(hyphenation_mode_par, uppercase_hyphenation_mode);
-//             tex_word_define(a, internal_int_location(hyphenation_mode_code), val);
-//             break;
-//         case local_interline_penalty_code:
-//         case local_broken_penalty_code:
-//             /*tex
-//                 If we are defining subparagraph penalty levels while we are in hmode, then we
-//                 put out a whatsit immediately, otherwise we leave it alone. This mechanism might
-//                 not be sufficiently powerful, and some other algorithm, searching down the stack,
-//                 might be necessary. Good first step.
-//             */
-//             tex_word_define(a, p, val);
-//             if (cur_mode == hmode) {
-//                 /*tex Add local paragraph node */
-//                 tex_tail_append(tex_new_par_node(penalty_par_subtype));
-//                 update_tex_internal_par_state(internal_par_state_par + 1);
-//             }
-//             break;
-//         case adjust_spacing_code:
-//             if (val < adjust_spacing_off) {
-//                 val = adjust_spacing_off;
-//             }
-//             else if (val > adjust_spacing_font) {
-//                 val = adjust_spacing_font;
-//             }
-//             goto DEFINE;
-//         case protrude_chars_code:
-//             if (val < protrude_chars_off) {
-//                 val = protrude_chars_off;
-//             }
-//             else if (val > protrude_chars_advanced) {
-//                 val = protrude_chars_advanced;
-//             }
-//             goto DEFINE;
-//         case glyph_options_code:
-//             if (val < glyph_option_normal_glyph) {
-//                 val = glyph_option_normal_glyph;
-//             } else if (val > glyph_option_all) {
-//                 val = glyph_option_all;
-//             }
-//             goto DEFINE;
-//         case overload_mode_code:
-//             if (overload_mode_par == 255) {
-//                 return;
-//             } else {
-//                 goto DEFINE;
-//             }
-//         /* We only synchronize these four one way. */
-//         case post_binary_penalty_code:
-//             tex_word_define(a, internal_int_location(first_math_post_penalty_code + binary_noad_subtype), val);
-//             tex_word_define(a, internal_int_location(first_math_display_post_penalty_code + binary_noad_subtype), val);
-//             break;
-//         case post_relation_penalty_code:
-//             tex_word_define(a, internal_int_location(first_math_post_penalty_code + relation_noad_subtype), val);
-//             tex_word_define(a, internal_int_location(first_math_display_post_penalty_code + relation_noad_subtype), val);
-//             break;
-//         case pre_binary_penalty_code:
-//             tex_word_define(a, internal_int_location(first_math_pre_penalty_code + binary_noad_subtype), val);
-//             tex_word_define(a, internal_int_location(first_math_display_pre_penalty_code + binary_noad_subtype), val);
-//             break;
-//         case pre_relation_penalty_code:
-//             tex_word_define(a, internal_int_location(first_math_pre_penalty_code + relation_noad_subtype), val);
-//             tex_word_define(a, internal_int_location(first_math_display_pre_penalty_code + relation_noad_subtype), val);
-//             break;
-//         /* We could do this, but then we also need to do day and check it per month. */ /*
-//         case month_code:
-//             if (val < 1) {
-//                 val = 1;
-//             } else if (val > 12) {
-//                 val = 12;
-//             }
-//             goto DEFINE;
-//         */
-//         default:
-//           DEFINE:
-//             tex_word_define(a, p, val);
-//             if (is_frozen(a) && cur_mode == hmode) {
-//                 tex_update_par_par(internal_int_cmd, internal_int_number(p));
-//             }
-//     }
-// }
-
 void tex_assign_internal_int_value(int a, halfword p, int val)
 {
     switch (internal_int_number(p)) {
@@ -6512,6 +6269,8 @@ static void tex_aux_run_show_whatever(void)
 
 */
 
+# if 0
+
 # define register_runner(A,B,C,D) \
     case A: \
         switch (mode) { \
@@ -6684,17 +6443,272 @@ inline static void tex_aux_big_switch(int mode, int cmd)
         /*tex The next is unlikely to happen but compilers like the check. */
 
         default:
-            printf("cmd code %i", cmd);
+         /* printf("cmd code %i", cmd); */
             tex_confusion("unknown cmd code");
             break;
     }
 
 }
 
+# else 
+
+inline static void tex_aux_big_switch(int mode, int cmd)
+{
+
+    switch (cmd) {
+
+        case arithmic_cmd: 
+        case register_attribute_cmd: 
+        case internal_attribute_cmd: 
+        case register_dimen_cmd: 
+        case internal_dimen_cmd: 
+        case set_font_property_cmd : 
+        case register_glue_cmd: 
+        case internal_glue_cmd: 
+        case register_int_cmd : 
+        case internal_int_cmd : 
+        case register_mu_glue_cmd: 
+        case internal_mu_glue_cmd: 
+        case register_toks_cmd: 
+        case internal_toks_cmd: 
+        case define_char_code_cmd: 
+        case def_cmd: 
+        case define_family_cmd: 
+        case define_font_cmd: 
+        case hyphenation_cmd: 
+        case let_cmd: 
+        case prefix_cmd: 
+        case register_cmd: 
+        case set_auxiliary_cmd: 
+        case set_box_cmd: 
+        case set_box_property_cmd: 
+        case set_font_cmd: 
+        case set_interaction_cmd: 
+        case set_math_parameter_cmd: 
+        case set_page_property_cmd: 
+        case set_specification_cmd: 
+        case shorthand_def_cmd: 
+        case lua_value_cmd: 
+        case integer_cmd: 
+        case dimension_cmd: 
+        case gluespec_cmd: 
+        case mugluespec_cmd: 
+        case some_item_cmd:          tex_run_prefixed_command();       break;
+        case fontspec_cmd:           tex_run_font_spec();              break;
+        case iterator_value_cmd: 
+        case parameter_cmd:          tex_aux_run_illegal_case();       break;
+        case after_something_cmd:    tex_aux_run_after_something();    break;
+        case begin_group_cmd:        tex_aux_run_begin_group();        break;
+        case penalty_cmd:            tex_aux_run_penalty();            break;
+        case case_shift_cmd:         tex_aux_run_shift_case();         break;
+        case catcode_table_cmd:      tex_aux_run_catcode_table();      break;
+        case end_cs_name_cmd:        tex_aux_run_cs_error();           break;
+        case end_group_cmd:          tex_aux_run_end_group();          break;
+        case end_local_cmd:          tex_aux_run_end_local();          break;
+        case ignore_something_cmd:   tex_aux_run_ignore_something();   break;
+        case insert_cmd:             tex_run_insert();                 break;
+        case kern_cmd:               tex_aux_run_kern();               break;
+        case leader_cmd:             tex_aux_run_leader();             break;
+        case legacy_cmd:             tex_aux_run_legacy();             break;
+        case local_box_cmd:          tex_aux_run_local_box();          break;
+        case lua_protected_call_cmd: tex_aux_run_lua_protected_call(); break;
+        case lua_function_call_cmd:  tex_aux_run_lua_function_call();  break;
+        case make_box_cmd:           tex_aux_run_make_box();           break;
+        case set_mark_cmd:           tex_run_mark();                   break;
+        case message_cmd:            tex_aux_run_message();            break;
+        case node_cmd:               tex_aux_run_node();               break;
+        case relax_cmd: 
+        case ignore_cmd:             tex_aux_run_relax();              break;
+        case active_char_cmd:        tex_aux_run_active();             break;
+        case remove_item_cmd:        tex_aux_run_remove_item();        break;
+        case right_brace_cmd:        tex_aux_run_right_brace();        break;
+        case vcenter_cmd:            tex_run_vcenter();                break;
+        case xray_cmd:               tex_aux_run_show_whatever();      break;
+        case alignment_cmd: 
+        case alignment_tab_cmd:      tex_run_alignment_error();        break;
+        case end_template_cmd:       tex_run_alignment_end_template(); break;
+
+        /* */
+
+        case math_fraction_cmd:    mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_run_math_fraction();         break;
+        case delimiter_number_cmd: mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_run_math_delimiter_number(); break;
+        case math_fence_cmd:       mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_run_math_fence();            break;
+        case math_modifier_cmd:    mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_run_math_modifier();         break;
+        case math_accent_cmd:      mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_run_math_accent();           break;
+        case math_choice_cmd:      mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_run_math_choice();           break;
+        case math_component_cmd:   mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_run_math_math_component();   break;
+        case math_style_cmd:       mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_run_math_style();            break;
+        case mkern_cmd:            mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_aux_run_mkern();             break;
+        case mskip_cmd:            mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_aux_run_mglue();             break;
+        case math_radical_cmd:     mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_run_math_radical();          break;
+        case subscript_cmd:          
+        case superscript_cmd:        
+        case math_script_cmd:      mode == mmode ? tex_aux_run_insert_dollar_sign() : tex_run_math_script();           break;
+
+        case equation_number_cmd:  mode == mmode ? tex_aux_run_illegal_case()       : tex_run_math_equation_number();  break;
+        case left_brace_cmd:       mode == mmode ? tex_aux_run_left_brace()         : tex_run_math_left_brace();       break;
+
+        /* */
+
+        case math_char_number_cmd: mode == vmode ? tex_aux_run_math_non_math() : tex_run_text_math_char_number(); break;
+        case vadjust_cmd:          mode == vmode ? tex_aux_run_illegal_case()  : tex_run_vadjust();               break;
+        case discretionary_cmd:    mode == vmode ? tex_aux_run_new_paragraph() : tex_aux_run_discretionary();     break;
+        case explicit_space_cmd:   mode == vmode ? tex_aux_run_new_paragraph() : tex_aux_run_space();             break;
+        case hmove_cmd:            mode == vmode ? tex_aux_run_move()          : tex_aux_run_illegal_case();      break;
+        case vmove_cmd:            mode == vmode ? tex_aux_run_illegal_case()  : tex_aux_run_move();              break;    
+        case hskip_cmd:            mode == vmode ? tex_aux_run_new_paragraph() : tex_aux_run_glue();              break;                  
+        case un_hbox_cmd:          mode == vmode ? tex_aux_run_new_paragraph() : tex_run_unpackage();             break;   
+
+        /* */
+
+        case italic_correction_cmd:
+            switch (mode) { 
+                case vmode: tex_aux_run_illegal_case();           break;
+                case hmode: tex_aux_run_text_italic_correction(); break;
+                case mmode: tex_run_math_italic_correction();     break;
+            } 
+            break;
+        case mathspec_cmd:
+            switch (mode) { 
+                case vmode: tex_aux_run_math_non_math(); break;
+                case hmode: tex_run_text_math_spec();    break;
+                case mmode: tex_run_math_math_spec();    break;
+            } 
+            break;
+        case char_given_cmd:   
+        case other_char_cmd:   
+        case letter_cmd:    
+            switch (mode) { 
+                case vmode: tex_aux_run_new_paragraph(); break;
+                case hmode: tex_aux_run_text_letter();   break;
+                case mmode: tex_run_math_letter();       break;
+            } 
+            break;
+
+        case accent_cmd:             
+            switch (mode) { 
+                case vmode: tex_aux_run_new_paragraph(); break;    
+                case hmode: tex_aux_run_text_accent();   break;
+                case mmode: tex_run_math_accent();       break;
+            } 
+            break;
+        case boundary_cmd:             
+            switch (mode) { 
+                case vmode: tex_aux_run_par_boundary();  break;    
+                case hmode: tex_aux_run_text_boundary(); break;      
+                case mmode: tex_aux_run_math_boundary(); break;
+            } 
+            break;
+        case char_number_cmd:    
+            switch (mode) { 
+                case vmode: tex_aux_run_new_paragraph();    break;     
+                case hmode: tex_aux_run_text_char_number(); break;    
+                case mmode: tex_run_math_char_number();     break;
+            } 
+            break;
+        case math_shift_cmd: 
+            switch (mode) { 
+                case vmode: tex_aux_run_new_paragraph(); break; 
+                case hmode: tex_run_math_initialize();   break;   
+                case mmode: tex_run_math_shift();        break;
+            } 
+            break;
+        case math_shift_cs_cmd: 
+            switch (mode) { 
+                case vmode: tex_aux_run_new_paragraph(); break;  
+                case hmode: tex_run_math_initialize();   break;   
+                case mmode: tex_run_math_shift();        break;
+            }
+            break;
+        case end_paragraph_cmd:      
+            switch (mode) { 
+                case vmode: tex_aux_run_paragraph_end_vmode(); break;
+                case hmode: tex_aux_run_paragraph_end_hmode(); break;
+                case mmode: tex_aux_run_relax();               break;
+            } 
+            break;
+        case spacer_cmd:             
+            switch (mode) { 
+                case vmode: tex_aux_run_relax();      break;
+                case hmode: tex_aux_run_space();      break;               
+                case mmode: tex_aux_run_math_space(); break;
+            } 
+            break;
+        case begin_paragraph_cmd:    
+            switch (mode) { 
+                case vmode: tex_aux_run_begin_paragraph_vmode(); break;
+                case hmode: tex_aux_run_begin_paragraph_hmode(); break;
+                case mmode: tex_aux_run_begin_paragraph_mmode(); break;
+            } 
+            break;
+        case end_job_cmd:  
+            switch (mode) { 
+                case vmode: tex_aux_run_end_job();            break;
+                case hmode: tex_aux_run_head_for_vmode();     break;
+                case mmode: tex_aux_run_insert_dollar_sign(); break;
+            } 
+            break;
+
+        case vskip_cmd:              
+            switch (mode) { 
+                case vmode: tex_aux_run_glue();               break;   
+                case hmode: tex_aux_run_head_for_vmode();     break;   
+                case mmode: tex_aux_run_insert_dollar_sign(); break;
+            } 
+            break;
+        case un_vbox_cmd:            
+            switch (mode) { 
+                case vmode: tex_run_unpackage();              break;   
+                case hmode: tex_aux_run_head_for_vmode();     break;  
+                case mmode: tex_aux_run_insert_dollar_sign(); break;
+            } 
+            break;
+
+        case halign_cmd:            
+            switch (mode) { 
+                case vmode: tex_run_alignment_initialize(); break;  
+                case hmode: tex_aux_run_head_for_vmode();   break;   
+                case mmode: tex_aux_run_halign_mmode();     break;
+            } 
+            break;
+        case valign_cmd:       
+            switch (mode) { 
+                case vmode: tex_aux_run_new_paragraph();      break;    
+                case hmode: tex_run_alignment_initialize();   break;   
+                case mmode: tex_aux_run_insert_dollar_sign(); break;
+            } 
+            break;
+
+        case hrule_cmd:      
+            switch (mode) { 
+                case vmode: tex_aux_run_hrule();              break;     
+                case hmode: tex_aux_run_head_for_vmode();     break;    
+                case mmode: tex_aux_run_insert_dollar_sign(); break;
+                } 
+            break;
+        case vrule_cmd:  
+            switch (mode) { 
+                case vmode: tex_aux_run_new_paragraph(); break;
+                case hmode: tex_aux_run_vrule();         break;   
+                case mmode: tex_aux_run_mrule();         break;
+            } 
+            break;
+
+        /* */
+
+        default:
+            /*tex The next is unlikely to happen but compilers like the check. */
+            tex_confusion("unknown cmd code");
+            break;
+    }
+
+}
+
+# endif 
+
 /*tex
     Some preset values no longer make sense, like family 1 for some math symbols but we keep them
     for compatibility reasons. All settings are moved to the relevant modules.
-
 */
 
 void tex_initialize_variables(void)
