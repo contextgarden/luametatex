@@ -30119,10 +30119,22 @@ static void mp_ship_out (MP mp, mp_node h);
 
 @<Exported types@>=
 typedef struct mp_color {
-    double a_val; /* r or c */
-    double b_val; /* g or m */
-    double c_val; /* b or y */
-    double d_val; /*      k */
+    union {
+        double red;
+        double cyan;
+    };
+    union {
+        double green;
+        double magenta;
+    };
+    union {
+        double blue;
+        double yellow;
+    };
+    union {
+        double black;
+        double gray;
+    };
 } mp_color;
 
 typedef struct mp_dash_object {
@@ -30205,14 +30217,14 @@ typedef struct mp_edge_object {
 @d gr_type(A)           (A)->type
 @d gr_link(A)           (A)->next
 @d gr_color_model(A)    (A)->color_model
-@d gr_red_val(A)        (A)->color.a_val
-@d gr_green_val(A)      (A)->color.b_val
-@d gr_blue_val(A)       (A)->color.c_val
-@d gr_cyan_val(A)       (A)->color.a_val
-@d gr_magenta_val(A)    (A)->color.b_val
-@d gr_yellow_val(A)     (A)->color.c_val
-@d gr_black_val(A)      (A)->color.d_val
-@d gr_grey_val(A)       (A)->color.d_val
+@d gr_red_val(A)        (A)->color.red
+@d gr_green_val(A)      (A)->color.green
+@d gr_blue_val(A)       (A)->color.blue
+@d gr_cyan_val(A)       (A)->color.cyan
+@d gr_magenta_val(A)    (A)->color.magenta
+@d gr_yellow_val(A)     (A)->color.yellow
+@d gr_black_val(A)      (A)->color.black
+@d gr_grey_val(A)       (A)->color.gray
 @d gr_path_ptr(A)       (A)->path
 @d gr_htap_ptr(A)       (A)->htap
 @d gr_pen_ptr(A)        (A)->pen
