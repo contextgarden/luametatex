@@ -4542,7 +4542,7 @@ static void tex_aux_finish_displayed_math(int atleft, halfword eqnumber, halfwor
         box_shift_amount(equation_box) = indent + displacement;
     }
     /*tex check for prev: */
-    tex_append_to_vlist(equation_box, lua_key_index(equation), NULL);
+    tex_append_to_vlist(equation_box, lua_key_index(equation), NULL); /* eqbox has the formula */
     if (eqnumber && number_width == 0 && ! atleft) {
         tex_tail_append(tex_new_penalty_node(infinite_penalty, equation_number_penalty_subtype));
      /* if (math_direction_par == dir_lefttoright) { */
@@ -4613,7 +4613,7 @@ void tex_run_math_shift(void) {
                     break;
             }
         }
-        if (cur_list.mode == -mode) {
+        if (cur_list.mode == -mode) { // todo: symbolic 
             /*tex end of equation number */
           AGAIN:
             switch (cur_cmd) {
@@ -4641,7 +4641,7 @@ void tex_run_math_shift(void) {
                 tex_confusion("after math");
             }
         }
-        if (mode < 0) {
+        if (mode < 0) { // mode == inline_mmode
             /*tex
 
                 The |unsave| is done after everything else here; hence an appearance of |\mathsurround|
