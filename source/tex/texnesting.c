@@ -408,3 +408,10 @@ void tex_tail_append(halfword p)
     node_prev(p) = cur_list.tail;
     cur_list.tail = p;
 }
+
+void tex_tail_append_list(halfword p)
+{
+    node_next(cur_list.tail) = p;
+    node_prev(p) = cur_list.tail;
+    cur_list.tail = tex_tail_of_node_list(p);
+}

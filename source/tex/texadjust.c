@@ -182,7 +182,7 @@ void tex_finish_vadjust_group(void)
 
 /*tex Append or prepend vadjust nodes. Here head is a temp node! */
 
-halfword tex_append_adjust_list(halfword head, halfword tail, halfword adjust)
+halfword tex_append_adjust_list(halfword head, halfword tail, halfword adjust, const char *detail)
 {
     while (adjust && node_type(adjust) == adjust_node) {
         halfword next = node_next(adjust);
@@ -193,7 +193,7 @@ halfword tex_append_adjust_list(halfword head, halfword tail, halfword adjust)
         }
         if (tracing_adjusts_par > 1) {
             tex_begin_diagnostic();
-            tex_print_format("[adjust: index %i, location %s, append]", adjust_index(adjust), tex_aux_subtype_str(adjust));
+            tex_print_format("[adjust: index %i, location %s, append, %s]", adjust_index(adjust), tex_aux_subtype_str(adjust), detail);
             tex_print_node_list(adjust_list(adjust), "adjust",show_box_depth_par, show_box_breadth_par);
             tex_end_diagnostic();
         }
@@ -203,7 +203,7 @@ halfword tex_append_adjust_list(halfword head, halfword tail, halfword adjust)
     return tail;
 }
 
-halfword tex_prepend_adjust_list(halfword head, halfword tail, halfword adjust)
+halfword tex_prepend_adjust_list(halfword head, halfword tail, halfword adjust, const char *detail)
 {
     while (adjust && node_type(adjust) == adjust_node) {
         halfword next = node_next(adjust);
@@ -216,7 +216,7 @@ halfword tex_prepend_adjust_list(halfword head, halfword tail, halfword adjust)
         }
         if (tracing_adjusts_par > 1) {
             tex_begin_diagnostic();
-            tex_print_format("[adjust: index %i, location %s, prepend]", adjust_index(adjust), tex_aux_subtype_str(adjust));
+            tex_print_format("[adjust: index %i, location %s, prepend, %s]", adjust_index(adjust), tex_aux_subtype_str(adjust), detail);
             tex_print_node_list(adjust_list(adjust), "adjust", show_box_depth_par, show_box_breadth_par);
             tex_end_diagnostic();
         }
@@ -227,84 +227,86 @@ halfword tex_prepend_adjust_list(halfword head, halfword tail, halfword adjust)
 
 void tex_inject_adjust_list(halfword adjust, int obeyoptions, halfword nextnode, const line_break_properties *properties)
 {
-    adjust = node_next(adjust);
-    if (adjust) {
-        while (adjust && node_type(adjust) == adjust_node) {
-            halfword list = adjust_list(adjust);
-            halfword next = node_next(adjust);
-            if (list) {
-                halfword prevnode = cur_list.tail;
-                if (tracing_adjusts_par > 1) {
-                    tex_begin_diagnostic();
-                    tex_print_format("[adjust: index %i, location %s, inject]", adjust_index(adjust), tex_aux_subtype_str(adjust));
-                    tex_print_node_list(adjust_list(adjust), "adjust", show_box_depth_par, show_box_breadth_par);
-                    tex_end_diagnostic();
-                }
-                if (obeyoptions && has_adjust_option(adjust, adjust_option_baseline)) { 
-                    /*tex
-                        Here we attach data to a line. On the todo is to prepend and append to 
-                        the lines (nicer when we number lines). 
-                    */
-                    if (node_type(list) == hlist_node || node_type(list) == vlist_node) {
-                        if (nextnode) { 
-                            /*tex 
-                                This is the |pre| case where |nextnode| is the line to be appended 
-                                after the adjust box |list|.
-                            */
-                            if (node_type(nextnode) == hlist_node || node_type(nextnode) == vlist_node) {
-                                if (box_height(nextnode) > box_height(list)) {
-                                    box_height(list) = box_height(nextnode);
-                                }
-                                if (box_depth(list) > box_depth(nextnode)) {
-                                    box_depth(nextnode) = box_depth(list);
-                                }
-                                /* not ok yet */
-                                box_y_offset(nextnode) += box_height(nextnode);
-                                tex_check_box_geometry(nextnode);
-                                /* till here */
-                                box_height(nextnode) = 0;
-                                box_depth(list) = 0;
+    if (adjust && node_type(adjust) == temp_node) {
+        adjust = node_next(adjust);
+    }
+    while (adjust && node_type(adjust) == adjust_node) {
+        halfword next = node_next(adjust);
+        halfword list = adjust_list(adjust);
+        if (tracing_adjusts_par > 1) {
+            tex_begin_diagnostic();
+            tex_print_format("[adjust: index %i, location %s, inject]", adjust_index(adjust), tex_aux_subtype_str(adjust));
+            tex_print_node_list(adjust_list(adjust), "adjust", show_box_depth_par, show_box_breadth_par);
+            tex_end_diagnostic();
+        }
+        if (list) {
+            if (obeyoptions && has_adjust_option(adjust, adjust_option_baseline)) { 
+                /*tex
+                    Here we attach data to a line. On the todo is to prepend and append to 
+                    the lines (nicer when we number lines). 
+                */
+                if (node_type(list) == hlist_node || node_type(list) == vlist_node) {
+                    if (nextnode) { 
+                        /*tex 
+                            This is the |pre| case where |nextnode| is the line to be appended 
+                            after the adjust box |list|.
+                        */
+                        if (node_type(nextnode) == hlist_node || node_type(nextnode) == vlist_node) {
+                            if (box_height(nextnode) > box_height(list)) {
+                                box_height(list) = box_height(nextnode);
                             }
-                        } else { 
-                            /*tex 
-                                Here we have the |post| case where the line will end up before the 
-                                adjusted content.
-                            */
-                            if (node_type(prevnode) == hlist_node || node_type(prevnode) == vlist_node) {
-                                if (box_height(prevnode) < box_height(list)) {
-                                    box_height(prevnode) = box_height(list);
-                                }
-                                if (box_depth(list) < box_depth(prevnode)) {
-                                    box_depth(list) = box_depth(prevnode);
-                                }
-                                box_height(list) = 0;
-                                box_depth(prevnode) = 0;
+                            if (box_depth(list) > box_depth(nextnode)) {
+                                box_depth(nextnode) = box_depth(list);
                             }
+                            /* not ok yet */
+                            box_y_offset(nextnode) += box_height(nextnode);
+                            tex_check_box_geometry(nextnode);
+                            /* till here */
+                            box_height(nextnode) = 0;
+                            box_depth(list) = 0;
+                        }
+                    } else { 
+                        /*tex 
+                            Here we have the |post| case where the line will end up before the 
+                            adjusted content.
+                        */
+                        halfword prevnode = cur_list.tail;
+                        if (node_type(prevnode) == hlist_node || node_type(prevnode) == vlist_node) {
+                            if (box_height(prevnode) < box_height(list)) {
+                                box_height(prevnode) = box_height(list);
+                            }
+                            if (box_depth(list) < box_depth(prevnode)) {
+                                box_depth(list) = box_depth(prevnode);
+                            }
+                            box_height(list) = 0;
+                            box_depth(prevnode) = 0;
                         }
                     }
                 }
-                if (obeyoptions && has_adjust_option(adjust, adjust_option_depth_before)) { 
-                    cur_list.prev_depth = adjust_depth_before(adjust);
-                }
-                if (obeyoptions && has_adjust_option(adjust, adjust_option_depth_check)) { 
-                    tex_append_to_vlist(list, -1, properties);
-                } else { 
-                    tex_couple_nodes(prevnode, list);
-                }
-                if (obeyoptions && has_adjust_option(adjust, adjust_option_depth_after)) { 
-                    cur_list.prev_depth = adjust_depth_after(adjust);
-                } else if (obeyoptions && has_adjust_option(adjust, adjust_option_depth_last)) { 
-                    cur_list.prev_depth = box_depth(list);
-                }
-                cur_list.tail = tex_tail_of_node_list(cur_list.tail);
-                if (! lmt_page_builder_state.output_active) {
-                    lmt_append_line_filter_callback(post_adjust_append_line_context, adjust_index(adjust));
-                }
+            }
+            if (obeyoptions && has_adjust_option(adjust, adjust_option_depth_before)) { 
+                cur_list.prev_depth = adjust_depth_before(adjust);
+            }
+            if (obeyoptions && has_adjust_option(adjust, adjust_option_depth_check)) { 
+                tex_append_to_vlist(list, -1, properties);
+            } else { 
+                tex_tail_append_list(list);
+             // tex_couple_nodes(prevnode, list);
+             // cur_list.tail = tex_tail_of_node_list(list);
+            }
+            if (obeyoptions && has_adjust_option(adjust, adjust_option_depth_after)) { 
+                cur_list.prev_depth = adjust_depth_after(adjust);
+            } else if (obeyoptions && has_adjust_option(adjust, adjust_option_depth_last)) { 
+                cur_list.prev_depth = box_depth(list);
+            }
+//                cur_list.tail = tex_tail_of_node_list(cur_list.tail);
+            if (! lmt_page_builder_state.output_active) {
+                lmt_append_line_filter_callback(post_adjust_append_line_context, adjust_index(adjust));
             }
             adjust_list(adjust) = null;
-            tex_flush_node(adjust);
-            adjust = next;
         }
+        tex_flush_node(adjust);
+        adjust = next;
     }
 }
 
@@ -356,9 +358,9 @@ void tex_adjust_passon(halfword box, halfword adjust)
             case pre_adjust_code:
                 if (lmt_packaging_state.pre_adjust_tail) {
                     if (lmt_packaging_state.pre_adjust_tail != pre_adjust_head && has_adjust_option(adjust, adjust_option_before)) {
-                        lmt_packaging_state.pre_adjust_tail = tex_prepend_adjust_list(pre_adjust_head, lmt_packaging_state.pre_adjust_tail, adjust);
+                        lmt_packaging_state.pre_adjust_tail = tex_prepend_adjust_list(pre_adjust_head, lmt_packaging_state.pre_adjust_tail, adjust, "passon");
                     } else {
-                        lmt_packaging_state.pre_adjust_tail = tex_append_adjust_list(pre_adjust_head, lmt_packaging_state.pre_adjust_tail, adjust);
+                        lmt_packaging_state.pre_adjust_tail = tex_append_adjust_list(pre_adjust_head, lmt_packaging_state.pre_adjust_tail, adjust, "passon");
                     }
                 } else {
                     tex_normal_error("vadjust pre", "invalid list");
@@ -367,9 +369,9 @@ void tex_adjust_passon(halfword box, halfword adjust)
             case post_adjust_code:
                 if (lmt_packaging_state.post_adjust_tail) {
                     if (lmt_packaging_state.post_adjust_tail != post_adjust_head && has_adjust_option(adjust, adjust_option_before)) {
-                        lmt_packaging_state.post_adjust_tail = tex_prepend_adjust_list(post_adjust_head, lmt_packaging_state.post_adjust_tail, adjust);
+                        lmt_packaging_state.post_adjust_tail = tex_prepend_adjust_list(post_adjust_head, lmt_packaging_state.post_adjust_tail, adjust, "passon");
                     } else {
-                        lmt_packaging_state.post_adjust_tail = tex_append_adjust_list(post_adjust_head, lmt_packaging_state.post_adjust_tail, adjust);
+                        lmt_packaging_state.post_adjust_tail = tex_append_adjust_list(post_adjust_head, lmt_packaging_state.post_adjust_tail, adjust, "passon");
                     }
                 } else {
                     tex_normal_error("vadjust post", "invalid list");

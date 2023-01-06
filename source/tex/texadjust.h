@@ -30,7 +30,7 @@ extern void tex_inject_adjust_list   (halfword list, int obeyoptions, halfword n
 extern void tex_adjust_passon        (halfword box, halfword adjust);
 extern void tex_adjust_attach        (halfword box, halfword adjust);
 
-extern halfword tex_prepend_adjust_list  (halfword head, halfword tail, halfword adjust);
-extern halfword tex_append_adjust_list   (halfword head, halfword tail, halfword adjust);
+extern halfword tex_prepend_adjust_list  (halfword head, halfword tail, halfword adjust, const char *detail);
+extern halfword tex_append_adjust_list   (halfword head, halfword tail, halfword adjust, const char *detail);
 
 # endif

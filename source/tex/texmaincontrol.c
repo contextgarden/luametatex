@@ -1294,12 +1294,14 @@ static void tex_aux_run_paragraph_end_hmode(void) {
 /* */
 
 static void tex_aux_run_halign_mmode(void) {
-    if (tex_in_privileged_mode()) {
-        if (cur_group == math_shift_group) {
+    switch (cur_group) { 
+        case math_inline_group:
+        case math_display_group:
             tex_run_alignment_initialize();
-        } else {
+            break;
+        default:
             tex_off_save();
-        }
+            break;
     }
 }
 
@@ -2109,7 +2111,9 @@ void tex_off_save(void)
                     );
                     break;
                 }
-            case math_shift_group:
+            case math_inline_group:
+            case math_display_group:
+            case math_number_group:
                 {
                     set_token_info(h, math_shift_token + '$');
                     tex_handle_error(
@@ -2439,7 +2443,9 @@ static void tex_aux_extra_right_brace_error(void)
                 helpinfo
             );
             break;
-        case math_shift_group:
+        case math_inline_group:
+        case math_display_group:
+        case math_number_group:
             tex_handle_error(
                 normal_error_type,
                 "Extra }, or forgotten $",
@@ -2585,7 +2591,9 @@ static void tex_aux_run_right_brace(void)
             tex_aux_run_end_group();
             break;
         case semi_simple_group:
-        case math_shift_group:
+        case math_inline_group:
+        case math_display_group:
+        case math_number_group:
         case math_fence_group: /*tex See above, let's see when we are supposed to end up here. */
             tex_aux_extra_right_brace_error();
             break;

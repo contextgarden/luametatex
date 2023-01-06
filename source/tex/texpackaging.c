@@ -743,11 +743,11 @@ inline static halfword tex_aux_used_order(halfword *total)
 
 inline static void tex_aux_promote_pre_migrated(halfword r, halfword p)
 {
-    halfword pm = box_pre_migrated(p);
     halfword pa = box_pre_adjusted(p);
+    halfword pm = box_pre_migrated(p);
     if (pa) {
         if (lmt_packaging_state.pre_adjust_tail) {
-            lmt_packaging_state.pre_adjust_tail = tex_append_adjust_list(pre_adjust_head, lmt_packaging_state.pre_adjust_tail, pa);
+            lmt_packaging_state.pre_adjust_tail = tex_append_adjust_list(pre_adjust_head, lmt_packaging_state.pre_adjust_tail, pa, "promote");
         } else if (box_pre_adjusted(r)) {
             tex_couple_nodes(box_pre_adjusted(r), pa);
         } else {
@@ -773,11 +773,11 @@ inline static void tex_aux_promote_pre_migrated(halfword r, halfword p)
 
 inline static void tex_aux_promote_post_migrated(halfword r, halfword p)
 {
-    halfword pm = box_post_migrated(p);
     halfword pa = box_post_adjusted(p);
+    halfword pm = box_post_migrated(p);
     if (pa) {
         if (lmt_packaging_state.post_adjust_tail) {
-            lmt_packaging_state.post_adjust_tail = tex_append_adjust_list(post_adjust_head, lmt_packaging_state.post_adjust_tail, pa);
+            lmt_packaging_state.post_adjust_tail = tex_append_adjust_list(post_adjust_head, lmt_packaging_state.post_adjust_tail, pa, "promote");
         } else if (box_post_adjusted(r)) {
             tex_couple_nodes(box_post_adjusted(r), pa);
         } else {
@@ -2840,27 +2840,22 @@ void tex_append_to_vlist(halfword b, int location, const line_break_properties *
                     case rule_node:
                         {
                             halfword p = tex_aux_depth_correction(result, properties);
-                            tex_couple_nodes(cur_list.tail, p);
-                            cur_list.tail = p;
+                            tex_tail_append(p);
                             break;
                         }
                 }
             }
-            while (result) {
-                tex_couple_nodes(cur_list.tail, result);
-                cur_list.tail = result;
-                result = node_next(result);
+            if (result) { 
+                tex_tail_append_list(result);
             }
             return;
         }
     }
     if (cur_list.prev_depth > ignore_depth_criterium_par) {
         halfword p = tex_aux_depth_correction(b, properties);
-        tex_couple_nodes(cur_list.tail, p);
-        cur_list.tail = p;
+        tex_tail_append(p);
     }
-    tex_couple_nodes(cur_list.tail, b);
-    cur_list.tail = b;
+    tex_tail_append(b);
     cur_list.prev_depth = box_depth(b);
 }
 
