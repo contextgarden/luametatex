@@ -1048,14 +1048,19 @@ static int nodelib_direct_getnucleus(lua_State *L)
             case accent_noad:
             case radical_noad:
                 nodelib_push_direct_or_nil(L, noad_nucleus(n));
-                break;
-            default:
-                lua_pushnil(L);
-                break;
+                if (lua_toboolean(L, 2)) {
+                    nodelib_push_direct_or_nil(L, noad_prime(n));
+                    nodelib_push_direct_or_nil(L, noad_supscr(n));
+                    nodelib_push_direct_or_nil(L, noad_subscr(n));
+                    nodelib_push_direct_or_nil(L, noad_supprescr(n));
+                    nodelib_push_direct_or_nil(L, noad_subprescr(n));
+                    return 6;
+                } else {
+                    return 1;
+                }
         }
-    } else {
-        lua_pushnil(L);
-    }
+    } 
+    lua_pushnil(L);
     return 1;
 }
 
