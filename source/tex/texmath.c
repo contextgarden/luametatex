@@ -4249,7 +4249,7 @@ static void tex_aux_resume_after_display(void)
             cur_list.prev_graf += 3;
             tex_push_nest();
             cur_list.mode = hmode;
-            cur_list.space_factor = 1000;
+            cur_list.space_factor = default_space_factor;
             /*tex This needs to be intercepted in the display math start! Todo! */
             tex_tail_append(tex_new_par_node(penalty_par_subtype));
             tex_get_x_token();
@@ -4702,7 +4702,7 @@ void tex_run_math_shift(void)
                             break;
                     }
                     /*tex end mathskip code */
-                    cur_list.space_factor = 1000;
+                    cur_list.space_factor = default_space_factor;
                     mathleft = cur_list.math_begin;
                     mathright = cur_list.math_end;
                     tex_aux_unsave_math();

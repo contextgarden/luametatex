@@ -150,16 +150,16 @@ static void tex_aux_out_of_range_error(halfword val, halfword max)
 static void tex_aux_adjust_space_factor(halfword chr)
 {
     halfword s = tex_get_sf_code(chr);
-    if (s == 1000) {
-        cur_list.space_factor = 1000;
-    } else if (s < 1000) {
+    if (s == default_space_factor) {
+        cur_list.space_factor = default_space_factor;
+    } else if (s < default_space_factor) {
         if (s > 0) {
             cur_list.space_factor = s;
         } else {
             /* s <= 0 */
         }
-    } else if (cur_list.space_factor < 1000) {
-        cur_list.space_factor = 1000;
+    } else if (cur_list.space_factor < default_space_factor) {
+        cur_list.space_factor = default_space_factor;
     } else {
         cur_list.space_factor = s;
     }
@@ -412,7 +412,7 @@ static void tex_aux_run_space(void) {
             */
             {
                 halfword p;
-                if (cur_mode == hmode && cur_cmd == spacer_cmd && cur_list.space_factor != 1000) {
+                if (cur_mode == hmode && cur_cmd == spacer_cmd && cur_list.space_factor != default_space_factor) {
                     if ((cur_list.space_factor >= 2000) && (! tex_glue_is_zero(xspace_skip_par))) {
                         p = tex_get_scaled_parameter_glue(xspace_skip_code, xspace_skip_glue);
                     } else {
@@ -796,7 +796,7 @@ static void tex_aux_scan_local_box(int code) {
     tex_scan_left_brace();
     tex_push_nest();
     cur_list.mode = restricted_hmode;
-    cur_list.space_factor = 1000;
+    cur_list.space_factor = default_space_factor;
 }
 
 static void tex_aux_finish_local_box(void)
@@ -4129,7 +4129,7 @@ static void tex_aux_set_box_property(void)
             break;
         case box_attribute_code:
             {
-                halfword att = tex_scan_box_register_number();
+                halfword att = tex_scan_attribute_register_number();
                 halfword val = tex_scan_int(1, NULL);
                 if (b) {
                     if (val == unused_attribute_value) {
@@ -4138,6 +4138,13 @@ static void tex_aux_set_box_property(void)
                         tex_set_attribute(b, att, val);
                     }
                 }
+            }
+            break;
+        case box_vadjust_code: 
+            if (b) { 
+                tex_set_vadjust(b);
+            } else { 
+                tex_run_vadjust(); /* maybe error */
             }
             break;
         default:

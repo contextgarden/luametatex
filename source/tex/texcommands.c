@@ -559,6 +559,7 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "boxrepack",                      set_box_property_cmd,   box_repack_code,                          0);
         tex_primitive(luatex_command, "boxfreeze",                      set_box_property_cmd,   box_freeze_code,                          0);
         tex_primitive(luatex_command, "boxattribute",                   set_box_property_cmd,   box_attribute_code,                       0);
+        tex_primitive(luatex_command, "boxvadjust",                     set_box_property_cmd,   box_vadjust_code,                         0);
 
         tex_primitive(tex_command,    "lastpenalty",                    some_item_cmd,          lastpenalty_code,                         0);
         tex_primitive(tex_command,    "lastkern",                       some_item_cmd,          lastkern_code,                            0);
@@ -1036,8 +1037,8 @@ void tex_initialize_commands(void)
         tex_primitive(tex_command,    "unvcopy",                        un_vbox_cmd,            copy_code,                                0);
         tex_primitive(luatex_command, "unvpack",                        un_vbox_cmd,            unpack_code,                              0);
 
-        tex_primitive(etex_command,   "pagediscards",                   un_vbox_cmd,            last_box_code,                            0);
-        tex_primitive(etex_command,   "splitdiscards",                  un_vbox_cmd,            vsplit_code,                              0);
+        tex_primitive(etex_command,   "pagediscards",                   un_vbox_cmd,            page_discards_code,                            0);
+        tex_primitive(etex_command,   "splitdiscards",                  un_vbox_cmd,            split_discards_code,                              0);
 
         tex_primitive(luatex_command, "insertunbox",                    un_vbox_cmd,            insert_box_code,                          0);
         tex_primitive(luatex_command, "insertuncopy",                   un_vbox_cmd,            insert_copy_code,                         0);

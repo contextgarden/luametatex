@@ -930,6 +930,7 @@ typedef enum save_types {
     adjust_attr_list_save_type,
     adjust_depth_before_save_type,
     adjust_depth_after_save_type,
+    adjust_target_save_type,
 } save_types;
 
 /*tex Nota bena: |equiv_value| is the same as |equiv| but sometimes we use that name instead. */
