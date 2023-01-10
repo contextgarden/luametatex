@@ -1769,11 +1769,11 @@ static void tex_aux_finish_align(void)
                         halfword preptr;
                         halfword colptr;
                         if (cur_list.mode == internal_vmode) {
-                         /* tex_aux_change_list_type(rowptr, hlist_node); */ /* too much */
+                         /* tex_aux_change_list_type(rowptr, hlist_node); */ /* too much, needs checking */
                             node_type(rowptr) = hlist_node;
                             box_width(rowptr) = box_width(preroll);
                         } else {
-                         /* tex_aux_change_list_type(rowptr, vlist_node); */ /* too much */
+                         /* tex_aux_change_list_type(rowptr, vlist_node); */ /* too much, needs checking */
                             node_type(rowptr) = vlist_node;
                             box_height(rowptr) = box_height(preroll);
                         }
