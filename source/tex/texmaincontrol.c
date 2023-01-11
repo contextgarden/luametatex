@@ -1575,14 +1575,14 @@ int tex_main_control(void)
     }
     while (1) {
         switch (lmt_main_control_state.control_state) { 
-            case goto_skip_token_state:
-                lmt_main_control_state.control_state = goto_next_state;
-                break;
             case goto_next_state:
                 tex_get_x_token();
                 break;
+            case goto_skip_token_state:
+                lmt_main_control_state.control_state = goto_next_state;
+                break;
             case goto_return_state:
-                return cur_chr == dump_code;
+                return lmt_main_state.run_state == initializing_state && cur_chr == dump_code;
         }
         /*tex
             Give diagnostic information, if requested When a new token has just been fetched at

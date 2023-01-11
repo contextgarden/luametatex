@@ -38,13 +38,13 @@ void tex_scan_left_brace(void)
     while(1) {
         tex_get_x_token();
         switch (cur_cmd) {
+            case left_brace_cmd:
+                /* we found one */
+                return;
             case spacer_cmd:
             case relax_cmd:
                 /* stay in while */
                 break;
-            case left_brace_cmd:
-                /* we found one */
-                return;
             default:
                 /* we recover */
                 tex_handle_error(
@@ -1201,21 +1201,21 @@ static void tex_aux_missing_number_error(void)
 
 /* todo: get rid of cur_val */
 
-static int tex_aux_valid_tok_level(halfword level)
-{
-    if (level == tok_val_level) {
-        return 1;
-    } else {
-        if (lmt_error_state.intercept) {
-            lmt_error_state.last_intercept = 1 ;
-        } else {
-            tex_aux_missing_number_error();
-        }
-        cur_val = 0;
-        cur_val_level = dimen_val_level; /* why dimen */
-        return 0;
-    }
-}
+// static int tex_aux_valid_tok_level(halfword level)
+// {
+//     if (level == tok_val_level) {
+//         return 1;
+//     } else {
+//         if (lmt_error_state.intercept) {
+//             lmt_error_state.last_intercept = 1 ;
+//         } else {
+//             tex_aux_missing_number_error();
+//         }
+//         cur_val = 0;
+//         cur_val_level = dimen_val_level; /* why dimen */
+//         return 0;
+//     }
+// }
 
 static int tex_aux_scan_hyph_data_number(halfword code, halfword *target)
 {
@@ -1324,7 +1324,8 @@ static halfword tex_aux_scan_something_internal(halfword cmd, halfword chr, int 
             break;
         /* end of tex_aux_short_scan_something_internal */
         case define_font_cmd:
-            if (tex_aux_valid_tok_level(level)) {
+         // if (tex_aux_valid_tok_level(level)) {
+            if (level == tok_val_level) { /* Is this test still needed? */
                 cur_val = cur_font_par;
                 cur_val_level = font_val_level;
                 return cur_val;
@@ -1332,7 +1333,8 @@ static halfword tex_aux_scan_something_internal(halfword cmd, halfword chr, int 
                 break;
             }
         case set_font_cmd:
-            if (tex_aux_valid_tok_level(level)) {
+         // if (tex_aux_valid_tok_level(level)) {
+            if (level == tok_val_level) { /* Is this test still needed? */
                 cur_val = cur_chr;
                 cur_val_level = font_val_level;
                 return cur_val;
