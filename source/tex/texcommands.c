@@ -708,7 +708,9 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "ifzeronum",                      if_test_cmd,            if_zero_int_code,                         0);
         tex_primitive(luatex_command, "ifzerodim",                      if_test_cmd,            if_zero_dim_code,                         0);
         tex_primitive(luatex_command, "ifchknum",                       if_test_cmd,            if_chk_int_code,                          0);
+        tex_primitive(luatex_command, "ifchknumber",                    if_test_cmd,            if_chk_integer_code,                      0);
         tex_primitive(luatex_command, "ifchkdim",                       if_test_cmd,            if_chk_dim_code,                          0);
+        tex_primitive(luatex_command, "ifchkdimension",                 if_test_cmd,            if_chk_dimension_code,                    0);
         tex_primitive(luatex_command, "ifcmpnum",                       if_test_cmd,            if_cmp_int_code,                          0);
         tex_primitive(luatex_command, "ifcmpdim",                       if_test_cmd,            if_cmp_dim_code,                          0);
         tex_primitive(luatex_command, "ifnumval",                       if_test_cmd,            if_val_int_code,                          0);
