@@ -8785,7 +8785,7 @@ static int nodelib_direct_effectiveglue(lua_State *L)
     if (n) {
         switch (node_type(n)) {
             case glue_node:
-                nodelib_direct_effect_done(L, glue_amount(n), glue_stretch(n), glue_shrink(n),glue_stretch_order(n), glue_shrink_order(n));
+                nodelib_direct_effect_done(L, glue_amount(n), glue_stretch(n), glue_shrink(n), glue_stretch_order(n), glue_shrink_order(n));
                 break;
             case math_node:
                 if (math_surround(n)) {

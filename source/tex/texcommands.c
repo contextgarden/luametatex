@@ -932,8 +932,6 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "crampedtextstyle",               math_style_cmd,         cramped_text_style,                       0);
         tex_primitive(luatex_command, "crampedscriptstyle",             math_style_cmd,         cramped_script_style,                     0);
         tex_primitive(luatex_command, "crampedscriptscriptstyle",       math_style_cmd,         cramped_script_script_style,              0);
-        tex_primitive(luatex_command, "Ustyle",                         math_style_cmd,         yet_unset_math_style,                     0);
-        tex_primitive(luatex_command, "scaledmathstyle",                math_style_cmd,         scaled_math_style,                        0);
         tex_primitive(luatex_command, "alldisplaystyles",               math_style_cmd,         all_display_styles,                       0);
         tex_primitive(luatex_command, "alltextstyles",                  math_style_cmd,         all_text_styles,                          0);
         tex_primitive(luatex_command, "allscriptstyles",                math_style_cmd,         all_script_styles,                        0);
@@ -944,6 +942,8 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "allunsplitstyles",               math_style_cmd,         all_unsplit_styles,                       0);
         tex_primitive(luatex_command, "alluncrampedstyles",             math_style_cmd,         all_uncramped_styles,                     0);
         tex_primitive(luatex_command, "allcrampedstyles",               math_style_cmd,         all_cramped_styles,                       0);
+        tex_primitive(luatex_command, "Ustyle",                         math_style_cmd,         yet_unset_math_style,                     0);
+        tex_primitive(luatex_command, "scaledmathstyle",                math_style_cmd,         scaled_math_style,                        0);
 
         tex_primitive(tex_command,    "message",                        message_cmd,            message_code,                             0);
         tex_primitive(tex_command,    "errmessage",                     message_cmd,            error_message_code,                       0);

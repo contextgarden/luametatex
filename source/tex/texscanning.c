@@ -1084,6 +1084,26 @@ static void tex_aux_set_cur_val_by_define_char_cmd(int chr)
     switches.
 */
 
+static halfword tex_aux_scan_math_style_number(halfword code)
+{
+    switch (code) {
+        case yet_unset_math_style:
+            return tex_scan_math_style_identifier(0, 0);
+        case scaled_math_style:
+            return cur_list.math_scale;
+        case former_choice_math_style:
+            return 0;
+        default:
+            return code;
+    }
+}
+
+static void tex_aux_set_cur_val_by_math_style_cmd(halfword code)
+{
+    cur_val = tex_aux_scan_math_style_number(code);
+    cur_val_level = int_val_level;
+}
+
 void tex_scan_something_simple(halfword cmd, halfword chr)
 {
     int succeeded = 1;
@@ -1151,8 +1171,7 @@ void tex_scan_something_simple(halfword cmd, halfword chr)
                 break;
             }
         case math_style_cmd:
-            cur_val = (chr == yet_unset_math_style) ? tex_scan_math_style_identifier(0, 0) : chr;
-            cur_val_level = int_val_level;
+            tex_aux_set_cur_val_by_math_style_cmd(chr);
             break;
         case set_auxiliary_cmd:
             tex_aux_set_cur_val_by_auxiliary_cmd(chr);
@@ -1165,6 +1184,7 @@ void tex_scan_something_simple(halfword cmd, halfword chr)
             break;
         /* end of tex_aux_short_scan_something_internal */
         default:
+            /* weird message, this library */
             tex_handle_error(
                 normal_error_type,
                 "You can't use '%C' as tex library index",
@@ -1307,8 +1327,7 @@ static halfword tex_aux_scan_something_internal(halfword cmd, halfword chr, int 
             cur_val_level = int_val_level;
             break;
         case math_style_cmd:
-            cur_val = (chr == yet_unset_math_style) ? tex_scan_math_style_identifier(0, 0) : chr;
-            cur_val_level = int_val_level;
+            tex_aux_set_cur_val_by_math_style_cmd(chr);
             break;
         case set_auxiliary_cmd:
             tex_aux_set_cur_val_by_auxiliary_cmd(chr);
@@ -1960,8 +1979,8 @@ halfword tex_scan_int(int optional_equal, int *radix)
                 lmt_error_state.last_intercept = 1 ;
                 tex_back_input(cur_tok);
             } else {
-                result = '0'; /*tex Why not just 0. */
                 tex_aux_improper_constant_error();
+                return 0;
             }
         } else {
             /*tex Scan an optional space. */
@@ -1973,19 +1992,18 @@ halfword tex_scan_int(int optional_equal, int *radix)
     } else if (cur_cmd >= min_internal_cmd && cur_cmd <= max_internal_cmd) {
         result = tex_aux_scan_something_internal(cur_cmd, cur_chr, int_val_level, 0, 0);
         if (cur_val_level != int_val_level) {
-            result = 0;
             tex_aux_scan_int_no_number();
+            return 0;
         }
     } else if (cur_cmd == math_style_cmd) {
-        /* A pity that we need to check this way in |scan_int|. */
-        result = (cur_chr == yet_unset_math_style) ? tex_scan_math_style_identifier(0, 0) : cur_chr;
+        result = tex_aux_scan_math_style_number(cur_chr);
     } else if (cur_cmd == hyphenation_cmd) {
         /* A pity that we need to check this way in |scan_int|. */
         if (tex_aux_scan_hyph_data_number(cur_chr, &cur_chr)) {
             result = cur_chr;
         } else {
-            result = 0;
             tex_aux_scan_int_no_number();
+            return 0;
         }
     } else {
         /*tex has an error message been issued? */
@@ -4872,23 +4890,23 @@ static halfword tex_scan_bit_int(int *radix)
             }
         }
         if (result > max_character_code) {
-            result = '0'; /*tex Why not just 0. */
             tex_aux_improper_constant_error();
+            return 0; 
         }
     } else if (cur_cmd >= min_internal_cmd && cur_cmd <= max_internal_cmd) {
         result = tex_aux_scan_something_internal(cur_cmd, cur_chr, int_val_level, 0, 0);
         if (cur_val_level != int_val_level) {
-            result = 0;
             tex_aux_missing_number_error();
+            return 0;
         }
     } else if (cur_cmd == math_style_cmd) {
-        result = (cur_chr == yet_unset_math_style) ? tex_scan_math_style_identifier(0, 0) : cur_chr;
+        result = tex_aux_scan_math_style_number(cur_chr);
     } else if (cur_cmd == hyphenation_cmd) {
         if (tex_aux_scan_hyph_data_number(cur_chr, &cur_chr)) {
             result = cur_chr;
         } else {
-            result = 0;
             tex_aux_missing_number_error();
+            return 0;
         }
     } else {
         int vacuous = 1;
