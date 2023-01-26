@@ -56,6 +56,7 @@ target_include_directories(lua PRIVATE
 target_compile_definitions(lua PUBLIC
     # This one should also be set in the lua namespace!
   # LUAI_HASHLIMIT=6 # obsolete
+  # LUAI_MAXSHORTLEN=48
     LUAI_MAXCSTACK=6000
     LUA_UCID
   # LUA_USE_JUMPTABLE=0
@@ -64,6 +65,7 @@ target_compile_definitions(lua PUBLIC
   # LUA_NOBUILTIN # disable likely usage
   # LUAI_ASSERT
   # LUA_STRFTIMEOPTIONS="aAbBcCdDeFgGhHIjmMnprRStTuUVwWxXyYzZ%" 
+  # MINSTRTABSIZE=65536
 )
 
 if (UNIX)
@@ -79,6 +81,14 @@ if (NOT MSVC)
         -Wno-cast-qual
     )
 endif (NOT MSVC)
+
+if (CMAKE_HOST_APPLE)
+    target_compile_definitions(lua PUBLIC
+        TARGET_OS_IOS=0
+        TARGET_OS_WATCH=0
+        TARGET_OS_TV=0
+    )
+endif (CMAKE_HOST_APPLE)
 
 # this seems to be ok for mingw default
 #

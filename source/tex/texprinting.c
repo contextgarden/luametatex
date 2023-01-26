@@ -352,7 +352,7 @@ void tex_print_str(const char *s)
             lmt_string_to_buffer(s);
             return;
         default:
-            break;
+            return;
     }
     if (terminal || logfile) {
         int len = (int) strlen(s);
@@ -465,15 +465,22 @@ void tex_print_str_esc(const char *s)
 void tex_print_int(int n)
 {
     /*tex In the end a 0..9 fast path works out best; using |sprintf| is slower. */
+    if (n < 0) {
+        tex_print_char('-');
+        n = -n; 
+    }
     if (n >= 0 && n <= 9) { 
         tex_print_char('0' + n);
+    } else if (n >= 0 && n <= 99) { 
+        tex_print_char('0' + n/10);
+        tex_print_char('0' + n%10);
     } else { 
         int k = 0;
         unsigned char digits[24];
-        if (n < 0) {
-            tex_print_char('-');
-            n = -n; 
-        }
+//        if (n < 0) {
+//            tex_print_char('-');
+//            n = -n; 
+//        }
         do {
             digits[k] = '0' + (unsigned char) (n % 10);
             n = n / 10;
@@ -585,9 +592,9 @@ void tex_print_sparse_dimension(scaled s, int unit)
     as an unsigned. 
 */
 
-void tex_print_hex(int sn)
+void tex_print_hex(long long sn)
 {
-    unsigned int n = (unsigned int) sn;
+    unsigned long long n = (unsigned long long) sn;
     int k = 0;
     unsigned char digits[24];
     do {
@@ -605,13 +612,13 @@ void tex_print_hex(int sn)
     }
 }
 
-void tex_print_qhex(int n)
+void tex_print_qhex(long long n)
 {
     tex_print_char('"');
     tex_print_hex(n);
 }
 
-void tex_print_uhex(int n)
+void tex_print_uhex(long long n)
 {
     tex_print_str("U+");
     if (n < 16) {
@@ -985,7 +992,7 @@ void tex_print_token_list(const char *s, halfword p)
     }
     tex_print_char('{');
     if ((p >= 0) && (p <= (int) lmt_token_memory_state.tokens_data.top)) {
-        tex_show_token_list(p, null, default_token_show_max, 0);
+        tex_show_token_list(p, 0);
     } else {
         tex_print_str(error_string_clobbered(21));
     }
@@ -1295,6 +1302,16 @@ const char *tex_print_format_args(const char *format, va_list args)
                             {
                                 halfword c = va_arg(args, int);
                                 tex_print_uhex(c);
+                                break;
+                            }
+                        case '2':
+                            {
+                                halfword c = va_arg(args, int);
+                                switch (c) {
+                                    case direction_l2r : tex_print_str("l2r"); break;
+                                    case direction_r2l : tex_print_str("r2l"); break;
+                                    default            : tex_print_str("unset"); break;
+                                }
                                 break;
                             }
                         case '%':

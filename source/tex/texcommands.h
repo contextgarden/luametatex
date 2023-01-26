@@ -334,38 +334,47 @@ typedef enum tex_command_code {
 
 # define is_referenced_cmd(cmd)     (cmd >= call_cmd)
 # define is_nodebased_cmd(cmd)      (cmd >= gluespec_cmd && cmd <= fontspec_cmd)
+# define is_constant_cmd(cmd)       (cmd >= integer_cmd && cmd <= gluespec_cmd)
 
-
-# if (main_control_mode == 1)
-
-/*tex Once these were different numbers, no series: */
+/*tex Once these were different numbers, no series (see archive): */
 
 typedef enum tex_modes {
-    nomode,
-    vmode,
-    hmode,
-    mmode,
+    nomode           =  0,
+    vmode            =  1,
+    hmode            =  2,
+    mmode            =  3,
+    internal_vmode   = -1,
+    restricted_hmode = -2,
+    inline_mmode     = -3,
 } tex_modes;
 
-# else
+inline int is_v_mode(halfword mode) { return mode == vmode || mode == internal_vmode; }
+inline int is_h_mode(halfword mode) { return mode == hmode || mode == restricted_hmode; }
+inline int is_m_mode(halfword mode) { return mode == mmode || mode == inline_mmode; }
 
-typedef enum tex_modes {
-    nomode = 0,
-    vmode  = 1,                           /*tex vertical mode */
-    hmode  = 1 +    max_command_cmd + 1,  /*tex horizontal mode */
-    mmode  = 1 + 2*(max_command_cmd + 1), /*tex math mode */
-} tex_modes;
-
-# endif
+inline int tex_normalized_mode(halfword mode) 
+{
+    switch (mode) { 
+        case internal_vmode  : return vmode;
+        case restricted_hmode: return hmode;
+        case inline_mmode    : return mmode;
+        default              : return mode; 
+    }
+}
 
 typedef enum arithmic_codes {
     advance_code,
     multiply_code,
     divide_code,
+    advance_by_code,
+    multiply_by_code,
+    divide_by_code,
  /* bitwise_and_code, */
  /* bitwise_xor_code, */
  /* bitwise_or_code,  */
  /* bitwise_not_code, */
+ /* advance_by_plus_one_code,  */
+ /* advance_by_minus_one_code, */
 } arithmic_codes;
 
 # define last_arithmic_code divide_code
@@ -443,6 +452,7 @@ typedef enum convert_codes {
     string_code,              /*tex command code for |\string| */
     cs_string_code,           /*tex command code for |\csstring| */
     cs_active_code,           /*tex command code for |\csactive| */
+ /* cs_lastname_code,      */ /*tex command code for |\cslastname| */
     detokenized_code,         /*tex command code for |\detokenized| */
     roman_numeral_code,       /*tex command code for |\romannumeral| */
     meaning_code,             /*tex command code for |\meaning| */
@@ -611,9 +621,10 @@ typedef enum box_property_codes {
     box_freeze_code,
     /* we actually need set_box_int_cmd, or set_box_property */
     box_attribute_code,
+    box_vadjust_code,
 } box_property_codes;
 
-# define last_box_property_code box_attribute_code
+# define last_box_property_code box_vadjust_code
 
 typedef enum hyphenation_codes {
     hyphenation_code,
@@ -689,6 +700,8 @@ typedef enum shorthand_def_codes {
     mugluespec_def_code,
  /* mathspec_def_code, */
     fontspec_def_code,
+ /* integer_def_csname_code,   */
+ /* dimension_def_csname_code, */
 } shorthand_def_codes;
 
 # define last_shorthand_def_code fontspec_def_code
@@ -796,6 +809,11 @@ typedef enum local_control_codes {
     bits for this but we don't have enough. Now, because frozen macros can be unfrozen we can
     indeed have a prefix that bypasses the check. Explicit (re)definitions are then up to the user.
 
+    Constant macros are special in the sense that we set the reference count to the maximum. This is 
+    then a signal that we have an expanded macro with a meaning that we can immediately copy into 
+    the expanded token list, as in csname construction. This saves some memory access and token 
+    allocation. 
+
 */
 
 typedef enum prefix_codes {
@@ -819,6 +837,7 @@ typedef enum prefix_codes {
     enforced_code,
     always_code,
     inherited_code,
+    constant_code,
     long_code,
     outer_code,
 } prefix_codes;
@@ -858,9 +877,11 @@ typedef enum def_codes {
     def_csname_code,
     global_expanded_def_csname_code,
     global_def_csname_code,
+    constant_def_code,
+    constant_def_csname_code,
 } def_codes;
 
-# define last_def_code global_def_csname_code
+# define last_def_code constant_def_csname_code
 
 typedef enum let_codes {
     global_let_code,
@@ -1055,11 +1076,7 @@ typedef enum math_styles {
     cramped_script_style,        /*tex |\crampedscriptstyle| */
     script_script_style,         /*tex |\scriptscriptstyle| */
     cramped_script_script_style, /*tex |\crampedscriptscriptstyle| */
-    /* hidden */
-    yet_unset_math_style,
-    former_choice_math_style,
-    scaled_math_style,
-    /* even more hidden */       /*tex These can be used to emulate the defaults. */
+    /* hidden */                 /*tex These can be used to emulate the defaults. */
     all_display_styles,
     all_text_styles,
     all_script_styles,
@@ -1070,13 +1087,18 @@ typedef enum math_styles {
     all_unsplit_styles,
     all_uncramped_styles,
     all_cramped_styles,
+    /* hidden */
+    yet_unset_math_style,
+    scaled_math_style,
+    former_choice_math_style,
 } math_styles;
 
 # define first_math_style display_style
-# define last_math_style  all_cramped_styles
+# define last_math_style  former_choice_math_style
 
 # define is_valid_math_style(n)   (n >= display_style      && n <= cramped_script_script_style)
 # define are_valid_math_styles(n) (n >= all_display_styles && n <= all_cramped_styles)
+# define visible_math_styles(n)   (n >= display_style      && n <= all_cramped_styles)
 
 inline static halfword tex_math_style_to_size(halfword s)
 {

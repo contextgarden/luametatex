@@ -72,10 +72,12 @@ typedef enum if_test_codes {
     if_true_code,           /*tex |\iftrue| */
     if_false_code,          /*tex |\iffalse| */
     if_chk_int_code,        /*tex |\ifchknum| */
-    if_val_int_code,        /*tex |\ifcmpnum| */
+    if_chk_integer_code,    /*tex |\ifchknumber| */
+    if_val_int_code,        /*tex |\ifnumval| */
     if_cmp_int_code,        /*tex |\ifcmpnum| */
     if_chk_dim_code,        /*tex |\ifchkdim| */
-    if_val_dim_code,        /*tex |\ifchkdim| */
+    if_chk_dimension_code,  /*tex |\ifchkdimension| */
+    if_val_dim_code,        /*tex |\ifdimval| */
     if_cmp_dim_code,        /*tex |\ifcmpdim| */
     if_case_code,           /*tex |\ifcase| */
     if_def_code,            /*tex |\ifdefined| */
@@ -111,14 +113,14 @@ typedef enum if_test_codes {
 //define last_real_if_test_code  if_bitwise_and_code
 
 typedef struct condition_state_info {
-    halfword  cond_ptr;       /*tex top of the condition stack */
-    int       cur_if;         /*tex type of conditional being worked on */
+    halfword  cond_ptr;   /*tex top of the condition stack */
+    int       cur_if;     /*tex type of conditional being worked on */
     int       cur_unless;
     int       if_step;
     int       if_unless;
-    int       if_limit;       /*tex upper bound on |fi_or_else| codes */
-    int       if_line;        /*tex line where that conditional began */
-    int       skip_line;      /*tex skipping began here */
+    int       if_limit;   /*tex upper bound on |fi_or_else| codes */
+    int       if_line;    /*tex line where that conditional began */
+    int       skip_line;  /*tex skipping began here */
     halfword  chk_num;
     scaled    chk_dim;
     halfword  if_nesting;

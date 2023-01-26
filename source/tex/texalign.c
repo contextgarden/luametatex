@@ -199,11 +199,25 @@
     limit that (and redundant boxes and glue are the only things we can do here). It actually
     also saves a bit of runtime. This feature has not been tested yet with |\span| and |\omit|.
 
+    The |\noalign| command accepts a couple of keywords that specify options to be applied to the 
+    next row. These options are similar to the ones for boxes. 
+
+    Maybe: lefttabskip righttabskip middletabskip
+
 */
 
-/*
-    Todo: lefttabskip righttabskip middletabskip
-*/
+typedef struct alignment_row_state { 
+    halfword orientation;
+    scaled   xoffset;
+    scaled   yoffset;
+    scaled   xmove;
+    scaled   ymove;
+    halfword shift;
+    halfword source;
+    halfword target;
+    halfword anchor;
+    halfword attrlist; 
+} alignment_row_state;
 
 typedef struct alignment_state_info {
     halfword cur_align;             /*tex The current position in the preamble list. */
@@ -223,11 +237,14 @@ typedef struct alignment_state_info {
     halfword no_align_level;
     halfword no_tab_skips;
     halfword attr_list;
-    halfword cell_source;
-    halfword wrap_source;
+    halfword cell_source;           
+    halfword wrap_source;           /*tex There's also a field in the row_state. */
     halfword callback;
- // halfword reverse;       // todo 
- // halfword discard_skips; // todo 
+ /* halfword reverse;            */ /* maybe */
+ /* halfword discard_skips;      */ /* maybe */
+    halfword row_state_set;
+    halfword padding;
+    alignment_row_state row_state; 
 } alignment_state_info ;
 
 static alignment_state_info lmt_alignment_state = {
@@ -251,18 +268,47 @@ static alignment_state_info lmt_alignment_state = {
     .cell_source           = 0,
     .wrap_source           = 0,
     .callback              = 0,
- // .reverse               = 0, 
- // .discard_skips         = 0,
+ /* .reverse               = 0, */
+ /* .discard_skips         = 0, */
+    .row_state_set         = 0, 
+    .padding               = 0,
+    .row_state = { 
+        .attrlist    = null,
+        .orientation = 0,
+        .xoffset     = 0,
+        .yoffset     = 0,
+        .xmove       = 0,
+        .ymove       = 0,
+        .shift       = 0,
+        .source      = 0,
+        .target      = 0,
+        .anchor      = 0,
+    }
 };
+
+static void tex_aux_wipe_row_state(void)
+{
+    lmt_alignment_state.row_state.attrlist = null;
+    lmt_alignment_state.row_state.orientation = 0;
+    lmt_alignment_state.row_state.xoffset = 0;
+    lmt_alignment_state.row_state.yoffset = 0;
+    lmt_alignment_state.row_state.xmove = 0;
+    lmt_alignment_state.row_state.ymove = 0;
+    lmt_alignment_state.row_state.shift = 0;
+    lmt_alignment_state.row_state.source = 0;
+    lmt_alignment_state.row_state.target = 0;
+    lmt_alignment_state.row_state.anchor = 0;
+    lmt_alignment_state.row_state_set = 0;
+}
 
 /*tex We could as well save these in the alignment stack. */
 
 typedef enum saved_align_items {
     saved_align_specification,
     saved_align_reverse,
-    saved_align_discard,
-    saved_align_noskips, /*tex Saving is not needed but it doesn't hurt either */
-    saved_align_callback,
+    saved_align_discard, 
+    saved_align_noskips,  /*tex currently fetched from the state (not used anyway) */
+    saved_align_callback, /*tex currently fetched from the state */
     saved_align_n_of_items,
 } saved_align_items;
 
@@ -293,7 +339,7 @@ inline static void tex_aux_change_list_type(halfword n, quarterword type)
     box_d_offset(n) = 0;    /* box_span_count                              */
     box_x_offset(n) = 0;    /*                     align_record_u_part     */
     box_y_offset(n) = 0;    /*                     align_record_v_part     */
- // box_geometry(n) = 0;    /* box_size                                    */
+ /* box_geometry(n) = 0; */ /* box_size                                    */
     box_orientation(n) = 0; /* box_size                                    */
 }
 
@@ -307,12 +353,17 @@ inline static void tex_aux_change_list_type(halfword n, quarterword type)
     and such. But then it even makes sense to have explicit commands (in addition to the seperator)
     to tags individual cells. It's too much hassle for now and the advantages are not that large.
 
+    This code has a history so changing it now is tricky. For instance we could the top of the align 
+    stack instead of the copied values. On the other hand, working with copies makes that we can 
+    mess with these. And the gain would be little anywya, if at all. 
+
 */
 
 static void tex_aux_push_alignment(void)
 {
     /*tex The new alignment stack node: */
     halfword p = tex_new_node(align_stack_node, 0);
+    /* todo: just a memory copy */
     align_stack_align_ptr(p) = lmt_alignment_state.align_ptr;
     align_stack_cur_align(p) = lmt_alignment_state.cur_align;
     align_stack_preamble(p) = preamble;
@@ -331,6 +382,18 @@ static void tex_aux_push_alignment(void)
     align_stack_cur_pre_migrate_tail(p) = lmt_alignment_state.cur_pre_migrate_tail;
     align_stack_no_tab_skips(p) = lmt_alignment_state.no_tab_skips;
     align_stack_attr_list(p) = lmt_alignment_state.attr_list;
+    /* */
+    align_stack_row_attrlist(p) = lmt_alignment_state.row_state.attrlist;
+    align_stack_row_orientation(p) = lmt_alignment_state.row_state.orientation;
+    align_stack_row_yoffset(p) = lmt_alignment_state.row_state.xoffset;
+    align_stack_row_xoffset(p) = lmt_alignment_state.row_state.yoffset;
+    align_stack_row_ymove(p) = lmt_alignment_state.row_state.xmove;
+    align_stack_row_xmove(p) = lmt_alignment_state.row_state.ymove;
+    align_stack_row_shift(p) = lmt_alignment_state.row_state.shift;
+    align_stack_row_source(p) = lmt_alignment_state.row_state.source;
+    align_stack_row_target(p) = lmt_alignment_state.row_state.target;
+    align_stack_row_anchor(p) = lmt_alignment_state.row_state.anchor;
+    /* */
     lmt_alignment_state.align_ptr = p;
     lmt_alignment_state.cur_post_adjust_head = tex_new_temp_node();
     lmt_alignment_state.cur_pre_adjust_head = tex_new_temp_node();
@@ -339,6 +402,8 @@ static void tex_aux_push_alignment(void)
     /* */
     lmt_alignment_state.cell_source = 0;
     lmt_alignment_state.wrap_source = 0;
+    /* todo: put in align_stack, also wipe attr if needed */
+    tex_aux_wipe_row_state();
 }
 
 static void tex_aux_pop_alignment(void)
@@ -367,6 +432,18 @@ static void tex_aux_pop_alignment(void)
     lmt_alignment_state.cur_pre_migrate_tail = align_stack_cur_pre_migrate_tail(p);
     lmt_alignment_state.no_tab_skips = align_stack_no_tab_skips(p);
     lmt_alignment_state.attr_list = align_stack_attr_list(p);
+    /* */
+    lmt_alignment_state.row_state.attrlist = align_stack_row_attrlist(p);    
+    lmt_alignment_state.row_state.orientation = align_stack_row_orientation(p);
+    lmt_alignment_state.row_state.xoffset = align_stack_row_yoffset(p);  
+    lmt_alignment_state.row_state.yoffset = align_stack_row_xoffset(p);     
+    lmt_alignment_state.row_state.xmove = align_stack_row_ymove(p);  
+    lmt_alignment_state.row_state.ymove = align_stack_row_xmove(p);     
+    lmt_alignment_state.row_state.shift = align_stack_row_shift(p);       
+    lmt_alignment_state.row_state.source = align_stack_row_source(p);      
+    lmt_alignment_state.row_state.target = align_stack_row_target(p);      
+    lmt_alignment_state.row_state.anchor = align_stack_row_anchor(p);      
+    /* */
     tex_flush_node(p);
 }
 
@@ -546,15 +623,15 @@ static void tex_aux_scan_align_spec(quarterword c)
     if (! attrlist) {
         /* this alse sets the reference when not yet set */
         attrlist = tex_current_attribute_list();
-    }
+    } 
     /*tex Now we're referenced. We need to preserve this over the group. */
     add_attribute_reference(attrlist);
     tex_set_saved_record(saved_align_specification, box_spec_save_type, mode, amount);
     /* We save them but could put them in the state as we do for some anyway. */
-    tex_set_saved_record(saved_align_reverse, box_reverse_save_type, reverse, 0);
-    tex_set_saved_record(saved_align_discard, box_discard_save_type, noskips ? 0 : discard, 0);
-    tex_set_saved_record(saved_align_noskips, box_noskips_save_type, noskips, 0);
-    tex_set_saved_record(saved_align_callback, box_callback_save_type, callback, 0);
+    tex_set_saved_record(saved_align_reverse, box_reverse_save_type, 0, reverse);
+    tex_set_saved_record(saved_align_discard, box_discard_save_type, 0, noskips ? 0 : discard);
+    tex_set_saved_record(saved_align_noskips, box_noskips_save_type, 0, noskips);
+    tex_set_saved_record(saved_align_callback, box_callback_save_type, 0, callback);
     lmt_save_state.save_stack_data.ptr += saved_align_n_of_items;
     tex_new_save_level(c);
     if (! brace) {
@@ -590,14 +667,159 @@ static void tex_aux_trace_no_align(const char *s)
 
 static void tex_aux_run_no_align(void)
 {
-    tex_scan_left_brace();
+    /* */
+    int brace = 0;
+    int done = lmt_alignment_state.row_state_set;
+    while (1) {
+        int add = 0;
+      AGAIN:
+        switch (tex_scan_character("atrsoxyATRSOXY", 1, 1, 1)) {
+            case 0:
+                goto DONE;
+            case 't': case 'T':
+                if (tex_scan_mandate_keyword("target", 1)) {
+                    lmt_alignment_state.row_state.target = tex_scan_int(1, NULL);
+                    done = 1;
+                }
+                break;
+            case 'a': case 'A':
+                switch (tex_scan_character("ntdNTD", 0, 0, 0)) {
+                    case 'd': case 'D':
+                        if (tex_scan_mandate_keyword("add", 2)) {
+                            add = 1;
+                            goto AGAIN;
+                        }
+                        break;
+                    case 't': case 'T':
+                        if (tex_scan_mandate_keyword("attr", 2)) {
+                            halfword i = tex_scan_attribute_register_number();
+                            halfword v = tex_scan_int(1, NULL);
+                            if (eq_value(register_attribute_location(i)) != v) {
+                                if (lmt_alignment_state.row_state.attrlist) {
+                                    lmt_alignment_state.row_state.attrlist = tex_patch_attribute_list(lmt_alignment_state.row_state.attrlist, i, v);
+                                } else if (lmt_alignment_state.attr_list) {
+                                    lmt_alignment_state.row_state.attrlist = tex_copy_attribute_list_set(lmt_alignment_state.attr_list, i, v);
+                                } else {
+                                    lmt_alignment_state.row_state.attrlist = tex_copy_attribute_list_set(tex_current_attribute_list(), i, v);
+                                }
+                                done = 1;
+                            }
+                        }
+                        break;
+                    case 'n': case 'N':
+                        if (tex_scan_mandate_keyword("anchor", 2)) {
+                            switch (tex_scan_character("sS", 0, 0, 0)) {
+                                case 's': case 'S':
+                                    lmt_alignment_state.row_state.anchor = tex_scan_anchors(0);
+                                    break;
+                                default:
+                                    lmt_alignment_state.row_state.anchor = tex_scan_anchor(0);
+                                    break;
+                            }
+                            done = 1;
+                        }
+                        break;
+                    default:
+                        tex_aux_show_keyword_error("attr|anchor|add");
+                        goto DONE;
+                }
+                break;
+            case 'r': case 'R':
+                if (tex_scan_mandate_keyword("reset", 1)) {
+                    tex_aux_wipe_row_state();
+                    done = 0;
+                }
+                break;
+            case 's': case 'S':
+                switch (tex_scan_character("hoHO", 0, 0, 0)) {
+                    case 'h': case 'H':
+                        if (tex_scan_mandate_keyword("shift", 2)) {
+                            lmt_alignment_state.row_state.shift = (add ? lmt_alignment_state.row_state.shift : 0) 
+                                + tex_scan_dimen(0, 0, 0, 0, NULL);
+                            done = 1;
+                        }
+                        break;
+                    case 'o': case 'O':
+                        if (tex_scan_mandate_keyword("source", 2)) {
+                            lmt_alignment_state.row_state.source = tex_scan_int(1, NULL);
+                            done = 1;
+                        }
+                        break;
+                    default:
+                        tex_aux_show_keyword_error("shift|source");
+                        goto DONE;
+                }
+                break;
+            case 'o': case 'O':
+                if (tex_scan_mandate_keyword("orientation", 1)) {
+                    lmt_alignment_state.row_state.orientation = tex_scan_orientation(0);
+                    done = 1;
+                }
+                break;
+            case 'x': case 'X':
+                switch (tex_scan_character("omOM", 0, 0, 0)) {
+                    case 'o': case 'O' :
+                        if (tex_scan_mandate_keyword("xoffset", 2)) {
+                            lmt_alignment_state.row_state.xoffset = (add ? lmt_alignment_state.row_state.xoffset : 0) 
+                                + tex_scan_dimen(0, 0, 0, 0, NULL);
+                            done = 1;
+                        }
+                        break;
+                    case 'm': case 'M' :
+                        if (tex_scan_mandate_keyword("xmove", 2)) {
+                            lmt_alignment_state.row_state.xmove = (add ? lmt_alignment_state.row_state.xmove : 0) 
+                                + tex_scan_dimen(0, 0, 0, 0, NULL);
+                            done = 1;
+                        }
+                        break;
+                    default:
+                        tex_aux_show_keyword_error("xoffset|xmove");
+                        goto DONE;
+                }
+                break;
+            case 'y': case 'Y':
+                switch (tex_scan_character("omOM", 0, 0, 0)) {
+                    case 'o': case 'O' :
+                        if (tex_scan_mandate_keyword("yoffset", 2)) {
+                            lmt_alignment_state.row_state.yoffset = (add ? lmt_alignment_state.row_state.yoffset : 0) 
+                                + tex_scan_dimen(0, 0, 0, 0, NULL);
+                            done = 1;
+                        }
+                        break;
+                    case 'm': case 'M' :
+                        if (tex_scan_mandate_keyword("ymove", 2)) {
+                            lmt_alignment_state.row_state.ymove = (add ? lmt_alignment_state.row_state.ymove : 0) 
+                                + tex_scan_dimen(0, 0, 0, 0, NULL);
+                            done = 1;
+                        }
+                        break;
+                    default:
+                        tex_aux_show_keyword_error("yoffset|ymove");
+                        goto DONE;
+                }
+                break;
+            case '{':
+                brace = 1;
+                goto DONE;
+            default:
+                goto DONE;
+        }
+        add = 0;
+    }
+  DONE:
+    lmt_alignment_state.row_state_set = done;
+    /* */
+    if (! brace) {
+        tex_scan_left_brace();
+    }
     tex_new_save_level(no_align_group);
     ++lmt_alignment_state.no_align_level;
     tex_aux_trace_no_align("entering");
-    if (cur_list.mode == -vmode) {
+    if (cur_list.mode == internal_vmode) {
         tex_normal_paragraph(no_align_par_context);
     }
 }
+
 static int tex_aux_nested_no_align(void)
 {
     int state = lmt_alignment_state.no_align_level > 0;
@@ -606,7 +828,7 @@ static int tex_aux_nested_no_align(void)
         tex_new_save_level(no_align_group);
         ++lmt_alignment_state.no_align_level;
         tex_aux_trace_no_align("entering");
-        if (cur_list.mode == -vmode) {
+        if (cur_list.mode == internal_vmode) {
             tex_normal_paragraph(no_align_par_context);
         }
     }
@@ -708,7 +930,7 @@ void tex_run_alignment_initialize(void)
         value that produces the correct baseline calculations.
     */
     if (cur_list.mode == mmode) {
-        cur_list.mode = -vmode;
+        cur_list.mode = internal_vmode;
         cur_list.prev_depth = lmt_nest_state.nest[lmt_nest_state.nest_data.ptr - 2].prev_depth;
     } else if (cur_list.mode > 0) {
         cur_list.mode = -cur_list.mode;
@@ -843,10 +1065,10 @@ void tex_finish_alignment_group(void)
 static void tex_aux_initialize_span(halfword p)
 {
     tex_push_nest();
-    if (cur_list.mode == -hmode) {
-        cur_list.space_factor = 1000;
+    if (cur_list.mode == restricted_hmode) {
+        cur_list.space_factor = default_space_factor;
     } else {
-        cur_list.prev_depth = ignore_depth;
+        cur_list.prev_depth = ignore_depth_criterium_par;
         tex_normal_paragraph(span_par_context);
     }
     lmt_alignment_state.cur_span = p;
@@ -864,8 +1086,8 @@ static void tex_aux_initialize_span(halfword p)
 static void tex_aux_initialize_row(void)
 {
     tex_push_nest();
-    cur_list.mode = (- hmode - vmode) - cur_list.mode; /* weird code */
-    if (cur_list.mode == -hmode) {
+    cur_list.mode = (- hmode - vmode) - cur_list.mode; /* weird code : - 3 - cur_list.mode : so a buogus line */
+    if (cur_list.mode == restricted_hmode) {                     
         cur_list.space_factor = 0;
     } else {
         cur_list.prev_depth = 0;
@@ -882,6 +1104,7 @@ static void tex_aux_initialize_row(void)
     lmt_alignment_state.cur_post_migrate_tail = lmt_alignment_state.cur_post_migrate_head;
     lmt_alignment_state.cur_pre_migrate_tail = lmt_alignment_state.cur_pre_migrate_head;
     tex_aux_initialize_span(lmt_alignment_state.cur_align);
+    /* todo: wipe attr */
 }
 
 /*tex
@@ -1084,7 +1307,7 @@ static int tex_aux_finish_column(void)
                     size = box_size(lmt_alignment_state.cur_align);
                     packing = packing_exactly;
                 }
-                if (cur_list.mode == -hmode) {
+                if (cur_list.mode == restricted_hmode) {
                     lmt_packaging_state.post_adjust_tail = lmt_alignment_state.cur_post_adjust_tail;
                     lmt_packaging_state.pre_adjust_tail = lmt_alignment_state.cur_pre_adjust_tail;
                     lmt_packaging_state.post_migrate_tail = lmt_alignment_state.cur_post_migrate_tail;
@@ -1178,7 +1401,7 @@ static int tex_aux_finish_column(void)
 static void tex_aux_finish_row(void)
 {
     halfword row;
-    if (cur_list.mode == -hmode) {
+    if (cur_list.mode == restricted_hmode) {
         row = tex_filtered_hpack(cur_list.head, cur_list.tail, 0, packing_additional, finish_row_group, direction_unknown, 0, null, 0, 0);
         tex_pop_nest();
         if (lmt_alignment_state.cur_pre_adjust_head != lmt_alignment_state.cur_pre_adjust_tail) {
@@ -1198,14 +1421,116 @@ static void tex_aux_finish_row(void)
         row = tex_filtered_vpack(node_next(cur_list.head), 0, packing_additional, max_depth_par, finish_row_group, direction_unknown, 0, null, 0, 0);
         tex_pop_nest();
         tex_tail_append(row);
-        cur_list.space_factor = 1000;
+        cur_list.space_factor = default_space_factor;
     }
+    /*tex 
+        Currently this one can be overloaded by the one set on the row via the noalign trickery
+        which is probably okay. 
+    */
     if (lmt_alignment_state.wrap_source) {
         box_source_anchor(row) = lmt_alignment_state.wrap_source;
-        tex_set_box_geometry(row, anchor_geometry);
+        box_geometry(row) |= anchor_geometry;
     }
+    /* 
+        This also wipes (list) fields that we might set below, like |xoffset| that is used for 
+        specific alignments purposes. 
+    */
     tex_aux_change_list_type(row, unset_node);
-    tex_attach_attribute_list_attribute(row, lmt_alignment_state.attr_list);
+    /* */
+    tex_attach_attribute_list_attribute(row, lmt_alignment_state.row_state.attrlist ? 
+        lmt_alignment_state.row_state.attrlist : lmt_alignment_state.attr_list);
+    /*tex 
+        The next blob of code duplicates some of packaging code but because we fetch from different
+        fields we cannot share. Maybe, when I add this kind of features to other mechanisms (how 
+        about cells!) then the next code will become some helper. 
+    */
+    if (lmt_alignment_state.row_state_set) { 
+        halfword orientation = lmt_alignment_state.row_state.orientation;
+        halfword anchor = lmt_alignment_state.row_state.anchor;
+        scaled shift = lmt_alignment_state.row_state.shift;
+        halfword source = lmt_alignment_state.row_state.source;
+        halfword target = lmt_alignment_state.row_state.target;
+        scaled xoffset = lmt_alignment_state.row_state.xoffset;
+        scaled yoffset = lmt_alignment_state.row_state.yoffset;
+        scaled xmove = lmt_alignment_state.row_state.xmove;
+        scaled ymove = lmt_alignment_state.row_state.ymove;
+        singleword geometry = box_geometry(row);
+        /* */
+        if (xoffset || yoffset || xmove || ymove) {
+            geometry |= offset_geometry;
+        }
+        if (orientation) {
+            geometry |= orientation_geometry;
+        }
+        /* */
+        if (tex_has_geometry(geometry, offset_geometry) || tex_has_geometry(geometry, orientation_geometry)) {
+            scaled wd = box_width(row);
+            scaled ht = box_height(row);
+            scaled dp = box_depth(row);
+            if (xmove) {
+                xoffset = tex_aux_checked_dimen1(xoffset + xmove);
+                wd = tex_aux_checked_dimen2(wd + xmove);
+                set_box_package_state(row, package_dimension_size_set); /* safeguard */
+            }
+            if (ymove) {
+                yoffset = tex_aux_checked_dimen1(yoffset + ymove);
+                ht = tex_aux_checked_dimen2(ht + ymove);
+                dp = tex_aux_checked_dimen2(dp - ymove);
+            }
+            box_w_offset(row) = wd;
+            box_h_offset(row) = ht;
+            box_d_offset(row) = dp;
+            switch (orientationonly(orientation)) {
+                case 0 : /*   0 */
+                    break;
+                case 2 : /* 180 */
+                    box_height(row) = dp;
+                    box_depth(row) = ht;
+                    geometry |= orientation_geometry;
+                    break;
+                case 1 : /*  90 */
+                case 3 : /* 270 */
+                    box_width(row) = ht + dp;
+                    box_height(row) = wd;
+                    box_depth(row) = 0;
+                    geometry |= orientation_geometry;
+                    break;
+                case 4 : /*   0 */
+                    box_height(row) = ht + dp;
+                    box_depth(row) = 0;
+                    geometry |= orientation_geometry;
+                    break;
+                case 5 : /* 180 */
+                    box_height(row) = 0;
+                    box_depth(row) = ht + dp;
+                    geometry |= orientation_geometry;
+                    break;
+                default :
+                    break;
+            }
+            if (xoffset || yoffset) {
+                box_x_offset(row) = xoffset;
+                box_y_offset(row) = yoffset;
+                geometry |= offset_geometry;
+            }
+        }
+        if (shift) { 
+            box_shift_amount(row) = shift;
+        }
+        if (source || target) {
+            box_source_anchor(row) = source;
+            box_target_anchor(row) = target;
+            geometry |= anchor_geometry;
+        }
+        box_anchor(row) = anchor;
+        box_orientation(row) = orientation;
+        box_geometry(row) = (singleword) geometry;
+    }
+    /*tex
+        We no longer need the row state so best wipe it now! Then we're ready for the next row. 
+    */
+    tex_aux_wipe_row_state();
+    /* */
     if (every_cr_par) {
         tex_begin_token_list(every_cr_par, every_cr_text);
     }
@@ -1246,6 +1571,11 @@ static void tex_aux_strip_zero_tab_skips(halfword q)
     }
 }
 
+/*tex 
+    We currently have a mix of states but maybe some day we will exposer the save stack and then it
+    is handy to have the state values there. So for now I keep this (as reminder). 
+*/
+
 static void tex_aux_finish_align(void)
 {
     /*tex a shared register for the list operations (others are localized) */
@@ -1254,7 +1584,7 @@ static void tex_aux_finish_align(void)
     scaled offset = 0;
     /*tex something new */
     halfword reverse = 0;
-    halfword callback = lmt_alignment_state.callback;
+    halfword callback = lmt_alignment_state.callback; /* see below for variant */
     halfword discard = normalize_line_mode_permitted(normalize_line_mode_par, discard_zero_tab_skips_mode);
     /*tex The |align_group| was for individual entries: */
     if (cur_group != align_group) {
@@ -1271,8 +1601,9 @@ static void tex_aux_finish_align(void)
     }
     lmt_save_state.save_stack_data.ptr -= saved_align_n_of_items;
     lmt_packaging_state.pack_begin_line = -cur_list.mode_line;
-    reverse = saved_level(saved_align_reverse);            /* we can as well save these in the state */
-    discard = discard || saved_level(saved_align_discard); /* we can as well save these in the state */
+    reverse = saved_value(saved_align_reverse);            /* we can as well save these in the state */
+    discard = discard || saved_value(saved_align_discard); /* we can as well save these in the state */
+ /* callback = saved_value(saved_align_callback); */       /* already fetched from the state */
     /*tex
         All content is available now so this is a perfect spot for some processing. However, we
         cannot mess with the unset boxes (as these can have special properties). The main reason
@@ -1392,7 +1723,7 @@ static void tex_aux_finish_align(void)
         alignment is overfull or underfull.
 
     */
-    if (cur_list.mode == -vmode) {
+    if (cur_list.mode == internal_vmode) {
         halfword rule_save = overfull_rule_par;
         /*tex Prevent the rule from being packaged. */
         overfull_rule_par = 0; 
@@ -1437,11 +1768,13 @@ static void tex_aux_finish_align(void)
                         */
                         halfword preptr;
                         halfword colptr;
-                        if (cur_list.mode == -vmode) {
-                            tex_aux_change_list_type(rowptr, hlist_node);
+                        if (cur_list.mode == internal_vmode) {
+                         /* tex_aux_change_list_type(rowptr, hlist_node); */ /* too much, needs checking */
+                            node_type(rowptr) = hlist_node;
                             box_width(rowptr) = box_width(preroll);
                         } else {
-                            tex_aux_change_list_type(rowptr, vlist_node);
+                         /* tex_aux_change_list_type(rowptr, vlist_node); */ /* too much, needs checking */
+                            node_type(rowptr) = vlist_node;
                             box_height(rowptr) = box_height(preroll);
                         }
                         node_subtype(rowptr) = align_row_list;
@@ -1507,11 +1840,11 @@ static void tex_aux_finish_align(void)
                                 }
                                 preptr = node_next(preptr);
                                 {
-                                    halfword box = tex_new_null_box_node(cur_list.mode == -vmode ? hlist_node : vlist_node, align_cell_list);
+                                    halfword box = tex_new_null_box_node(cur_list.mode == internal_vmode ? hlist_node : vlist_node, align_cell_list);
                                     tex_couple_nodes(tail, box);
                                     tex_attach_attribute_list_attribute(box, lmt_alignment_state.attr_list);
                                     total += box_width(preptr);
-                                    if (cur_list.mode == -vmode) {
+                                    if (cur_list.mode == internal_vmode) {
                                         box_width(box) = box_width(preptr);
                                     } else {
                                         box_height(box) = box_width(preptr);
@@ -1519,7 +1852,7 @@ static void tex_aux_finish_align(void)
                                     tail = box;
                                 }
                             }
-                            if (cur_list.mode == -vmode) {
+                            if (cur_list.mode == internal_vmode) {
                                 /*tex
                                     Make the unset node |r| into an |hlist_node| of width |w|,
                                     setting the glue as if the width were |t|.
@@ -1608,6 +1941,11 @@ static void tex_aux_finish_align(void)
                         }
                         if (reverse) {
                             box_list(rowptr) = tex_reversed_node_list(box_list(rowptr));
+                        }
+                        if (has_box_package_state(rowptr, package_dimension_size_set)) {
+                            if (box_w_offset(rowptr) > box_width(rowptr)) {
+                                box_width(rowptr) = box_w_offset(rowptr); 
+                            }
                         }
                     }
                     break;
@@ -1720,6 +2058,8 @@ void tex_cleanup_alignments(void)
     tex_put_available_token(lmt_alignment_state.omit_template);
     lmt_alignment_state.hold_token_head = null;
     lmt_alignment_state.omit_template = null;
+    delete_attribute_reference(lmt_alignment_state.attr_list);
+    lmt_alignment_state.attr_list = null;
 }
 
 /*tex

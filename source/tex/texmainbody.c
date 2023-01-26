@@ -374,18 +374,26 @@ void tex_main_body(void)
         }
     }
 
+    /*tex 
+        We assume that |ignore_depth_criterium_par| is unchanged. If needed we can always do 
+        this: 
+    */
+
+ /* cur_list.prev_depth = ignore_depth_criterium_par; */
+
     /*tex Ready to go, so come to life. */
 
     lmt_error_state.history = spotless;
 
-    {
-        int dump = tex_main_control();
-        if (dump && lmt_main_state.run_state != initializing_state) {
-            /*tex Maybe we need to issue a warning here. For now we just ignore it. */
-            dump = 0;
-        }
-        final_cleanup(dump);
-    }
+ // {
+ //     int dump = tex_main_control();
+ //     if (dump && lmt_main_state.run_state != initializing_state) {
+ //         /*tex Maybe we need to issue a warning here. For now we just ignore it. */
+ //         dump = 0;
+ //     }
+ //     final_cleanup(dump);
+ // }
+    final_cleanup(tex_main_control());
 
     tex_close_files_and_terminate(0);
 

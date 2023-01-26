@@ -477,6 +477,7 @@ typedef enum int_codes {
     tracing_nodes_code,                 /*tex show node numbers too */
     tracing_full_boxes_code,            /*tex show [over/under]full boxes in the log */
     tracing_penalties_code,   
+    tracing_lists_code,   
     uc_hyph_code,                       /*tex hyphenate words beginning with a capital letter */
     output_penalty_code,                /*tex penalty found at current page break */
     max_dead_cycles_code,               /*tex bound on consecutive dead cycles of output */
@@ -635,6 +636,7 @@ typedef enum dimen_codes {
     px_dimen_code,
     tab_size_code,
     page_extra_goal_code,
+    ignore_depth_criterium_code,
     /*tex total number of dimension parameters */
     number_dimen_pars,
 } dimen_codes;
@@ -718,7 +720,10 @@ typedef enum attribute_codes {
 # define internal_specification_location(a) (internal_specification_base + (a))
 # define internal_specification_number(a)   ((a) - internal_specification_base)
 
-# define eqtb_size (internal_specification_base + number_specification_pars)
+# define eqtb_size       (internal_specification_base + number_specification_pars)
+# define eqtb_max_so_far (eqtb_size + lmt_hash_state.hash_data.ptr + 1)
+
+/* below: top or ptr +1 ? */
 
 # define eqtb_indirect_range(n) ((n < internal_glue_base) || ((n > eqtb_size) && (n <= lmt_hash_state.hash_data.top)))
 # define eqtb_out_of_range(n)   ((n >= undefined_control_sequence) && ((n <= eqtb_size) || n > lmt_hash_state.hash_data.top))
@@ -797,8 +802,8 @@ extern void tex_undump_equivalents_mem  (dumpstream f);
 */
 
 typedef struct save_record {
-    quarterword saved_level;
-    quarterword saved_type;  /*tex We need less so we can actually decide to store the offset as check. */
+    union       { quarterword saved_level;  quarterword saved_extra; };
+    quarterword saved_type; 
     halfword    saved_value; /*tex Started out as padding, is now actually used for value. */
     memoryword  saved_word;
 } save_record;
@@ -809,7 +814,7 @@ typedef struct save_state_info {
     quarterword  current_level;        /*tex current nesting level for groups */
     quarterword  current_group;        /*tex current group type */
     int          current_boundary;     /*tex where the current level begins */
-    int          padding;
+ // int          padding;
 } save_state_info;
 
 extern save_state_info lmt_save_state;
@@ -821,22 +826,20 @@ extern save_state_info lmt_save_state;
 /*tex
 
     We use the notation |saved(k)| to stand for an item that appears in location |save_ptr + k| of
-    the save stack.
-
-    The level field is also available for other purposes, so maybe we need an alias that is more
-    generic.
+    the save stack. The level field is also available for other purposes, so we have |extra| as an 
+    more generic alias.
 
 */
 
 # define save_type(A)   lmt_save_state.save_stack[(A)].saved_type  /*tex classifies a |save_stack| entry */
-# define save_extra(A)  lmt_save_state.save_stack[(A)].saved_level /*tex a more generic alias: to be used */
+# define save_extra(A)  lmt_save_state.save_stack[(A)].saved_extra /*tex a more generic alias */
 # define save_level(A)  lmt_save_state.save_stack[(A)].saved_level /*tex saved level for regions 5 and 6, or group code, or ...  */
 # define save_value(A)  lmt_save_state.save_stack[(A)].saved_value /*tex |eqtb| location or token or |save_stack| location or ... */
 # define save_word(A)   lmt_save_state.save_stack[(A)].saved_word  /*tex |eqtb| entry */
 
 # define saved_valid(A) (lmt_save_state.save_stack_data.ptr + (A) >= 0)
 # define saved_type(A)  lmt_save_state.save_stack[lmt_save_state.save_stack_data.ptr + (A)].saved_type
-# define saved_extra(A) lmt_save_state.save_stack[lmt_save_state.save_stack_data.ptr + (A)].saved_level
+# define saved_extra(A) lmt_save_state.save_stack[lmt_save_state.save_stack_data.ptr + (A)].saved_extra
 # define saved_level(A) lmt_save_state.save_stack[lmt_save_state.save_stack_data.ptr + (A)].saved_level
 # define saved_value(A) lmt_save_state.save_stack[lmt_save_state.save_stack_data.ptr + (A)].saved_value
 # define saved_word(A)  lmt_save_state.save_stack[lmt_save_state.save_stack_data.ptr + (A)].saved_word
@@ -927,6 +930,7 @@ typedef enum save_types {
     adjust_attr_list_save_type,
     adjust_depth_before_save_type,
     adjust_depth_after_save_type,
+    adjust_target_save_type,
 } save_types;
 
 /*tex Nota bena: |equiv_value| is the same as |equiv| but sometimes we use that name instead. */
@@ -967,6 +971,7 @@ typedef enum tex_group_codes {
     adjusted_hbox_group, /*tex code for |\hbox| in vertical mode */
     vbox_group,          /*tex code for |\vbox| */
     vtop_group,          /*tex code for |\vtop| */
+    dbox_group,          /*tex code for |\dbox| */
     align_group,         /*tex code for |\halign|, |\valign| */
     no_align_group,      /*tex code for |\noalign| */
     output_group,        /*tex code for output routine */
@@ -984,8 +989,10 @@ typedef enum tex_group_codes {
     also_simple_group,   /*tex code for |\begingroup|\unknown|\egroup| */
     semi_simple_group,   /*tex code for |\begingroup|\unknown|\endgroup| */
     math_simple_group,   /*tex code for |\beginmathgroup|\unknown|\endmathgroup| */
-    math_shift_group,    /*tex code for |$|\unknown\|$| */
     math_fence_group,    /*tex code for fences |\left|\unknown|\right| */
+    math_inline_group,   
+    math_display_group,  
+    math_number_group,     
     local_box_group,     /*tex code for |\localleftbox|\unknown|localrightbox| */
     split_off_group,     /*tex box code for the top part of a |\vsplit| */
     split_keep_group,    /*tex box code for the bottom part of a |\vsplit| */
@@ -1011,6 +1018,7 @@ typedef enum tex_par_context_codes {
     vmode_par_context,
     vbox_par_context,
     vtop_par_context,
+    dbox_par_context,
     vcenter_par_context,
     vadjust_par_context,
     insert_par_context,
@@ -1154,6 +1162,7 @@ typedef enum flag_bit {
     value_flag_bit         = 0x08000,
     semiprotected_flag_bit = 0x10000,
     inherited_flag_bit     = 0x20000,
+    constant_flag_bit      = 0x40000,
 } flag_bits;
 
 /*tex Flags: */
@@ -1179,6 +1188,7 @@ typedef enum flag_bit {
 # define add_conditional_flag(a)    ((a) | conditional_flag_bit)
 # define add_value_flag(a)          ((a) | value_flag_bit)
 # define add_inherited_flag(a)      ((a) | inherited_flag_bit)
+# define add_constant_flag(a)       ((a) | constant_flag_bit)
 
 # define remove_flag(a,b)           ((a) & ~(b))
 
@@ -1200,25 +1210,50 @@ typedef enum flag_bit {
 # define remove_conditional_flag(a) ((a) & ~conditional_flag_bit)
 # define remove_value_flag(a)       ((a) & ~value_flag_bit)
 
-# define is_frozen(a)               (((a) & frozen_flag_bit)    == frozen_flag_bit)
-# define is_permanent(a)            (((a) & permanent_flag_bit) == permanent_flag_bit)
-# define is_immutable(a)            (((a) & immutable_flag_bit) == immutable_flag_bit)
-# define is_primitive(a)            (((a) & primitive_flag_bit) == primitive_flag_bit)
-# define is_mutable(a)              (((a) & mutable_flag_bit)   == mutable_flag_bit)
-# define is_noaligned(a)            (((a) & noaligned_flag_bit) == noaligned_flag_bit)
-# define is_instance(a)             (((a) & instance_flag_bit)  == instance_flag_bit)
-# define is_untraced(a)             (((a) & untraced_flag_bit)  == untraced_flag_bit)
+// do we really need the == here 
 
-# define is_global(a)               (((a) & global_flag_bit)        == global_flag_bit)
-# define is_tolerant(a)             (((a) & tolerant_flag_bit)      == tolerant_flag_bit)
-# define is_protected(a)            (((a) & protected_flag_bit)     == protected_flag_bit)
-# define is_semiprotected(a)        (((a) & semiprotected_flag_bit) == semiprotected_flag_bit)
-# define is_overloaded(a)           (((a) & overloaded_flag_bit)    == overloaded_flag_bit)
-# define is_aliased(a)              (((a) & aliased_flag_bit)       == aliased_flag_bit)
-# define is_immediate(a)            (((a) & immediate_flag_bit)     == immediate_flag_bit)
-# define is_conditional(a)          (((a) & conditional_flag_bit)   == conditional_flag_bit)
-# define is_value(a)                (((a) & value_flag_bit)         == value_flag_bit)
-# define is_inherited(a)            (((a) & inherited_flag_bit)     == inherited_flag_bit)
+// # define is_frozen(a)               (((a) & frozen_flag_bit)    == frozen_flag_bit)
+// # define is_permanent(a)            (((a) & permanent_flag_bit) == permanent_flag_bit)
+// # define is_immutable(a)            (((a) & immutable_flag_bit) == immutable_flag_bit)
+// # define is_primitive(a)            (((a) & primitive_flag_bit) == primitive_flag_bit)
+// # define is_mutable(a)              (((a) & mutable_flag_bit)   == mutable_flag_bit)
+// # define is_noaligned(a)            (((a) & noaligned_flag_bit) == noaligned_flag_bit)
+// # define is_instance(a)             (((a) & instance_flag_bit)  == instance_flag_bit)
+// # define is_untraced(a)             (((a) & untraced_flag_bit)  == untraced_flag_bit)
+// 
+// # define is_global(a)               (((a) & global_flag_bit)        == global_flag_bit)
+// # define is_tolerant(a)             (((a) & tolerant_flag_bit)      == tolerant_flag_bit)
+// # define is_protected(a)            (((a) & protected_flag_bit)     == protected_flag_bit)
+// # define is_semiprotected(a)        (((a) & semiprotected_flag_bit) == semiprotected_flag_bit)
+// # define is_overloaded(a)           (((a) & overloaded_flag_bit)    == overloaded_flag_bit)
+// # define is_aliased(a)              (((a) & aliased_flag_bit)       == aliased_flag_bit)
+// # define is_immediate(a)            (((a) & immediate_flag_bit)     == immediate_flag_bit)
+// # define is_conditional(a)          (((a) & conditional_flag_bit)   == conditional_flag_bit)
+// # define is_value(a)                (((a) & value_flag_bit)         == value_flag_bit)
+// # define is_inherited(a)            (((a) & inherited_flag_bit)     == inherited_flag_bit)
+// # define is_constant(a)             (((a) & constant_flag_bit)      == constant_flag_bit)
+
+# define is_frozen(a)               (((a) & frozen_flag_bit))
+# define is_permanent(a)            (((a) & permanent_flag_bit))
+# define is_immutable(a)            (((a) & immutable_flag_bit))
+# define is_primitive(a)            (((a) & primitive_flag_bit))
+# define is_mutable(a)              (((a) & mutable_flag_bit))
+# define is_noaligned(a)            (((a) & noaligned_flag_bit))
+# define is_instance(a)             (((a) & instance_flag_bit))
+# define is_untraced(a)             (((a) & untraced_flag_bit))
+
+# define is_global(a)               (((a) & global_flag_bit))
+# define is_tolerant(a)             (((a) & tolerant_flag_bit))
+# define is_protected(a)            (((a) & protected_flag_bit))
+# define is_semiprotected(a)        (((a) & semiprotected_flag_bit))
+# define is_overloaded(a)           (((a) & overloaded_flag_bit))
+# define is_aliased(a)              (((a) & aliased_flag_bit))
+# define is_immediate(a)            (((a) & immediate_flag_bit))
+# define is_conditional(a)          (((a) & conditional_flag_bit))
+# define is_value(a)                (((a) & value_flag_bit))
+# define is_inherited(a)            (((a) & inherited_flag_bit))
+# define is_constant(a)             (((a) & constant_flag_bit))
+
 
 # define is_expandable(cmd)         (cmd > max_command_cmd)
 
@@ -1253,6 +1288,7 @@ inline static singleword tex_flags_to_cmd(int flags)
 
 extern int  tex_define_permitted   (halfword cs, halfword prefixes);
 extern void tex_define             (int g, halfword p, singleword cmd, halfword chr);
+extern void tex_define_again       (int g, halfword p, singleword cmd, halfword chr);
 extern void tex_define_inherit     (int g, halfword p, singleword flag, singleword cmd, halfword chr);
 extern void tex_define_swapped     (int g, halfword p1, halfword p2, int force);
 extern void tex_forced_define      (int g, halfword p, singleword flag, singleword cmd, halfword chr);
@@ -1349,6 +1385,8 @@ extern void tex_forced_word_define (int g, halfword p, singleword flag, halfword
 # define split_max_depth_par             dimen_parameter(split_max_depth_code)
 # define overfull_rule_par               dimen_parameter(overfull_rule_code)
 # define box_max_depth_par               dimen_parameter(box_max_depth_code)
+# define ignore_depth_criterium_par      dimen_parameter(ignore_depth_criterium_code)
+
 # define top_skip_par                    glue_parameter(top_skip_code)
 # define split_top_skip_par              glue_parameter(split_top_skip_code)
 
@@ -1521,6 +1559,22 @@ typedef enum shaping_penalties_mode_bits {
 # define tracing_nodes_par               count_parameter(tracing_nodes_code)
 # define tracing_full_boxes_par          count_parameter(tracing_full_boxes_code)
 # define tracing_penalties_par           count_parameter(tracing_penalties_code)
+# define tracing_lists_par               count_parameter(tracing_lists_code)
+
+/*tex 
+    This tracer is mostly there for debugging purposes. Therefore what gets traced and how might
+    change depending on my needs. 
+*/
+
+typedef enum tracing_lists_codes {
+    trace_direction_list_code = 0x0001, 
+    trace_paragraph_list_code = 0x0002, 
+    trace_linebreak_list_code = 0x0004, 
+} tracing_lists_codes;
+
+# define tracing_direction_lists         ((tracing_lists_par & trace_direction_list_code) == trace_direction_list_code)
+# define tracing_paragraph_lists         ((tracing_lists_par & trace_paragraph_list_code) == trace_paragraph_list_code)
+# define tracing_linebreak_lists         ((tracing_lists_par & trace_linebreak_list_code) == trace_linebreak_list_code)
 
 # define show_box_depth_par              count_parameter(show_box_depth_code)
 # define show_box_breadth_par            count_parameter(show_box_breadth_code)
@@ -1762,8 +1816,8 @@ extern halfword tex_explicit_disc_penalty  (halfword mode);
 # define update_tex_tab_skip_local(v)          tex_eq_define(internal_glue_location(tab_skip_code), internal_glue_reference_cmd, v);
 # define update_tex_tab_skip_global(v)        tex_geq_define(internal_glue_location(tab_skip_code), internal_glue_reference_cmd, v);
 
-# define update_tex_box_local(n,v)             tex_eq_define(register_box_location(n) - box_flag,        register_box_reference_cmd, v);
-# define update_tex_box_global(n,v)           tex_geq_define(register_box_location(n) - global_box_flag, register_box_reference_cmd, v);
+# define update_tex_box_local(n,v)             tex_eq_define(register_box_location(n), register_box_reference_cmd, v);
+# define update_tex_box_global(n,v)           tex_geq_define(register_box_location(n), register_box_reference_cmd, v);
 
 # define update_tex_insert_mode(a,v)           tex_word_define(a, internal_int_location(insert_mode_code), v)
 

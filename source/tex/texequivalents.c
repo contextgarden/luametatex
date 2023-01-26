@@ -94,7 +94,7 @@ save_state_info lmt_save_state = {
     .current_level    = 0,
     .current_group    = 0,
     .current_boundary = 0,
-    .padding          = 0,
+ // .padding          = 0,
 };
 
 /*tex
@@ -243,6 +243,7 @@ void tex_dump_equivalents_mem(dumpstream f)
     /*tex A special register. */
     dump_int(f, lmt_token_state.par_loc);
  /* dump_int(f, lmt_token_state.line_par_loc); */ /*tex See note in textoken.c|. */
+    dump_int(f, lmt_token_state.empty);
 }
 
 void tex_undump_equivalents_mem(dumpstream f)
@@ -284,6 +285,7 @@ void tex_undump_equivalents_mem(dumpstream f)
  /* } else { */
  /*     tex_fatal_undump_error("lineparloc"); */
  /* } */
+    undump_int(f, lmt_token_state.empty);
     return;
 }
 
@@ -505,11 +507,17 @@ static int tex_aux_save_value(int id)
     return i ? saved_value(i) : 0;
 }
 
+static int tex_aux_save_level(int id)
+{
+    int i = tex_aux_found_save_type(id);
+    return i ? saved_level(i) : 0;
+}
+
 static int tex_aux_saved_box_spec(halfword *packing, halfword *amount)
 {
     int i = tex_aux_found_save_type(box_spec_save_type);
     if (i) {
-        *packing = saved_level(i);
+        *packing = saved_extra(i);
         *amount = saved_value(i);
     } else {
         *packing = 0;
@@ -567,9 +575,12 @@ void tex_show_save_groups(void)
             case vtop_group:
                 package = "vtop";
                 break;
+            case dbox_group:
+                package = "dbox";
+                break;
             case align_group:
                 if (alignmentstate == 0) {
-                    package = (mode == -vmode) ? "halign" : "valign";
+                    package = (mode == internal_vmode) ? "halign" : "valign";
                     alignmentstate = 1;
                     goto FOUND1;
                 } else {
@@ -653,60 +664,63 @@ void tex_show_save_groups(void)
          //     ++pointer;
          //     tex_print_str_esc("beginmathgroup");
          //     goto FOUND2;
-            case math_shift_group:
-                if (mode == mmode) {
-                    tex_print_char('$');
-                } else if (lmt_nest_state.nest[pointer].mode == mmode) {
-                    tex_print_cmd_chr(equation_number_cmd, tex_aux_save_value(saved_equation_number_item_location));
-                    goto FOUND2;
-                }
+            case math_inline_group:
                 tex_print_char('$');
+            case math_display_group:
+                tex_print_char('$');
+                goto FOUND2;
+            case math_number_group:
+                tex_print_cmd_chr(equation_number_cmd, tex_aux_save_value(saved_equation_number_item_location));
                 goto FOUND2;
             case math_fence_group:
                 /* kind of ugly ... maybe also save that one */ /* todo: operator */
-                tex_print_str_esc((node_subtype(lmt_nest_state.nest[pointer + 1].delim) == left_fence_side) ? "left" : "middle");
+                tex_print_str_esc((node_subtype(lmt_nest_state.nest[pointer + 1].delimiter) == left_fence_side) ? "left" : "middle");
                 goto FOUND2;
             default:
                 tex_confusion("show groups");
                 break;
         }
-        /*tex Show the box context */
-        {
-            int i = tex_aux_save_value(saved_full_spec_item_context);;
-            if (i) {
-                if (i < box_flag) {
-                    /* this is pretty horrible and likely wrong */
-                    singleword cmd = (abs(lmt_nest_state.nest[pointer].mode) == vmode) ? hmove_cmd : vmove_cmd;
-                    tex_print_cmd_chr(cmd, (i > 0) ? move_forward_code : move_backward_code);
-                    tex_print_dimension(abs(i), pt_unit);
-                } else if (i <= max_global_box_flag) {
-                    if (i >= global_box_flag) {
-                        tex_print_str_esc("global");
-                        i -= (global_box_flag - box_flag);
-                    }
-                    tex_print_str_esc("setbox");
-                    tex_print_int(i - box_flag);
-                    tex_print_char('=');
-                } else {
-                    switch (i) {
-                        case a_leaders_flag:
-                            tex_print_cmd_chr(leader_cmd, a_leaders);
-                            break;
-                        case c_leaders_flag:
-                            tex_print_cmd_chr(leader_cmd, c_leaders);
-                            break;
-                        case x_leaders_flag:
-                            tex_print_cmd_chr(leader_cmd, x_leaders);
-                            break;
-                        case g_leaders_flag:
-                            tex_print_cmd_chr(leader_cmd, g_leaders);
-                            break;
-                        case u_leaders_flag:
-                            tex_print_cmd_chr(leader_cmd, u_leaders);
-                            break;
+        /*tex 
+            Show the box context. In traditional \TEX\ the shift is encoded in the context which is 
+            why it had such a large offset for the other context value. That somewhat dirty trick 
+            was has stepwise been removed.
+        */
+        switch (tex_aux_save_value(saved_full_spec_item_context)) {
+            case direct_box_flag:
+                {
+                    scaled shift = tex_aux_save_value(saved_full_spec_item_shift);
+                    if (shift != null_flag) { 
+                        /*tex We passed the safeguard. */
+                        singleword cmd = is_v_mode(lmt_nest_state.nest[pointer].mode) ? hmove_cmd : vmove_cmd;
+                        tex_print_cmd_chr(cmd, (shift > 0) ? move_forward_code : move_backward_code);
+                        tex_print_dimension(abs(shift), pt_unit);
                     }
                 }
-            }
+                break;
+            case global_box_flag:
+                tex_print_str_esc("global");
+            case box_flag:
+                {
+                    tex_print_str_esc("setbox");
+                    tex_print_int(tex_aux_save_level(saved_full_spec_item_context));
+                    tex_print_char('=');
+                }
+                break;
+            case a_leaders_flag:
+                tex_print_cmd_chr(leader_cmd, a_leaders);
+                break;
+            case c_leaders_flag:
+                tex_print_cmd_chr(leader_cmd, c_leaders);
+                break;
+            case x_leaders_flag:
+                tex_print_cmd_chr(leader_cmd, x_leaders);
+                break;
+            case g_leaders_flag:
+                tex_print_cmd_chr(leader_cmd, g_leaders);
+                break;
+            case u_leaders_flag:
+                tex_print_cmd_chr(leader_cmd, u_leaders);
+                break;
         }
       FOUND1:
         {
@@ -996,16 +1010,17 @@ inline static int tex_aux_equal_eq(halfword p, singleword cmd, singleword flag, 
             case register_toks_cmd:
                 /*tex Again we have references. */
                 if (eq_value(p) == chr) {
-            //  if (eq_value(p) == chr && eq_level(p) == cur_level) {
+             // if (eq_value(p) == chr && eq_level(p) == cur_level) {
                     return 1;
                 } else {
                     return 0;
                 }
-         // case dimension_cmd:
-         // case integer_cmd:
-         //     if (eq_type(p) == cmd && eq_value(p) == chr && eq_level(p) == cur_level) {
-         //         return 1;
-         //     }
+            case dimension_cmd:
+            case integer_cmd:
+                if (eq_type(p) == cmd && eq_value(p) == chr) {
+             // if (eq_type(p) == cmd && eq_value(p) == chr && eq_level(p) == cur_level) {
+                    return 1;
+                }
             default:
                 /*tex
                     We can best also check the level because for integer defs etc we run into
@@ -1174,6 +1189,37 @@ void tex_define(int g, halfword p, singleword t, halfword e) /* int g -> singlew
     }
 }
 
+void tex_define_again(int g, halfword p, singleword t, halfword e) /* int g -> singleword g */
+{
+    if (tracing_assigns_par > 0) { 
+        singleword f = make_eq_flag_bits(g);
+        if (is_global(g)) {
+            /* what if already global */
+            tex_aux_diagnostic_trace(p, "globally changing");
+         // if (tex_aux_equal_eq(p, t, f, e) && (eq_level(p) == level_one)) {
+         //     return; /* we can save some stack */
+         // }
+            tex_aux_eq_destroy(lmt_hash_state.eqtb[p]);
+            tex_aux_set_eq_data(p, t, e, f, level_one);
+        } else if (tex_aux_equal_eq(p, t, f, e)) {
+            /* hm, we tweak the ref ! */
+            tex_aux_diagnostic_trace(p, "reassigning");
+        } else {
+            tex_aux_diagnostic_trace(p, "changing");
+            if (eq_level(p) == cur_level) {
+                tex_aux_eq_destroy(lmt_hash_state.eqtb[p]);
+            } else if (cur_level > level_one) {
+                tex_aux_eq_save(p, eq_level(p));
+            }
+            tex_aux_set_eq_data(p, t, e, f, cur_level);
+        }
+        tex_aux_diagnostic_trace(p, "into");
+    } else { 
+        set_eq_type(p, t);
+        set_eq_value(p, e);    
+    }
+}
+
 void tex_define_inherit(int g, halfword p, singleword f, singleword t, halfword e)
 {
     int trace = tracing_assigns_par > 0;
@@ -1257,7 +1303,9 @@ void tex_define_swapped(int g, halfword p1, halfword p2, int force)
                goto NOTDONE;
            }
         }
-        {
+        if (v1 == v2)  {
+            return; 
+        } else {
             switch (t1) {
                 case register_int_cmd:
                 case register_attribute_cmd:
@@ -1777,7 +1825,7 @@ void tex_aux_show_eqtb(halfword n)
         tex_print_cmd_chr(eq_type(n), eq_value(n));
         if (eq_type(n) >= call_cmd) {
             tex_print_char(':');
-            tex_token_show(eq_value(n), default_token_show_min);
+            tex_token_show(eq_value(n));
         }
     } else {
         switch (eq_type(n)) {
@@ -1789,7 +1837,7 @@ void tex_aux_show_eqtb(halfword n)
                 tex_print_int(register_toks_number(n));
               TOKS:
                 tex_print_char('=');
-                tex_token_show(eq_value(n), default_token_show_min);
+                tex_token_show(eq_value(n));
                 break;
             case internal_box_reference_cmd:
                 tex_print_cmd_chr(eq_type(n), n);

@@ -1703,7 +1703,8 @@ static int mplib_new(lua_State *L)
             *mpud = mp;
             mplib_aux_set_bend_tolerance(L, bendtolerance);
             mplib_aux_set_move_tolerance(L, movetolerance);
-            luaL_getmetatable(L, MP_METATABLE_INSTANCE);
+         // luaL_getmetatable(L, MP_METATABLE_INSTANCE);
+            lua_get_metatablelua(mplib_instance);
             lua_setmetatable(L, -2);
             return 1;
         }
@@ -1763,7 +1764,8 @@ static int mplib_aux_wrapresults(lua_State *L, mp_run_data *res, int status, lua
             *v = p;
             mplib_aux_set_bend_tolerance(L, bendtolerance);
             mplib_aux_set_move_tolerance(L, movetolerance);
-            luaL_getmetatable(L, MP_METATABLE_FIGURE);
+         // luaL_getmetatable(L, MP_METATABLE_FIGURE);
+            lua_get_metatablelua(mplib_figure);
             lua_setmetatable(L, -2);
             lua_rawseti(L, -2, i);
             i++;
@@ -2341,7 +2343,8 @@ static int mplib_figure_objects(lua_State *L)
             *v = p;
             mplib_aux_set_bend_tolerance(L, bendtolerance);
             mplib_aux_set_move_tolerance(L, movetolerance);
-            luaL_getmetatable(L, MP_METATABLE_OBJECT);
+         // luaL_getmetatable(L, MP_METATABLE_OBJECT);
+            lua_get_metatablelua(mplib_object);
             lua_setmetatable(L, -2);
             lua_rawseti(L, -2, i);
             i++;
@@ -2758,44 +2761,38 @@ static void mplib_aux_push_color(lua_State *L, struct mp_graphic_object *p)
 {
     if (p) {
         int object_color_model;
-        double object_color_a, object_color_b, object_color_c, object_color_d;
+        mp_color object_color;
         switch (p->type) {
             case mp_fill_code:
             case mp_stroked_code:
                 {
                     mp_shape_object *h = (mp_shape_object *) p;
                     object_color_model = h->color_model; 
-                    object_color_a = h->color.a_val; 
-                    object_color_b = h->color.b_val; 
-                    object_color_c = h->color.c_val; 
-                    object_color_d = h->color.d_val;
+                    object_color = h->color; 
                 }
                 break;
             default:
                 object_color_model = mp_no_model;
-                object_color_a = 0.0;
-                object_color_b = 0.0;
-                object_color_c = 0.0;
-                object_color_d = 0.0;
+                object_color = (mp_color) { { 0.0 }, { 0.0 }, { 0.0 }, { 0.0 } };
                 break;
         }
         switch (object_color_model) {
             case mp_grey_model:
                 lua_createtable(L, 1, 0);
-                lua_push_number_at_index(L, 1, object_color_d);
+                lua_push_number_at_index(L, 1, object_color.gray);
                 break;
             case mp_rgb_model:
                 lua_createtable(L, 3, 0);
-                lua_push_number_at_index(L, 1, object_color_a);
-                lua_push_number_at_index(L, 2, object_color_b);
-                lua_push_number_at_index(L, 3, object_color_c);
+                lua_push_number_at_index(L, 1, object_color.red);
+                lua_push_number_at_index(L, 2, object_color.green);
+                lua_push_number_at_index(L, 3, object_color.blue);
                 break;
             case mp_cmyk_model:
                 lua_createtable(L, 4, 0);
-                lua_push_number_at_index(L, 1, object_color_a);
-                lua_push_number_at_index(L, 2, object_color_b);
-                lua_push_number_at_index(L, 3, object_color_c);
-                lua_push_number_at_index(L, 4, object_color_d);
+                lua_push_number_at_index(L, 1, object_color.cyan);
+                lua_push_number_at_index(L, 2, object_color.magenta);
+                lua_push_number_at_index(L, 3, object_color.yellow);
+                lua_push_number_at_index(L, 4, object_color.black);
                 break;
             default:
                 lua_pushnil(L);

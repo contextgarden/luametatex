@@ -135,6 +135,10 @@
     as we like. All works fine for Cambria and the \TEX\ community didn't make sure that better 
     features were added (like anchors) for their shapes. 
 
+    In the end, from the perspective of ConTeXt, the italics code can completely go away which 
+    means that we also no longer have to stare at somewhat fuzzy code originating in dealing 
+    with italics. It depends on how well our latest heuristic tweaks work out. 
+
 */
 
 # include "luametatex.h"
@@ -473,11 +477,11 @@ static void tex_aux_trace_kerns(halfword kern, const char *what, const char *det
     }
 }
 
-static halfword tex_aux_math_insert_font_kern(halfword current, scaled amount, halfword template, const char *trace)
+static halfword tex_aux_math_insert_font_kern(halfword current, scaled amount, halfword attributetemplate, const char *trace)
 {
     /*tex Maybe |math_font_kern|, also to prevent expansion. */
     halfword kern = tex_new_kern_node(amount, font_kern_subtype);
-    tex_attach_attribute_list_copy(kern, template ? template : current);
+    tex_attach_attribute_list_copy(kern, attributetemplate ? attributetemplate : current);
     if (node_next(current)) {
         tex_couple_nodes(kern, node_next(current));
     }
@@ -486,11 +490,11 @@ static halfword tex_aux_math_insert_font_kern(halfword current, scaled amount, h
     return kern; 
 }
 
-static halfword tex_aux_math_insert_italic_kern(halfword current, scaled amount, halfword template, const char *trace)
+static halfword tex_aux_math_insert_italic_kern(halfword current, scaled amount, halfword attributetemplate, const char *trace)
 {
     /*tex Maybe |math_italic_kern|. */
     halfword kern = tex_new_kern_node(amount, italic_kern_subtype);
-    tex_attach_attribute_list_copy(kern, template ? template : current);
+    tex_attach_attribute_list_copy(kern, attributetemplate ? attributetemplate : current);
     if (node_next(current)) {
         tex_couple_nodes(kern, node_next(current));
     }
@@ -1322,14 +1326,14 @@ static halfword register_extensible(halfword fnt, halfword chr, int size, halfwo
 {
     int callback_id = lmt_callback_defined(register_extensible_callback);
     if (callback_id > 0) {
-        halfword b = null;
-        lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "dddN->N", fnt, chr, size, result, &b);
-        if (b) {
-            switch (node_type(b)) {
+        halfword boxed = null;
+        lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "dddN->N", fnt, chr, size, result, &boxed);
+        if (boxed) {
+            switch (node_type(boxed)) {
                 case hlist_node:
                 case vlist_node:
-                    tex_attach_attribute_list_attribute(b, att);
-                    return b;
+                    tex_attach_attribute_list_attribute(boxed, att); /* yes or no */
+                    return boxed;
                 default:
                     tex_formatted_error("fonts", "invalid extensible character %U registered for font %F, [h|v]list expected", chr, fnt);
                     break;
@@ -1421,10 +1425,12 @@ static halfword tex_aux_make_delimiter(halfword target, halfword delimiter, int 
                                 goto FOUND;
                             }
                         }
-                        if (tex_char_has_tag_from_font(curfnt, curchr, extensible_tag)) {
-                            fnt = curfnt;
-                            chr = curchr;
-                            do_parts = 1;
+                       if (tex_char_has_tag_from_font(curfnt, curchr, extensible_tag)) {
+                            if (flat ? tex_char_has_tag_from_font(curfnt, curchr, horizontal_tag) : tex_char_has_tag_from_font(curfnt, curchr, vertical_tag)) {
+                                fnt = curfnt;
+                                chr = curchr;
+                                do_parts = 1;
+                            }
                             goto FOUND;
                         } else if (count > 1000) {
                             tex_formatted_warning("fonts", "endless loop in extensible character %U of font %F", curchr, curfnt);
@@ -1662,7 +1668,7 @@ inline static void tex_aux_calculate_glue(scaled m, scaled *f, scaled *n)
     /*tex integer part of |m| */
     *n = tex_x_over_n_r(m, unity, f);
     /*tex the new glue specification */
-    if (f < 0) {
+    if (*f < 0) {
         --n;
         f += unity;
     }
@@ -2138,7 +2144,6 @@ static void tex_aux_make_over(halfword target, halfword style, halfword size, ha
         extensibles. The order is: kern, rule, gap, content.
 
     */
-    halfword result;
     scaled thickness = tex_get_math_y_parameter_checked(style, math_parameter_overbar_rule);
     scaled vgap = tex_get_math_y_parameter_checked(style, math_parameter_overbar_vgap);
     scaled kern = tex_get_math_y_parameter_checked(style, math_parameter_overbar_kern);
@@ -2148,14 +2153,16 @@ static void tex_aux_make_over(halfword target, halfword style, halfword size, ha
             thickness = t;
         }
     }
-    result = tex_aux_overbar(
-        tex_aux_clean_box(noad_nucleus(target), tex_math_style_variant(style, math_parameter_over_line_variant), style, math_nucleus_list, 0, NULL),
-        vgap, thickness, kern,
-        get_attribute_list(noad_nucleus(target)), math_over_rule_subtype, size, fam
-    );
-    node_subtype(result) = math_over_list;
-    kernel_math_list(noad_nucleus(target)) = result;
-    node_type(noad_nucleus(target)) = sub_box_node;
+    {
+        halfword result = tex_aux_overbar(
+            tex_aux_clean_box(noad_nucleus(target), tex_math_style_variant(style, math_parameter_over_line_variant), style, math_nucleus_list, 0, NULL),
+            vgap, thickness, kern,
+            get_attribute_list(noad_nucleus(target)), math_over_rule_subtype, size, fam
+        );
+        node_subtype(result) = math_over_list;
+        kernel_math_list(noad_nucleus(target)) = result;
+        node_type(noad_nucleus(target)) = sub_box_node;
+    }
 }
 
 static void tex_aux_make_under(halfword target, halfword style, halfword size, halfword fam)
@@ -2167,7 +2174,6 @@ static void tex_aux_make_under(halfword target, halfword style, halfword size, h
         rule, kern.
 
     */
-    halfword result;
     scaled thickness = tex_get_math_y_parameter_checked(style, math_parameter_underbar_rule);
     scaled vgap = tex_get_math_y_parameter_checked(style, math_parameter_underbar_vgap);
     scaled kern = tex_get_math_y_parameter_checked(style, math_parameter_underbar_kern);
@@ -2177,14 +2183,16 @@ static void tex_aux_make_under(halfword target, halfword style, halfword size, h
             thickness = t;
         }
     }
-    result = tex_aux_underbar(
-        tex_aux_clean_box(noad_nucleus(target), tex_math_style_variant(style, math_parameter_under_line_variant), style, math_nucleus_list, 0, NULL),
-        vgap, thickness, kern,
-        get_attribute_list(noad_nucleus(target)), math_under_rule_subtype, size, fam
-    );
-    node_subtype(result) = math_over_list;
-    kernel_math_list(noad_nucleus(target)) = result;
-    node_type(noad_nucleus(target)) = sub_box_node;
+    { 
+        halfword result = tex_aux_underbar(
+            tex_aux_clean_box(noad_nucleus(target), tex_math_style_variant(style, math_parameter_under_line_variant), style, math_nucleus_list, 0, NULL),
+            vgap, thickness, kern,
+            get_attribute_list(noad_nucleus(target)), math_under_rule_subtype, size, fam
+        );
+        node_subtype(result) = math_over_list;
+        kernel_math_list(noad_nucleus(target)) = result;
+        node_type(noad_nucleus(target)) = sub_box_node;
+    }
 }
 
 /*tex
@@ -4289,125 +4297,69 @@ static halfword tex_aux_analyze_script(halfword init, scriptdata *data)
 /*tex
 
     These prescripts are kind of special. For instance, should top and bottom scripts be aligned?
-    When there is are two top or two bottom, should we then just use the maxima?
+    When there is are two top or two bottom, should we then just use the maxima? Watch out, the 
+    implementation changed wrt \LUATEX. 
 
 */
 
-static void tex_aux_get_math_sup_shifts(halfword sup, halfword style, scaled *shift_up)
+static void tex_aux_get_math_sup_shifts(halfword target, halfword sup, halfword style, scaled *shift_up)
 {
-    switch (math_scripts_mode_par) {
-        case 1:
-            *shift_up = tex_get_math_y_parameter_checked(style, math_parameter_superscript_shift_up);
-            break;
-        case 2:
-            *shift_up = tex_get_math_y_parameter_checked(style, math_parameter_superscript_shift_up);
-            break;
-        case 3:
-            *shift_up = tex_get_math_y_parameter_checked(style, math_parameter_superscript_shift_up)
-                      + tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down)
-                      - tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down);
-            break;
-        case 4:
-            *shift_up = tex_get_math_y_parameter_checked(style, math_parameter_superscript_shift_up)
-                      + tex_half_scaled(tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down)
-                      - tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down));
-            break;
-        case 5:
-            *shift_up = tex_get_math_y_parameter_checked(style, math_parameter_superscript_shift_up)
-                      + tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down)
-                      - tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down);
-            break;
-        default:
-            {
-                scaled clr = tex_get_math_y_parameter_checked(style, math_parameter_superscript_shift_up);
-                scaled bot = tex_get_math_y_parameter_checked(style, math_parameter_superscript_bottom_min);
-                if (*shift_up < clr) {
-                    *shift_up = clr;
-                }
-                clr = box_depth(sup) + bot;
-                if (*shift_up < clr) {
-                    *shift_up = clr;
-                }
-                break;
-            }
+    if (has_noad_option_fixed_super_or_sub_script(target) || has_noad_option_fixed_super_and_sub_script(target)) { 
+        *shift_up = tex_get_math_y_parameter_checked(style, math_parameter_superscript_shift_up);
+    } else { 
+        scaled clr = tex_get_math_y_parameter_checked(style, math_parameter_superscript_shift_up);
+        scaled bot = tex_get_math_y_parameter_checked(style, math_parameter_superscript_bottom_min);
+        if (*shift_up < clr) {
+            *shift_up = clr;
+        }
+        clr = box_depth(sup) + bot;
+        if (*shift_up < clr) {
+            *shift_up = clr;
+        }
     }
 }
 
-static void tex_aux_get_math_sub_shifts(halfword sub, halfword style, scaled *shift_down)
+static void tex_aux_get_math_sub_shifts(halfword target, halfword sub, halfword style, scaled *shift_down)
 {
-    switch (math_scripts_mode_par) {
-        case 1:
-            *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down);
-            break;
-        case 2:
-            *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down);
-            break;
-        case 3:
-            *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down);
-            break;
-        case 4:
-            *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down)
-                        + tex_half_scaled(tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down)
-                        - tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down)) ;
-            break;
-        case 5:
-            *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down);
-            break;
-        default:
-            {
-                scaled clr = tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down);
-                scaled top = tex_get_math_y_parameter_checked(style, math_parameter_subscript_top_max);
-                if (*shift_down < clr) {
-                    *shift_down = clr;
-                }
-                clr = box_height(sub) - top;
-                if (*shift_down < clr) {
-                    *shift_down = clr;
-                }
-                break;
-            }
+    if (has_noad_option_fixed_super_or_sub_script(target)) { 
+        *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down);
+    } else if (has_noad_option_fixed_super_and_sub_script(target)) { 
+        *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down);
+    } else { 
+        scaled clr = tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down);
+        scaled top = tex_get_math_y_parameter_checked(style, math_parameter_subscript_top_max);
+        if (*shift_down < clr) {
+            *shift_down = clr;
+        }
+        clr = box_height(sub) - top;
+        if (*shift_down < clr) {
+            *shift_down = clr;
+        }
     }
 }
 
-static void tex_aux_get_math_sup_sub_shifts(halfword sup, halfword sub, halfword style, scaled *shift_up, scaled *shift_down)
+static void tex_aux_get_math_sup_sub_shifts(halfword target, halfword sup, halfword sub, halfword style, scaled *shift_up, scaled *shift_down)
 {
-    switch (math_scripts_mode_par) {
-        case 1:
-            *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down);
-            break;
-        case 2:
-            *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down);
-            break;
-        case 3:
-            *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down);
-            break;
-        case 4:
-            *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down)
-                        + tex_half_scaled(tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down)
-                        - tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down));
-            break;
-        case 5:
-            *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down);
-            break;
-        default:
-            {
-                scaled clr = tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down);
-                scaled gap = tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_vgap);
-                scaled bot = tex_get_math_y_parameter_checked(style, math_parameter_superscript_subscript_bottom_max);
-                if (*shift_down < clr) {
-                    *shift_down = clr;
-                }
-                clr = gap - ((*shift_up - box_depth(sup)) - (box_height(sub) - *shift_down));
-                if (clr > 0) {
-                    *shift_down += clr;
-                    clr = bot - (*shift_up - box_depth(sup));
-                    if (clr > 0) {
-                        *shift_up += clr;
-                        *shift_down -= clr;
-                    }
-                }
-                break;
+    if (has_noad_option_fixed_super_or_sub_script(target)) { 
+        *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_shift_down);
+    } else if (has_noad_option_fixed_super_and_sub_script(target)) { 
+        *shift_down = tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down);
+    } else { 
+        scaled clr = tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_shift_down);
+        scaled gap = tex_get_math_y_parameter_checked(style, math_parameter_subscript_superscript_vgap);
+        scaled bot = tex_get_math_y_parameter_checked(style, math_parameter_superscript_subscript_bottom_max);
+        if (*shift_down < clr) {
+            *shift_down = clr;
+        }
+        clr = gap - ((*shift_up - box_depth(sup)) - (box_height(sub) - *shift_down));
+        if (clr > 0) {
+            *shift_down += clr;
+            clr = bot - (*shift_up - box_depth(sup));
+            if (clr > 0) {
+                *shift_up += clr;
+                *shift_down -= clr;
             }
+        }
     }
 }
 
@@ -4802,6 +4754,24 @@ inline static int tex_aux_raise_prime_composed(halfword target)
     return mainclass >= 0 ? tex_math_has_class_option(mainclass, raise_prime_option) : 0;                
 }
 
+static halfword tex_aux_shift_to_kern(halfword target, halfword box, scaled shift)
+{
+    halfword result; 
+    if (box_source_anchor(box)) { 
+        halfword kern = tex_new_kern_node(shift, vertical_math_kern_subtype);
+        tex_attach_attribute_list_copy(kern, target);
+        tex_couple_nodes(kern, box);
+        result = tex_vpack(kern, 0, packing_additional, max_dimen, (singleword) math_direction_par, holding_none_option);
+        tex_attach_attribute_list_copy(result, target);
+        node_subtype(result) = math_scripts_list;
+        box_shift_amount(result) = shift;
+    } else { 
+        box_shift_amount(box) = shift;
+        result = box;
+    }
+    return result;
+}
+
 static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic, int style, scaled supshift, scaled subshift, scaled supdrop, kernset *kerns)
 {
     halfword result = null;
@@ -5178,9 +5148,9 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
         /* */
         if (postsupdata.box) {
             /* Do we still want to chain these sups or should we combine it? */
-            tex_aux_get_math_sup_shifts(postsupdata.box, style, &shift_up); /* maybe only in else branch */
+            tex_aux_get_math_sup_shifts(target, postsupdata.box, style, &shift_up); /* maybe only in else branch */
             if (postsubdata.box) {
-                tex_aux_get_math_sup_sub_shifts(postsupdata.box, postsubdata.box, style, &shift_up, &shift_down);
+                tex_aux_get_math_sup_sub_shifts(target, postsupdata.box, postsubdata.box, style, &shift_up, &shift_down);
                 tex_aux_get_sup_kern(kernel, &postsupdata, shift_up, supshift, &supkern, kerns);
                 tex_aux_get_sub_kern(kernel, &postsubdata, shift_down, subshift, &subkern, kerns);
                 if (primestate == prime_at_begin_location) {
@@ -5225,23 +5195,21 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
                 } else if (supkern) {
                     tex_aux_prepend_hkern_to_box_list(postsupdata.box, supkern, math_shape_kern_subtype, "post sup shape");
                 }
-                box_shift_amount(postsupdata.box) = -shift_up;
-                result = postsupdata.box;
+                result = tex_aux_shift_to_kern(target, postsupdata.box, -shift_up);
                 if (presupdata.kern) {
                     kern_amount(presupdata.kern) += -supkern - subkern - italicmultiplier * italic;
                     kern_amount(postsupdata.kern) += supkern + subkern + italicmultiplier * italic;
                 }
             }
         } else {
-            tex_aux_get_math_sub_shifts(postsubdata.box, style, &shift_down);
+            tex_aux_get_math_sub_shifts(target, postsubdata.box, style, &shift_down);
             tex_aux_get_sub_kern(kernel, &postsubdata, shift_down, subshift, &subkern, kerns);
             if (primestate == prime_at_begin_location) {
                 subkern = 0;
             } else if (subkern) {
                 tex_aux_prepend_hkern_to_box_list(postsubdata.box, subkern, math_shape_kern_subtype, "post sub shape");
             }
-            box_shift_amount(postsubdata.box) = shift_down;
-            result = postsubdata.box;
+            result = tex_aux_shift_to_kern(target, postsubdata.box, shift_down);
             if (presubdata.kern) {
                 kern_amount(presubdata.kern) += -subkern;
                 kern_amount(postsubdata.kern) += subkern;
@@ -5275,8 +5243,8 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
     if (presubdata.box) {
         if (presupdata.box) {
             /* Do we still want to chain these sups or should we combine it? */
-            tex_aux_get_math_sup_shifts(presupdata.box, style, &shift_up);
-            tex_aux_get_math_sup_sub_shifts(presupdata.box, presubdata.box, style, &shift_up, &shift_down);
+            tex_aux_get_math_sup_shifts(target, presupdata.box, style, &shift_up);
+            tex_aux_get_math_sup_sub_shifts(target, presupdata.box, presubdata.box, style, &shift_up, &shift_down);
             prekern = box_width(presupdata.box);
             // test: what with negative extra kerns and what with a negative width
             if (! splitscripts) {
@@ -5297,7 +5265,7 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
                 box_shift_amount(preresult) = shift_down;
             }
         } else {
-            tex_aux_get_math_sub_shifts(presubdata.box, style, &shift_down);
+            tex_aux_get_math_sub_shifts(target, presubdata.box, style, &shift_down);
             if (! splitscripts) {
                 prekern = box_width(presubdata.box);
                 presubdata.box = tex_aux_combine_script(target, kernelsize.wd, presubdata.box, null, &presubdata.kern, &postsubdata.kern);
@@ -5306,7 +5274,7 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
             preresult = presubdata.box;
         }
     } else if (presupdata.box) {
-        tex_aux_get_math_sup_shifts(presupdata.box, style, &shift_up);
+        tex_aux_get_math_sup_shifts(target, presupdata.box, style, &shift_up);
         if (! splitscripts) {
             prekern = box_width(presupdata.box);
             presupdata.box = tex_aux_combine_script(target, kernelsize.wd, presupdata.box, null, &presupdata.kern, &postsupdata.kern);
@@ -5576,9 +5544,9 @@ if (! stack && has_noad_option_exact(target)) {
     }
 }
 
-inline static int tex_aux_fallback_math_spacing_class(halfword style, halfword class)
+inline static int tex_aux_fallback_math_spacing_class(halfword style, halfword mathclass)
 {
-    unsigned parent = (unsigned) count_parameter(first_math_class_code + class);
+    unsigned parent = (unsigned) count_parameter(first_math_class_code + mathclass);
     switch (style) {
         case display_style:       case cramped_display_style:       return (parent >> 24) & 0xFF;
         case text_style:          case cramped_text_style:          return (parent >> 16) & 0xFF;
@@ -5709,9 +5677,9 @@ static halfword tex_aux_math_spacing_glue(halfword ltype, halfword rtype, halfwo
     }
 }
 
-inline static int tex_aux_fallback_math_ruling_class(halfword style, halfword class)
+inline static int tex_aux_fallback_math_ruling_class(halfword style, halfword mathclass)
 {
-    unsigned parent = (unsigned) count_parameter(first_math_atom_code + class);
+    unsigned parent = (unsigned) count_parameter(first_math_atom_code + mathclass);
     switch (style) {
         case display_style:       case cramped_display_style:       return (parent >> 24) & 0xFF;
         case text_style:          case cramped_text_style:          return (parent >> 16) & 0xFF;
@@ -6231,22 +6199,46 @@ static void tex_aux_show_math_list(const char *fmt, halfword list)
     tex_end_diagnostic();
 }
 
+static halfword tex_aux_check_source(halfword current, halfword list, int repack)
+{
+    if (list && noad_source(current)) {
+        switch (node_type(list)) {
+            case hlist_node:
+            case vlist_node:
+             // printf("anchoring to list: %i\n", noad_source(current));
+                box_source_anchor(list) = noad_source(current);
+                tex_set_box_geometry(list, anchor_geometry);
+                noad_source(current) = 0; 
+                break;
+            default:
+                if (repack) {
+                    if (tracing_math_par >= 2) {
+                        tex_begin_diagnostic();
+                        tex_print_format("[math: packing due to source field %D]", noad_source(current));
+                        tex_end_diagnostic();
+                    }
+                    list = tex_hpack(list, 0, packing_additional, direction_unknown, holding_none_option);
+                 // printf("anchoring to wrapped list: %i\n", noad_source(current));
+                    tex_attach_attribute_list_copy(list, current);
+                    box_source_anchor(list) = noad_source(current);
+                    noad_source(current) = 0; 
+                    tex_set_box_geometry(list, anchor_geometry);
+                    noad_new_hlist(current) = list;
+                    node_subtype(list) = math_pack_list;
+                }
+                break;
+        }
+    } else {
+        /* can't happen as we already checked before the call */
+    }
+    return list; 
+}
+
 static void tex_aux_wrapup_nucleus_and_add_scripts(halfword current, halfword nxt, int current_style, halfword *italic, kernset *kerns)
 {
     halfword p = tex_aux_check_nucleus_complexity(current, italic, current_style, lmt_math_state.size, kerns);
     if (p && noad_source(current)) {
-        switch (node_type(p)) {
-            case hlist_node:
-            case vlist_node:
-                if (! box_source_anchor(p)) {
-                    box_source_anchor(p) = noad_source(current);
-                    tex_set_box_geometry(p, anchor_geometry);
-                }
-                break;
-            default:
-                /*tex Todo: maybe pack and assign! */
-                break;
-        }
+        p = tex_aux_check_source(current, p, has_noad_option_source_on_nucleus(current));
     }
     if (noad_has_scripts(current)) {
         scaled drop = 0;
@@ -6586,12 +6578,13 @@ static void tex_mlist_to_hlist_preroll_dimensions(mliststate *state)
                 state->max_depth = siz.dp;
             }
         }
-      DONE_WITH_NODE:
+//    DONE_WITH_NODE:
         if ((node_type(current) == simple_noad) && noad_new_hlist(current)) { 
             if (has_noad_option_phantom(current) || has_noad_option_void(current)) {
                 noad_new_hlist(current) = tex_aux_make_list_phantom(noad_new_hlist(current), has_noad_option_void(current), get_attribute_list(current));
             }
         } 
+      DONE_WITH_NODE:
         current = node_next(current);
     }
 }
@@ -6730,28 +6723,7 @@ static void tex_mlist_to_hlist_finalize_list(mliststate *state)
                                     current_subtype = disc_class(box_list(list));
                                 }
                                 if (list && noad_source(current)) {
-                                    if (tracing_math_par >= 2) {
-                                        tex_begin_diagnostic();
-                                        tex_print_format("[math: packing due to source field %D]", noad_source(current));
-                                        tex_end_diagnostic();
-                                    }
-                                    switch (node_type(list)) {
-                                        case hlist_node:
-                                        case vlist_node:
-                                            if (! box_source_anchor(list)) {
-                                                box_source_anchor(list) = noad_source(current);
-                                                tex_set_box_geometry(list, anchor_geometry);
-                                            }
-                                            break;
-                                        default:
-                                            list = tex_hpack(list, 0, packing_additional, direction_unknown, holding_none_option);
-                                            tex_attach_attribute_list_copy(list, current);
-                                            box_source_anchor(list) = noad_source(current);
-                                            tex_set_box_geometry(list, anchor_geometry);
-                                            noad_new_hlist(current) = list;
-                                            node_subtype(list) = math_pack_list;
-                                            break;
-                                    }
+                                    tex_aux_check_source(current, list, 1);
                                 } 
                                 break;
                             }
@@ -6871,6 +6843,8 @@ static void tex_mlist_to_hlist_finalize_list(mliststate *state)
             Apply some logic. The hard coded pairwise comparison is replaced by a generic one
             because we can have more classes. For a while spacing and pairing was under a mode
             control but that made no sense. We start with the begin class.  
+
+            Setting |state->beginclass| still fragile ... todo. 
         */
         recent_class_overload = get_noad_right_class(current);
         if (current_type == simple_noad && state->beginclass == unset_noad_class) {
@@ -6885,6 +6859,9 @@ static void tex_mlist_to_hlist_finalize_list(mliststate *state)
             recent = current;
             current = node_next(current);
             goto WIPE;
+        }
+        if (recent_subtype == math_begin_class) {
+            state->beginclass = current_subtype;
         }
         /*tex 
             This is a special case where a sign starts something marked as (like) numeric, in 

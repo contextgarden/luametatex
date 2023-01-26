@@ -52,7 +52,7 @@ extern void     tex_you_cant_error                  (const char *helpinfo);
 extern void     tex_off_save                        (void);
 
 extern halfword tex_local_scan_box                  (void);
-extern void     tex_box_end                         (int boxcontext, halfword boxnode, scaled shift, halfword mainclass);
+extern void     tex_box_end                         (int boxcontext, halfword boxnode, scaled shift, halfword mainclass, halfword slot);
 
 extern void     tex_get_r_token                     (void);
 
@@ -63,8 +63,6 @@ extern void     tex_local_control_message           (const char *s);
 extern void     tex_page_boundary_message           (const char *s, halfword boundary);
 
 extern void     tex_inject_text_or_line_dir         (int d, int check_glue);
-
-extern void     tex_run_prefixed_command            (void);
 
 extern void     tex_handle_assignments              (void); /*tex Used in math. */
 

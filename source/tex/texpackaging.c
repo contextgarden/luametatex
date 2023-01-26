@@ -65,9 +65,9 @@
 
  */
 
-static void tex_aux_scan_full_spec(quarterword c, quarterword spec_direction, int just_pack, scaled shift)
+static void tex_aux_scan_full_spec(halfword context, quarterword c, quarterword spec_direction, int just_pack, scaled shift, halfword slot)
 {
-    quarterword spec_code = packing_additional;
+    quarterword spec_packing = packing_additional;
     int spec_amount = 0;
     halfword attrlist = null;
     halfword orientation = 0;
@@ -85,7 +85,6 @@ static void tex_aux_scan_full_spec(quarterword c, quarterword spec_direction, in
     halfword state = 0;
     halfword retain = 0;
     halfword mainclass = unset_noad_class;
-    int context = saved_value(saved_full_spec_item_context);
     int brace = 0;
     while (1) {
         /*tex Maybe |migrate <int>| makes sense here. */
@@ -100,7 +99,7 @@ static void tex_aux_scan_full_spec(quarterword c, quarterword spec_direction, in
                         }
                         break;
                     case 'o': case 'O':
-                        spec_code = packing_exactly;
+                        spec_packing = packing_exactly;
                         spec_amount = tex_scan_dimen(0, 0, 0, 0, NULL);
                         break;
                     default:
@@ -112,7 +111,7 @@ static void tex_aux_scan_full_spec(quarterword c, quarterword spec_direction, in
                 switch (tex_scan_character("dntxDNTX", 0, 0, 0)) {
                     case 'd': case 'D':
                         if (tex_scan_mandate_keyword("adapt", 2)) {
-                            spec_code = packing_adapted;
+                            spec_packing = packing_adapted;
                             spec_amount = tex_scan_limited_scale(0);
                         }
                         break;
@@ -165,7 +164,7 @@ static void tex_aux_scan_full_spec(quarterword c, quarterword spec_direction, in
                         break;
                     case 'p': case 'P':
                         if (tex_scan_mandate_keyword("spread", 2)) {
-                            spec_code = packing_additional;
+                            spec_packing = packing_additional;
                             spec_amount = tex_scan_dimen(0, 0, 0, 0, NULL);
                         }
                         break;
@@ -300,9 +299,9 @@ static void tex_aux_scan_full_spec(quarterword c, quarterword spec_direction, in
     /*tex Now we're referenced. We need to preserve this over the group. */
     add_attribute_reference(attrlist);
     /* */
-    tex_set_saved_record(saved_full_spec_item_context, box_context_save_type, 0, context);
+    tex_set_saved_record(saved_full_spec_item_context, box_context_save_type, slot, context); /* slot fits in a quarterword */
     /*tex Traditionally these two are packed into one record: */
-    tex_set_saved_record(saved_full_spec_item_packaging, box_spec_save_type, spec_code, spec_amount);
+    tex_set_saved_record(saved_full_spec_item_packaging, box_spec_save_type, spec_packing, spec_amount);
     /*tex Adjust |text_dir_ptr| for |scan_spec|: */
     if (spec_direction != direction_unknown) {
         tex_set_saved_record(saved_full_spec_item_direction, box_direction_save_type, spec_direction, lmt_dir_state.text_dir_ptr);
@@ -742,13 +741,18 @@ inline static halfword tex_aux_used_order(halfword *total)
 
 */
 
+/*tex 
+    For now we have this here but maybe it makes sense to move the adjust migration to the adjust 
+    module (tracing and such). It's a bit fyzzy code anyway. 
+*/
+
 inline static void tex_aux_promote_pre_migrated(halfword r, halfword p)
 {
-    halfword pm = box_pre_migrated(p);
     halfword pa = box_pre_adjusted(p);
+    halfword pm = box_pre_migrated(p);
     if (pa) {
         if (lmt_packaging_state.pre_adjust_tail) {
-            lmt_packaging_state.pre_adjust_tail = tex_append_adjust_list(pre_adjust_head, lmt_packaging_state.pre_adjust_tail, pa);
+            lmt_packaging_state.pre_adjust_tail = tex_append_adjust_list(pre_adjust_head, lmt_packaging_state.pre_adjust_tail, pa, "promote");
         } else if (box_pre_adjusted(r)) {
             tex_couple_nodes(box_pre_adjusted(r), pa);
         } else {
@@ -774,11 +778,11 @@ inline static void tex_aux_promote_pre_migrated(halfword r, halfword p)
 
 inline static void tex_aux_promote_post_migrated(halfword r, halfword p)
 {
-    halfword pm = box_post_migrated(p);
     halfword pa = box_post_adjusted(p);
+    halfword pm = box_post_migrated(p);
     if (pa) {
         if (lmt_packaging_state.post_adjust_tail) {
-            lmt_packaging_state.post_adjust_tail = tex_append_adjust_list(post_adjust_head, lmt_packaging_state.post_adjust_tail, pa);
+            lmt_packaging_state.post_adjust_tail = tex_append_adjust_list(post_adjust_head, lmt_packaging_state.post_adjust_tail, pa, "promote");
         } else if (box_post_adjusted(r)) {
             tex_couple_nodes(box_post_adjusted(r), pa);
         } else {
@@ -2313,6 +2317,52 @@ halfword tex_filtered_vpack(halfword p, scaled h, int m, scaled maxdepth, int gr
     return q;
 }
 
+static scaled tex_aux_first_height(halfword boxnode) 
+{
+    halfword list = box_list(boxnode);
+    if (list) {
+        switch (node_type(list)) {
+            case hlist_node:
+            case vlist_node:
+                return box_height(list);
+            case rule_node:
+                return rule_height(list);
+        }
+    }
+    return 0;
+}
+
+static void tex_aux_set_vnature(halfword boxnode, int nature)
+{
+    switch (nature) { 
+        case vtop_code: 
+        case tsplit_code: 
+            {
+                /*tex
+
+                    Read just the height and depth of |boxnode| (|boxnode|), for |\vtop|. The height of
+                    a |\vtop| box is inherited from the first item on its list, if that item is an
+                    |hlist_node|, |vlist_node|, or |rule_node|; otherwise the |\vtop| height is zero.
+
+                */
+                scaled height = tex_aux_first_height(boxnode);
+                box_depth(boxnode) = box_total(boxnode) - height;
+                box_height(boxnode) = height;
+                box_package_state(boxnode) = vtop_package_state;
+            }
+            break;
+        case vbox_code: 
+        case vsplit_code: 
+            box_package_state(boxnode) = vbox_package_state;
+            break;
+        case dbox_code: 
+        case dsplit_code: 
+            box_package_state(boxnode) = dbox_package_state;
+            break;
+    }
+}
+
+
 /*tex
     Here we always start out in l2r mode and without shift. After all we need to be compatible with
     how it was before.
@@ -2320,11 +2370,11 @@ halfword tex_filtered_vpack(halfword p, scaled h, int m, scaled maxdepth, int gr
 
 void tex_run_vcenter(void)
 {
-    tex_aux_scan_full_spec(vcenter_group, direction_l2r, 0, 0);
+    tex_aux_scan_full_spec(direct_box_flag, vcenter_group, direction_l2r, 0, 0, -1);
     tex_normal_paragraph(vcenter_par_context);
     tex_push_nest();
-    cur_list.mode = -vmode;
-    cur_list.prev_depth = ignore_depth;
+    cur_list.mode = internal_vmode;
+    cur_list.prev_depth = ignore_depth_criterium_par;
     if (every_vbox_par) {
         tex_begin_token_list(every_vbox_par, every_vbox_text);
     }
@@ -2335,7 +2385,7 @@ void tex_finish_vcenter_group(void)
     if (! tex_wrapped_up_paragraph(vcenter_par_context)) {
         halfword p;
         tex_end_paragraph(vcenter_group, vcenter_par_context);
-        tex_package(vpack_code);
+        tex_package(vbox_code); /* todo: vcenter_code */
         p = tex_pop_tail();
         if (p) {
             switch (node_type(p)) {
@@ -2359,37 +2409,16 @@ void tex_finish_vcenter_group(void)
     }
 }
 
-inline static scaled tex_aux_checked_dimen1(halfword v)
-{
-    if (v > max_dimen) {
-        return max_dimen;
-    } else if (v < -max_dimen) {
-        return -max_dimen;
-    } else {
-        return v;
-    }
-}
-
-inline static scaled tex_aux_checked_dimen2(halfword v)
-{
-    if (v > max_dimen) {
-        return max_dimen;
-    } else if (v < 0) {
-        return 0;
-    } else {
-        return v;
-    }
-}
-
 void tex_package(singleword nature)
 {
-    halfword context, spec, dirptr, attrlist, justpack, orientation, anchor, geometry, source, target, axis, mainclass, state, retain;
+    halfword slot, context, spec, dirptr, attrlist, justpack, orientation, anchor, geometry, source, target, axis, mainclass, state, retain;
     scaled shift;
     int grp = cur_group;
     scaled maxdepth = box_max_depth_par;
     halfword boxnode = null; /*tex Aka |cur_box|. */
     tex_unsave();
     lmt_save_state.save_stack_data.ptr -= saved_full_spec_n_of_items;
+    slot = saved_extra(saved_full_spec_item_context);
     context = saved_value(saved_full_spec_item_context);
     spec = saved_value(saved_full_spec_item_packaging);
     dirptr = saved_value(saved_full_spec_item_direction);
@@ -2405,44 +2434,18 @@ void tex_package(singleword nature)
     mainclass = saved_value(saved_full_spec_item_class);
     state = saved_value(saved_full_spec_item_state);
     retain = saved_value(saved_full_spec_item_retain);
-    if (cur_list.mode == -hmode) {
-        boxnode = tex_filtered_hpack(cur_list.head, cur_list.tail, spec, saved_level(saved_full_spec_item_packaging),
-            grp, saved_level(saved_full_spec_item_direction), justpack, attrlist, state, retain);
+    if (cur_list.mode == restricted_hmode) {
+        boxnode = tex_filtered_hpack(cur_list.head, cur_list.tail, spec, saved_extra(saved_full_spec_item_packaging),
+            grp, saved_extra(saved_full_spec_item_direction), justpack, attrlist, state, retain);
         node_subtype(boxnode) = hbox_list;
         if (saved_value(saved_full_spec_item_reverse)) {
             box_list(boxnode) = tex_reversed_node_list(box_list(boxnode));
         }
         box_package_state(boxnode) = hbox_package_state;
     } else {
-        boxnode = tex_filtered_vpack(node_next(cur_list.head), spec, saved_level(saved_full_spec_item_packaging),
-            maxdepth, grp, saved_level(saved_full_spec_item_direction), justpack, attrlist, state, retain);
-        if (nature == vtop_code) {
-            /*tex
-
-                Read just the height and depth of |boxnode| (|boxnode|), for |\vtop|. The height of
-                a |\vtop| box is inherited from the first item on its list, if that item is an
-                |hlist_node|, |vlist_node|, or |rule_node|; otherwise the |\vtop| height is zero.
-
-            */
-            scaled height = 0;
-            halfword list = box_list(boxnode);
-            if (list) {
-                switch (node_type(list)) {
-                    case hlist_node:
-                    case vlist_node:
-                        height = box_height(list);
-                        break;
-                    case rule_node:
-                        height = rule_height(list);
-                        break;
-                }
-            }
-            box_depth(boxnode) = box_total(boxnode) - height;
-            box_height(boxnode) = height;
-            box_package_state(boxnode) = vtop_package_state;
-        } else {
-            box_package_state(boxnode) = vbox_package_state;
-        }
+        boxnode = tex_filtered_vpack(node_next(cur_list.head), spec, saved_extra(saved_full_spec_item_packaging),
+            maxdepth, grp, saved_extra(saved_full_spec_item_direction), justpack, attrlist, state, retain);
+        tex_aux_set_vnature(boxnode, nature);
     }
     if (dirptr) {
         /*tex Adjust back |text_dir_ptr| for |scan_spec| */
@@ -2525,176 +2528,168 @@ void tex_package(singleword nature)
     box_axis(boxnode) = (singleword) axis;
     box_package_state(boxnode) |= (singleword) state;
     tex_pop_nest();
-    tex_box_end(context, boxnode, shift, mainclass);
+    tex_box_end(context, boxnode, shift, mainclass, slot);
 }
+
+static int local_box_mapping[] = { 
+    [local_left_box_box_code  ] = local_left_box_code,
+    [local_right_box_box_code ] = local_right_box_code,
+    [local_middle_box_box_code] = local_middle_box_code
+};
 
 void tex_run_unpackage(void)
 {
     int code = cur_chr; /*tex should we copy? */
-    halfword head = cur_list.tail;
-    halfword tail = cur_list.tail;
     switch (code) {
         case box_code:
         case copy_code:
         case unpack_code:
             {
-                halfword n = tex_scan_box_register_number();
-                halfword b = box_register(n);
-                if (! b) {
-                    return;
-                } else if ((abs(cur_list.mode) == mmode)
-                       || ((abs(cur_list.mode) == vmode) && (node_type(b) != vlist_node))
-                       || ((abs(cur_list.mode) == hmode) && (node_type(b) != hlist_node))) {
-                    tex_handle_error(
-                        normal_error_type,
-                        "Incompatible list can't be unboxed",
-                        "Sorry, Pandora. (You sneaky devil.) I refuse to unbox an \\hbox in vertical mode\n"
-                        "or vice versa. And I can't open any boxes in math mode."
-                    );
-                    return;
-                } else {
-
-                    /* todo: check head, not needed, always a temp */
-
-                    /*tex Via variables for varmem assignment. */
-                    halfword list = box_list(b);
-                    halfword pre_migrated  = code == unpack_code ? null : box_pre_migrated(b);
-                    halfword post_migrated = code == unpack_code ? null : box_post_migrated(b);
-                //  halfword pre_adjusted  = code == unpack_code || (abs(cur_list.mode) == hmode) ? null : box_pre_adjusted(b);
-                //  halfword post_adjusted = code == unpack_code || (abs(cur_list.mode) == hmode) ? null : box_post_adjusted(b);
-                //  halfword pre_adjusted  = code == unpack_code ? null : box_pre_adjusted(b);
-                //  halfword post_adjusted = code == unpack_code ? null : box_post_adjusted(b);
-                    halfword pre_adjusted  = box_pre_adjusted(b);
-                    halfword post_adjusted = box_post_adjusted(b);
-                    if (pre_adjusted) {
-                        if (code == copy_code) {
-                            pre_adjusted  = tex_copy_node_list(pre_adjusted, null);
-                        } else {
-                            box_pre_adjusted(b) = null;
-                        }
-                        while (pre_adjusted) {
-                            halfword p = pre_adjusted;
-                            halfword h = adjust_list(pre_adjusted);
-                            if (h) {
-                                if (abs(cur_list.mode) == hmode) { 
-                                    halfword n = tex_new_node(adjust_node, pre_adjust_code);
-                                    adjust_list(n) = h;
-                                    h = n;
-                                }
-                                if (! head) {
-                                    head = h;
-                                }
-                                tex_try_couple_nodes(tail, h);
-                                tail = tex_tail_of_node_list(h);
-                                adjust_list(pre_adjusted) = null;
+                halfword index = tex_scan_box_register_number();
+                halfword box = box_register(index);
+                if (box) {
+                    int bad = 0;
+                    switch (cur_list.mode) {
+                        case vmode: 
+                        case internal_vmode: 
+                            if (node_type(box) != vlist_node) { 
+                                bad = 1;
                             }
-                            pre_adjusted = node_next(pre_adjusted);
-                            tex_flush_node(p);
-                        }
-                    }
-                    if (pre_migrated) {
-                        if (code == copy_code) {
-                            pre_migrated  = tex_copy_node_list(pre_migrated, null);
-                        } else {
-                            box_pre_migrated(b) = null;
-                        }
-                        tex_try_couple_nodes(tail, pre_migrated);
-                        tail = tex_tail_of_node_list(pre_migrated);
-                        if (! head) {
-                            head = pre_migrated;
-                        }
-                    }
-                    if (list) {
-                        if (code == copy_code) {
-                            list = tex_copy_node_list(list, null);
-                        } else {
-                            box_list(b) = null;
-                        }
-                        tex_try_couple_nodes(tail, list);
-                        tail = tex_tail_of_node_list(list);
-                        if (! head) {
-                            head = list;
-                        }
-                    }
-                    if (post_migrated) {
-                        if (code == copy_code) {
-                            post_migrated = tex_copy_node_list(post_migrated, null);
-                        } else {
-                            box_post_migrated(b) = null;
-                        }
-                        tex_try_couple_nodes(tail, post_migrated);
-                        tail = tex_tail_of_node_list(post_migrated);
-                        if (! head) {
-                            head = post_migrated;
-                        }
-                    }
-                    if (post_adjusted) {
-                        if (code == copy_code) {
-                            post_adjusted = tex_copy_node_list(post_adjusted, null);
-                        } else {
-                            box_post_adjusted(b) = null;
-                        }
-                        while (post_adjusted) {
-                            halfword p = post_adjusted;
-                            halfword h = adjust_list(post_adjusted);
-                            if (h) {
-                                if (abs(cur_list.mode) == hmode) { 
-                                    halfword n = tex_new_node(adjust_node, post_adjust_code);
-                                    adjust_list(n) = h;
-                                    h = n;
-                                }
-                                if (! head) {
-                                    head = h;
-                                }
-                                tex_try_couple_nodes(tail, h);
-                                tail = tex_tail_of_node_list(h);
-                                adjust_list(post_adjusted) = null;
+                            break;
+                        case hmode: 
+                        case restricted_hmode: 
+                            if (node_type(box) != hlist_node) { 
+                                bad = 1;
                             }
-                            post_adjusted = node_next(post_adjusted);
-                            tex_flush_node(p);
-                        }
+                            break;
+                        case mmode: 
+                        case inline_mmode: 
+                            bad = 1;
+                            break;
                     }
-                    if (code != copy_code) {
-                        box_register(n) = null;
-                        tex_flush_node(b);
-                    }
-                    if (! head) {
-                        tail = null;
-                    } else if (node_type(b) == hlist_node && normalize_line_mode_permitted(normalize_line_mode_par, remove_margin_kerns_mode)) {
-                        /* only here head is used ... */
-                        tail = head;
-                        while (1) {
-                            halfword next = node_next(tail);
-                            if (next) {
-                                if (tex_is_margin_kern(next)) {
-                                    tex_try_couple_nodes(tail, node_next(next));
-                                    tex_flush_node(next);
-                                } else {
-                                    tail = next;
-                                }
-                            } else {
-                                break;
-                            }
-                        }
+                    if (bad) {
+                        tex_handle_error(
+                            normal_error_type,
+                            "Incompatible list can't be unboxed",
+                            "Sorry, Pandora. (You sneaky devil.) I refuse to unbox an \\hbox in vertical mode\n"
+                            "or vice versa. And I can't open any boxes in math mode."
+                        );
                     } else {
-                        tail = tex_tail_of_node_list(tail);
+                        /*tex Todo: check head, not needed, always a temp. */
+                        /*tex We go via variables because we do varmem assignments. Probably not needed */
+                        halfword tail = cur_list.tail;
+                        halfword list = box_list(box);
+                        halfword pre_migrated  = code == unpack_code ? null : box_pre_migrated(box);
+                        halfword post_migrated = code == unpack_code ? null : box_post_migrated(box);
+                        /* probably overkill as we inject vadjust again, maybe it should be an option, 'bind' or so */
+                    //  halfword pre_adjusted  = box_pre_adjusted(box);
+                    //  halfword post_adjusted = box_post_adjusted(box);
+                        halfword pre_adjusted  = code == unpack_code ? null : box_pre_adjusted(box);
+                        halfword post_adjusted = code == unpack_code ? null : box_post_adjusted(box);
+                     // halfword pre_adjusted  = code == (unpack_code || is_h_mode(cur_list.mode)) ? null : box_pre_adjusted(box);
+                     // halfword post_adjusted = code == (unpack_code || is_h_mode(cur_list.mode)) ? null : box_post_adjusted(box);
+                        int prunekerns = list && node_type(box) == hlist_node && normalize_line_mode_permitted(normalize_line_mode_par, remove_margin_kerns_mode);
+                        /*tex 
+                            This topskip move is an ugly catch for wrong usage: when messing with 
+                            vboxes the migrated material can end up outside the unvboxed (pagebody)
+                            content which is not what one wants. The way to prevent is to force 
+                            hmode when unboxing. It makes no sense to complicate this mechanism 
+                            even more by soem fragile hackery. Best just create what gets asked 
+                            and remember that thsi was decided. We need to copy the list earlier 
+                            when we do this! 
+                        */
+                        /*
+                        if (list) { 
+                            if (code == copy_code) {
+                                list = tex_copy_node_list(list, null);
+                            } else {
+                                box_list(box) = null;
+                            }     
+                        }
+                        {
+                            int movetopskip = list && (pre_adjusted || pre_migrated) && node_type(list) == glue_node && node_subtype(list) == top_skip_glue;
+                            if (movetopskip) {
+                                halfword topskip = list; 
+                                list = node_next(list);
+                                node_prev(topskip) = null;
+                                node_next(topskip) = null;
+                                tex_try_couple_nodes(tail, topskip);
+                                tail = topskip;
+                                if (list) { 
+                                    node_prev(list) = null;
+                                }
+                                if (pre_adjusted && tracing_adjusts_par > 1) {
+                                    tex_begin_diagnostic();
+                                    tex_print_format("[adjust: topskip moved]");
+                                    tex_end_diagnostic();
+                                }
+                            }
+                        }
+                        */ 
+                        if (pre_adjusted) {
+                            if (code == copy_code) {
+                                pre_adjusted  = tex_copy_node_list(pre_adjusted, null);
+                            } else {
+                                box_pre_adjusted(box) = null;
+                            }
+                            tail = tex_flush_adjust_prepend(pre_adjusted, tail);
+                        }
+                        if (pre_migrated) {
+                            if (code == copy_code) {
+                                pre_migrated  = tex_copy_node_list(pre_migrated, null);
+                            } else {
+                                box_pre_migrated(box) = null;
+                            }
+                            tex_try_couple_nodes(tail, pre_migrated);
+                            tail = tex_tail_of_node_list(pre_migrated);
+                        }
+                        if (list) {
+                            if (code == copy_code) {
+                                list = tex_copy_node_list(list, null);
+                            } else {
+                                box_list(box) = null;
+                            }     
+                            tex_try_couple_nodes(tail, list);
+                            tail = tex_tail_of_node_list(list);
+                        }
+                        if (post_migrated) {
+                            if (code == copy_code) {
+                                post_migrated = tex_copy_node_list(post_migrated, null);
+                            } else {
+                                box_post_migrated(box) = null;
+                            }
+                            tex_try_couple_nodes(tail, post_migrated);
+                            tail = tex_tail_of_node_list(post_migrated);
+                        }
+                        if (post_adjusted) {
+                            if (code == copy_code) {
+                                post_adjusted = tex_copy_node_list(post_adjusted, null);
+                            } else {
+                                box_post_adjusted(box) = null;
+                            }
+                            tail = tex_flush_adjust_append(post_adjusted, tail);
+                        }
+                        if (code != copy_code) {
+                            box_register(index) = null;
+                            tex_flush_node(box);
+                        }
+                        cur_list.tail = prunekerns ? tex_wipe_margin_kerns(cur_list.head) : tex_tail_of_node_list(tail);
                     }
-                    cur_list.tail = tail;
-                    break;
                 }
-            }
-        case last_box_code:
-            {
-                tex_try_couple_nodes(tail, lmt_packaging_state.page_discards_head);
-                lmt_packaging_state.page_discards_head = null;
-                cur_list.tail = tex_tail_of_node_list(tail);
                 break;
             }
-        case vsplit_code:
+        case page_discards_code:
             {
-                tex_try_couple_nodes(tail, lmt_packaging_state.split_discards_head);
+                tex_try_couple_nodes(cur_list.tail, lmt_packaging_state.page_discards_head);
+                cur_list.tail = tex_tail_of_node_list(cur_list.tail);
+                lmt_packaging_state.page_discards_head = null;
+                break;
+            }
+        case split_discards_code:
+            {
+                tex_try_couple_nodes(cur_list.tail, lmt_packaging_state.split_discards_head);
+                cur_list.tail = tex_tail_of_node_list(cur_list.tail);
                 lmt_packaging_state.split_discards_head = null;
-                cur_list.tail = tex_tail_of_node_list(tail);
                 break;
             }
         case insert_box_code:
@@ -2709,7 +2704,7 @@ void tex_run_unpackage(void)
                 if (tex_valid_insert_id(index)) {
                     halfword boxnode = tex_get_insert_content(index); /* also checks for id */
                     if (boxnode) {
-                        if (abs(cur_list.mode) != vmode) {
+                        if (! is_v_mode(cur_list.mode)) {
                             tex_handle_error(
                                 normal_error_type,
                                 "Unpacking an inserts can only happen in vertical mode.",
@@ -2724,7 +2719,7 @@ void tex_run_unpackage(void)
                             if (boxnode) {
                                 halfword list = box_list(boxnode);
                                 if (list) {
-                                    tex_try_couple_nodes(tail, list);
+                                    tex_try_couple_nodes(cur_list.tail, list);
                                     cur_list.tail = tex_tail_of_node_list(list);
                                     box_list(boxnode) = null;
                                 }
@@ -2738,21 +2733,11 @@ void tex_run_unpackage(void)
                 break;
             }
         case local_left_box_box_code:
-            {
-                tex_try_couple_nodes(tail, tex_get_local_boxes(local_left_box_code));
-                cur_list.tail = tex_tail_of_node_list(tail);
-                break;
-            }
         case local_right_box_box_code:
-            {
-                tex_try_couple_nodes(tail, tex_get_local_boxes(local_right_box_code));
-                cur_list.tail = tex_tail_of_node_list(tail);
-                break;
-            }
         case local_middle_box_box_code:
             {
-                tex_try_couple_nodes(tail, tex_get_local_boxes(local_middle_box_code));
-                cur_list.tail = tex_tail_of_node_list(tail);
+                tex_try_couple_nodes(cur_list.tail, tex_get_local_boxes(local_box_mapping[code]));
+                cur_list.tail = tex_tail_of_node_list(cur_list.tail);
                 break;
             }
         default:
@@ -2761,7 +2746,6 @@ void tex_run_unpackage(void)
                 break;
             }
     }
-    /* margin stuff was here */
 }
 
 /*tex
@@ -2775,12 +2759,14 @@ void tex_run_unpackage(void)
 
 */
 
-inline static halfword tex_aux_depth_correction(halfword b, const line_break_properties *properties)
+static halfword tex_aux_depth_correction(halfword b, const line_break_properties *properties)
 {
     /*tex The deficiency of space between baselines: */
     halfword p;
+    halfword height = has_box_package_state(b, dbox_package_state) ? tex_aux_first_height(b) : box_height(b);
+    halfword depth = cur_list.prev_depth;
     if (properties) {
-        scaled d = glue_amount(properties->baseline_skip) - cur_list.prev_depth - box_height(b);
+        scaled d = glue_amount(properties->baseline_skip) - depth - height;
         if (d < properties->line_skip_limit) {
             p = tex_new_glue_node(properties->line_skip, line_skip_glue);
         } else {
@@ -2788,7 +2774,7 @@ inline static halfword tex_aux_depth_correction(halfword b, const line_break_pro
             glue_amount(p) = d;
         }
     } else {
-        scaled d = glue_amount(baseline_skip_par) - cur_list.prev_depth - box_height(b);
+        scaled d = glue_amount(baseline_skip_par) - depth - height;
         if (d < line_skip_limit_par) {
             p = tex_new_param_glue_node(line_skip_code, line_skip_glue);
         } else {
@@ -2803,14 +2789,14 @@ void tex_append_to_vlist(halfword b, int location, const line_break_properties *
 {
     if (location >= 0) { 
         halfword result = null;
-        halfword next_depth = ignore_depth;
+        halfword next_depth = ignore_depth_criterium_par;
         int prev_set = 0;
         int check_depth = 0;
         if (lmt_append_to_vlist_callback(b, location, cur_list.prev_depth, &result, &next_depth, &prev_set, &check_depth)) {
             if (prev_set) {
                 cur_list.prev_depth = next_depth;
             }
-            if (check_depth && result && (cur_list.prev_depth > ignore_depth)) {
+            if (check_depth && result && (cur_list.prev_depth > ignore_depth_criterium_par)) {
                 /*tex
                     We only deal with a few types and one can always at the \LUA\ end check for some of
                     these and decide not to apply the correction.
@@ -2820,28 +2806,23 @@ void tex_append_to_vlist(halfword b, int location, const line_break_properties *
                     case vlist_node:
                     case rule_node:
                         {
-                            halfword p = tex_aux_depth_correction(result, properties);
-                            tex_couple_nodes(cur_list.tail, p);
-                            cur_list.tail = p;
+                            halfword glue = tex_aux_depth_correction(result, properties);
+                            tex_tail_append(glue);
                             break;
                         }
                 }
             }
-            while (result) {
-                tex_couple_nodes(cur_list.tail, result);
-                cur_list.tail = result;
-                result = node_next(result);
+            if (result) { 
+                tex_tail_append_list(result);
             }
             return;
         }
     }
-    if (cur_list.prev_depth > ignore_depth) {
-        halfword p = tex_aux_depth_correction(b, properties);
-        tex_couple_nodes(cur_list.tail, p);
-        cur_list.tail = p;
+    if (cur_list.prev_depth > ignore_depth_criterium_par) {
+        halfword glue = tex_aux_depth_correction(b, properties);
+        tex_tail_append(glue);
     }
-    tex_couple_nodes(cur_list.tail, b);
-    cur_list.tail = b;
+    tex_tail_append(b);
     cur_list.prev_depth = box_depth(b);
 }
 
@@ -3214,7 +3195,7 @@ halfword tex_vsplit(halfword n, scaled h, int m)
 
 */
 
-void tex_begin_box(int boxcontext, scaled shift)
+void tex_begin_box(int boxcontext, scaled shift, halfword slot)
 {
     halfword code = cur_chr;
     halfword boxnode = null; /*tex Aka |cur_box|. */
@@ -3234,15 +3215,15 @@ void tex_begin_box(int boxcontext, scaled shift)
                 boxnode = tex_copy_node(box_register(n));
                 break;
             }
-        case last_box_code:
+     /* case unpack_code: */
+     /*     break;        */
+         case last_box_code:
             /*tex
-
                 If the current list ends with a box node, delete it from the list and make |boxnode|
                 point to it; otherwise set |boxnode := null|.
-
             */
             boxnode = null;
-            if (abs(cur_list.mode) == mmode) {
+            if (is_m_mode(cur_list.mode)) {
                 tex_you_cant_error(
                     "Sorry; this \\lastbox will be void."
                 );
@@ -3273,37 +3254,59 @@ void tex_begin_box(int boxcontext, scaled shift)
                 }
             }
             break;
+        case tsplit_code:
         case vsplit_code:
+        case dsplit_code:
             {
                 /*tex
-
                     Split off part of a vertical box, make |boxnode| point to it. Here we deal with
-                    things like |\vsplit 13 to 100pt|.
-
-                    Maybe todo: just split off one line.
+                    things like |\vsplit 13 to 100pt|. Maybe todo: just split off one line.
 
                 */
                 halfword mode = packing_exactly ;
                 halfword index = tex_scan_box_register_number();
                 halfword size = 0;
-                switch (tex_scan_character("utUT", 0, 1, 0)) {
-                    case 'u': case 'U':
-                        if (tex_scan_mandate_keyword("upto", 1)) {
-                            mode = packing_additional;
-                            size = tex_scan_dimen(0, 0, 0, 0, NULL);
-                        }
-                        break;
-                    case 't': case 'T':
-                        if (tex_scan_mandate_keyword("to", 1)) {
-                            mode = packing_exactly ;
-                            size = tex_scan_dimen(0, 0, 0, 0, NULL);
-                        }
-                        break;
-                    default:
-                        tex_aux_show_keyword_error("upto|to");
-                        break;
+                halfword attrlist = null;
+                while (1) {
+                    switch (tex_scan_character("adtuvADTUV", 0, 1, 0)) {
+                        case 0:
+                            goto DONE;
+                        case 'a': case 'A':
+                            if (tex_scan_mandate_keyword("attr", 1)) {
+                                halfword i = tex_scan_attribute_register_number();
+                                halfword v = tex_scan_int(1, NULL);
+                                if (eq_value(register_attribute_location(i)) != v) {
+                                    if (attrlist) {
+                                        attrlist = tex_patch_attribute_list(attrlist, i, v);
+                                    } else {
+                                        attrlist = tex_copy_attribute_list_set(tex_current_attribute_list(), i, v);
+                                    }
+                                }
+                            }
+                            break;
+                        case 't': case 'T':
+                            if (tex_scan_mandate_keyword("to", 1)) {
+                                mode = packing_exactly ;
+                                size = tex_scan_dimen(0, 0, 0, 0, NULL);
+                            }
+                            break;
+                        case 'u': case 'U':
+                            if (tex_scan_mandate_keyword("upto", 1)) {
+                                mode = packing_additional;
+                                size = tex_scan_dimen(0, 0, 0, 0, NULL);
+                            }
+                            break;
+                        default:
+                            tex_aux_show_keyword_error("attr|upto|to|vbox|vtop|dbox");
+                            goto DONE;
+                    }
                 }
+              DONE:
                 boxnode = tex_vsplit(index, size, mode);
+                tex_aux_set_vnature(boxnode, code);
+                if (attrlist) { 
+                    tex_attach_attribute_list_attribute(boxnode, attrlist);
+                }
             }
             break;
         case insert_box_code:
@@ -3342,71 +3345,94 @@ void tex_begin_box(int boxcontext, scaled shift)
                 boxnode = tex_get_local_boxes(local_middle_box_code);
                 break;
             }
+       /*tex
+
+            Initiate the construction of an hbox or vbox, then |return|. Here is where we
+            enter restricted horizontal mode or internal vertical mode, in order to make a
+            box. The juggling with codes and addition or subtraction was somewhat messy.
+
+        */
         default:
             {
-                /*tex
-
-                    Initiate the construction of an hbox or vbox, then |return|. Here is where we
-                    enter restricted horizontal mode or internal vertical mode, in order to make a
-                    box.
-
-                */
-                int just_pack = 0;
-                quarterword spec_direction = direction_unknown;
-                /*tex 0 or |vmode| or |hmode| */
-                halfword mode; /* todo */
-                switch (code) {
-                    case tpack_code:
-                        code = vtop_code;
-                        just_pack = 1;
-                        break;
-                    case vpack_code:
-                        code = vtop_code + vmode;
-                        just_pack = 1;
-                        break;
-                    case hpack_code:
-                        code = vtop_code + hmode;
-                        just_pack = 1;
-                        break;
-                }
-                mode = code - vtop_code;
-                tex_set_saved_record(saved_full_spec_item_context, box_context_save_type, 0, boxcontext);
-                switch (abs(cur_list.mode)) {
+                quarterword direction;
+                int justpack = 0;
+                int group = vbox_group;
+                int mode = vmode;
+                int adjusted = 0;
+                switch (cur_list.mode) {
                     case vmode:
-                        spec_direction = dir_lefttoright;
+                    case internal_vmode:
+                        direction = dir_lefttoright;
+                        if (boxcontext == direct_box_flag) {
+                            adjusted = 1;
+                        }
                         break;
                     case hmode:
-                        spec_direction = (singleword) text_direction_par;
+                    case restricted_hmode:
+                        direction = (singleword) text_direction_par;
                         break;
                     case mmode:
-                        spec_direction = (singleword) math_direction_par;
+                    case inline_mmode:
+                        direction = (singleword) math_direction_par;
+                        break;
+                    default: 
+                        direction = direction_unknown;
                         break;
                 }
-                if (mode == hmode) {
-                    if ((boxcontext < box_flag) && (abs(cur_list.mode) == vmode)) {
-                        tex_aux_scan_full_spec(adjusted_hbox_group, spec_direction, just_pack, shift);
-                    } else {
-                        tex_aux_scan_full_spec(hbox_group, spec_direction, just_pack, shift);
-                    }
-                } else {
-                    if (mode == vmode) {
-                        tex_aux_scan_full_spec(vbox_group, spec_direction, just_pack, shift);
-                    } else {
-                        tex_aux_scan_full_spec(vtop_group, spec_direction, just_pack, shift);
-                        mode = vmode;
-                    }
-                    tex_normal_paragraph(vmode_par_context);
+                switch (code) {
+                    case tpack_code:
+                     // mode = vmode; 
+                        justpack = 1;
+                        group = vtop_group;
+                        break;
+                    case vpack_code:
+                     // mode = vmode; 
+                        justpack = 1;
+                     // group = vbox_group;
+                        break;
+                    case hpack_code:
+                        mode = hmode; 
+                        justpack = 1;
+                        group = adjusted ? adjusted_hbox_group : hbox_group;
+                        break;
+                    case dpack_code:
+                     // mode = vmode; 
+                        justpack = 1;
+                        group = dbox_group;
+                        break;
+                    case vtop_code:
+                     // mode = vmode;
+                     // justpack = 0;
+                        group = vtop_group;
+                        break;
+                    case vbox_code:
+                     // mode = vmode;
+                     // justpack = 0;
+                     // group = vbox_group;
+                        break;
+                    case hbox_code:   
+                        mode = hmode;
+                     // justpack = 0;
+                        group = adjusted ? adjusted_hbox_group : hbox_group;
+                        break;
+                    case dbox_code:
+                     // mode = vmode;
+                     // justpack = 0;
+                        group = dbox_group;
+                        break;
                 }
+                tex_aux_scan_full_spec(boxcontext, group, direction, justpack, shift, slot);
+                tex_normal_paragraph(vmode_par_context);
                 tex_push_nest();
                 update_tex_internal_dir_state(0);
                 cur_list.mode = - mode;
                 if (mode == vmode) {
-                    cur_list.prev_depth = ignore_depth;
+                    cur_list.prev_depth = ignore_depth_criterium_par;
                     if (every_vbox_par) {
                         tex_begin_token_list(every_vbox_par, every_vbox_text);
                     }
                 } else {
-                    cur_list.space_factor = 1000;
+                    cur_list.space_factor = default_space_factor;
                     if (every_hbox_par) {
                         tex_begin_token_list(every_hbox_par, every_hbox_text);
                     }
@@ -3415,5 +3441,5 @@ void tex_begin_box(int boxcontext, scaled shift)
             }
     }
     /*tex In simple cases, we use the box immediately. */
-    tex_box_end(boxcontext, boxnode, shift, unset_noad_class);
+    tex_box_end(boxcontext, boxnode, shift, unset_noad_class, slot);
 }

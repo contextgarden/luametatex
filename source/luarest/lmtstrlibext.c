@@ -564,7 +564,7 @@ static int strlib_format_tounicode16(lua_State *L)
         u = u - 0x10000; /* negative when invalid range */
         u1 = (unsigned) (u >> 10) + 0xD800;
         u2 = (unsigned) (u % 0x400) + 0xDC00;
-        s[3]    = strlib_aux_hexdigit((unsigned char) ((u1 & 0x000F) >>  0));
+        s[3] = strlib_aux_hexdigit((unsigned char) ((u1 & 0x000F) >>  0));
         s[2] = strlib_aux_hexdigit((unsigned char) ((u1 & 0x00F0) >>  4));
         s[1] = strlib_aux_hexdigit((unsigned char) ((u1 & 0x0F00) >>  8));
         s[0] = strlib_aux_hexdigit((unsigned char) ((u1 & 0xF000) >> 12));
@@ -777,6 +777,74 @@ static int strlib_pack_rows_columns(lua_State* L)
     return 1;
 }
 
+/*tex 
+    This converts a hex string to characters. Spacing is ignored and invalid characters result in 
+    a false result. EMpty strings are okay. 
+*/
+
+static int strlib_hextocharacters(lua_State *L)
+{
+    size_t ls = 0;
+    const char *s = lua_tolstring(L, 1, &ls);
+    if (ls > 0) {
+        luaL_Buffer b;
+        luaL_buffinitsize(L, &b, ls/2);
+        while (1) { 
+            unsigned char first = *s++;
+            switch (first) {
+                case ' ': case '\n': case '\r': case '\t':
+                    continue;
+                case '\0': 
+                    goto DONE;
+                default: 
+                    {
+                        unsigned char second = *s++;
+                        switch (second) {
+                            case ' ': case '\n': case '\r': case '\t':
+                                continue;
+                            case '\0': 
+                                goto BAD;
+                            default: 
+                                { 
+                                    unsigned char chr;
+                                    if (first >= '0' && first <= '9') {
+                                        chr = 16 * (first - '0');
+                                    } else if (first>= 'A' && first <= 'F') {
+                                        chr = 16 * (first - 'A' + 10);
+                                    } else if (first >= 'a' && first <= 'f') {
+                                        chr = 16 * (first - 'a' + 10);
+                                    } else { 
+                                        goto BAD;
+                                    }
+                                    if (second >= '0' && second <= '9') {
+                                        chr += second - '0';
+                                    } else if (second >= 'A' && second <= 'F') {
+                                        chr += second - 'A' + 10;
+                                    } else if (first >= 'a' && second <= 'f') {
+                                        chr += second - 'a' + 10;
+                                    } else { 
+                                        goto BAD;
+                                    }
+                                    luaL_addchar(&b, chr);
+                                    break;
+                                }
+                        }
+                        break;
+                    }
+            }
+        }
+      DONE:
+        luaL_pushresult(&b);
+        return 1;
+      BAD:
+        lua_pushboolean(L, 0);
+        return 1;
+    } else { 
+        lua_pushliteral(L, "");
+        return 1;
+    }
+}
+
 static const luaL_Reg strlib_function_list[] = {
     { "characters",        strlib_characters         },
     { "characterpairs",    strlib_characterpairs     },
@@ -797,6 +865,7 @@ static const luaL_Reg strlib_function_list[] = {
  /* { "toutf16",           strlib_format_toutf16     }, */ /* untested */
     { "toutf32",           strlib_format_toutf32     },
     { "packrowscolumns",   strlib_pack_rows_columns  },
+    { "hextocharacters",   strlib_hextocharacters    },
     { NULL,                NULL                      },
 };
 

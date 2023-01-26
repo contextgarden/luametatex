@@ -95,7 +95,7 @@ typedef enum catcode_table_presets {
 */
 
 typedef struct token_state_info {
-    halfword  null_list;        /*tex permanently empty list */
+    halfword  null_list;         /*tex permanently empty list */
     int       in_lua_escape;
     int       force_eof;
     int       luacstrings;
@@ -108,32 +108,39 @@ typedef struct token_state_info {
     char     *buffer;
     int       bufloc;
     int       bufmax;
-    int       padding;
+    int       empty;
 } token_state_info;
 
 extern token_state_info lmt_token_state;
 
-// # define max_token_reference 0x7FFF /* we can bump to 0xFFFF when we go unsigned here */
-//
-//define token_reference(a)  token_memory_state.tokens[a].half1
-//
-// #define get_token_parameters(a) lmt_token_memory_state.tokens[a].quart2
-// #define get_token_reference(a)  lmt_token_memory_state.tokens[a].quart3
-//
-// #define set_token_parameters(a,b) lmt_token_memory_state.tokens[a].quart2  = (b)
-//
-// #define add_token_reference(a)    lmt_token_memory_state.tokens[a].quart3 += 1
-// #define sub_token_reference(a)    lmt_token_memory_state.tokens[a].quart3 -= 1
-// #define inc_token_reference(a,b)  lmt_token_memory_state.tokens[a].quart3 += (quarterword) (b)
-// #define dec_token_reference(a,b)  lmt_token_memory_state.tokens[a].quart3 -= (quarterword) (b)
+/*tex
 
-# define max_token_reference 0x0FFFFFFF
+    We now can have 15 paremeters but if needed we can go higher. However, we then also need to 
+    cache more and change the |preamble| and |count| to some funny bit ranges. If needed we can 
+    bump the reference count maximum but quite likely one already has run out of something else
+    already.   
 
-# define get_token_parameters(a) (lmt_token_memory_state.tokens[a].hulf1 >> 28)
-# define get_token_reference(a)  (lmt_token_memory_state.tokens[a].hulf1 & 0x0FFFFFFF)
+    \starttyping
+    preamble  = 0xF0000000 : 1 when we have one, including trailing #
+    count     = 0x0F000000
+    reference = 0x00FFFFFF
+    \stoptyping
 
-# define set_token_parameters(a,b) lmt_token_memory_state.tokens[a].hulf1 += ((b) << 28)  /* normally the variable is still zero here */
+*/
 
+# define max_match_count 15
+# define gap_match_count  7
+
+# define max_token_reference 0x00FFFFFF
+
+# define get_token_preamble(a)   ((lmt_token_memory_state.tokens[a].hulf1 >> 28) & 0xF)
+# define get_token_parameters(a) ((lmt_token_memory_state.tokens[a].hulf1 >> 24) & 0xF)
+# define get_token_reference(a)  ((lmt_token_memory_state.tokens[a].hulf1      ) & max_token_reference)
+
+# define set_token_preamble(a,b)   lmt_token_memory_state.tokens[a].hulf1 += ((b) << 28)  /* normally the variable is still zero here */
+# define set_token_parameters(a,b) lmt_token_memory_state.tokens[a].hulf1 += ((b) << 24)  /* normally the variable is still zero here */
+
+# define set_token_reference(a,b)  lmt_token_memory_state.tokens[a].hulf1 += (b)
 # define add_token_reference(a)    lmt_token_memory_state.tokens[a].hulf1 += 1            /* we are way off the parameter count */
 # define sub_token_reference(a)    lmt_token_memory_state.tokens[a].hulf1 -= 1            /* we are way off the parameter count */
 # define inc_token_reference(a,b)  lmt_token_memory_state.tokens[a].hulf1 += (b)          /* we are way off the parameter count */
@@ -158,20 +165,22 @@ extern token_state_info lmt_token_state;
     yet when we're here. so we can't use for instance |token_val (spacer_cmd, 20)| yet.
 */
 
-# define left_brace_token        token_val( 1, 0) // token_val(left_brace_cmd,0)
-# define right_brace_token       token_val( 2, 0) // token_val(right_brace_cmd,0)
-# define math_shift_token        token_val( 3, 0) // token_val(math_shift_cmd,0)
-# define alignment_token         token_val( 4, 0)
-# define superscript_token       token_val( 7, 0)
-# define subscript_token         token_val( 8, 0)
-# define ignore_token            token_val( 9, 0) // token_val(ignore_cmd,0)
-# define space_token             token_val(10,32) // token_val(spacer_cmd,32)
-# define letter_token            token_val(11, 0) // token_val(letter_cmd,0)
-# define other_token             token_val(12, 0) // token_val(other_char_cmd,0)
-# define active_token            token_val(13, 0)
-
-# define match_token             token_val(19,0)  // token_val(match_cmd,0)
-# define end_match_token         token_val(20,0)  // token_val(end_match_cmd,0)
+# define left_brace_token        token_val( 1, 0) /* token_val(left_brace_cmd,    0) */
+# define right_brace_token       token_val( 2, 0) /* token_val(right_brace_cmd,   0) */
+# define math_shift_token        token_val( 3, 0) /* token_val(math_shift_cmd,    0) */
+# define alignment_token         token_val( 4, 0) /* token_val(alignment_tab_cmd, 0) */
+# define endline_token           token_val( 5, 0) /* token_val(end_line_cmd,      0) */
+# define parameter_token         token_val( 6, 0) /* token_val(parameter_cmd,     0) */
+# define superscript_token       token_val( 7, 0) /* token_val(superscript_cmd,   0) */
+# define subscript_token         token_val( 8, 0) /* token_val(subscript_cmd,     0) */
+# define ignore_token            token_val( 9, 0) /* token_val(ignore_cmd,        0) */
+# define space_token             token_val(10,32) /* token_val(spacer_cmd,       32) */
+# define letter_token            token_val(11, 0) /* token_val(letter_cmd         0) */
+# define other_token             token_val(12, 0) /* token_val(other_char_cmd,    0) */
+# define active_token            token_val(13, 0) /* token_val(active_char_cmd,   0) */
+                                                                                                    
+# define match_token             token_val(19, 0) /* token_val(match_cmd,         0) */
+# define end_match_token         token_val(20, 0) /* token_val(end_match_cmd,     0) */
 
 # define left_brace_limit  right_brace_token
 # define right_brace_limit math_shift_token
@@ -193,13 +202,13 @@ extern token_state_info lmt_token_state;
 # define less_token              (other_token  + '<')
 # define more_token              (other_token  + '>')
 # define exclamation_token_o     (other_token  + '!')
-# define exclamation_token_l     (letter_token + '!')
+# define exclamation_token_l     (letter_token + '!') /* letter */
 # define underscore_token        (other_token  + '_')
 # define underscore_token_o      (other_token  + '_')
-# define underscore_token_l      (letter_token + '_')
+# define underscore_token_l      (letter_token + '_') /* letter */
 # define circumflex_token        (other_token  + '^')
 # define circumflex_token_o      (other_token  + '^')
-# define circumflex_token_l      (letter_token + '^')
+# define circumflex_token_l      (letter_token + '^') /* letter */
 # define escape_token            (other_token  + '\\')
 # define left_parent_token       (other_token  + '(')
 # define right_parent_token      (other_token  + ')')
@@ -207,6 +216,8 @@ extern token_state_info lmt_token_state;
 # define five_token              (other_token  + '5')
 # define seven_token             (other_token  + '7')
 # define nine_token              (other_token  + '9')  /*tex zero, the smallest digit */
+
+# define dollar_token_m          (math_shift_token + '$')
 
 # define a_token_l               (letter_token + 'a')  /*tex the smallest special hex digit */
 # define a_token_o               (other_token  + 'a')
@@ -331,11 +342,11 @@ extern void     tex_increment_token_reference (halfword p, int n);
 
 # define no_expand_flag special_char /* no_expand_relax_code */
 
-/*tex  A few special values: */
+/*tex  A few special values; these are no longer used as we always go for maxima. */
 
 # define default_token_show_min 32
-# define default_token_show_max 2500
-# define extreme_token_show_max 0x3FFFFFFF
+# define default_token_show_max 2500       
+# define extreme_token_show_max 0x3FFFFFFF 
 
 /*tex  All kind of helpers: */
 
@@ -344,11 +355,13 @@ extern void       tex_undump_token_mem            (dumpstream f);
 extern void       tex_print_meaning               (halfword code);
 extern void       tex_flush_token_list            (halfword p);
 extern void       tex_flush_token_list_head_tail  (halfword h, halfword t, int n);
-extern halfword   tex_show_token_list             (halfword p, halfword q, int l, int asis); /* Here |l| will go away. */
-extern void       tex_token_show                  (halfword p, int max);
+extern void       tex_show_token_list_context     (halfword p, halfword q);
+extern void       tex_show_token_list             (halfword p, int asis);
+extern void       tex_token_show                  (halfword p);
 /*     void       tex_add_token_ref               (halfword p); */
 /*     void       tex_delete_token_ref            (halfword p); */
 extern void       tex_get_next                    (void);
+extern void       tex_get_next_non_spacer         (void);
 extern halfword   tex_scan_character              (const char *s, int left_brace, int skip_space, int skip_relax);
 extern int        tex_scan_optional_keyword       (const char *s);
 extern int        tex_scan_mandate_keyword        (const char *s, int offset);
@@ -359,6 +372,7 @@ extern halfword   tex_active_to_cs                (int c, int force);
 extern halfword   tex_string_to_toks              (const char *s);
 extern int        tex_get_char_cat_code           (int c);
 extern halfword   tex_get_token                   (void);
+extern void       tex_get_x_or_protected          (void);
 extern halfword   tex_str_toks                    (lstring s, halfword *tail); /* returns head */
 extern halfword   tex_cur_str_toks                (halfword *tail);            /* returns head */
 extern halfword   tex_str_scan_toks               (int c, lstring b);          /* returns head */

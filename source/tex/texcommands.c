@@ -197,6 +197,7 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "tracingnodes",                   internal_int_cmd,       tracing_nodes_code,                       internal_int_base);
         tex_primitive(luatex_command, "tracingfullboxes",               internal_int_cmd,       tracing_full_boxes_code,                  internal_int_base);
         tex_primitive(luatex_command, "tracingpenalties",               internal_int_cmd,       tracing_penalties_code,                   internal_int_base);
+        tex_primitive(luatex_command, "tracinglists",                   internal_int_cmd,       tracing_lists_code,                       internal_int_base);
         tex_primitive(tex_command,    "uchyph",                         internal_int_cmd,       uc_hyph_code,                             internal_int_base); /* obsolete, not needed */
         tex_primitive(luatex_command, "variablefam",                    internal_int_cmd,       variable_family_code,                     internal_int_base); /* obsolete, not used */
         tex_primitive(tex_command,    "vbadness",                       internal_int_cmd,       vbadness_code,                            internal_int_base);
@@ -305,6 +306,7 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "pxdimen",                        internal_dimen_cmd,     px_dimen_code,                            internal_dimen_base);
         tex_primitive(luatex_command, "tabsize",                        internal_dimen_cmd,     tab_size_code,                            internal_dimen_base);
         tex_primitive(luatex_command, "pageextragoal",                  internal_dimen_cmd,     page_extra_goal_code,                     internal_dimen_base);
+        tex_primitive(luatex_command, "ignoredepthcriterium",           internal_dimen_cmd,     ignore_depth_criterium_code,              internal_dimen_base); /* mostly for myself, tutorials etc */
 
         /*tex Probably never used with \UNICODE\ omnipresent now: */
 
@@ -315,6 +317,11 @@ void tex_initialize_commands(void)
         tex_primitive(tex_command,    "advance",                        arithmic_cmd,           advance_code,                             0);
         tex_primitive(tex_command,    "divide",                         arithmic_cmd,           divide_code,                              0);
         tex_primitive(tex_command,    "multiply",                       arithmic_cmd,           multiply_code,                            0);
+        tex_primitive(tex_command,    "advanceby",                      arithmic_cmd,           advance_by_code,                          0);
+        tex_primitive(tex_command,    "divideby",                       arithmic_cmd,           divide_by_code,                           0);
+        tex_primitive(tex_command,    "multiplyby",                     arithmic_cmd,           multiply_by_code,                         0);
+     /* tex_primitive(tex_command,    "advancebyplusone",               arithmic_cmd,           advance_by_plus_one_code,                 0); */
+     /* tex_primitive(tex_command,    "advancebyminusone",              arithmic_cmd,           advance_by_minus_one_code,                0); */
 
         /*tex We combined the after thingies into one category:*/
 
@@ -488,10 +495,12 @@ void tex_initialize_commands(void)
 
         tex_primitive(tex_command,    "vrule",                          vrule_cmd,              normal_rule_code,                         0);
         tex_primitive(luatex_command, "novrule",                        vrule_cmd,              empty_rule_code,                          0);
+        tex_primitive(luatex_command, "virtualvrule",                   vrule_cmd,              virtual_rule_code,                        0);
         tex_primitive(luatex_command, "srule",                          vrule_cmd,              strut_rule_code,                          0);
 
         tex_primitive(tex_command,    "hrule",                          hrule_cmd,              normal_rule_code,                         0);
         tex_primitive(luatex_command, "nohrule",                        hrule_cmd,              empty_rule_code,                          0);
+        tex_primitive(luatex_command, "virtualhrule",                   hrule_cmd,              virtual_rule_code,                        0);
 
         tex_primitive(tex_command,    "count",                          register_cmd,           int_val_level,                            0);
         tex_primitive(luatex_command, "attribute",                      register_cmd,           attr_val_level,                           0);
@@ -552,6 +561,7 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "boxrepack",                      set_box_property_cmd,   box_repack_code,                          0);
         tex_primitive(luatex_command, "boxfreeze",                      set_box_property_cmd,   box_freeze_code,                          0);
         tex_primitive(luatex_command, "boxattribute",                   set_box_property_cmd,   box_attribute_code,                       0);
+        tex_primitive(luatex_command, "boxvadjust",                     set_box_property_cmd,   box_vadjust_code,                         0);
 
         tex_primitive(tex_command,    "lastpenalty",                    some_item_cmd,          lastpenalty_code,                         0);
         tex_primitive(tex_command,    "lastkern",                       some_item_cmd,          lastkern_code,                            0);
@@ -657,6 +667,7 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "directlua",                      convert_cmd,            lua_code,                                 0);
         tex_primitive(luatex_command, "csstring",                       convert_cmd,            cs_string_code,                           0);
         tex_primitive(luatex_command, "csactive",                       convert_cmd,            cs_active_code,                           0);
+     /* tex_primitive(luatex_command, "csnamestring",                   convert_cmd,            cs_lastname_code,                         0); */
         tex_primitive(luatex_command, "detokenized",                    convert_cmd,            detokenized_code,                         0);
         tex_primitive(luatex_command, "expanded",                       convert_cmd,            expanded_code,                            0);
         tex_primitive(luatex_command, "semiexpanded",                   convert_cmd,            semi_expanded_code,                       0);
@@ -699,7 +710,9 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "ifzeronum",                      if_test_cmd,            if_zero_int_code,                         0);
         tex_primitive(luatex_command, "ifzerodim",                      if_test_cmd,            if_zero_dim_code,                         0);
         tex_primitive(luatex_command, "ifchknum",                       if_test_cmd,            if_chk_int_code,                          0);
+        tex_primitive(luatex_command, "ifchknumber",                    if_test_cmd,            if_chk_integer_code,                      0);
         tex_primitive(luatex_command, "ifchkdim",                       if_test_cmd,            if_chk_dim_code,                          0);
+        tex_primitive(luatex_command, "ifchkdimension",                 if_test_cmd,            if_chk_dimension_code,                    0);
         tex_primitive(luatex_command, "ifcmpnum",                       if_test_cmd,            if_cmp_int_code,                          0);
         tex_primitive(luatex_command, "ifcmpdim",                       if_test_cmd,            if_cmp_dim_code,                          0);
         tex_primitive(luatex_command, "ifnumval",                       if_test_cmd,            if_val_int_code,                          0);
@@ -772,10 +785,12 @@ void tex_initialize_commands(void)
         tex_primitive(tex_command,    "def",                            def_cmd,                def_code,                                 0);
         tex_primitive(tex_command,    "xdef",                           def_cmd,                global_expanded_def_code,                 0);
         tex_primitive(tex_command,    "gdef",                           def_cmd,                global_def_code,                          0);
+        tex_primitive(luatex_command, "cdef",                           def_cmd,                constant_def_code,                        0);
         tex_primitive(luatex_command, "edefcsname",                     def_cmd,                expanded_def_csname_code,                 0);
         tex_primitive(luatex_command, "defcsname",                      def_cmd,                def_csname_code,                          0);
         tex_primitive(luatex_command, "xdefcsname",                     def_cmd,                global_expanded_def_csname_code,          0);
         tex_primitive(luatex_command, "gdefcsname",                     def_cmd,                global_def_csname_code,                   0);
+        tex_primitive(luatex_command, "cdefcsname",                     def_cmd,                constant_def_csname_code,                 0);
 
         tex_primitive(tex_command,    "scriptfont",                     define_family_cmd,      script_size,                              0);
         tex_primitive(tex_command,    "scriptscriptfont",               define_family_cmd,      script_script_size,                       0);
@@ -869,18 +884,24 @@ void tex_initialize_commands(void)
         tex_primitive(tex_command,    "box",                            make_box_cmd,           box_code,                                 0);
         tex_primitive(tex_command,    "copy",                           make_box_cmd,           copy_code,                                0);
         tex_primitive(tex_command,    "lastbox",                        make_box_cmd,           last_box_code,                            0);
+        tex_primitive(luatex_command, "tsplit",                         make_box_cmd,           tsplit_code,                              0);
         tex_primitive(tex_command,    "vsplit",                         make_box_cmd,           vsplit_code,                              0);
+        tex_primitive(luatex_command, "dsplit",                         make_box_cmd,           dsplit_code,                              0);
         tex_primitive(luatex_command, "tpack",                          make_box_cmd,           tpack_code,                               0);
         tex_primitive(luatex_command, "vpack",                          make_box_cmd,           vpack_code,                               0);
         tex_primitive(luatex_command, "hpack",                          make_box_cmd,           hpack_code,                               0);
+        tex_primitive(luatex_command, "dpack",                          make_box_cmd,           dpack_code,                               0);
         tex_primitive(tex_command,    "vtop",                           make_box_cmd,           vtop_code,                                0);
         tex_primitive(tex_command,    "vbox",                           make_box_cmd,           vbox_code,                                0);
         tex_primitive(tex_command,    "hbox",                           make_box_cmd,           hbox_code,                                0);
+        tex_primitive(luatex_command, "dbox",                           make_box_cmd,           dbox_code,                                0);
         tex_primitive(luatex_command, "insertbox",                      make_box_cmd,           insert_box_code,                          0);
         tex_primitive(luatex_command, "insertcopy",                     make_box_cmd,           insert_copy_code,                         0);
         tex_primitive(luatex_command, "localleftboxbox",                make_box_cmd,           local_left_box_box_code,                  0);
         tex_primitive(luatex_command, "localrightboxbox",               make_box_cmd,           local_right_box_box_code,                 0);
         tex_primitive(luatex_command, "localmiddleboxbox",              make_box_cmd,           local_middle_box_box_code,                0);
+
+        /*tex Begin compatibility. */
 
         tex_primitive(tex_command,    "mathord",                        math_component_cmd,     math_component_ordinary_code,             0);
         tex_primitive(tex_command,    "mathop",                         math_component_cmd,     math_component_operator_code,             0);
@@ -890,13 +911,26 @@ void tex_initialize_commands(void)
         tex_primitive(tex_command,    "mathclose",                      math_component_cmd,     math_component_close_code,                0);
         tex_primitive(tex_command,    "mathpunct",                      math_component_cmd,     math_component_punctuation_code,          0);
         tex_primitive(tex_command,    "mathinner",                      math_component_cmd,     math_component_inner_code,                0);
-        tex_primitive(luatex_command, "mathfrac",                       math_component_cmd,     math_component_fraction_code,             0);
-        tex_primitive(luatex_command, "mathrad",                        math_component_cmd,     math_component_radical_code,              0);
+        tex_primitive(tex_command,    "underline",                      math_component_cmd,     math_component_under_code,                0);
+        tex_primitive(tex_command,    "overline",                       math_component_cmd,     math_component_over_code,                 0);
+
+        /*tex End compatibility. */
+
+        tex_primitive(luatex_command, "mathordinary",                   math_component_cmd,     math_component_ordinary_code,             0);
+        tex_primitive(luatex_command, "mathoperator",                   math_component_cmd,     math_component_operator_code,             0);
+        tex_primitive(luatex_command, "mathbinary",                     math_component_cmd,     math_component_binary_code,               0);
+        tex_primitive(luatex_command, "mathrelation",                   math_component_cmd,     math_component_relation_code,             0);
+        tex_primitive(luatex_command, "mathopen",                       math_component_cmd,     math_component_open_code,                 0);
+        tex_primitive(luatex_command, "mathclose",                      math_component_cmd,     math_component_close_code,                0);
+        tex_primitive(luatex_command, "mathpunct",                      math_component_cmd,     math_component_punctuation_code,          0);
+        tex_primitive(luatex_command, "mathinner",                      math_component_cmd,     math_component_inner_code,                0);
+        tex_primitive(luatex_command, "mathfraction",                   math_component_cmd,     math_component_fraction_code,             0);
+        tex_primitive(luatex_command, "mathradical",                    math_component_cmd,     math_component_radical_code,              0);
         tex_primitive(luatex_command, "mathmiddle",                     math_component_cmd,     math_component_middle_code,               0);
         tex_primitive(luatex_command, "mathaccent",                     math_component_cmd,     math_component_accent_code,               0);
         tex_primitive(luatex_command, "mathfenced",                     math_component_cmd,     math_component_fenced_code,               0);
-        tex_primitive(tex_command,    "underline",                      math_component_cmd,     math_component_under_code,                0);
-        tex_primitive(tex_command,    "overline",                       math_component_cmd,     math_component_over_code,                 0);
+        tex_primitive(luatex_command, "mathunderline",                  math_component_cmd,     math_component_under_code,                0);
+        tex_primitive(luatex_command, "mathoverline",                   math_component_cmd,     math_component_over_code,                 0);
         tex_primitive(luatex_command, "mathghost",                      math_component_cmd,     math_component_ghost_code,                0);
         tex_primitive(luatex_command, "mathatom",                       math_component_cmd,     math_component_atom_code,                 0);
 
@@ -915,8 +949,6 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "crampedtextstyle",               math_style_cmd,         cramped_text_style,                       0);
         tex_primitive(luatex_command, "crampedscriptstyle",             math_style_cmd,         cramped_script_style,                     0);
         tex_primitive(luatex_command, "crampedscriptscriptstyle",       math_style_cmd,         cramped_script_script_style,              0);
-        tex_primitive(luatex_command, "Ustyle",                         math_style_cmd,         yet_unset_math_style,                     0);
-        tex_primitive(luatex_command, "scaledmathstyle",                math_style_cmd,         scaled_math_style,                        0);
         tex_primitive(luatex_command, "alldisplaystyles",               math_style_cmd,         all_display_styles,                       0);
         tex_primitive(luatex_command, "alltextstyles",                  math_style_cmd,         all_text_styles,                          0);
         tex_primitive(luatex_command, "allscriptstyles",                math_style_cmd,         all_script_styles,                        0);
@@ -927,6 +959,8 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "allunsplitstyles",               math_style_cmd,         all_unsplit_styles,                       0);
         tex_primitive(luatex_command, "alluncrampedstyles",             math_style_cmd,         all_uncramped_styles,                     0);
         tex_primitive(luatex_command, "allcrampedstyles",               math_style_cmd,         all_cramped_styles,                       0);
+        tex_primitive(luatex_command, "Ustyle",                         math_style_cmd,         yet_unset_math_style,                     0);
+        tex_primitive(luatex_command, "scaledmathstyle",                math_style_cmd,         scaled_math_style,                        0);
 
         tex_primitive(tex_command,    "message",                        message_cmd,            message_code,                             0);
         tex_primitive(tex_command,    "errmessage",                     message_cmd,            error_message_code,                       0);
@@ -959,6 +993,7 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "semiprotected",                  prefix_cmd,             semiprotected_code,                       0);
         tex_primitive(luatex_command, "enforced",                       prefix_cmd,             enforced_code,                            0);
         tex_primitive(luatex_command, "inherited",                      prefix_cmd,             inherited_code,                           0);
+        tex_primitive(luatex_command, "constant",                       prefix_cmd,             constant_code,                            0);
 
         tex_primitive(tex_command,    "long",                           prefix_cmd,             long_code,                                0);
         tex_primitive(tex_command,    "outer",                          prefix_cmd,             outer_code,                               0);
@@ -980,7 +1015,7 @@ void tex_initialize_commands(void)
         tex_primitive(tex_command,    "muskipdef",                      shorthand_def_cmd,      mu_skip_def_code,                         0);
         tex_primitive(tex_command,    "skipdef",                        shorthand_def_cmd,      skip_def_code,                            0);
         tex_primitive(tex_command,    "toksdef",                        shorthand_def_cmd,      toks_def_code,                            0);
-     /* tex_primitive(tex_command,    "stringdef",                      shorthand_def_cmd,      string_def_code,                          0); */
+     /* tex_primitive(luatex_command, "stringdef",                      shorthand_def_cmd,      string_def_code,                          0); */
         tex_primitive(luatex_command, "Umathchardef",                   shorthand_def_cmd,      math_xchar_def_code,                      0);
         tex_primitive(luatex_command, "Umathdictdef",                   shorthand_def_cmd,      math_dchar_def_code,                      0);
         tex_primitive(luatex_command, "attributedef",                   shorthand_def_cmd,      attribute_def_code,                       0);
@@ -991,6 +1026,8 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "mugluespecdef",                  shorthand_def_cmd,      mugluespec_def_code,                      0);
      /* tex_primitive(luatex_command, "mathspecdef",                    shorthand_def_cmd,      mathspec_def_code,                        0); */
         tex_primitive(luatex_command, "fontspecdef",                    shorthand_def_cmd,      fontspec_def_code,                        0);
+     /* tex_primitive(luatex_command, "integerdefcsname",               shorthand_def_cmd,      integer_def_csname_code,                  0); */
+     /* tex_primitive(luatex_command, "dimensiondefcsname",             shorthand_def_cmd,      dimension_def_csname_code,                0); */
 
         tex_primitive(tex_command,    "noindent",                       begin_paragraph_cmd,    noindent_par_code,                        0);
         tex_primitive(tex_command,    "indent",                         begin_paragraph_cmd,    indent_par_code,                          0);
@@ -1019,8 +1056,8 @@ void tex_initialize_commands(void)
         tex_primitive(tex_command,    "unvcopy",                        un_vbox_cmd,            copy_code,                                0);
         tex_primitive(luatex_command, "unvpack",                        un_vbox_cmd,            unpack_code,                              0);
 
-        tex_primitive(etex_command,   "pagediscards",                   un_vbox_cmd,            last_box_code,                            0);
-        tex_primitive(etex_command,   "splitdiscards",                  un_vbox_cmd,            vsplit_code,                              0);
+        tex_primitive(etex_command,   "pagediscards",                   un_vbox_cmd,            page_discards_code,                            0);
+        tex_primitive(etex_command,   "splitdiscards",                  un_vbox_cmd,            split_discards_code,                              0);
 
         tex_primitive(luatex_command, "insertunbox",                    un_vbox_cmd,            insert_box_code,                          0);
         tex_primitive(luatex_command, "insertuncopy",                   un_vbox_cmd,            insert_copy_code,                         0);
@@ -1301,10 +1338,16 @@ void tex_initialize_commands(void)
         cs_text(deep_frozen_cs_protection_code) = tex_maketexstring("inaccessible");
 
         cs_text(deep_frozen_cs_end_write_code) = tex_maketexstring("endwrite");
-        set_eq_level(deep_frozen_cs_end_write_code, level_one);
         set_eq_type(deep_frozen_cs_end_write_code, call_cmd);
         set_eq_flag(deep_frozen_cs_end_write_code, 0);
         set_eq_value(deep_frozen_cs_end_write_code, null);
+        set_eq_level(deep_frozen_cs_end_write_code, level_one);
+
+        /*tex The empty list reference should be reassigned after compacting! */
+
+        lmt_token_state.empty = get_reference_token();
+     // tex_add_token_reference(lmt_token_state.empty);
+        set_token_reference(lmt_token_state.empty, max_token_reference);
 
         lmt_string_pool_state.reserved = lmt_string_pool_state.string_pool_data.ptr;
         lmt_hash_state.no_new_cs = 1;

@@ -41,13 +41,17 @@
 
 condition_state_info lmt_condition_state = {
     .cond_ptr   = null,
-    .if_limit   = 0,
     .cur_if     = 0,
+    .cur_unless = 0,
+    .if_step    = 0,
+    .if_unless  = 0,
+    .if_limit   = 0,
     .if_line    = 0,
     .skip_line  = 0,
     .chk_num    = 0,
     .chk_dim    = 0,
     .if_nesting = 0,
+    .padding    = 0,
 };
 
 /*tex
@@ -89,9 +93,8 @@ static void tex_aux_pass_text(void)
                     }
                 case or_else_code:
                 case or_unless_code:
-                    do {
-                        tex_get_next();
-                    } while (cur_cmd == spacer_cmd);
+                    tex_get_next_non_spacer();
+                    /*tex So we skip the token after |\orelse| or |\orunless| without testing it! */
                     break;
                 default:
                    ++level;
@@ -143,9 +146,7 @@ static int tex_aux_pass_text_x(int tracing_ifs, int tracing_commands)
                         } else if (tracing_ifs) {
                             tex_show_cmd_chr(cur_cmd, cur_chr);
                         }
-                        do {
-                            tex_get_next();
-                        } while (cur_cmd == spacer_cmd);
+                        tex_get_next_non_spacer();
                         if (lmt_condition_state.if_limit == if_code) {
                             if (cur_cmd == if_test_cmd && cur_chr >= first_real_if_test_code) {
                                 goto OKAY;
@@ -218,11 +219,16 @@ static void tex_aux_if_warning(void)
     }
 }
 
+/*tex 
+    We can consider a dedicated condition stack so that we can copy faster. Or we can just emulate
+    an if node in |lmt_condition_state|. 
+*/
+
 static void tex_aux_push_condition_stack(int code, int unless)
 {
     halfword p = tex_get_node(if_node_size);
     node_type(p) = if_node;
-    node_subtype(p) = 0;
+    node_subtype(p) = 0; /* unused */
     node_next(p) = lmt_condition_state.cond_ptr;
     if_limit_type(p) = (quarterword) lmt_condition_state.if_limit;
     if_limit_subtype(p) = (quarterword) lmt_condition_state.cur_if;
@@ -420,19 +426,80 @@ inline static halfword tex_aux_grab_toks(int expand, int expandlist, int *head)
     return p ? token_link(p) : null;
 }
 
+// inline static halfword tex_aux_scan_comparison(int code)
+// {
+//     halfword r;
+//     do {
+//         tex_get_x_token();
+//     } while (cur_cmd == spacer_cmd);
+//     r = cur_tok - other_token;
+//     if ((r < '<') || (r > '>')) {
+//         tex_aux_missing_equal_error(code);
+//         return '=';
+//     } else {
+//         return r;
+//     }
+// }
+
+//inline static halfword tex_aux_scan_comparison(int code)
+//{
+//    do {
+//        tex_get_x_token();
+//    } while (cur_cmd == spacer_cmd);
+//    if (cur_cmd != other_char_cmd || (cur_chr < '<') || (cur_chr > '>')) {
+//        tex_aux_missing_equal_error(code);
+//        return '=';
+//    } else {
+//        return cur_chr;
+//    }
+//}
+
 inline static halfword tex_aux_scan_comparison(int code)
 {
-    halfword r;
-    do {
+    int negate = 0;
+    while (1) {
         tex_get_x_token();
-    } while (cur_cmd == spacer_cmd);
-    r = cur_tok - other_token;
-    if ((r < '<') || (r > '>')) {
-        tex_aux_missing_equal_error(code);
-        return '=';
-    } else {
-        return r;
+        switch (cur_cmd) { 
+            case letter_cmd: 
+            case other_char_cmd: 
+                switch (cur_chr) { 
+                    /* traditional */
+                    case '='   : return negate ? 3 : 0;
+                    case '<'   : return negate ? 4 : 1;
+                    case '>'   : return negate ? 5 : 2;
+                    /* bonus */
+                    case '!'   : negate = ! negate ; continue;
+                    /* neat */
+                    case 0x2208: return negate ? 7 : 6; /* element of */
+                    case 0x2209: return negate ? 6 : 7; /* not element of */
+                    case 0x2260: return negate ? 0 : 3; /* not equal */
+                    case 0x2264: return negate ? 2 : 5; /* less equal */
+                    case 0x2265: return negate ? 1 : 4; /* greater equal */
+                    case 0x2270: return negate ? 2 : 5; /* not less equal */
+                    case 0x2271: return negate ? 1 : 4; /* not greater equal */
+                }
+            case spacer_cmd: 
+                continue;
+            default:
+                tex_aux_missing_equal_error(code);
+                return 0;
+        }
+    } 
+}
+
+inline static void tex_aux_check_strict(int *result)
+{
+    tex_get_x_token();
+    switch (cur_cmd) { 
+        case relax_cmd:
+        case spacer_cmd: 
+        case if_test_cmd:
+            break;
+        default: 
+            *result = 2;
+            break;
     }
+    tex_back_input(cur_tok);
 }
 
 void tex_conditional_if(halfword code, int unless)
@@ -497,18 +564,19 @@ void tex_conditional_if(halfword code, int unless)
                     }
                 }
                 switch (cp) {
-                    case '<': result = (n1 <  n2); break;
-                 /* case '=': result = (n1 == n2); break; */
-                    case '>': result = (n1  > n2); break;
-                 /* default:                       break; */
-                    default : result = (n1 == n2); break;
+                    case 0: result = (n1 == n2); break;
+                    case 1: result = (n1 <  n2); break;
+                    case 2: result = (n1  > n2); break;
+                    case 3: result = (n1 != n2); break;
+                    case 4: result = (n1 >= n2); break;
+                    case 5: result = (n1 <= n2); break;
+                    case 6: result = (n1 & n2) == n1; break;
+                    case 7: result = (n1 & n2) != n1; break;
                 }
             }
             goto RESULT;
         case if_zero_int_code:
-            {
-                result = tex_scan_int(0, NULL) == 0;
-            }
+            result = tex_scan_int(0, NULL) == 0;
             goto RESULT;
         case if_abs_dim_code:
         case if_dim_code:
@@ -525,33 +593,32 @@ void tex_conditional_if(halfword code, int unless)
                     }
                 }
                 switch (cp) {
-                    case '<': result = (n1 <  n2); break;
-                 /* case '=': result = (n1 == n2); break; */
-                    case '>': result = (n1  > n2); break;
-                 /* default:                       break; */
-                    default : result = (n1 == n2); break;
+                    case 0: result = (n1 == n2); break;
+                    case 1: result = (n1 <  n2); break;
+                    case 2: result = (n1  > n2); break;
+                    case 3: result = (n1 != n2); break;
+                    case 4: result = (n1 >= n2); break;
+                    case 5: result = (n1 <= n2); break;
+                    /* maybe we should round */
+                    case 6: result = (n1/65536 & n2/65536) == n1/65536; break;
+                    case 7: result = (n1/65536 & n2/65536) != n1/65536; break;
                 }
             }
             goto RESULT;
         case if_zero_dim_code:
-            {
-                result = tex_scan_dimen(0, 0, 0, 0, NULL) == 0;
-            }
+            result = tex_scan_dimen(0, 0, 0, 0, NULL) == 0;
             goto RESULT;
         case if_odd_code:
-            {
-                halfword v = tex_scan_int(0, NULL);
-                result = odd(v);
-            }
+            result = odd(tex_scan_int(0, NULL));
             goto RESULT;
         case if_vmode_code:
-            result = abs(cur_list.mode) == vmode;
+            result = is_v_mode(cur_list.mode);
             goto RESULT;
         case if_hmode_code:
-            result = abs(cur_list.mode) == hmode;
+            result = is_h_mode(cur_list.mode);
             goto RESULT;
         case if_mmode_code:
-            result = abs(cur_list.mode) == mmode;
+            result = is_m_mode(cur_list.mode);
             goto RESULT;
         case if_inner_code:
             result = cur_list.mode < nomode;
@@ -679,11 +746,15 @@ void tex_conditional_if(halfword code, int unless)
             result = 0;
             goto RESULT;
         case if_chk_int_code:
+        case if_chk_integer_code:
             {
                 lmt_error_state.intercept = 1; /* maybe ++ and -- so that we can nest */
                 lmt_error_state.last_intercept = 0;
                 lmt_condition_state.chk_num = tex_scan_int(0, NULL); /* value is ignored */
                 result = lmt_error_state.last_intercept ? 2 : 1;
+                if (result == 1 && code == if_chk_integer_code) { 
+                    tex_aux_check_strict(&result);
+                }
                 lmt_error_state.intercept = 0;
                 lmt_error_state.last_intercept = 0;
                 goto CASE;
@@ -706,11 +777,15 @@ void tex_conditional_if(halfword code, int unless)
                 goto CASE;
             }
         case if_chk_dim_code:
+        case if_chk_dimension_code:
             {
                 lmt_error_state.intercept = 1;
                 lmt_error_state.last_intercept = 0;
                 lmt_condition_state.chk_dim = tex_scan_dimen(0, 0, 0, 0, NULL); /* value is ignored */
                 result = lmt_error_state.last_intercept ? 2 : 1;
+                if (result == 1 && code == if_chk_dimension_code) { 
+                    tex_aux_check_strict(&result);
+                }
                 lmt_error_state.intercept = 0;
                 lmt_error_state.last_intercept = 0;
                 goto CASE;
@@ -917,8 +992,7 @@ void tex_conditional_if(halfword code, int unless)
                     halfword t = token_info(lmt_input_state.cur_input.loc);
                     lmt_input_state.cur_input.loc = token_link(lmt_input_state.cur_input.loc);
                     if (t < cs_token_flag && token_cmd(t) == parameter_reference_cmd) {
-                      // result = token_info(input_state.parameter_stack[input_state.cur_input.parameter_start + token_chr(t) - 1]) != null ? 1 : 2;
-                         result = lmt_input_state.parameter_stack[lmt_input_state.cur_input.parameter_start + token_chr(t) - 1] != null ? 1 : 2;
+                        result = lmt_input_state.parameter_stack[lmt_input_state.cur_input.parameter_start + token_chr(t) - 1] != null ? 1 : 2;
                     }
                 }
                 goto CASE;
@@ -1050,19 +1124,19 @@ void tex_conditional_if(halfword code, int unless)
      //     }
         default:
             {
-                int class;
+                int category;
                 strnumber u = tex_save_cur_string();
                 int save_scanner_status = lmt_input_state.scanner_status;
                 lmt_input_state.scanner_status = scanner_is_normal;
                 lmt_token_state.luacstrings = 0;
-                class = lmt_function_call_by_class(code - last_if_test_code, 0, &result);
+                category = lmt_function_call_by_category(code - last_if_test_code, 0, &result);
                 tex_restore_cur_string(u);
                 lmt_input_state.scanner_status = save_scanner_status;
                 if (lmt_token_state.luacstrings > 0) {
                     tex_lua_string_start();
                     /* bad */
                 }
-                switch (class) {
+                switch (category) {
                     case lua_value_integer_code:
                     case lua_value_cardinal_code:
                     case lua_value_dimension_code:
@@ -1171,7 +1245,6 @@ void tex_conditional_if(halfword code, int unless)
     } else {
         /*tex Wait for |\fi|. */
 //lmt_condition_state.if_step = code;
-
         lmt_condition_state.if_limit = fi_code;
     }
 }
@@ -1189,9 +1262,7 @@ void tex_conditional_fi_or_else(void)
         tex_show_cmd_chr(if_test_cmd, cur_chr);
     }
     if (cur_chr == or_else_code || cur_chr == or_unless_code) {
-        do {
-            tex_get_next();
-        } while (cur_cmd == spacer_cmd);
+        tex_get_next_non_spacer();
     } else if (cur_chr > lmt_condition_state.if_limit) {
         if (lmt_condition_state.if_limit == if_code) {
             /*tex

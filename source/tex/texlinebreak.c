@@ -144,6 +144,12 @@ void tex_line_break_prepare(
 {
     /* too much testing of next */
     if (node_type(par) == par_node) {
+        if (tracing_linebreak_lists) {
+            tex_begin_diagnostic();
+            tex_print_format("[linebreak: prepare, before]");
+            tex_show_box(par);
+            tex_end_diagnostic();
+        }
         *tail = *tail ? *tail : tex_tail_of_node_list(par);
         *final_penalty = tex_new_penalty_node(infinite_penalty, line_penalty_subtype);
         *parfill_left_skip_glue = tex_new_glue_node(tex_get_par_par(par, par_par_fill_left_skip_code), par_fill_left_skip_glue);
@@ -164,7 +170,11 @@ void tex_line_break_prepare(
         tex_try_couple_nodes(*parfill_left_skip_glue, *parfill_right_skip_glue);
         *tail = *parfill_right_skip_glue;
         if (node_next(par)) {
+            halfword p = par; 
             halfword n = node_next(par);
+            while (node_next(p) && node_type(node_next(p)) == dir_node) {
+                p = node_next(p);
+            }
             while (n) {
                 if (node_type(n) == glue_node && node_subtype(n) == indent_skip_glue) {
                     *parinit_left_skip_glue = tex_new_glue_node(tex_get_par_par(par, par_par_init_left_skip_code), par_init_left_skip_glue);
@@ -173,12 +183,19 @@ void tex_line_break_prepare(
                     tex_attach_attribute_list_copy(*parinit_right_skip_glue, par);
                     tex_try_couple_nodes(*parinit_right_skip_glue, n);
                     tex_try_couple_nodes(*parinit_left_skip_glue, *parinit_right_skip_glue);
-                    tex_try_couple_nodes(par, *parinit_left_skip_glue);
+                 // tex_try_couple_nodes(par, *parinit_left_skip_glue);
+                    tex_try_couple_nodes(p, *parinit_left_skip_glue);
                     break;
                 } else {
-                    n = node_next(n);
+                    n = node_next(n); /* sort of weird and tricky */
                 }
             }
+        }
+        if (tracing_linebreak_lists) {
+            tex_begin_diagnostic();
+            tex_print_format("[linebreak: prepare, after]");
+            tex_show_box(par);
+            tex_end_diagnostic();
         }
     }
 }
@@ -3528,4 +3545,23 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
     cur_list.prev_graf = lmt_linebreak_state.best_line - 1;
     cur_list.direction_stack = lmt_linebreak_state.dir_ptr;
     lmt_linebreak_state.dir_ptr = null;
+}
+
+halfword tex_wipe_margin_kerns(halfword head)
+{
+    /*tex We assume that head is a temp node or at least can be skipped (for now). */
+    halfword tail = head;
+    while (1) {
+        halfword next = node_next(tail);
+        if (next) {
+            if (node_type(next) == kern_node && (node_subtype(next) == left_margin_kern_subtype || node_subtype(next) == right_margin_kern_subtype)) {
+                tex_try_couple_nodes(tail, node_next(next));
+                tex_flush_node(next);
+            } else {
+                tail = next;
+            }
+        } else {
+            return tail;
+        }
+    }
 }

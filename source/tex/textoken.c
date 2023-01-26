@@ -92,7 +92,7 @@ token_state_info lmt_token_state = {
     .buffer         = NULL,
     .bufloc         = 0,
     .bufmax         = 0,
-    .padding        = 0,
+    .empty          = null, 
 };
 
 /*tex Some properties are dumped in the format so these are aet already! */
@@ -212,6 +212,7 @@ void tex_compact_tokens(void)
                     }
             }
         }
+        lmt_token_state.empty = mapper[lmt_token_state.empty];
      // print(dump_state.format_identifier);
         tex_print_format("tokenlist compacted from %i to %i entries, ", lmt_token_memory_state.tokens_data.top, nc);
         if (nofluacmds) {
@@ -265,7 +266,7 @@ halfword tex_get_available_token(halfword t)
         lmt_token_memory_state.available = token_link(p);
     } else if (lmt_token_memory_state.tokens_data.top < lmt_token_memory_state.tokens_data.allocated) {
         p = ++lmt_token_memory_state.tokens_data.top;
-     } else {
+    } else {
         tex_aux_bump_token_memory();
         p = ++lmt_token_memory_state.tokens_data.top;
     }
@@ -335,27 +336,30 @@ void tex_add_token_reference(halfword p)
 {
     if (get_token_reference(p) < max_token_reference) {
         add_token_reference(p);
-    } else {
-        tex_overflow_error("reference count", max_token_reference);
+ // } else {
+ //     tex_overflow_error("reference count", max_token_reference);
     }
 }
 
 void tex_increment_token_reference(halfword p, int n)
 {
     if ((get_token_reference(p) + n) < max_token_reference) {
-        inc_token_reference(p,n);
-    } else {
-        tex_overflow_error("reference count", max_token_reference);
+        inc_token_reference(p, n);
+    } else { 
+        inc_token_reference(p, max_token_reference - get_token_reference(p));
+ // } else {
+ //     tex_overflow_error("reference count", max_token_reference);
     }
 }
 
 void tex_delete_token_reference(halfword p)
 {
     if (p) {
-        if (get_token_reference(p)) {
-            sub_token_reference(p);
-        } else {
+        halfword r = get_token_reference(p);
+        if (! r) {
             tex_flush_token_list(p);
+        } if (r < max_token_reference) {
+            sub_token_reference(p);
         }
     }
 }
@@ -465,24 +469,26 @@ void tex_print_meaning(halfword code)
                 tex_print_cs(cur_cs);
                 return;
             } else {
+                int constant = (cur_chr && get_token_reference(cur_chr) == max_token_reference);
                 switch (code) {
                     case meaning_code:
                     case meaning_full_code:
+                        if (constant) {
+                            tex_print_str("constant ");
+                        }
                         tex_print_str("macro");
                         goto FOLLOWUP;
                     case meaning_asis_code:
+                        if (constant) {
+                            tex_print_str_esc("constant ");
+                        }
                      // tex_print_format("%e%C %S ", def_cmd, def_code, cur_cs);
                         tex_print_cmd_chr(def_cmd, def_code);
                         tex_print_char(' ');
                         tex_print_cs(cur_cs);
                         tex_print_char(' ');
                         if (cur_chr && token_link(cur_chr)) {
-                            halfword body = get_token_parameters(cur_chr) ? tex_show_token_list(token_link(cur_chr), null, default_token_show_max, 1) : token_link(cur_chr);
-                            tex_print_char('{');
-                            if (body) {
-                                tex_show_token_list(body, null, default_token_show_max, 0);
-                            }
-                            tex_print_char('}');
+                            tex_show_token_list(token_link(cur_chr), get_token_preamble(cur_chr));
                         }
                         return;
                 }
@@ -492,7 +498,7 @@ void tex_print_meaning(halfword code)
             tex_print_cmd_chr((singleword) cur_cmd, cur_chr);
             tex_print_char(':');
             tex_print_nlp();
-            tex_token_show(tex_get_some_mark(cur_chr, 0), default_token_show_max);
+            tex_token_show(tex_get_some_mark(cur_chr, 0));
             return;
         case lua_value_cmd:
         case lua_call_cmd:
@@ -525,7 +531,7 @@ void tex_print_meaning(halfword code)
     tex_print_char(':');
   DETAILS:
     tex_print_nlp();
-    tex_token_show(cur_chr, default_token_show_max);
+    tex_token_show(cur_chr);
 }
 
 /*tex
@@ -559,6 +565,9 @@ void tex_print_meaning(halfword code)
     In \LUAMETATEX\ we have some more node types and token types so we also have additional tracing.
     Because there is some more granularity in for instance nodes (subtypes) more detail is reported.
 
+    It made sense to split the |tex_show_token_list| funciton in two, ine specialized for showing 
+    the context. That saves some testing and passing arguments. 
+
 */
 
 static const char *tex_aux_special_cmd_string(halfword cmd, halfword chr, const char *unknown)
@@ -578,42 +587,120 @@ static const char *tex_aux_special_cmd_string(halfword cmd, halfword chr, const 
     }
 }
 
-halfword tex_show_token_list(halfword p, halfword q, int l, int asis)
+void tex_show_token_list(halfword p, int asis)
+{
+    if (p) {
+        unsigned char n = 0;
+        int max = lmt_token_memory_state.tokens_data.top;
+        while (p) {
+            if (p < 0 || p > max) {
+                tex_print_str(error_string_clobbered(41));
+                return;
+            } else if (token_info(p) >= cs_token_flag) {
+                tex_print_cs_checked(token_info(p) - cs_token_flag);
+            } else if (token_info(p) > 0) {
+                int cmd = token_cmd(token_info(p));
+                int chr = token_chr(token_info(p));
+                switch (cmd) {
+                    case left_brace_cmd:
+                    case right_brace_cmd:
+                    case math_shift_cmd:
+                    case alignment_tab_cmd:
+                    case superscript_cmd:
+                    case subscript_cmd:
+                    case spacer_cmd:
+                    case letter_cmd:
+                    case other_char_cmd:
+                    case active_char_cmd:
+                    case ignore_cmd: 
+                        tex_print_tex_str(chr);
+                        break;
+                    case parameter_cmd:
+                        if (! lmt_token_state.in_lua_escape && (lmt_expand_state.cs_name_level == 0)) {
+                            tex_print_tex_str(chr);
+                        }
+                        tex_print_tex_str(chr);
+                        break;
+                    case parameter_reference_cmd:
+                        tex_print_tex_str(match_visualizer);
+                        if (chr <= 9) {
+                            tex_print_char(chr + '0');
+                        } else if (chr <= max_match_count) {
+                            tex_print_char(chr + '0' + gap_match_count);
+                        } else {
+                            tex_print_char('!');
+                            return;
+                        }
+                        break;
+                    case match_cmd:
+                        tex_print_char(match_visualizer);
+                        if (is_valid_match_ref(chr)) {
+                            ++n;
+                        }
+                        tex_print_char(chr ? chr : '0');
+                        if (n > max_match_count) {
+                            return;
+                        } else {
+                            break;
+                        }
+                    case end_match_cmd:
+                        if (asis) {
+                            tex_print_char('{');
+                        } else if (chr == 0) {
+                            tex_print_str("->");
+                        }
+                        break;
+                    case ignore_something_cmd:
+                        break;
+                    case set_font_cmd:
+                        tex_print_format("[font->%s]", font_original(cur_val));
+                        break;
+                    case end_paragraph_cmd:
+                     /* tex_print_format("%e%s", "par "); */
+                        tex_print_str_esc("par ");
+                        break;
+                    default:
+                        tex_print_str(tex_aux_special_cmd_string(cmd, chr, error_string_bad(43)));
+                        break;
+                }
+            } else {
+                tex_print_str(error_string_bad(42));
+            }
+            p = token_link(p);
+        }
+        if (asis) {
+            tex_print_char('}');
+        }
+    }
+}
+
+void tex_show_token_list_context(halfword p, halfword q)
 {
     if (p) {
         /*tex the highest parameter number, as an \ASCII\ digit */
-        unsigned char n = '0';
-        int min = 0;
+        unsigned char n = 0;
         int max = lmt_token_memory_state.tokens_data.top;
         lmt_print_state.tally = 0;
-//        if (l <= 0) {
-            l = extreme_token_show_max;
-//        }
-        while (p && (lmt_print_state.tally < l)) {
+        while (p) {
             if (p == q) {
                 /*tex Do magic computation. We only end up here in context showing. */
                 tex_set_trick_count();
             }
             /*tex Display token |p|, and |return| if there are problems. */
-            if (p < min || p > max) {
+            if (p < 0 || p > max) {
                 tex_print_str(error_string_clobbered(41));
-                return null;
+                return;
             } else if (token_info(p) >= cs_token_flag) {
              // if (! ((print_state.inhibit_par_tokens) && (token_info(p) == token_state.par_token))) {
                     tex_print_cs_checked(token_info(p) - cs_token_flag);
              // }
-            } else if (token_info(p) < 0) {
-                tex_print_str(error_string_bad(42));
-            } else if (token_info(p) == 0) {
-                tex_print_str(error_string_bad(44));
-            } else {
+            } else if (token_info(p) > 0) {
                 int cmd = token_cmd(token_info(p));
                 int chr = token_chr(token_info(p));
                 /*
                     Display the token (|cmd|,|chr|). The procedure usually \quote {learns} the character
                     code used for macro parameters by seeing one in a |match| command before it runs
-                    into any |out_param| commands.
-
+                    into any |out_param| commands. This is probably not true any longer. 
                 */
                 switch (cmd) {
                     case left_brace_cmd:
@@ -639,9 +726,11 @@ halfword tex_show_token_list(halfword p, halfword q, int l, int asis)
                         tex_print_tex_str(match_visualizer);
                         if (chr <= 9) {
                             tex_print_char(chr + '0');
+                        } else if (chr <= max_match_count) {
+                            tex_print_char(chr + '0' + gap_match_count);
                         } else {
                             tex_print_char('!');
-                            return null;
+                            return;
                         }
                         break;
                     case match_cmd:
@@ -650,18 +739,14 @@ halfword tex_show_token_list(halfword p, halfword q, int l, int asis)
                             ++n;
                         }
                         tex_print_char(chr ? chr : '0');
-                        if (n > '9') {
+                        if (n > max_match_count) {
                             /*tex Can this happen at all? */
-                            return null;
+                            return;
                         } else {
                             break;
                         }
                     case end_match_cmd:
-                        if (asis) {
-                            return token_link(p);
-                        } else if (chr == 0) {
-                            tex_print_str("->");
-                        }
+                        tex_print_str("->");
                         break;
                     case ignore_something_cmd:
                         break;
@@ -669,12 +754,17 @@ halfword tex_show_token_list(halfword p, halfword q, int l, int asis)
                         tex_print_format("[font->%s]", font_original(cur_val));
                         break;
                     case end_paragraph_cmd:
-                        tex_print_format("%e%s", "par ");
+                     /* tex_print_format("%e%s", "par "); */
+                        tex_print_str_esc("par ");
                         break;
                     default:
                         tex_print_str(tex_aux_special_cmd_string(cmd, chr, error_string_bad(43)));
                         break;
                 }
+         // } else if (token_info(p) == 0) {
+         //     tex_print_str(error_string_bad(44));
+            } else {
+                tex_print_str(error_string_bad(42));
             }
             p = token_link(p);
         }
@@ -682,7 +772,6 @@ halfword tex_show_token_list(halfword p, halfword q, int l, int asis)
             tex_print_str_esc("ETC.");
         }
     }
-    return p;
 }
 
 /*
@@ -698,8 +787,9 @@ inline static halfword get_unichar_from_buffer(int *b)
     if (a <= 0x80) {
         *b += 1;
     } else {
-        a = (halfword) aux_str2uni(lmt_fileio_state.io_buffer + *b);
-        *b += utf8_size(a);
+        int al; 
+        a = (halfword) aux_str2uni_len(lmt_fileio_state.io_buffer + *b, &al);
+        *b += al;
     }
     return a;
 }
@@ -711,10 +801,10 @@ inline static halfword get_unichar_from_buffer(int *b)
 
 */
 
-void tex_token_show(halfword p, int max)
+void tex_token_show(halfword p)
 {
     if (p && token_link(p)) {
-        tex_show_token_list(token_link(p), null, max, 0);
+        tex_show_token_list(token_link(p), 0);
     }
 }
 
@@ -752,7 +842,7 @@ typedef enum next_line_retval {
     next_line_restart
 } next_line_retval;
 
-static next_line_retval tex_aux_next_line(void);
+static inline next_line_retval tex_aux_next_line(void);
 
 /*tex
 
@@ -782,7 +872,6 @@ static next_line_retval tex_aux_next_line(void);
 halfword tex_scan_character(const char *s, int left_brace, int skip_space, int skip_relax)
 {
     halfword save_cur_cs = cur_cs;
-//    (void) skip_space; /* some day */
     while (1) {
         tex_get_x_token();
         switch (cur_cmd) {
@@ -892,7 +981,7 @@ int tex_scan_optional_keyword(const char *s)
 
 /*tex
     Here we know that the first character(s) matched so we are in the middle of a keyword already
-    which means a different loop than the previous one.
+    which means a different loop than the previous one. 
 */
 
 int tex_scan_mandate_keyword(const char *s, int offset)
@@ -917,8 +1006,8 @@ int tex_scan_mandate_keyword(const char *s, int offset)
                     goto BAD_NEWS;
                 }
                 break;
-         // case spacer_cmd:  /* normally spaces are not pushed back */
-         // case relax_cmd:   /* normally not, should be option  */
+         // case spacer_cmd: /* normally spaces are not pushed back */
+         // case relax_cmd:  /* normally not, should be option  */
          //     if (done) {
          //         back_input(cur_tok);
          //         goto BAD_NEWS;
@@ -927,7 +1016,7 @@ int tex_scan_mandate_keyword(const char *s, int offset)
          //     }
          // default:
          //     goto BAD_NEWS;
-            case spacer_cmd:  /* normally spaces are not pushed back */
+            case spacer_cmd: /* normally spaces are not pushed back */
                 if (done) {
                     goto BAD_NEWS;
                 } else {
@@ -1174,7 +1263,7 @@ static int tex_aux_get_next_file(void)
       RESWITCH:
         if (lmt_input_state.cur_input.cattable == no_catcode_table_preset) {
             /* happens seldom: detokenized line */
-            cur_cmd = cur_chr == ' ' ? 10 : 12;
+            cur_cmd = cur_chr == ' ' ? spacer_cmd : other_char_cmd;
         } else {
             cur_cmd = tex_aux_the_cat_code(cur_chr);
         }
@@ -1297,15 +1386,15 @@ static int tex_aux_get_next_file(void)
                 break;
             /*
             case skip_blanks_state + math_shift_cmd:
-            case skip_blanks_state + tab_mark_cmd:
-            case skip_blanks_state + mac_param_cmd:
-            case skip_blanks_state + sub_mark_cmd:
+            case skip_blanks_state + alignment_tab_cmd:
+            case skip_blanks_state + parameter_cmd:
+            case skip_blanks_state + subscript_cmd:
             case skip_blanks_state + letter_cmd:
             case skip_blanks_state + other_char_cmd:
             case new_line_state    + math_shift_cmd:
-            case new_line_state    + tab_mark_cmd:
-            case new_line_state    + mac_param_cmd:
-            case new_line_state    + sub_mark_cmd:
+            case new_line_state    + alignment_tab_cmd:
+            case new_line_state    + parameter_cmd:
+            case new_line_state    + subscript_cmd:
             case new_line_state    + letter_cmd:
             case new_line_state    + other_char_cmd:
             */
@@ -1640,11 +1729,6 @@ static int tex_aux_scan_control_sequence(void)
                         continue;
                     }
                 }
-             // state = cat == spacer_cmd ? skip_blanks_state : mid_line_state;
-             // /*tex If an expanded \unknown */
-             // if (cat == sup_mark_cmd && check_expanded_code(&loc, chr)) {
-             //    continue;
-             // }
             } else {
                 state = skip_blanks_state;
                 do {
@@ -1688,59 +1772,61 @@ static int tex_aux_scan_control_sequence(void)
 
 static void tex_aux_file_warning(void)
 {
-    halfword cond_ptr = lmt_save_state.save_stack_data.ptr;  /*tex saved value of |save_ptr| or |cond_ptr| */
-    int cur_if = cur_group;                                  /*tex saved value of |cur_group| or |cur_if| */
-    int cur_unless = 0;
-    int if_step = 0;
-    int if_unless = 0;
-    int if_limit = cur_level;                                /*tex saved value of |cur_level| or |if_limit| */
-    int if_line = 0;                                         /*tex saved value of |if_line| */
-    lmt_save_state.save_stack_data.ptr = cur_boundary;
-    while (lmt_input_state.in_stack[lmt_input_state.in_stack_data.ptr].group != lmt_save_state.save_stack_data.ptr) {
-        --cur_level;
-        tex_print_nlp();
-        tex_print_format("Warning: end of file when %G is incomplete", 1);
-        cur_group = save_level(lmt_save_state.save_stack_data.ptr);
-        lmt_save_state.save_stack_data.ptr = save_value(lmt_save_state.save_stack_data.ptr);
-    }
-    /*tex Restore old values. */
-    lmt_save_state.save_stack_data.ptr = cond_ptr;
-    cur_level = (quarterword) if_limit;
-    cur_group = (quarterword) cur_if;
-    cond_ptr = lmt_condition_state.cond_ptr;
-    cur_if = lmt_condition_state.cur_if;
-    cur_unless = lmt_condition_state.cur_unless;
-    if_step = lmt_condition_state.if_step;
-    if_unless = lmt_condition_state.if_unless;
-    if_limit = lmt_condition_state.if_limit;
-    if_line = lmt_condition_state.if_line;
-    while (lmt_input_state.in_stack[lmt_input_state.in_stack_data.ptr].if_ptr != lmt_condition_state.cond_ptr) {
-        /* todo, more info */
-        tex_print_nlp();
-        tex_print_format("Warning: end of file when %C", if_test_cmd, lmt_condition_state.cur_if);
-        if (lmt_condition_state.if_limit == fi_code) {
-            tex_print_str_esc("else");
+    {
+     // save_state_info saved_save_stack_data = lmt_save_state;
+        halfword saved_stack_ptr = lmt_save_state.save_stack_data.ptr;
+        quarterword saved_group = cur_group;
+        quarterword saved_level = cur_level;
+        lmt_save_state.save_stack_data.ptr = cur_boundary;
+        while (lmt_input_state.in_stack[lmt_input_state.in_stack_data.ptr].group != lmt_save_state.save_stack_data.ptr) {
+            --cur_level;
+            tex_print_nlp();
+            tex_print_format("Warning: end of file when %G is incomplete", 1);
+            cur_group = save_level(lmt_save_state.save_stack_data.ptr);
+            lmt_save_state.save_stack_data.ptr = save_value(lmt_save_state.save_stack_data.ptr);
         }
-        if (lmt_condition_state.if_line) {
-            tex_print_format(" entered on line %i", lmt_condition_state.if_line);
-        }
-        tex_print_str(" is incomplete");
-        lmt_condition_state.cur_if = if_limit_subtype(lmt_condition_state.cond_ptr);
-        lmt_condition_state.cur_unless = if_limit_unless(lmt_condition_state.cond_ptr);
-        lmt_condition_state.if_step = if_limit_step(lmt_condition_state.cond_ptr);
-        lmt_condition_state.if_unless = if_limit_stepunless(lmt_condition_state.cond_ptr);
-        lmt_condition_state.if_limit = if_limit_type(lmt_condition_state.cond_ptr);
-        lmt_condition_state.if_line = if_limit_line(lmt_condition_state.cond_ptr);
-        lmt_condition_state.cond_ptr = node_next(lmt_condition_state.cond_ptr);
+     // lmt_save_state = saved_save_stack_data;
+        lmt_save_state.save_stack_data.ptr = saved_stack_ptr;
+        cur_level = saved_level;
+        cur_group = saved_group;
     }
-    /*tex restore old values */
-    lmt_condition_state.cond_ptr = cond_ptr;
-    lmt_condition_state.cur_if = cur_if;
-    lmt_condition_state.cur_unless = cur_unless;
-    lmt_condition_state.if_step = if_step;
-    lmt_condition_state.if_unless = if_unless;
-    lmt_condition_state.if_limit = if_limit;
-    lmt_condition_state.if_line = if_line;
+    {
+        condition_state_info saved_condition_state = lmt_condition_state;
+     // halfword cond_ptr = lmt_condition_state.cond_ptr;
+     // int cur_if = lmt_condition_state.cur_if;
+     // int cur_unless = lmt_condition_state.cur_unless;
+     // int if_step = lmt_condition_state.if_step;
+     // int if_unless = lmt_condition_state.if_unless;
+     // int if_limit = lmt_condition_state.if_limit;
+     // int if_line = lmt_condition_state.if_line;
+        while (lmt_input_state.in_stack[lmt_input_state.in_stack_data.ptr].if_ptr != lmt_condition_state.cond_ptr) {
+            /* todo, more info */
+            tex_print_nlp();
+            tex_print_format("Warning: end of file when %C", if_test_cmd, lmt_condition_state.cur_if);
+            if (lmt_condition_state.if_limit == fi_code) {
+                tex_print_str_esc("else");
+            }
+            if (lmt_condition_state.if_line) {
+                tex_print_format(" entered on line %i", lmt_condition_state.if_line);
+            }
+            tex_print_str(" is incomplete");
+            lmt_condition_state.cur_if = if_limit_subtype(lmt_condition_state.cond_ptr);
+            lmt_condition_state.cur_unless = if_limit_unless(lmt_condition_state.cond_ptr);
+            lmt_condition_state.if_step = if_limit_step(lmt_condition_state.cond_ptr);
+            lmt_condition_state.if_unless = if_limit_stepunless(lmt_condition_state.cond_ptr);
+            lmt_condition_state.if_limit = if_limit_type(lmt_condition_state.cond_ptr);
+            lmt_condition_state.if_line = if_limit_line(lmt_condition_state.cond_ptr);
+            lmt_condition_state.cond_ptr = node_next(lmt_condition_state.cond_ptr);
+        }
+        lmt_condition_state = saved_condition_state;
+     // lmt_condition_state.cond_ptr = cond_ptr;
+     // lmt_condition_state.cur_if = cur_if;
+     // lmt_condition_state.cur_unless = cur_unless;
+     // lmt_condition_state.if_step = if_step;
+     // lmt_condition_state.if_unless = if_unless;
+     // lmt_condition_state.if_limit = if_limit;
+     // lmt_condition_state.if_line = if_line;
+    }
     tex_print_nlp();
     if (tracing_nesting_par > 1) {
         tex_show_context();
@@ -1781,7 +1867,7 @@ static void tex_aux_check_validity(void)
     }
 }
 
-static next_line_retval tex_aux_next_line(void)
+static inline next_line_retval tex_aux_next_line(void)
 {
     if (lmt_input_state.cur_input.name > io_initial_input_code) {
         /*tex Read next line of file into |buffer|, or |goto restart| if the file has ended. */
@@ -1793,12 +1879,12 @@ static next_line_retval tex_aux_next_line(void)
             switch (lmt_input_state.cur_input.name) {
                 case io_lua_input_code:
                     {
-                        halfword n = null;
+                        halfword result = null;
                         int cattable = 0;
                         int partial = 0;
                         int finalline = 0;
-                        int t = lmt_cstring_input(&n, &cattable, &partial, &finalline);
-                        switch (t) {
+                        int type = lmt_cstring_input(&result, &cattable, &partial, &finalline);
+                        switch (type) {
                             case eof_tex_input:
                                 lmt_token_state.force_eof = 1;
                                 break;
@@ -1816,24 +1902,24 @@ static next_line_retval tex_aux_next_line(void)
                                 break;
                             case token_tex_input:
                                 /*tex token */
-                                if (n >= cs_token_flag && eq_type(n - cs_token_flag) == input_cmd && eq_value(n - cs_token_flag) == end_of_input_code && lmt_input_state.cur_input.index > 0) {
+                                if (result >= cs_token_flag && eq_type(result - cs_token_flag) == input_cmd && eq_value(result - cs_token_flag) == end_of_input_code && lmt_input_state.cur_input.index > 0) {
                                     tex_end_file_reading();
                                 }
-                                tex_back_input(n);
+                                tex_back_input(result);
                                 return next_line_restart;
                             case token_list_tex_input:
                                 /*tex token */
-                                tex_begin_backed_up_list(n);
+                                tex_begin_backed_up_list(result);
                                 return next_line_restart;
                             case node_tex_input:
                                 /*tex node */
-                                if (node_token_overflow(n)) {
-                                    tex_back_input(token_val(ignore_cmd, node_token_lsb(n)));
-                                    tex_reinsert_token(token_val(node_cmd, node_token_msb(n)));
+                                if (node_token_overflow(result)) {
+                                    tex_back_input(token_val(ignore_cmd, node_token_lsb(result)));
+                                    tex_reinsert_token(token_val(node_cmd, node_token_msb(result)));
                                     return next_line_restart;
                                 } else {
                                     /*tex |0x10FFFF == 1114111| */
-                                    tex_back_input(token_val(node_cmd, n));
+                                    tex_back_input(token_val(node_cmd, result));
                                     return next_line_restart;
                                 }
                             default:
@@ -1846,12 +1932,12 @@ static next_line_retval tex_aux_next_line(void)
                 case io_token_eof_input_code:
                     {
                         /* can be simplified but room for extensions now */
-                        halfword n = null;
+                        halfword result = null;
                         int cattable = 0;
                         int partial = 0;
                         int finalline = 0;
-                        int t = lmt_cstring_input(&n, &cattable, &partial, &finalline);
-                        switch (t) {
+                        int type = lmt_cstring_input(&result, &cattable, &partial, &finalline);
+                        switch (type) {
                             case eof_tex_input:
                                 lmt_token_state.force_eof = 1;
                                 if (lmt_input_state.cur_input.name == io_token_eof_input_code && every_eof_par) {
@@ -1875,7 +1961,7 @@ static next_line_retval tex_aux_next_line(void)
                         break;
                     }
                 case io_tex_macro_code:
-                    /* what */
+                    /* this can't happen and will fail with the next line check */
                 default:
                     if (tex_lua_input_ln()) {
                         /*tex Not end of file, set |ilimit|. */
@@ -1941,6 +2027,7 @@ static next_line_retval tex_aux_next_line(void)
             tex_fatal_error("aborting job");
         }
     }
+    /*tex We're in a loop and restart: */
     return next_line_ok;
 }
 
@@ -2037,6 +2124,43 @@ void tex_get_next(void)
     }
 }
 
+void tex_get_next_non_spacer(void)
+{
+    while (1) {
+        cur_cs = 0;
+        if (lmt_input_state.cur_input.state != token_list_state) {
+            /*tex Input from external file, |goto restart| if no input found. */
+            if (! tex_aux_get_next_file()) {
+                continue;
+            } else {
+                /*tex Check align state later on! */
+            }
+        } else if (! lmt_input_state.cur_input.loc) {
+            /*tex List exhausted, resume previous level. */
+            tex_end_token_list();
+            continue;
+        } else if (! tex_aux_get_next_tokenlist()) {
+            /*tex Parameter needs to be expanded. */
+            continue;
+        }
+        switch (cur_cmd) { 
+            case spacer_cmd:
+                continue;
+            case alignment_tab_cmd:
+            case alignment_cmd:
+                if (lmt_input_state.align_state == 0) {
+                    /*tex If an alignment entry has just ended, take appropriate action. */
+                    tex_insert_alignment_template();
+                    continue;
+                } else {
+                    return;
+                }
+            default:
+                return;
+        }
+    }
+}
+
 /*tex
 
     Since |get_next| is used so frequently in \TEX, it is convenient to define three related
@@ -2078,6 +2202,28 @@ halfword tex_get_token(void)
     return cur_tok;
 }
 
+/*tex
+
+    The |get_x_or_protected| procedure is like |get_x_token| except that protected macros are not
+    expanded. It sets |cur_cmd|, |cur_chr|, |cur_tok|, and expands non-protected macros.
+
+*/
+
+void tex_get_x_or_protected(void)
+{
+    lmt_hash_state.no_new_cs = 0;
+    while (1) {
+        tex_get_next();
+        if (cur_cmd <= max_command_cmd || is_protected_cmd(cur_cmd)) {
+            break;
+        } else {
+            tex_expand_current_token();
+        }
+    }
+    cur_tok = cur_cs ? cs_token_flag + cur_cs : token_val(cur_cmd, cur_chr); /* needed afterwards ? */
+    lmt_hash_state.no_new_cs = 1;
+}
+
 /*tex This changes the string |s| to a token list. */
 
 halfword tex_string_to_toks(const char *ss)
@@ -2089,8 +2235,9 @@ halfword tex_string_to_toks(const char *ss)
     halfword p = null;
     /*tex new node being added to the token list via |store_new_token| */
     while (s < se) {
-        halfword t = (halfword) aux_str2uni((const unsigned char *) s);
-        s += utf8_size(t);
+        int tl; 
+        halfword t = (halfword) aux_str2uni_len((const unsigned char *) s, &tl);
+        s += tl;
         if (t == ' ') {
             t = space_token;
         } else {
@@ -2126,8 +2273,9 @@ static halfword lmt_str_toks(lstring b) /* returns head */
     halfword head = null;
     halfword tail = head;
     while (k < (unsigned char *) b.s + b.l) {
-        halfword t = aux_str2uni(k);
-        k += utf8_size(t);
+        int tl; 
+        halfword t = aux_str2uni_len(k, &tl);
+        k += tl;
         if (t == ' ') {
             t = space_token;
         } else {
@@ -2168,14 +2316,14 @@ halfword tex_str_toks(lstring s, halfword *tail)
         unsigned char *k = s.s;
         unsigned char *l = k + s.l;
         while (k < l) {
-            halfword t = aux_str2uni(k);
+            int tl;
+            halfword t = aux_str2uni_len(k, &tl);
             if (t == ' ') {
-                k += 1;
                 t = space_token;
             } else {
-                k += utf8_size(t);
                 t += other_token;
             }
+            k += tl;
             p = tex_store_new_token(p, t);
             if (! h) {
                 h = p;
@@ -2198,14 +2346,14 @@ halfword tex_cur_str_toks(halfword *tail)
         /*tex tail of the token list */
         while (k < l) {
             /*tex token being appended */
-            halfword t = aux_str2uni(k);
+            int tl;
+            halfword t = aux_str2uni_len(k, &tl);
             if (t == ' ') {
-                k += 1;
                 t = space_token;
             } else {
-                k += utf8_size(t);
                 t += other_token;
             }
+            k += tl;
             p = tex_store_new_token(p, t);
             if (! h) {
                 h = p;
@@ -2239,8 +2387,9 @@ halfword tex_str_scan_toks(int ct, lstring ls)
     while (k < l) {
         int cc;
         /*tex token being appended */
-        halfword t = aux_str2uni(k);
-        k += utf8_size(t);
+        int lt;
+        halfword t = aux_str2uni_len(k, &lt);
+        k += lt;
         cc = tex_get_cat_code(ct, t);
         if (cc == 0) {
             /*tex We have a potential control sequence so we check for it. */
@@ -2249,8 +2398,7 @@ halfword tex_str_scan_toks(int ct, lstring ls)
             int c = 0 ;
             unsigned char *name = k ;
             while (k < l) {
-                t = (halfword) aux_str2uni((const unsigned char *) k);
-                s = utf8_size(t);
+                t = (halfword) aux_str2uni_len((const unsigned char *) k, &s);
                 c = tex_get_cat_code(ct,t);
                 if (c == 11) {
                     k += s ;
@@ -2765,6 +2913,16 @@ void tex_run_convert_tokens(halfword code)
                 pop_selector;
                 break;
             }
+        /*
+        case cs_lastname_code:
+            if (lmt_scanner_state.last_cs_name != null_cs) {
+                int saved_selector;
+                push_selector;
+                tex_print_cs_name(lmt_scanner_state.last_cs_name);
+                pop_selector;
+            }
+            break;
+        */
         case detokenized_code:
             {
                 int saved_selector;
@@ -2775,7 +2933,7 @@ void tex_run_convert_tokens(halfword code)
                 lmt_input_state.scanner_status = saved_scanner_status;
                 t = tex_get_available_token(cur_tok);
                 push_selector;
-                tex_show_token_list(t, null, extreme_token_show_max, 0);
+                tex_show_token_list(t, 0);
                 tex_put_available_token(t);
                 pop_selector;
                 break;
@@ -2995,7 +3153,7 @@ strnumber tex_tokens_to_string(halfword p)
     } else {
         int saved_selector = lmt_print_state.selector;
         lmt_print_state.selector = new_string_selector_code;
-        tex_token_show(p, extreme_token_show_max);
+        tex_token_show(p);
         lmt_print_state.selector = saved_selector;
         return tex_make_string();
     }
@@ -3099,7 +3257,7 @@ char *tex_tokenlist_to_tstring(int pp, int inhibit_par, int *siz, int skippreamb
         int p = token_link(pp);
         if (p) {
             int e = escape_char_par;  /*tex The serialization of the escape, normally a backlash. */
-            int n = '0';              /*tex The character after |#|, so |#0| upto |#9| */
+            int n = 0;                /*tex The character after |#|, so |#0| upto |#9| */
             int min = 0;
             int max = lmt_token_memory_state.tokens_data.top;
             int skip = 0;
@@ -3117,7 +3275,7 @@ char *tex_tokenlist_to_tstring(int pp, int inhibit_par, int *siz, int skippreamb
             }
             lmt_token_state.bufloc = 0;
             if (skippreamble) {
-                skip = get_token_parameters(pp);
+                skip = get_token_preamble(pp);
             }
             while (p) {
                 if (p < min || p > max) {
@@ -3160,12 +3318,14 @@ char *tex_tokenlist_to_tstring(int pp, int inhibit_par, int *siz, int skippreamb
                                     tex_aux_append_char_to_buffer(match_visualizer);
                                     if (chr <= 9) {
                                         tex_aux_append_char_to_buffer(chr + '0');
+                                    } else if (chr <= max_match_count) {
+                                        tex_aux_append_char_to_buffer(chr + '0' + gap_match_count);
                                     } else {
-                                        tex_aux_append_char_to_buffer('!');
+                                        tex_aux_append_char_to_buffer('!'); 
                                         goto EXIT;
                                     }
                                 } else {
-                                    if (chr > 9) {
+                                    if (chr > max_match_count) {
                                         goto EXIT;
                                     }
                                 }
@@ -3178,9 +3338,14 @@ char *tex_tokenlist_to_tstring(int pp, int inhibit_par, int *siz, int skippreamb
                                     ++n;
                                 }
                                 if (! skip) {
-                                    tex_aux_append_char_to_buffer(chr ? chr : '0');
+                                 // tex_aux_append_char_to_buffer(chr ? chr : '0');
+                                    if (chr <= 9) {
+                                        tex_aux_append_char_to_buffer(chr + '0');
+                                    } else if (chr <= max_match_count) {
+                                        tex_aux_append_char_to_buffer(chr + '0' + gap_match_count);
+                                    }
                                 }
-                                if (n > '9') {
+                                if (n > max_match_count) {
                                     goto EXIT;
                                 }
                                 break;
@@ -3296,6 +3461,8 @@ char *tex_tokenlist_to_tstring(int pp, int inhibit_par, int *siz, int skippreamb
     where lots of the defines are not available.
 
 */
+
+/* The bin gets 1.2K smaller if we inline these. */
 
 halfword tex_get_tex_dimen_register     (int j, int internal) { return internal ? dimen_parameter(j) : dimen_register(j) ; }
 halfword tex_get_tex_skip_register      (int j, int internal) { return internal ? glue_parameter(j) : skip_register(j) ; }
@@ -3425,14 +3592,14 @@ halfword tex_parse_str_to_tok(halfword head, halfword *tail, halfword ct, const 
         const char *se = str + lstr;
         while (str < se) {
             /*tex hh: |str2uni| could return len too (also elsewhere) */
-            halfword u = (halfword) aux_str2uni((const unsigned char *) str);
+            int ul;
+            halfword u = (halfword) aux_str2uni_len((const unsigned char *) str, &ul);
             halfword t = null;
             halfword cc = tex_get_cat_code(ct, u);
-            str += utf8_size(u);
+            str += ul;
             /*tex
-                This is a relating simple converter; if more is needed one can just use
-                |tex.print| with a regular |\def| or |\gdef| and feed the string into the
-                regular scanner.
+                This is a relative simple converter; if more is needed one can just use |tex.print|
+                with a regular |\def| or |\gdef| and feed the string into the regular scanner.
             */
             switch (cc) {
                 case escape_cmd:
@@ -3441,8 +3608,8 @@ halfword tex_parse_str_to_tok(halfword head, halfword *tail, halfword ct, const 
                         int lname = 0;
                         const char *name  = str;
                         while (str < se) {
-                            halfword u = (halfword) aux_str2uni((const unsigned char *) str);
-                            int s = utf8_size(u);
+                            int s; 
+                            halfword u = (halfword) aux_str2uni_len((const unsigned char *) str, &s);
                             int c = tex_get_cat_code(ct, u);
                             if (c == letter_cmd) {
                                 str += s;

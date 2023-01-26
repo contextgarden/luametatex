@@ -81,6 +81,7 @@
 
 typedef int             strnumber;
 typedef int             halfword;
+typedef long long       fullword;
 typedef unsigned short  quarterword;   /*tex It really is an unsigned one! But \MPLIB| had it signed. */
 typedef unsigned char   singleword;
 typedef int             scaled;
@@ -154,7 +155,7 @@ extern halfword tex_badness(
 
 # define one_bp                                 65781
 
-# define infinity                        017777777777 /*tex the largest positive value that \TEX\ knows */
+# define max_infinity                      0x7FFFFFFF /*tex the largest positive value that \TEX\ knows */
 # define min_infinity                     -0x7FFFFFFF
 # define awful_bad                        07777777777 /*tex more than a billion demerits |0x3FFFFFFF| */ 
 # define infinite_bad                           10000 /*tex infinitely bad value */
@@ -169,7 +170,7 @@ extern halfword tex_badness(
 # define semi_tight_criterium                      12 /* same as |decent_criterium| */
 
 # define default_rule                           26214 /*tex 0.4pt */
-# define ignore_depth                       -65536000 /*tex The magic dimension value to mean \quote {ignore me}. */
+# define ignore_depth                       -65536000 /*tex The magic dimension value to mean \quote {ignore me}: -1000pt */
 
 # define min_quarterword                            0 /*tex The smallest allowable value in a |quarterword|. */
 # define max_quarterword                        65535 /*tex The largest allowable value in a |quarterword|. */
@@ -207,6 +208,7 @@ extern halfword tex_badness(
 # define default_output_box                       255
 
 /*tex
+
     For practical reasons all these registers were max'd to 64K but that really makes no sense for
     e.g. glue and mu glue and even attributes. Imagine using more than 8K attributes: we get long
     linked lists, slow lookup, lots of copying, need plenty node memory. These large ranges also
@@ -224,31 +226,29 @@ extern halfword tex_badness(
     use less than in \LUATEX\ because we got rid of some parallel array so there it would have more
     impact).
 
+    At some point we might actually drop these maxima indeed as we really don't need that many 
+    if these registers and if (say) 16K is not enough, then nothing is. 
+
 */
 
 # if 1
-
     # define max_toks_register_index      0xFFFF /* 0xFFFF 0xFFFF 0x7FFF */ /* 64 64 32 */
     # define max_box_register_index       0xFFFF /* 0xFFFF 0xFFFF 0x7FFF */ /* 64 64 32 */
-    # define max_int_register_index       0xFFFF /* 0xFFFF 0xFFFF 0x7FFF */ /* 64 64 32 */
-    # define max_dimen_register_index     0xFFFF /* 0xFFFF 0xFFFF 0x7FFF */ /* 64 64 32 */
+    # define max_int_register_index       0xFFFF /* 0xFFFF 0xFFFF 0x3FFF */ /* 64 64 16 */
+    # define max_dimen_register_index     0xFFFF /* 0xFFFF 0xFFFF 0x3FFF */ /* 64 64 16 */
     # define max_attribute_register_index 0xFFFF /* 0xFFFF 0x7FFF 0x1FFF */ /* 64 32  8 */
-    # define max_glue_register_index      0xFFFF /* 0xFFFF 0x7FFF 0x3FFF */ /* 64 32  8 */
+    # define max_glue_register_index      0xFFFF /* 0xFFFF 0x7FFF 0x1FFF */ /* 64 32  8 */
     # define max_mu_glue_register_index   0xFFFF /* 0xFFFF 0x3FFF 0x1FFF */ /* 64 16  8 */
-    # define max_em_glue_register_index   0xFFFF /* 0xFFFF 0x3FFF 0x1FFF */ /* 64 16  8 */
-    # define max_ex_glue_register_index   0xFFFF /* 0xFFFF 0x3FFF 0x1FFF */ /* 64 16  8 */
 
 # else
 
-    # define max_toks_register_index      0x7FFF
+    # define max_toks_register_index      0x3FFF
     # define max_box_register_index       0x7FFF
-    # define max_int_register_index       0x7FFF
-    # define max_dimen_register_index     0x7FFF
+    # define max_int_register_index       0x1FFF
+    # define max_dimen_register_index     0x1FFF
     # define max_attribute_register_index 0x1FFF
-    # define max_glue_register_index      0x3FFF
+    # define max_glue_register_index      0x1FFF
     # define max_mu_glue_register_index   0x1FFF
-    # define max_em_glue_register_index   0x1FFF
-    # define max_ex_glue_register_index   0x1FFF
 
 # endif
 
@@ -259,8 +259,6 @@ extern halfword tex_badness(
 # define max_n_of_attribute_registers (max_attribute_register_index + 1)
 # define max_n_of_glue_registers      (max_glue_register_index      + 1)
 # define max_n_of_mu_glue_registers   (max_mu_glue_register_index   + 1)
-# define max_n_of_em_glue_registers   (max_em_glue_register_index   + 1)
-# define max_n_of_ex_glue_registers   (max_ex_glue_register_index   + 1)
 
 # define max_n_of_bytecodes                   65536 /* dynamic */
 # define max_n_of_math_families                  64
@@ -417,6 +415,18 @@ typedef union memoryword {
     double        D;
     void          *P;
 } memoryword;
+
+typedef union tokenword {
+    union { 
+        halfword info;
+        halfword val;
+        struct  { 
+            int cmd:8; 
+            int chr:24; 
+        };
+    };
+    halfword link; 
+} tokenword;
 
 /*tex
 
@@ -638,9 +648,10 @@ can be neglected (no differences on the test suite) because the bottleneck in \C
 I occasionally test the variants. The last test showed that mode 1 gives a bit larger binary. There
 is no real difference in performance.
 
-*/
+Well, per end December 2022 we only have the case with modes left but one can always find the old 
+code in the archive. 
 
-# define main_control_mode 1
+*/
 
 /*tex For the moment here. */
 

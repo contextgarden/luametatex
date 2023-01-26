@@ -4,23 +4,21 @@
 
 # include "luametatex.h"
 
-halfword tex_aux_scan_rule_spec(rule_types t, halfword s)
+halfword tex_aux_scan_rule_spec(rule_types type, halfword code)
 {
     /*tex |width|, |depth|, and |height| all equal |null_flag| now */
-    halfword rule = tex_new_rule_node((quarterword) s);
+    halfword rule = tex_new_rule_node((quarterword) code);
     halfword attr = node_attr(rule);
-    switch (t) {
+    switch (type) {
         case h_rule_type:
             rule_height(rule) = default_rule;
             rule_depth(rule) = 0;
             break;
         case v_rule_type:
         case m_rule_type:
-            if (s == strut_rule_code) {
+            if (code == strut_rule_code) {
                 rule_width(rule) = 0;
                 node_subtype(rule) = strut_rule_subtype;
-                rule_height(rule) = null_flag;
-                rule_depth(rule) = null_flag;
             } else {
                 rule_width(rule) = default_rule;
             }
@@ -126,8 +124,17 @@ halfword tex_aux_scan_rule_spec(rule_types t, halfword s)
     }
   DONE:
     node_attr(rule) = attr;
-    if (t == v_rule_type && s == strut_rule_code) {
+    if (type == v_rule_type && code == strut_rule_code) {
         tex_aux_check_text_strut_rule(rule, text_style);
+    }
+    if (code == virtual_rule_code) { 
+        rule_data(rule) = rule_width(rule);
+        rule_left(rule) = rule_height(rule);
+        rule_right(rule) = rule_depth(rule);
+        rule_width(rule) = 0;
+        rule_height(rule) = 0;
+        rule_depth(rule) = 0;
+        node_subtype(rule) = virtual_rule_subtype;
     }
     return rule;
 }
@@ -135,13 +142,13 @@ halfword tex_aux_scan_rule_spec(rule_types t, halfword s)
 void tex_aux_run_vrule(void)
 {
     tex_tail_append(tex_aux_scan_rule_spec(v_rule_type, cur_chr));
-    cur_list.space_factor = 1000;
+    cur_list.space_factor = default_space_factor;
 }
 
 void tex_aux_run_hrule(void)
 {
     tex_tail_append(tex_aux_scan_rule_spec(h_rule_type, cur_chr));
-    cur_list.prev_depth = ignore_depth;
+    cur_list.prev_depth = ignore_depth_criterium_par;
 }
 
 void tex_aux_run_mrule(void)
@@ -187,15 +194,14 @@ void tex_aux_check_text_strut_rule(halfword rule, halfword style)
             halfword fnt = tex_get_rule_font(rule, style);
             halfword chr = rule_character(rule);
             if (fnt > 0 && chr && tex_char_exists(fnt, chr)) {
+                scaledwhd whd = tex_char_whd_from_font(fnt, chr);
                 if (ht == null_flag) {
-                    ht = tex_char_height_from_font(fnt, chr);
+                    rule_height(rule) = whd.ht;
                 }
                 if (dp == null_flag) {
-                    dp = tex_char_depth_from_font(fnt, chr);
+                    rule_depth(rule) = whd.dp;
                 }
             }
-            rule_height(rule) = ht;
-            rule_depth(rule) = dp;
         }
     }
 }
@@ -203,7 +209,7 @@ void tex_aux_check_text_strut_rule(halfword rule, halfword style)
 halfword tex_get_rule_font(halfword n, halfword style)
 {
     halfword fnt = rule_font(n);
-    if (fnt > rule_font_fam_offset) {
+    if (fnt >= rule_font_fam_offset) {
         halfword fam = fnt - rule_font_fam_offset;
         if (fam_par_in_range(fam)) {
             fnt = tex_fam_fnt(fam, tex_size_of_style(style));
@@ -219,7 +225,7 @@ halfword tex_get_rule_font(halfword n, halfword style)
 halfword tex_get_rule_family(halfword n)
 {
     halfword fnt = rule_font(n);
-    if (fnt > rule_font_fam_offset) {
+    if (fnt >= rule_font_fam_offset) {
         halfword fam = fnt - rule_font_fam_offset;
         if (fam_par_in_range(fam)) {
             return fam;
