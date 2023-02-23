@@ -4829,7 +4829,7 @@ static int texlib_getglyphoptionvalues(lua_State *L)
 
 static int texlib_getnoadoptionvalues(lua_State *L)
 {
-    lua_createtable(L, 2, 32);
+    lua_createtable(L, 2, 34);
     lua_push_key_at_index(L, axis,                   noad_option_axis);
     lua_push_key_at_index(L, noaxis,                 noad_option_no_axis);
     lua_push_key_at_index(L, exact,                  noad_option_exact);
@@ -4865,6 +4865,7 @@ static int texlib_getnoadoptionvalues(lua_State *L)
     lua_push_key_at_index(L, sourceonnucleus,        noad_option_source_on_nucleus);
     lua_push_key_at_index(L, fixedsuperorsubscript,  noad_option_fixed_super_or_sub_script);
     lua_push_key_at_index(L, fixedsuperandsubscript, noad_option_fixed_super_and_sub_script);
+    lua_push_key_at_index(L, autobase,               noad_option_auto_base);
     return 1;
 }
 
@@ -4927,23 +4928,28 @@ static int texlib_getautomigrationvalues(lua_State *L)
 
 static int texlib_getflagvalues(lua_State *L)
 {
-    lua_createtable(L, 2, 15);
-    lua_push_key_at_index(L, frozen,      frozen_flag_bit);
-    lua_push_key_at_index(L, permanent,   permanent_flag_bit);
-    lua_push_key_at_index(L, immutable,   immutable_flag_bit);
-    lua_push_key_at_index(L, primitive,   primitive_flag_bit);
-    lua_push_key_at_index(L, mutable,     mutable_flag_bit);
-    lua_push_key_at_index(L, noaligned,   noaligned_flag_bit);
-    lua_push_key_at_index(L, instance,    instance_flag_bit);
-    lua_push_key_at_index(L, untraced,    untraced_flag_bit);
-    lua_push_key_at_index(L, global,      global_flag_bit);
-    lua_push_key_at_index(L, tolerant,    tolerant_flag_bit);
-    lua_push_key_at_index(L, protected,   protected_flag_bit);
-    lua_push_key_at_index(L, overloaded,  overloaded_flag_bit);
-    lua_push_key_at_index(L, aliased,     aliased_flag_bit);
-    lua_push_key_at_index(L, immediate,   immediate_flag_bit);
-    lua_push_key_at_index(L, conditional, conditional_flag_bit);
-    lua_push_key_at_index(L, value,       value_flag_bit);
+    lua_createtable(L, 2, 18); 
+    /* what about the rest */
+    lua_push_key_at_index(L, frozen,        frozen_flag_bit);
+    lua_push_key_at_index(L, permanent,     permanent_flag_bit);
+    lua_push_key_at_index(L, immutable,     immutable_flag_bit);
+    lua_push_key_at_index(L, primitive,     primitive_flag_bit);
+    lua_push_key_at_index(L, mutable,       mutable_flag_bit);
+    lua_push_key_at_index(L, noaligned,     noaligned_flag_bit);
+    lua_push_key_at_index(L, instance,      instance_flag_bit);
+    lua_push_key_at_index(L, untraced,      untraced_flag_bit);
+    lua_push_key_at_index(L, global,        global_flag_bit);
+    lua_push_key_at_index(L, tolerant,      tolerant_flag_bit);
+    lua_push_key_at_index(L, protected,     protected_flag_bit);
+    lua_push_key_at_index(L, overloaded,    overloaded_flag_bit);
+    lua_push_key_at_index(L, aliased,       aliased_flag_bit);
+    lua_push_key_at_index(L, immediate,     immediate_flag_bit);
+    lua_push_key_at_index(L, conditional,   conditional_flag_bit);
+    lua_push_key_at_index(L, value,         value_flag_bit);
+    lua_push_key_at_index(L, semiprotected, semiprotected_flag_bit);
+    lua_push_key_at_index(L, inherited,     inherited_flag_bit);
+    lua_push_key_at_index(L, constant,      constant_flag_bit);
+    lua_push_key_at_index(L, deferred,      deferred_flag_bit);
     return 1;
 }
 
@@ -5239,7 +5245,7 @@ static int texlib_getdiscstatevalues(lua_State *L)
 
 static int texlib_getmathcontrolvalues(lua_State *L)
 {
-    lua_createtable(L, 2, 23);
+    lua_createtable(L, 2, 24);
     lua_set_string_by_index(L, math_control_use_font_control,            "usefontcontrol");
     lua_set_string_by_index(L, math_control_over_rule,                   "overrule");
     lua_set_string_by_index(L, math_control_under_rule,                  "underrule");
@@ -5265,6 +5271,7 @@ static int texlib_getmathcontrolvalues(lua_State *L)
     lua_set_string_by_index(L, math_control_ignore_kern_dimensions,      "ignorekerndimensions");
     lua_set_string_by_index(L, math_control_ignore_flat_accents,         "ignoreflataccents");
     lua_set_string_by_index(L, math_control_extend_accents,              "extendaccents");
+    lua_set_string_by_index(L, math_control_extend_delimiters,           "extenddelimiters");
     return 1;
 }
 

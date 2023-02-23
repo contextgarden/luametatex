@@ -1576,36 +1576,38 @@ typedef enum simple_choice_subtypes {
 
     \starttabulate[|l|l|l|l|l|l|]
     \FL
-    \BC            \BC noad       \BC accent            \BC fraction         \BC radical         \NC fence        \NC \NR
-    \ML                                                                                          \NC              
-    \NC vlink  2   \NC new_hlist  \NC                   \NC                  \NC                 \NC              \NC \NR
-    \ML                                                                                          \NC              
-    \NC vinfo  2   \NC nucleus    \NC                   \NC                  \NC                 \NC              \NC \NR
-    \NC vlink  3   \NC supscr     \NC                   \NC numerator        \NC                 \NC              \NC \NR
-    \NC vinfo  3   \NC subscr     \NC                   \NC denominator      \NC                 \NC              \NC \NR
-    \NC vlink  4   \NC supprescr  \NC                   \NC                  \NC                 \NC              \NC \NR
-    \NC vinfo  4   \NC subprescr  \NC                   \NC                  \NC                 \NC              \NC \NR
-    \ML                                                                                          \NC              
-    \NC vlink  5   \NC italic     \NC                   \NC                  \NC                 \NC              \NC \NR
-    \NC vinfo  5   \NC width      \NC                   \NC                  \NC                 \NC              \NC \NR
-    \NC vlink  6   \NC height     \NC                   \NC                  \NC                 \NC              \NC \NR
-    \NC vinfo  6   \NC depth      \NC                   \NC                  \NC                 \NC              \NC \NR
-    \ML                                                                                          \NC              
-    \NC vlink  7   \NC options    \NC                   \NC                  \NC                 \NC              \NC \NR
-    \NC vinfo  7   \NC style      \NC                   \NC                  \NC                 \NC              \NC \NR
-    \NC vlink  8   \NC family     \NC                   \NC                  \NC                 \NC              \NC \NR
-    \NC vinfo  8   \NC class      \NC                   \NC                  \NC                 \NC              \NC \NR
-    \NC vlink  9   \NC source     \NC                   \NC                  \NC                 \NC              \NC \NR
-    \NC vinfo  9   \NC prime      \NC                   \NC                  \NC                 \NC              \NC \NR
-    \NC vlink 10   \NC leftslack  \NC                   \NC                  \NC                 \NC              \NC \NR
-    \NC vinfo 10   \NC rightslack \NC                   \NC                  \NC                 \NC              \NC \NR
-    \ML                                                                                          \NC              
-    \NC vlink 11   \NC extra_1    \NC top_character     \NC rule_thickness   \NC degree          \NC list         \NC \NR
-    \NC vinfo 11   \NC extra_2    \NC bot_character     \NC left_delimiter   \NC left_delimiter  \NC source       \NC \NR
-    \NC vlink 12   \NC extra_3    \NC overlay_character \NC right_delimiter  \NC right_delimiter \NC top          \NC \NR
-    \NC vinfo 12   \NC extra_4    \NC fraction          \NC middle_delimiter \NC                 \NC bottom       \NC \NR
-    \NC vlink 13   \NC extra_5    \NC topovershoot      \NC                  \NC height          \NC topovershoot \NC \NR
-    \NC vinfo 13   \NC extra_6    \NC botovershoot      \NC                  \NC depth           \NC botovershoot \NC \NR
+    \BC            \BC noad       \BC accent            \BC fraction         \BC radical          \NC fence        \NC \NR
+    \ML                                                                                           
+    \NC vlink  2   \NC new_hlist  \NC                   \NC                  \NC                  \NC              \NC \NR
+    \ML                                                                                           
+    \NC vinfo  2   \NC nucleus    \NC                   \NC                  \NC                  \NC              \NC \NR
+    \NC vlink  3   \NC supscr     \NC                   \NC                  \NC                  \NC              \NC \NR
+    \NC vinfo  3   \NC subscr     \NC                   \NC                  \NC                  \NC              \NC \NR
+    \NC vlink  4   \NC supprescr  \NC                   \NC                  \NC                  \NC              \NC \NR
+    \NC vinfo  4   \NC subprescr  \NC                   \NC                  \NC                  \NC              \NC \NR
+    \ML                                                                                           
+    \NC vlink  5   \NC italic     \NC                   \NC                  \NC                  \NC              \NC \NR
+    \NC vinfo  5   \NC width      \NC                   \NC                  \NC                  \NC              \NC \NR
+    \NC vlink  6   \NC height     \NC                   \NC                  \NC                  \NC              \NC \NR
+    \NC vinfo  6   \NC depth      \NC                   \NC                  \NC                  \NC              \NC \NR
+    \ML                                                                                           
+    \NC vlink  7   \NC options    \NC                   \NC                  \NC                  \NC              \NC \NR
+    \NC vinfo  7   \NC style      \NC                   \NC                  \NC                  \NC              \NC \NR
+    \NC vlink  8   \NC family     \NC                   \NC                  \NC                  \NC              \NC \NR
+    \NC vinfo  8   \NC class      \NC                   \NC                  \NC                  \NC              \NC \NR
+    \NC vlink  9   \NC source     \NC                   \NC                  \NC                  \NC              \NC \NR
+    \NC vinfo  9   \NC prime      \NC                   \NC                  \NC                  \NC              \NC \NR
+    \NC vlink 10   \NC leftslack  \NC                   \NC                  \NC                  \NC              \NC \NR
+    \NC vinfo 10   \NC rightslack \NC                   \NC                  \NC                  \NC              \NC \NR
+    \ML                                                                                           
+    \NC vlink 11   \NC extra_1    \NC top_character     \NC rule_thickness   \NC degree           \NC list         \NC \NR
+    \NC vinfo 11   \NC extra_2    \NC bot_character     \NC left_delimiter   \NC left_delimiter   \NC source       \NC \NR
+    \NC vlink 12   \NC extra_3    \NC overlay_character \NC right_delimiter  \NC right_delimiter  \NC top          \NC \NR
+    \NC vinfo 12   \NC extra_4    \NC fraction          \NC middle_delimiter \NC size             \NC bottom       \NC \NR
+    \NC vlink 13   \NC extra_5    \NC topovershoot      \NC h_factor         \NC height           \NC topovershoot \NC \NR
+    \NC vinfo 13   \NC extra_6    \NC botovershoot      \NC v_factor         \NC depth            \NC botovershoot \NC \NR
+    \NC vlink 14   \NC extra_7    \NC                   \NC numerator        \NC top_delimiter    \NC              \NC \NR
+    \NC vinfo 14   \NC extra_8    \NC                   \NC denominator      \NC bottom_delimiter \NC              \NC \NR
     \LL
     \stoptabulate
 
@@ -1627,7 +1629,7 @@ typedef enum simple_choice_subtypes {
 //define noad_state_toptotal(a)    vlink(a,5)
 //define noad_state_bottomtotal(a) vinfo(a,5)
 
-# define noad_size            14
+# define noad_size            15
 # define noad_new_hlist(a)    vlink(a,2)    /*tex the translation of an mlist; a bit confusing name */
 # define noad_nucleus(a)      vinfo(a,2)
 # define noad_supscr(a)       vlink(a,3)
@@ -1663,6 +1665,8 @@ typedef enum simple_choice_subtypes {
 # define noad_extra_4(a)      vinfo(a,12)
 # define noad_extra_5(a)      vlink(a,13)
 # define noad_extra_6(a)      vinfo(a,13)
+# define noad_extra_7(a)      vlink(a,14)
+# define noad_extra_8(a)      vinfo(a,14)
 
 # define noad_total(a) (noad_height(a) + noad_depth(a))
 
@@ -1743,46 +1747,47 @@ typedef struct noad_classes {
 // # else 
 typedef enum noad_options {
 // # endif 
-    noad_option_axis                       = 0x000000001,
-    noad_option_no_axis                    = 0x000000002,
-    noad_option_exact                      = 0x000000004,
-    noad_option_left                       = 0x000000008, /* align option for overflown under/over */ /* used ? */
-    noad_option_middle                     = 0x000000010, /* idem */
-    noad_option_right                      = 0x000000020, /* idem */
-    noad_option_adapt_to_left_size         = 0x000000040, /* old trickery, might go away but kind of fun */
-    noad_option_adapt_to_right_size        = 0x000000080, /* idem */
-    noad_option_no_sub_script              = 0x000000100,
-    noad_option_no_super_script            = 0x000000200,
-    noad_option_no_sub_pre_script          = 0x000000400,
-    noad_option_no_super_pre_script        = 0x000000800,
-    noad_option_no_script                  = 0x000001000,
-    noad_option_no_overflow                = 0x000002000, /* keep (middle) extensible widthin target size */
-    noad_option_void                       = 0x000004000, /* wipe and set width to zero */
-    noad_option_phantom                    = 0x000008000, /* wipe */
-    noad_option_openup_height              = 0x000010000,
-    noad_option_openup_depth               = 0x000020000,
-    noad_option_limits                     = 0x000040000, /* traditional modifier */
-    noad_option_no_limits                  = 0x000080000, /* idem */
-    noad_option_prefer_font_thickness      = 0x000100000,
-    noad_option_no_ruling                  = 0x000200000,
-    noad_option_shifted_sub_script         = 0x000400000,
-    noad_option_shifted_super_script       = 0x000800000,
-    noad_option_shifted_sub_pre_script     = 0x001000000,
-    noad_option_shifted_super_pre_script   = 0x002000000,
-    noad_option_unpack_list                = 0x004000000,
-    noad_option_no_check                   = 0x008000000, /* don't check for missing end fence */
-    noad_option_auto                       = 0x010000000,
-    noad_option_unroll_list                = 0x020000000,
-    noad_option_followed_by_space          = 0x040000000,
-    noad_option_proportional               = 0x080000000,
+    noad_option_axis                       = 0x0000000001,
+    noad_option_no_axis                    = 0x0000000002,
+    noad_option_exact                      = 0x0000000004,
+    noad_option_left                       = 0x0000000008, /* align option for overflown under/over */ /* used ? */
+    noad_option_middle                     = 0x0000000010, /* idem */
+    noad_option_right                      = 0x0000000020, /* idem */
+    noad_option_adapt_to_left_size         = 0x0000000040, /* old trickery, might go away but kind of fun */
+    noad_option_adapt_to_right_size        = 0x0000000080, /* idem */
+    noad_option_no_sub_script              = 0x0000000100,
+    noad_option_no_super_script            = 0x0000000200,
+    noad_option_no_sub_pre_script          = 0x0000000400,
+    noad_option_no_super_pre_script        = 0x0000000800,
+    noad_option_no_script                  = 0x0000001000,
+    noad_option_no_overflow                = 0x0000002000, /* keep (middle) extensible widthin target size */
+    noad_option_void                       = 0x0000004000, /* wipe and set width to zero */
+    noad_option_phantom                    = 0x0000008000, /* wipe */
+    noad_option_openup_height              = 0x0000010000,
+    noad_option_openup_depth               = 0x0000020000,
+    noad_option_limits                     = 0x0000040000, /* traditional modifier */
+    noad_option_no_limits                  = 0x0000080000, /* idem */
+    noad_option_prefer_font_thickness      = 0x0000100000,
+    noad_option_no_ruling                  = 0x0000200000,
+    noad_option_shifted_sub_script         = 0x0000400000,
+    noad_option_shifted_super_script       = 0x0000800000,
+    noad_option_shifted_sub_pre_script     = 0x0001000000,
+    noad_option_shifted_super_pre_script   = 0x0002000000,
+    noad_option_unpack_list                = 0x0004000000,
+    noad_option_no_check                   = 0x0008000000, /* don't check for missing end fence */
+    noad_option_auto                       = 0x0010000000,
+    noad_option_unroll_list                = 0x0020000000,
+    noad_option_followed_by_space          = 0x0040000000,
+    noad_option_proportional               = 0x0080000000,
     /*tex Watch out: the following options exceed halfword: |noad_options| are |long long|. */
 } noad_options;
 
 /*tex The Microsoft compiler truncates to int, so: */
 
-# define noad_option_source_on_nucleus          0x100000000
-# define noad_option_fixed_super_or_sub_script  0x200000000
-# define noad_option_fixed_super_and_sub_script 0x400000000
+# define noad_option_source_on_nucleus          0x0100000000
+# define noad_option_fixed_super_or_sub_script  0x0200000000
+# define noad_option_fixed_super_and_sub_script 0x0400000000
+# define noad_option_auto_base                  0x0800000000
 
 # define has_option(a,b)     (((a) & (b)) == (b))
 # define unset_option(a,b)   ((a) & ~(b))
@@ -1809,37 +1814,38 @@ inline static int has_noad_no_script_option(halfword n, halfword option)
 # define has_noad_option_nosubprescript(a) has_noad_no_script_option(a, noad_option_no_sub_pre_script)
 # define has_noad_option_nosupprescript(a) has_noad_no_script_option(a, noad_option_no_super_pre_script)
 
-# define has_noad_option_shiftedsubscript(a)           (has_option(noad_options(a), noad_option_shifted_sub_script))
-# define has_noad_option_shiftedsupscript(a)           (has_option(noad_options(a), noad_option_shifted_super_script))
-# define has_noad_option_shiftedsubprescript(a)        (has_option(noad_options(a), noad_option_shifted_sub_pre_script))
-# define has_noad_option_shiftedsupprescript(a)        (has_option(noad_options(a), noad_option_shifted_super_pre_script))
-# define has_noad_option_axis(a)                       (has_option(noad_options(a), noad_option_axis))
-# define has_noad_option_exact(a)                      (has_option(noad_options(a), noad_option_exact))
-# define has_noad_option_noaxis(a)                     (has_option(noad_options(a), noad_option_no_axis))
-# define has_noad_option_openupheight(a)               (has_option(noad_options(a), noad_option_openup_height))
-# define has_noad_option_openupdepth(a)                (has_option(noad_options(a), noad_option_openup_depth))
-# define has_noad_option_adapttoleft(a)                (has_option(noad_options(a), noad_option_adapt_to_left_size))
-# define has_noad_option_adapttoright(a)               (has_option(noad_options(a), noad_option_adapt_to_right_size))
-# define has_noad_option_limits(a)                     (has_option(noad_options(a), noad_option_limits))
-# define has_noad_option_nolimits(a)                   (has_option(noad_options(a), noad_option_no_limits))
-# define has_noad_option_nooverflow(a)                 (has_option(noad_options(a), noad_option_no_overflow))
-# define has_noad_option_preferfontthickness(a)        (has_option(noad_options(a), noad_option_prefer_font_thickness))
-# define has_noad_option_noruling(a)                   (has_option(noad_options(a), noad_option_no_ruling))
-# define has_noad_option_unpacklist(a)                 (has_option(noad_options(a), noad_option_unpack_list))
-# define has_noad_option_nocheck(a)                    (has_option(noad_options(a), noad_option_no_check))
-# define has_noad_option_exact(a)                      (has_option(noad_options(a), noad_option_exact))
-# define has_noad_option_left(a)                       (has_option(noad_options(a), noad_option_left))
-# define has_noad_option_middle(a)                     (has_option(noad_options(a), noad_option_middle))
-# define has_noad_option_right(a)                      (has_option(noad_options(a), noad_option_right))
-# define has_noad_option_auto(a)                       (has_option(noad_options(a), noad_option_auto))
-# define has_noad_option_phantom(a)                    (has_option(noad_options(a), noad_option_phantom))
-# define has_noad_option_void(a)                       (has_option(noad_options(a), noad_option_void))
-# define has_noad_option_unrolllist(a)                 (has_option(noad_options(a), noad_option_unroll_list))
-# define has_noad_option_followedbyspace(a)            (has_option(noad_options(a), noad_option_followed_by_space))
-# define has_noad_option_proportional(a)               (has_option(noad_options(a), noad_option_proportional))
-# define has_noad_option_source_on_nucleus(a)          (has_option(noad_options(a), noad_option_source_on_nucleus))
+# define has_noad_option_shiftedsubscript(a)            (has_option(noad_options(a), noad_option_shifted_sub_script))
+# define has_noad_option_shiftedsupscript(a)            (has_option(noad_options(a), noad_option_shifted_super_script))
+# define has_noad_option_shiftedsubprescript(a)         (has_option(noad_options(a), noad_option_shifted_sub_pre_script))
+# define has_noad_option_shiftedsupprescript(a)         (has_option(noad_options(a), noad_option_shifted_super_pre_script))
+# define has_noad_option_axis(a)                        (has_option(noad_options(a), noad_option_axis))
+# define has_noad_option_exact(a)                       (has_option(noad_options(a), noad_option_exact))
+# define has_noad_option_noaxis(a)                      (has_option(noad_options(a), noad_option_no_axis))
+# define has_noad_option_openupheight(a)                (has_option(noad_options(a), noad_option_openup_height))
+# define has_noad_option_openupdepth(a)                 (has_option(noad_options(a), noad_option_openup_depth))
+# define has_noad_option_adapttoleft(a)                 (has_option(noad_options(a), noad_option_adapt_to_left_size))
+# define has_noad_option_adapttoright(a)                (has_option(noad_options(a), noad_option_adapt_to_right_size))
+# define has_noad_option_limits(a)                      (has_option(noad_options(a), noad_option_limits))
+# define has_noad_option_nolimits(a)                    (has_option(noad_options(a), noad_option_no_limits))
+# define has_noad_option_nooverflow(a)                  (has_option(noad_options(a), noad_option_no_overflow))
+# define has_noad_option_preferfontthickness(a)         (has_option(noad_options(a), noad_option_prefer_font_thickness))
+# define has_noad_option_noruling(a)                    (has_option(noad_options(a), noad_option_no_ruling))
+# define has_noad_option_unpacklist(a)                  (has_option(noad_options(a), noad_option_unpack_list))
+# define has_noad_option_nocheck(a)                     (has_option(noad_options(a), noad_option_no_check))
+# define has_noad_option_exact(a)                       (has_option(noad_options(a), noad_option_exact))
+# define has_noad_option_left(a)                        (has_option(noad_options(a), noad_option_left))
+# define has_noad_option_middle(a)                      (has_option(noad_options(a), noad_option_middle))
+# define has_noad_option_right(a)                       (has_option(noad_options(a), noad_option_right))
+# define has_noad_option_auto(a)                        (has_option(noad_options(a), noad_option_auto))
+# define has_noad_option_phantom(a)                     (has_option(noad_options(a), noad_option_phantom))
+# define has_noad_option_void(a)                        (has_option(noad_options(a), noad_option_void))
+# define has_noad_option_unrolllist(a)                  (has_option(noad_options(a), noad_option_unroll_list))
+# define has_noad_option_followedbyspace(a)             (has_option(noad_options(a), noad_option_followed_by_space))
+# define has_noad_option_proportional(a)                (has_option(noad_options(a), noad_option_proportional))
+# define has_noad_option_source_on_nucleus(a)           (has_option(noad_options(a), noad_option_source_on_nucleus))
 # define has_noad_option_fixed_super_or_sub_script(a)   (has_option(noad_options(a), noad_option_fixed_super_or_sub_script))
 # define has_noad_option_fixed_super_and_sub_script(a)  (has_option(noad_options(a), noad_option_fixed_super_and_sub_script))
+# define has_noad_option_auto_base(a)                   (has_option(noad_options(a), noad_option_auto_base))
 
 /*tex
     In the meantime the codes and subtypes are in sync. The variable component does not really
@@ -1928,7 +1934,8 @@ typedef enum math_modifier_types {
 # define accent_top_overshoot    noad_extra_5
 # define accent_bot_overshoot    noad_extra_6
 
-typedef enum math_accent_subtypes {
+typedef enum math_accent_subtypes { 
+    /* we can be more specific: todo fixedoverlay_accent_subtype */
     bothflexible_accent_subtype,
     fixedtop_accent_subtype,
     fixedbottom_accent_subtype,
@@ -1977,14 +1984,14 @@ typedef enum fence_subtypes {
 */
 
 # define fraction_noad_size        noad_size
-# define fraction_numerator        noad_supprescr /* ! */
-# define fraction_denominator      noad_subprescr /* ! */
 # define fraction_rule_thickness   noad_extra_1
 # define fraction_left_delimiter   noad_extra_2
 # define fraction_right_delimiter  noad_extra_3
 # define fraction_middle_delimiter noad_extra_4
 # define fraction_h_factor         noad_extra_5
 # define fraction_v_factor         noad_extra_6
+# define fraction_numerator        noad_extra_7
+# define fraction_denominator      noad_extra_8
 
 typedef enum fraction_subtypes {
     over_fraction_subtype,
@@ -2001,13 +2008,15 @@ typedef enum fraction_subtypes {
     used for extensibles (over, under, etc) so the name is is somewhat confusing.
 */
 
-# define radical_noad_size       noad_size
-# define radical_degree          noad_extra_1
-# define radical_left_delimiter  noad_extra_2
-# define radical_right_delimiter noad_extra_3
-# define radical_size            noad_extra_4
-# define radical_height          noad_extra_5
-# define radical_depth           noad_extra_6
+# define radical_noad_size        noad_size
+# define radical_degree           noad_extra_1
+# define radical_left_delimiter   noad_extra_2
+# define radical_right_delimiter  noad_extra_3
+# define radical_size             noad_extra_4
+# define radical_height           noad_extra_5
+# define radical_depth            noad_extra_6
+# define radical_top_delimiter    noad_extra_7
+# define radical_bottom_delimiter noad_extra_8
 
 typedef enum radical_subtypes {
     normal_radical_subtype,

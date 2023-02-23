@@ -5321,15 +5321,19 @@ static int nodelib_direct_patchattributes(lua_State *L)
     return 0;
 }
 
+/* firstnode attributeid [nodetype] */
+
 static int nodelib_direct_findattribute(lua_State *L) /* returns attr value and node */
 {
     halfword c = nodelib_valid_direct_from_index(L, 1);
     if (c) {
         halfword i = lmt_tohalfword(L, 2);
+        halfword t = lmt_optinteger(L, 3, -1);
         while (c) {
-            if (tex_nodetype_has_attributes(node_type(c))) {
+            if ((t < 0 || node_type(c) == t) && tex_nodetype_has_attributes(node_type(c))) {
                 halfword p = node_attr(c);
                 if (p) {
+                    /* we could skip if the previous value is the same and didn't match */
                     p = node_next(p);
                     while (p) {
                         if (attribute_index(p) == i) {
@@ -5756,6 +5760,8 @@ static int nodelib_direct_traversechar(lua_State *L)
         }
     }
 }
+
+/* maybe a variant that checks for an attribute  */
 
 static int nodelib_direct_aux_next_glyph(lua_State *L)
 {
@@ -6757,6 +6763,10 @@ static int nodelib_common_getfield(lua_State *L, int direct, halfword n)
                                             nodelib_push_direct_or_node(L, direct, radical_left_delimiter(n));
                                         } else if (lua_key_eq(s, right)) {
                                             nodelib_push_direct_or_node(L, direct, radical_right_delimiter(n));
+                                        } else if (lua_key_eq(s, top)) {
+                                            nodelib_push_direct_or_node(L, direct, radical_top_delimiter(n));
+                                        } else if (lua_key_eq(s, bottom)) {
+                                            nodelib_push_direct_or_node(L, direct, radical_bottom_delimiter(n));
                                         } else if (lua_key_eq(s, degree)) {
                                             nodelib_push_direct_or_node(L, direct, radical_degree(n));
                                         } else if (lua_key_eq(s, width)) {
@@ -7430,6 +7440,10 @@ static int nodelib_common_setfield(lua_State *L, int direct, halfword n)
                                             radical_left_delimiter(n) = nodelib_direct_or_node_from_index(L, direct, 3);
                                         } else if (lua_key_eq(s, right)) {
                                             radical_right_delimiter(n) = nodelib_direct_or_node_from_index(L, direct, 3);
+                                        } else if (lua_key_eq(s, top)) {
+                                            radical_top_delimiter(n) = nodelib_direct_or_node_from_index(L, direct, 3);
+                                        } else if (lua_key_eq(s, bottom)) {
+                                            radical_bottom_delimiter(n) = nodelib_direct_or_node_from_index(L, direct, 3);
                                         } else if (lua_key_eq(s, degree)) {
                                             radical_degree(n) = nodelib_direct_or_node_from_index(L, direct, 3);
                                         } else if (lua_key_eq(s, width)) {

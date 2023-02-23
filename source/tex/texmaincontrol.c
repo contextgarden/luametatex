@@ -1148,7 +1148,7 @@ static void tex_aux_run_new_paragraph(void) {
 
 void tex_page_boundary_message(const char *s, halfword n)
 {
-    if (tracing_pages_par >= 0) {
+    if (tracing_pages_par > 0) {
         tex_begin_diagnostic();
         tex_print_format("[page: boundary, %s, trigger %i]", s, n);
         tex_end_diagnostic();
@@ -4558,8 +4558,8 @@ static void tex_aux_set_def(int a, int force)
         if (is_constant(a)) {
             /* todo: check if already defined or just accept a leak */
             set_token_reference(t, max_token_reference);
-        } else if (! token_link(t)) { 
-            t = lmt_token_state.empty; /* maybe in tex_define */
+     // } else if (! token_link(t)) { 
+     //     t = lmt_token_state.empty; /* leaks */
         }
         tex_define(a, p, tex_flags_to_cmd(a), t);
     }
