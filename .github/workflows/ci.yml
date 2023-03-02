@@ -23,7 +23,6 @@ jobs:
         include:
           - name: CentOS 7
             image: centos:7
-            cmake_generator: Ninja
             cmake_build_type: Release
 
     container:
@@ -43,8 +42,11 @@ jobs:
 
       - uses: actions/checkout@v3
 
-      - name: configure
+      - name: Configure
         run: |
           mkdir build
           cd build
-          cmake -G ${{ matrix.cmake_generator }} -DCMAKE_BUILD_TYPE=${{ matrix.cmake_build_type }} ..
+          cmake -DCMAKE_BUILD_TYPE=${{ matrix.cmake_build_type }} ..
+
+      - name: Build
+        run: cmake --build .
