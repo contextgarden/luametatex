@@ -34,7 +34,7 @@ jobs:
           yum update -y
           yum install -y centos-release-scl
           yum install -y devtoolset-9 git wget
-          scl enable devtoolset-9 bash
+          scl enable devtoolset-9 sh
           gcc --version
 
       - uses: actions/checkout@v3
