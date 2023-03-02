@@ -34,7 +34,7 @@ jobs:
         run: |
           yum update -y
           yum install -y centos-release-scl
-          yum install -y devtoolset-9 fontconfig-devel libX11-devel libXmu-devel libXaw-devel
+          yum install -y devtoolset-9
           yum install -y cmake ninja
           yum clean all
       #  run: |
