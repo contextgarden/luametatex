@@ -34,8 +34,9 @@ jobs:
           yum update -y
           yum install -y centos-release-scl
           yum install -y devtoolset-10 git wget openssl-devel
-          source /opt/rh/devtoolset-10/enable
-          gcc --version
+
+      - name: ls
+        run: cat /opt/rh/devtoolset-10/enable
 
       - uses: actions/checkout@v3
 
@@ -49,6 +50,7 @@ jobs:
       - name: Build and intall CMake, Part II
         run: |
           cd cmake-3.25.0
+          source /opt/rh/devtoolset-10/enable
           ./bootstrap --prefix=/usr/local
           make
           make install
@@ -59,6 +61,7 @@ jobs:
         run: |
           mkdir build
           cd build
+          source /opt/rh/devtoolset-10/enable
           cmake -DCMAKE_BUILD_TYPE=${{ matrix.cmake_build_type }} ..
 
       - name: Build
