@@ -16,7 +16,7 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.name }}
       cancel-in-progress: true
-    timeout-minutes: 10
+    timeout-minutes: 100
     strategy:
       fail-fast: false
       matrix:
@@ -33,7 +33,7 @@ jobs:
         run: |
           yum update -y
           yum install -y centos-release-scl
-          yum install -y devtoolset-10 git wget openssl-devel
+          yum install -y devtoolset-10 git wget openssl-devel cmake
 
       - name: ls
         run: cat /opt/rh/devtoolset-10/enable
@@ -41,6 +41,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Build and intall CMake, Part I
+        if: false
         run: |
           wget https://cmake.org/files/v3.25/cmake-3.25.0.tar.gz
           tar -xvzf cmake-3.25.0.tar.gz
@@ -48,6 +49,7 @@ jobs:
           ls -l
 
       - name: Build and intall CMake, Part II
+        if: false
         run: |
           cd cmake-3.25.0
           source /opt/rh/devtoolset-10/enable
