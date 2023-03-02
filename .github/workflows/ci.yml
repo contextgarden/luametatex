@@ -33,9 +33,20 @@ jobs:
         run: |
           yum update -y
           yum install -y centos-release-scl
-          yum install -y devtoolset-9 git cmake wget
+          yum install -y devtoolset-9 git wget
 
       - uses: actions/checkout@v3
+
+      - name: Build and intall CMake
+        run: |
+          wget https://cmake.org/files/v3.25/cmake-3.25.0.tar.gz
+          tar -xvzf cmake-3.25.0.tar.gz
+          cd cmake-3.25.0
+          ./bootstrap –prefix=/usr/local
+          make
+          make install
+          echo $PATH
+          cmake --version
 
       - name: Configure
         run: |
