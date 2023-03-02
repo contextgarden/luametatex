@@ -1,0 +1,50 @@
+name: Build LuaMetaTeX
+
+on:
+  push:
+    paths-ignore:
+      - '*.md'
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build_linux:
+    runs-on: ubuntu-latest
+    name: ${{ matrix.name }}
+
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.name }}
+      cancel-in-progress: true
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: CentOS 7
+            image: centos:7
+            cmake_generator: Ninja
+            cmake_build_type: Release
+
+    container:
+      image: ${{ matrix.image }}
+
+    steps:
+      - name: Install basic dependencies
+        run: |
+          yum update -y
+          yum install -y centos-release-scl
+          yum install -y devtoolset-9 fontconfig-devel libX11-devel libXmu-devel libXaw-devel
+          yum install -y cmake ninja
+          yum clean all
+      #  run: |
+      #    apt-get update
+      #    apt-get install -y git git-lfs openssh-client
+
+      - uses: actions/checkout@v3
+
+      - name: configure
+        run: |
+          mkdir build
+          cd build
+          cmake -G ${{ matrix.cmake_generator }} -DCMAKE_BUILD_TYPE=${{ matrix.cmake_build_type }} ..
