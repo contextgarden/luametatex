@@ -33,12 +33,7 @@ jobs:
         run: |
           yum update -y
           yum install -y centos-release-scl
-          yum install -y devtoolset-9
-          yum install -y cmake ninja
-          yum clean all
-      #  run: |
-      #    apt-get update
-      #    apt-get install -y git git-lfs openssh-client
+          yum install -y devtoolset-9 git cmake wget
 
       - uses: actions/checkout@v3
 
