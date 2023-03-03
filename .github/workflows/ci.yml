@@ -41,7 +41,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Build and intall CMake, Part I
-        if: false
+        if: true
         run: |
           wget https://cmake.org/files/v3.25/cmake-3.25.0.tar.gz
           tar -xvzf cmake-3.25.0.tar.gz
@@ -49,13 +49,13 @@ jobs:
           ls -l
 
       - name: Build and intall CMake, Part II
-        if: false
+        if: true
         run: |
           cd cmake-3.25.0
           source /opt/rh/devtoolset-10/enable
           ./bootstrap --prefix=/usr/local
-          make
-          make install
+          gmake -j 2
+          gmake install
           echo $PATH
           cmake --version
 
@@ -67,5 +67,5 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=${{ matrix.cmake_build_type }} ..
 
       - name: Build
-        run: cmake --build .
+        run: cmake --build . -j 2
 
