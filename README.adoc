@@ -43,7 +43,9 @@ by the compile farm. The third repository is (can) be used by us for testing new
 around with the code. That one is not to be used because it can have issues and we don't run the test 
 suite every time we submit; code can come and go. Accumulated patches and additions in work become 
 a combined push into main after which we just wipe work and make a new clone which will then be used
-by the compile farm. 
+by the compile farm. Normally that also comes with incrementing the version number. The reason why 
+work is not kept local is because that way we can check if the compilation works, for which it has 
+to be public so that the compile farm can access it conveniently. 
 
 All kind of aspects of the LuaMetaTeX engine, its development, experiment, ideas and implementation
 have been (and are) reported in user group publications aas well as several documents in the ConTeXt
