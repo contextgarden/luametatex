@@ -94,6 +94,8 @@ extern int  luaextend_io        (lua_State *L);
 extern int  luaextend_string    (lua_State *L);
 extern int  luaextend_xcomplex  (lua_State *L);
 
+extern int  luaopen_posit       (lua_State *L);
+
 /*tex
 
     We finetune the string hasher. When playing with \LUAJIT\ we found that its hashes was pretty
@@ -405,7 +407,13 @@ extern lmt_interface_info lmt_interface;
 # define lmt_name_of_math_indirect(n)       lmt_interface.math_indirect_values      [n].name
 # define lmt_name_of_field_type(n)          lmt_interface.field_type_values         [n].name
 
-/*tex This list will be made smaller because not all values need the boost. */
+/*tex 
+    This list will be made smaller because not all values need the boost. Before we define the 
+    lot we undefine some possibly conflicting snippets. Actually, we don't really define the 
+    key's here but assemble more complex references to registry indices and variables. 
+*/
+
+# undef quad /* CYGWIN */
 
 # define declare_shared_lua_keys(L) \
 /* */\
@@ -517,6 +525,7 @@ make_lua_key(L, catalog);\
 make_lua_key(L, catcode_table);\
 make_lua_key(L, category);\
 make_lua_key(L, cell);\
+make_lua_key(L, center);\
 make_lua_key(L, char);\
 make_lua_key(L, char_given);\
 make_lua_key(L, char_number);\
@@ -777,6 +786,8 @@ make_lua_key(L, internal_int);\
 make_lua_key(L, internal_int_reference);\
 make_lua_key(L, internal_mu_glue);\
 make_lua_key(L, internal_mu_glue_reference);\
+make_lua_key(L, internal_posit);\
+make_lua_key(L, internal_posit_reference);\
 make_lua_key(L, internal_toks);\
 make_lua_key(L, internal_toks_reference);\
 make_lua_key(L, internaldimension);\
@@ -788,6 +799,7 @@ make_lua_key(L, italic);\
 make_lua_key(L, italic_correction);\
 make_lua_key(L, italiccorrection);\
 make_lua_key(L, iterator_value);\
+make_lua_key(L, keepbase);\
 make_lua_key(L, kern);\
 make_lua_key(L, kerns);\
 make_lua_key(L, language);\
@@ -871,6 +883,7 @@ make_lua_key(L, mathcontrol);\
 make_lua_key(L, mathdir);\
 make_lua_key(L, mathfence);\
 make_lua_key(L, mathfraction);\
+make_lua_key(L, mathkern);\
 make_lua_key(L, mathkerns);\
 make_lua_key(L, MathLeading);\
 make_lua_key(L, mathoperator);\
@@ -1000,6 +1013,7 @@ make_lua_key(L, permitall);\
 make_lua_key(L, permitglue);\
 make_lua_key(L, permitmathreplace);\
 make_lua_key(L, phantom);\
+make_lua_key(L, posit);\
 make_lua_key(L, post);\
 make_lua_key(L, post_linebreak);\
 make_lua_key(L, postadjust);\
@@ -1085,6 +1099,8 @@ make_lua_key(L, register_int);\
 make_lua_key(L, register_int_reference);\
 make_lua_key(L, register_mu_glue);\
 make_lua_key(L, register_mu_glue_reference);\
+make_lua_key(L, register_posit);\
+make_lua_key(L, register_posit_reference);\
 make_lua_key(L, register_toks);\
 make_lua_key(L, register_toks_reference);\
 make_lua_key(L, registerdimension);\
@@ -1569,15 +1585,21 @@ inline static int lmt_roundnumber(lua_State *L, int i)
     return n == 0.0 ? 0 : lround(n);
 }
 
+inline static unsigned int lmt_uroundnumber(lua_State *L, int i)
+{
+    double n = lua_tonumber(L, i);
+    return n == 0.0 ? 0 : (unsigned int) lround(n);
+}
+
 inline static int lmt_optroundnumber(lua_State *L, int i, int dflt)
 {
     double n = luaL_optnumber(L, i, dflt);
     return n == 0.0 ? 0 : lround(n);
 }
 
-inline static unsigned int lmt_uroundnumber(lua_State *L, int i)
+inline static int lmt_opturoundnumber(lua_State *L, int i, int dflt)
 {
-    double n = lua_tonumber(L, i);
+    double n = luaL_optnumber(L, i, dflt);
     return n == 0.0 ? 0 : (unsigned int) lround(n);
 }
 
@@ -1601,7 +1623,7 @@ inline static void lua_set_string_by_key(lua_State *L, const char *a, const char
     lua_setfield(L, -2, a);
 }
 
-inline static void lua_set_string_by_index(lua_State *L, int a, const char *b)
+inline static void lua_set_string_by_index(lua_State *L, lua_Integer a, const char *b)
 {
     lua_pushstring(L, b ? b : "");
     lua_rawseti(L, -2, a);

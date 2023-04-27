@@ -313,6 +313,10 @@ static void fontlib_aux_font_char_from_lua(lua_State *L, halfword f, int i, int 
                 set_charinfo_tag(co, inner_left_tag);
             } else if (lua_key_eq(starget, right)) {
                 set_charinfo_tag(co, inner_right_tag);
+            } else if (lua_key_eq(starget, top)) {
+                set_charinfo_tag(co, inner_top_tag);
+            } else if (lua_key_eq(starget, bottom)) {
+                set_charinfo_tag(co, inner_bottom_tag);
             } 
             set_numeric_field_by_index(target, innerxoffset, INT_MIN);
             set_charinfo_inner_x_offset(co, target);
@@ -327,6 +331,10 @@ static void fontlib_aux_font_char_from_lua(lua_State *L, halfword f, int i, int 
             set_boolean_field_by_index(target, extensible, 0);
             if (target) {
                 set_charinfo_tag(co, extend_last_tag);
+            } 
+            set_boolean_field_by_index(target, keepbase, 0);
+            if (target) {
+                set_charinfo_tag(co, keep_base_tag);
             } 
             lua_push_key(parts);
             if (lua_rawget(L, -2) == LUA_TTABLE) {

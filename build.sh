@@ -15,6 +15,16 @@
 # mtxrun.lua       (latest version)
 # context.lua      (latest version)
 
+# This test is not yet okay but I have no time (or motivation) to look into it now, so for now we don't 
+# use ninja (not that critical).  
+
+#NINJA=$(which ninja); 
+#if (NINJA) then
+#    NINJA="-G Ninja"
+#else
+    NINJA=""
+#fi 
+
 if [ "$1" = "mingw-64" ] || [ "$1" = "mingw64" ] || [ "$1" = "mingw" ] || [ "$1" == "--mingw64" ]
 then
 
@@ -22,7 +32,7 @@ then
     SUFFIX=".exe"
     mkdir -p build/mingw-64
     cd       build/mingw-64
-    cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=./cmake/mingw-64.cmake ../..
+    cmake $NINJA -DCMAKE_TOOLCHAIN_FILE=./cmake/mingw-64.cmake ../..
 
 elif [ "$1" = "mingw-32" ] || [ "$1" = "mingw32" ] || [ "$1" == "--mingw32" ]
 then
@@ -31,7 +41,7 @@ then
     SUFFIX=".exe"
     mkdir -p build/mingw-32
     cd       build/mingw-32
-    cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=./cmake/mingw-32.cmake ../..
+    cmake $NINJA -DCMAKE_TOOLCHAIN_FILE=./cmake/mingw-32.cmake ../..
 
 elif [ "$1" = "mingw-64-ucrt" ] || [ "$1" = "mingw64ucrt" ] || [ "$1" = "--mingw64ucrt" ]  || [ "$1" = "ucrt" ] || [ "$1" = "--ucrt" ] 
 then
@@ -40,7 +50,16 @@ then
     SUFFIX=".exe"
     mkdir -p build/mingw-64-ucrt
     cd       build/mingw-64-ucrt
-    cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=./cmake/mingw-64-ucrt.cmake ../..
+    cmake $NINJA -DCMAKE_TOOLCHAIN_FILE=./cmake/mingw-64-ucrt.cmake ../..
+
+
+elif [ "$1" = "cygwin" ] || [ "$1" = "--cygwin" ]
+then
+    PLATFORM="cygwin"
+    SUFFIX=".exe"
+    mkdir -p build/cygwin
+    cd       build/cygwin
+    cmake $NINJA ../..
 
 else
 
@@ -48,7 +67,7 @@ else
     SUFFIX="    "
     mkdir -p build/native
     cd       build/native
-    cmake -G Ninja ../..
+    cmake $NINJA ../..
 
 fi
 

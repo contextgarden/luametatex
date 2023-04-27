@@ -145,6 +145,7 @@ if (MSVC)
         -Wcast-qual
 
         -Wno-unknown-pragmas
+        -Wno-unused-result
         -fno-strict-aliasing
     )
 
@@ -258,5 +259,6 @@ include(cmake/luaoptional.cmake)
 
 include(cmake/pplib.cmake)
 include(cmake/miniz.cmake)
+include(cmake/softposit.cmake)
 
 include(cmake/luametatex.cmake)

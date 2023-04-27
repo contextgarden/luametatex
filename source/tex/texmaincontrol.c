@@ -3443,6 +3443,11 @@ inline static halfword tex_aux_get_register_index(int level)
                 halfword index = tex_scan_attribute_register_number();
                 return register_attribute_location(index);
             }
+        case posit_val_level:
+            {
+                halfword index = tex_scan_posit_register_number();
+                return register_posit_location(index);
+            }
         case glue_val_level:
             {
                 halfword index = tex_scan_glue_register_number();
@@ -3469,6 +3474,8 @@ inline static halfword tex_aux_get_register_value(int level, int optionalequal)
         case int_val_level:
         case attr_val_level:
             return tex_scan_int(optionalequal, NULL);
+        case posit_val_level:
+            return tex_scan_posit(optionalequal);
         case dimen_val_level:
             return tex_scan_dimen(0, 0, 0, optionalequal, NULL);
         default:
@@ -3493,6 +3500,12 @@ static int tex_aux_valid_arithmic(int cmd, int *index, int *level, int *varcmd, 
         case internal_attribute_cmd:
             *index = cur_chr;
             *level = attr_val_level;
+            *original = eq_value(*index);
+            return 1;
+        case register_posit_cmd:
+        case internal_posit_cmd:
+            *index = cur_chr;
+            *level = posit_val_level;
             *original = eq_value(*index);
             return 1;
         case register_dimen_cmd:
@@ -3529,6 +3542,12 @@ static int tex_aux_valid_arithmic(int cmd, int *index, int *level, int *varcmd, 
             *level = dimen_val_level;
             *original = cur_chr;
             *simple = dimension_cmd;
+            return 1;
+        case posit_cmd:
+            *index = cur_cs;
+            *level = posit_val_level;
+            *original = cur_chr;
+            *simple = posit_cmd;
             return 1;
         case gluespec_cmd:
             *index = cur_cs;
@@ -3581,6 +3600,12 @@ inline static void tex_aux_update_register(int a, int level, halfword index, hal
             }
             tex_change_attribute_register(a, index, value);
             tex_word_define(a, index, value);
+            break;
+        case posit_val_level:
+            tex_word_define(a, index, value);
+            if (is_frozen(a) && cmd == internal_posit_cmd && cur_mode == hmode) {
+                tex_update_par_par(internal_posit_cmd, index - lmt_primitive_state.prim_data[cmd].offset);
+            }
             break;
         case dimen_val_level:
             tex_word_define(a, index, value);
@@ -3647,6 +3672,13 @@ static void tex_aux_arithmic_register(int a, int code)
                             } else { 
                                 return;
                             }
+                        case posit_val_level:
+                            if (tex_posit_eq_zero(amount)) {
+                                return;
+                            } else { 
+                                value = tex_posit_add(original, amount); 
+                                break;
+                            }
                         case glue_val_level:
                         case mu_val_level:
                             if (tex_glue_is_zero(amount)) {
@@ -3704,6 +3736,9 @@ static void tex_aux_arithmic_register(int a, int code)
                             case attr_val_level:
                                 value = tex_multiply_integers(original, amount);
                                 break;
+                            case posit_val_level:
+                                value = tex_posit_mul(original, amount);
+                                break;
                             case dimen_val_level:
                                 value = tex_nx_plus_y(original, amount, 0);
                                 break;
@@ -3745,6 +3780,9 @@ static void tex_aux_arithmic_register(int a, int code)
                             case attr_val_level:
                             case dimen_val_level:
                                 value = tex_x_over_n(original, amount);
+                                break;
+                            case posit_val_level:
+                                value = tex_posit_div(original, amount);
                                 break;
                             case glue_val_level:
                             case mu_val_level:
@@ -4256,6 +4294,12 @@ static void tex_aux_set_shorthand_def(int a, int force)
                     tex_define_again(a, p, register_attribute_cmd, register_attribute_location(n));
                     break;
                 }
+            case float_def_code:
+                {
+                    scaled n = tex_scan_posit_register_number();
+                    tex_define_again(a, p, register_posit_cmd, register_posit_location(n));
+                    break;
+                }
             case dimen_def_code:
                 {
                     scaled n = tex_scan_dimen_register_number();
@@ -4298,6 +4342,13 @@ static void tex_aux_set_shorthand_def(int a, int force)
                 {
                     scaled v = tex_scan_dimen(0, 0, 0, 1, NULL);
                     tex_define_again(a, p, dimension_cmd, v);
+                }
+                break;
+            case posit_def_code:
+         /* case posit_def_csname_code: */
+                {
+                    scaled v = tex_scan_posit(1);
+                    tex_define_again(a, p, posit_cmd, v);
                 }
                 break;
             case gluespec_def_code:
@@ -5318,6 +5369,20 @@ static void tex_aux_set_register_int(int a)
     tex_word_define(a, p, v);
 }
 
+static void tex_aux_set_internal_posit(int a)
+{
+    halfword p = cur_chr;
+    scaled v = tex_scan_posit(1);
+    tex_assign_internal_int_value(a, p, v);
+}
+
+static void tex_aux_set_register_posit(int a)
+{
+    halfword p = cur_chr;
+    scaled v = tex_scan_posit(1);
+    tex_word_define(a, p, v);
+}
+
 static void tex_aux_set_internal_attr(int a)
 {
     halfword p = cur_chr;
@@ -5450,6 +5515,9 @@ static void tex_aux_set_constant_register(halfword cmd, halfword cs, halfword fl
         case dimension_cmd:
             v = tex_scan_dimen(0, 0, 0, 1, NULL);
             break;
+        case posit_cmd:
+            v = tex_scan_posit(1);
+            break;
         case gluespec_cmd:
             v = tex_scan_glue(glue_val_level, 1);
             break;
@@ -5542,6 +5610,12 @@ static void tex_run_prefixed_command(void)
         case register_attribute_cmd:
             tex_aux_set_register_attr(flags);
             break;
+        case internal_posit_cmd:
+            tex_aux_set_internal_posit(flags);
+            break;
+        case register_posit_cmd:
+            tex_aux_set_register_posit(flags);
+            break;
         case internal_dimen_cmd:
             tex_aux_set_internal_dimen(flags);
             break;
@@ -5619,6 +5693,7 @@ static void tex_run_prefixed_command(void)
             break;
         case integer_cmd:
         case dimension_cmd:
+        case posit_cmd:
         case gluespec_cmd:
         case mugluespec_cmd:
             tex_aux_set_constant_register(cur_cmd, cur_cs, flags);
@@ -5938,6 +6013,14 @@ void tex_assign_internal_int_value(int a, halfword p, int val)
             }
             goto DEFINE;
         */
+        case eu_factor_code:
+            if (val < eu_min_factor) {
+                val = eu_min_factor;
+            } else if (val > eu_max_factor) { 
+                val = eu_max_factor;
+            }
+            tex_word_define(a, p, val);
+            break;
         default:
           DEFINE:
             tex_word_define(a, p, val);
@@ -5954,6 +6037,14 @@ void tex_assign_internal_attribute_value(int a, halfword p, int val)
     }
     tex_change_attribute_register(a, p, val);
     tex_word_define(a, p, val);
+}
+
+void tex_assign_internal_posit_value(int a, halfword p, int val)
+{
+    tex_word_define(a, p, val);
+ // if (is_frozen(a) && cur_mode == hmode) {
+ //     tex_update_par_par(internal_posit_cmd, internal_posit_number(p));
+ // }
 }
 
 void tex_assign_internal_dimen_value(int a, halfword p, int val)
@@ -6301,29 +6392,32 @@ static void tex_aux_run_show_whatever(void)
 
     When we have version 2.10 released I might move the mode tests to the runners so that we get a
     smaller case cq. jump table and we might also go for mode 1 permanently. A side effect will be
-    that some commands codes will be collapsed (move and such).
+    that some commands codes will be collapsed (move and such). See older source for the two 
+    intermediate variants that were tested for a few years. 
 
 */
 
 inline static void tex_aux_big_switch(int mode, int cmd)
 {
-
+    /* todo: order */
     switch (cmd) {
 
         case arithmic_cmd: 
-        case register_attribute_cmd: 
-        case internal_attribute_cmd: 
-        case register_dimen_cmd: 
-        case internal_dimen_cmd: 
-        case set_font_property_cmd : 
-        case register_glue_cmd: 
-        case internal_glue_cmd: 
-        case register_int_cmd : 
         case internal_int_cmd : 
-        case register_mu_glue_cmd: 
+        case register_int_cmd : 
+        case internal_attribute_cmd: 
+        case register_attribute_cmd: 
+        case internal_posit_cmd: 
+        case register_posit_cmd: 
+        case internal_dimen_cmd: 
+        case register_dimen_cmd: 
+        case set_font_property_cmd : 
+        case internal_glue_cmd: 
+        case register_glue_cmd: 
         case internal_mu_glue_cmd: 
-        case register_toks_cmd: 
+        case register_mu_glue_cmd: 
         case internal_toks_cmd: 
+        case register_toks_cmd: 
         case define_char_code_cmd: 
         case def_cmd: 
         case define_family_cmd: 
@@ -6344,6 +6438,7 @@ inline static void tex_aux_big_switch(int mode, int cmd)
         case lua_value_cmd: 
         case integer_cmd: 
         case dimension_cmd: 
+        case posit_cmd: 
         case gluespec_cmd: 
         case mugluespec_cmd: 
         case combine_toks_cmd:
@@ -6576,6 +6671,7 @@ void tex_initialize_variables(void)
         math_font_control_par = assumed_math_control; 
         math_eqno_gap_step_par = default_eqno_gap_step;
         px_dimen_par = one_bp;
+        eu_factor_par = eu_def_factor;
         show_node_details_par = 2; /*tex $>1$: |[subtype]| $>2$: |[attributes]| */
         ex_hyphen_char_par = '-';
         escape_char_par = '\\';

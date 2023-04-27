@@ -147,6 +147,8 @@ extern halfword tex_badness(
 # define min_cardinal                               0
 # define max_integer                       0x7FFFFFFF /*tex aka |infinity| */
 # define min_integer                      -0x7FFFFFFF /*tex aka |min_infinity| */
+# define max_posit                       max_cardinal 
+# define min_posit                       min_cardinal 
 # define max_dimen                         0x3FFFFFFF
 # define min_dimen                        -0x3FFFFFFF
 # define min_data_value                             0
@@ -236,6 +238,7 @@ extern halfword tex_badness(
     # define max_box_register_index       0xFFFF /* 0xFFFF 0xFFFF 0x7FFF */ /* 64 64 32 */
     # define max_int_register_index       0xFFFF /* 0xFFFF 0xFFFF 0x3FFF */ /* 64 64 16 */
     # define max_dimen_register_index     0xFFFF /* 0xFFFF 0xFFFF 0x3FFF */ /* 64 64 16 */
+    # define max_posit_register_index     0xFFFF /* 0xFFFF 0x7FFF 0x1FFF */ /* 64 32  8 */
     # define max_attribute_register_index 0xFFFF /* 0xFFFF 0x7FFF 0x1FFF */ /* 64 32  8 */
     # define max_glue_register_index      0xFFFF /* 0xFFFF 0x7FFF 0x1FFF */ /* 64 32  8 */
     # define max_mu_glue_register_index   0xFFFF /* 0xFFFF 0x3FFF 0x1FFF */ /* 64 16  8 */
@@ -246,6 +249,7 @@ extern halfword tex_badness(
     # define max_box_register_index       0x7FFF
     # define max_int_register_index       0x1FFF
     # define max_dimen_register_index     0x1FFF
+    # define max_posit_register_index     0x1FFF
     # define max_attribute_register_index 0x1FFF
     # define max_glue_register_index      0x1FFF
     # define max_mu_glue_register_index   0x1FFF
@@ -257,6 +261,7 @@ extern halfword tex_badness(
 # define max_n_of_int_registers       (max_int_register_index       + 1)
 # define max_n_of_dimen_registers     (max_dimen_register_index     + 1)
 # define max_n_of_attribute_registers (max_attribute_register_index + 1)
+# define max_n_of_posit_registers     (max_posit_register_index     + 1)
 # define max_n_of_glue_registers      (max_glue_register_index      + 1)
 # define max_n_of_mu_glue_registers   (max_mu_glue_register_index   + 1)
 
@@ -574,6 +579,51 @@ typedef union tokenword {
 # define max_language_size       10000    /* We could bump this (as we merged the hj codes) but it makes no sense. */
 # define min_language_size         250
 # define stp_language_size         250
+
+/*tex
+    Units. At some point these will be used in texscanning and lmtexlib (3 times replacement).
+*/
+
+
+# define bp_numerator   7227  // base point
+# define bp_denonimator 7200
+
+# define cc_numerator  14856  // cicero
+# define cc_denonimator 1157
+
+# define cm_numerator   7227  // centimeter
+# define cm_denonimator  254
+
+# define dd_numerator   1238  // didot
+# define dd_denonimator 1157
+
+# define dk_numerator  49838  // knuth
+# define dk_denonimator 7739
+
+# define es_numerator   9176  // edith
+# define es_denonimator  129
+
+# define in_numerator   7227  // inch
+# define in_denonimator  100
+
+# define mm_numerator   7227  // millimeter
+# define mm_denonimator 2540
+
+# define pc_numerator     12  // pica
+# define pc_denonimator    1
+
+# define pt_numerator      1  // point
+# define pt_denonimator    1
+
+# define sp_numerator      1  // scaled point
+# define sp_denonimator    1
+
+# define ts_numerator   4588  // tove
+# define ts_denonimator  645
+
+# define eu_min_factor     1
+# define eu_max_factor    50
+# define eu_def_factor    10
 
 /*tex
 
