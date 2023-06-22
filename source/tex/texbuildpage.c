@@ -363,6 +363,7 @@ void tex_build_page(void)
         do {
             halfword current = node_next(contribute_head);
             halfword type = node_type(current);
+            halfword subtype = node_subtype(current);
             /*tex Update the values of |last_glue|, |last_penalty|, and |last_kern|. */
             if (lmt_page_builder_state.last_glue != max_halfword) {
                 tex_flush_node(lmt_page_builder_state.last_glue);
@@ -372,7 +373,7 @@ void tex_build_page(void)
             lmt_page_builder_state.last_kern = 0;
             lmt_page_builder_state.last_boundary = 0;
             lmt_page_builder_state.last_node_type = type;
-            lmt_page_builder_state.last_node_subtype = node_subtype(current);
+            lmt_page_builder_state.last_node_subtype = subtype;
             lmt_page_builder_state.last_extra_used = 0;
             switch (type) {
                 case glue_node:
@@ -385,7 +386,9 @@ void tex_build_page(void)
                     lmt_page_builder_state.last_kern = kern_amount(current);
                     break;
                 case boundary_node:
-                    lmt_page_builder_state.last_boundary = boundary_data(current);
+                    if (subtype == page_boundary) {
+                        lmt_page_builder_state.last_boundary = boundary_data(current);
+                    }
                     break;
             }
             /*tex
@@ -597,10 +600,10 @@ void tex_build_page(void)
                                 box_height(location) = 0;
                             }
                             split_best_insert(location) = null;
-                            if (multiplier == 1000) {
+                            if (multiplier == scaling_factor) {
                                 advance = box_height(location);
                             } else {
-                                advance = tex_x_over_n(box_height(location), 1000) * multiplier;
+                                advance = tex_x_over_n(box_height(location), scaling_factor) * multiplier;
                             }
                             advance += glue_amount(distance);
                             update_page_goal(index, 0, advance); /*tex Here gets no height added! */
@@ -630,9 +633,9 @@ void tex_build_page(void)
                             scaled needed = insert_total_height(current);
                             split_last_insert(location) = current;
                             /*tex This much room is left if we shrink the maximum. */
-                            if (multiplier != 1000) {
+                            if (multiplier != scaling_factor) {
                                 /*tex This much room is needed. */
-                                needed = tex_x_over_n(needed, 1000) * multiplier;
+                                needed = tex_x_over_n(needed, scaling_factor) * multiplier;
                             }
                             if ((needed <= 0 || needed <= delta) && (insert_total_height(current) + box_height(location) <= limit)) {
                                 update_page_goal(index, insert_total_height(current), needed);
@@ -662,8 +665,8 @@ void tex_build_page(void)
                                     height = max_dimen;
                                 } else {
                                     height = page_goal - page_total - page_depth;
-                                    if (multiplier != 1000) {
-                                        height = tex_x_over_n(height, multiplier) * 1000;
+                                    if (multiplier != scaling_factor) {
+                                        height = tex_x_over_n(height, multiplier) * scaling_factor;
                                     }
                                 }
                                 if (height > limit - box_height(location)) {
@@ -675,8 +678,8 @@ void tex_build_page(void)
                                 if (tracing_pages_par > 0) {
                                     tex_aux_display_insertion_split_cost(index, height, penalty);
                                 }
-                                if (multiplier != 1000) {
-                                    lmt_packaging_state.best_height_plus_depth = tex_x_over_n(lmt_packaging_state.best_height_plus_depth, 1000) * multiplier;
+                                if (multiplier != scaling_factor) {
+                                    lmt_packaging_state.best_height_plus_depth = tex_x_over_n(lmt_packaging_state.best_height_plus_depth, scaling_factor) * multiplier;
                                 }
                                 update_page_goal(index, lmt_packaging_state.best_height_plus_depth, lmt_packaging_state.best_height_plus_depth);
                                 node_subtype(location) = insert_split_subtype;
@@ -688,7 +691,7 @@ void tex_build_page(void)
                         goto CONTRIBUTE;
                     }
                 default:
-                    tex_formatted_error("pagebuilder", "invalid node of type %d in vertical mode", node_type(current));
+                    tex_formatted_error("pagebuilder", "invalid node of type %d in vertical mode", type);
                     break;
             }
             /*tex
@@ -701,7 +704,7 @@ void tex_build_page(void)
                     Compute the badness, |b|, of the current page, using |awful_bad| if the box is
                     too full. The |c| variable holds the costs.
                 */
-                halfword badness, criterium;
+                halfword badness, costs;
                 /*tex
                     This could actually be a callback but not now. First we will experiment a lot
                     with this yet undocumented trick.
@@ -709,7 +712,17 @@ void tex_build_page(void)
                 lmt_page_builder_state.last_extra_used = 0;
                 badness = tex_aux_page_badness(page_goal);
                 if (page_extra_goal_par) {
-                    if (badness >= awful_bad && page_total >= (page_goal + page_extra_goal_par)) {
+// if (badness >= awful_bad) {
+//     printf("%f %f %f\n",page_total/65536.0,page_goal/65536.0,page_extra_goal_par/65536.0);
+//     printf("0 > %i\n",type);
+//     if (node_next(current)) { 
+//         printf("1 > %i\n",node_type(node_next(current)));
+//         if (node_next(node_next(current))) { 
+//             printf("2 > %i\n",node_type(node_next(node_next(current))));
+//         }
+//     }
+// }
+                    if (badness >= awful_bad && page_total >= (page_goal + page_extra_goal_par)) { // <= 
                         halfword extrabadness = tex_aux_page_badness(page_goal + page_extra_goal_par);
                         if (tracing_pages_par > 0) {
                             tex_begin_diagnostic();
@@ -725,29 +738,29 @@ void tex_build_page(void)
                     }
                 }
                 if (badness >= awful_bad) {
-                    criterium = badness;
+                    costs = badness; /* trigger fireup */
                 } else if (penalty <= eject_penalty) {
-                    criterium = penalty;
+                    costs = penalty; /* trigger fireup */
                 } else if (badness < infinite_bad) {
-                    criterium = badness + penalty + lmt_page_builder_state.insert_penalties;
+                    costs = badness + penalty + lmt_page_builder_state.insert_penalties;
                 } else {
-                    criterium = deplorable;
+                    costs = deplorable;
                 }
-                if (lmt_page_builder_state.insert_penalties >= 10000) {
-                    criterium = awful_bad;
+                if (lmt_page_builder_state.insert_penalties >= infinite_penalty) {
+                    costs = awful_bad;
                 }
                 {
-                    int moveon = criterium <= lmt_page_builder_state.least_cost;
-                    int fireup = criterium == awful_bad || penalty <= eject_penalty;
+                    int moveon = costs <= lmt_page_builder_state.least_cost;
+                    int fireup = costs == awful_bad || penalty <= eject_penalty;
                     if (tracing_pages_par > 0) {
-                        tex_aux_display_page_break_cost(badness, penalty, criterium, moveon, fireup);
+                        tex_aux_display_page_break_cost(badness, penalty, costs, moveon, fireup);
                     }
                     if (moveon) {
                         halfword insert = node_next(page_insert_head);
                         lmt_page_builder_state.best_break = current;
                         lmt_page_builder_state.best_size = page_goal;
                         lmt_page_builder_state.insert_penalties = 0;
-                        lmt_page_builder_state.least_cost = criterium;
+                        lmt_page_builder_state.least_cost = costs;
                         while (insert != page_insert_head) {
                             split_best_insert(insert) = split_last_insert(insert);
                             insert = node_next(insert);
@@ -1143,7 +1156,7 @@ static void tex_aux_fire_up(halfword c)
             ++lmt_page_builder_state.dead_cycles;
             tex_push_nest();
             cur_list.mode = internal_vmode;
-            cur_list.prev_depth = ignore_depth_criterium_par;
+            cur_list.prev_depth = ignore_depth_criterion_par;
             cur_list.mode_line = -lmt_input_state.input_line;
             tex_begin_token_list(output_routine_par, output_text);
             tex_new_save_level(output_group);

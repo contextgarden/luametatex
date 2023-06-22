@@ -184,8 +184,15 @@ static int tex_aux_room_on_parameter_stack(void) /* quite similar to save_stack 
 void tex_copy_to_parameter_stack(halfword *pstack, int n)
 {
     if (tex_aux_room_on_parameter_stack()) {
+if (n == 1) { 
+        lmt_input_state.parameter_stack[lmt_input_state.parameter_stack_data.ptr++] = pstack[0];
+//} else if (n == 2) { 
+//        lmt_input_state.parameter_stack[lmt_input_state.parameter_stack_data.ptr++] = pstack[0];
+//        lmt_input_state.parameter_stack[lmt_input_state.parameter_stack_data.ptr++] = pstack[1];
+} else { 
         memcpy(&lmt_input_state.parameter_stack[lmt_input_state.parameter_stack_data.ptr], pstack, n * sizeof(halfword));
         lmt_input_state.parameter_stack_data.ptr += n;
+}
     }
 }
 
@@ -369,6 +376,9 @@ static void tex_aux_print_current_input_state(void)
                 break;
             case mark_text:
                 tex_print_str("mark");
+                break;
+            case token_text:
+                tex_print_str("token");
                 break;
             case loop_text:
                 tex_print_str("loop");
@@ -687,6 +697,9 @@ void tex_begin_token_list(halfword t, quarterword kind)
                 case mark_text:
                     tex_print_str("mark");
                     break;
+                case token_text:
+                    tex_print_str("token");
+                    break;
                 case loop_text:
                     tex_print_str("loop");
                     break;
@@ -782,7 +795,7 @@ void tex_end_token_list(void)
         case parameter_text:
             break;
         case template_pre_text:
-            if (lmt_input_state.align_state > 500000) {
+            if (lmt_input_state.align_state > interwoven_alignment_threshold) {
                 lmt_input_state.align_state = 0;
             } else {
                 tex_alignment_interwoven_error(7);
@@ -833,7 +846,7 @@ void tex_cleanup_input_state(void)
             case parameter_text:
                 break;
             case template_pre_text:
-                if (lmt_input_state.align_state > 500000) {
+                if (lmt_input_state.align_state > interwoven_alignment_threshold) {
                     lmt_input_state.align_state = 0;
                 } else {
                     tex_alignment_interwoven_error(7);
@@ -852,23 +865,17 @@ void tex_cleanup_input_state(void)
                     int ptr, start;
                     /*tex Using a simple version for no arguments has no gain. */
                     tex_delete_token_reference(lmt_input_state.cur_input.start);
-                    /*tex Parameters must be flushed: */
-                    ptr = lmt_input_state.parameter_stack_data.ptr;
-                    start = lmt_input_state.cur_input.parameter_start;
-                    while (ptr > start) {
-                        if (lmt_input_state.parameter_stack[--ptr]) {
-                            tex_flush_token_list(lmt_input_state.parameter_stack[ptr]);
+                    if (get_token_preamble(lmt_input_state.cur_input.start)) {
+                        /*tex Parameters must be flushed: */
+                        ptr = lmt_input_state.parameter_stack_data.ptr;
+                        start = lmt_input_state.cur_input.parameter_start;
+                        while (ptr > start) {
+                            if (lmt_input_state.parameter_stack[--ptr]) {
+                                tex_flush_token_list(lmt_input_state.parameter_stack[ptr]);
+                            }
                         }
-                     // halfword p = lmt_input_state.parameter_stack[--ptr];
-                     // if (p) {
-                     //     if (! token_link(p)) {
-                     //         tex_put_available_token(p); /* very little gain on average */
-                     //     } else { 
-                     //         tex_flush_token_list(p);
-                     //     }
-                     // }
+                        lmt_input_state.parameter_stack_data.ptr = start;
                     }
-                    lmt_input_state.parameter_stack_data.ptr = start;
                     break;
                 }
             default:
@@ -1076,7 +1083,7 @@ void tex_initialize_inputstack(void)
     lmt_token_state.luacstrings = 0;
     lmt_input_state.cur_input.cattable = default_catcode_table_preset;
     lmt_input_state.cur_input.partial = 0;
-    lmt_input_state.align_state = 1000000;
+    lmt_input_state.align_state = busy_alignment_state;
 }
 
 /*tex 

@@ -223,7 +223,7 @@
     590023 => down to 1024 * 512 == 524288 ==> 85% = 445644 => prime 445633/445649
 
     will make a much larger format and we gain nothing. Actually, because we have extra hash
-    anyway, this whole 85\% criterium is irrelevant: we only need to make sure that we have
+    anyway, this whole 85\% criterion is irrelevant: we only need to make sure that we have
     enough room for the frozen sequences (assuming we stay within the concept).
 
     primes:
@@ -240,13 +240,19 @@
     n= 65496 cs=46426 indirect=14512
     \stoptyping
 
+    We don't use the 85% prime (and we % the accumulated hash. Somehow this also performs better, 
+    but of course I migbe be wrong. 
+
 */
 
-// # define hash_size  65536
-// # define hash_prime 65497
+//define hash_size  65536
+//define hash_prime 65497
 
 # define hash_size  131072                               /*tex 128K */
-# define hash_prime 131041                               /*tex Plenty of room for the frozen. */
+# define hash_prime 131041                               /*tex not the 85% prime */
+
+//define hash_size  262144                               /*tex 256K */
+//define hash_prime 262103                               /*tex not the 85% prime */
 
 # define null_cs                 1                       /*tex equivalent of |\csname\| |\endcsname| */
 # define hash_base               (null_cs   + 1)         /*tex beginning of region 2, for the hash table */
@@ -265,6 +271,7 @@ typedef enum deep_frozen_cs_codes {
     deep_frozen_cs_relax_code,                                /*tex permanent |\relax| */
     deep_frozen_cs_end_write_code,                            /*tex permanent |\endwrite| */
     deep_frozen_cs_dont_expand_code,                          /*tex permanent |\notexpanded:| */
+    deep_frozen_cs_keep_constant_code,                        /*tex permanent |\notexpanded:| */
     deep_frozen_cs_null_font_code,                            /*tex permanent |\nullfont| */
     deep_frozen_cs_undefined_code,
 } deep_frozen_cs_codes;
@@ -291,6 +298,8 @@ typedef enum glue_codes {
     par_fill_right_skip_code,      /*tex glue on last line of paragraph */
     par_init_left_skip_code,
     par_init_right_skip_code,
+    emergency_left_skip_code, 
+    emergency_right_skip_code, 
  /* indent_skip_code,           */ /*tex internal, might go away here */
  /* left_hang_skip_code,        */ /*tex internal, might go away here */
  /* right_hang_skip_code,       */ /*tex internal, might go away here */
@@ -371,6 +380,7 @@ typedef enum tok_codes {
 
 typedef enum specification_codes {
     par_shape_code,               /*tex specifies paragraph shape, internal register */
+    par_passes_code,      
     inter_line_penalties_code,    /*tex additional penalties between lines */
     club_penalties_code,          /*tex penalties for creating club lines */
     widow_penalties_code,         /*tex penalties for creating widow lines */
@@ -435,6 +445,9 @@ typedef enum int_codes {
     post_display_penalty_code,          /*tex penalty for breaking just after a displayed formula */
     pre_inline_penalty_code,            /*tex penalty for breaking just before an inlined formula */
     post_inline_penalty_code,           /*tex penalty for breaking just after an inlined formula */
+    pre_short_inline_penalty_code,      /*tex penalty for breaking just before a single character inlined formula */
+    post_short_inline_penalty_code,     /*tex penalty for breaking just after a single character inlined formula */
+    short_inline_orphan_penalty_code,
     inter_line_penalty_code,            /*tex additional penalty between lines */
     double_hyphen_demerits_code,        /*tex demerits for double hyphen break */
     final_hyphen_demerits_code,         /*tex demerits for final hyphen break */
@@ -478,6 +491,7 @@ typedef enum int_codes {
     tracing_full_boxes_code,            /*tex show [over/under]full boxes in the log */
     tracing_penalties_code,   
     tracing_lists_code,   
+    tracing_passes_code,   
     uc_hyph_code,                       /*tex hyphenate words beginning with a capital letter */
     output_penalty_code,                /*tex penalty found at current page break */
     max_dead_cycles_code,               /*tex bound on consecutive dead cycles of output */
@@ -500,6 +514,8 @@ typedef enum int_codes {
     error_context_lines_code,           /*tex maximum intermediate line pairs shown */
     local_interline_penalty_code,       /*tex local |\interlinepenalty| */
     local_broken_penalty_code,          /*tex local |\brokenpenalty| */
+    local_tolerance_code,
+    local_pre_tolerance_code,
     disable_spaces_code,
     glyph_scale_code,
     glyph_x_scale_code,
@@ -558,6 +574,8 @@ typedef enum int_codes {
     math_end_class_code,
     math_left_class_code,
     math_right_class_code,
+    math_inline_penalty_factor_code,
+    math_display_penalty_factor_code,
     sup_mark_mode_code,
     par_direction_code,
     text_direction_code,
@@ -571,7 +589,9 @@ typedef enum int_codes {
     alignment_cell_source_code,
     alignment_wrap_source_code,
  /* page_boundary_penalty_code, */
-    line_break_criterium_code,
+    line_break_criterion_code,
+    line_break_passes_code,
+    line_break_optional_code,
     /* 
         This one was added as experiment to \LUATEX\ (answer to a forwarded question) but as it 
         didn't get tested it will go away. \CONTEXT\ doesn't need it and we don't need to be 
@@ -579,6 +599,11 @@ typedef enum int_codes {
     */
     variable_family_code,
     eu_factor_code,
+    math_pre_tolerance_code,                
+    math_tolerance_code,                    
+    space_factor_mode,
+    space_factor_shrink_limit_code,
+    space_factor_stretch_limit_code,
     /* those below these are not interfaced via primitives */
     internal_par_state_code,
     internal_dir_state_code,
@@ -608,42 +633,44 @@ typedef enum int_codes {
 } int_codes;
 
 # define first_int_code pre_tolerance_code
-# define last_int_code  eu_factor_code
+# define last_int_code  space_factor_stretch_limit_code
 
 typedef enum dimen_codes {
-    par_indent_code,           /*tex indentation of paragraphs */
-    math_surround_code,        /*tex space around math in text */
-    line_skip_limit_code,      /*tex threshold for |line_skip| instead of |baseline_skip| */
-    hsize_code,                /*tex line width in horizontal mode */
-    vsize_code,                /*tex page height in vertical mode */
-    max_depth_code,            /*tex maximum depth of boxes on main pages */
-    split_max_depth_code,      /*tex maximum depth of boxes on split pages */
-    box_max_depth_code,        /*tex maximum depth of explicit vboxes */
-    hfuzz_code,                /*tex tolerance for overfull hbox messages */
-    vfuzz_code,                /*tex tolerance for overfull vbox messages */
-    delimiter_shortfall_code,  /*tex maximum amount uncovered by variable delimiters */
-    null_delimiter_space_code, /*tex blank space in null delimiters */
-    script_space_code,         /*tex extra space after subscript or superscript */
-    pre_display_size_code,     /*tex length of text preceding a display */
-    display_width_code,        /*tex length of line for displayed equation */
-    display_indent_code,       /*tex indentation of line for displayed equation */
-    overfull_rule_code,        /*tex width of rule that identifies overfull hboxes */
-    hang_indent_code,          /*tex amount of hanging indentation */
- /* h_offset_code,          */ /*tex amount of horizontal offset when shipping pages out */
- /* v_offset_code,          */ /*tex amount of vertical offset when shipping pages out */
-    emergency_stretch_code,    /*tex reduces badnesses on final pass of line-breaking */
+    par_indent_code,               /*tex indentation of paragraphs */
+    math_surround_code,            /*tex space around math in text */
+    line_skip_limit_code,          /*tex threshold for |line_skip| instead of |baseline_skip| */
+    hsize_code,                    /*tex line width in horizontal mode */
+    vsize_code,                    /*tex page height in vertical mode */
+    max_depth_code,                /*tex maximum depth of boxes on main pages */
+    split_max_depth_code,          /*tex maximum depth of boxes on split pages */
+    box_max_depth_code,            /*tex maximum depth of explicit vboxes */
+    hfuzz_code,                    /*tex tolerance for overfull hbox messages */
+    vfuzz_code,                    /*tex tolerance for overfull vbox messages */
+    delimiter_shortfall_code,      /*tex maximum amount uncovered by variable delimiters */
+    null_delimiter_space_code,     /*tex blank space in null delimiters */
+    script_space_code,             /*tex extra space after subscript or superscript */
+    pre_display_size_code,         /*tex length of text preceding a display */
+    display_width_code,            /*tex length of line for displayed equation */
+    display_indent_code,           /*tex indentation of line for displayed equation */
+    overfull_rule_code,            /*tex width of rule that identifies overfull hboxes */
+    hang_indent_code,              /*tex amount of hanging indentation */
+ /* h_offset_code,          */     /*tex amount of horizontal offset when shipping pages out */
+ /* v_offset_code,          */     /*tex amount of vertical offset when shipping pages out */
+    emergency_stretch_code,        /*tex reduces badnesses on final pass of line-breaking */
+    emergency_extra_stretch_code,  
     glyph_x_offset_code,
     glyph_y_offset_code,
     px_dimen_code,
     tab_size_code,
     page_extra_goal_code,
-    ignore_depth_criterium_code,
+    ignore_depth_criterion_code,
+    short_inline_math_threshold_code,
     /*tex total number of dimension parameters */
     number_dimen_pars,
 } dimen_codes;
 
 # define first_dimen_code par_indent_code
-# define last_dimen_code  tab_size_code
+# define last_dimen_code  short_inline_math_threshold_code
 
 typedef enum attribute_codes {
     /*tex total number of attribute parameters */
@@ -857,7 +884,7 @@ extern save_state_info lmt_save_state;
 # define saved_value(A) lmt_save_state.save_stack[lmt_save_state.save_stack_data.ptr + (A)].saved_value
 # define saved_word(A)  lmt_save_state.save_stack[lmt_save_state.save_stack_data.ptr + (A)].saved_word
 
-inline static void tex_set_saved_record(halfword ptr, quarterword type, quarterword level, halfword value)
+static inline void tex_set_saved_record(halfword ptr, quarterword type, quarterword level, halfword value)
 {
     saved_type(ptr)  = type;
     saved_level(ptr) = level;
@@ -1049,6 +1076,19 @@ typedef enum tex_alignment_context_codes {
     package_pass_alignment_context,
     wrapup_pass_alignment_context,
 } tex_alignment_context_codes;
+
+
+typedef enum tex_breaks_context_codes {
+    initialize_show_breaks_context,
+    start_show_breaks_context,
+    list_show_breaks_context,
+    stop_show_breaks_context,
+    collect_show_breaks_context,
+    line_show_breaks_context,
+    delete_show_breaks_context,
+    report_show_breaks_context,
+    wrapup_show_breaks_context,
+} tex_breaks_context_codes;
 
 typedef enum tex_page_context_codes {
     box_page_context,
@@ -1261,9 +1301,11 @@ typedef enum flag_bit {
 # define has_eq_flag_bits(p,a)      (eq_flag(p) & (a))
 # define set_eq_flag_bits(p,a)      set_eq_flag(p, make_eq_flag_bits(a))
 
-inline static singleword tex_flags_to_cmd(int flags)
+static inline singleword tex_flags_to_cmd(int flags)
 {
-    if (is_tolerant(flags)) {
+    if (is_constant(flags)) {
+        return constant_call_cmd;
+    } else if (is_tolerant(flags)) {
         return is_protected    (flags) ? tolerant_protected_call_cmd :
               (is_semiprotected(flags) ? tolerant_semi_protected_call_cmd : tolerant_call_cmd);
     } else {
@@ -1342,12 +1384,17 @@ extern void tex_forced_word_define (int g, halfword p, singleword flag, halfword
 # define par_fill_right_skip_par         glue_parameter(par_fill_right_skip_code)
 # define par_init_left_skip_par          glue_parameter(par_init_left_skip_code)
 # define par_init_right_skip_par         glue_parameter(par_init_right_skip_code)
+# define emergency_left_skip_par         glue_parameter(emergency_left_skip_code)
+# define emergency_right_skip_par        glue_parameter(emergency_right_skip_code)
 # define tab_skip_par                    glue_parameter(tab_skip_code)
 
 # define emergency_stretch_par           dimen_parameter(emergency_stretch_code)
+# define emergency_extra_stretch_par     dimen_parameter(emergency_extra_stretch_code)
 # define pre_tolerance_par               count_parameter(pre_tolerance_code)
 # define tolerance_par                   count_parameter(tolerance_code)
 # define looseness_par                   count_parameter(looseness_code)
+# define math_pre_tolerance_par          count_parameter(math_pre_tolerance_code)
+# define math_tolerance_par              count_parameter(math_tolerance_code)
 # define adjust_spacing_par              count_parameter(adjust_spacing_code)
 # define adjust_spacing_step_par         count_parameter(adjust_spacing_step_code)
 # define adjust_spacing_stretch_par      count_parameter(adjust_spacing_stretch_code)
@@ -1364,7 +1411,9 @@ extern void tex_forced_word_define (int g, halfword p, singleword flag, halfword
 # define display_widow_penalty_par       count_parameter(display_widow_penalty_code)
 # define orphan_penalty_par              count_parameter(orphan_penalty_code)
 /*define page_boundary_penalty_par       count_parameter(page_boundary_penalty_code) */ /* now in |\pageboundary| */
-# define line_break_criterium_par        count_parameter(line_break_criterium_code)
+# define line_break_criterion_par        count_parameter(line_break_criterion_code)
+# define line_break_passes_par           count_parameter(line_break_passes_code)
+# define line_break_optional_par         count_parameter(line_break_optional_code)
 # define broken_penalty_par              count_parameter(broken_penalty_code)
 # define line_skip_limit_par             dimen_parameter(line_skip_limit_code)
 
@@ -1379,7 +1428,8 @@ extern void tex_forced_word_define (int g, halfword p, singleword flag, halfword
 # define split_max_depth_par             dimen_parameter(split_max_depth_code)
 # define overfull_rule_par               dimen_parameter(overfull_rule_code)
 # define box_max_depth_par               dimen_parameter(box_max_depth_code)
-# define ignore_depth_criterium_par      dimen_parameter(ignore_depth_criterium_code)
+# define ignore_depth_criterion_par      dimen_parameter(ignore_depth_criterion_code)
+# define short_inline_math_threshold_par dimen_parameter(short_inline_math_threshold_code)
 
 # define top_skip_par                    glue_parameter(top_skip_code)
 # define split_top_skip_par              glue_parameter(split_top_skip_code)
@@ -1387,14 +1437,22 @@ extern void tex_forced_word_define (int g, halfword p, singleword flag, halfword
 # define cur_fam_par                     count_parameter(family_code)
 # define variable_family_par             count_parameter(variable_family_code)
 # define eu_factor_par                   count_parameter(eu_factor_code)
+# define space_factor_mode_par           count_parameter(space_factor_mode)
+# define space_factor_shrink_limit_par   count_parameter(space_factor_shrink_limit_code)
+# define space_factor_stretch_limit_par  count_parameter(space_factor_stretch_limit_code)
 # define pre_display_direction_par       count_parameter(pre_display_direction_code)
 # define pre_display_penalty_par         count_parameter(pre_display_penalty_code)
 # define post_display_penalty_par        count_parameter(post_display_penalty_code)
 # define pre_inline_penalty_par          count_parameter(pre_inline_penalty_code)
 # define post_inline_penalty_par         count_parameter(post_inline_penalty_code)
+# define pre_short_inline_penalty_par    count_parameter(pre_short_inline_penalty_code)
+# define post_short_inline_penalty_par   count_parameter(post_short_inline_penalty_code)
+# define short_inline_orphan_penalty_par count_parameter(short_inline_orphan_penalty_code)
 
 # define local_interline_penalty_par     count_parameter(local_interline_penalty_code)
 # define local_broken_penalty_par        count_parameter(local_broken_penalty_code)
+# define local_tolerance_par             count_parameter(local_tolerance_code)
+# define local_pre_tolerance_par         count_parameter(local_pre_tolerance_code)
 # define local_left_box_par              box_parameter(local_left_box_code)
 # define local_right_box_par             box_parameter(local_right_box_code)
 # define local_middle_box_par            box_parameter(local_middle_box_code)
@@ -1499,6 +1557,7 @@ typedef enum shaping_penalties_mode_bits {
 # define tab_size_par                    dimen_parameter(tab_size_code)
 
 # define par_shape_par                   specification_parameter(par_shape_code)
+# define par_passes_par                  specification_parameter(par_passes_code)
 # define inter_line_penalties_par        specification_parameter(inter_line_penalties_code)
 # define club_penalties_par              specification_parameter(club_penalties_code)
 # define widow_penalties_par             specification_parameter(widow_penalties_code)
@@ -1555,6 +1614,7 @@ typedef enum shaping_penalties_mode_bits {
 # define tracing_full_boxes_par          count_parameter(tracing_full_boxes_code)
 # define tracing_penalties_par           count_parameter(tracing_penalties_code)
 # define tracing_lists_par               count_parameter(tracing_lists_code)
+# define tracing_passes_par              count_parameter(tracing_passes_code)
 
 /*tex 
     This tracer is mostly there for debugging purposes. Therefore what gets traced and how might
@@ -1638,6 +1698,8 @@ typedef enum hyphenation_mode_bits {
 # define math_left_class_par             count_parameter(math_left_class_code)
 # define math_right_class_par            count_parameter(math_right_class_code)
 # define sup_mark_mode_par               count_parameter(sup_mark_mode_code)
+# define math_display_penalty_factor_par count_parameter(math_display_penalty_factor_code)
+# define math_inline_penalty_factor_par  count_parameter(math_inline_penalty_factor_code)
 
 # define glyph_data_par                  count_parameter(glyph_data_code)
 # define glyph_state_par                 count_parameter(glyph_state_code)
@@ -1664,6 +1726,7 @@ typedef enum normalize_line_mode_bits {
 typedef enum normalize_par_mode_bits {
     normalize_par_mode     = 0x0001,
     flatten_v_leaders_mode = 0x0002, /* used to be 0x200 */
+    limit_prev_graf_mode   = 0x0004,
 } normalize_par_mode_bits;
 
 # define normalize_line_mode_permitted(a,b) ((a & b) == b)
@@ -1793,6 +1856,7 @@ extern halfword tex_explicit_disc_penalty  (halfword mode);
 # define update_tex_math_right_class(v)        tex_eq_word_define(internal_int_location(math_right_class_code), v)
 
 # define update_tex_par_shape(v)               tex_eq_define(internal_specification_location(par_shape_code),            specification_reference_cmd, v)
+# define update_tex_par_passes(v)              tex_eq_define(internal_specification_location(par_passes_code),           specification_reference_cmd, v)
 # define update_tex_inter_line_penalties(v)    tex_eq_define(internal_specification_location(inter_line_penalties_code), specification_reference_cmd, v)
 /*define update_tex_club_penalties(v)          eq_define(internal_specification_location(club_penalties_code),           specification_reference_cmd, v) */
 /*define update_tex_widow_penalties(v)         eq_define(internal_specification_location(widow_penalties_code),          specification_reference_cmd, v) */
@@ -1816,6 +1880,14 @@ extern halfword tex_explicit_disc_penalty  (halfword mode);
 # define update_tex_box_global(n,v)           tex_geq_define(register_box_location(n), register_box_reference_cmd, v);
 
 # define update_tex_insert_mode(a,v)           tex_word_define(a, internal_int_location(insert_mode_code), v)
+
+# define update_tex_emergency_left_skip(v)     tex_eq_define(internal_glue_location(emergency_left_skip_code), internal_glue_reference_cmd, v);
+# define update_tex_emergency_right_skip(v)    tex_eq_define(internal_glue_location(emergency_right_skip_code), internal_glue_reference_cmd, v);
+
+# define update_tex_local_interline_penalty(v) tex_eq_word_define(internal_int_location(local_interline_penalty_code), v);
+# define update_tex_local_broken_penalty(v)    tex_eq_word_define(internal_int_location(local_broken_penalty_code), v);
+# define update_tex_local_tolerance(v)         tex_eq_word_define(internal_int_location(local_tolerance_code), v);
+# define update_tex_local_pre_tolerance(v)     tex_eq_word_define(internal_int_location(local_pre_tolerance_code), v);
 
 /*tex For the moment here; a preparation for a dedicated insert structure. */
 

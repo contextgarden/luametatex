@@ -55,6 +55,7 @@
 */
 
 /*tex
+
     Some commands are shared, for instance |car_ret_cmd| is never seen in a token list so it can be
     used for signaling a parameter: |out_param_cmd| in a macro body. These constants relate to the
     21 bit shifting in token properties!
@@ -89,6 +90,8 @@
     easier to extend alignments when we're at it because it brings some code and logic together (of
     course the principles are the same, but there can be slight differences in the way errors are
     reported).
+
+    Comment: experimental |string_cmd| has been removed, as we now have |\constant| flagged macros. 
 */
 
 
@@ -230,7 +233,6 @@ typedef enum tex_command_code {
     mathspec_cmd,
     fontspec_cmd,
     register_cmd,                     /*tex internal register (|\count|, |\dimen|, etc.) */
- /* string_cmd, */                    /*tex discarded experiment but maybe ... */
     combine_toks_cmd,                 /*tex the |toksapp| and similar token (list) combiners */
     /*tex
         That was the last command that could follow |\the|.
@@ -245,8 +247,8 @@ typedef enum tex_command_code {
     set_interaction_cmd,              /*tex define level of interaction (|\batchmode|, etc.) */
     /*tex
         Here ends the section that is part of the big switch.  What follows are commands that are
-        intercepted when expanding tokens. The strint one came from a todo list and moved to a
-        maybe list.
+        intercepted when expanding tokens. The |string_cmd| came from a todo list and moved to a
+        maybe list and finally became obsolete.
     */
     undefined_cs_cmd,                 /*tex initial state of most |eq_type| fields */
     expand_after_cmd,                 /*tex special expansion (|\expandafter|) */
@@ -260,7 +262,6 @@ typedef enum tex_command_code {
     convert_cmd,                      /*tex convert to text (|\number|, |\string|, etc.) */
     the_cmd,                          /*tex expand an internal quantity (|\the| or |\unexpanded|, |\detokenize|) */
     get_mark_cmd,                     /*tex inserted mark (|\topmark|, etc.) */
- /* string_cmd, */
     /*tex
         These refer to macros. We might at some point promote the tolerant ones to have their own
         cmd codes. Protected macros were done with an initial token signaling that property but
@@ -278,6 +279,7 @@ typedef enum tex_command_code {
     call_cmd,                         /*tex regular control sequence */
     protected_call_cmd,               /*tex idem but doesn't expand in edef like situations */
     semi_protected_call_cmd,
+    constant_call_cmd,
     tolerant_call_cmd,                /*tex control sequence with tolerant arguments */
     tolerant_protected_call_cmd,      /*tex idem but doesn't expand in edef like situations */
     tolerant_semi_protected_call_cmd,
@@ -286,6 +288,7 @@ typedef enum tex_command_code {
     */
     deep_frozen_end_template_cmd,     /*tex end of an alignment template */
     deep_frozen_dont_expand_cmd,      /*tex the following token was marked by |\noexpand|) */
+    deep_frozen_keep_constant_cmd,
     /*tex
         The next bunch is never seen directly as they are shortcuts to registers and special data
         strutures. They  are the internal register (pseudo) commands and are also needed for
@@ -353,11 +356,11 @@ typedef enum tex_modes {
     inline_mmode     = -3,
 } tex_modes;
 
-inline int is_v_mode(halfword mode) { return mode == vmode || mode == internal_vmode; }
-inline int is_h_mode(halfword mode) { return mode == hmode || mode == restricted_hmode; }
-inline int is_m_mode(halfword mode) { return mode == mmode || mode == inline_mmode; }
+static inline int is_v_mode(halfword mode) { return mode == vmode || mode == internal_vmode; }
+static inline int is_h_mode(halfword mode) { return mode == hmode || mode == restricted_hmode; }
+static inline int is_m_mode(halfword mode) { return mode == mmode || mode == inline_mmode; }
 
-inline int tex_normalized_mode(halfword mode) 
+static inline int tex_normalized_mode(halfword mode) 
 {
     switch (mode) { 
         case internal_vmode  : return vmode;
@@ -459,6 +462,7 @@ typedef enum convert_codes {
     cs_active_code,           /*tex command code for |\csactive| */
  /* cs_lastname_code,      */ /*tex command code for |\cslastname| */
     detokenized_code,         /*tex command code for |\detokenized| */
+    detokened_code,           /*tex command code for |\detokened| */
     roman_numeral_code,       /*tex command code for |\romannumeral| */
     meaning_code,             /*tex command code for |\meaning| */
     meaning_full_code,        /*tex command code for |\meaningfull| */ 
@@ -702,7 +706,6 @@ typedef enum shorthand_def_codes {
     skip_def_code,        /*tex |\skipdef| */
     mu_skip_def_code,     /*tex |\muskipdef| */
     toks_def_code,        /*tex |\toksdef| */
- /* string_def_code, */
     lua_def_code,         /*tex |\luadef| */
     integer_def_code,
     posit_def_code,
@@ -768,6 +771,7 @@ typedef enum expand_after_codes {
     expand_token_code,
     expand_cs_token_code,
     expand_code,
+    expand_toks_code,
     expand_active_code,
     semi_expand_code,
     expand_after_toks_code,
@@ -1112,7 +1116,7 @@ typedef enum math_styles {
 # define are_valid_math_styles(n) (n >= all_display_styles && n <= all_cramped_styles)
 # define visible_math_styles(n)   (n >= display_style      && n <= all_cramped_styles)
 
-inline static halfword tex_math_style_to_size(halfword s)
+static inline halfword tex_math_style_to_size(halfword s)
 {
     if (s == script_style || s == cramped_script_style) {
         return script_size;
@@ -1199,12 +1203,20 @@ typedef enum remove_item_codes {
 
 typedef enum kern_codes {
     normal_kern_code,
-    h_kern_code,              /* maybe */
-    v_kern_code,              /* maybe */
+    h_kern_code,            
+    v_kern_code,            
     non_zero_width_kern_code, /* maybe */
 } kern_codes;
 
 # define last_kern_code normal_kern_code
+
+typedef enum penalty_codes {
+    normal_penalty_code,
+    h_penalty_code,            
+    v_penalty_code,            
+} penalty_codes;
+
+# define last_penalty_code normal_penalty_code
 
 typedef enum tex_mskip_codes {
     normal_mskip_code,

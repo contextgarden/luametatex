@@ -1052,16 +1052,28 @@ static void tex_aux_set_cur_val_by_auxiliary_cmd(int chr)
 
 static void tex_aux_set_cur_val_by_specification_cmd(int chr)
 {
-    if (chr == internal_specification_location(par_shape_code)) {
-        cur_val = (par_shape_par) ? specification_count(par_shape_par) : 0;
-    } else {
-        halfword v = tex_scan_int(0, NULL); /* hm */
-        halfword e = eq_value(chr);
-        if ((! e) || (v < 0)) {
-            cur_val = 0;
-        } else {
-            cur_val = tex_get_specification_penalty(e, v > specification_count(e) ? specification_count(e) : v);
-        }
+    switch (chr) { 
+        case internal_specification_location(par_shape_code):
+            {
+                cur_val = tex_get_specification_count(par_shape_par);
+                break;
+            }
+        case internal_specification_location(par_passes_code):
+            {
+                cur_val = tex_get_specification_count(par_passes_par);
+                break;
+            }
+        default:
+            {
+                halfword v = tex_scan_int(0, NULL); /* hm */
+                halfword e = eq_value(chr);
+                if ((! e) || (v < 0)) {
+                    cur_val = 0;
+                } else {
+                    cur_val = tex_get_specification_penalty(e, v > specification_count(e) ? specification_count(e) : v);
+                }
+                break;
+            }
     }
     cur_val_level = int_val_level;
 }
@@ -1513,12 +1525,21 @@ static halfword tex_aux_scan_something_internal(halfword cmd, halfword chr, int 
                     case math_parameter_set_atom_rule:
                     case math_parameter_let_atom_rule:
                     case math_parameter_copy_atom_rule:
-                    case math_parameter_let_parent:
+                 // case math_parameter_let_parent:
                     case math_parameter_copy_parent:
                     case math_parameter_set_defaults:
                         {
                          // cur_val = 0;
                          // cur_val_level = int_val_level;
+                            break;
+                        }
+                    case math_parameter_let_parent:
+                        {
+                            halfword mathclass = tex_scan_math_class_number(0);
+                            if (valid_math_class_code(mathclass)) {
+                                cur_val = tex_math_has_class_parent(mathclass);
+                                cur_val_level = int_val_level;
+                            }
                             break;
                         }
                     case math_parameter_set_pre_penalty:
@@ -1892,16 +1913,6 @@ static halfword tex_aux_scan_something_internal(halfword cmd, halfword chr, int 
                     goto DEFAULT;
             }
             break;
-        /*
-        case string_cmd:
-            {
-                halfword head = str_toks(str_lstring(cs_offset_value + chr), NULL);
-                begin_inserted_list(head);
-                cur_val = 0;
-                cur_val_level = no_val_level;
-                break;
-            }
-        */
         /*
         case special_box_cmd:
             switch (chr) {
@@ -2427,18 +2438,26 @@ static void tex_aux_scan_dimen_unknown_unit_error(void) {
     tex_handle_error(
         normal_error_type,
         "Illegal unit of measure (pt inserted)",
-        "Dimensions can be in units of em, ex, in, pt, pc, cm, mm, dd, cc, bp, dk, or\n"
-        "sp; but yours is a new one! I'll assume that you meant to say pt, for printer's\n"
-        "points. two letters."
+        "Dimensions can be in units of em, ex, sp, cm, mm, es, ts, pt, bp, dk, pc, dd\n"
+        "cc or in; but yours is a new one! I'll assume that you meant to say pt, for\n"
+        "printer's points: two letters."
     );
 }
+
+/*tex 
+    The Edith and Tove were introduced at BachoTeX 2023 and because the error message 
+    was still in feet we decided to adapt it accordingly so now in addition it reports 
+    different values, including Theodores little feet measured by Arthur as being roughly 
+    five Ediths. 
+*/
 
 static void tex_aux_scan_dimen_out_of_range_error(void) {
     tex_handle_error(
         normal_error_type,
         "Dimension too large",
-        "I can't work with sizes bigger than about 19 feet. Continue and I'll use the\n"
-        "largest value I can."
+        "I can't work with sizes bigger than about 19 feet (45 Theodores as of 2023),\n"
+        "575 centimeters, 2300 Toves, 230 Ediths or 16383 points. Continue and I'll use\n"
+        "the largest value I can."
     );
 }
 
@@ -2481,6 +2500,14 @@ typedef enum scanned_unit {
     Measures}, developed by 19-year-old Donald~E. Knuth, later a famed computer scientist. According
     to Knuth, the basis of this new revolutionary system is the potrzebie, which equals the thickness
     of Mad issue 26, or 2.2633484517438173216473 mm [...].
+
+    We also provide alternatives for the inch: the |es| and |ts|, two units dedicated to women 
+    (Edith and Tove) that come close to the inch but are more metric. Their values have been 
+    carefully callibrated at the 2023 BachoTeX meeting and a report will be published in the
+    proceedings as well as TUGboat (medio 2023). 
+
+    An additional |eu| has been introduced as a multiplier for |ts| that defaults to 10 which makes 
+    one |eu| default to one |es|. 
 
 */
 
@@ -3276,6 +3303,14 @@ halfword tex_the_value_toks(int code, halfword *tail, halfword property) /* mayb
     return null;
 }
 
+void tex_detokenize_list(halfword head)
+{
+    int saved_selector;
+    push_selector;
+    tex_show_token_list(head, 0);
+    pop_selector;
+}
+
 halfword tex_the_detokenized_toks(halfword *tail)
 {
     halfword head = tex_scan_general_text(tail);
@@ -3680,8 +3715,18 @@ halfword tex_scan_toks_expand(int left_brace_found, halfword *tail, int expandco
         switch (cur_cmd) {
             case call_cmd:
             case tolerant_call_cmd:
+//          case constant_call_cmd:
                 tex_expand_current_token();
                 goto PICKUP;
+            case constant_call_cmd:
+                {
+                    halfword h = token_link(cur_chr);
+                    while (h) { 
+                        p = tex_store_new_token(p, token_info(h));
+                        h = token_link(h);
+                    }
+                    goto PICKUP;
+                }
             case protected_call_cmd:
             case tolerant_protected_call_cmd:
                 cur_tok = cs_token_flag + cur_cs;
@@ -3997,8 +4042,18 @@ halfword tex_scan_macro_expand(void)
             switch (cur_cmd) {
                 case call_cmd:
                 case tolerant_call_cmd:
+             // case constant_call_cmd:
                     tex_expand_current_token();
                     goto PICKUP;
+                case constant_call_cmd:
+                    {
+                        halfword h = token_link(cur_chr);
+                        while (h) { 
+                            p = tex_store_new_token(p, token_info(h));
+                            h = token_link(h);
+                        }
+                        goto PICKUP;
+                    }
                 case protected_call_cmd:
                 case semi_protected_call_cmd:
                 case tolerant_protected_call_cmd:
@@ -6079,9 +6134,9 @@ halfword tex_scan_posit(int optional_equal)
                 tex_back_input(cur_tok);
                 goto DONE;
             }
-                if (b >= max_posit_size) {
-                    goto TOOBIG;
-                }
+            if (b >= max_posit_size) {
+                goto TOOBIG;
+            }
         }
       DECIMALEXPONENT:
         if (tex_token_is_exponent(cur_tok)) {
@@ -6176,10 +6231,12 @@ halfword tex_scan_posit(int optional_equal)
         }
         tex_back_input(cur_tok);
       DONE:
-        {
+        if (b) { 
             double d = strtof(buffer, NULL);
             cur_val = tex_double_to_posit(d).v;
             return cur_val;
+        } else { 
+            tex_aux_missing_number_error();
         }
       TOOBIG:
         cur_val = tex_integer_to_posit(0).v;

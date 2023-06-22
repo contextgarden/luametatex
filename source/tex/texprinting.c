@@ -223,6 +223,8 @@ void tex_print_char(int s)
 
 */
 
+/* no_print terminal | logfile | terminal_and_logfile | pseudo | new_string | luabuffer */ 
+
 static void tex_aux_uprint(int s)
 {
     /*tex We're not sure about this so it's disabled for now! */
@@ -235,7 +237,6 @@ static void tex_aux_uprint(int s)
     */
     if (s == new_line_char_par && lmt_print_state.selector < pseudo_selector_code) {
         tex_print_ln();
-        return;
     } else if (s <= 0x7F) {
         tex_print_char(s);
     } else if (s <= 0x7FF) {
@@ -528,8 +529,8 @@ void tex_print_dimension(scaled s, int unit)
         s = 10 * (s % unity) + 5;
         do {
             if (delta > unity) {
-                /*tex Round the last digit. */
-                s = s + 0100000 - 50000;
+                /*tex Round the last digit, so: |s + 32768 - 50000| it is. */
+                s = s + 0x8000 - 50000;
             }
             buffer[i++] = (unsigned char) ('0' + (s / unity));
             s = 10 * (s % unity);
@@ -632,6 +633,7 @@ void tex_print_qhex(long long n)
 void tex_print_uhex(long long n)
 {
     tex_print_str("U+");
+    /* todo: loop */
     if (n < 16) {
         tex_print_char('0');
     }
@@ -639,6 +641,34 @@ void tex_print_uhex(long long n)
         tex_print_char('0');
     }
     if (n < 4096) {
+        tex_print_char('0');
+    }
+    tex_print_hex(n);
+}
+
+void tex_print_xhex(long long n)
+{
+    tex_print_char('"');
+    /* todo: loop */
+    if (n < 0xF) {
+        tex_print_char('0');
+    }
+    if (n < 0xFF) {
+        tex_print_char('0');
+    }
+    if (n < 0xFFF) {
+        tex_print_char('0');
+    }
+    if (n < 0xFFFF) {
+        tex_print_char('0');
+    }
+    if (n < 0xFFFFF) {
+        tex_print_char('0');
+    }
+    if (n < 0xFFFFFF) {
+        tex_print_char('0');
+    }
+    if (n < 0xFFFFFFF) {
         tex_print_char('0');
     }
     tex_print_hex(n);
@@ -1315,6 +1345,12 @@ const char *tex_print_format_args(const char *format, va_list args)
                                 tex_print_uhex(c);
                                 break;
                             }
+                        case 'X':
+                            { 
+                                halfword x = va_arg(args, int);
+                                tex_print_xhex(x);
+                                break;
+                            }
                         case '2':
                             {
                                 halfword c = va_arg(args, int);
@@ -1341,6 +1377,10 @@ const char *tex_print_format_args(const char *format, va_list args)
                             break;
                     }
                 }
+                break;
+            case '\n':
+            case '\r':
+                tex_print_nlp();
                 break;
             default:
                 tex_print_char(chr); /* todo: utf */

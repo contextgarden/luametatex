@@ -851,6 +851,7 @@ static void tex_aux_eq_destroy(memoryword w)
         case call_cmd:
         case protected_call_cmd:
         case semi_protected_call_cmd:
+        case constant_call_cmd:
         case tolerant_call_cmd:
         case tolerant_protected_call_cmd:
         case tolerant_semi_protected_call_cmd:
@@ -975,6 +976,7 @@ inline static int tex_aux_equal_eq(halfword p, singleword cmd, singleword flag, 
             case call_cmd:
             case protected_call_cmd:
             case semi_protected_call_cmd:
+            case constant_call_cmd:
             case tolerant_call_cmd:
             case tolerant_protected_call_cmd:
             case tolerant_semi_protected_call_cmd:
@@ -1535,6 +1537,10 @@ void tex_save_for_after_group(halfword t)
 void tex_unsave(void)
 {
     if (end_of_group_par) {
+        /*tex 
+            This is not yet always ok, and looks like we can get weird commands (in some group 
+            ending situations)! But I need a better example of a failure. (low priority) 
+        */
         tex_begin_inserted_list(tex_get_available_token(token_val(end_local_cmd, 0)));
         tex_begin_token_list(end_of_group_par, end_of_group_text);
         if (tracing_nesting_par > 2) {
@@ -1542,9 +1548,7 @@ void tex_unsave(void)
         }
         tex_local_control(1);
     }
-
     unsave_attribute_state_before();
-
     tex_unsave_math_codes(cur_level);
     tex_unsave_cat_codes(cat_code_table_par, cur_level);
     tex_unsave_text_codes(cur_level);

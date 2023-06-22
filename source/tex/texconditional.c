@@ -407,6 +407,7 @@ inline static halfword tex_aux_grab_toks(int expand, int expandlist, int *head)
         case call_cmd:
         case protected_call_cmd:
         case semi_protected_call_cmd:
+        case constant_call_cmd:
         case tolerant_call_cmd:
         case tolerant_protected_call_cmd:
         case tolerant_semi_protected_call_cmd:
@@ -578,6 +579,15 @@ void tex_conditional_if(halfword code, int unless)
         case if_zero_int_code:
             result = tex_scan_int(0, NULL) == 0;
             goto RESULT;
+        case if_interval_int_code:
+            {
+                scaled n0 = tex_scan_int(0, NULL);
+                scaled n1 = tex_scan_int(0, NULL);
+                scaled n2 = tex_scan_int(0, NULL);
+                result = n1 - n2;
+                result = result == 0 ? 1 : (result > 0 ? result <= n0 : -result <= n0);
+            }
+            goto RESULT;
         case if_abs_posit_code:
         case if_posit_code:
             {
@@ -608,6 +618,15 @@ void tex_conditional_if(halfword code, int unless)
         case if_zero_posit_code:
             result = tex_posit_eq_zero(tex_scan_posit(0));
             goto RESULT;
+        case if_interval_posit_code:
+            {
+                halfword n0 = tex_scan_posit(0);
+                halfword n1 = tex_scan_posit(0);
+                halfword n2 = tex_scan_posit(0);
+                result = tex_posit_sub(n1, n2);
+                result = tex_posit_eq_zero(result) ? 1 : (tex_posit_gt_zero(result) ? tex_posit_le(result, n0) : tex_posit_le(tex_posit_neg(result), n0));
+            }
+            goto RESULT;
         case if_abs_dim_code:
         case if_dim_code:
             {
@@ -637,6 +656,15 @@ void tex_conditional_if(halfword code, int unless)
             goto RESULT;
         case if_zero_dim_code:
             result = tex_scan_dimen(0, 0, 0, 0, NULL) == 0;
+            goto RESULT;
+        case if_interval_dim_code:
+            {
+                scaled n0 = tex_scan_dimen(0, 0, 0, 0, NULL);
+                scaled n1 = tex_scan_dimen(0, 0, 0, 0, NULL);
+                scaled n2 = tex_scan_dimen(0, 0, 0, 0, NULL);
+                result = n1 - n2;
+                result = result == 0 ? 1 : (result > 0 ? result <= n0 : -result <= n0);
+            }
             goto RESULT;
         case if_odd_code:
             result = odd(tex_scan_int(0, NULL));
@@ -729,11 +757,15 @@ void tex_conditional_if(halfword code, int unless)
                 p = cur_cmd;
                 q = cur_chr;
                 tex_get_next();
-                if (cur_cmd != p) {
+                if ((p == constant_call_cmd && cur_cmd == call_cmd) || (p == call_cmd && cur_cmd == constant_call_cmd)) {
+                    /*tex This is a somewhat special case. */
+                    goto SOMECALLCMD;
+                } else if (cur_cmd != p) {
                     result = 0;
                 } else if (cur_cmd < call_cmd) {
                     result = cur_chr == q;
                 } else {
+                    SOMECALLCMD:
                     /*tex
                         Test if two macro texts match. Note also that |\ifx| decides that macros
                         |\a| and |\b| are different in examples like this:
@@ -742,6 +774,9 @@ void tex_conditional_if(halfword code, int unless)
                         \def\a{\c}  \def\c{}
                         \def\b{\d}  \def\d{}
                         \stoptyping
+
+                        We acctually have commands beyond valid call commands but they are never 
+                        seen here. 
                     */
                     p = token_link(cur_chr);
                     /*tex Omit reference counts. */
@@ -924,6 +959,7 @@ void tex_conditional_if(halfword code, int unless)
               EMPTY_CHECK_AGAIN:
                 switch (cur_cmd) {
                     case call_cmd:
+                    case constant_call_cmd:
                         result = ! token_link(cur_chr);
                         break;
                     case internal_toks_reference_cmd:
@@ -1020,10 +1056,17 @@ void tex_conditional_if(halfword code, int unless)
                 */
                 if (lmt_input_state.cur_input.loc) {
                     halfword t = token_info(lmt_input_state.cur_input.loc);
-                    lmt_input_state.cur_input.loc = token_link(lmt_input_state.cur_input.loc);
                     if (t < cs_token_flag && token_cmd(t) == parameter_reference_cmd) {
+                        lmt_input_state.cur_input.loc = token_link(lmt_input_state.cur_input.loc);
                         result = lmt_input_state.parameter_stack[lmt_input_state.cur_input.parameter_start + token_chr(t) - 1] != null ? 1 : 2;
-                    }
+                    } else {
+                        /*tex 
+                            We have a replacement text so we check and backtrack. This is somewhat
+                            tricky because a parameter can be a condition but we assume sane usage. 
+                        */
+                        tex_get_token();
+                        result = cur_cmd == if_test_cmd ? 2 : 1;
+                    }          
                 }
                 goto CASE;
             }
@@ -1295,9 +1338,7 @@ void tex_conditional_fi_or_else(void)
         tex_get_next_non_spacer();
     } else if (cur_chr > lmt_condition_state.if_limit) {
         if (lmt_condition_state.if_limit == if_code) {
-            /*tex
-                The condition is not yet evaluated.
-            */
+            /*tex The condition is not yet evaluated. */
             tex_insert_relax_and_cur_cs();
         } else {
             tex_handle_error(normal_error_type,
@@ -1398,7 +1439,7 @@ void tex_conditional_unless(void)
 void tex_show_ifs(void)
 {
     if (lmt_condition_state.cond_ptr) {
-        /*tex First we determine the of |\if ... \fi| nesting. */
+        /*tex First we determine the |\if ... \fi| nesting. */
         int n = 0;
         {
             /*tex We start at the tail of a token list to show. */

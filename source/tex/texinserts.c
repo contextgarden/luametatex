@@ -451,12 +451,12 @@ void tex_run_insert(void)
     tex_normal_paragraph(insert_par_context);
     tex_push_nest();
     cur_list.mode = internal_vmode;
-    cur_list.prev_depth = ignore_depth_criterium_par;
+    cur_list.prev_depth = ignore_depth_criterion_par;
 }
 
 void tex_finish_insert_group(void)
 {
-    if (! tex_wrapped_up_paragraph(insert_par_context)) {
+    if (! tex_wrapped_up_paragraph(insert_par_context, 0)) {
         halfword p, q; /*tex for short-term use */
         scaled d;      /*tex holds |split_max_depth| in |insert_group| */
         halfword f;    /*tex holds |floating_penalty| in |insert_group| */

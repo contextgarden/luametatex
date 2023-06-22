@@ -15,6 +15,7 @@ typedef enum callback_callback_types {
     start_run_callback,
     stop_run_callback,
     define_font_callback,
+    quality_font_callback,
     pre_output_filter_callback,
     buildpage_filter_callback,
     hpack_filter_callback,
@@ -40,6 +41,7 @@ typedef enum callback_callback_types {
     show_warning_message_callback,
     hpack_quality_callback,
     vpack_quality_callback,
+    show_break_callback,
     insert_par_callback,
     append_line_filter_callback,
     build_page_insert_callback,
@@ -60,6 +62,8 @@ typedef enum callback_callback_types {
     handle_overload_callback,
     missing_character_callback,
     process_character_callback,
+    linebreak_quality_callback,
+    paragraph_pass_callback,
     total_callbacks,
 } callback_callback_types;
 
@@ -80,15 +84,16 @@ typedef enum callback_keys {
     callback_lstring_key   = 'L', /*tex a \LUA\ string (struct) */
     callback_node_key      = 'N', /*tex a \TEX\ node (halfword) */
     callback_string_key    = 'S', /*tex a \CCODE\ string */
-    callback_result_key    = 'R', /*tex a string (return value) but nil is also okay */
+    callback_result_s_key  = 'R', /*tex a string (return value) but nil is also okay */
+    callback_result_i_key  = 'r', /*tex a number (return value) but nil is also okay */
 } callback_keys;
 
-inline static int  lmt_callback_defined         (int a)                               { return lmt_callback_state.values[a]; }
-inline static int  lmt_callback_call            (lua_State *L, int i, int o, int top) { return lua_pcallk(L, i, o, top + 2, 0, NULL); }
+static inline int  lmt_callback_defined         (int a)                               { return lmt_callback_state.values[a]; }
+static inline int  lmt_callback_call            (lua_State *L, int i, int o, int top) { return lua_pcallk(L, i, o, top + 2, 0, NULL); }
 
 extern int         lmt_callback_okay            (lua_State *L, int i, int *top);
 extern void        lmt_callback_error           (lua_State *L, int top, int i);
-inline static void lmt_callback_wrapup          (lua_State *L, int top)  { lua_settop(L, top); }
+static inline void lmt_callback_wrapup          (lua_State *L, int top)  { lua_settop(L, top); }
  
 extern int         lmt_run_callback             (lua_State *L, int i, const char *values, ...);
 extern int         lmt_run_and_save_callback    (lua_State *L, int i, const char *values, ...);
