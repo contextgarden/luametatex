@@ -130,6 +130,7 @@ typedef enum node_types {
     split_node,
     /*tex The next set of nodes is invisible from the \LUA\ (but nesting nodes can show up). */
     expression_node,
+    loop_state_node,
     math_spec_node,
     font_spec_node,
     nesting_node,
@@ -145,6 +146,8 @@ typedef enum node_types {
     /*tex While this is an indirect one carrying data. */
     passive_node,
 } node_types;
+
+ /*tex The largest node is now |par_node| which need 30 slots. */
 
 # define max_chain_size  32
 
@@ -402,12 +405,17 @@ extern void     lmt_nodelib_initialize  (void); /* name ? */
     diagnose issues. It is one of the few nodes now that has fields depending on the subtype
     but these nodes are not really user ones anyway.
 
+    We could move index to the subtype and then have an extra data field but I'll delay that till
+    it's really needed. Chains are often short and using arrays doesn't bring any gain nor does 
+    using some btree approach. 
+
 */
 
 # define attribute_node_size 2
 # define attribute_unset(a)  vinfo(a,1)
-# define attribute_index(a)  vinfo(a,1) /*tex actually we need half of this */
-# define attribute_count(a)  vlink(a,1) /*tex the reference count */
+# define attribute_index(a)  vinfo0(a,1) 
+# define attribute_detail(a) vinfo1(a,1) 
+# define attribute_count(a)  vlink(a,1)  /*tex the reference count */
 # define attribute_value(a)  vlink(a,1)
 
 typedef enum attribute_subtypes {
@@ -435,6 +443,8 @@ typedef enum penalty_option_codes {
     penalty_option_math_forward  = 0x0001,
     penalty_option_math_backward = 0x0002,
     penalty_option_orphaned      = 0x0004,
+    penalty_option_widowed       = 0x0008,
+    penalty_option_clubbed       = 0x0010,
 } penalty_option_codes; 
 
 typedef enum penalty_subtypes {
@@ -443,6 +453,7 @@ typedef enum penalty_subtypes {
     line_penalty_subtype,
     word_penalty_subtype,
     orphan_penalty_subtype,
+    single_line_penalty_subtype,
     final_penalty_subtype,
     math_pre_penalty_subtype,
     math_post_penalty_subtype,
@@ -523,7 +534,7 @@ typedef enum skip_glue_codes_alias {
 # define glue_font(a)          vinfo(a,5) /* not in spec */ /* when inter_math_skip_glue: parameter */
 # define glue_leader_ptr(a)    vlink(a,5) /* not in spec */
 # define glue_options(a)       vinfo(a,6) /* not in spec */ /* for now only internal */
-# define glue_unused(a)        vlink(a,6) /* not in spec */
+# define glue_callback(a)      vlink(a,6) /* not in spec */
 
 static inline void tex_add_glue_option    (halfword a, halfword r) { glue_options(a) |= r; }
 static inline void tex_remove_glue_option (halfword a, halfword r) { glue_options(a) &= ~(r | glue_options(a)); }
@@ -733,11 +744,16 @@ typedef enum discretionary_subtypes {
 # define last_discretionary_code    automatic_discretionary_code
 
 typedef enum disc_options {
-    disc_option_normal_word = 0x0000,
-    disc_option_pre_word    = 0x0001,
-    disc_option_post_word   = 0x0002,
-    disc_option_orphaned    = 0x0004,
+    disc_option_normal_word    = 0x0000,
+    disc_option_pre_word       = 0x0001,
+    disc_option_post_word      = 0x0002,
+    disc_option_orphaned       = 0x0004,
+    disc_option_prefer_break   = 0x0010,
+    disc_option_prefer_nobreak = 0x0020,
 } disc_options;
+
+# define first_disc_option disc_option_prefer_break
+# define last_disc_option  disc_option_prefer_nobreak
 
 # define disc_node_size       13
 # define disc_no_break(a)     vlink(a,2) /* beware: vinfo is used for type/subtype */
@@ -785,7 +801,7 @@ extern void     tex_set_disc_field          (halfword target, halfword location,
 extern void     tex_check_disc_field        (halfword target);
 extern void     tex_set_discpart            (halfword d, halfword h, halfword t, halfword code);
 extern halfword tex_flatten_discretionaries (halfword head, int *count, int nest);
-extern void     tex_flatten_leaders         (halfword box, int *count);
+extern int      tex_flatten_leaders         (halfword box, int grp, int just_pack);
 extern void     tex_soften_hyphens          (halfword head, int *found, int *replaced);
 extern halfword tex_harden_spaces           (halfword head, halfword tolerance, int *count);
 
@@ -926,20 +942,21 @@ typedef enum package_states {
     unknown_package_state = 0x00,
     hbox_package_state    = 0x01,
     vbox_package_state    = 0x02,
-    vtop_package_state    = 0x03,
+    vtop_package_state    = 0x03,/* == 0x01 + 0x02 */
     dbox_package_state    = 0x04,
     /* maybe vcenter */
 } package_states;
 
 typedef enum package_dimension_states {
     package_dimension_not_set  = 0x00,
-    package_dimension_size_set = 0x10,
+    package_dimension_size_set = 0x10, /* used in in alignments */
 } package_dimension_states;
 
 typedef enum package_leader_states {
     package_u_leader_not_set  = 0x00,
     package_u_leader_set      = 0x20,
     package_u_leader_delayed  = 0x40,
+    package_u_leader_found    = 0x80,
 } package_leader_states;
 
 # define set_box_package_state(p,s) box_package_state(p) |= s
@@ -1232,7 +1249,7 @@ typedef enum glyph_option_codes {
 
 typedef enum auto_discretionary_codes {
     auto_discretionary_normal = 0x0001, /* turn glyphs into discretionary with three similar components */
-    auto_discretionary_italic = 0x0002, /* also include italic correcxtion when present */
+    auto_discretionary_italic = 0x0002, /* also include italic correction when present */
 } auto_discretionary_codes;
 
 static inline void tex_add_glyph_option    (halfword a, halfword r) { glyph_options(a) |= r; }
@@ -1388,6 +1405,13 @@ static inline int tex_nodetype_is_visible     (halfword t) { return (t >= 0) && 
 # define expression_expression(a) vlink(a,1)     /*tex saved expression so far */
 # define expression_term(a)       vlink(a,2)     /*tex saved term so far */
 # define expression_numerator(a)  vinfo(a,2)     /*tex saved numerator */
+
+/*tex 
+    Why not. 
+*/
+
+# define loop_state_node_size 2
+# define loop_state_count(a)  vinfo(a,1) /* instead if node_attr */
 
 /*tex
     To be decided: go double 
@@ -1552,7 +1576,7 @@ static inline void     tex_set_specification_indent    (halfword a, halfword n, 
 static inline void     tex_set_specification_width     (halfword a, halfword n, halfword v) { specification_index(a,n).half1 = v; }
 static inline void     tex_set_specification_penalty   (halfword a, halfword n, halfword v) { specification_index(a,n).half0 = v; }
 
-# define par_passes_size 10
+# define par_passes_size 11
 
 # define par_passes_slot(n,m) ((n-1)*par_passes_size+m)
 
@@ -1597,6 +1621,8 @@ static inline void     tex_set_passes_identifier           (halfword a, halfword
 static inline void     tex_set_passes_optional             (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 9)).half1 = v; }
 static inline void     tex_set_passes_callback             (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,10)).half0 = v; }
 static inline void     tex_set_passes_orphanpenalty        (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,10)).half1 = v; }
+static inline void     tex_set_passes_doubleadjdemerits    (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,11)).half0 = v; }
+static inline void     tex_set_passes_reserved             (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,11)).half1 = v; } /* available */
 
 static inline halfword tex_get_passes_threshold            (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 1)).half0; }
 static inline halfword tex_get_passes_badness              (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 1)).half1; }
@@ -1619,6 +1645,8 @@ static inline halfword tex_get_passes_identifier           (halfword a, halfword
 static inline halfword tex_get_passes_optional             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 9)).half1; }
 static inline halfword tex_get_passes_callback             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,10)).half0; }
 static inline halfword tex_get_passes_orphanpenalty        (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,10)).half1; }
+static inline halfword tex_get_passes_doubleadjdemerits    (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,11)).half0; }
+static inline halfword tex_get_passes_reserved             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,11)).half1; } /* available */
 
 extern        halfword tex_new_specification_node      (halfword n, quarterword s, halfword options);
 extern        void     tex_dispose_specification_nodes (void);
@@ -2302,6 +2330,7 @@ typedef enum par_codes {
     par_orphan_penalty_code,
     par_broken_penalty_code,
     par_adj_demerits_code,
+    par_double_adj_demerits_code,
     par_double_hyphen_demerits_code,
     par_final_hyphen_demerits_code,
     par_par_shape_code,
@@ -2321,35 +2350,37 @@ typedef enum par_codes {
     par_shaping_penalty_code,
     par_emergency_extra_stretch_code,
     par_par_passes_code,
+    par_single_line_penalty_code,
 } par_codes;
 
 typedef enum par_categories {
-    par_none_category            = 0x00000000,
-    par_hsize_category           = 0x00000001, // \hsize
-    par_skip_category            = 0x00000002, // \leftskip \rightskip
-    par_hang_category            = 0x00000004, // \hangindent \hangafter
-    par_indent_category          = 0x00000008, // \parindent
-    par_par_fill_category        = 0x00000010, // \parfillskip \parfillleftskip
-    par_adjust_category          = 0x00000020, // \adjustspacing
-    par_protrude_category        = 0x00000040, // \protrudechars
-    par_tolerance_category       = 0x00000080, // \tolerance \pretolerance
-    par_stretch_category         = 0x00000100, // \emergcystretch
-    par_looseness_category       = 0x00000200, // \looseness
-    par_last_line_category       = 0x00000400, // \lastlinefit
-    par_line_penalty_category    = 0x00000800, // \linepenalty \interlinepenalty \interlinepenalties
-    par_club_penalty_category    = 0x00001000, // \clubpenalty \clubpenalties
-    par_widow_penalty_category   = 0x00002000, // \widowpenalty \widowpenalties
-    par_display_penalty_category = 0x00004000, // \displaypenalty \displaypenalties
-    par_broken_penalty_category  = 0x00008000, // \brokenpenalty
-    par_demerits_category        = 0x00010000, // \doublehyphendemerits \finalhyphendemerits \adjdemerits
-    par_shape_category           = 0x00020000, // \parshape
-    par_line_category            = 0x00040000, // \baselineskip \lineskip \lineskiplimit
-    par_hyphenation_category     = 0x00080000, // \Hyphenationmode
-    par_shaping_penalty_category = 0x00100000, // \shapingpenaltiesmode
-    par_orphan_penalty_category  = 0x00200000, // \orphanpenalties
-    par_emergency_category       = 0x00400000, // \emergencyleftskip \emergencyrightskip \emergencyextrastretch
-    par_par_passes_category      = 0x00800000,
-    par_all_category             = 0x7FFFFFFF, //
+    par_none_category                    = 0x00000000,
+    par_hsize_category                   = 0x00000001, // \hsize
+    par_skip_category                    = 0x00000002, // \leftskip \rightskip
+    par_hang_category                    = 0x00000004, // \hangindent \hangafter
+    par_indent_category                  = 0x00000008, // \parindent
+    par_par_fill_category                = 0x00000010, // \parfillskip \parfillleftskip
+    par_adjust_category                  = 0x00000020, // \adjustspacing
+    par_protrude_category                = 0x00000040, // \protrudechars
+    par_tolerance_category               = 0x00000080, // \tolerance \pretolerance
+    par_stretch_category                 = 0x00000100, // \emergcystretch
+    par_looseness_category               = 0x00000200, // \looseness
+    par_last_line_category               = 0x00000400, // \lastlinefit
+    par_line_penalty_category            = 0x00000800, // \linepenalty \interlinepenalty \interlinepenalties
+    par_club_penalty_category            = 0x00001000, // \clubpenalty \clubpenalties
+    par_widow_penalty_category           = 0x00002000, // \widowpenalty \widowpenalties
+    par_display_penalty_category         = 0x00004000, // \displaypenalty \displaypenalties
+    par_broken_penalty_category          = 0x00008000, // \brokenpenalty
+    par_demerits_category                = 0x00010000, // \doublehyphendemerits \finalhyphendemerits \adjdemerits
+    par_shape_category                   = 0x00020000, // \parshape
+    par_line_category                    = 0x00040000, // \baselineskip \lineskip \lineskiplimit
+    par_hyphenation_category             = 0x00080000, // \Hyphenationmode
+    par_shaping_penalty_category         = 0x00100000, // \shapingpenaltiesmode
+    par_orphan_penalty_category          = 0x00200000, // \orphanpenalties
+    par_emergency_category               = 0x00400000, // \emergencyleftskip \emergencyrightskip \emergencyextrastretch
+    par_par_passes_category              = 0x00800000,
+    par_par_single_line_penalty_category = 0x01000000,
+    par_all_category                     = 0x7FFFFFFF, //
 } par_categories;
 
 static int par_category_to_codes[] = {
@@ -2381,6 +2412,7 @@ static int par_category_to_codes[] = {
     par_orphan_penalty_category,  // par_orphan_penalty_code
     par_broken_penalty_category,  // par_broken_penalty_code
     par_demerits_category,        // par_adj_demerits_code
+    par_demerits_category,        // par_double_adj_demerits_code
     par_demerits_category,        // par_double_hyphen_demerits_code
     par_demerits_category,        // par_final_hyphen_demerits_code
     par_shape_category,           // par_par_shape_code
@@ -2399,14 +2431,14 @@ static int par_category_to_codes[] = {
     par_shaping_penalty_category, // par_shaping_penalties_mode_code
     par_shaping_penalty_category, // par_shaping_penalty_code
     par_emergency_category,
-    par_emergency_category,
     par_par_passes_category,
+    par_par_single_line_penalty_category,
 };
 
-# define par_node_size                  30
-# define par_penalty_interline(a)       vinfo(a, 2) /*tex These come from \OMEGA. */ /* these can go, now we use the other fields */
-//define par_penalty_broken(a)          vlink(a, 2) /*tex These come from \OMEGA. */ /* these can go, now we use the other fields */
-# define par_prev_graf(a)               vlink(a, 2) /* joke */
+
+# define par_node_size                  31          /*tex Make sure thet |max_chain_size| is large enough! */
+# define par_single_line_penalty(a)     vinfo(a, 2) 
+# define par_prev_graf(a)               vlink(a, 2) /*tex A bit of a joke but maybe handy indeed. */
 # define par_box_left(a)                vinfo(a, 3)
 # define par_box_left_width(a)          vlink(a, 3)
 # define par_box_right(a)               vinfo(a, 4)
@@ -2455,12 +2487,14 @@ static int par_category_to_codes[] = {
 # define par_hyphenation_mode(a)        vlink(a,25)
 # define par_shaping_penalties_mode(a)  vinfo(a,26)
 # define par_shaping_penalty(a)         vlink(a,26)
-# define par_par_init_left_skip(a)      vlink(a,27)
-# define par_par_init_right_skip(a)     vinfo(a,27) 
-# define par_emergency_left_skip(a)     vlink(a,28)
-# define par_emergency_right_skip(a)    vinfo(a,28) 
-# define par_emergency_extra_stretch(a) vlink(a,29) 
-# define par_par_passes(a)              vinfo(a,29) 
+# define par_par_init_left_skip(a)      vinfo(a,27)
+# define par_par_init_right_skip(a)     vlink(a,27) 
+# define par_emergency_left_skip(a)     vinfo(a,28)
+# define par_emergency_right_skip(a)    vlink(a,28) 
+# define par_emergency_extra_stretch(a) vinfo(a,29) 
+# define par_par_passes(a)              vlink(a,29) 
+# define par_double_adj_demerits(a)     vinfo(a,30)
+# define par_reserved(a)                vlink(a,30)
 
 /*
     At some point we will have this (array with double values), depends on the outcome of an  
@@ -2846,17 +2880,22 @@ static inline halfword tex_checked_glue_order (halfword order) { return ((order 
     reserved nodes the memory used for whatever nodes are needed takes off.
 
     Changing this to real nodes makes sense but is also tricky due to initializations ... some day
-    (we need to store stuff in teh states then and these are not saved!).
+    (we need to store stuff in the states then and these are not saved!).
+
+    The first five could actualy be replaced by assignments because we don't share them as \TEX\ 
+    does which makes it easier the just change them (we don't need to save memory here). The other
+    ones could be nodes that get initialized at startup and be put in the structs that need them,
+    but for now we keep it as-it-is.
 
 */
 
-# define fi_glue           (zero_glue         + glue_spec_size) /*tex These are constants */
-# define fil_glue          (fi_glue           + glue_spec_size)
-# define fill_glue         (fil_glue          + glue_spec_size)
-# define filll_glue        (fill_glue         + glue_spec_size)
-# define fil_neg_glue      (filll_glue        + glue_spec_size)
+# define fi_glue           (zero_glue         + glue_spec_size) 
+# define fi_l_glue         (fi_glue           + glue_spec_size)
+# define fi_ll_glue        (fi_l_glue         + glue_spec_size)
+# define fi_ss_glue        (fi_ll_glue        + glue_spec_size)
+# define fi_l_neg_glue     (fi_ss_glue        + glue_spec_size)
 
-# define page_insert_head  (fil_neg_glue      + glue_spec_size)
+# define page_insert_head  (fi_l_neg_glue     + glue_spec_size)
 # define contribute_head   (page_insert_head  + split_node_size) /*tex This was temp_node_size but we assign more. */
 # define page_head         (contribute_head   + temp_node_size)
 # define temp_head         (page_head         + glue_node_size)  /*tex It gets a glue type assigned. */

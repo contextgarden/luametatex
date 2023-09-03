@@ -132,11 +132,7 @@ static void PrintConstant(const Proto* f, int i)
                 break;
             }
         case LUA_VNUMINT:
-# if defined(__MINGW64__) || defined(__MINGW32__)
-            printf("%I64i", ivalue(o)); /* LUA_INTEGER_FMT */
-# else
-            printf("%lli", ivalue(o));  /* LUA_INTEGER_FMT */
-# endif
+            printf("%lli", ivalue(o)); /* LUA_INTEGER_FMT */
             break;
         case LUA_VSHRSTR:
         case LUA_VLNGSTR:
@@ -530,10 +526,10 @@ static void luaclib_aux_print_code(const Proto* f)
             case OP_EXTRAARG:
                 printf("%d", ax);
                 break;
-            default:
-                printf("%d %d %d", a, b, c);
-                printf(COMMENT "not handled");
-                break;
+         // default:
+         //     printf("%d %d %d", a, b, c);
+         //     printf(COMMENT "not handled");
+         //     break;
         }
         printf("\n");
     }

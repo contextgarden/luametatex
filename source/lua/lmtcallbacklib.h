@@ -42,6 +42,7 @@ typedef enum callback_callback_types {
     hpack_quality_callback,
     vpack_quality_callback,
     show_break_callback,
+    show_build_callback,
     insert_par_callback,
     append_line_filter_callback,
     build_page_insert_callback,
@@ -64,6 +65,7 @@ typedef enum callback_callback_types {
     process_character_callback,
     linebreak_quality_callback,
     paragraph_pass_callback,
+    handle_uleader_callback,
     total_callbacks,
 } callback_callback_types;
 

@@ -38,6 +38,7 @@ set(lua_sources
     source/luacore/luapeg/lpvm.c
     source/luacore/luapeg/lpprint.c
     source/luacore/luapeg/lpcap.c
+    source/luacore/luapeg/lpcset.c
     source/luacore/luapeg/lpcode.c
 
 )
@@ -58,14 +59,16 @@ target_compile_definitions(lua PUBLIC
   # LUAI_HASHLIMIT=6 # obsolete
   # LUAI_MAXSHORTLEN=48
     LUAI_MAXCSTACK=6000
-    LUA_UCID
+    LUA_UCID # permits utf8 
   # LUA_USE_JUMPTABLE=0
     LPEG_DEBUG
   # LUA_NOCVTS2N
-  # LUA_NOBUILTIN # disable likely usage
+    LUA_NOBUILTIN # disable likely usage
   # LUAI_ASSERT
   # LUA_STRFTIMEOPTIONS="aAbBcCdDeFgGhHIjmMnprRStTuUVwWxXyYzZ%" 
   # MINSTRTABSIZE=65536
+  # LUA_USE_JUMPTABLE=0
+    NDEBUG=0
 )
 
 if (UNIX)

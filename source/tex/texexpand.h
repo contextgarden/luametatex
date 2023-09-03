@@ -8,7 +8,7 @@
 typedef struct expand_state_info {
     limits_data limits;
     int         depth;
-    int         cs_name_level;
+    int         cs_name_level; /*tex Not that useful but for now we keep it. */
     int         arguments;
     halfword    match_token_head;
     int         padding;
@@ -31,5 +31,7 @@ extern halfword tex_create_csname           (void);
 extern int      tex_is_valid_csname         (void);
 
 extern int      tex_get_parameter_count     (void);
+extern int      tex_get_parameter_index     (halfword n);
+extern void     tex_inject_parameter        (int n);
 
 # endif

@@ -27,6 +27,8 @@ typedef struct main_control_state_info {
     halfword       loop_iterator;
     halfword       loop_nesting;
     halfword       quit_loop;
+    halfword       loop_stack_head;
+    halfword       loop_stack_tail; 
 } main_control_state_info;
 
 typedef enum saved_discretionary_items {
@@ -52,7 +54,7 @@ extern void     tex_you_cant_error                  (const char *helpinfo);
 extern void     tex_off_save                        (void);
 
 extern halfword tex_local_scan_box                  (void);
-extern void     tex_box_end                         (int boxcontext, halfword boxnode, scaled shift, halfword mainclass, halfword slot);
+extern void     tex_box_end                         (int boxcontext, halfword boxnode, scaled shift, halfword mainclass, halfword slot, halfword callback);
 
 extern void     tex_get_r_token                     (void);
 
@@ -66,10 +68,50 @@ extern void     tex_inject_text_or_line_dir         (int d, int check_glue);
 
 extern void     tex_handle_assignments              (void); /*tex Used in math. */
 
-extern void     tex_assign_internal_int_value       (int a, halfword p, int val);
+extern void     tex_assign_internal_integer_value   (int a, halfword p, int val);
 extern void     tex_assign_internal_attribute_value (int a, halfword p, int val);
 extern void     tex_assign_internal_posit_value     (int a, halfword p, int val);
-extern void     tex_assign_internal_dimen_value     (int a, halfword p, int val);
+extern void     tex_assign_internal_dimension_value (int a, halfword p, int val);
 extern void     tex_assign_internal_skip_value      (int a, halfword p, int val);
+extern void     tex_assign_internal_unit_value      (int a, halfword p, int val);
+
+extern void     tex_aux_lua_call                    (halfword cmd, halfword chr);
+
+extern halfword tex_nested_loop_iterator            (void);
+extern halfword tex_previous_loop_iterator          (void);
+extern halfword tex_expand_parameter                (halfword tok, halfword *tail);
+extern halfword tex_expand_iterator                 (halfword tok);
+
+inline int valid_parameter_reference(int r) 
+{
+    switch (r) {
+        case I_token_l: case I_token_o: // iterator
+        case P_token_l: case P_token_o: // parent iterator
+        case G_token_l: case G_token_o: // grandparent iterator
+        case H_token_l: case H_token_o: // hash escape
+        case L_token_l: case L_token_o: // newline escape (\n)
+     // case N_token_l: case N_token_o: // no break space
+        case R_token_l: case R_token_o: // return escape (\r)
+        case S_token_l: case S_token_o: // space escape
+        case T_token_l: case T_token_o: // tab escape (\t)
+        case X_token_l: case X_token_o: // backslash escape
+     // case Z_token_l: case Z_token_o: // zero width space
+            return token_chr(r);
+        default:
+            return 0;
+    }
+}
+
+inline int valid_iterator_reference(int r) 
+{
+    switch (r) {
+        case I_token_l: case I_token_o: // iterator
+        case P_token_l: case P_token_o: // parent iterator
+        case G_token_l: case G_token_o: // grandparent iterator
+            return token_chr(r);
+        default:
+            return 0;
+    }
+}
 
 # endif

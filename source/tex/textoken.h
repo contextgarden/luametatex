@@ -95,8 +95,8 @@ typedef enum catcode_table_presets {
 */
 
 typedef struct token_state_info {
-    halfword  null_list;         /*tex permanently empty list */
-    int       in_lua_escape;
+    halfword  null_list;     /*tex permanently empty list */
+    int       in_lua_escape; /*tex obsolete, controlled differently */
     int       force_eof;
     int       luacstrings;
     /*tex These are pseudo constants, their value depends on the number of primitives etc. */
@@ -127,6 +127,12 @@ extern token_state_info lmt_token_state;
     \stoptyping
 
 */
+
+typedef enum macro_preamble_states { 
+    macro_without_preamble = 0x0, 
+    macro_with_preamble    = 0x1, 
+    macro_is_packed        = 0x2, /* not yet, maybe some day array instead of list */
+} macro_preamble_states;
 
 # define max_match_count 15
 # define gap_match_count  7
@@ -182,8 +188,15 @@ extern token_state_info lmt_token_state;
 # define match_token             token_val(19, 0) /* token_val(match_cmd,         0) */
 # define end_match_token         token_val(20, 0) /* token_val(end_match_cmd,     0) */
 
-# define left_brace_limit  right_brace_token
-# define right_brace_limit math_shift_token
+/*tex 
+    Testing for |left_brace_limit| and |right_brace_limit| is convenient because then we don't
+    need to check |cur_cmd| as well as |cur_cs| when we check for balanced |{}|. However, as
+    soon as we need to check |cur_cmd| anyway it becomes nicer to check for |cur_cs| afterwards. 
+    Using a |switch| is then a bit more efficient too. 
+*/
+
+# define left_brace_limit  right_brace_token      
+# define right_brace_limit math_shift_token       
 
 # define octal_token             (other_token  + '\'') /*tex apostrophe, indicates an octal constant */
 # define hex_token               (other_token  + '"')  /*tex double quote, indicates a hex constant */
@@ -212,6 +225,10 @@ extern token_state_info lmt_token_state;
 # define escape_token            (other_token  + '\\')
 # define left_parent_token       (other_token  + '(')
 # define right_parent_token      (other_token  + ')')
+# define left_bracket_token      (other_token  + '[')
+# define right_bracket_token     (other_token  + ']')
+# define left_angle_token        (other_token  + '<')
+# define right_angle_token       (other_token  + '>')
 # define zero_token              (other_token  + '0')  /*tex zero, the smallest digit */
 # define one_token               (other_token  + '1') 
 # define five_token              (other_token  + '5')
@@ -277,19 +294,62 @@ extern token_state_info lmt_token_state;
 # define F_token_l               (letter_token + 'F')  /*tex the largest special hex digit */
 # define F_token_o               (other_token  + 'F')
 
+# define G_token_l               (letter_token + 'G') 
+# define G_token_o               (other_token  + 'G')
+
+# define H_token_l               (letter_token + 'H') 
+# define H_token_o               (other_token  + 'H')
+
+# define I_token_l               (letter_token + 'I') 
+# define I_token_o               (other_token  + 'I')
+
+# define K_token_l               (letter_token + 'K') 
+# define K_token_o               (other_token  + 'K')
+
+# define L_token_l               (letter_token + 'L') 
+# define L_token_o               (other_token  + 'L')
+
+# define M_token_l               (letter_token + 'M') 
+# define M_token_o               (other_token  + 'M')
+
+# define N_token_l               (letter_token + 'N') 
+# define N_token_o               (other_token  + 'N')
+
 # define P_token_l               (letter_token + 'P')  /*tex the largest special hex digit */
 # define P_token_o               (other_token  + 'P')
+
+# define R_token_l               (letter_token + 'R') 
+# define R_token_o               (other_token  + 'R')
+
+# define S_token_l               (letter_token + 'S') 
+# define S_token_o               (other_token  + 'S')
+
+# define T_token_l               (letter_token + 'T') 
+# define T_token_o               (other_token  + 'T')
 
 # define X_token_l               (letter_token + 'X')
 # define X_token_o               (other_token  + 'X')
 
+# define Z_token_l               (letter_token + 'Z')
+# define Z_token_o               (other_token  + 'Z')
+
 # define at_token_l              (letter_token + '@')
 # define at_token_o              (other_token  + '@')
 
+# define hash_token_o            (other_token  + '#')
+# define space_token_o           (other_token  + ' ')
+# define tab_token_o             (other_token  + '\t')
+# define newline_token_o         (other_token  + '\n')
+# define return_token_o          (other_token  + '\r')
+# define backslash_token_o       (other_token  + '\\')
+
+//define nbsp_token_o            (other_token  + 0x202F)
+//define zws_token_o             (other_token  + 0x200B)
+
 # define match_visualizer    '#'
 # define match_spacer        '*'  /* ignore spaces */
-# define match_bracekeeper   '+'  /* keep the braces */
-# define match_thrasher      '-'  /* discard and don't count the argument */
+# define match_bracekeeper   '+'  /* keep (honor) the braces */
+# define match_thrasher      '-'  /* discard (wipe) and don't count the argument */
 # define match_par_spacer    '.'  /* ignore pars and spaces */
 # define match_keep_spacer   ','  /* push back space when no match */
 # define match_pruner        '/'  /* remove leading and trailing spaces and pars */
@@ -297,8 +357,15 @@ extern token_state_info lmt_token_state;
 # define match_quitter       ';'  /* quit scanning */
 # define match_mandate       '='  /* braces are mandate */
 # define match_spacekeeper   '^'  /* keep leading spaces */
-# define match_mandate_keep  '_'  /* braces are mandate and kept */
+# define match_mandate_keep  '_'  /* braces are mandate and kept (obey) */
 # define match_par_command   '@'  /* par delimiter, only internal */
+# define match_left          'L'  
+# define match_right         'R'  
+# define match_gobble        'G'  
+# define match_gobble_more   'M'  
+# define match_brackets      'S'  /* square brackets */ 
+# define match_angles        'X'  /* angle brackets */ 
+# define match_parentheses   'P'  /* parentheses */ 
 
 # define spacer_match_token        (match_token + match_spacer)
 # define keep_match_token          (match_token + match_bracekeeper)
@@ -312,6 +379,13 @@ extern token_state_info lmt_token_state;
 # define leading_match_token       (match_token + match_spacekeeper)
 # define mandate_keep_match_token  (match_token + match_mandate_keep)
 # define par_command_match_token   (match_token + match_par_command)
+# define left_match_token          (match_token + match_left)
+# define right_match_token         (match_token + match_right)
+# define gobble_match_token        (match_token + match_gobble)
+# define gobble_more_match_token   (match_token + match_gobble_more)
+# define brackets_match_token      (match_token + match_brackets)
+# define angles_match_token        (match_token + match_angles)
+# define parentheses_match_token   (match_token + match_parentheses)
 
 # define is_valid_match_ref(r) (r != thrash_match_token && r != spacer_match_token && r != keep_spacer_match_token && r != continue_match_token && r != quit_match_token)
 
@@ -381,20 +455,20 @@ extern void       tex_run_combine_the_toks        (void);
 extern void       tex_run_convert_tokens          (halfword code);
 extern strnumber  tex_the_convert_string          (halfword c, int i);
 extern strnumber  tex_tokens_to_string            (halfword p);
-extern char      *tex_tokenlist_to_tstring        (int p, int inhibit_par, int *siz, int skip, int nospace, int strip, int wipe);
+extern char      *tex_tokenlist_to_tstring        (int p, int inhibit_par, int *siz, int skip, int nospace, int strip, int wipe, int single);
 
-extern halfword   tex_get_tex_dimen_register      (int j, int internal);
+extern halfword   tex_get_tex_dimension_register  (int j, int internal);
 extern halfword   tex_get_tex_skip_register       (int j, int internal);
-extern halfword   tex_get_tex_mu_skip_register    (int j, int internal);
+extern halfword   tex_get_tex_muskip_register     (int j, int internal);
 extern halfword   tex_get_tex_count_register      (int j, int internal);
 extern halfword   tex_get_tex_posit_register      (int j, int internal);
 extern halfword   tex_get_tex_attribute_register  (int j, int internal);
 extern halfword   tex_get_tex_box_register        (int j, int internal);
 extern halfword   tex_get_tex_toks_register       (int j, int internal);
 
-extern void       tex_set_tex_dimen_register      (int j, halfword v, int flags, int internal);
+extern void       tex_set_tex_dimension_register  (int j, halfword v, int flags, int internal);
 extern void       tex_set_tex_skip_register       (int j, halfword v, int flags, int internal);
-extern void       tex_set_tex_mu_skip_register    (int j, halfword v, int flags, int internal);
+extern void       tex_set_tex_muskip_register     (int j, halfword v, int flags, int internal);
 extern void       tex_set_tex_count_register      (int j, halfword v, int flags, int internal);
 extern void       tex_set_tex_posit_register      (int j, halfword v, int flags, int internal);
 extern void       tex_set_tex_attribute_register  (int j, halfword v, int flags, int internal);
@@ -408,6 +482,11 @@ extern halfword   tex_copy_token_list             (halfword h, halfword *t);
 extern halfword   tex_parse_str_to_tok            (halfword head, halfword *tail, halfword ct, const char *str, size_t lstr, int option);
 
 static inline int tex_valid_token                 (int t) { return ((t >= 0) && (t <= (int) lmt_token_memory_state.tokens_data.top)); }
+
+extern halfword   tex_get_at_end_of_file          (void);
+extern void       tex_set_at_end_of_file          (halfword h);
+
+inline halfword   tex_tail_of_token_list          (halfword t) { while (token_link(t)) { t = token_link(t); } return t; }
 
 /*tex 
 

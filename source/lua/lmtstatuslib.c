@@ -159,12 +159,14 @@ static int statslib_readstate(lua_State *L)
 
 static int statslib_enginestate(lua_State *L)
 {
-    lua_createtable(L, 0, 13);
+    lua_createtable(L, 0, 15);
     lua_set_string_by_key (L, "logfilename",     lmt_fileio_state.log_name);
     lua_set_string_by_key (L, "banner",          lmt_engine_state.luatex_banner);
+    lua_set_number_by_key (L, "version",         lmt_version_state.luatexversion);
     lua_set_string_by_key (L, "luatex_engine",   lmt_engine_state.engine_name);
     lua_set_integer_by_key(L, "luatex_version",  lmt_version_state.version);
     lua_set_integer_by_key(L, "luatex_revision", lmt_version_state.revision);
+    lua_set_integer_by_key(L, "luatex_release",  lmt_version_state.release);
     lua_set_string_by_key(L,  "luatex_verbose",  lmt_version_state.verbose);
     lua_set_integer_by_key(L, "development_id",  lmt_version_state.developmentid);
     lua_set_string_by_key (L, "copyright",       lmt_version_state.copyright);
@@ -204,6 +206,10 @@ static int statslib_aux_getstat_indeed(lua_State *L, statistic_entry stats[], in
      //     /* integer function pointer */
      //     lua_pushinteger(L, (*(intfunc) stats[i].value)());
      //     break;
+        case 'd':
+            /* double pointer */
+            lua_pushnumber(L, *(double *) (stats[i].value));
+            break;
         case 'g':
             /* integer pointer */
             lua_pushinteger(L, *(int *) (stats[i].value));
@@ -258,8 +264,10 @@ static int statslib_getconstants(lua_State *L)
     lua_set_cardinal_by_key(L,"min_cardinal",                   min_cardinal);
     lua_set_integer_by_key(L, "max_integer",                    max_integer);
     lua_set_integer_by_key(L, "min_integer",                    min_integer);
-    lua_set_integer_by_key(L, "max_dimen",                      max_dimen);
-    lua_set_integer_by_key(L, "min_dimen",                      min_dimen);
+    lua_set_integer_by_key(L, "max_dimen",                      max_dimension); /* obsolete */
+    lua_set_integer_by_key(L, "min_dimen",                      min_dimension); /* obsolete */
+    lua_set_integer_by_key(L, "max_dimension",                  max_dimension);
+    lua_set_integer_by_key(L, "min_dimension",                  min_dimension);
     lua_set_integer_by_key(L, "min_data_value",                 min_data_value);
     lua_set_integer_by_key(L, "max_data_value",                 max_data_value);
     lua_set_integer_by_key(L, "max_half_value",                 max_half_value);
@@ -303,7 +311,6 @@ static int statslib_getconstants(lua_State *L)
     lua_set_integer_by_key(L, "preset_rule_thickness",          preset_rule_thickness);
     lua_set_integer_by_key(L, "running_rule",                   null_flag);
                                                                 
-    lua_set_integer_by_key(L, "max_char_code",                  max_char_code);
     lua_set_integer_by_key(L, "min_space_factor",               min_space_factor);
     lua_set_integer_by_key(L, "max_space_factor",               max_space_factor);
     lua_set_integer_by_key(L, "default_space_factor",           default_space_factor);
@@ -328,12 +335,14 @@ static int statslib_getconstants(lua_State *L)
                                                                 
     lua_set_integer_by_key(L, "max_toks_register_index",        max_toks_register_index);
     lua_set_integer_by_key(L, "max_box_register_index",         max_box_register_index);
-    lua_set_integer_by_key(L, "max_int_register_index",         max_int_register_index);
+    lua_set_integer_by_key(L, "max_int_register_index",         max_integer_register_index);   /* obsolete */
+    lua_set_integer_by_key(L, "max_integer_register_index",     max_integer_register_index);
     lua_set_integer_by_key(L, "max_float_register_index",       max_posit_register_index);
-    lua_set_integer_by_key(L, "max_dimen_register_index",       max_dimen_register_index);
+    lua_set_integer_by_key(L, "max_dimension_register_index",   max_dimension_register_index);
+    lua_set_integer_by_key(L, "max_dimen_register_index",       max_dimension_register_index); /* obsolete */
     lua_set_integer_by_key(L, "max_attribute_register_index",   max_attribute_register_index);
     lua_set_integer_by_key(L, "max_glue_register_index",        max_glue_register_index);
-    lua_set_integer_by_key(L, "max_mu_glue_register_index",     max_mu_glue_register_index);
+    lua_set_integer_by_key(L, "max_muglue_register_index",      max_muglue_register_index);
                                                                 
     lua_set_integer_by_key(L, "max_bytecode_index",             max_bytecode_index);
     lua_set_integer_by_key(L, "max_math_family_index",          max_math_family_index);
@@ -342,6 +351,7 @@ static int statslib_getconstants(lua_State *L)
     lua_set_integer_by_key(L, "max_category_code",              max_category_code);
                                                                 
     lua_set_integer_by_key(L, "max_newline_character",          max_newline_character);
+    lua_set_integer_by_key(L, "max_endline_character",          max_endline_character);
                                                                 
     lua_set_integer_by_key(L, "max_size_of_word",               max_size_of_word);
                                                                 
@@ -402,14 +412,23 @@ static struct statistic_entry statslib_entries[] = {
     { .name = "insertstate",        .value = &statslib_insertstate,        .type = 'f' },
     { .name = "sparsestate",        .value = &statslib_sparsestate,        .type = 'f' },
 
+    /*tex Lua keys: */
+
+    { .name = "lua_version_major",   .value = (void *) &lmt_version_state.luaversionmajor,   .type = 'g' },
+    { .name = "lua_version_minor",   .value = (void *) &lmt_version_state.luaversionminor,   .type = 'g' },
+    { .name = "lua_version_release", .value = (void *) &lmt_version_state.luaversionrelease, .type = 'g' },
+    { .name = "lua_version",         .value = (void *) &lmt_version_state.luaversion,        .type = 'd' },
+
     /*tex We keep these as direct accessible keys: */
 
     { .name = "filename",           .value = (void *) &tex_current_input_file_name,     .type = 'S' },
     { .name = "logfilename",        .value = (void *) &lmt_fileio_state.log_name,       .type = 'c' },
     { .name = "banner",             .value = (void *) &lmt_engine_state.luatex_banner,  .type = 'c' },
+    { .name = "version",            .value = (void *) &lmt_version_state.luatexversion, .type = 'd' },
     { .name = "luatex_engine",      .value = (void *) &lmt_engine_state.engine_name,    .type = 'c' },
     { .name = "luatex_version",     .value = (void *) &lmt_version_state.version,       .type = 'g' },
     { .name = "luatex_revision",    .value = (void *) &lmt_version_state.revision,      .type = 'g' },
+    { .name = "luatex_release",     .value = (void *) &lmt_version_state.release,       .type = 'g' },
     { .name = "luatex_verbose",     .value = (void *) &lmt_version_state.verbose,       .type = 'c' },
     { .name = "copyright",          .value = (void *) &lmt_version_state.copyright,     .type = 'c' },
     { .name = "development_id",     .value = (void *) &lmt_version_state.developmentid, .type = 'g' },
@@ -424,9 +443,11 @@ static struct statistic_entry statslib_entries[] = {
 static struct statistic_entry statslib_entries_only[] = {
     { .name = "filename",           .value = (void *) &tex_current_input_file_name,     .type = 'S' },
     { .name = "banner",             .value = (void *) &lmt_engine_state.luatex_banner,  .type = 'c' },
+    { .name = "version",            .value = (void *) &lmt_version_state.luatexversion, .type = 'd' },
     { .name = "luatex_engine",      .value = (void *) &lmt_engine_state.engine_name,    .type = 'c' },
     { .name = "luatex_version",     .value = (void *) &lmt_version_state.version,       .type = 'g' },
     { .name = "luatex_revision",    .value = (void *) &lmt_version_state.revision,      .type = 'g' },
+    { .name = "luatex_release",     .value = (void *) &lmt_version_state.release,       .type = 'g' },
     { .name = "luatex_verbose",     .value = (void *) &lmt_version_state.verbose,       .type = 'c' },
     { .name = "copyright",          .value = (void *) &lmt_version_state.copyright,     .type = 'c' },
     { .name = "development_id",     .value = (void *) &lmt_version_state.developmentid, .type = 'g' },

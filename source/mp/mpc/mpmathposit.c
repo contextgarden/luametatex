@@ -150,7 +150,7 @@ typedef struct mp_posit_info {
     posit_t    d180_divided_by_pi_mul_angle;
     int        initialized;
 } mp_posit_info;
-mp_posit_info mp_posit_data = {
+static mp_posit_info mp_posit_data = {
     .initialized = 0,
 };
 inline static posit_t mp_posit_make_fraction (posit_t p, posit_t q) { return posit_mul(posit_div(p,q), mp_posit_data.fraction_multiplier); }
@@ -528,7 +528,7 @@ void mp_set_posit_from_int_div(mp_number *A, mp_number *B, int C)
 
 void mp_set_posit_from_int_mul(mp_number *A, mp_number *B, int C)
 {
-    A->data.pval = posit_mul(A->data.pval, integer_to_posit(C));
+    A->data.pval = posit_mul(B->data.pval, integer_to_posit(C));
 }
 
 void mp_set_posit_from_of_the_way (MP mp, mp_number *A, mp_number *t, mp_number *B, mp_number *C)
@@ -630,12 +630,12 @@ void mp_number_scaled_to_angle(mp_number *A)
 
 int mp_number_to_scaled(mp_number *A)
 {
-    return posit_to_integer(posit_mul(A->data.pval, mp_posit_data.d65536));
+    return (int) posit_to_integer(posit_mul(A->data.pval, mp_posit_data.d65536));
 }
 
 int mp_number_to_int(mp_number *A)
 {
-    return posit_to_integer(A->data.pval);
+    return (int) posit_to_integer(A->data.pval);
 }
 
 int mp_number_to_boolean(mp_number *A)
@@ -650,7 +650,7 @@ double mp_number_to_double(mp_number *A)
 
 int mp_number_odd(mp_number *A)
 {
-    return odd(posit_to_integer(A->data.pval));
+    return (int) odd(posit_to_integer(A->data.pval));
 }
 
 int mp_number_equal(mp_number *A, mp_number *B)
@@ -972,6 +972,7 @@ void mp_posit_square_rt (MP mp, mp_number *ret, mp_number *x_orig)
 
 void mp_posit_pyth_add (MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig)
 {
+    (void) mp;
     ret->data.pval = posit_sqrt(
         posit_add(
             posit_mul(

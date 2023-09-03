@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.9)
 project(luametatex VERSION 2.10 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 11)
-# set(CMAKE_CXX_STANDARD 17)
+# set(CMAKE_C_STANDARD 17) # needs 3.21
 
 # https://sourceforge.net/p/predef/wiki/OperatingSystems/
 # https://sourceforge.net/p/predef/wiki/Architectures/
@@ -12,7 +12,7 @@ include(GNUInstallDirs)
 
 # Optionals (maybe have a LMT_*_TOO for each of them). We might start out with only a very few
 # optionals at some time, but for now we enable them (there is not not much code involved). The 
-# idea behind thes eoptionals is that we have very simple (!) interfaces, delegating as much as 
+# idea behind these optionals is that we have very simple (!) interfaces, delegating as much as 
 # possible to Lua. We will *not* add interfaces with many bindings because that will introduce
 # dependencies (and looking at e.g. LuaTeX build updates shows that clearly: a no-go). 
 
@@ -23,6 +23,12 @@ set(LMT_HB_TOO   1) # Maybe handy for Idris' font development (old converted ffi
 # runtime, enabling it makes not much sense:
 
 # set(LMT_OPTIMIZE 1)
+
+# This makes the binary some 135K smaller so it might become the default at some point which is 
+# nice (the smaller as runner the better). After all, we don't load external (Lua) libraries 
+# anyway. 
+
+set(LMT_STRIP 1)
 
 if (MSVC)
 
@@ -98,7 +104,8 @@ if (MSVC)
 
         # We always optimize ... symbols are not in the binary anyway so there is no advantage
         # (like when accessing Lua api functions). We could have an additional luametatex-lua.dll
-        # but that also creates a dependency (possible conflict).
+        # but that also creates a dependency (possible conflict). So just don't expect using 
+        # Lua libraries in luametatex. 
 
       # if (DEFINED LMT_OPTIMIZE)
             add_compile_options(
@@ -153,7 +160,7 @@ if (MSVC)
     #
     # add_definitions(-D__STDC_WANT_LIB_EXT2__=1)
 
-    if (DEFINED LMT_OPTIMIZE)
+    if ((DEFINED LMT_OPTIMIZE) OR (DEFINED LMT_STRIP))
         if (NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
             set(CMAKE_EXE_LINKER_FLAGS "-s")
         endif()
@@ -182,6 +189,10 @@ if (CMAKE_C_COMPILER_ID STREQUAL "Clang")
         -Wno-date-time
         -Wno-format-nonliteral
         -Wno-float-equal
+      # too noisy, we just look at what gcc reports 
+        -Wno-unsafe-buffer-usage
+        -Wno-macro-redefined
+        -Wno-undef
     )
 
 endif()
@@ -260,5 +271,6 @@ include(cmake/luaoptional.cmake)
 include(cmake/pplib.cmake)
 include(cmake/miniz.cmake)
 include(cmake/softposit.cmake)
+include(cmake/potrace.cmake)
 
 include(cmake/luametatex.cmake)

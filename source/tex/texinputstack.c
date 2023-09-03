@@ -103,7 +103,7 @@ void tex_initialize_input_state(void)
     }
 }
 
-static int tex_aux_room_on_input_stack(void) /* quite similar to save_stack checker so maybe share */
+static bool tex_aux_room_on_input_stack(void) /* quite similar to save_stack checker so maybe share */
 {
     int top = lmt_input_state.input_stack_data.ptr;
     if (top > lmt_input_state.input_stack_data.top) {
@@ -122,14 +122,14 @@ static int tex_aux_room_on_input_stack(void) /* quite similar to save_stack chec
             lmt_run_memory_callback("input", tmp ? 1 : 0);
             if (! tmp) {
                 tex_overflow_error("input", top);
-                return 0;
+                return false;
             }
         }
     }
-    return 1;
+    return true;
 }
 
-static int tex_aux_room_on_in_stack(void) /* quite similar to save_stack checker so maybe share */
+static bool tex_aux_room_on_in_stack(void) /* quite similar to save_stack checker so maybe share */
 {
     int top = lmt_input_state.in_stack_data.ptr;
     if (top > lmt_input_state.in_stack_data.top) {
@@ -148,14 +148,14 @@ static int tex_aux_room_on_in_stack(void) /* quite similar to save_stack checker
             lmt_run_memory_callback("file", tmp ? 1 : 0);
             if (! tmp) {
                 tex_overflow_error("file", top);
-                return 0;
+                return false;
             }
         }
     }
-    return 1;
+    return true;
 }
 
-static int tex_aux_room_on_parameter_stack(void) /* quite similar to save_stack checker so maybe share */
+static bool tex_aux_room_on_parameter_stack(void) /* quite similar to save_stack checker so maybe share */
 {
     int top = lmt_input_state.parameter_stack_data.ptr;
     if (top > lmt_input_state.parameter_stack_data.top) {
@@ -174,11 +174,11 @@ static int tex_aux_room_on_parameter_stack(void) /* quite similar to save_stack 
             lmt_run_memory_callback("parameter", tmp ? 1 : 0);
             if (! tmp) {
                 tex_overflow_error("parameter", top);
-                return 0;
+                return false;
             }
         }
     }
-    return 1;
+    return true;
 }
 
 void tex_copy_to_parameter_stack(halfword *pstack, int n)
@@ -331,6 +331,9 @@ static void tex_aux_print_current_input_state(void)
             case template_post_text:
                 tex_print_str("templatepost");
                 break;
+            case associated_text:
+                tex_print_str("associated");
+                break;
             case backed_up_text:
                 tex_print_str(lmt_input_state.cur_input.loc ? "to be read again" : "recently read");
                 break;
@@ -391,6 +394,9 @@ static void tex_aux_print_current_input_state(void)
                 break;
             case end_paragraph_text:
                 tex_print_str("endpar");
+                break;
+            case end_file_text:
+                tex_print_str("endfile");
                 break;
             case write_text:
                 tex_print_str("write");
@@ -512,14 +518,14 @@ static void tex_aux_print_valid_utf8(int q)
 void tex_show_context(void)
 {
     int context_lines = -1; /*tex Number of contexts shown so far, less one: */
-    int bottom_line = 0;    /*tex Have we reached the final context to be shown? */
+    bool bottom_line = false;    /*tex Have we reached the final context to be shown? */
     lmt_input_state.base_ptr = lmt_input_state.input_stack_data.ptr;
     lmt_input_state.input_stack[lmt_input_state.base_ptr] = lmt_input_state.cur_input;
     while (1) {
         /*tex Enter into the context. */
         lmt_input_state.cur_input = lmt_input_state.input_stack[lmt_input_state.base_ptr];
         if ((lmt_input_state.cur_input.state != token_list_state) && (io_file_input(lmt_input_state.cur_input.name) || (lmt_input_state.base_ptr == 0))) {
-            bottom_line = 1;
+            bottom_line = true;
         }
         if ((lmt_input_state.base_ptr == lmt_input_state.input_stack_data.ptr) || bottom_line || (context_lines < error_context_lines_par)) {
             /*tex Display the current context. */
@@ -539,7 +545,7 @@ void tex_show_context(void)
                     for instance a macro, just for consistency. The contexts are separated by
                     newlines.
                 */
-                int skip = 0;
+                bool skip = false;
                 tex_print_nlp();
                 tex_aux_print_current_input_state();
                 /*
@@ -555,7 +561,7 @@ void tex_show_context(void)
                         halfword head = lmt_input_state.cur_input.token_type < macro_text ? lmt_input_state.cur_input.start : token_link(lmt_input_state.cur_input.start);
                         tex_show_token_list_context(head, lmt_input_state.cur_input.loc);
                     } else if (lmt_input_state.cur_input.name == io_lua_input_code) {
-                        skip = 1;
+                        skip = true;
                     } else {
                         /*tex Before we pseudo print the line we determine the effective end. */
                         int j = lmt_input_state.cur_input.limit;
@@ -694,6 +700,9 @@ void tex_begin_token_list(halfword t, quarterword kind)
         if (tracing_macros_par > 0) {
             tex_begin_diagnostic();
             switch (kind) {
+                case end_of_group_text:
+                    tex_print_str("endgroup");
+                    break;                    
                 case mark_text:
                     tex_print_str("mark");
                     break;
@@ -702,6 +711,12 @@ void tex_begin_token_list(halfword t, quarterword kind)
                     break;
                 case loop_text:
                     tex_print_str("loop");
+                    break;
+                case end_paragraph_text:
+                    tex_print_str("endpar");
+                    break;
+                case end_file_text:
+                    tex_print_str("endfile");
                     break;
                 case write_text:
                     tex_print_str("write");
@@ -712,72 +727,86 @@ void tex_begin_token_list(halfword t, quarterword kind)
                 case local_loop_text:
                     tex_print_str("localloop");
                     break;
-                case end_paragraph_text:
-                    tex_print_str("endpar");
-                    break;
                 default:
                     /* messy offsets */
                     tex_print_cmd_chr(internal_toks_cmd, kind - output_text + internal_toks_location(output_routine_code));
                     break;
             }
             tex_print_str("->");
+            if (kind == loop_text || kind == local_loop_text) { 
+                tex_print_char('{');
+            }
             tex_token_show(t);
             tex_end_diagnostic();
         }
     }
 }
 
+/*tex Testing for |t == null| happens before calling the following functions. */
+
 void tex_begin_parameter_list(halfword t)
 {
-    if (t) {
+    tex_aux_push_input();
+    lmt_input_state.cur_input.state = token_list_state;
+    lmt_input_state.cur_input.start = t;
+    lmt_input_state.cur_input.loc = t;
+    lmt_input_state.cur_input.token_type = parameter_text;
+}
+
+/*
+void tex_begin_backed_up_list_checked(halfword t)
+{
+    if (lmt_input_state.cur_input.state == token_list_state && lmt_input_state.cur_input.start == lmt_input_state.cur_input.loc && lmt_input_state.cur_input.token_type == backed_up_text) {
+        halfword c = t ; 
+        while (token_link(c)) {
+            c = token_link(c);
+        }
+        token_link(c) = lmt_input_state.cur_input.start;
+    } else { 
         tex_aux_push_input();
         lmt_input_state.cur_input.state = token_list_state;
-        lmt_input_state.cur_input.start = t;
-        lmt_input_state.cur_input.loc = t;
-        lmt_input_state.cur_input.token_type = parameter_text;
-    } else {
-        // can happen 
+        lmt_input_state.cur_input.token_type = backed_up_text;
     }
+    lmt_input_state.cur_input.start = t;
+    lmt_input_state.cur_input.loc = t;
 }
+*/
 
 void tex_begin_backed_up_list(halfword t)
 {
-    if (t) {
-        tex_aux_push_input();
-        lmt_input_state.cur_input.state = token_list_state;
-        lmt_input_state.cur_input.start = t;
-        lmt_input_state.cur_input.loc = t;
-        lmt_input_state.cur_input.token_type = backed_up_text;
-    } else {
-        // can happen 
-    }
+    tex_aux_push_input();
+    lmt_input_state.cur_input.state = token_list_state;
+    lmt_input_state.cur_input.start = t;
+    lmt_input_state.cur_input.loc = t;
+    lmt_input_state.cur_input.token_type = backed_up_text;
 }
 
 void tex_begin_inserted_list(halfword t)
 {
- // if (t) {
-        tex_aux_push_input();
-        lmt_input_state.cur_input.state = token_list_state;
-        lmt_input_state.cur_input.start = t;
-        lmt_input_state.cur_input.loc = t;
-        lmt_input_state.cur_input.token_type = inserted_text;
- // } else {
- //     // never happens
- // }
+    tex_aux_push_input();
+    lmt_input_state.cur_input.state = token_list_state;
+    lmt_input_state.cur_input.start = t;
+    lmt_input_state.cur_input.loc = t;
+    lmt_input_state.cur_input.token_type = inserted_text;
+}
+
+void tex_begin_associated_list(halfword t)
+{
+    tex_aux_push_input();
+    lmt_input_state.cur_input.state = token_list_state;
+    lmt_input_state.cur_input.start = t;
+    lmt_input_state.cur_input.loc = t;
+    lmt_input_state.cur_input.token_type = associated_text;
 }
 
 void tex_begin_macro_list(halfword t)
 {
- // if (t) {
-        tex_aux_push_input();
-        lmt_input_state.cur_input.state = token_list_state;
-        lmt_input_state.cur_input.start = t;
-        tex_add_token_reference(t);
-        lmt_input_state.cur_input.token_type = macro_text;
-        lmt_input_state.cur_input.parameter_start = lmt_input_state.parameter_stack_data.ptr;
- // } else {
- //     // never happens
- // }
+    tex_aux_push_input();
+    lmt_input_state.cur_input.state = token_list_state;
+    lmt_input_state.cur_input.start = t;
+    tex_add_token_reference(t);
+    lmt_input_state.cur_input.token_type = macro_text;
+    lmt_input_state.cur_input.parameter_start = lmt_input_state.parameter_stack_data.ptr;
 }
 
 /*tex
@@ -802,10 +831,11 @@ void tex_end_token_list(void)
             }
             break;
         case template_post_text:
+        case associated_text:
             break;
         case backed_up_text:
         case inserted_text:
-        case end_of_group_text:
+//        case end_of_group_text:
      /* case local_text: */
             tex_flush_token_list(lmt_input_state.cur_input.start);
             break;
@@ -824,7 +854,7 @@ void tex_end_token_list(void)
                     }
                     lmt_input_state.parameter_stack_data.ptr = start;
                 } else { 
-                    /*tex We have no arguments but we save very little runtime here. */
+                    /*tex We have no arguments so we save very little runtime here. */
                 }
                 break;
             }
@@ -853,22 +883,21 @@ void tex_cleanup_input_state(void)
                 }
                 break;
             case template_post_text:
+            case associated_text:
                 break;
             case backed_up_text:
             case inserted_text:
-            case end_of_group_text:
+         /* case end_of_group_text: */
          /* case local_text: */
                 tex_flush_token_list(lmt_input_state.cur_input.start);
                 break;
             case macro_text:
                 {
-                    int ptr, start;
-                    /*tex Using a simple version for no arguments has no gain. */
                     tex_delete_token_reference(lmt_input_state.cur_input.start);
                     if (get_token_preamble(lmt_input_state.cur_input.start)) {
                         /*tex Parameters must be flushed: */
-                        ptr = lmt_input_state.parameter_stack_data.ptr;
-                        start = lmt_input_state.cur_input.parameter_start;
+                        int ptr = lmt_input_state.parameter_stack_data.ptr;
+                        int start = lmt_input_state.cur_input.parameter_start;
                         while (ptr > start) {
                             if (lmt_input_state.parameter_stack[--ptr]) {
                                 tex_flush_token_list(lmt_input_state.parameter_stack[ptr]);
@@ -914,20 +943,15 @@ void tex_back_input(halfword t)
                 ++lmt_input_state.align_state;
             }
         }
-        /*
-        if (token_type == backed_up_text && istate == token_list_state && istart == iloc) {
-            token_link(p) = istart;
-            istart = p;
-            iloc = p;
+        if (lmt_input_state.cur_input.state == token_list_state && lmt_input_state.cur_input.start == lmt_input_state.cur_input.loc && lmt_input_state.cur_input.token_type == backed_up_text) {
+            token_link(p) = lmt_input_state.cur_input.start;
         } else {
-        */
-        tex_aux_push_input();
-        /*tex This is |back_list(p)|, without procedure overhead: */
+            tex_aux_push_input();
+            lmt_input_state.cur_input.state = token_list_state;
+            lmt_input_state.cur_input.token_type = backed_up_text;
+        }
         lmt_input_state.cur_input.start = p;
         lmt_input_state.cur_input.loc = p;
-        lmt_input_state.cur_input.state = token_list_state;
-        lmt_input_state.cur_input.token_type = backed_up_text;
-        /* } */
     }
 }
 
@@ -968,6 +992,20 @@ void tex_insert_input(halfword h)
         lmt_input_state.cur_input.loc = h;
         lmt_input_state.cur_input.state = token_list_state;
         lmt_input_state.cur_input.token_type = inserted_text;
+        /* 
+            This happens seldom, so we don't save much on pushing / popping the input: 
+        */ 
+        /*
+        if (lmt_input_state.cur_input.state == token_list_state && lmt_input_state.cur_input.start == lmt_input_state.cur_input.loc && lmt_input_state.cur_input.token_type == inserted_text) {
+            token_link(h) = lmt_input_state.cur_input.start;
+        } else {
+            tex_aux_push_input();
+            lmt_input_state.cur_input.state = token_list_state;
+            lmt_input_state.cur_input.token_type = inserted_text;
+        }
+        lmt_input_state.cur_input.start = h;
+        lmt_input_state.cur_input.loc = h;
+        */
     }
 }
 
@@ -1004,6 +1042,7 @@ void tex_begin_file_reading(void)
         lmt_input_state.cur_input.index = (short) lmt_input_state.in_stack_data.ptr;
         lmt_input_state.in_stack[lmt_input_state.cur_input.index].full_source_filename = NULL;
         lmt_input_state.in_stack[lmt_input_state.cur_input.index].end_of_file_seen = 0;
+        lmt_input_state.in_stack[lmt_input_state.cur_input.index].at_end_of_file = null;
         lmt_input_state.in_stack[lmt_input_state.cur_input.index].group = cur_boundary;
         lmt_input_state.in_stack[lmt_input_state.cur_input.index].line = lmt_input_state.input_line;
         lmt_input_state.in_stack[lmt_input_state.cur_input.index].if_ptr = lmt_condition_state.cond_ptr;
@@ -1046,6 +1085,10 @@ void tex_end_file_reading(void)
             if (lmt_input_state.in_stack[lmt_input_state.cur_input.index].full_source_filename) {
                 lmt_memory_free(lmt_input_state.in_stack[lmt_input_state.cur_input.index].full_source_filename);
                 lmt_input_state.in_stack[lmt_input_state.cur_input.index].full_source_filename = NULL;
+            }
+            if (lmt_input_state.in_stack[lmt_input_state.cur_input.index].at_end_of_file) {
+                tex_flush_token_list(lmt_input_state.in_stack[lmt_input_state.cur_input.index].at_end_of_file);
+                lmt_input_state.in_stack[lmt_input_state.cur_input.index].at_end_of_file = null;
             }
             break;
     }

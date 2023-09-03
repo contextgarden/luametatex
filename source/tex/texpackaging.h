@@ -72,7 +72,8 @@ typedef enum saved_full_spec_items {
     saved_full_spec_item_class       = 18,
     saved_full_spec_item_state       = 19,
     saved_full_spec_item_retain      = 20,
-    saved_full_spec_n_of_items       = 21,
+    saved_full_spec_item_callback    = 21,
+    saved_full_spec_n_of_items       = 22,
 } saved_full_spec_items;
 
 // typedef enum saved_align_spec_items {
@@ -134,7 +135,7 @@ extern scaled    tex_left_marginkern      (halfword p);
 extern scaled    tex_right_marginkern     (halfword p);
 
 extern halfword  tex_filtered_hpack       (halfword p, halfword qt, scaled w, int m, int grp, halfword d, int just_pack, halfword attr, int state, int retain);
-extern halfword  tex_filtered_vpack       (halfword p, scaled h, int m, scaled maxdepth, int grp, halfword direction, int just_pack, halfword attr, int state, int retain);
+extern halfword  tex_filtered_vpack       (halfword p, scaled h, int m, scaled maxdepth, int grp, halfword direction, int just_pack, halfword attr, int state, int retain, int *excess);
 
 extern scaledwhd tex_natural_hsizes       (halfword p, halfword pp, glueratio g_mult, int g_sign, int g_order);
 extern scaledwhd tex_natural_vsizes       (halfword p, halfword pp, glueratio g_mult, int g_sign, int g_order);
@@ -143,10 +144,12 @@ extern halfword  tex_natural_hsize        (halfword p, halfword *correction);
 extern halfword  tex_natural_vsize        (halfword p);
 
 extern halfword  tex_hpack                (halfword p, scaled w, int m, singleword d, int retain);
-extern halfword  tex_vpack                (halfword p, scaled h, int m, scaled l, singleword d, int retain);
+extern halfword  tex_vpack                (halfword p, scaled h, int m, scaled l, singleword d, int retain, int *excess);
 
 extern void      tex_repack               (halfword p, scaled w, int m);
-extern void      tex_freeze               (halfword p, int recurse);
+extern void      tex_freeze               (halfword p, int recurse, int limitate);
+extern scaled    tex_stretch              (halfword p);
+extern scaled    tex_shrink               (halfword p);
 
 extern void      tex_package              (singleword nature);
 extern void      tex_run_unpackage        (void);
@@ -160,7 +163,7 @@ extern halfword  tex_vsplit               (halfword n, scaled h, int m);
 extern void      tex_finish_vcenter_group (void);
 extern void      tex_run_vcenter          (void);
 
-//# define vpack(A,B,C,D) tex_vpackage(A,B,C,max_dimen,D)
+//# define vpack(A,B,C,D) tex_vpackage(A,B,C,max_dimension,D)
 
 # define first_un_box_code box_code
 # define last_un_box_code  unpack_code
@@ -227,24 +230,24 @@ typedef enum box_flags {
 
 # define box_leaders_flag(f) (f >= a_leaders_flag && f <= u_leaders_flag)
 
-extern void tex_begin_box        (int boxcontext, scaled shift, halfword slot);
+extern void tex_begin_box        (int boxcontext, scaled shift, halfword slot, halfword callback);
 extern int  tex_ignore_math_skip (halfword p);
 
-static inline scaled tex_aux_checked_dimen1(halfword v)
+static inline scaled tex_aux_checked_dimension1(halfword v)
 {
-    if (v > max_dimen) {
-        return max_dimen;
-    } else if (v < -max_dimen) {
-        return -max_dimen;
+    if (v > max_dimension) {
+        return max_dimension;
+    } else if (v < -max_dimension) {
+        return -max_dimension;
     } else {
         return v;
     }
 }
 
-static inline scaled tex_aux_checked_dimen2(halfword v)
+static inline scaled tex_aux_checked_dimension2(halfword v)
 {
-    if (v > max_dimen) {
-        return max_dimen;
+    if (v > max_dimension) {
+        return max_dimension;
     } else if (v < 0) {
         return 0;
     } else {

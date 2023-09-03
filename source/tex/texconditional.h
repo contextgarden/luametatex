@@ -107,15 +107,16 @@ typedef enum if_test_codes {
     if_has_xtoks_code,      /*tex |\ifhasxtoks| */
     if_has_char_code,       /*tex |\ifhaschar| */
     if_insert_code,         /*tex |\ifinsert| */
+    if_in_alignment_code,   /*tex |\ifinalignment| */
  // if_bitwise_and_code,    /*tex |\ifbitwiseand| */
 } if_test_codes;
 
 # define first_if_test_code fi_code
-# define last_if_test_code  if_insert_code
+# define last_if_test_code  if_in_alignment_code
 //define last_if_test_code  if_bitwise_and_code
 
 # define first_real_if_test_code if_char_code
-# define last_real_if_test_code  if_insert_code
+# define last_real_if_test_code  if_in_alignment_code
 //define last_real_if_test_code  if_bitwise_and_code
 
 typedef struct condition_state_info {
@@ -127,8 +128,8 @@ typedef struct condition_state_info {
     int       if_limit;   /*tex upper bound on |fi_or_else| codes */
     int       if_line;    /*tex line where that conditional began */
     int       skip_line;  /*tex skipping began here */
-    halfword  chk_num;
-    scaled    chk_dim;
+    halfword  chk_integer;
+    scaled    chk_dimension;
     halfword  if_nesting;
     halfword  padding;
 } condition_state_info ;
