@@ -437,7 +437,8 @@ void lmt_token_list_to_lua(lua_State *L, halfword p)
 void lmt_token_list_to_luastring(lua_State *L, halfword p, int nospace, int strip, int wipe)
 {
     int l;
-    char *s = tex_tokenlist_to_tstring(p, 1, &l, 0, nospace, strip, wipe, 0); /* nasty ... preambles or not, could have been endmatchtoken  */
+ // char *s = tex_tokenlist_to_tstring(p, 1, &l, 0, nospace, strip, wipe, 0); /* nasty ... preambles or not, could have been endmatchtoken  */
+    char *s = tex_tokenlist_to_tstring(p, 1, &l, 0, nospace, strip, wipe, 1); /* nasty ... preambles or not, could have been endmatchtoken  */
     if (l) {
         lua_pushlstring(L, s, (size_t) l);
     } else {
@@ -897,6 +898,30 @@ static int tokenlib_scan_csname(lua_State *L)
     return 1;
 }
 
+static int tokenlib_scan_cstoken(lua_State *L)
+{
+    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    if (lua_toboolean(L, 1)) {
+        /*tex Not here: |tex_get_next_non_spacer()| unless we adapt more later on. */
+        do {
+            tex_get_token();
+        } while (cur_tok == space_token);
+    } else {
+        /*tex checked */
+        tex_get_next();
+    }
+    {
+        int t = cur_cs ? cs_token_flag + cur_cs : token_val(cur_cmd, cur_chr);
+        if (t >= cs_token_flag) {
+            lua_pushinteger(L, t-cs_token_flag);
+        } else {
+            lua_pushnil(L);
+        }
+    }
+    tokenlib_aux_unsave_tex_scanner(texstate);
+    return 1;
+}
+
 static int tokenlib_scan_integer(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
@@ -1332,7 +1357,7 @@ static int tokenlib_scan_skip(lua_State *L)
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     int mu = lua_toboolean(L, 1) ? muglue_val_level : glue_val_level;
     int eq = lua_toboolean(L, 2);
-    halfword v = tex_scan_glue(mu, eq);
+    halfword v = tex_scan_glue(mu, eq, 0);
     lmt_push_node_fast(L, v);
     tokenlib_aux_unsave_tex_scanner(texstate);
     return 1;
@@ -1344,7 +1369,7 @@ static int tokenlib_scan_glue(lua_State *L)
     int mu = lua_toboolean(L, 1) ? muglue_val_level : glue_val_level;
     int eq = lua_toboolean(L, 2);
     int t  = lua_toboolean(L, 3);
-    halfword v = tex_scan_glue(mu, eq);
+    halfword v = tex_scan_glue(mu, eq, 0);
     tokenlib_aux_unsave_tex_scanner(texstate);
     if (t) {
         lua_createtable(L, 5, 0);
@@ -1506,8 +1531,8 @@ static int tokenlib_scan_tokenstring(lua_State *L) /* noexpand noexpandconstant 
     /*tex is saving really needed here? */
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     halfword defref = lmt_input_state.def_ref;
- // halfword result = ! lua_toboolean(L, 1) ? tex_scan_toks_expand(0, NULL, ! lua_toboolean(L, 2), lua_toboolean(L, 3)) : tex_scan_toks_normal(0, NULL);
-    halfword result = tex_scan_toks_expand(0, NULL, 1, 1);
+    halfword result = lua_toboolean(L, 1) ? tex_scan_toks_normal(0, NULL) : tex_scan_toks_expand(0, NULL, ! lua_toboolean(L, 2), ! lua_toboolean(L, 3));
+ // halfword result = tex_scan_toks_expand(0, NULL, 1, 1);
     lmt_token_list_to_luastring(L, result, 0, 0, 1);
     lmt_input_state.def_ref = defref;
     tokenlib_aux_unsave_tex_scanner(texstate);
@@ -3233,6 +3258,7 @@ static halfword tokenlib_aux_expand_macros_in_tokenlist(halfword p)
     /*tex Disable |\prevdepth|, |\spacefactor|, |\lastskip|, |\prevgraf|. */
     cur_cs = 0; /* was write_loc i.e. eq of \write */
     /*tex Expand macros, etc. */
+    ++lmt_input_state.align_state; /* emulates the { for the } above */
     tex_scan_toks_expand(1, NULL, 0, 0);
     tex_get_token();
     if (cur_tok != deep_frozen_end_write_token) {
@@ -3294,22 +3320,37 @@ static int tokenlib_push_macro(lua_State *L) // todo: just store cmd and flag to
 
         Active characters: maybe when we pass a number ... 
     */
-    if (lua_type(L, 1) == LUA_TSTRING) {
-        size_t lname = 0;
-        const char *name = lua_tolstring(L, 1, &lname);
-        if (lname > 0) {
-            halfword cs = tex_string_locate_only(name, lname);
-            singleword cmd = eq_type(cs);
-            halfword chr = eq_value(cs);
-            quarterword global = lua_toboolean(L, 2) ? add_global_flag(0) : 0; /* how */
-            if (is_call_cmd(cmd)) {
-                tex_add_token_reference(chr);
+    halfword cs = null; 
+    switch (lua_type(L, 1)) { 
+        case LUA_TSTRING:
+            {
+                size_t lname = 0;
+                const char *name = lua_tolstring(L, 1, &lname);
+                if (lname > 0) {
+                    cs = tex_string_locate_only(name, lname);
+                }
+                break;
             }
-            tokenlib_aux_make_new_package(L, cmd, eq_flag(cs), chr, cs, global);
-            return 1;
-        }
+        case LUA_TNUMBER:
+            {
+                if (tex_valid_token(cs)) {
+                    cs = lmt_tohalfword(L, 1);
+                }
+                break;
+            }
     }
-    return 0;
+    if (cs) { 
+        singleword cmd = eq_type(cs);
+        halfword chr = eq_value(cs);
+        quarterword global = lua_toboolean(L, 2) ? add_global_flag(0) : 0; /* how */
+        if (is_call_cmd(cmd)) {
+            tex_add_token_reference(chr);
+        }
+        tokenlib_aux_make_new_package(L, cmd, eq_flag(cs), chr, cs, global);
+        return 1;
+    } else {
+        return 0;
+    }
 }
 
 static int tokenlib_pop_macro(lua_State *L)
@@ -3778,6 +3819,7 @@ static const struct luaL_Reg tokenlib_function_list[] = {
     { "scanvalue",             tokenlib_scan_value              },
     { "scanchar",              tokenlib_scan_char               },
     { "scancsname",            tokenlib_scan_csname             },
+    { "scancstoken",           tokenlib_scan_cstoken            }, /* returns a number, not an token userdata */
     { "scantoken",             tokenlib_scan_token              }, /* expands next token if needed */
     { "scanbox",               tokenlib_scan_box                },
     { "scandetokened",         tokenlib_scan_detokened          }, 

@@ -867,6 +867,17 @@ void tex_end_token_list(void)
  /* check_interrupt(); */
 }
 
+void tex_quit_token_list(void)
+{
+    if (lmt_input_state.cur_input.index > 0) {
+        if (lmt_input_state.cur_input.token_type == backed_up_text) {
+            /* \expandafter \ignorerest */
+            tex_end_token_list();
+        }
+        tex_end_token_list();
+    }
+}
+
 /*tex A special version used in macro expansion. Maybe some day I'll optimize it. */
 
 void tex_cleanup_input_state(void)
@@ -1142,7 +1153,7 @@ void tex_tex_string_start(int iotype, int cattable)
         halfword head = tex_scan_general_text(NULL);
         int saved_selector = lmt_print_state.selector;
         lmt_print_state.selector = new_string_selector_code;
-        tex_show_token_list(head, 0);
+        tex_show_token_list(head, 0, 0);
         lmt_print_state.selector = saved_selector;
         tex_flush_token_list(head);
     }

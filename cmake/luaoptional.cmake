@@ -16,6 +16,7 @@ set(luaoptional_sources
     source/luaoptional/lmtzstd.c
     source/luaoptional/lmtlzma.c
     source/luaoptional/lmtforeign.c
+    source/luaoptional/lmtopenssl.c
 
 )
 
@@ -24,7 +25,7 @@ add_library(luaoptional STATIC ${luaoptional_sources})
 target_include_directories(luaoptional PRIVATE
     .
     source/.
-    source/luacore/lua54/src
+    source/luacore/lua55/src
     source/libraries/mimalloc/include
 )
 

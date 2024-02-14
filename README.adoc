@@ -48,7 +48,7 @@ work is not kept local is because that way we can check if the compilation works
 to be public so that the compile farm can access it conveniently. 
 
 All kind of aspects of the LuaMetaTeX engine, its development, experiment, ideas and implementation
-have been (and are) reported in user group publications aas well as several documents in the ConTeXt
+have been (and are) reported in user group publications as and in several documents in the ConTeXt
 distribution. The mailing list archives and contextgarden wiki are also a source of information.
 
 Hans Hagen
