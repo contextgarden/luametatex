@@ -3891,21 +3891,23 @@ void tex_run_math_script(void)
         case math_sub_script_code:
             tex_get_token();
             if (cur_tok == underscore_token || cur_cmd == subscript_cmd) {
-                tex_get_token();
+                tex_get_token(); 
                 if (cur_tok == underscore_token || cur_cmd == subscript_cmd) {
                     tex_get_token();
                     if (cur_tok == underscore_token || cur_cmd == subscript_cmd) {
-                        code = math_shifted_sub_pre_script_code;
+                        code = math_shifted_sub_pre_script_code; /* ____ */
                     } else {
                         tex_back_input(cur_tok);
-                        code = math_shifted_sub_script_code;
+                     // code = math_shifted_sub_script_code;
+                        code = math_sub_pre_script_code; /* ___ */
                     }
                 } else {
                     tex_back_input(cur_tok);
-                    code = math_sub_pre_script_code;
+                 // code = math_sub_pre_script_code;
+                    code = math_shifted_sub_script_code; /* __ */
                 }
             } else {
-                tex_back_input(cur_tok);
+                tex_back_input(cur_tok); /* _ */
             }
             break;
         case math_super_script_code:
@@ -3915,17 +3917,19 @@ void tex_run_math_script(void)
                 if (cur_tok == circumflex_token || cur_cmd == superscript_cmd) {
                     tex_get_token();
                     if (cur_tok == circumflex_token || cur_cmd == superscript_cmd) {
-                        code = math_shifted_super_pre_script_code;
+                        code = math_shifted_super_pre_script_code; /* ^^^^ */
                     } else {
                         tex_back_input(cur_tok);
-                        code = math_shifted_super_script_code;
+                     // code = math_shifted_super_script_code;
+                        code = math_super_pre_script_code; /* ^^^ */
                     }
                 } else {
                     tex_back_input(cur_tok);
-                    code = math_super_pre_script_code;
+                 // code = math_super_pre_script_code;
+                    code = math_shifted_super_script_code; /* ^^ */
                 }
             } else {
-                tex_back_input(cur_tok);
+                tex_back_input(cur_tok); /* ^ */
             }
             break;
     }

@@ -5573,10 +5573,10 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
         information. Prescripts we handle differently: they are always aligned, so there the 
         maximum kern wins. 
     */
-    postsupdata.shifted = noad_supscr(target) && has_noad_option_shiftedsupscript(target);
-    postsubdata.shifted = noad_subscr(target) && has_noad_option_shiftedsubscript(target);
-    presupdata.shifted = noad_supprescr(target) && has_noad_option_shiftedsupprescript(target);
-    presubdata.shifted = noad_subprescr(target) && has_noad_option_shiftedsubprescript(target);
+     postsupdata.shifted = noad_supscr(target) && has_noad_option_shiftedsupscript(target);
+     postsubdata.shifted = noad_subscr(target) && has_noad_option_shiftedsubscript(target);
+     presupdata.shifted = noad_supprescr(target) && has_noad_option_shiftedsupprescript(target);
+     presubdata.shifted = noad_subprescr(target) && has_noad_option_shiftedsubprescript(target);
     /* 
         When we have a shifted super or subscript (stored in the prescripts) we don't need to kern
         the super and subscripts. What to do with the shifts?  
@@ -5742,31 +5742,31 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
                 presubdata.box = null;
             }
         }
-        /*tex 
-            We want to retain the kern because it is a visual thing but it could be an option to 
-            only add the excess over the shift. We're talking tiny here. 
-
-            We could be clever and deal with combinations of shifted but lets play safe and let
-            the user worry about it. The sub index always wins. 
-        */
-        if (postsubdata.box && postsupdata.shifted) {
-            halfword shift = tex_get_math_x_parameter_checked(style, math_parameter_subscript_shift_distance);
-            halfword amount = box_width(postsupdata.box) + shift;
-            tex_aux_prepend_hkern_to_box_list(postsubdata.box, amount, horizontal_math_kern_subtype, "post shifted");
-        } else if (postsupdata.box && postsubdata.shifted) {
-            halfword shift = tex_get_math_x_parameter_checked(style, math_parameter_superscript_shift_distance);
-            halfword amount = box_width(postsubdata.box) + shift;
-            tex_aux_prepend_hkern_to_box_list(postsupdata.box, amount, horizontal_math_kern_subtype, "post shifted");
-        }
-        if (presubdata.box && presupdata.shifted) {
-            halfword shift = tex_get_math_x_parameter_checked(style, math_parameter_subprescript_shift_distance);
-            halfword amount = box_width(presupdata.box) + shift;
-            tex_aux_append_hkern_to_box_list(presubdata.box, amount, horizontal_math_kern_subtype, "pre shifted");
-        } else if (presupdata.box && presubdata.shifted) {
-            halfword shift = tex_get_math_x_parameter_checked(style, math_parameter_superprescript_shift_distance);
-            halfword amount = box_width(presubdata.box) + shift;
-            tex_aux_append_hkern_to_box_list(presupdata.box, amount, horizontal_math_kern_subtype, "pre shifted");
-        }
+     // /*tex 
+     //     We want to retain the kern because it is a visual thing but it could be an option to 
+     //     only add the excess over the shift. We're talking tiny here. 
+     //
+     //     We could be clever and deal with combinations of shifted but lets play safe and let
+     //     the user worry about it. The sub index always wins. 
+     // */
+     // if (postsubdata.box && postsupdata.shifted) {
+     //     halfword shift = tex_get_math_x_parameter_checked(style, math_parameter_subscript_shift_distance);
+     //     halfword amount = box_width(postsupdata.box) + shift;
+     //     tex_aux_prepend_hkern_to_box_list(postsubdata.box, amount, horizontal_math_kern_subtype, "post shifted");
+     // } else if (postsupdata.box && postsubdata.shifted) {
+     //     halfword shift = tex_get_math_x_parameter_checked(style, math_parameter_superscript_shift_distance);
+     //     halfword amount = box_width(postsubdata.box) + shift;
+     //     tex_aux_prepend_hkern_to_box_list(postsupdata.box, amount, horizontal_math_kern_subtype, "post shifted");
+     // }
+     // if (presubdata.box && presupdata.shifted) {
+     //     halfword shift = tex_get_math_x_parameter_checked(style, math_parameter_subprescript_shift_distance);
+     //     halfword amount = box_width(presupdata.box) + shift;
+     //     tex_aux_append_hkern_to_box_list(presubdata.box, amount, horizontal_math_kern_subtype, "pre shifted");
+     // } else if (presupdata.box && presubdata.shifted) {
+     //     halfword shift = tex_get_math_x_parameter_checked(style, math_parameter_superprescript_shift_distance);
+     //     halfword amount = box_width(presubdata.box) + shift;
+     //     tex_aux_append_hkern_to_box_list(presupdata.box, amount, horizontal_math_kern_subtype, "pre shifted");
+     // }
         /* */
         if (postsupdata.box) {
             /* Do we still want to chain these sups or should we combine it? */
