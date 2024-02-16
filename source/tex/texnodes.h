@@ -2000,6 +2000,7 @@ typedef enum noad_options {
 # define noad_option_continuation_kernel        (uint64_t) 0x0020000000000000 /* relates to script continuation */
 # define noad_option_reorder_pre_scripts        (uint64_t) 0x0040000000000000 /* relates to script continuation */
 # define noad_option_ignore                     (uint64_t) 0x0080000000000000 /* whatever fence */
+# define noad_option_no_more_scripts            (uint64_t) 0x0100000000000000 
 
 # define has_option(a,b)     (((a) & (b)) == (b))
 # define unset_option(a,b)   ((a) & ~(b))
@@ -2078,6 +2079,7 @@ static inline int has_noad_no_script_option(halfword n, halfword option)
 # define has_noad_option_continuation_kernel(a)         (has_option(noad_options(a), noad_option_continuation_kernel))
 # define has_noad_option_reorder_pre_scripts(a)         (has_option(noad_options(a), noad_option_reorder_pre_scripts))
 # define has_noad_option_ignore(a)                      (has_option(noad_options(a), noad_option_ignore))
+# define has_noad_option_no_more_scripts(a)             (has_option(noad_options(a), noad_option_no_more_scripts))
 
 typedef enum double_atom_options {
     inherit_class_double_atom_option      = 0x01,

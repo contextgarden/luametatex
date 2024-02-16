@@ -5011,6 +5011,7 @@ static int texlib_getnoadoptionvalues(lua_State *L) /* less keywords, just strin
     lua_set_string_by_index(L, noad_option_continuation_kernel,        "continuationkernel");
     lua_set_string_by_index(L, noad_option_reorder_pre_scripts,        "reorderprescripts");
     lua_set_string_by_index(L, noad_option_ignore,                     "ignore");
+    lua_set_string_by_index(L, noad_option_no_more_scripts,            "nomorescripts");
     return 1;
 }
 
