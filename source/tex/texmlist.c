@@ -672,13 +672,6 @@ static scaled tex_aux_check_rule_thickness(halfword target, int size, halfword *
 
 /*tex Fake character */
 
-// static bool tex_aux_has_fake_nucleus(halfword n)
-// {
-//     return n && node_type(n) == simple_noad 
-//         && noad_nucleus(n) && node_type(noad_nucleus(n)) == math_char_node
-//         && math_kernel_node_has_option(noad_nucleus(n), math_kernel_ignored_character);
-// }
-
 static halfword tex_aux_fake_nucleus(quarterword cls)
 {
     halfword n = tex_new_node(simple_noad, cls);
