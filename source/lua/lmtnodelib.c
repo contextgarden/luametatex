@@ -1559,7 +1559,9 @@ static int nodelib_direct_getoffsets(lua_State *L)
                 lua_pushinteger(L, rule_y_offset(n));
                 lua_pushinteger(L, tex_get_rule_left(n));
                 lua_pushinteger(L, tex_get_rule_right(n));
-                return 4;
+                lua_pushinteger(L, tex_get_rule_on(n));
+                lua_pushinteger(L, tex_get_rule_off(n));
+                return 6;
         }
     }
     return 0;
@@ -1609,6 +1611,12 @@ static int nodelib_direct_setoffsets(lua_State *L)
                 }
                 if (lua_type(L, 5) == LUA_TNUMBER) {
                     tex_set_rule_right(n, (halfword) lmt_roundnumber(L, 5));
+                }
+                if (lua_type(L, 6) == LUA_TNUMBER) {
+                    tex_set_rule_on(n,  (halfword) lmt_roundnumber(L, 6));
+                }
+                if (lua_type(L, 7) == LUA_TNUMBER) {
+                    tex_set_rule_off(n, (halfword) lmt_roundnumber(L, 7));
                 }
                 break;
         }

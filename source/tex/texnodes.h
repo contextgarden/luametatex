@@ -1049,8 +1049,8 @@ typedef enum rule_subtypes {
     normal_rule_subtype,
     empty_rule_subtype,
     strut_rule_subtype,
-    outline_rule_subtype,
     virtual_rule_subtype,
+    outline_rule_subtype,
     user_rule_subtype,
     math_over_rule_subtype,
     math_under_rule_subtype,
@@ -1082,6 +1082,9 @@ typedef enum rule_codes {
 # define rule_right(a)     vlink(a,5) /* depends on subtype */ 
 # define rule_extra_1(a)   vinfo(a,6) /* depends on subtype */ 
 # define rule_extra_2(a)   vlink(a,6) /* depends on subtype */ 
+
+# define rule_line_on         rule_extra_1
+# define rule_line_off        rule_extra_2
 
 # define rule_strut_font      rule_extra_1
 # define rule_strut_character rule_extra_2
