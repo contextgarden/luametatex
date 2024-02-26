@@ -7604,7 +7604,7 @@ static void tex_mlist_to_hlist_finalize_list(mliststate *state)
     scaled current_mu = 0;
     halfword current = state->mlist;
     halfword p = temp_head;
-    halfword ghost = null;
+ // halfword ghost = null;
     int boundarylevel = 0;
     int boundaryfactor = scaling_factor;
     int nestinglevel = 0;
@@ -8058,10 +8058,11 @@ static void tex_mlist_to_hlist_finalize_list(mliststate *state)
                 p = kern;
             }
         }
-        if (ghost && ! fenced && ! packedfence) {
-            p = tex_aux_append_ghost(ghost, p, 0);
-            ghost = null;
-        } else {
+     // if (ghost && ! fenced && ! packedfence) {
+     //     p = tex_aux_append_ghost(ghost, p, 0);
+     //     ghost = null;
+     // } else 
+        {
             halfword l = noad_new_hlist(current);
             if (! l) { 
                 /* curious */
