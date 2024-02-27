@@ -4875,7 +4875,6 @@ static int texlib_setrunstate(lua_State *L)
     as key. 
 */
 
-
 static int texlib_gethyphenationvalues(lua_State *L)
 {
     lua_createtable(L, 2, 17);
@@ -5237,10 +5236,11 @@ static int texlib_getnormalizelinevalues(lua_State *L)
 
 static int texlib_getnormalizeparvalues(lua_State *L)
 {
-    lua_createtable(L, 2, 0);
-    lua_set_string_by_index(L, normalize_par_mode,     "normalizepar");
-    lua_set_string_by_index(L, flatten_v_leaders_mode, "flattenvleaders");
-    lua_set_string_by_index(L, limit_prev_graf_mode,   "limitprevgraf");
+    lua_createtable(L, 2, 2);
+    lua_set_string_by_index(L, normalize_par_mode,            "normalizepar");
+    lua_set_string_by_index(L, flatten_v_leaders_mode,        "flattenvleaders");
+    lua_set_string_by_index(L, limit_prev_graf_mode,          "limitprevgraf");
+    lua_set_string_by_index(L, keep_interline_penalties_mode, "keepinterlinepenalties");
     return 1;
 }
 
@@ -5578,17 +5578,6 @@ static int texlib_getmathvariantvalues(lua_State *L)
 {
     return lmt_push_info_values(L, lmt_interface.math_style_variant_values);
 }
-
-// static int texlib_getmathflattenvalues(lua_State *L)
-// {
-//     lua_createtable(L, 2, 3);
-//     lua_set_string_by_index(L, math_flatten_ordinary,    "ord");
-//     lua_set_string_by_index(L, math_flatten_binary,      "bin");
-//     lua_set_string_by_index(L, math_flatten_relation,    "rel");
-//     lua_set_string_by_index(L, math_flatten_punctuation, "punct");
-//     lua_set_string_by_index(L, math_flatten_inner,       "inner");
-//     return 1;
-// }
 
 static int texlib_getdiscstatevalues(lua_State *L)
 {
@@ -6035,7 +6024,6 @@ static const struct luaL_Reg texlib_function_list[] = {
     { "getmathstylenamevalues",      texlib_getmathstylenamevalues      },
     { "getmathstylevalues",          texlib_getmathstylevalues          },
     { "getmathvariantvalues",        texlib_getmathvariantvalues        },
- /* {"getmathflattenvalues",         texlib_getmathflattenvalues        }, */
     { "getmathcontrolvalues",        texlib_getmathcontrolvalues        },
     { "gettextcontrolvalues",        texlib_gettextcontrolvalues        },
     { "getfitnessvalues",            texlib_getfitnessvalues            },

@@ -1425,7 +1425,7 @@ typedef enum split_subtypes {
 
 # define precedes_break(a)  (node_type(a) <= last_preceding_break_node)
 # define precedes_kern(a)   ((node_type(a) == kern_node) && (node_subtype(a) == font_kern_subtype || node_subtype(a) == accent_kern_subtype || node_subtype(a) == math_shape_kern_subtype))
-# define precedes_dir(a)    ((node_type(a) == dir_node) && normalize_line_mode_permitted(normalize_line_mode_par,break_after_dir_mode))
+# define precedes_dir(a)    ((node_type(a) == dir_node) && normalize_line_mode_option(break_after_dir_mode))
 # define non_discardable(a) (node_type(a) <= last_non_discardable_node)
 
 static inline int tex_nodetype_is_complex     (halfword t) { return t <= last_complex_node; }
