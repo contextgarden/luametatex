@@ -7653,7 +7653,7 @@ static void tex_mlist_to_hlist_finalize_list(mliststate *state)
         switch (node_type(current)) {
             case simple_noad:
                 {
-                    if (node_subtype(current) == ghost_noad_subtype) {
+                    if (node_subtype(current) == ghost_noad_subtype && ! has_noad_option_carry_over_classes(current)) {
                         p = tex_aux_append_ghost(current, p, 0);
                         recent = current; 
                         current = node_next(current);
@@ -8058,6 +8058,8 @@ static void tex_mlist_to_hlist_finalize_list(mliststate *state)
             halfword l = noad_new_hlist(current);
             if (! l) { 
                 /* curious */
+            } else if (current_subtype == ghost_noad_subtype) {
+                p = tex_aux_append_ghost(current, p, 0);
             } else if (node_type(l) == hlist_node && box_source_anchor(l)) {
                 tex_couple_nodes(p, l);
             } else if (packedfence) { 

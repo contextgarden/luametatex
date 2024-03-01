@@ -4955,7 +4955,7 @@ static int texlib_getpenaltyoptionvalues(lua_State *L)
 
 static int texlib_getnoadoptionvalues(lua_State *L) 
 {
-    lua_createtable(L, 2, 46);
+    lua_createtable(L, 2, 47);
     lua_push_key_at_index(L, axis,     noad_option_axis);
     lua_push_key_at_index(L, exact,    noad_option_exact);
     lua_push_key_at_index(L, left,     noad_option_left);
@@ -5014,6 +5014,7 @@ static int texlib_getnoadoptionvalues(lua_State *L)
     lua_set_string_by_index(L, noad_option_reorder_pre_scripts,        "reorderprescripts");
     lua_set_string_by_index(L, noad_option_ignore,                     "ignore");
     lua_set_string_by_index(L, noad_option_no_more_scripts,            "nomorescripts");
+    lua_set_string_by_index(L, noad_option_carry_over_classes,         "carryoverclasses");
     return 1;
 }
 
