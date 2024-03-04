@@ -1526,7 +1526,7 @@ static halfword tex_aux_make_delimiter(halfword target, halfword delimiter, int 
                 (and did that) but this is rather easy. 
             */
             int curfam = delimiter_small_family(delimiter);
-            int curchr = delimiter_small_character(delimiter);;
+            int curchr = delimiter_small_character(delimiter);
             halfword curfnt = tex_fam_fnt(curfam, size);
             if (curchr && curfnt != null_font && tex_char_exists(curfnt, curchr)) {
                 fnt = curfnt;

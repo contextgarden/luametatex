@@ -129,6 +129,19 @@ Todo: x mod y
 Todo: dir x
 Todo: unitvector
 
+The current code that deals with paths is too messy (a side effect of merging 
+snippets) but when I've moved to C (maybe 2024/2025) and cleanup a bit (maybe 
+split the code into smaller pieces too) we can consider: 
+
+Todo: primitive -- 
+Todo: primitive hmoveto 
+Todo: primitive vmoveto 
+Todo: primitive rmoveto 
+Todo: primitive hlineto 
+Todo: primitive vlineto 
+Todo: primitive rlineto 
+Todo: primitive curveto
+
 (Hans Hagen, 2019+)
 
 @* Introduction.
@@ -228,7 +241,7 @@ typedef struct MP_instance {
 @ @c
 # include "mpconfig.h"
 # include "mp.h"
-# include "mpmath.h"
+# include "mpmathscaled.h"
 # include "mpmathdouble.h"
 # include "mpmathbinary.h"
 # include "mpmathdecimal.h"
@@ -6090,7 +6103,7 @@ knots whose left and right angles are both prespecified in some way (i.e., their
 |mp_left_type| and |mp_right_type| aren't both open).
 
 @c
-void mp_make_choices  (MP mp, mp_knot knots)
+void mp_make_choices (MP mp, mp_knot knots)
 {
     mp_knot h;    /* the first breakpoint */
     mp_knot p, q; /* consecutive breakpoints being processed */

@@ -3,7 +3,7 @@
 
 # include "mpconfig.h"
 # include "mp.h"
-# include "mpmath.h"
+# include "mpmathscaled.h"
 # include "mpmathdouble.h"
 # include "mpmathbinary.h"
 # include "mpmathdecimal.h"
@@ -3573,7 +3573,7 @@ static void mp_toss_knot_list (MP mp, mp_knot p)
     }
 }
 
-void mp_make_choices  (MP mp, mp_knot knots)
+void mp_make_choices (MP mp, mp_knot knots)
 {
     mp_knot h;
     mp_knot p, q;

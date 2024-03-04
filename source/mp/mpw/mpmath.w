@@ -4,16 +4,16 @@
 
 @c
 # include "mpconfig.h"
-# include "mpmath.h"
+# include "mpmathscaled.h"
 # include "mpstrings.h"
 @h
 
 @ @c
 @<Declarations@>
 
-@ @(mpmath.h@>=
-# ifndef MPMATH_H
-# define MPMATH_H 1
+@ @(mpmathscaled.h@>=
+# ifndef MPMATHSCALED_H
+# define MPMATHSCALED_H 1
 
 # include "mp.h" /* internal header */
 
