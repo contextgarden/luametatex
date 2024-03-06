@@ -22,7 +22,6 @@
 */
 
 # include "mpconfig.h"
-
 # include "mp.h"
 
 /*tex
@@ -1093,19 +1092,36 @@ static int mplib_scan_property(lua_State *L)
 }
 
 /*tex
-    A circle has 8 points and a square 4 so let's just start with 8 slots in the table.
+    A circle has 8 points and a square 4 so let's just start with 8 slots in the table. 
 */
+
+// static int aux_is_curved_gr(mp_gr_knot ith, mp_gr_knot pth, lua_Number tolerance)
+// {
+//     lua_Number d = pth->left_x - ith->right_x;
+//     if (fabs(ith->right_x - ith->x_coord - d) <= tolerance && fabs(pth->x_coord - pth->left_x - d) <= tolerance) {
+//         d = pth->left_y - ith->right_y;
+//         if (fabs(ith->right_y - ith->y_coord - d) <= tolerance && fabs(pth->y_coord - pth->left_y - d) <= tolerance) {
+//             return 0;
+//         }
+//     }
+//     return 1;
+// }
 
 static int aux_is_curved_gr(mp_gr_knot ith, mp_gr_knot pth, lua_Number tolerance)
 {
-    lua_Number d = pth->left_x - ith->right_x;
-    if (fabs(ith->right_x - ith->x_coord - d) <= tolerance && fabs(pth->x_coord - pth->left_x - d) <= tolerance) {
-        d = pth->left_y - ith->right_y;
-        if (fabs(ith->right_y - ith->y_coord - d) <= tolerance && fabs(pth->y_coord - pth->left_y - d) <= tolerance) {
-            return 0;
-        }
+    lua_Number v1x = ith->right_x - ith->x_coord;
+    lua_Number v1y = ith->right_y - ith->y_coord;
+    lua_Number v2x = pth->left_x  - pth->x_coord;
+    lua_Number v2y = pth->left_y  - pth->y_coord;
+    lua_Number eps = fabs(v1x*v2y - v2x*v1y);
+    if (eps > tolerance) {
+        return 1;
+    } else { 
+        v1x = pth->x_coord - ith->x_coord;
+        v1y = pth->y_coord - ith->y_coord;
+        eps = abs(v1x*v2y - v2x*v1y);
+        return eps > tolerance;
     }
-    return 1;
 }
 
 static int aux_is_duplicate_gr(mp_gr_knot pth, mp_gr_knot nxt, lua_Number tolerance)
