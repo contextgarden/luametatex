@@ -1109,19 +1109,23 @@ static int mplib_scan_property(lua_State *L)
 
 static int aux_is_curved_gr(mp_gr_knot ith, mp_gr_knot pth, lua_Number tolerance)
 {
-    lua_Number v1x = ith->right_x - ith->x_coord;
-    lua_Number v1y = ith->right_y - ith->y_coord;
-    lua_Number v2x = pth->left_x  - pth->x_coord;
-    lua_Number v2y = pth->left_y  - pth->y_coord;
-    lua_Number eps = fabs(v1x*v2y - v2x*v1y);
+    lua_Number v1x, v1y, v2x, v2y, v3x, v3y, eps;
+    v1x = ith->right_x - ith->x_coord;
+    v1y = ith->right_y - ith->y_coord;
+    v2x = pth->left_x  - pth->x_coord;
+    v2y = pth->left_y  - pth->y_coord;
+    eps = fabs(v1x*v2y - v2x*v1y);
     if (eps > tolerance) {
         return 1;
-    } else { 
-        v1x = pth->x_coord - ith->x_coord;
-        v1y = pth->y_coord - ith->y_coord;
-        eps = abs(v1x*v2y - v2x*v1y);
-        return eps > tolerance;
-    }
+    } 
+    v3x = pth->x_coord - ith->x_coord;
+    v3y = pth->y_coord - ith->y_coord;
+    eps = fabs(v3x*v2y - v2x*v3y);
+    if (eps > tolerance) {
+        return 1;
+    } 
+    eps = fabs(v3x*v1y - v1x*v3y);
+    return eps > tolerance;
 }
 
 static int aux_is_duplicate_gr(mp_gr_knot pth, mp_gr_knot nxt, lua_Number tolerance)

@@ -1746,221 +1746,230 @@ if (mp_post_script(p)) { \
 
 /*tex Declarations, most can go but we will split in modules anyway so ... */
 
-MP_options                *mp_options                    (void);
-MP                         mp_initialize                 (MP_options * opt);
-//static char               *mp_find_file                  (MP mp, const char *fname, const char *fmode, int ftype);
-//static void               *mp_open_file                  (MP mp, const char *fname, const char *fmode, int ftype);
-//static char               *mp_read_file                  (MP mp, void *f, size_t * size);
-//static void                mp_close_file                 (MP mp, void *f);
-//static void                mp_write_file                 (MP mp, void *f, const char *s);
-static char               *mp_run_script                 (MP mp, const char *str, size_t len, int n);
-static void                mp_run_internal               (MP mp, int action, int n, int type, const char *iname);
-static void                mp_run_logger                 (MP mp, int target, const char *s, size_t l);
-static int                 mp_run_overload               (MP mp, int property, const char *, int);
-static void                mp_run_error                  (MP mp, const char *, const char *, int);
-static void                mp_run_warning                (MP mp, const char *);
-static char               *mp_make_text                  (MP mp, const char *str, size_t len, int mode);
-static void                mp_print_str                  (MP mp, const char *s);
-static void                mp_print_nl                   (MP mp, const char *s);
-static void                mp_print_fmt                  (MP mp, const char *s, ...);
-static void                mp_print_ln                   (MP mp);
-static void                mp_print_chr                  (MP mp, unsigned char k);
-static void                mp_print_mp_str               (MP mp, mp_string s);
-static void                mp_print_nl                   (MP mp, const char *s);
-static void                mp_print_two                  (MP mp, mp_number *x, mp_number *y);
-static void                mp_print_nl_only              (MP mp);
-static void                mp_print_int                  (MP mp, int n);
-static void                mp_get_next                   (MP mp);
-//static void                mp_begin_file_reading         (MP mp);
-static void                mp_free_node                  (MP mp, mp_node p, size_t siz);
-static void                mp_free_symbolic_node         (MP mp, mp_node p);
-static void                mp_free_value_node            (MP mp, mp_node p);
-static void                mp_print_type                 (MP mp, int t);
-static void                mp_fix_date_and_time          (MP mp);
-static void                mp_begin_diagnostic           (MP mp);
-static void                mp_end_diagnostic             (MP mp, int blank_line);
-static void                mp_print_diagnostic           (MP mp, const char *s, const char *t, int nuline);
-static int                 mp_compare_symbols_entry      (void *p, const void *pa, const void *pb);
-//static void               *mp_copy_symbols_entry         (const void *p);
-//static void               *mp_delete_symbols_entry       (void *p);
-static mp_sym              mp_new_symbols_entry          (MP mp, unsigned char *nam, size_t len);
-inline static void         mp_do_set_value_sym           (MP mp, mp_token_node A, mp_sym B);
-inline static void         mp_do_set_value_number        (MP mp, mp_token_node A, mp_number *B);
-inline static void         mp_do_set_value_str           (MP mp, mp_token_node A, mp_string B);
-inline static void         mp_do_set_value_node          (MP mp, mp_token_node A, mp_node B);
-inline static void         mp_do_set_value_knot          (MP mp, mp_token_node A, mp_knot B);
-static void                mp_free_token_node            (MP mp, mp_node p);
-static void                mp_flush_token_list           (MP mp, mp_node p);
-static void                mp_show_token_list            (MP mp, mp_node p, mp_node q);
-static void                mp_show_token_list_space      (MP mp, mp_node p, mp_node q);
-static void                mp_print_capsule              (MP mp, mp_node p);
-static mp_node             mp_do_get_subscr_head         (MP mp, mp_value_node A);
-static mp_node             mp_do_get_attribute_head      (MP mp, mp_value_node A);
-static void                mp_do_set_attribute_head      (MP mp, mp_value_node A, mp_node d);
-static void                mp_do_set_subscr_head         (MP mp, mp_value_node A, mp_node d);
-static mp_node             mp_new_value_node             (MP mp);
-static void                mp_print_variable_name        (MP mp, mp_node p);
-static void                mp_flush_cur_exp              (MP mp, mp_value v);
-static void                mp_flush_below_variable       (MP mp, mp_node p);
-static void                mp_pr_path                    (MP mp, mp_knot h);
-static void                mp_print_path                 (MP mp, mp_knot h, const char *s, int nuline);
-static mp_knot             mp_new_knot                   (MP mp);
-static mp_gr_knot          mp_gr_new_knot                (MP mp);
-static void                mp_toss_knot_list             (MP mp, mp_knot p);
-static void                mp_toss_knot                  (MP mp, mp_knot p);
-static void                mp_free_knot                  (MP mp, mp_knot p);
-static void                mp_reallocate_paths           (MP mp, int l);
-static void                mp_solve_choices              (MP mp, mp_knot p, mp_knot q, int n);
-static void                mp_reduce_angle               (MP mp, mp_number *a);
-static void                mp_curl_ratio                 (MP mp, mp_number *ret, mp_number *gamma, mp_number *a_tension, mp_number *b_tension);
-static void                mp_set_controls               (MP mp, mp_knot p, mp_knot q, int k);
-static void                mp_solve_rising_cubic         (MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig, mp_number *c_orig, mp_number *x_orig);
-static void                mp_pr_pen                     (MP mp, mp_knot h);
-static void                mp_print_pen                  (MP mp, mp_knot h, const char *s, int nuline);
-static mp_knot             mp_convex_hull                (MP mp, mp_knot h);
-void                       mp_simplify_path              (MP mp, mp_knot h);
-static void                mp_move_knot                  (MP mp, mp_knot p, mp_knot q);
-static void                mp_sqrt_det                   (MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig, mp_number *c_orig, mp_number *d_orig);
-static void                mp_flush_dash_list            (MP mp, mp_edge_header_node h);
-static mp_edge_header_node mp_toss_gr_object             (MP mp, mp_node p);
-static void                mp_toss_edges                 (MP mp, mp_edge_header_node h);
-static mp_edge_header_node mp_copy_objects               (MP mp, mp_node p, mp_node q);
-static void                mp_print_edges                (MP mp, mp_node h, const char *s, int nuline);
-static void                mp_print_obj_color            (MP mp, mp_node p);
-static void                mp_dash_offset                (MP mp, mp_number *x, mp_dash_node h);
-static void                mp_x_retrace_error            (MP mp);
-static void                mp_set_bbox                   (MP mp, mp_edge_header_node h, int top_level);
-static void                mp_split_cubic                (MP mp, mp_knot p, mp_number *t);
-static mp_knot             mp_split_cubic_knot           (MP mp, mp_knot p, mp_number *t);
-static void                mp_remove_cubic               (MP mp, mp_knot p);
-static mp_knot             mp_pen_walk                   (MP mp, mp_knot w, int k);
-static void                mp_fin_offset_prep            (MP mp, mp_knot p, mp_knot w, mp_number *x0, mp_number *x1, mp_number *x2, mp_number *y0, mp_number *y1, mp_number *y2, int rise, int turn_amt);
-static int                 mp_get_turn_amt               (MP mp, mp_knot w, mp_number *dx, mp_number *dy, int ccw);
-static mp_knot             mp_insert_knot                (MP mp, mp_knot q, mp_number *x, mp_number *y);
-static void                mp_set_min_max                (MP mp, int v);
-static void                mp_new_indep                  (MP mp, mp_node p);
-inline static mp_node      do_get_dep_info               (MP mp, mp_value_node p);
-inline static void         do_set_dep_value              (MP mp, mp_value_node p, mp_number *q);
-static void                mp_free_dep_node              (MP mp, mp_value_node p);
-static void                mp_print_dependency           (MP mp, mp_value_node p, int t);
-static mp_value_node       mp_p_plus_fq                  (MP mp, mp_value_node p, mp_number *f, mp_value_node q, mp_variable_type t, mp_variable_type tt);
-static mp_value_node       mp_p_over_v                   (MP mp, mp_value_node p, mp_number *v, int t0, int t1);
-static void                mp_val_too_big                (MP mp, mp_number *x);
-static void                mp_make_known                 (MP mp, mp_value_node p, mp_value_node q);
-static void                mp_fix_dependencies           (MP mp);
-static void                mp_ring_delete                (MP mp, mp_node p);
-static void                mp_exclaim_redundant_equation (MP mp);
-static const char         *mp_cmd_mod_string             (MP mp, int c, int m);
-static void                mp_print_cmd_mod              (MP mp, int c, int m);
-static void                mp_reallocate_input_stack     (MP mp, int newsize);
-static int                 mp_true_line                  (MP mp);
-static void                mp_push_input                 (MP mp);
-static void                mp_pop_input                  (MP mp);
-static void                mp_back_input                 (MP mp);
-static void                mp_back_error                 (MP mp, const char *msg, const char *hlp) ;
-static void                mp_runaway                    (MP mp);
-static void                mp_firm_up_the_line           (MP mp);
-static int                 mp_move_to_next_line          (MP mp);
-static void                mp_scan_primary               (MP mp);
-static void                mp_scan_secondary             (MP mp);
-static void                mp_scan_tertiary              (MP mp);
-static void                mp_scan_expression            (MP mp);
-static void                mp_scan_suffix                (MP mp);
-static void                mp_pass_text                  (MP mp);
-static void                mp_conditional                (MP mp);
-static void                mp_start_input                (MP mp);
-static void                mp_begin_iteration            (MP mp);
-static void                mp_resume_iteration           (MP mp);
-static void                mp_stop_iteration             (MP mp);
-static void                mp_check_script_result        (MP mp, char *s);
-static void                mp_get_x_next                 (MP mp);
-static void                mp_macro_call                 (MP mp, mp_node def_ref, mp_node arg_list, mp_sym macro_name);
-static void                mp_print_macro_name           (MP mp, mp_node a, mp_sym n);
-static void                mp_print_arg                  (MP mp, mp_node q, int n, int b, int bb);
-static void                mp_scan_text_arg              (MP mp, mp_sym l_delim, mp_sym r_delim);
-static void                mp_push_condition_stack       (MP mp);
-static void                mp_pop_condition_stack        (MP mp);
-static void                mp_begin_name                 (MP mp);
-static int                 mp_more_name                  (MP mp, unsigned char c);
-static void                mp_end_name                   (MP mp);
-static void                mp_open_write_file            (MP mp, char *s, int n);
-static void                mp_set_cur_exp_knot           (MP mp, mp_knot n);
-static void                mp_set_cur_exp_node           (MP mp, mp_node n);
-static void                mp_set_cur_exp_value_boolean  (MP mp, int b);
-static void                mp_set_cur_exp_value_scaled   (MP mp, int s);
-static void                mp_set_cur_exp_value_number   (MP mp, mp_number *n);
-static void                mp_set_cur_exp_str            (MP mp, mp_string s);
-static mp_node             mp_stash_cur_exp              (MP mp);
-static void                mp_print_dp                   (MP mp, int t, mp_value_node p, int verbosity);
-static void                mp_unstash_cur_exp            (MP mp, mp_node p);
-static void                mp_print_exp                  (MP mp, mp_node p, int verbosity);
-static void                mp_print_big_node             (MP mp, mp_node p, int verbosity);
-static void                mp_disp_err                   (MP mp, mp_node p);
-static void                mp_recycle_value              (MP mp, mp_node p);
-static void                mp_recycle_independent_value  (MP mp, mp_node p);
-static void                mp_show_transformed_dependency(MP mp, mp_number *v, mp_variable_type t, mp_node p);
-static void                mp_known_pair                 (MP mp);
-static void                mp_do_boolean_error           (MP mp);
-static void                mp_push_of_path_result        (MP mp, int what, mp_knot p, mp_number i, mp_number n);
-static mp_knot             mp_simple_knot                (MP mp, mp_number *x, mp_number *y);
-static mp_knot             mp_complex_knot               (MP mp, mp_knot o);
-static int                 mp_pict_color_type            (MP mp, int c);
-static void                mp_bad_color_part             (MP mp, int c);
-static mp_edge_header_node mp_scale_edges                (MP mp, mp_number *se_sf, mp_edge_header_node se_pic);
-static void                mp_path_length                (MP mp, mp_number *n);
-static void                mp_path_no_length             (MP mp, mp_number *n);
-static void                mp_pair_value                 (MP mp, mp_number *x, mp_number *y);
+MP_options                *mp_options                     (void);
+MP                         mp_initialize                  (MP_options * opt);
+                                                          
+static char               *mp_run_script                  (MP mp, const char *str, size_t len, int n);
+static void                mp_run_internal                (MP mp, int action, int n, int type, const char *iname);
+static void                mp_run_logger                  (MP mp, int target, const char *s, size_t l);
+static int                 mp_run_overload                (MP mp, int property, const char *, int);
+static void                mp_run_error                   (MP mp, const char *, const char *, int);
+static void                mp_run_warning                 (MP mp, const char *);
+                                                          
+static char               *mp_make_text                   (MP mp, const char *str, size_t len, int mode);
+                                                          
+static void                mp_begin_diagnostic            (MP mp);
+static void                mp_end_diagnostic              (MP mp, int blank_line);
+                                                          
+static void                mp_print_str                   (MP mp, const char *s);
+static void                mp_print_nl                    (MP mp, const char *s);
+static void                mp_print_fmt                   (MP mp, const char *s, ...);
+static void                mp_print_ln                    (MP mp);
+static void                mp_print_chr                   (MP mp, unsigned char k);
+static void                mp_print_mp_str                (MP mp, mp_string s);
+static void                mp_print_nl                    (MP mp, const char *s);
+static void                mp_print_two                   (MP mp, mp_number *x, mp_number *y);
+static void                mp_print_nl_only               (MP mp);
+static void                mp_print_int                   (MP mp, int n);
+static void                mp_print_type                  (MP mp, int t);
+static void                mp_print_diagnostic            (MP mp, const char *s, const char *t, int nuline);
+static void                mp_print_capsule               (MP mp, mp_node p);
+static void                mp_print_variable_name         (MP mp, mp_node p);
+static void                mp_print_dp                    (MP mp, int t, mp_value_node p, int verbosity);
+static void                mp_print_exp                   (MP mp, mp_node p, int verbosity);
+static void                mp_print_big_node              (MP mp, mp_node p, int verbosity);
+static void                mp_pr_path                     (MP mp, mp_knot h);
+static void                mp_print_path                  (MP mp, mp_knot h, const char *s, int nuline);
+static void                mp_pr_pen                      (MP mp, mp_knot h);
+static void                mp_print_pen                   (MP mp, mp_knot h, const char *s, int nuline);
+static void                mp_print_macro_name            (MP mp, mp_node a, mp_sym n);
+static void                mp_print_arg                   (MP mp, mp_node q, int n, int b, int bb);
+static void                mp_print_cmd_mod               (MP mp, int c, int m);
+                                                          
+static void                mp_show_token_list             (MP mp, mp_node p, mp_node q);
+static void                mp_show_token_list_space       (MP mp, mp_node p, mp_node q);
+                                                          
+static void                mp_get_next                    (MP mp);
+                                                          
+static void                mp_free_node                   (MP mp, mp_node p, size_t siz);
+static void                mp_free_symbolic_node          (MP mp, mp_node p);
+static void                mp_free_value_node             (MP mp, mp_node p);
+static void                mp_free_token_node             (MP mp, mp_node p);
+                                                          
+static void                mp_flush_token_list            (MP mp, mp_node p);
+                                                          
+static int                 mp_compare_symbols_entry       (void *p, const void *pa, const void *pb);
+static mp_sym              mp_new_symbols_entry           (MP mp, unsigned char *nam, size_t len);
+                                                          
+static void                mp_fix_date_and_time           (MP mp);
+                                                          
+inline static void         mp_do_set_value_sym            (MP mp, mp_token_node A, mp_sym B);
+inline static void         mp_do_set_value_number         (MP mp, mp_token_node A, mp_number *B);
+inline static void         mp_do_set_value_str            (MP mp, mp_token_node A, mp_string B);
+inline static void         mp_do_set_value_node           (MP mp, mp_token_node A, mp_node B);
+inline static void         mp_do_set_value_knot           (MP mp, mp_token_node A, mp_knot B);
+static mp_node             mp_do_get_subscr_head          (MP mp, mp_value_node A);
+static mp_node             mp_do_get_attribute_head       (MP mp, mp_value_node A);
+static void                mp_do_set_attribute_head       (MP mp, mp_value_node A, mp_node d);
+static void                mp_do_set_subscr_head          (MP mp, mp_value_node A, mp_node d);
+                                                          
+static mp_node             mp_new_value_node              (MP mp);
+static void                mp_flush_cur_exp               (MP mp, mp_value v);
+static void                mp_flush_below_variable        (MP mp, mp_node p);
+static mp_knot             mp_new_knot                    (MP mp);
+static void                mp_toss_knot_list              (MP mp, mp_knot p);
+static void                mp_toss_knot                   (MP mp, mp_knot p);
+static void                mp_free_knot                   (MP mp, mp_knot p);
+static void                mp_reallocate_paths            (MP mp, int l);
+static void                mp_solve_choices               (MP mp, mp_knot p, mp_knot q, int n);
+static void                mp_reduce_angle                (MP mp, mp_number *a);
+static void                mp_curl_ratio                  (MP mp, mp_number *ret, mp_number *gamma, mp_number *a_tension, mp_number *b_tension);
+static void                mp_set_controls                (MP mp, mp_knot p, mp_knot q, int k);
+static void                mp_solve_rising_cubic          (MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig, mp_number *c_orig, mp_number *x_orig);
+static mp_knot             mp_convex_hull                 (MP mp, mp_knot h);
+void                       mp_simplify_path               (MP mp, mp_knot h);
+static void                mp_move_knot                   (MP mp, mp_knot p, mp_knot q);
+static void                mp_sqrt_det                    (MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig, mp_number *c_orig, mp_number *d_orig);
+static void                mp_flush_dash_list             (MP mp, mp_edge_header_node h);
+static mp_edge_header_node mp_toss_gr_object              (MP mp, mp_node p);
+static void                mp_toss_edges                  (MP mp, mp_edge_header_node h);
+static mp_edge_header_node mp_copy_objects                (MP mp, mp_node p, mp_node q);
+static void                mp_print_edges                 (MP mp, mp_node h, const char *s, int nuline);
+static void                mp_print_obj_color             (MP mp, mp_node p);
+static void                mp_dash_offset                 (MP mp, mp_number *x, mp_dash_node h);
+static void                mp_x_retrace_error             (MP mp);
+static void                mp_set_bbox                    (MP mp, mp_edge_header_node h, int top_level);
+static void                mp_split_cubic                 (MP mp, mp_knot p, mp_number *t);
+static mp_knot             mp_split_cubic_knot            (MP mp, mp_knot p, mp_number *t);
+static void                mp_remove_cubic                (MP mp, mp_knot p);
+static mp_knot             mp_pen_walk                    (MP mp, mp_knot w, int k);
+static void                mp_fin_offset_prep             (MP mp, mp_knot p, mp_knot w, mp_number *x0, mp_number *x1, mp_number *x2, mp_number *y0, mp_number *y1, mp_number *y2, int rise, int turn_amt);
+static int                 mp_get_turn_amt                (MP mp, mp_knot w, mp_number *dx, mp_number *dy, int ccw);
+static mp_knot             mp_insert_knot                 (MP mp, mp_knot q, mp_number *x, mp_number *y);
+static void                mp_set_min_max                 (MP mp, int v);
+static void                mp_new_indep                   (MP mp, mp_node p);
+inline static mp_node      do_get_dep_info                (MP mp, mp_value_node p);
+inline static void         do_set_dep_value               (MP mp, mp_value_node p, mp_number *q);
+static void                mp_free_dep_node               (MP mp, mp_value_node p);
+static void                mp_print_dependency            (MP mp, mp_value_node p, int t);
+static mp_value_node       mp_p_plus_fq                   (MP mp, mp_value_node p, mp_number *f, mp_value_node q, mp_variable_type t, mp_variable_type tt);
+static mp_value_node       mp_p_over_v                    (MP mp, mp_value_node p, mp_number *v, int t0, int t1);
+static void                mp_val_too_big                 (MP mp, mp_number *x);
+static void                mp_make_known                  (MP mp, mp_value_node p, mp_value_node q);
+static void                mp_fix_dependencies            (MP mp);
+static void                mp_ring_delete                 (MP mp, mp_node p);
+static void                mp_exclaim_redundant_equation  (MP mp);
+static const char         *mp_cmd_mod_string              (MP mp, int c, int m);
+static void                mp_reallocate_input_stack      (MP mp, int newsize);
+static int                 mp_true_line                   (MP mp);
+static void                mp_push_input                  (MP mp);
+static void                mp_pop_input                   (MP mp);
+static void                mp_back_input                  (MP mp);
+static void                mp_back_error                  (MP mp, const char *msg, const char *hlp) ;
+static void                mp_runaway                     (MP mp);
+static void                mp_firm_up_the_line            (MP mp);
+static int                 mp_move_to_next_line           (MP mp);
+                                                          
+static void                mp_scan_primary                (MP mp);
+static void                mp_scan_secondary              (MP mp);
+static void                mp_scan_tertiary               (MP mp);
+static void                mp_scan_expression             (MP mp);
+static void                mp_scan_suffix                 (MP mp);
+static void                mp_scan_text_arg               (MP mp, mp_sym l_delim, mp_sym r_delim);
+
+static void                mp_push_condition_stack        (MP mp);
+static void                mp_pop_condition_stack         (MP mp);
+
+static void                mp_pass_text                   (MP mp);
+static void                mp_conditional                 (MP mp);
+static void                mp_start_input                 (MP mp);
+static void                mp_begin_iteration             (MP mp);
+static void                mp_resume_iteration            (MP mp);
+static void                mp_stop_iteration              (MP mp);
+static void                mp_check_script_result         (MP mp, char *s);
+static void                mp_get_x_next                  (MP mp);
+static void                mp_macro_call                  (MP mp, mp_node def_ref, mp_node arg_list, mp_sym macro_name);
+static void                mp_begin_name                  (MP mp);
+static int                 mp_more_name                   (MP mp, unsigned char c);
+static void                mp_end_name                    (MP mp);
+                                                          
+static void                mp_set_cur_exp_knot            (MP mp, mp_knot n);
+static void                mp_set_cur_exp_node            (MP mp, mp_node n);
+static void                mp_set_cur_exp_value_boolean   (MP mp, int b);
+static void                mp_set_cur_exp_value_scaled    (MP mp, int s);
+static void                mp_set_cur_exp_value_number    (MP mp, mp_number *n);
+static void                mp_set_cur_exp_str             (MP mp, mp_string s);
+                                                          
+static mp_node             mp_stash_cur_exp               (MP mp);
+static void                mp_unstash_cur_exp             (MP mp, mp_node p);
+static void                mp_disp_err                    (MP mp, mp_node p);
+static void                mp_recycle_value               (MP mp, mp_node p);
+static void                mp_recycle_independent_value   (MP mp, mp_node p);
+static void                mp_show_transformed_dependency (MP mp, mp_number *v, mp_variable_type t, mp_node p);
+static void                mp_known_pair                  (MP mp);
+static void                mp_do_boolean_error            (MP mp);
+static void                mp_push_of_path_result         (MP mp, int what, mp_knot p, mp_number i, mp_number n);
+static mp_knot             mp_simple_knot                 (MP mp, mp_number *x, mp_number *y);
+static mp_knot             mp_complex_knot                (MP mp, mp_knot o);
+static int                 mp_pict_color_type             (MP mp, int c);
+static void                mp_bad_color_part              (MP mp, int c);
+static mp_edge_header_node mp_scale_edges                 (MP mp, mp_number *se_sf, mp_edge_header_node se_pic);
+static void                mp_path_length                 (MP mp, mp_number *n);
+static void                mp_path_no_length              (MP mp, mp_number *n);
+static void                mp_pair_value                  (MP mp, mp_number *x, mp_number *y);
+                                                          
+static mp_gr_knot          mp_gr_new_knot                 (MP mp);
 
  /*tex  declare action procedures for use by |do_statement| */
 
-static void                mp_do_type_declaration  (MP mp);
-static void                mp_do_max_knot_pool     (MP mp);
-static void                mp_do_random_seed       (MP mp);
-static void                mp_do_protection        (MP mp);
-static void                mp_do_property          (MP mp);
-static void                mp_def_delims           (MP mp);
-static void                mp_do_statement         (MP mp);
-static void                mp_do_interim           (MP mp);
-static void                mp_do_let               (MP mp);
-static void                mp_do_show              (MP mp);
-static void                mp_disp_token           (MP mp);
-static void                mp_do_show_token        (MP mp);
-static void                mp_do_show_stats        (MP mp);
-static void                mp_disp_var             (MP mp, mp_node p);
-static void                mp_do_show_var          (MP mp);
-static void                mp_do_show_dependencies (MP mp);
-static void                mp_do_show_whatever     (MP mp);
-static void                mp_scan_with_list       (MP mp, mp_node p, mp_node pp);
-static mp_edge_header_node mp_find_edges_var       (MP mp, mp_node t);
-static mp_node             mp_start_draw_cmd       (MP mp, int sep);
-static void                mp_do_bounds            (MP mp);
-static void                mp_do_add_to            (MP mp);
-
-/*tex  declare the output procedures */
-
-static void mp_ship_out        (MP mp, mp_node h);
-static void mp_do_ship_out     (MP mp);
-static void mp_do_message      (MP mp);
-static void mp_no_string_err   (MP mp, const char *s);
-static void mp_do_write        (MP mp);
-static void mp_do_write_string (MP mp, mp_string t);
-
-/*tex  declare the procedure called |make_eq| */
-
-static void    mp_make_eq                (MP mp, mp_node lhs);
-static void    mp_do_equation            (MP mp);
-static void    mp_do_assignment          (MP mp);
-static void    mp_try_eq                 (MP mp, mp_node l, mp_node r);
-static mp_node mp_scan_declared_variable (MP mp);
-static void    mp_check_delimiter        (MP mp, mp_sym l_delim, mp_sym r_delim);
-static void    mp_do_new_internal        (MP mp);
-
-/* void mp_clear_color (MP mp, void *n); */
-
-static void mp_shipout_backend           (MP mp, void *h);
-static void mp_close_files               (MP mp);
-static void mp_close_files_and_terminate (MP mp);
-static void mp_final_cleanup             (MP mp);
+static void                mp_do_type_declaration         (MP mp);
+static void                mp_do_max_knot_pool            (MP mp);
+static void                mp_do_random_seed              (MP mp);
+static void                mp_do_protection               (MP mp);
+static void                mp_do_property                 (MP mp);
+static void                mp_def_delims                  (MP mp);
+static void                mp_do_statement                (MP mp);
+static void                mp_do_interim                  (MP mp);
+static void                mp_do_let                      (MP mp);
+static void                mp_do_show                     (MP mp);
+static void                mp_disp_token                  (MP mp);
+static void                mp_do_show_token               (MP mp);
+static void                mp_do_show_stats               (MP mp);
+static void                mp_disp_var                    (MP mp, mp_node p);
+static void                mp_do_show_var                 (MP mp);
+static void                mp_do_show_dependencies        (MP mp);
+static void                mp_do_show_whatever            (MP mp);
+static void                mp_scan_with_list              (MP mp, mp_node p, mp_node pp);
+static mp_edge_header_node mp_find_edges_var              (MP mp, mp_node t);
+static mp_node             mp_start_draw_cmd              (MP mp, int sep);
+static void                mp_do_bounds                   (MP mp);
+static void                mp_do_add_to                   (MP mp);
+                                                          
+/*tex  declare the output procedures */                   
+                                                          
+static void                mp_ship_out                    (MP mp, mp_node h);
+static void                mp_do_ship_out                 (MP mp);
+static void                mp_do_message                  (MP mp);
+static void                mp_no_string_err               (MP mp, const char *s);
+static void                mp_do_write                    (MP mp);
+static void                mp_do_write_string             (MP mp, mp_string t);
+                                                          
+/*tex  declare the procedure called |make_eq| */          
+                                                          
+static void                mp_make_eq                     (MP mp, mp_node lhs);
+static void                mp_do_equation                 (MP mp);
+static void                mp_do_assignment               (MP mp);
+static void                mp_try_eq                      (MP mp, mp_node l, mp_node r);
+static mp_node             mp_scan_declared_variable      (MP mp);
+static void                mp_check_delimiter             (MP mp, mp_sym l_delim, mp_sym r_delim);
+static void                mp_do_new_internal             (MP mp);
+                                                          
+/* void mp_clear_color (MP mp, void *n); */               
+                                                          
+static void                mp_shipout_backend             (MP mp, void *h);
+static void                mp_close_files                 (MP mp);
+static void                mp_close_files_and_terminate   (MP mp);
+static void                mp_final_cleanup               (MP mp);
 
 /*tex
 
@@ -16573,37 +16582,6 @@ void mp_pass_text (MP mp)
 
 /*tex
 
-When we begin to process a new |if|, we set |if_limit:=mp_if_code|; then if |elseif| or |else| or
-|fi| occurs before the current |if| condition has been evaluated, a colon will be inserted. A
-construction like |if fi| would otherwise get \MP\ confused.
-
-*/
-
-static void mp_push_condition_stack (MP mp)
-{
-    mp_node p = mp_get_if_node(mp);
-    p->link = mp->cond_ptr;
-    p->type = (int) mp->if_limit;
-    p->name_type = mp->cur_if;
-    mp_if_line_field(p) = mp->if_line;
-    mp->cond_ptr = p;
-    mp->if_limit = mp_if_code;
-    mp->if_line = mp_true_line(mp);
-    mp->cur_if = mp_if_code;
-}
-
-static void mp_pop_condition_stack (MP mp)
-{
-    mp_node p = mp->cond_ptr;
-    mp->if_line = mp_if_line_field(p);
-    mp->cur_if = p->name_type;
-    mp->if_limit = p->type;
-    mp->cond_ptr = p->link;
-    mp_free_node(mp, p, sizeof(mp_if_node_data));
-}
-
-/*tex
-
 Here's a procedure that changes the |if_limit| code corresponding to a given value of |cond_ptr|.
 
 */
@@ -16653,6 +16631,37 @@ A condition is started when the |get_x_next| procedure encounters an |if_test| c
 |get_x_next| calls |conditional|, which is a recursive procedure.
 
 */
+
+/*tex
+
+When we begin to process a new |if|, we set |if_limit:=mp_if_code|; then if |elseif| or |else| or
+|fi| occurs before the current |if| condition has been evaluated, a colon will be inserted. A
+construction like |if fi| would otherwise get \MP\ confused.
+
+*/
+
+static void mp_push_condition_stack (MP mp)
+{
+    mp_node p = mp_get_if_node(mp);
+    p->link = mp->cond_ptr;
+    p->type = (int) mp->if_limit;
+    p->name_type = mp->cur_if;
+    mp_if_line_field(p) = mp->if_line;
+    mp->cond_ptr = p;
+    mp->if_limit = mp_if_code;
+    mp->if_line = mp_true_line(mp);
+    mp->cur_if = mp_if_code;
+}
+
+static void mp_pop_condition_stack (MP mp)
+{
+    mp_node p = mp->cond_ptr;
+    mp->if_line = mp_if_line_field(p);
+    mp->cur_if = p->name_type;
+    mp->if_limit = p->type;
+    mp->cond_ptr = p->link;
+    mp_free_node(mp, p, sizeof(mp_if_node_data));
+}
 
 void mp_conditional (MP mp)
 {
@@ -16949,7 +16958,6 @@ void mp_begin_iteration (MP mp)
     mp->scanner_status = mp_normal_state;
     s->link = mp->loop_ptr;
     mp->loop_ptr = s;
-
     mp_resume_iteration(mp);
 }
 
@@ -17390,7 +17398,7 @@ Open |wr_file[n]| using file name~|s| and update |wr_fname[n]|.
 
 */
 
-void mp_open_write_file (MP mp, char *s, int n)
+static void mp_open_write_file (MP mp, char *s, int n)
 {
     mp_ptr_scan_file(mp, s);
     mp_pack_file_name(mp, mp->cur_name);
@@ -23505,7 +23513,7 @@ void mp_do_equation (MP mp)
     mp_make_eq(mp, lhs);
 }
 
-static void bad_lhs (MP mp)
+static void mp_bad_lhs (MP mp)
 {
     mp_disp_err(mp, NULL);
     mp_error(
@@ -23517,7 +23525,7 @@ static void bad_lhs (MP mp)
     mp_do_equation(mp);
 }
 
-static void bad_internal_assignment (MP mp, mp_node lhs)
+static void mp_bad_internal_assignment (MP mp, mp_node lhs)
 {
     char msg[256];
     mp_disp_err(mp, NULL);
@@ -23571,7 +23579,7 @@ static void forbidden_internal_assignment (MP mp, mp_node lhs)
     mp_get_x_next(mp);
 }
 
-static void bad_internal_assignment_precision (MP mp, mp_node lhs, mp_number *min, mp_number *max)
+static void mp_bad_internal_assignment_precision (MP mp, mp_node lhs, mp_number *min, mp_number *max)
 {
     char msg[256];
     char hlp[256];
@@ -23586,7 +23594,7 @@ static void bad_internal_assignment_precision (MP mp, mp_node lhs, mp_number *mi
     mp_get_x_next(mp);
 }
 
-static void bad_expression_assignment (MP mp, mp_node lhs)
+static void mp_bad_expression_assignment (MP mp, mp_node lhs)
 {
     char *msg = mp_obliterated(mp, lhs);
     mp_back_error(
@@ -23625,7 +23633,8 @@ And |do_assignment| is similar to |do_equation|:
 void mp_do_assignment (MP mp)
 {
     if (mp->cur_exp.type != mp_token_list_type) {
-        bad_lhs(mp);
+        mp_bad_lhs(mp);
+        mp_do_equation(mp);
     } else {
         mp_node lhs = cur_exp_node; /* token list for the left-hand side */
         mp->cur_exp.type = mp_vacuous_type;
@@ -23670,7 +23679,7 @@ void mp_do_assignment (MP mp)
                                      }
                                      set_precision();
                                 } else {
-                                    bad_internal_assignment_precision(mp, lhs, &precision_min, &precision_max);
+                                    mp_bad_internal_assignment_precision(mp, lhs, &precision_min, &precision_max);
                                 }
                             default:
                                 if (internal_type(mp_get_sym_info(lhs)) == mp_string_type) {
@@ -23682,11 +23691,11 @@ void mp_do_assignment (MP mp)
                                 break;
                         }
                     } else {
-                        bad_internal_assignment(mp, lhs);
+                        mp_bad_internal_assignment(mp, lhs);
                     }
                     break;
                 default:
-                    bad_internal_assignment(mp, lhs);
+                    mp_bad_internal_assignment(mp, lhs);
                 }
         } else {
             /*tex
@@ -23704,7 +23713,7 @@ void mp_do_assignment (MP mp)
                 mp_unstash_cur_exp(mp, q);
                 mp_make_eq(mp, p);
             } else {
-                bad_expression_assignment(mp, lhs);
+                mp_bad_expression_assignment(mp, lhs);
             }
         }
         mp_flush_node_list(mp, lhs);
@@ -24110,7 +24119,7 @@ mp_node mp_scan_declared_variable (MP mp)
         mp_clear_symbol(mp, x, 0);
     }
     if (equiv_node(x) == NULL) {
-        mp_new_root (mp, x);
+        mp_new_root(mp, x);
     }
     return h;
 }
@@ -24123,7 +24132,40 @@ maps on type.
 
 */
 
-static void flush_spurious_symbols_after_declared_variable (MP mp);
+static void flush_spurious_symbols_after_declared_variable (MP mp)
+{
+    const char *hlp = NULL;
+    if (cur_cmd == mp_numeric_command) {
+        hlp =
+            "Variables in declarations must consist entirely of names and explicit subscripts\n"
+            "like 'x15a' aren't permitted. I'm going to discard the junk I found here, up to the\n"
+            "next comma or the end of the declaration.";
+    } else {
+        hlp =
+            "Variables in declarations must consist entirely of names and collective\n"
+            "subscripts, e.g., 'x[]a'. Are you trying to use a reserved word in a variable\n"
+            "name? I'm going to discard the junk I found here, up to the next comma or the end\n"
+            "of the declaration.";
+    }
+    mp_back_error(
+        mp,
+        "Illegal suffix of declared variable will be flushed",
+        hlp
+    );
+    mp_get_x_next(mp);
+    mp->scanner_status = mp_flushing_state;
+    do {
+        mp_get_t_next(mp);
+        /*tex
+            Decrease the string reference count, if the current token is a string.
+        */
+        if (cur_cmd == mp_string_command) {
+            delete_str_ref(cur_mod_str);
+        }
+        /*tex Break on either |end_of_statement| or |comma|. */
+    } while (cur_cmd < mp_comma_command);
+    mp->scanner_status = mp_normal_state;
+}
 
 void mp_do_type_declaration (MP mp)
 {
@@ -24163,41 +24205,6 @@ void mp_do_type_declaration (MP mp)
             flush_spurious_symbols_after_declared_variable(mp);
         }
     } while (! mp_end_of_statement);
-}
-
-static void flush_spurious_symbols_after_declared_variable (MP mp)
-{
-    const char *hlp = NULL;
-    if (cur_cmd == mp_numeric_command) {
-        hlp =
-            "Variables in declarations must consist entirely of names and explicit subscripts\n"
-            "like 'x15a' aren't permitted. I'm going to discard the junk I found here, up to the\n"
-            "next comma or the end of the declaration.";
-    } else {
-        hlp =
-            "Variables in declarations must consist entirely of names and collective\n"
-            "subscripts, e.g., 'x[]a'. Are you trying to use a reserved word in a variable\n"
-            "name? I'm going to discard the junk I found here, up to the next comma or the end\n"
-            "of the declaration.";
-    }
-    mp_back_error(
-        mp,
-        "Illegal suffix of declared variable will be flushed",
-        hlp
-    );
-    mp_get_x_next(mp);
-    mp->scanner_status = mp_flushing_state;
-    do {
-        mp_get_t_next(mp);
-        /*tex
-            Decrease the string reference count, if the current token is a string.
-        */
-        if (cur_cmd == mp_string_command) {
-            delete_str_ref(cur_mod_str);
-        }
-        /*tex Break on either |end_of_statement| or |comma|. */
-    } while (cur_cmd < mp_comma_command);
-    mp->scanner_status = mp_normal_state;
 }
 
 /*tex
@@ -27738,22 +27745,59 @@ static int mp_scan_path (MP mp)
                 break;
             case mp_controls_command:
                 /*tex Set explicit control points. */
-                mp_right_type(path_q) = mp_explicit_knot;
-                knottype = mp_explicit_knot;
-                mp_get_x_next(mp);
-                mp_scan_primary(mp);
-                mp_known_pair(mp);
-                number_clone(path_q->right_x, mp->cur_x);
-                number_clone(path_q->right_y, mp->cur_y);
-                if (cur_cmd != mp_and_command) {
-                    number_clone(x, path_q->right_x);
-                    number_clone(y, path_q->right_y);
-                } else {
-                    mp_get_x_next(mp);
-                    mp_scan_primary(mp);
-                    mp_known_pair(mp);
+                switch (cur_mod) {
+                    case 0: 
+                        {
+                            mp_right_type(path_q) = mp_explicit_knot;
+                            knottype = mp_explicit_knot;
+                            mp_get_x_next(mp);
+                            mp_scan_primary(mp);
+                            mp_known_pair(mp);
+                            number_clone(path_q->right_x, mp->cur_x);
+                            number_clone(path_q->right_y, mp->cur_y);
+                            if (cur_cmd == mp_and_command) {
+                                mp_get_x_next(mp);
+                                mp_scan_primary(mp);
+                                mp_known_pair(mp);
+//                                number_clone(x, mp->cur_x);
+//                                number_clone(y, mp->cur_y);
+                            } else {
+//                                number_clone(x, path_q->right_x);
+//                                number_clone(y, path_q->right_y);
+                            }
                     number_clone(x, mp->cur_x);
                     number_clone(y, mp->cur_y);
+                            break;
+                        }
+                    case 1: /* left */
+                        {
+                            mp_right_type(path_q) = mp_explicit_knot;
+                            knottype = mp_explicit_knot;
+                            mp_get_x_next(mp);
+                            mp_scan_primary(mp);
+                            mp_known_pair(mp);
+                            number_clone(path_q->left_x, mp->cur_x);
+                            number_clone(path_q->left_y, mp->cur_y);
+number_clone(path_q->right_x, mp->cur_x);
+number_clone(path_q->right_y, mp->cur_y);
+number_clone(x, path_q->right_x);
+number_clone(y, path_q->right_y);
+                            break;
+                        }
+                    case 2: /* right */
+                        {
+                            mp_right_type(path_q) = mp_explicit_knot;
+                            knottype = mp_explicit_knot;
+                            mp_get_x_next(mp);
+                            mp_scan_primary(mp);
+                            mp_known_pair(mp);
+/* left unset */
+                            number_clone(path_q->right_x, mp->cur_x);
+                            number_clone(path_q->right_y, mp->cur_y);
+number_clone(x, path_q->x_coord);
+number_clone(y, path_q->y_coord);
+                            break;
+                        }
                 }
                 break;
             default:
@@ -28227,6 +28271,8 @@ static void mp_initialize_primitives (MP mp)
     mp->bg_loc = cur_sym;
 
     mp_primitive(mp, "controls",              mp_controls_command,         0);
+    mp_primitive(mp, "leftcontrol",           mp_controls_command,         1);
+    mp_primitive(mp, "rightcontrol",          mp_controls_command,         2);
     mp_primitive(mp, "curl",                  mp_curl_command,             0);
     mp_primitive(mp, "delimiters",            mp_delimiters_command,       0);
     mp_primitive(mp, "endgroup",              mp_end_group_command,        0);
@@ -28832,14 +28878,14 @@ MP mp_initialize (MP_options * opt)
         case mp_math_scaled_mode:
             set_internal_string(mp_number_system_internal, mp_intern(mp, "scaled"));
             break;
+     // case mp_math_binary_mode:
+     //     set_internal_string(mp_number_system_internal, mp_intern(mp, "binary"));
+     //     break;
         case mp_math_decimal_mode:
             set_internal_string(mp_number_system_internal, mp_intern(mp, "decimal"));
             break;
         case mp_math_posit_mode:
             set_internal_string(mp_number_system_internal, mp_intern(mp, "posit"));
-            break;
-        case mp_math_binary_mode:
-            set_internal_string(mp_number_system_internal, mp_intern(mp, "binary"));
             break;
         default:
             set_internal_string(mp_number_system_internal, mp_intern(mp, "double"));
