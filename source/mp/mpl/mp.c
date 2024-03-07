@@ -7123,11 +7123,12 @@ to give them more convenient names.
 Now we're ready for the key part of the bounding box computation. The |bound_cubic| procedure updates
 |bbmin[c]| and |bbmax[c]| based on
 
-$$B(\hbox{|knot_coord(p)|}, \hbox{|right_coord(p)|}, \hbox{|left_coord(q)|},
-\hbox{|knot_coord(q)|};t) $$
+\starttyping
+B(knot_coord(p), right_coord(p), left_coord(q), knot_coord(q); t)
+\stoptyping
 
-for $0<t\le1$. In other words, the procedure adjusts the bounds to accommodate |knot_coord(q)| and
-any extremes over the range $0<t<1$. The |c| parameter is |x_code| or |y_code|.
+for $0 < t \le 1$. In other words, the procedure adjusts the bounds to accommodate |knot_coord(q)| 
+and any extremes over the range $0 < t < 1$. The |c| parameter is |x_code| or |y_code|.
 
 */
 
@@ -22092,10 +22093,10 @@ static void mp_set_up_boundingpath (MP mp, mp_node p)
             mp_prev_knot(ul) = ur;
             mp_next_knot(ur) = ul;
             mp_close_path_cycle(mp, ul, ll);
-            mp_make_path(mp,ll);
+            mp_make_path(mp, ll);
             mp->cur_exp.type = mp_path_type;
             mp_set_cur_exp_knot(mp, ll);
-            mp_free_path(mp,qq);
+            mp_free_path(mp, qq);
         }
     }
 }
@@ -27672,7 +27673,7 @@ static int mp_scan_path (MP mp)
     switch (cur_cmd) { 
         case mp_path_connect_command:
             {
-                /* 
+                /*tex 
                     This is a shortcut for the macro |--| that is defined as |{curl 1} .. {curl 1}|
                     sop that we avoid scanning and (temporary) allocations, which could somewhat 
                     (not that much in practice) pay off when we construct enormous paths.  
@@ -27753,40 +27754,43 @@ static int mp_scan_path (MP mp)
                 break;
             case mp_controls_command:
                 /*tex Set explicit control points. */
-                mp_right_type(path_q) = mp_explicit_knot;
-                knottype = mp_explicit_knot;
-                mp_get_x_next(mp);
-                mp_scan_primary(mp);
-                mp_known_pair(mp);
-                switch (cur_mod) {
-                    case mp_both_controls_code:
-                        {
-                            number_clone(path_q->right_x, mp->cur_x);
-                            number_clone(path_q->right_y, mp->cur_y);
-                            if (cur_cmd == mp_and_command) {
-                                mp_get_x_next(mp);
-                                mp_scan_primary(mp);
-                                mp_known_pair(mp);
+                {
+                    int mode = cur_mod; 
+                    mp_right_type(path_q) = mp_explicit_knot;
+                    knottype = mp_explicit_knot;
+                    mp_get_x_next(mp);
+                    mp_scan_primary(mp);
+                    mp_known_pair(mp);
+                    switch (mode) {
+                        case mp_both_controls_code:
+                            {
+                                number_clone(path_q->right_x, mp->cur_x);
+                                number_clone(path_q->right_y, mp->cur_y);
+                                if (cur_cmd == mp_and_command) {
+                                    mp_get_x_next(mp);
+                                    mp_scan_primary(mp);
+                                    mp_known_pair(mp);
+                                }
+                                number_clone(x, mp->cur_x);
+                                number_clone(y, mp->cur_y);
+                                break;
                             }
-                            number_clone(x, mp->cur_x);
-                            number_clone(y, mp->cur_y);
-                            break;
-                        }
-                    case mp_first_control_code:
-                        {
-                            number_clone(path_q->right_x, mp->cur_x);
-                            number_clone(path_q->right_y, mp->cur_y);
-                            future = 1;
-                            break;
-                        }
-                    case mp_second_control_code:
-                        {
-                            number_clone(x, mp->cur_x);
-                            number_clone(y, mp->cur_y);
-                            number_clone(path_q->right_x, path_q->x_coord);
-                            number_clone(path_q->right_y, path_q->y_coord);
-                            break;
-                        }
+                        case mp_first_control_code:
+                            {
+                                number_clone(path_q->right_x, mp->cur_x);
+                                number_clone(path_q->right_y, mp->cur_y);
+                                future = 1;
+                                break;
+                            }
+                        case mp_second_control_code:
+                            {
+                                number_clone(x, mp->cur_x);
+                                number_clone(y, mp->cur_y);
+                                number_clone(path_q->right_x, path_q->x_coord);
+                                number_clone(path_q->right_y, path_q->y_coord);
+                                break;
+                            }
+                    }
                 }
                 break;
             default:
