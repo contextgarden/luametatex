@@ -13734,7 +13734,6 @@ const char *mp_cmd_mod_string (MP mp, int c, int m)
         case mp_begin_group_command:   return "begingroup";
         case mp_colon_command:         return ":";
         case mp_comma_command:         return ",";
-        case mp_controls_command:      return "controls";
         case mp_curl_command:          return "curl";
         case mp_delimiters_command:    return "delimiters";
         case mp_end_group_command:     return "endgroup";
@@ -13783,6 +13782,13 @@ const char *mp_cmd_mod_string (MP mp, int c, int m)
                 case mp_secondary_def_code: return "secondarydef";
                 case mp_tertiary_def_code : return "tertiarydef";
                 default:                    return "?def"; /* well ... */
+            }
+            break;
+        case mp_controls_command:      
+            switch (m) {
+                case mp_both_controls_code : return "controls";
+                case mp_first_control_code : return "firstcontrol";
+                case mp_second_control_code: return "secondcontrol";
             }
             break;
         case mp_iteration_command:
@@ -27619,6 +27625,7 @@ static int mp_scan_path (MP mp)
     int command;       /*tex command code, might change as we go */
     int operation;     /*tex operation (subcommand) code, might change as we go */
     int cycle = 0;     /*tex did a path expression just end with |cycle|? */
+    int future = 0;
     int knottype = mp_endpoint_knot; /*tex knot type following a path join */
     /*tex
         Convert the left operand, |p|, into a partial path ending at~|q|; but |return| if |p| doesn't
@@ -27661,6 +27668,7 @@ static int mp_scan_path (MP mp)
         Determine the path join parameters; but |goto finish_path| if there's only a direction
         specifier At this point |cur_cmd| is either |ampersand|, |left_brace|, or |path_join|.
     */
+    future = 0;
     switch (cur_cmd) { 
         case mp_path_connect_command:
             {
@@ -27745,57 +27753,38 @@ static int mp_scan_path (MP mp)
                 break;
             case mp_controls_command:
                 /*tex Set explicit control points. */
+                mp_right_type(path_q) = mp_explicit_knot;
+                knottype = mp_explicit_knot;
+                mp_get_x_next(mp);
+                mp_scan_primary(mp);
+                mp_known_pair(mp);
                 switch (cur_mod) {
-                    case 0: 
+                    case mp_both_controls_code:
                         {
-                            mp_right_type(path_q) = mp_explicit_knot;
-                            knottype = mp_explicit_knot;
-                            mp_get_x_next(mp);
-                            mp_scan_primary(mp);
-                            mp_known_pair(mp);
                             number_clone(path_q->right_x, mp->cur_x);
                             number_clone(path_q->right_y, mp->cur_y);
                             if (cur_cmd == mp_and_command) {
                                 mp_get_x_next(mp);
                                 mp_scan_primary(mp);
                                 mp_known_pair(mp);
-//                                number_clone(x, mp->cur_x);
-//                                number_clone(y, mp->cur_y);
-                            } else {
-//                                number_clone(x, path_q->right_x);
-//                                number_clone(y, path_q->right_y);
                             }
-                    number_clone(x, mp->cur_x);
-                    number_clone(y, mp->cur_y);
+                            number_clone(x, mp->cur_x);
+                            number_clone(y, mp->cur_y);
                             break;
                         }
-                    case 1: /* left */
+                    case mp_first_control_code:
                         {
-                            mp_right_type(path_q) = mp_explicit_knot;
-                            knottype = mp_explicit_knot;
-                            mp_get_x_next(mp);
-                            mp_scan_primary(mp);
-                            mp_known_pair(mp);
-                            number_clone(path_q->left_x, mp->cur_x);
-                            number_clone(path_q->left_y, mp->cur_y);
-number_clone(path_q->right_x, mp->cur_x);
-number_clone(path_q->right_y, mp->cur_y);
-number_clone(x, path_q->right_x);
-number_clone(y, path_q->right_y);
-                            break;
-                        }
-                    case 2: /* right */
-                        {
-                            mp_right_type(path_q) = mp_explicit_knot;
-                            knottype = mp_explicit_knot;
-                            mp_get_x_next(mp);
-                            mp_scan_primary(mp);
-                            mp_known_pair(mp);
-/* left unset */
                             number_clone(path_q->right_x, mp->cur_x);
                             number_clone(path_q->right_y, mp->cur_y);
-number_clone(x, path_q->x_coord);
-number_clone(y, path_q->y_coord);
+                            future = 1;
+                            break;
+                        }
+                    case mp_second_control_code:
+                        {
+                            number_clone(x, mp->cur_x);
+                            number_clone(y, mp->cur_y);
+                            number_clone(path_q->right_x, path_q->x_coord);
+                            number_clone(path_q->right_y, path_q->y_coord);
                             break;
                         }
                 }
@@ -27958,6 +27947,10 @@ number_clone(y, path_q->y_coord);
         }
         mp_left_type(pp) = mp_open_knot;
         mp_right_type(qq) = mp_open_knot;
+    }
+    if (future) {
+        number_clone(x, pp->x_coord);
+        number_clone(y, pp->y_coord);
     }
     /*tex
         Join the partial paths and reset |p| and |q| to the head and tail of the result.
@@ -28270,9 +28263,9 @@ static void mp_initialize_primitives (MP mp)
 
     mp->bg_loc = cur_sym;
 
-    mp_primitive(mp, "controls",              mp_controls_command,         0);
-    mp_primitive(mp, "leftcontrol",           mp_controls_command,         1);
-    mp_primitive(mp, "rightcontrol",          mp_controls_command,         2);
+    mp_primitive(mp, "controls",              mp_controls_command,         mp_both_controls_code);
+    mp_primitive(mp, "firstcontrol",          mp_controls_command,         mp_first_control_code);
+    mp_primitive(mp, "secondcontrol",         mp_controls_command,         mp_second_control_code);
     mp_primitive(mp, "curl",                  mp_curl_command,             0);
     mp_primitive(mp, "delimiters",            mp_delimiters_command,       0);
     mp_primitive(mp, "endgroup",              mp_end_group_command,        0);

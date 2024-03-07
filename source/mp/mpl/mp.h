@@ -724,6 +724,12 @@ typedef enum mp_macro_fix_codes {
     mp_macro_suffix_code, /* |macro_special| modifier for |\AT!\#| */
 } mp_macro_fix_codes;
 
+typedef enum mp_controls_codes {
+    mp_both_controls_code, 
+    mp_first_control_code,
+    mp_second_control_code,
+} mp_controls_codes;
+
 typedef enum mp_if_codes {
     mp_no_if_code,
     mp_if_code,      /* code for |if| being evaluated */
