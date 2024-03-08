@@ -444,7 +444,7 @@ inline static mp_edge_object **mplib_aux_is_figure(lua_State *L, int n)
     return NULL;
 }
 
-inline static mp_graphic_object **mplib_aux_is_gr_object(lua_State *L, int n)
+inline static mp_graphic_object **mplib_aux_is_graphic_object(lua_State *L, int n)
 {
     mp_graphic_object **p = (mp_graphic_object **) lua_touserdata(L, n);
     if (p && lua_getmetatable(L, n)) {
@@ -486,7 +486,7 @@ static void mplib_aux_initialize_lua(lua_State *L)
     mplib_values_knot[mp_end_cycle_knot] = lua_key_index(end_cycle);
 }
 
-static void mplib_aux_push_pentype(lua_State *L, mp_gr_knot h)
+static void mplib_aux_push_pentype(lua_State *L, mp_graphic_knot h)
 {
     if (h && h == h->next) {
         lua_push_value_at_key(L, type, elliptical);
@@ -1095,7 +1095,7 @@ static int mplib_scan_property(lua_State *L)
     A circle has 8 points and a square 4 so let's just start with 8 slots in the table. 
 */
 
-// static int aux_is_curved_gr(mp_gr_knot ith, mp_gr_knot pth, lua_Number tolerance)
+// static int aux_is_curved_gr(mp_graphic_knot ith, mp_graphic_knot pth, lua_Number tolerance)
 // {
 //     lua_Number d = pth->left_x - ith->right_x;
 //     if (fabs(ith->right_x - ith->x_coord - d) <= tolerance && fabs(pth->x_coord - pth->left_x - d) <= tolerance) {
@@ -1123,7 +1123,7 @@ before (pre March 2024).
 
 */
 
-static int aux_is_curved_gr(mp_gr_knot ith, mp_gr_knot pth, lua_Number tolerance)
+static int aux_is_curved_gr(mp_graphic_knot ith, mp_graphic_knot pth, lua_Number tolerance)
 {
     lua_Number v1x, v1y, v2x, v2y, v3x, v3y, eps;
     v1x = ith->right_x - ith->x_coord;
@@ -1163,7 +1163,7 @@ static int aux_is_curved_gr(mp_gr_knot ith, mp_gr_knot pth, lua_Number tolerance
     return 0;
 }
 
-static int aux_is_duplicate_gr(mp_gr_knot pth, mp_gr_knot nxt, lua_Number tolerance)
+static int aux_is_duplicate_gr(mp_graphic_knot pth, mp_graphic_knot nxt, lua_Number tolerance)
 {
     return (fabs(pth->x_coord - nxt->x_coord) <= tolerance && fabs(pth->y_coord - nxt->y_coord) <= tolerance);
 }
@@ -1173,17 +1173,17 @@ static int aux_is_duplicate_gr(mp_gr_knot pth, mp_gr_knot nxt, lua_Number tolera
 // -68.031485 2.83464 l
 // -68.031485 2.83464 -68.031485 -2.83464 -68.031485 -2.83464 c
 
-static void mplib_aux_push_path(lua_State *L, mp_gr_knot h, int ispen, lua_Number bendtolerance, lua_Number movetolerance, int curvature)
+static void mplib_aux_push_path(lua_State *L, mp_graphic_knot h, int ispen, lua_Number bendtolerance, lua_Number movetolerance, int curvature)
 {
     if (h) {
         int i = 0;
-        mp_gr_knot p = h;
-        mp_gr_knot q = h;
+        mp_graphic_knot p = h;
+        mp_graphic_knot q = h;
         int iscycle = 1;
         curvature = curvature == mp_always_curvature_code;
         lua_createtable(L, ispen ? 1 : MPLIB_PATH_SIZE, ispen ? 2 : 1);
         do {
-            mp_gr_knot n = p->next;
+            mp_graphic_knot n = p->next;
             int lt = p->left_type;
             int rt = p->right_type;
             if (ispen) {
@@ -1670,7 +1670,7 @@ static int mplib_new(lua_State *L)
         options->extensions      = 0 ;
         options->utf8_mode       = 0;
         options->text_mode       = 0;
-        options->show_mode      = 0;
+        options->show_mode       = 0;
         options->halt_on_error   = 0;
         options->find_file       = mplib_aux_find_file;
         options->run_script      = mplib_aux_run_script;
@@ -2450,7 +2450,7 @@ static int mplib_figure_collect(lua_State *L)
 {
     struct mp_edge_object **hh = mplib_aux_is_figure(L, 1);
     if (*hh) {
-        mp_gr_toss_objects(*hh);
+        mp_graphic_toss_objects(*hh);
         *hh = NULL;
     }
     return 0;
@@ -2598,9 +2598,9 @@ static int mplib_figure_bounds(lua_State *L)
 
 static int mplib_object_collect(lua_State *L)
 {
-    struct mp_graphic_object **hh = mplib_aux_is_gr_object(L, 1);
+    struct mp_graphic_object **hh = mplib_aux_is_graphic_object(L, 1);
     if (*hh) {
-        mp_gr_toss_object(*hh);
+        mp_graphic_toss_object(*hh);
         *hh = NULL;
     }
     return 0;
@@ -2608,7 +2608,7 @@ static int mplib_object_collect(lua_State *L)
 
 static int mplib_object_tostring(lua_State *L)
 {
-    struct mp_graphic_object **hh = mplib_aux_is_gr_object(L, 1);
+    struct mp_graphic_object **hh = mplib_aux_is_graphic_object(L, 1);
     lua_pushfstring(L, "<mp.object %p>", *hh);
     return 1;
 }
@@ -2618,11 +2618,11 @@ static int mplib_object_tostring(lua_State *L)
 # define aspect_default 1.0
 # define eps            0.0001
 
-static double mplib_aux_coord_range_x(mp_gr_knot h, double dz)
+static double mplib_aux_coord_range_x(mp_graphic_knot h, double dz)
 {
     double zlo = 0.0;
     double zhi = 0.0;
-    mp_gr_knot f = h;
+    mp_graphic_knot f = h;
     while (h) {
         double z = h->x_coord;
         if (z < zlo) {
@@ -2650,11 +2650,11 @@ static double mplib_aux_coord_range_x(mp_gr_knot h, double dz)
     return (zhi - zlo <= dz) ? aspect_bound : aspect_default;
 }
 
-static double mplib_aux_coord_range_y(mp_gr_knot h, double dz)
+static double mplib_aux_coord_range_y(mp_graphic_knot h, double dz)
 {
     double zlo = 0.0;
     double zhi = 0.0;
-    mp_gr_knot f = h;
+    mp_graphic_knot f = h;
     while (h) {
         double z = h->y_coord;
         if (z < zlo) {
@@ -2684,13 +2684,13 @@ static double mplib_aux_coord_range_y(mp_gr_knot h, double dz)
 
 static int mplib_object_peninfo(lua_State *L)
 {
-    struct mp_graphic_object **hh = mplib_aux_is_gr_object(L, -1);
+    struct mp_graphic_object **hh = mplib_aux_is_graphic_object(L, -1);
     if (! *hh) {
         lua_pushnil(L);
         return 1;
     } else {
-        mp_gr_knot p = NULL;
-        mp_gr_knot path = NULL;
+        mp_graphic_knot p = NULL;
+        mp_graphic_knot path = NULL;
         switch ((*hh)->type) { 
             case mp_fill_code:
             case mp_stroked_code:
@@ -2772,7 +2772,7 @@ static void mplib_aux_mplib_push_fields(lua_State* L, const char **fields)
 
 static int mplib_gettype(lua_State *L)
 {
-    struct mp_graphic_object **hh = mplib_aux_is_gr_object(L, 1);
+    struct mp_graphic_object **hh = mplib_aux_is_graphic_object(L, 1);
     if (*hh) {
         lua_pushinteger(L, (*hh)->type);
     } else {
@@ -2798,7 +2798,7 @@ static int mplib_getobjecttypes(lua_State* L)
 static int mplib_getfields(lua_State *L)
 {
     if (lua_type(L, 1) == LUA_TUSERDATA) {
-        struct mp_graphic_object **hh = mplib_aux_is_gr_object(L, 1);
+        struct mp_graphic_object **hh = mplib_aux_is_graphic_object(L, 1);
         if (*hh) {
             const char **fields;
             switch ((*hh)->type) {
@@ -3014,7 +3014,7 @@ static void mplib_aux_start(lua_State *L, const char *s, struct mp_start_object 
 
 static int mplib_object_index(lua_State *L)
 {
-    struct mp_graphic_object **hh = mplib_aux_is_gr_object(L, 1); /* no need for test */
+    struct mp_graphic_object **hh = mplib_aux_is_graphic_object(L, 1); /* no need for test */
     if (*hh) {
         struct mp_graphic_object *h = *hh;
         const char *s = lua_tostring(L, 2);

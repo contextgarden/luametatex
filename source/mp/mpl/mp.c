@@ -458,7 +458,7 @@ table of error recovery symbols.
 
 Note: simple symbols like |+|, |-|, |*| and |/| are also looked up. One can argue that a user can
 redefine them but colons etc. are interpreted direct. Maybe there's room for some optimization here.
-We could just put references (to |mp_sym|) in the |mp| instance object for the handful. Okay, we also
+We could just put references (to |mp_symbol|) in the |mp| instance object for the handful. Okay, we also
 have |:=| so maybe only for single character ones ... not worth the trouble.
 
 */
@@ -598,7 +598,7 @@ structure is not worth the minimal extra code clarification.
 /*tex
 
 Setting the |hashloc| field of |end_attr| to a value greater than any legal hash address is done by
-assigning $-1$ typecasted to |mp_sym|, hopefully resulting in all bits being set. On systems that
+assigning $-1$ typecasted to |mp_symbol|, hopefully resulting in all bits being set. On systems that
 support negative pointer values or where typecasting $-1$ does not result in all bits in a pointer
 being set, something else needs to be done.
 
@@ -851,7 +851,7 @@ The first set of numerical values goes into the header
 # define  number_divide_int(A,B)                  mp->math->md_divide_int(&(A),B)
 # define  number_abs(A)                           mp->math->md_abs(&(A))
 # define  number_modulo(A,B)                      mp->math->md_modulo(&(A),&(B))
-# define  number_nonequalabs(A,B)                 mp->math->md_nonequalabs(&(A),&(B))
+# define  number_non_equal_abs(A,B)               mp->math->md_non_equal_abs(&(A),&(B))
 # define  number_odd(A)                           mp->math->md_odd(&(A))
 # define  number_equal(A,B)                       mp->math->md_equal(&(A),&(B))
 # define  number_greater(A,B)                     mp->math->md_greater(&(A),&(B))
@@ -1694,57 +1694,58 @@ backend can do that, but we keep the number.
 
 /* Some of these types are already used earlier. */
 
-# define  gr_next_knot(A)      (A)->next
-# define  gr_originator(A)     (A)->originator
 # define  mp_knotstate(A)      (A)->state
-# define  gr_type(A)           (A)->type
-# define  gr_link(A)           (A)->next
-# define  gr_color_model(A)    (A)->color_model
-# define  gr_red_val(A)        (A)->color.red
-# define  gr_green_val(A)      (A)->color.green
-# define  gr_blue_val(A)       (A)->color.blue
-# define  gr_cyan_val(A)       (A)->color.cyan
-# define  gr_magenta_val(A)    (A)->color.magenta
-# define  gr_yellow_val(A)     (A)->color.yellow
-# define  gr_black_val(A)      (A)->color.black
-# define  gr_grey_val(A)       (A)->color.gray
-# define  gr_path_ptr(A)       (A)->path
-# define  gr_htap_ptr(A)       (A)->htap
-# define  gr_pen_ptr(A)        (A)->pen
-# define  gr_linejoin_val(A)   (A)->linejoin
-# define  gr_linecap_val(A)    (A)->linecap
-# define  gr_stacking_val(A)   (A)->stacking
-# define  gr_miterlimit_val(A) (A)->miterlimit
-# define  gr_curvature_val(A)  (A)->curvature
-# define  gr_pre_script(A)     (A)->pre_script
-# define  gr_post_script(A)    (A)->post_script
-# define  gr_pre_length(A)     (A)->pre_length
-# define  gr_post_length(A)    (A)->post_length
-# define  gr_dash_ptr(A)       (A)->dash
 
-# define  mp_gr_export_color(q,p) \
+# define  graphic_next_knot(A)      (A)->next
+# define  graphic_originator(A)     (A)->originator
+# define  graphic_type(A)           (A)->type
+# define  graphic_link(A)           (A)->next
+# define  graphic_color_model(A)    (A)->color_model
+# define  graphic_red_val(A)        (A)->color.red
+# define  graphic_green_val(A)      (A)->color.green
+# define  graphic_blue_val(A)       (A)->color.blue
+# define  graphic_cyan_val(A)       (A)->color.cyan
+# define  graphic_magenta_val(A)    (A)->color.magenta
+# define  graphic_yellow_val(A)     (A)->color.yellow
+# define  graphic_black_val(A)      (A)->color.black
+# define  graphic_grey_val(A)       (A)->color.gray
+# define  graphic_path_ptr(A)       (A)->path
+# define  graphic_htap_ptr(A)       (A)->htap
+# define  graphic_pen_ptr(A)        (A)->pen
+# define  graphic_linejoin_val(A)   (A)->linejoin
+# define  graphic_linecap_val(A)    (A)->linecap
+# define  graphic_stacking_val(A)   (A)->stacking
+# define  graphic_miterlimit_val(A) (A)->miterlimit
+# define  graphic_curvature_val(A)  (A)->curvature
+# define  graphic_pre_script(A)     (A)->pre_script
+# define  graphic_post_script(A)    (A)->post_script
+# define  graphic_pre_length(A)     (A)->pre_length
+# define  graphic_post_length(A)    (A)->post_length
+# define  graphic_dash_ptr(A)       (A)->dash
+
+# define  mp_graphic_export_color(q,p) \
 if (mp_color_model(p) == mp_uninitialized_model) { \
-    gr_color_model(q) = (unsigned char) (number_to_scaled(internal_value(mp_default_color_model_internal))/65536); \
-    gr_cyan_val(q)    = 0; \
-    gr_magenta_val(q) = 0; \
-    gr_yellow_val(q)  = 0; \
-    gr_black_val(q)   = gr_color_model(q) == mp_cmyk_model ? (number_to_scaled(unity_t)/65536.0) : 0; \
+    graphic_color_model(q) = (unsigned char) (number_to_scaled(internal_value(mp_default_color_model_internal))/65536); \
+    graphic_cyan_val(q)    = 0; \
+    graphic_magenta_val(q) = 0; \
+    graphic_yellow_val(q)  = 0; \
+    graphic_black_val(q)   = graphic_color_model(q) == mp_cmyk_model ? (number_to_scaled(unity_t)/65536.0) : 0; \
 } else { \
-    gr_color_model(q) = (unsigned char) mp_color_model(p); \
-    gr_cyan_val(q)    = number_to_double(p->cyan); \
-    gr_magenta_val(q) = number_to_double(p->magenta); \
-    gr_yellow_val(q)  = number_to_double(p->yellow); \
-    gr_black_val(q)   = number_to_double(p->black); \
+    graphic_color_model(q) = (unsigned char) mp_color_model(p); \
+    graphic_cyan_val(q)    = number_to_double(p->cyan); \
+    graphic_magenta_val(q) = number_to_double(p->magenta); \
+    graphic_yellow_val(q)  = number_to_double(p->yellow); \
+    graphic_black_val(q)   = number_to_double(p->black); \
 }
 
-# define  mp_gr_export_scripts(q,p) \
+# define  mp_graphic_export_scripts(q,p) \
 if (mp_pre_script (p)) { \
-    gr_pre_script(q) = mp_strndup((const char *) mp_pre_script(p)->str, mp_pre_script(p)->len); \
-    gr_pre_length(q) = mp_pre_script(p)->len; \
+    graphic_pre_script(q) = mp_strndup((const char *) mp_pre_script(p)->str, mp_pre_script(p)->len); \
+    graphic_pre_length(q) = mp_pre_script(p)->len; \
 } \
 if (mp_post_script(p)) { \
-    gr_post_script(q) = mp_strndup((const char *) mp_post_script(p)->str, mp_post_script(p)->len); \
-    gr_post_length(q) = mp_post_script(p)->len; \
+    graphic_post_script(q) = mp_strndup((const char *) mp_post_script(p)->str, mp_post_script(p)->len); \
+    graphic_post_length(q) = mp_post_script(p)->len; \
 }
 
 /*tex Declarations, most can go but we will split in modules anyway so ... */
@@ -1781,11 +1782,11 @@ static void                mp_print_variable_name         (MP mp, mp_node p);
 static void                mp_print_dp                    (MP mp, int t, mp_value_node p, int verbosity);
 static void                mp_print_exp                   (MP mp, mp_node p, int verbosity);
 static void                mp_print_big_node              (MP mp, mp_node p, int verbosity);
-static void                mp_pr_path                     (MP mp, mp_knot h);
+static void                mp_print_path_only             (MP mp, mp_knot h);
 static void                mp_print_path                  (MP mp, mp_knot h, const char *s, int nuline);
-static void                mp_pr_pen                      (MP mp, mp_knot h);
+static void                mp_print_pen_only              (MP mp, mp_knot h);
 static void                mp_print_pen                   (MP mp, mp_knot h, const char *s, int nuline);
-static void                mp_print_macro_name            (MP mp, mp_node a, mp_sym n);
+static void                mp_print_macro_name            (MP mp, mp_node a, mp_symbol n);
 static void                mp_print_arg                   (MP mp, mp_node q, int n, int b, int bb);
 static void                mp_print_cmd_mod               (MP mp, int c, int m);
                                                           
@@ -1802,11 +1803,11 @@ static void                mp_free_token_node             (MP mp, mp_node p);
 static void                mp_flush_token_list            (MP mp, mp_node p);
                                                           
 static int                 mp_compare_symbols_entry       (void *p, const void *pa, const void *pb);
-static mp_sym              mp_new_symbols_entry           (MP mp, unsigned char *nam, size_t len);
+static mp_symbol           mp_new_symbols_entry           (MP mp, unsigned char *nam, size_t len);
                                                           
 static void                mp_fix_date_and_time           (MP mp);
                                                           
-inline static void         mp_do_set_value_sym            (MP mp, mp_token_node A, mp_sym B);
+inline static void         mp_do_set_value_sym            (MP mp, mp_token_node A, mp_symbol B);
 inline static void         mp_do_set_value_number         (MP mp, mp_token_node A, mp_number *B);
 inline static void         mp_do_set_value_str            (MP mp, mp_token_node A, mp_string B);
 inline static void         mp_do_set_value_node           (MP mp, mp_token_node A, mp_node B);
@@ -1834,7 +1835,6 @@ void                       mp_simplify_path               (MP mp, mp_knot h);
 static void                mp_move_knot                   (MP mp, mp_knot p, mp_knot q);
 static void                mp_sqrt_det                    (MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig, mp_number *c_orig, mp_number *d_orig);
 static void                mp_flush_dash_list             (MP mp, mp_edge_header_node h);
-static mp_edge_header_node mp_toss_gr_object              (MP mp, mp_node p);
 static void                mp_toss_edges                  (MP mp, mp_edge_header_node h);
 static mp_edge_header_node mp_copy_objects                (MP mp, mp_node p, mp_node q);
 static void                mp_print_edges                 (MP mp, mp_node h, const char *s, int nuline);
@@ -1878,7 +1878,7 @@ static void                mp_scan_secondary              (MP mp);
 static void                mp_scan_tertiary               (MP mp);
 static void                mp_scan_expression             (MP mp);
 static void                mp_scan_suffix                 (MP mp);
-static void                mp_scan_text_arg               (MP mp, mp_sym l_delim, mp_sym r_delim);
+static void                mp_scan_text_arg               (MP mp, mp_symbol l_delim, mp_symbol r_delim);
 
 static void                mp_push_condition_stack        (MP mp);
 static void                mp_pop_condition_stack         (MP mp);
@@ -1891,7 +1891,7 @@ static void                mp_resume_iteration            (MP mp);
 static void                mp_stop_iteration              (MP mp);
 static void                mp_check_script_result         (MP mp, char *s);
 static void                mp_get_x_next                  (MP mp);
-static void                mp_macro_call                  (MP mp, mp_node def_ref, mp_node arg_list, mp_sym macro_name);
+static void                mp_macro_call                  (MP mp, mp_node def_ref, mp_node arg_list, mp_symbol macro_name);
 static void                mp_begin_name                  (MP mp);
 static int                 mp_more_name                   (MP mp, unsigned char c);
 static void                mp_end_name                    (MP mp);
@@ -1920,8 +1920,6 @@ static mp_edge_header_node mp_scale_edges                 (MP mp, mp_number *se_
 static void                mp_path_length                 (MP mp, mp_number *n);
 static void                mp_path_no_length              (MP mp, mp_number *n);
 static void                mp_pair_value                  (MP mp, mp_number *x, mp_number *y);
-                                                          
-static mp_gr_knot          mp_gr_new_knot                 (MP mp);
 
  /*tex  declare action procedures for use by |do_statement| */
 
@@ -1964,7 +1962,7 @@ static void                mp_do_equation                 (MP mp);
 static void                mp_do_assignment               (MP mp);
 static void                mp_try_eq                      (MP mp, mp_node l, mp_node r);
 static mp_node             mp_scan_declared_variable      (MP mp);
-static void                mp_check_delimiter             (MP mp, mp_sym l_delim, mp_sym r_delim);
+static void                mp_check_delimiter             (MP mp, mp_symbol l_delim, mp_symbol r_delim);
 static void                mp_do_new_internal             (MP mp);
                                                           
 /* void mp_clear_color (MP mp, void *n); */               
@@ -2037,7 +2035,7 @@ void mp_confusion (MP mp, const char *s)
     const char *hlp = NULL;
     mp_normalize_selector(mp);
     if (mp->history < mp_error_message_issued) {
-        mp_snprintf(msg, 256, "This can't happen (%s)", s);
+        snprintf(msg, 256, "This can't happen (%s)", s);
         hlp =
             "I'm broken. Please show this to someone who can fix can fix it and try\n"
             "again";
@@ -2045,7 +2043,7 @@ void mp_confusion (MP mp, const char *s)
         hlp =
             "One of your faux pas seems to have wounded me deeply ... in fact, I'm barely\n"
             "conscious. Please fix it and try again.";
-        mp_snprintf(msg, 256, "I can't go on meeting you like this");
+        snprintf(msg, 256, "I can't go on meeting you like this");
     }
     if (mp->interaction == mp_error_stop_mode) {
         /* no more interaction */
@@ -2422,7 +2420,7 @@ static int mp_run_overload (MP mp, int property, const char *str, int mode)
     return 0;
 }
 
-static void mp_check_overload (MP mp, mp_sym p)
+static void mp_check_overload (MP mp, mp_symbol p)
 {
     /* not the fastest check */
     if (number_nonzero(internal_value(mp_overloadmode_internal))) {
@@ -2916,7 +2914,7 @@ that all integers fit nicely into a |int|.
 static void mp_print_int (MP mp, int n)
 {
     char s[12];
-    mp_snprintf(s, 12, "%d", (int) n);
+    snprintf(s, 12, "%d", (int) n);
     mp_print_str(mp, s);
 }
 
@@ -3115,7 +3113,7 @@ static void *mp_allocate_dash (MP mp)
 # define mp_get_sym_info(A)   mp_get_indep_value(A)
 # define mp_set_sym_info(A,B) mp_set_indep_value(A, (B))
 # define mp_get_sym_sym(A)    (A)->data.sym
-# define mp_set_sym_sym(A,B)  (A)->data.sym = (mp_sym)(B)
+# define mp_set_sym_sym(A,B)  (A)->data.sym = (mp_symbol)(B)
 
 /*tex
 
@@ -3285,7 +3283,7 @@ static const char *mp_type_string(int t)
         default:
             {
                 char ss[256];
-                mp_snprintf(ss, 256, "<unknown type %d>", t);
+                snprintf(ss, 256, "<unknown type %d>", t);
                 return mp_strdup(ss);
             }
     }
@@ -3426,7 +3424,7 @@ static const char *mp_op_string (int c)
             case mp_greater_or_equal_operation : return ">=";
             case mp_equal_operation            : return "=";
             case mp_unequal_operation          : return "<>";
-            case mp_concatenate_operation      : return "&";
+            case mp_concat_operation           : return "&";
             case mp_just_append_operation      : return "&&";
             case mp_tolerant_concat_operation  : return "&&&";
             case mp_tolerant_append_operation  : return "&&&&";
@@ -3572,7 +3570,7 @@ static void mp_print_diagnostic (MP mp, const char *s, const char *t, int nuline
 # define eq_property(A) (A)->property
 # define equiv(A)       (A)->v.data.indep.serial
 # define equiv_node(A)  (A)->v.data.node
-# define equiv_sym(A)   (mp_sym)(A)->v.data.node
+# define equiv_sym(A)   (mp_symbol)(A)->v.data.node
 
 /*tex
 
@@ -3604,7 +3602,7 @@ static void *mp_copy_symbols_entry (const void *p)
  // const mp_symbol_entry *fp = (const mp_symbol_entry *) p;
     mp_symbol_entry *fp = (mp_symbol_entry *) p;
     MP mp = (MP)fp->parent;
-    mp_sym ff = mp_memory_allocate(sizeof(mp_symbol_entry));
+    mp_symbol ff = mp_memory_allocate(sizeof(mp_symbol_entry));
     if (ff == NULL) {
         return NULL;
     }
@@ -3626,7 +3624,7 @@ static void *mp_copy_symbols_entry (const void *p)
 
 static void *mp_delete_symbols_entry (void *p)
 {
-    mp_sym ff = (mp_sym) p;
+    mp_symbol ff = (mp_symbol) p;
     MP mp = (MP) ff->parent;
     free_number(ff->v.data.n);
     mp_memory_free(ff->text->str);
@@ -3642,9 +3640,9 @@ new, empty symbol structure.
 
 */
 
-static mp_sym mp_new_symbols_entry (MP mp, unsigned char *nam, size_t len)
+static mp_symbol mp_new_symbols_entry (MP mp, unsigned char *nam, size_t len)
 {
-    mp_sym ff = mp_memory_clear_allocate(sizeof(mp_symbol_entry));
+    mp_symbol ff = mp_memory_clear_allocate(sizeof(mp_symbol_entry));
     ff->parent = mp;
     ff->text = mp_memory_allocate(sizeof(mp_lstring));
     ff->text->str = nam;
@@ -3655,18 +3653,18 @@ static mp_sym mp_new_symbols_entry (MP mp, unsigned char *nam, size_t len)
     return ff;
 }
 
-static mp_sym mp_do_id_lookup (MP mp, avl_tree symbols, char *j, size_t l, int insert_new)
+static mp_symbol mp_do_id_lookup (MP mp, avl_tree symbols, char *j, size_t l, int insert_new)
 {
-    mp_sym str;
+    mp_symbol str;
     mp->id_lookup_test->text->str = (unsigned char *) j;
     mp->id_lookup_test->text->len = l;
-    str = (mp_sym) avl_find(mp->id_lookup_test, symbols);
+    str = (mp_symbol) avl_find(mp->id_lookup_test, symbols);
     if (str == NULL && insert_new) {
         unsigned char *nam = (unsigned char *) mp_strndup(j, l);
-        mp_sym s = mp_new_symbols_entry(mp, nam, l);
+        mp_symbol s = mp_new_symbols_entry(mp, nam, l);
         mp->st_count++;
         avl_ins(s, symbols, avl_false);
-        str = (mp_sym) avl_find(s, symbols);
+        str = (mp_symbol) avl_find(s, symbols);
         mp_delete_symbols_entry(s);
     }
     return str;
@@ -3719,12 +3717,12 @@ static void mp_primitive (MP mp, const char *ss, int c, int o)
 
 */
 
-static mp_sym mp_frozen_primitive (MP mp, const char *ss, int c, int o)
+static mp_symbol mp_frozen_primitive (MP mp, const char *ss, int c, int o)
 {
 //  char *s = mp_strdup(ss);
-//  mp_sym str = mp_do_id_lookup(mp, mp->frozen_symbols, s, strlen(s), 1);
+//  mp_symbol str = mp_do_id_lookup(mp, mp->frozen_symbols, s, strlen(s), 1);
 //  mp_memory_free(s);
-    mp_sym str = mp_do_id_lookup(mp, mp->frozen_symbols, (char *) ss, strlen(ss), 1);
+    mp_symbol str = mp_do_id_lookup(mp, mp->frozen_symbols, (char *) ss, strlen(ss), 1);
     str->type = c;
     str->property = 0x1; /* todo: enumeration values */
     str->v.data.indep.serial = o;
@@ -3738,9 +3736,9 @@ error recovery tokens (as explained elsewhere, |frozen_inaccessible| actuall is 
 
 */
 
-static int mp_is_frozen (MP mp, mp_sym sym)
+static int mp_is_frozen (MP mp, mp_symbol sym)
 {
-    mp_sym temp = mp_do_id_lookup(mp, mp->frozen_symbols, (char *) sym->text->str, sym->text->len, 0);
+    mp_symbol temp = mp_do_id_lookup(mp, mp->frozen_symbols, (char *) sym->text->str, sym->text->len, 0);
     if (temp == mp->frozen_inaccessible) {
         return 0;
     } else {
@@ -3754,7 +3752,7 @@ static int mp_is_frozen (MP mp, mp_sym sym)
 # define mp_get_value_str(A)    ((mp_token_node) (A))->data.str
 # define mp_get_value_knot(A)   ((mp_token_node) (A))->data.p
 
-inline static void mp_do_set_value_sym (MP mp, mp_token_node A, mp_sym B)
+inline static void mp_do_set_value_sym (MP mp, mp_token_node A, mp_symbol B)
 {
     (void) mp;
     A->data.sym=(B);
@@ -3959,7 +3957,7 @@ void mp_show_token_list (MP mp, mp_node p, mp_node q)
             mp_print_chr(mp, ')');
             c = mp_right_parenthesis_class;
         } else {
-            mp_sym sr = mp_get_sym_sym(p);
+            mp_symbol sr = mp_get_sym_sym(p);
             if (sr == mp_collective_subscript) {
                 if (cclass == mp_left_bracket_class) {
                     mp_print_chr(mp, ' ');
@@ -4035,7 +4033,7 @@ void mp_show_token_list_space (MP mp, mp_node p, mp_node q)
             mp_print_int(mp, r);
             mp_print_chr(mp, ')');
         } else {
-            mp_sym sr = mp_get_sym_sym(p);
+            mp_symbol sr = mp_get_sym_sym(p);
             if (sr == mp_collective_subscript) {
                 mp_print_str(mp, "[]");
             } else {
@@ -4229,8 +4227,8 @@ significant information in their collective subscript attributes.
 
 */
 
-# define mp_get_hashloc(A)   ((mp_value_node)(A))->hashloc_
-# define mp_set_hashloc(A,B) ((mp_value_node)(A))->hashloc_ = B
+# define mp_get_hashloc(A)   ((mp_value_node)(A))->hashloc
+# define mp_set_hashloc(A,B) ((mp_value_node)(A))->hashloc = B
 # define mp_get_parent(A)    ((mp_value_node)(A))->parent
 # define mp_set_parent(A,B)  ((mp_value_node)(A))->parent = B
 
@@ -4431,7 +4429,7 @@ occasions.
 
 */
 
-static void mp_new_root (MP mp, mp_sym x)
+static void mp_new_root (MP mp, mp_symbol x)
 {
     mp_node p = mp_new_value_node(mp);
     p->type = mp_undefined_type;
@@ -4565,7 +4563,7 @@ static mp_node mp_new_structure (MP mp, mp_node p)
     switch (p->name_type) {
         case mp_root_operation:
             {
-                mp_sym q = mp_get_value_sym(p);
+                mp_symbol q = mp_get_value_sym(p);
                 r = mp_new_value_node(mp);
                 set_equiv_node(q, r);
             }
@@ -4670,7 +4668,7 @@ the value |NULL| is returned. Otherwise |p| will be a non-NULL pointer to a node
 
 static mp_node mp_find_variable (MP mp, mp_node t)
 {
-    mp_sym p_sym = mp_get_sym_sym(t);
+    mp_symbol p_sym = mp_get_sym_sym(t);
  // if ((eq_type(p_sym) % mp_outer_tag_command) != mp_tag_command) {
     if (eq_type(p_sym) != mp_tag_command) {
         return NULL;
@@ -4747,7 +4745,7 @@ static mp_node mp_find_variable (MP mp, mp_node t)
                 free_number(nn);
             } else {
                 /* Descend one level for the attribute |mp_get_sym_info(t)| */
-                mp_sym nn1 = mp_get_sym_sym(t);
+                mp_symbol nn1 = mp_get_sym_sym(t);
                 ss = mp_get_attribute_head(pp);
                 do {
                     rr = ss;
@@ -4818,7 +4816,7 @@ static void mp_flush_variable (MP mp, mp_node p, mp_node t, int discard_suffixes
             return;
         } else {
             /*tex Attribute to match: */
-            mp_sym n = mp_get_sym_sym(t);
+            mp_symbol n = mp_get_sym_sym(t);
             t = t->link;
             if (n == mp_collective_subscript) {
                 mp_node q = mp_get_subscr_head(p);
@@ -4949,7 +4947,7 @@ the |saving| parameter is true, a subsidiary structure is saved instead of destr
 
 */
 
-static void mp_clear_symbol (MP mp, mp_sym p, int saving)
+static void mp_clear_symbol (MP mp, mp_symbol p, int saving)
 {
     mp_node q = equiv_node(p);
     if (eq_property(p) > 0) {
@@ -5034,7 +5032,7 @@ static void mp_save_boundary (MP mp)
     stack when the program is not inside a group, so there's no point in wasting the space.
 */
 
-static void mp_save_variable (MP mp, mp_sym q)
+static void mp_save_variable (MP mp, mp_symbol q)
 {
     if (mp->save_ptr != NULL) {
         mp_save_data *p = mp_memory_allocate(sizeof(mp_save_data));
@@ -5051,7 +5049,7 @@ static void mp_save_variable (MP mp, mp_sym q)
 
 static void mp_unsave_variable (MP mp)
 {
-    mp_sym q = (mp_sym)mp->save_ptr->value.v.data.p;
+    mp_symbol q = (mp_symbol) mp->save_ptr->value.v.data.p;
     if (number_positive(internal_value(mp_tracing_restores_internal))) {
         mp_begin_diagnostic(mp);
         mp_print_nl(mp, "{restoring ");
@@ -5172,7 +5170,7 @@ A curl of 1 is shown explicitly, so that the user sees clearly that \MP's defaul
 
 */
 
-void mp_pr_path (MP mp, mp_knot h)
+void mp_print_path_only (MP mp, mp_knot h)
 {
     mp_knot p = h;
     do {
@@ -5318,7 +5316,7 @@ void mp_print_path (MP mp, mp_knot h, const char *s, int nuline)
 {
     mp_print_diagnostic(mp, "Path", s, nuline);
     mp_print_ln(mp);
-    mp_pr_path(mp, h);
+    mp_print_path_only(mp, h);
     mp_end_diagnostic(mp, 1);
 }
 
@@ -5343,9 +5341,9 @@ static mp_knot mp_new_knot (MP mp)
     return q;
 }
 
-static mp_gr_knot mp_gr_new_knot (MP mp)
+static mp_graphic_knot mp_graphic_new_knot (MP mp)
 {
-    mp_gr_knot q = mp_memory_allocate(sizeof(struct mp_gr_knot_data));
+    mp_graphic_knot q = mp_memory_allocate(sizeof(struct mp_graphic_knot_data));
     (void) mp;
     return q;
 }
@@ -5382,9 +5380,9 @@ static mp_knot mp_copy_knot (MP mp, mp_knot p)
     If we want to export a knot node, we can say |export_knot|:
 */
 
-static mp_gr_knot mp_export_knot (MP mp, mp_knot p)
+static mp_graphic_knot mp_export_knot (MP mp, mp_knot p)
 {
-    mp_gr_knot q = mp_gr_new_knot(mp);
+    mp_graphic_knot q = mp_graphic_new_knot(mp);
     q->x_coord    = number_to_double(p->x_coord);
     q->y_coord    = number_to_double(p->y_coord);
     q->left_x     = number_to_double(p->left_x);
@@ -5432,16 +5430,16 @@ The |export_path| routine makes a clone of a given path and converts the |value|
 |double|s.
 */
 
-static mp_gr_knot mp_export_path (MP mp, mp_knot p)
+static mp_graphic_knot mp_export_path (MP mp, mp_knot p)
 {
     if (p == NULL) {
         return NULL;
     } else {
-        mp_gr_knot q = mp_export_knot(mp, p);
-        mp_gr_knot qq = q;
+        mp_graphic_knot q = mp_export_knot(mp, p);
+        mp_graphic_knot qq = q;
         mp_knot pp = mp_next_knot(p);
         while (pp != p) {
-            mp_gr_knot k = mp_export_knot(mp, pp);
+            mp_graphic_knot k = mp_export_knot(mp, pp);
             mp_prev_knot(k) = qq;
             mp_next_knot(qq) = k;
             qq = k;
@@ -5460,12 +5458,12 @@ therefore also makes a clone of a given path.
 
 */
 
-static mp_gr_knot mp_export_knot_list (MP mp, mp_knot p)
+static mp_graphic_knot mp_export_knot_list (MP mp, mp_knot p)
 {
     if (p == NULL) {
         return NULL;
     } else {
-        mp_gr_knot q = mp_export_path(mp, p);
+        mp_graphic_knot q = mp_export_path(mp, p);
         return q;
     }
 }
@@ -6735,7 +6733,7 @@ mp_knot mp_create_knot (MP mp)
     return q;
 }
 
-int mp_set_knot (MP mp, mp_knot p, double x, double y)
+static int mp_set_knot_xy_double (MP mp, mp_knot p, double x, double y)
 {
     if (p == NULL) {
         return 0;
@@ -6755,7 +6753,7 @@ mp_knot mp_append_knot (MP mp, mp_knot p, double x, double y)
     mp_knot q = mp_create_knot(mp);
     if (q == NULL) {
         return NULL;
-    } else if (! mp_set_knot(mp, q, x, y)) {
+    } else if (! mp_set_knot_xy_double(mp, q, x, y)) {
         mp_memory_free(q);
         return NULL;
     } else if (p == NULL) {
@@ -6773,7 +6771,7 @@ mp_knot mp_append_knot_xy (MP mp, mp_knot p, double x, double y)
     mp_knot q = mp_create_knot(mp);
     if (q == NULL) {
         return NULL;
-    } else if (! mp_set_knot(mp, q, x, y)) {
+    } else if (! mp_set_knot_xy_double(mp, q, x, y)) {
         mp_memory_free(q);
         return NULL;
     } else if (p == NULL) {
@@ -7132,6 +7130,27 @@ B(knot_coord(p), right_coord(p), left_coord(q), knot_coord(q); t)
 
 for $0 < t \le 1$. In other words, the procedure adjusts the bounds to accommodate |knot_coord(q)| 
 and any extremes over the range $0 < t < 1$. The |c| parameter is |x_code| or |y_code|.
+
+*/
+
+/* Maybe some day, as we do with fonts where we stay within these bounds: 
+
+static void mp_bound_stupid (MP mp, mp_knot p)
+{
+    if (number_less   (q->x_coord, mp->bbmin[mp_x_code])) { number_clone(mp->bbmin[mp_x_code], q->x_coord); }
+    if (number_greater(q->x_coord, mp->bbmax[mp_x_code])) { number_clone(mp->bbmax[mp_x_code], q->x_coord); }
+    if (number_less   (q->left_x,  mp->bbmin[mp_x_code])) { number_clone(mp->bbmin[mp_x_code], q->left_x);  }
+    if (number_greater(q->left_x,  mp->bbmax[mp_x_code])) { number_clone(mp->bbmax[mp_x_code], q->left_x);  }
+    if (number_less   (q->right_x, mp->bbmin[mp_x_code])) { number_clone(mp->bbmin[mp_x_code], q->right_x); }
+    if (number_greater(q->right_x, mp->bbmax[mp_x_code])) { number_clone(mp->bbmax[mp_x_code], q->right_x); }
+    //
+    if (number_less   (q->y_coord, mp->bbmin[mp_y_code])) { number_clone(mp->bbmin[mp_y_code], q->y_coord); }
+    if (number_greater(q->y_coord, mp->bbmax[mp_y_code])) { number_clone(mp->bbmax[mp_y_code], q->y_coord); }
+    if (number_less   (q->left_y,  mp->bbmin[mp_y_code])) { number_clone(mp->bbmin[mp_y_code], q->left_y);  }
+    if (number_greater(q->left_y,  mp->bbmax[mp_y_code])) { number_clone(mp->bbmax[mp_y_code], q->left_y);  }
+    if (number_less   (q->right_y, mp->bbmin[mp_y_code])) { number_clone(mp->bbmin[mp_y_code], q->right_y); }
+    if (number_greater(q->right_y, mp->bbmax[mp_y_code])) { number_clone(mp->bbmax[mp_y_code], q->right_y); }
+}
 
 */
 
@@ -8194,7 +8213,7 @@ Printing a polygonal pen is very much like printing a path
 
 */
 
-void mp_pr_pen (MP mp, mp_knot h)
+void mp_print_pen_only (MP mp, mp_knot h)
 {
     if (mp_pen_is_elliptical(h)) {
         /*tex
@@ -8248,7 +8267,7 @@ void mp_pr_pen (MP mp, mp_knot h)
 void mp_print_pen (MP mp, mp_knot h, const char *s, int nuline) {
     mp_print_diagnostic(mp, "Pen", s, nuline);
     mp_print_ln(mp);
-    mp_pr_pen(mp, h);
+    mp_print_pen_only(mp, h);
     mp_end_diagnostic(mp, 1);
 }
 
@@ -9035,6 +9054,31 @@ static void mp_init_edges (MP mp, mp_edge_header_node h)
   mp_init_bbox(mp, h);
 }
 
+/*tex
+    Returns an edge structure that needs to be dereferenced.
+*/
+
+static mp_edge_header_node mp_toss_graphic_object (MP mp, mp_node p)
+{
+    switch (p->type) {
+        case mp_fill_node_type:
+        case mp_stroked_node_type:
+            return mp_free_shape_node(mp, (mp_shape_node) p);
+        case mp_start_clip_node_type:
+        case mp_start_group_node_type:
+        case mp_start_bounds_node_type:
+            mp_free_start_node(mp, (mp_start_node) p);
+            return NULL;
+        case mp_stop_clip_node_type:
+        case mp_stop_group_node_type:
+        case mp_stop_bounds_node_type:
+            mp_free_stop_node(mp, (mp_stop_node) p);
+            return NULL;
+        default:
+            return NULL;
+    }
+}
+
 void mp_toss_edges (MP mp, mp_edge_header_node h)
 {
     mp_node q;             /* pointers that scan the list being recycled */
@@ -9044,7 +9088,7 @@ void mp_toss_edges (MP mp, mp_edge_header_node h)
     while (q != NULL) {
         mp_node p = q;
         q = q->link;
-        r = mp_toss_gr_object(mp, p);
+        r = mp_toss_graphic_object(mp, p);
         if (r != NULL) {
             mp_delete_edge_ref(mp, r);
         }
@@ -9069,31 +9113,6 @@ void mp_flush_dash_list (MP mp, mp_edge_header_node h)
         mp_free_node(mp, (mp_node) p, sizeof(mp_dash_node_data));
     }
     mp_set_dash_list(h, mp->null_dash);
-}
-
-/*tex
-    Returns an edge structure that needs to be dereferenced.
-*/
-
-mp_edge_header_node mp_toss_gr_object (MP mp, mp_node p)
-{
-    switch (p->type) {
-        case mp_fill_node_type:
-        case mp_stroked_node_type:
-            return mp_free_shape_node(mp, (mp_shape_node) p);
-        case mp_start_clip_node_type:
-        case mp_start_group_node_type:
-        case mp_start_bounds_node_type:
-            mp_free_start_node(mp, (mp_start_node) p);
-            return NULL;
-        case mp_stop_clip_node_type:
-        case mp_stop_group_node_type:
-        case mp_stop_bounds_node_type:
-            mp_free_stop_node(mp, (mp_stop_node) p);
-            return NULL;
-        default:
-            return NULL;
-    }
 }
 
 /*tex
@@ -9258,7 +9277,7 @@ mp_edge_header_node mp_copy_objects (MP mp, mp_node p, mp_node q) {
             default:
                 break;
         }
-        pp->link = mp_allocate_node(mp, (size_t) k); /* |gr_object| */
+        pp->link = mp_allocate_node(mp, (size_t) k); /* |graphic_object| */
         pp = pp->link;
         memcpy(pp, p, (size_t) k);
         pp->link = NULL;
@@ -9369,7 +9388,7 @@ void mp_print_edges (MP mp, mp_node h, const char *s, int nuline)
                 mp_print_obj_color (mp, p);
                 mp_print_chr(mp, ':');
                 mp_print_ln(mp);
-                mp_pr_path(mp, mp_path_ptr((mp_shape_node) p));
+                mp_print_path_only(mp, mp_path_ptr((mp_shape_node) p));
                 mp_print_ln(mp);
                 if ((mp_pen_ptr((mp_shape_node) p) != NULL)) {
                     /*tex
@@ -9392,7 +9411,7 @@ void mp_print_edges (MP mp, mp_node h, const char *s, int nuline)
                     }
                     mp_print_str(mp, " with pen");
                     mp_print_ln(mp);
-                    mp_pr_pen(mp, mp_pen_ptr((mp_shape_node) p));
+                    mp_print_pen_only(mp, mp_pen_ptr((mp_shape_node) p));
                 }
                 break;
             case mp_stroked_node_type:
@@ -9400,7 +9419,7 @@ void mp_print_edges (MP mp, mp_node h, const char *s, int nuline)
                 mp_print_obj_color (mp, p);
                 mp_print_chr(mp, ':');
                 mp_print_ln(mp);
-                mp_pr_path(mp, mp_path_ptr((mp_shape_node) p));
+                mp_print_path_only(mp, mp_path_ptr((mp_shape_node) p));
                 if (mp_dash_ptr(p) != NULL) {
                     /*tex
                         Finish printing the dash pattern that |p| refers to.
@@ -9508,7 +9527,7 @@ void mp_print_edges (MP mp, mp_node h, const char *s, int nuline)
                 if (mp_pen_ptr((mp_shape_node) p) == NULL) {
                     mp_print_str(mp, "???"); /* shouldn't happen */
                 } else {
-                    mp_pr_pen(mp, mp_pen_ptr((mp_shape_node) p));
+                    mp_print_pen_only(mp, mp_pen_ptr((mp_shape_node) p));
                 }
                 break;
             case mp_start_clip_node_type:
@@ -9521,7 +9540,7 @@ void mp_print_edges (MP mp, mp_node h, const char *s, int nuline)
                 mp_print_str(mp, "setbounds path:");
               COMMONSTART:
                 mp_print_ln(mp);
-                mp_pr_path(mp, mp_path_ptr((mp_start_node) p));
+                mp_print_path_only(mp, mp_path_ptr((mp_start_node) p));
                 break;
             case mp_stop_clip_node_type:
                 mp_print_str(mp, "stop clipping");
@@ -13156,7 +13175,7 @@ static void mp_val_too_big (MP mp, mp_number *x)
 {
     if (number_positive(internal_value(mp_warning_check_internal))) {
         char msg[256];
-        mp_snprintf(msg, 256, "Value is too large (%s)", number_tostring(*x));
+        snprintf(msg, 256, "Value is too large (%s)", number_tostring(*x));
         mp_error(
             mp,
             msg,
@@ -14649,7 +14668,7 @@ static int mp_check_outer_validity (MP mp)
             return 1;
         } else {
             char msg[256];
-            mp_snprintf(msg, 256, "TeX mode didn't end; all text was ignored after line %d", (int) mp->warning_line);
+            snprintf(msg, 256, "TeX mode didn't end; all text was ignored after line %d", (int) mp->warning_line);
             set_cur_sym(mp->frozen_etex);
             mp_ins_error(
                 mp,
@@ -14689,7 +14708,7 @@ static int mp_check_outer_validity (MP mp)
             switch (mp->scanner_status) {
                 case mp_flushing_state:
                     {
-                        mp_snprintf(msg, 256, "%s to the end of the statement", mst);
+                        snprintf(msg, 256, "%s to the end of the statement", mst);
                         hlp =
                             "A previous error seems to have propagated, causing me to read past where\n"
                             "you wanted me to stop. I'll try to recover.";
@@ -14698,7 +14717,7 @@ static int mp_check_outer_validity (MP mp)
                     break;
                 case mp_absorbing_state:
                     {
-                        mp_snprintf(msg, 256, "%s a text argument",  mst);
+                        snprintf(msg, 256, "%s a text argument",  mst);
                         hlp =
                             "It seems that a right delimiter was left out, causing me to read past where\n"
                             "you wanted me to stop. I'll try to recover.";
@@ -14722,7 +14741,7 @@ static int mp_check_outer_validity (MP mp)
                         mp_print_variable_name(mp, mp->warning_info_node);
                         s = mp_make_string(mp);
                         mp->selector = selector;
-                        mp_snprintf(msg, 256, "%s the definition of %s", mst, s->str);
+                        snprintf(msg, 256, "%s the definition of %s", mst, s->str);
                         delete_str_ref(s);
                         set_cur_sym(mp->frozen_end_def);
                     }
@@ -14730,14 +14749,14 @@ static int mp_check_outer_validity (MP mp)
                 case mp_op_defining_state:
                     {
                         char *s = mp_str(mp, text(mp->warning_info));
-                        mp_snprintf(msg, 256, "%s the definition of %s", mst, s);
+                        snprintf(msg, 256, "%s the definition of %s", mst, s);
                         set_cur_sym(mp->frozen_end_def);
                     }
                     break;
                 case mp_loop_defining_state:
                     {
                         char *s = mp_str(mp, text(mp->warning_info));
-                        mp_snprintf(msg, 256, "%s the text of a %s loop", mst, s);
+                        snprintf(msg, 256, "%s the text of a %s loop", mst, s);
                         hlp =
                             "I suspect you have forgotten an 'endfor', causing me to read past where\n"
                             "you wanted me to stop. I'll try to recover.";
@@ -14749,7 +14768,7 @@ static int mp_check_outer_validity (MP mp)
         } else {
             char msg[256];
             const char *hlp = NULL;
-            mp_snprintf(msg, 256, "Incomplete if; all text was ignored after line %d", (int) mp->warning_line);
+            snprintf(msg, 256, "Incomplete if; all text was ignored after line %d", (int) mp->warning_line);
             if (cur_sym == NULL) {
                 hlp =
                     "The file ended while I was skipping conditional text. This kind of error happens\n"
@@ -14807,7 +14826,7 @@ signs and double quotes need to be passed over when skipping TeX material. The g
 
 void mp_get_next (MP mp)
 {
-    mp_sym cur_sym_;
+    mp_symbol cur_sym_;
   RESTART:
     set_cur_sym(NULL);
     set_cur_sym_mod(0);
@@ -15249,9 +15268,9 @@ static void mp_get_t_next (MP mp)
                 /*tex Line numbers are not always meaningfull so we can get a 0 reported. */
                 char msg[256];
                 if (slin > 0) {
-                    mp_snprintf(msg, 256, "No matching 'etex' for '%stex'.", verb ? "verbatim" : "b");
+                    snprintf(msg, 256, "No matching 'etex' for '%stex'.", verb ? "verbatim" : "b");
                 } else {
-                    mp_snprintf(msg, 256, "No matching 'etex' for '%stex' in line %d.", verb ? "verbatim" : "b",slin);
+                    snprintf(msg, 256, "No matching 'etex' for '%stex' in line %d.", verb ? "verbatim" : "b",slin);
                 }
                 mp_error(mp, msg, "An 'etex' is missing at this input level, nothing gets done.");
                 mp_memory_free(txt);
@@ -15508,7 +15527,7 @@ static void mp_scan_def (MP mp, int code)
     mp_node q;                     /*tex tail of the macro token list */
     mp_node p;                     /*tex temporary storage */
     int sym_type;                  /*tex |expr_sym|, |suffix_sym|, or |text_sym| */
-    mp_sym l_delim, r_delim;       /*tex matching delimiters */
+    mp_symbol l_delim, r_delim;       /*tex matching delimiters */
     int c = mp_general_macro;      /*tex the kind of macro we're defining */
     mp->hold_head->link = NULL;
     q = mp_new_symbolic_node(mp);
@@ -16125,12 +16144,12 @@ it next.This invokes a user-defined control sequence.
 
 */
 
-static void mp_macro_call (MP mp, mp_node def_ref, mp_node arg_list, mp_sym macro_name)
+static void mp_macro_call (MP mp, mp_node def_ref, mp_node arg_list, mp_symbol macro_name)
 {
     int n;                     /*tex the number of arguments */
     mp_node tail = 0;          /*tex tail of the argument list */
-    mp_sym l_delim = NULL;     /*tex a delimiter pair */
-    mp_sym r_delim = NULL;     /*tex a delimiter pair */
+    mp_symbol l_delim = NULL;     /*tex a delimiter pair */
+    mp_symbol r_delim = NULL;     /*tex a delimiter pair */
     mp_node r = def_ref->link; /*tex current node in the macro's token list */
     mp_add_mac_ref(def_ref);
     if (arg_list == NULL) {
@@ -16197,7 +16216,7 @@ static void mp_macro_call (MP mp, mp_node def_ref, mp_node arg_list, mp_sym macr
                 mp_print_macro_name(mp, arg_list, macro_name);
                 sname = mp_make_string(mp);
                 mp->selector = selector;
-                mp_snprintf(msg, 256, "Missing argument to %s", mp_str(mp, sname));
+                snprintf(msg, 256, "Missing argument to %s", mp_str(mp, sname));
                 delete_str_ref(sname);
                 if (r->name_type == mp_suffix_operation || r->name_type == mp_text_operation) {
                     mp_set_cur_exp_value_number(mp, &zero_t); /* todo: this was |null| */
@@ -16249,7 +16268,7 @@ static void mp_macro_call (MP mp, mp_node def_ref, mp_node arg_list, mp_sym macr
                 default:
                     {
                         char msg[256];
-                        mp_snprintf(msg, 256, "Missing '%s' has been inserted", mp_str(mp, text(r_delim)));
+                        snprintf(msg, 256, "Missing '%s' has been inserted", mp_str(mp, text(r_delim)));
                         mp_back_error(mp, msg, "I've gotten to the end of the macro parameter list.");
                     }
                     break;
@@ -16292,7 +16311,7 @@ static void mp_macro_call (MP mp, mp_node def_ref, mp_node arg_list, mp_sym macr
         mp_print_macro_name(mp, arg_list, macro_name);
         rname = mp_make_string(mp);
         mp->selector = selector;
-        mp_snprintf(msg, 256, "Too many arguments to %s; Missing '%s' has been inserted",
+        snprintf(msg, 256, "Too many arguments to %s; Missing '%s' has been inserted",
         mp_str(mp, rname), mp_str(mp, text(r_delim)));
         delete_str_ref(rname);
 
@@ -16357,7 +16376,7 @@ static void mp_macro_call (MP mp, mp_node def_ref, mp_node arg_list, mp_sym macr
                         mp_print_macro_name(mp, arg_list, macro_name);
                         sname = mp_make_string(mp);
                         mp->selector = selector;
-                        mp_snprintf(msg, 256, "Missing 'of' has been inserted for %s", mp_str(mp, sname));
+                        snprintf(msg, 256, "Missing 'of' has been inserted for %s", mp_str(mp, sname));
                         delete_str_ref(sname);
                         mp_back_error(mp, msg, "I've got the first argument; will look now for the other.");
                     }
@@ -16381,7 +16400,7 @@ static void mp_macro_call (MP mp, mp_node def_ref, mp_node arg_list, mp_sym macr
                     if (l_delim != NULL) {
                         if ((cur_cmd != mp_right_delimiter_command) || (equiv_sym(cur_sym) != l_delim)) {
                             char msg[256];
-                            mp_snprintf(msg, 256, "Missing '%s' has been inserted", mp_str(mp, text(r_delim)));
+                            snprintf(msg, 256, "Missing '%s' has been inserted", mp_str(mp, text(r_delim)));
                             mp_back_error(mp, msg, "I've gotten to the end of the macro parameter list.");
                         }
                         mp_get_x_next(mp);
@@ -16443,7 +16462,7 @@ static void mp_macro_call (MP mp, mp_node def_ref, mp_node arg_list, mp_sym macr
     }
 }
 
-static void mp_print_macro_name (MP mp, mp_node a, mp_sym n)
+static void mp_print_macro_name (MP mp, mp_node a, mp_symbol n)
 {
     if (n) {
         mp_print_mp_str(mp,text(n));
@@ -16490,7 +16509,7 @@ contained in a group.
 
 */
 
-void mp_scan_text_arg (MP mp, mp_sym l_delim, mp_sym r_delim)
+void mp_scan_text_arg (MP mp, mp_symbol l_delim, mp_symbol r_delim)
 {
     int balance = 1;           /*tex excess of |l_delim| over |r_delim| */
     mp_node p = mp->hold_head; /*tex list tail */
@@ -16774,7 +16793,7 @@ static void mp_bad_for (MP mp, const char *s)
     memset(&new_expr, 0, sizeof(mp_value));
     new_number(new_expr.data.n);
     mp_disp_err(mp, NULL);
-    mp_snprintf(msg, 256, "Improper %s has been replaced by 0", s);
+    snprintf(msg, 256, "Improper %s has been replaced by 0", s);
     mp_back_error(
         mp,
         msg,
@@ -16807,7 +16826,7 @@ prepare to iterate over it.
 void mp_begin_iteration (MP mp)
 {
     mp_node q;                    /*tex link manipulation register */
-    mp_sym n = cur_sym;           /*tex hash address of the current symbol */
+    mp_symbol n = cur_sym;        /*tex hash address of the current symbol */
     mp_subst_list_item *p = NULL; /*tex substitution list for |scan_toks| */
     int m = cur_mod;              /*tex |start_for| (|for|) or |start_forsuffixes| (|forsuffixes|) */
     mp_loop_data *s = mp_memory_allocate(sizeof(mp_loop_data)); /*tex the new loop-control node */
@@ -18477,7 +18496,7 @@ static void mp_bad_exp (MP mp, const char *s)
          mp_print_cmd_mod(mp, cur_cmd, cur_mod);
          mp->selector = selector;
          cm = mp_make_string(mp);
-         mp_snprintf(msg, 256, "%s expression can't begin with '%s'", s, mp_str(mp, cm));
+         snprintf(msg, 256, "%s expression can't begin with '%s'", s, mp_str(mp, cm));
          delete_str_ref(cm);
     }
     mp_back_input(mp);
@@ -18610,7 +18629,7 @@ static char *mp_obliterated (MP mp, mp_node q)
     mp_show_token_list(mp, q, NULL);
     sname = mp_make_string(mp);
     mp->selector = selector;
-    mp_snprintf(msg, 256, "Variable %s has been obliterated", mp_str(mp, sname));
+    snprintf(msg, 256, "Variable %s has been obliterated", mp_str(mp, sname));
     delete_str_ref(sname);
     return mp_strdup(msg);
 }
@@ -18634,7 +18653,7 @@ clobbered.The following procedure calls a macro that has two parameters, |p| and
 
 */
 
-static void mp_binary_mac (MP mp, mp_node p, mp_node c, mp_sym n)
+static void mp_binary_mac (MP mp, mp_node p, mp_node c, mp_symbol n)
 {
     mp_node q = mp_new_symbolic_node(mp);
     mp_node r = mp_new_symbolic_node(mp);
@@ -19271,7 +19290,7 @@ static void mp_bad_unary (MP mp, int c)
     mp_print_known_or_unknown_type(mp, mp->cur_exp.type, cur_exp_node);
     sname = mp_make_string(mp);
     mp->selector = selector;
-    mp_snprintf(msg, 256, "Not implemented: %s", mp_str(mp, sname));
+    snprintf(msg, 256, "Not implemented: %s", mp_str(mp, sname));
     delete_str_ref(sname);
     mp_disp_err(mp, NULL);
     mp_back_error(
@@ -20795,11 +20814,11 @@ static void mp_bad_color_part (MP mp, int c)
     sname = mp_make_string(mp);
     mp->selector = selector;
     switch (mp_color_model(p)) {
-        case mp_grey_model: mp_snprintf(msg, 256, "Wrong picture color model: %s of grey object",      mp_str(mp, sname)); break;
-        case mp_cmyk_model: mp_snprintf(msg, 256, "Wrong picture color model: %s of cmyk object",      mp_str(mp, sname)); break;
-        case mp_rgb_model:  mp_snprintf(msg, 256, "Wrong picture color model: %s of rgb object",       mp_str(mp, sname)); break;
-        case mp_no_model:   mp_snprintf(msg, 256, "Wrong picture color model: %s of marking object",   mp_str(mp, sname)); break;
-        default:            mp_snprintf(msg, 256, "Wrong picture color model: %s of defaulted object", mp_str(mp, sname)); break;
+        case mp_grey_model: snprintf(msg, 256, "Wrong picture color model: %s of grey object",      mp_str(mp, sname)); break;
+        case mp_cmyk_model: snprintf(msg, 256, "Wrong picture color model: %s of cmyk object",      mp_str(mp, sname)); break;
+        case mp_rgb_model:  snprintf(msg, 256, "Wrong picture color model: %s of rgb object",       mp_str(mp, sname)); break;
+        case mp_no_model:   snprintf(msg, 256, "Wrong picture color model: %s of marking object",   mp_str(mp, sname)); break;
+        default:            snprintf(msg, 256, "Wrong picture color model: %s of defaulted object", mp_str(mp, sname)); break;
     }
     delete_str_ref(sname);
     mp_error(
@@ -20956,7 +20975,7 @@ static void mp_bad_binary (MP mp, mp_node p, int c)
     mp_print_known_or_unknown_type(mp, mp->cur_exp.type, cur_exp_node);
     sname = mp_make_string(mp);
     mp->selector = selector;
-    mp_snprintf(msg, 256, "Not implemented: %s", mp_str(mp, sname));
+    snprintf(msg, 256, "Not implemented: %s", mp_str(mp, sname));
     delete_str_ref(sname);
     mp_disp_err(mp, p);
     mp_disp_err(mp, NULL);
@@ -21554,7 +21573,7 @@ static mp_edge_header_node mp_edges_trans (MP mp, mp_edge_header_node h)
         /*tex
             Try to transform the dash list of |h|.
         */
-        if (number_nonzero(mp->txy) || number_nonzero(mp->tyx) || number_nonzero(mp->ty) || number_nonequalabs(mp->txx, mp->tyy)) {
+        if (number_nonzero(mp->txy) || number_nonzero(mp->tyx) || number_nonzero(mp->ty) || number_non_equal_abs(mp->txx, mp->tyy)) {
             mp_flush_dash_list(mp, h);
         } else {
             mp_number abs_tyy, ret;
@@ -22809,7 +22828,7 @@ static void mp_do_binary (MP mp, mp_node p, int c)
                     break;
             }
             break;
-        case mp_concatenate_operation:
+        case mp_concat_operation:
         case mp_just_append_operation:
         case mp_tolerant_concat_operation:
         case mp_tolerant_append_operation:
@@ -23458,7 +23477,7 @@ static void worry_about_bad_statement (MP mp)
         mp_print_cmd_mod(mp, cur_cmd, cur_mod);
         sname = mp_make_string(mp);
         mp->selector = selector;
-        mp_snprintf(msg, 256, "A statement can't begin with '%s'", mp_str(mp, sname));
+        snprintf(msg, 256, "A statement can't begin with '%s'", mp_str(mp, sname));
         delete_str_ref(sname);
         mp_back_error(
             mp,
@@ -23563,7 +23582,7 @@ static void mp_bad_internal_assignment (MP mp, mp_node lhs)
     char msg[256];
     mp_disp_err(mp, NULL);
     if (internal_type(mp_get_sym_info(lhs)) == mp_known_type) {
-        mp_snprintf(msg, 256,
+        snprintf(msg, 256,
             "Internal quantity '%s' must receive a known numeric value",
             internal_name(mp_get_sym_info(lhs))
         );
@@ -23574,7 +23593,7 @@ static void mp_bad_internal_assignment (MP mp, mp_node lhs)
             "have to ignore this assignment."
         );
     } else if (internal_type(mp_get_sym_info(lhs)) == mp_boolean_type) {
-        mp_snprintf(msg, 256,
+        snprintf(msg, 256,
             "Internal quantity '%s' must receive a known boolean value",
             internal_name(mp_get_sym_info(lhs))
         );
@@ -23585,7 +23604,7 @@ static void mp_bad_internal_assignment (MP mp, mp_node lhs)
             "have to ignore this assignment."
         );
     } else {
-        mp_snprintf(msg, 256,
+        snprintf(msg, 256,
             "Internal quantity '%s' must receive a known string",
             internal_name(mp_get_sym_info(lhs))
         );
@@ -23602,7 +23621,7 @@ static void mp_bad_internal_assignment (MP mp, mp_node lhs)
 static void forbidden_internal_assignment (MP mp, mp_node lhs)
 {
     char msg[256];
-    mp_snprintf(msg, 256,"Internal quantity '%s' is read-only", internal_name(mp_get_sym_info(lhs)));
+    snprintf(msg, 256,"Internal quantity '%s' is read-only", internal_name(mp_get_sym_info(lhs)));
     mp_back_error(
         mp,
         msg,
@@ -23616,10 +23635,10 @@ static void mp_bad_internal_assignment_precision (MP mp, mp_node lhs, mp_number 
 {
     char msg[256];
     char hlp[256];
-    mp_snprintf(msg, 256,
+    snprintf(msg, 256,
         "Bad '%s' has been ignored",
         internal_name(mp_get_sym_info(lhs)));
-    mp_snprintf(hlp, 256,
+    snprintf(hlp, 256,
         "Precision values are limited by the current numbersystem.\n"
         "Currently I am using '%s'; the allowed precision range is [%s,%s].",
         mp_str(mp, internal_string(mp_number_system_internal)), number_tostring(*min), number_tostring(*max));
@@ -23756,7 +23775,7 @@ void mp_do_assignment (MP mp)
 static void announce_bad_equation (MP mp, mp_node lhs)
 {
     char msg[256];
-    mp_snprintf(msg, 256,
+    snprintf(msg, 256,
         "Equation cannot be performed (%s=%s)",
         (lhs->type <= mp_pair_type ? mp_type_string(lhs->type) : "numeric"),
         (mp->cur_exp.type <= mp_pair_type ? mp_type_string(mp->cur_exp.type) : "numeric"));
@@ -23953,7 +23972,7 @@ static void deal_with_redundant_or_inconsistent_equation (MP mp, mp_value_node p
     new_number_abs(absp, mp_get_value_number(p));
     if (number_greater(absp, equation_threshold_k)) {   /* off by .001 or more */
         char msg[256];
-        mp_snprintf(msg, 256, "Inconsistent equation (off by %s)", number_tostring (mp_get_value_number(p)));
+        snprintf(msg, 256, "Inconsistent equation (off by %s)", number_tostring (mp_get_value_number(p)));
         mp_back_error(
             mp,
             msg,
@@ -24102,7 +24121,7 @@ it will appear in |cur_cmd|, |cur_mod|, and~|cur_sym|.
 
 mp_node mp_scan_declared_variable (MP mp)
 {
-    mp_sym x;     /*tex hash address of the variable's root */
+    mp_symbol x;     /*tex hash address of the variable's root */
     mp_node h, t; /*tex head and tail of the token list to be returned */
     mp_get_symbol(mp);
     x = cur_sym;
@@ -24124,7 +24143,7 @@ mp_node mp_scan_declared_variable (MP mp)
                         Descend past a collective subscript If the subscript isn't collective, we
                         don't accept it as part of the declared variable.
                     */
-                    mp_sym ll = cur_sym; /* hash address of left bracket */
+                    mp_symbol ll = cur_sym; /* hash address of left bracket */
                     mp_get_x_next(mp);
                     if (cur_cmd == mp_right_bracket_command) {
                         set_cur_sym(mp_collective_subscript);
@@ -24297,7 +24316,7 @@ void mp_set_internal (MP mp, char *n, char *v, int isstring)
     char err[256];
     const char *errid = NULL;
     if (l > 0) {
-        mp_sym p = mp_id_lookup(mp, n, l, 0);
+        mp_symbol p = mp_id_lookup(mp, n, l, 0);
         if (p == NULL) {
             errid = "variable does not exist";
         } else if (eq_type(p) != mp_internal_command) {
@@ -24320,9 +24339,9 @@ void mp_set_internal (MP mp, char *n, char *v, int isstring)
     }
     if (errid != NULL) {
         if (isstring) {
-            mp_snprintf(err, 256, "%s=\"%s\": %s, assignment ignored.", n, v, errid);
+            snprintf(err, 256, "%s=\"%s\": %s, assignment ignored.", n, v, errid);
         } else {
-            mp_snprintf(err, 256, "%s=%d: %s, assignment ignored.", n, atoi (v), errid);
+            snprintf(err, 256, "%s=%d: %s, assignment ignored.", n, atoi (v), errid);
         }
         mp_warn(mp, err);
     }
@@ -24360,7 +24379,7 @@ be overloaded for |mp_execute|.This is where we fill them all in.This might chan
 void mplib_shipout_backend (MP mp, void *voidh)
 {
     mp_edge_header_node h = (mp_edge_header_node) voidh;
-    mp_edge_object *hh = mp_gr_export (mp, h);
+    mp_edge_object *hh = mp_graphic_export (mp, h);
     if (hh) {
         mp_run_data *run = mp_rundata(mp);
         if (run->edges == NULL) {
@@ -24631,8 +24650,6 @@ mechanism is quite experimental and used in \CONTEXT\ for protecting definitions
 
 */
 
-// mp_scan_numeric_value(mp, 0, &p);
-
 void mp_do_property (MP mp)
 {
    int p = 0;
@@ -24672,7 +24689,7 @@ and |right_delimiter| to |)|; the |equiv| of each delimiter is the hash address 
 
 void mp_def_delims (MP mp)
 {
-    mp_sym l_delim, r_delim; /* the new delimiter pair */
+    mp_symbol l_delim, r_delim; /* the new delimiter pair */
     mp_get_clear_symbol(mp);
     l_delim = cur_sym;
     mp_get_clear_symbol(mp);
@@ -24691,13 +24708,13 @@ mandatory.
 
 */
 
-void mp_check_delimiter (MP mp, mp_sym l_delim, mp_sym r_delim)
+void mp_check_delimiter (MP mp, mp_symbol l_delim, mp_symbol r_delim)
 {
     if (cur_cmd == mp_right_delimiter_command && equiv_sym(cur_sym) == l_delim) {
         return;
     } else if (cur_sym != r_delim) {
         char msg[256];
-        mp_snprintf(msg, 256, "Missing '%s' has been inserted", mp_str(mp, text(r_delim)));
+        snprintf(msg, 256, "Missing '%s' has been inserted", mp_str(mp, text(r_delim)));
         mp_back_error(
             mp,
             msg,
@@ -24706,7 +24723,7 @@ void mp_check_delimiter (MP mp, mp_sym l_delim, mp_sym r_delim)
         );
     } else {
         char msg[256];
-        mp_snprintf(msg, 256, "The token '%s' is no longer a right delimiter", mp_str(mp, text(r_delim)));
+        snprintf(msg, 256, "The token '%s' is no longer a right delimiter", mp_str(mp, text(r_delim)));
         mp_error(
             mp,
             msg,
@@ -24726,7 +24743,7 @@ void mp_do_interim (MP mp) {
     mp_get_x_next(mp);
     if (cur_cmd != mp_internal_command) {
         char msg[256];
-        mp_snprintf(msg, 256,
+        snprintf(msg, 256,
             "The token '%s' isn't an internal quantity",
             (cur_sym == NULL ? "(%CAPSULE)" : mp_str(mp, text(cur_sym)))
         );
@@ -24747,7 +24764,7 @@ The following procedure is careful not to undefine the left-hand symbol too soon
 
 void mp_do_let (MP mp)
 {
-    mp_sym l; /*tex Hash location of the left-hand symbol. */
+    mp_symbol l; /*tex Hash location of the left-hand symbol. */
     mp_get_symbol(mp);
     l = cur_sym;
     mp_get_x_next(mp);
@@ -25753,7 +25770,7 @@ mp_edge_header_node mp_find_edges_var (MP mp, mp_node t)
         mp_show_token_list(mp, t, NULL);
         sname = mp_make_string(mp);
         mp->selector = selector;
-        mp_snprintf(msg, 256, "Variable %s is the wrong type(%s)", mp_str(mp, sname), mp_type_string(p->type));
+        snprintf(msg, 256, "Variable %s is the wrong type(%s)", mp_str(mp, sname), mp_type_string(p->type));
         delete_str_ref(sname);
         mp_back_error(
             mp,
@@ -25839,7 +25856,7 @@ void mp_do_bounds (MP mp)
             char msg[256];
             mp_disp_err(mp, NULL);
             new_number(new_expr.data.n);
-            mp_snprintf(msg, 256, "Improper '%s'", mp_cmd_mod_string(mp, c, m));
+            snprintf(msg, 256, "Improper '%s'", mp_cmd_mod_string(mp, c, m));
             mp_back_error(
                 mp,
                 msg,
@@ -25969,7 +25986,7 @@ void mp_do_add_to (MP mp)
         lhe = mp_find_edges_var(mp, lhv);
         if (lhe == NULL) {
             if ((e == NULL) && (p != NULL)) {
-                e = mp_toss_gr_object(mp, p);
+                e = mp_toss_graphic_object(mp, p);
             }
             if (e != NULL) {
                 mp_delete_edge_ref(mp, e);
@@ -26042,7 +26059,7 @@ void mp_do_message (MP mp)
                 */
                 {
                     char msg[256];
-                    mp_snprintf(msg, 256, "%s", mp_str(mp, cur_exp_str));
+                    snprintf(msg, 256, "%s", mp_str(mp, cur_exp_str));
                     if (mp->err_help != NULL) {
                         mp->use_err_help = 1;
                         mp_back_error(mp, msg, NULL);
@@ -26193,7 +26210,32 @@ way of making a stand alone image is to wrap the code in a small \CONTEXT\ file 
 
 */
 
-struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h)
+mp_graphic_object *mp_new_graphic_object (MP mp, int type)
+{
+    mp_graphic_object *p;
+    size_t size;
+    (void) mp;
+    switch (type) {
+        case mp_fill_code:
+        case mp_stroked_code:
+            size = sizeof(mp_shape_object);
+            break;
+        case mp_start_clip_code:
+        case mp_start_group_code:
+        case mp_start_bounds_code:
+            size = sizeof(mp_start_object);
+            break;
+        default:
+            size = sizeof(mp_graphic_object);
+            break;
+    }
+    p = (mp_graphic_object *) mp_memory_allocate(size);
+    memset(p, 0, size);
+    graphic_type(p) = type;
+    return p;
+}
+
+struct mp_edge_object *mp_graphic_export (MP mp, mp_edge_header_node h)
 {
     mp_node p;                                                       /*tex the current graphical object */
     mp_edge_object *hh = mp_memory_allocate(sizeof(mp_edge_object)); /*tex the first graphical object */
@@ -26225,28 +26267,28 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h)
                     mp_number d_width; /*tex The current pen width. */
                     mp_shape_node p0 = (mp_shape_node) p;
                     mp_shape_object *tf = (mp_shape_object *) hq;
-                    gr_pen_ptr(tf) = mp_export_knot_list(mp, mp_pen_ptr(p0));
+                    graphic_pen_ptr(tf) = mp_export_knot_list(mp, mp_pen_ptr(p0));
                     new_number(d_width);
                     mp_get_pen_scale(mp, &d_width, mp_pen_ptr(p0)); /* whats the point ? */
                     free_number(d_width);
                     if ((mp_pen_ptr(p0) == NULL) || mp_pen_is_elliptical(mp_pen_ptr(p0))) {
-                        gr_path_ptr(tf) = mp_export_knot_list(mp, mp_path_ptr(p0));
+                        graphic_path_ptr(tf) = mp_export_knot_list(mp, mp_path_ptr(p0));
                     } else {
                         mp_knot pc = mp_copy_path(mp, mp_path_ptr(p0));
                         mp_knot pp = mp_make_envelope(mp, pc, mp_pen_ptr(p0), p0->linejoin, 0, &(p0->miterlimit));
-                        gr_path_ptr(tf) = mp_export_knot_list(mp, pp);
+                        graphic_path_ptr(tf) = mp_export_knot_list(mp, pp);
                         mp_toss_knot_list(mp, pp);
                         pc = mp_htap_ypoc(mp, mp_path_ptr(p0));
                         pp = mp_make_envelope(mp, pc, mp_pen_ptr((mp_shape_node) p), p0->linejoin, 0, &(p0->miterlimit));
-                        gr_htap_ptr(tf) = mp_export_knot_list(mp, pp);
+                        graphic_htap_ptr(tf) = mp_export_knot_list(mp, pp);
                         mp_toss_knot_list(mp, pp);
                     }
-                    mp_gr_export_color(tf, p0);
-                    mp_gr_export_scripts(tf, p);
-                    gr_linejoin_val(tf) = p0->linejoin;
-                    gr_curvature_val(tf) = p0->curvature;
-                    gr_stacking_val(tf) = p0->stacking;
-                    gr_miterlimit_val(tf) = number_to_double(p0->miterlimit);
+                    mp_graphic_export_color(tf, p0);
+                    mp_graphic_export_scripts(tf, p);
+                    graphic_linejoin_val(tf) = p0->linejoin;
+                    graphic_curvature_val(tf) = p0->curvature;
+                    graphic_stacking_val(tf) = p0->stacking;
+                    graphic_miterlimit_val(tf) = number_to_double(p0->miterlimit);
                 }
                 break;
             case mp_stroked_node_type:
@@ -26254,11 +26296,11 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h)
                     mp_number d_width; /*tex The current pen width. */
                     mp_shape_node p0 = (mp_shape_node) p;
                     mp_shape_object *ts = (mp_shape_object *) hq;
-                    gr_pen_ptr(ts) = mp_export_knot_list(mp, mp_pen_ptr(p0));
+                    graphic_pen_ptr(ts) = mp_export_knot_list(mp, mp_pen_ptr(p0));
                     new_number(d_width);
                     mp_get_pen_scale(mp, &d_width, mp_pen_ptr(p0));
                     if (mp_pen_is_elliptical(mp_pen_ptr(p0))) {
-                        gr_path_ptr(ts) = mp_export_knot_list(mp, mp_path_ptr(p0));
+                        graphic_path_ptr(ts) = mp_export_knot_list(mp, mp_path_ptr(p0));
                     } else {
                         mp_knot pc = mp_copy_path(mp, mp_path_ptr(p0));
                         int t = p0->linecap;
@@ -26269,17 +26311,17 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h)
                             t = 1;
                         }
                         pc = mp_make_envelope(mp, pc, mp_pen_ptr(p0), p0->linejoin, (int) t, &(p0->miterlimit));
-                        gr_path_ptr(ts) = mp_export_knot_list(mp, pc);
+                        graphic_path_ptr(ts) = mp_export_knot_list(mp, pc);
                         mp_toss_knot_list(mp, pc);
                     }
-                    mp_gr_export_color(ts, p0);
-                    mp_gr_export_scripts(ts, p);
-                    gr_linejoin_val(ts) = p0->linejoin;
-                    gr_miterlimit_val(ts) = number_to_double(p0->miterlimit);
-                    gr_curvature_val(ts) = p0->curvature;
-                    gr_linecap_val(ts) = p0->linecap;
-                    gr_stacking_val(ts) = p0->stacking;
-                    gr_dash_ptr(ts) = mp_export_dashes(mp, p0, &d_width);
+                    mp_graphic_export_color(ts, p0);
+                    mp_graphic_export_scripts(ts, p);
+                    graphic_linejoin_val(ts) = p0->linejoin;
+                    graphic_miterlimit_val(ts) = number_to_double(p0->miterlimit);
+                    graphic_curvature_val(ts) = p0->curvature;
+                    graphic_linecap_val(ts) = p0->linecap;
+                    graphic_stacking_val(ts) = p0->stacking;
+                    graphic_dash_ptr(ts) = mp_export_dashes(mp, p0, &d_width);
                     free_number(d_width);
                 }
                 break;
@@ -26289,9 +26331,9 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h)
                 {
                     mp_start_node p0 = (mp_start_node) p;
                     mp_start_object *tb = (mp_start_object *) hq;
-                    gr_path_ptr(tb) = mp_export_knot_list(mp, mp_path_ptr((mp_start_node) p));
-                    gr_stacking_val(tb) = p0->stacking;
-                    mp_gr_export_scripts(tb, p);
+                    graphic_path_ptr(tb) = mp_export_knot_list(mp, mp_path_ptr((mp_start_node) p));
+                    graphic_stacking_val(tb) = p0->stacking;
+                    mp_graphic_export_scripts(tb, p);
                 }
                 break;
             case mp_stop_clip_node_type:
@@ -26300,7 +26342,7 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h)
                 {
                     mp_stop_node p0 = (mp_stop_node) p;
                     mp_stop_object *tb = (mp_stop_object *) hq;
-                    gr_stacking_val(tb) = p0->stacking;
+                    graphic_stacking_val(tb) = p0->stacking;
                 }
                 break;
             default:
@@ -26309,7 +26351,7 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h)
         if (hh->body == NULL) {
             hh->body = hq;
         } else {
-            gr_link(hp) = hq;
+            graphic_link(hp) = hq;
         }
         hp = hq;
         p = p->link;
@@ -26317,66 +26359,41 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h)
     return hh;
 }
 
-static void mp_do_gr_toss_dashes (mp_dash_object *dl) {
+static void mp_do_graphic_toss_dashes (mp_dash_object *dl) {
     if (dl) {
         mp_memory_free(dl->array);
         mp_memory_free(dl);
     }
 }
 
-static void mp_do_gr_toss_knot_list (mp_gr_knot p)
+static void mp_do_graphic_toss_knot_list (mp_graphic_knot p)
 {
     if (p) {
-        mp_gr_knot q = p;
+        mp_graphic_knot q = p;
         do {
-            mp_gr_knot r = gr_next_knot(q);
+            mp_graphic_knot r = graphic_next_knot(q);
             mp_memory_free(q);
             q = r;
         } while (q != p);
     }
 }
 
-mp_graphic_object *mp_new_graphic_object (MP mp, int type)
+void mp_graphic_toss_object (mp_graphic_object *p)
 {
-    mp_graphic_object *p;
-    size_t size;
-    (void) mp;
-    switch (type) {
-        case mp_fill_code:
-        case mp_stroked_code:
-            size = sizeof(mp_shape_object);
-            break;
-        case mp_start_clip_code:
-        case mp_start_group_code:
-        case mp_start_bounds_code:
-            size = sizeof(mp_start_object);
-            break;
-        default:
-            size = sizeof(mp_graphic_object);
-            break;
-    }
-    p = (mp_graphic_object *) mp_memory_allocate(size);
-    memset(p, 0, size);
-    gr_type(p) = type;
-    return p;
-}
-
-void mp_gr_toss_object (mp_graphic_object *p)
-{
-    switch (gr_type(p)) {
+    switch (graphic_type(p)) {
         case mp_fill_code:
         case mp_stroked_code:
             {
                 mp_shape_object *o = (mp_shape_object *) p;
-                mp_memory_free(gr_pre_script(o));
-                mp_memory_free(gr_post_script(o));
-                mp_do_gr_toss_knot_list(gr_pen_ptr(o));
-                mp_do_gr_toss_knot_list(gr_path_ptr(o));
-                if (gr_htap_ptr(o)) {
-                    mp_do_gr_toss_knot_list(gr_htap_ptr(o));
+                mp_memory_free(graphic_pre_script(o));
+                mp_memory_free(graphic_post_script(o));
+                mp_do_graphic_toss_knot_list(graphic_pen_ptr(o));
+                mp_do_graphic_toss_knot_list(graphic_path_ptr(o));
+                if (graphic_htap_ptr(o)) {
+                    mp_do_graphic_toss_knot_list(graphic_htap_ptr(o));
                 }
-                if (gr_dash_ptr(o)) {
-                    mp_do_gr_toss_dashes(gr_dash_ptr(o));
+                if (graphic_dash_ptr(o)) {
+                    mp_do_graphic_toss_dashes(graphic_dash_ptr(o));
                 }
             }
             break;
@@ -26385,9 +26402,9 @@ void mp_gr_toss_object (mp_graphic_object *p)
         case mp_start_bounds_code:
             {
                 mp_start_object *o = (mp_start_object *) p;
-                mp_memory_free(gr_pre_script(o));
-                mp_memory_free(gr_post_script(o));
-                mp_do_gr_toss_knot_list(gr_path_ptr(o));
+                mp_memory_free(graphic_pre_script(o));
+                mp_memory_free(graphic_post_script(o));
+                mp_do_graphic_toss_knot_list(graphic_path_ptr(o));
             }
             break;
         case mp_stop_clip_code:
@@ -26398,12 +26415,12 @@ void mp_gr_toss_object (mp_graphic_object *p)
     mp_memory_free(p);
 }
 
-void mp_gr_toss_objects (mp_edge_object *hh)
+void mp_graphic_toss_objects (mp_edge_object *hh)
 {
     mp_graphic_object *p = hh->body;
     while (p) {
-        mp_graphic_object *q = gr_link(p);
-        mp_gr_toss_object(p);
+        mp_graphic_object *q = graphic_link(p);
+        mp_graphic_toss_object(p);
         p = q;
     }
     mp_memory_free(hh);
@@ -26457,7 +26474,7 @@ void mp_scan_symbol_value (MP mp, int keep, char **s, int expand)
             mp_set_sym_sym(p, cur_sym);
             p->name_type = cur_sym_mod;
             if (p->type == mp_symbol_node_type) {
-                mp_sym sr = mp_get_sym_sym(p);
+                mp_symbol sr = mp_get_sym_sym(p);
                 mp_string rr = text(sr);
                 if (rr && rr->str) {
                     r = rr->str;
@@ -26899,8 +26916,8 @@ void mp_scan_primary (MP mp)
                 /*tex
                     Scan a delimited primary.
                 */
-                mp_sym l_delim = cur_sym;
-                mp_sym r_delim = equiv_sym(cur_sym);
+                mp_symbol l_delim = cur_sym;
+                mp_symbol r_delim = equiv_sym(cur_sym);
                 mp_get_x_next(mp);
                 mp_scan_expression(mp);
                 if ((cur_cmd == mp_comma_command) && (mp->cur_exp.type >= mp_known_type)) {
@@ -27035,7 +27052,7 @@ void mp_scan_primary (MP mp)
                 } while (cur_cmd == mp_semicolon_command);
                 if (cur_cmd != mp_end_group_command) {
                     char msg[256];
-                    mp_snprintf(msg, 256, "A group begun on line %d never ended", (int) group_line);
+                    snprintf(msg, 256, "A group begun on line %d never ended", (int) group_line);
                     mp_back_error(
                         mp,
                         msg,
@@ -27159,7 +27176,7 @@ void mp_scan_primary (MP mp)
                     mp_print_cmd_mod(mp, mp_of_binary_command, c);
                     mp->selector = selector;
                     sname = mp_make_string(mp);
-                    mp_snprintf(msg, 256, "Missing 'of' has been inserted for %s", mp_str(mp, sname));
+                    snprintf(msg, 256, "Missing 'of' has been inserted for %s", mp_str(mp, sname));
                     delete_str_ref(sname);
                     mp_back_error(mp, msg, "I've got the first argument; will look now for the other.");
                 }
@@ -27264,7 +27281,7 @@ void mp_scan_primary (MP mp)
                             will disappear. Thus, we cannot safely keep |q| pointing into the
                             variable structure; we need to start searching from the root each time.
                         */
-                        mp_sym qq;
+                        mp_symbol qq;
                         p = pre_head->link;
                         qq = mp_get_sym_sym(p);
                         tt = mp_undefined_type;
@@ -27527,7 +27544,7 @@ static void mp_scan_suffix (MP mp)
 static void mp_scan_secondary (MP mp)
 {
     mp_node cc = NULL;
-    mp_sym mac_name = NULL; /* token defined with |primarydef| */
+    mp_symbol mac_name = NULL; /* token defined with |primarydef| */
   RESTART:
     if ((cur_cmd < mp_min_primary_command) || (cur_cmd > mp_max_primary_command)) {
         mp_bad_exp(mp, "A secondary");
@@ -27561,7 +27578,7 @@ static void mp_scan_secondary (MP mp)
 static void mp_scan_tertiary (MP mp)
 {
     mp_node cc = NULL;
-    mp_sym mac_name = NULL; /* token defined with |secondarydef| */
+    mp_symbol mac_name = NULL; /* token defined with |secondarydef| */
   RESTART:
     if ((cur_cmd < mp_min_primary_command) || (cur_cmd > mp_max_primary_command)) {
         mp_bad_exp(mp, "A tertiary");
@@ -27570,8 +27587,8 @@ static void mp_scan_tertiary (MP mp)
   CONTINUE:
     if (cur_cmd <= mp_max_tertiary_command && cur_cmd >= mp_min_tertiary_command) {
         mp_node p = mp_stash_cur_exp(mp);
-        int c = cur_mod;
         int d = cur_cmd;
+        int c = cur_mod;
         if (d == mp_secondary_def_command) {
             cc = cur_mod_node;
             mac_name = cur_sym;
@@ -27607,7 +27624,7 @@ static void mp_scan_expression (MP mp)
     if (cur_cmd <= mp_max_expression_command && cur_cmd >= mp_min_expression_command) {
         if ((cur_cmd != mp_equals_command) || (my_var_flag != mp_assignment_command)) {
             mp_node cc = NULL;
-            mp_sym mac_name = NULL; /*tex Token defined with |tertiarydef|. */
+            mp_symbol mac_name = NULL; /*tex Token defined with |tertiarydef|. */
             mp_node p = mp_stash_cur_exp(mp);
             int d = cur_cmd;
             int c = cur_mod;
@@ -27897,8 +27914,8 @@ static int mp_scan_path (MP mp)
   DONE_2:
     if (cur_cmd == mp_cycle_command) {
         /*tex
-            Get ready to close a cycle. If a person tries to define an entire path by saying
-            |(x,y)\&cycle|, we silently change the specification to |(x,y)..cycle|, since a cycle
+            Get ready to close a cycle. If a user tries to define an entire path by saying |(x,y) 
+            \&cycle|, we silently change the specification to |(x,y)..cycle|, since a cycle 
             shouldn't have length zero.
         */
         switch (cur_mod) {
@@ -28020,20 +28037,30 @@ static int mp_scan_path (MP mp)
         number_clone(y, pp->y_coord);
     }
     /*tex
-        Join the partial paths and reset |p| and |q| to the head and tail of the result.
+        Join the partial paths and reset |p| and |q| to the head and tail of the result. We use a 
+        switch here because it's more clear an the compiler will deal with the single case anyway
+        and at some point we might combine and turn into functions. 
     */
-    if (command == mp_ampersand_command && operation != mp_just_append_operation && operation != mp_tolerant_concat_operation && operation != mp_tolerant_append_operation) {
-        if (! (number_equal(path_q->x_coord, pp->x_coord)) || ! (number_equal(path_q->y_coord, pp->y_coord))) {
-            mp_back_error(
-                mp,
-                "Paths don't touch; '&' will be changed to '..'",
-                "When you join paths 'p & q', the ending point of p must be exactly equal to the\n"
-                "starting point of q. So I'm going to pretend that you said 'p .. q' instead."
-            );
-            mp_get_x_next(mp);
-            command = mp_path_join_command;
-            set_number_to_unity(path_q->right_tension);
-            set_number_to_unity(y);
+    if (command == mp_ampersand_command) { 
+        switch (operation) {
+            case mp_concat_operation:
+                if (! (number_equal(path_q->x_coord, pp->x_coord)) || ! (number_equal(path_q->y_coord, pp->y_coord))) {
+                    mp_back_error(
+                        mp,
+                        "Paths don't touch; '&' will be changed to '..'",
+                        "When you join paths 'p & q', the ending point of p must be exactly equal to the\n"
+                        "starting point of q. So I'm going to pretend that you said 'p .. q' instead."
+                    );
+                    mp_get_x_next(mp);
+                    command = mp_path_join_command;
+                    set_number_to_unity(path_q->right_tension);
+                    set_number_to_unity(y);
+                }
+                break;
+            case mp_just_append_operation:
+            case mp_tolerant_concat_operation:
+            case mp_tolerant_append_operation:
+                break;
         }
     }
     /*tex
@@ -28047,53 +28074,71 @@ static int mp_scan_path (MP mp)
         /*tex
             Splice independent paths together.
         */
-        if (operation == mp_tolerant_concat_operation || operation == mp_tolerant_append_operation) {
-            mp_number dx, dy;
-            new_number(dx);
-            new_number(dy);
-            set_number_from_subtraction(dx, path_q->x_coord, pp->x_coord);
-            set_number_from_subtraction(dy, path_q->y_coord, pp->y_coord);
-            number_abs(dx);
-            number_abs(dy);
-            if (number_lessequal(dx, epsilon_t) && number_lessequal(dy, epsilon_t)) {
-                set_number_half_from_addition(dx, path_q->x_coord, pp->x_coord);
-                set_number_half_from_addition(dy, path_q->y_coord, pp->y_coord);
-                number_clone(pp->left_x, dx);
-                number_clone(path_q->right_x, dx);
-                number_clone(pp->left_y, dy);
-                number_clone(path_q->right_y, dy);
-            }
-            operation = operation == mp_tolerant_concat_operation ? mp_concatenate_operation : mp_just_append_operation;
-            free_number(dx);
-            free_number(dy);
+        switch (operation) {
+            case mp_concat_operation:
+            case mp_just_append_operation:
+                break;
+            case mp_tolerant_concat_operation:
+            case mp_tolerant_append_operation:
+                {
+                    mp_number dx, dy;
+                    new_number(dx);
+                    new_number(dy);
+                    set_number_from_subtraction(dx, path_q->x_coord, pp->x_coord);
+                    set_number_from_subtraction(dy, path_q->y_coord, pp->y_coord);
+                    number_abs(dx);
+                    number_abs(dy);
+                    if (number_lessequal(dx, epsilon_t) && number_lessequal(dy, epsilon_t)) {
+                        set_number_half_from_addition(dx, path_q->x_coord, pp->x_coord);
+                        set_number_half_from_addition(dy, path_q->y_coord, pp->y_coord);
+                        number_clone(pp->left_x, dx);
+                        number_clone(path_q->right_x, dx);
+                        number_clone(pp->left_y, dy);
+                        number_clone(path_q->right_y, dy);
+                    }
+                    operation = operation == mp_tolerant_concat_operation ? mp_concat_operation : mp_just_append_operation;
+                    free_number(dx);
+                    free_number(dy);
+                    break;
+                }
         }
-        if (operation == mp_just_append_operation) {
-            mp_left_type(pp) = mp_explicit_knot;
-            mp_right_type(path_q) = mp_explicit_knot;
-            mp_prev_knot(pp) = path_q;
-            mp_next_knot(path_q) = pp;
-            number_clone(pp->left_x, path_q->x_coord);
-            number_clone(pp->left_y, path_q->y_coord);
-            number_clone(path_q->right_x, pp->x_coord);
-            number_clone(path_q->right_y, pp->y_coord);
-            mp_knotstate(pp) = mp_begin_knot;
-            mp_knotstate(path_q) = mp_end_knot;
-            path_q = pp;
-        } else {
-            if (mp_left_type(path_q) == mp_open_knot && mp_right_type(path_q) == mp_open_knot) {
-                mp_left_type(path_q) = mp_curl_knot;
-                set_number_to_unity(path_q->left_curl);
-            }
-            if (mp_right_type(pp) == mp_open_knot && knottype == mp_open_knot) {
-                mp_right_type(pp) = mp_curl_knot;
-                set_number_to_unity(pp->right_curl);
-            }
-            mp_right_type(path_q) = mp_right_type(pp);
-            mp_prev_knot(pp) = mp_next_knot(path_q);
-            mp_next_knot(path_q) = mp_next_knot(pp);
-            number_clone(path_q->right_x, pp->right_x);
-            number_clone(path_q->right_y, pp->right_y);
-            mp_memory_free(pp);
+        /* Now we only have concat or append left: */
+        switch (operation) {
+            case mp_concat_operation:
+                {
+                    if (mp_left_type(path_q) == mp_open_knot && mp_right_type(path_q) == mp_open_knot) {
+                        mp_left_type(path_q) = mp_curl_knot;
+                        set_number_to_unity(path_q->left_curl);
+                    }
+                    if (mp_right_type(pp) == mp_open_knot && knottype == mp_open_knot) {
+                        mp_right_type(pp) = mp_curl_knot;
+                        set_number_to_unity(pp->right_curl);
+                    }
+                    mp_right_type(path_q) = mp_right_type(pp);
+                    mp_prev_knot(pp) = mp_next_knot(path_q);
+                    mp_next_knot(path_q) = mp_next_knot(pp);
+                    number_clone(path_q->right_x, pp->right_x);
+                    number_clone(path_q->right_y, pp->right_y);
+                    mp_memory_free(pp);
+                    break;
+                }
+            case mp_just_append_operation:
+                {
+                    mp_left_type(pp) = mp_explicit_knot;
+                    mp_right_type(path_q) = mp_explicit_knot;
+                    mp_prev_knot(pp) = path_q;
+                    mp_next_knot(path_q) = pp;
+                    number_clone(pp->left_x, path_q->x_coord);
+                    number_clone(pp->left_y, path_q->y_coord);
+                    number_clone(path_q->right_x, pp->x_coord);
+                    number_clone(path_q->right_y, pp->y_coord);
+                    mp_knotstate(pp) = mp_begin_knot;
+                    mp_knotstate(path_q) = mp_end_knot;
+                    path_q = pp;
+                    break;
+                }
+         // case mp_tolerant_concat_operation:
+         // case mp_tolerant_append_operation:
         }
         if (qq == pp) {
             qq = path_q;
@@ -28535,7 +28580,7 @@ static void mp_initialize_primitives (MP mp)
     mp_primitive(mp, "arcpointlist",          mp_of_binary_command,        mp_arc_point_list_operation);
     mp_primitive(mp, "subarclength",          mp_of_binary_command,        mp_subarc_length_operation);
 
-    mp_primitive(mp, "&",                     mp_ampersand_command,        mp_concatenate_operation);
+    mp_primitive(mp, "&",                     mp_ampersand_command,        mp_concat_operation);
     mp_primitive(mp, "&&",                    mp_ampersand_command,        mp_just_append_operation);
     mp_primitive(mp, "&&&",                   mp_ampersand_command,        mp_tolerant_concat_operation);
     mp_primitive(mp, "&&&&",                  mp_ampersand_command,        mp_tolerant_append_operation);
@@ -28748,7 +28793,7 @@ static void mp_initialize_tables (MP mp)
         More sophisticated initializations: 
     */
 
-    mp_set_hashloc(mp->end_attr, (mp_sym)-1);
+    mp_set_hashloc(mp->end_attr, (mp_symbol)-1);
     mp_set_parent((mp_value_node) mp->end_attr, NULL);
 
     mp->dep_head  = mp_get_dep_node(mp);

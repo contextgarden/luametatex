@@ -289,7 +289,7 @@ static int mp_double_less(mp_number *A, mp_number *B)
     return A->data.dval < B->data.dval;
 }
 
-static int mp_double_nonequalabs(mp_number *A, mp_number *B)
+static int mp_double_non_equal_abs(mp_number *A, mp_number *B)
 {
     return fabs(A->data.dval) != fabs(B->data.dval);
 }
@@ -367,7 +367,7 @@ static void mp_wrapup_numeric_token (MP mp, unsigned char *start, unsigned char 
         if (result >= warning_limit) {
             if (internal_value(mp_warning_check_internal).data.dval > 0 && (mp->scanner_status != mp_tex_flushing_state)) {
                 char msg[256];
-                mp_snprintf(msg, 256, "Number is too large (%g)", result);
+                snprintf(msg, 256, "Number is too large (%g)", result);
                 mp_error(
                     mp,
                     msg,
@@ -571,7 +571,7 @@ static void mp_double_square_rt (MP mp, mp_number *ret, mp_number *x_orig) /* re
         if (x < 0) {
             char msg[256];
             char *xstr = mp_double_number_tostring(mp, x_orig);
-            mp_snprintf(msg, 256, "Square root of %s has been replaced by 0", xstr);
+            snprintf(msg, 256, "Square root of %s has been replaced by 0", xstr);
             mp_memory_free(xstr);
             mp_error(
                 mp,
@@ -607,7 +607,7 @@ static void mp_double_pyth_sub (MP mp, mp_number *ret, mp_number *a_orig, mp_num
             char msg[256];
             char *astr = mp_double_number_tostring(mp, a_orig);
             char *bstr = mp_double_number_tostring(mp, b_orig);
-            mp_snprintf(msg, 256, "Pythagorean subtraction %s+-+%s has been replaced by 0", astr, bstr);
+            snprintf(msg, 256, "Pythagorean subtraction %s+-+%s has been replaced by 0", astr, bstr);
             mp_memory_free(astr);
             mp_memory_free(bstr);
             mp_error(
@@ -639,7 +639,7 @@ static void mp_double_m_log (MP mp, mp_number *ret, mp_number *x_orig)
     } else {
         char msg[256];
         char *xstr = mp_double_number_tostring(mp, x_orig);
-        mp_snprintf(msg, 256, "Logarithm of %s has been replaced by 0", xstr);
+        snprintf(msg, 256, "Logarithm of %s has been replaced by 0", xstr);
         mp_memory_free(xstr);
         mp_error(
             mp,
@@ -1076,15 +1076,15 @@ math_data *mp_initialize_double_math(MP mp)
     math->md_add_scaled               = mp_double_add_scaled;
     math->md_multiply_int             = mp_double_multiply_int;
     math->md_divide_int               = mp_double_divide_int;
+    math->md_to_int                   = mp_double_to_int;
     math->md_to_boolean               = mp_double_to_boolean;
     math->md_to_scaled                = mp_double_to_scaled;
     math->md_to_double                = mp_double_to_double;
-    math->md_to_int                   = mp_double_to_int;
     math->md_odd                      = mp_double_odd;
     math->md_equal                    = mp_double_equal;
     math->md_less                     = mp_double_less;
     math->md_greater                  = mp_double_greater;
-    math->md_nonequalabs              = mp_double_nonequalabs;
+    math->md_non_equal_abs            = mp_double_non_equal_abs;
     math->md_round_unscaled           = mp_double_unscaled;
     math->md_floor_scaled             = mp_double_floor;
     math->md_fraction_to_round_scaled = mp_double_fraction_to_round_scaled;

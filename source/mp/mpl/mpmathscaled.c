@@ -333,7 +333,7 @@ static int mp_scaled_less(mp_number *A, mp_number *B)
     return A->data.val < B->data.val;
 }
 
-static int mp_scaled_nonequalabs(mp_number *A, mp_number *B)
+static int mp_scaled_non_equal_abs(mp_number *A, mp_number *B)
 {
     return abs(A->data.val) != abs(B->data.val);
 }
@@ -376,7 +376,7 @@ static char *mp_string_scaled (MP mp, int s)
         s = -s;
     }
     /*tex The integer part: */
-    mp_snprintf ((scaled_string+i), 12, "%d", (int) (s / unity));
+    snprintf ((scaled_string+i), 12, "%d", (int) (s / unity));
     while (*(scaled_string+i)) {
         i++;
     }
@@ -681,7 +681,7 @@ static void mp_scaled_wrapup_numeric_token (MP mp, int n, int f)
         if (mod >= fraction_one) {
             if (internal_value(mp_warning_check_internal).data.val > 0 && (mp->scanner_status != mp_tex_flushing_state)) {
                 char msg[256];
-                mp_snprintf(msg, 256, "Number is too large (%s)", mp_string_scaled(mp,mod));
+                snprintf(msg, 256, "Number is too large (%s)", mp_string_scaled(mp,mod));
                 mp_error(
                     mp,
                     msg,
@@ -992,7 +992,7 @@ static void mp_scaled_sqrt (MP mp, mp_number *ret, mp_number *x_orig)
     if (x <= 0) {
         if (x < 0) {
             char msg[256];
-            mp_snprintf(msg, 256, "Square root of %s has been replaced by 0", mp_string_scaled(mp, x));
+            snprintf(msg, 256, "Square root of %s has been replaced by 0", mp_string_scaled(mp, x));
             mp_error(
                 mp,
                 msg,
@@ -1114,7 +1114,7 @@ static void mp_scaled_pyth_sub (MP mp, mp_number *ret, mp_number *a_orig, mp_num
         if (a < b) {
             char msg[256];
             char *astr = mp_strdup(mp_string_scaled(mp, a));
-            mp_snprintf(msg, 256, "Pythagorean subtraction %s+-+%s has been replaced by 0", astr, mp_string_scaled(mp, b));
+            snprintf(msg, 256, "Pythagorean subtraction %s+-+%s has been replaced by 0", astr, mp_string_scaled(mp, b));
             mp_memory_free(astr);
             mp_error(
                 mp,
@@ -1201,7 +1201,7 @@ static void mp_scaled_m_log (MP mp, mp_number *ret, mp_number *x_orig)
     if (x <= 0) {
         /* Handle non-positive logarithm: */
         char msg[256];
-        mp_snprintf(msg, 256, "Logarithm of %s has been replaced by 0", mp_string_scaled(mp, x));
+        snprintf(msg, 256, "Logarithm of %s has been replaced by 0", mp_string_scaled(mp, x));
         mp_error(
             mp,
             msg,
@@ -1770,7 +1770,7 @@ math_data *mp_initialize_scaled_math(MP mp)
     math->md_equal                    = mp_scaled_equal;
     math->md_less                     = mp_scaled_less;
     math->md_greater                  = mp_scaled_greater;
-    math->md_nonequalabs              = mp_scaled_nonequalabs;
+    math->md_non_equal_abs            = mp_scaled_non_equal_abs;
     math->md_round_unscaled           = mp_scaled_round_unscaled;
     math->md_floor_scaled             = mp_scaled_floor;
     math->md_fraction_to_round_scaled = mp_scaled_fraction_to_round_scaled;

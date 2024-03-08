@@ -140,23 +140,23 @@ typedef struct mp_knot_data {
     /* we now have some 3 bytes slack that we can use */
 } mp_knot_data;
 
-typedef struct mp_gr_knot_data *mp_gr_knot;
+typedef struct mp_graphic_knot_data *mp_graphic_knot;
 
-typedef struct mp_gr_knot_data {
-    double        x_coord;
-    double        y_coord;
-    double        left_x;
-    double        left_y;
-    double        right_x;
-    double        right_y;
-    mp_gr_knot    next;
-    mp_gr_knot    prev;
-    unsigned char left_type;
-    unsigned char right_type;
-    unsigned char originator;
-    unsigned char state;
-    signed int    info;
-} mp_gr_knot_data;
+typedef struct mp_graphic_knot_data {
+    double          x_coord;
+    double          y_coord;
+    double          left_x;
+    double          left_y;
+    double          right_x;
+    double          right_y;
+    mp_graphic_knot next;
+    mp_graphic_knot prev;
+    unsigned char   left_type;
+    unsigned char   right_type;
+    unsigned char   originator;
+    unsigned char   state;
+    signed int      info;
+} mp_graphic_knot_data;
 
 enum mp_knot_originator {
     mp_program_code,  /* not created by a user */
@@ -222,9 +222,9 @@ typedef struct mp_shape_object {
     size_t                    pre_length;
     size_t                    post_length;
     mp_color                  color;
-    mp_gr_knot                path;
-    mp_gr_knot                htap;
-    mp_gr_knot                pen;
+    mp_graphic_knot           path;
+    mp_graphic_knot           htap;
+    mp_graphic_knot           pen;
     double                    miterlimit;
     mp_dash_object           *dash;
     unsigned char             color_model;
@@ -245,7 +245,7 @@ typedef struct mp_start_object {
     char                     *post_script;
     size_t                    pre_length;
     size_t                    post_length;
-    mp_gr_knot                path;
+    mp_graphic_knot           path;
 } mp_start_object;
 
 typedef struct mp_stop_object {
@@ -256,7 +256,7 @@ typedef struct mp_stop_object {
     char                     *post_script;
     size_t                    pre_length;
     size_t                    post_length;
-    mp_gr_knot                path;
+    mp_graphic_knot           path;
 } mp_stop_object;
 
 typedef struct mp_edge_object {
@@ -612,7 +612,7 @@ typedef enum mp_name_type_type {
     mp_greater_or_equal_operation,  /* operation code for |>=| */
     mp_equal_operation,             /* operation code for \.= */
     mp_unequal_operation,           /* operation code for |<>| */
-    mp_concatenate_operation,       /* operation code for \.\& */
+    mp_concat_operation,            /* operation code for \.\& */
     mp_just_append_operation,       /* operation code for \.\&\& */
     mp_tolerant_concat_operation,   /* operation code for \.\&\&\& */
     mp_tolerant_append_operation,   /* operation code for \.\&\&\&\& */
@@ -845,7 +845,7 @@ typedef int    (*number_odd_func)                   (mp_number *A);
 typedef int    (*number_equal_func)                 (mp_number *A, mp_number *B);
 typedef int    (*number_less_func)                  (mp_number *A, mp_number *B);
 typedef int    (*number_greater_func)               (mp_number *A, mp_number *B);
-typedef int    (*number_nonequalabs_func)           (mp_number *A, mp_number *B);
+typedef int    (*number_non_equal_abs_func)         (mp_number *A, mp_number *B);
 typedef void   (*make_scaled_func)                  (MP mp, mp_number *ret, mp_number *A, mp_number *B);
 typedef void   (*make_fraction_func)                (MP mp, mp_number *ret, mp_number *A, mp_number *B);
 typedef void   (*take_fraction_func)                (MP mp, mp_number *ret, mp_number *A, mp_number *B);
@@ -950,7 +950,7 @@ typedef struct math_data {
     number_equal_func                 md_equal;
     number_less_func                  md_less;
     number_greater_func               md_greater;
-    number_nonequalabs_func           md_nonequalabs;
+    number_non_equal_abs_func         md_non_equal_abs;
     number_round_func                 md_round_unscaled;
     number_floor_func                 md_floor_scaled;
     make_scaled_func                  md_make_scaled;
@@ -987,7 +987,7 @@ typedef struct math_data {
 
 typedef struct mp_value_node_data *mp_value_node;
 typedef struct mp_node_data       *mp_node;
-typedef struct mp_symbol_entry    *mp_sym;
+typedef struct mp_symbol_entry    *mp_symbol;
 
 typedef unsigned short quarterword; /* 1/4 of a 64 bit word */
 typedef int            halfword;    /* 1/2 of a 64 bit word */
@@ -1001,7 +1001,7 @@ typedef struct mp_value_data {
     mp_independent_data indep;
     mp_number           n;
     mp_string           str;
-    mp_sym              sym;
+    mp_symbol           sym;
     mp_node             node;
     mp_knot             p;
 } mp_value_data;
@@ -1117,12 +1117,12 @@ typedef struct mp_subst_list_item {
     int                        value_mod;
     int                        value_data;
     int                        padding;
-    mp_sym                     info;
+    mp_symbol                  info;
     struct mp_subst_list_item *link;
 } mp_subst_list_item;
 
 typedef struct mp_loop_data {
-    mp_sym               var ;        /* the var of the loop */
+    mp_symbol            var ;        /* the var of the loop */
     mp_node              info;        /* iterative text of this loop */
     mp_node              type;        /* the special type of this loop, or a pointer into mem */
     mp_node              list;        /* the remaining list elements */
@@ -1273,23 +1273,23 @@ typedef struct MP_instance {
     avl_tree            symbols;                /* avl tree of symbolic tokens */
     avl_tree            frozen_symbols;         /* avl tree of frozen symbolic tokens */
     avl_iterator        symbol_iterator;
-    mp_sym              frozen_bad_vardef;
-    mp_sym              frozen_colon;
-    mp_sym              frozen_end_def;
-    mp_sym              frozen_end_for;
-    mp_sym              frozen_end_group;
-    mp_sym              frozen_etex;
-    mp_sym              frozen_fi;
-    mp_sym              frozen_inaccessible;
-    mp_sym              frozen_left_bracket;
-    mp_sym              frozen_repeat_loop;
-    mp_sym              frozen_right_delimiter;
-    mp_sym              frozen_semicolon;
-    mp_sym              frozen_slash;
-    mp_sym              frozen_undefined;
-    mp_sym              frozen_dump;
+    mp_symbol           frozen_bad_vardef;
+    mp_symbol           frozen_colon;
+    mp_symbol           frozen_end_def;
+    mp_symbol           frozen_end_for;
+    mp_symbol           frozen_end_group;
+    mp_symbol           frozen_etex;
+    mp_symbol           frozen_fi;
+    mp_symbol           frozen_inaccessible;
+    mp_symbol           frozen_left_bracket;
+    mp_symbol           frozen_repeat_loop;
+    mp_symbol           frozen_right_delimiter;
+    mp_symbol           frozen_semicolon;
+    mp_symbol           frozen_slash;
+    mp_symbol           frozen_undefined;
+    mp_symbol           frozen_dump;
     /*  */
-    mp_sym              id_lookup_test;
+    mp_symbol              id_lookup_test;
     /*  */
     mp_save_data       *save_ptr;               /* the most recently saved item */
     /*  */
@@ -1373,14 +1373,14 @@ typedef struct MP_instance {
     int                 file_ptr;               /* shallowest level shown by |show_context| */
     /*  */
     int                 scanner_status;         /* are we scanning at high speed? */
-    mp_sym              warning_info;           /* if so, what else do we need to know, in case an error occurs? */
+    mp_symbol           warning_info;           /* if so, what else do we need to know, in case an error occurs? */
     int                 warning_line;
     mp_node             warning_info_node;
     /*  */
     int                 force_eof;              /* should the next |input| be aborted early? */
     /*  */
-    mp_sym              bg_loc;
-    mp_sym              eg_loc;                 /* hash addresses of |begingroup| and |endgroup| */
+    mp_symbol           bg_loc;
+    mp_symbol           eg_loc;                 /* hash addresses of |begingroup| and |endgroup| */
     /*  */
     int                 expand_depth_count;     /* current expansion depth */
     int                 expand_depth;           /* current expansion depth */
@@ -1427,7 +1427,7 @@ typedef struct MP_instance {
     /*  */
     int                 last_add_type;          /* command modifier that identifies the last |addto| command */
     /*  */
-    mp_sym              every_job_sym;
+    mp_symbol           every_job_sym;
     /*  */
     int                 long_help_seen;         /* has the long |\\errmessage| help been used? */
     /*  */
@@ -1540,7 +1540,7 @@ typedef struct mp_value_node_data {
     /* specific */
     mp_value_data        data;
     mp_number            subscript;
-    mp_sym               hashloc_;
+    mp_symbol            hashloc;
     mp_node              parent;
     mp_node              attr_head;
     mp_node              subscr_head;
@@ -1700,10 +1700,10 @@ typedef struct mp_edge_header_node_data {
     mp_number            maxx;
     mp_number            maxy;
     mp_node              bblast;
-    int                  bbtype;     /* tells how bounding box data depends on |truecorners| */
-    int                  ref_count;  /* explained below */
+    int                  bbtype; /* tells how bounding box data depends on |truecorners| */
+    int                  ref_count; 
     mp_node              list;
-    mp_node              obj_tail;   /* explained below */
+    mp_node              obj_tail;  
 } mp_edge_header_node_data;
 
 typedef struct mp_edge_header_node_data *mp_edge_header_node;
@@ -1726,14 +1726,6 @@ typedef struct mp_if_node_data *mp_if_node;
 
 /* mp header stuff */
 
-extern MP               mp_initialize                 (MP_options * opt);
-
-extern MP_options      *mp_options                    (void);
-
-extern int              mp_status                     (MP mp);
-extern int              mp_finished                   (MP mp);
-extern void            *mp_userdata                   (MP mp);
-
 extern void             mp_print_e_str                (MP mp, const char *s);
 extern void             mp_print_e_chr                (MP mp, unsigned char k);
 extern void             mp_show_context               (MP mp);
@@ -1749,10 +1741,12 @@ extern void            *mp_fetch_symbol               (MP mp, char *s);
 
 extern int              mp_close_path_cycle           (MP mp, mp_knot p, mp_knot q);
 extern int              mp_close_path                 (MP mp, mp_knot q, mp_knot first);
+
 extern mp_knot          mp_create_knot                (MP mp);
-extern int              mp_set_knot                   (MP mp, mp_knot p, double x, double y);
+
 extern mp_knot          mp_append_knot                (MP mp, mp_knot p, double x, double y);
 extern mp_knot          mp_append_knot_xy             (MP mp, mp_knot p, double x, double y);
+
 extern int              mp_set_knot_curl              (MP mp, mp_knot q, double value);
 extern int              mp_set_knot_left_curl         (MP mp, mp_knot q, double value);
 extern int              mp_set_knot_right_curl        (MP mp, mp_knot q, double value);
@@ -1763,24 +1757,16 @@ extern int              mp_set_knot_left_tension      (MP mp, mp_knot p, double 
 extern int              mp_set_knot_right_tension     (MP mp, mp_knot p, double t1);
 extern int              mp_set_knot_left_control      (MP mp, mp_knot p, double t1, double t2);
 extern int              mp_set_knot_right_control     (MP mp, mp_knot p, double t1, double t2);
-extern int              mp_set_knotpair_controls      (MP mp, mp_knot p, mp_knot q, double x1, double y1, double x2, double y2) ;
+extern int              mp_set_knotpair_controls      (MP mp, mp_knot p, mp_knot q, double x1, double y1, double x2, double y2);
 extern int              mp_set_knot_direction         (MP mp, mp_knot q, double x, double y) ;
-extern int              mp_set_knotpair_directions    (MP mp, mp_knot p, mp_knot q, double x1, double y1, double x2, double y2) ;
+extern int              mp_set_knotpair_directions    (MP mp, mp_knot p, mp_knot q, double x1, double y1, double x2, double y2);
+
 extern int              mp_solve_path                 (MP mp, mp_knot first);
 extern void             mp_free_path                  (MP mp, mp_knot p);
 
 extern double           mp_number_as_double           (MP mp, mp_number n);
 
 extern void             mp_set_internal               (MP mp, char *n, char *v, int isstring);
-
-extern void             mplib_shipout_backend         (MP mp, void *h);
-
-extern mp_run_data     *mp_rundata                    (MP mp);
-
-extern  int             mp_run                        (MP mp);
-extern  int             mp_execute                    (MP mp, const char *s, size_t l);
-extern  int             mp_finish                     (MP mp);
-extern  char           *mp_metapost_version           (void);
 
 extern  int             mp_skip_token_value           (MP mp, int token);
 
@@ -1812,10 +1798,22 @@ extern  void            mp_new_randoms                (MP mp);
 
 /* mplib export header stuff */
 
-struct mp_edge_object  *mp_gr_export                  (MP mp, mp_edge_header_node h);
-mp_graphic_object      *mp_new_graphic_object         (MP mp, int type);
-void                    mp_gr_toss_objects            (mp_edge_object *hh);
-void                    mp_gr_toss_object             (mp_graphic_object *p);
+extern MP               mp_initialize                 (MP_options *opt);
+extern void             mplib_shipout_backend         (MP mp, void *h);
+extern  int             mp_run                        (MP mp);
+extern  int             mp_execute                    (MP mp, const char *s, size_t l);
+extern  int             mp_finish                     (MP mp);
+extern  char           *mp_metapost_version           (void);
+extern mp_run_data     *mp_rundata                    (MP mp);
+extern MP_options      *mp_options                    (void);
+extern void            *mp_userdata                   (MP mp);
+extern int              mp_status                     (MP mp);
+extern int              mp_finished                   (MP mp);
+
+
+extern mp_edge_object  *mp_graphic_export             (MP mp, mp_edge_header_node h);
+extern void             mp_graphic_toss_objects       (mp_edge_object *hh);
+extern void             mp_graphic_toss_object        (mp_graphic_object *p);
 
 /* memory management header stuff */
 
@@ -1823,10 +1821,6 @@ extern void            *mp_memory_allocate            (size_t size);
 extern void            *mp_memory_clear_allocate      (size_t size);
 extern void            *mp_memory_reallocate          (void *p, size_t size);
 extern void             mp_memory_free                (void *p);
-
-/* left-overs */
-
-# define mp_snprintf snprintf
 
 # endif
 

@@ -328,7 +328,7 @@ static int mp_posit_less(mp_number *A, mp_number *B)
     return posit_lt(A->data.pval, B->data.pval);
 }
 
-static int mp_posit_nonequalabs(mp_number *A, mp_number *B)
+static int mp_posit_non_equal_abs(mp_number *A, mp_number *B)
 {
     return ! posit_eq(posit_fabs(A->data.pval), posit_fabs(B->data.pval));
 }
@@ -406,7 +406,7 @@ static void mp_posit_aux_wrapup_numeric_token (MP mp, unsigned char *start, unsi
         if (result >= mp_warning_limit) {
             if (posit_gt(internal_value(mp_warning_check_internal).data.pval, mp_posit_data.zero) && (mp->scanner_status != mp_tex_flushing_state)) {
                 char msg[256];
-                mp_snprintf(msg, 256, "Number is too large (%g)", result);
+                snprintf(msg, 256, "Number is too large (%g)", result);
                 mp_error(
                     mp,
                     msg,
@@ -622,7 +622,7 @@ static void mp_posit_square_rt (MP mp, mp_number *ret, mp_number *x_orig) /* ret
         if (posit_lt(x_orig->data.pval, mp_posit_data.zero)) {
             char msg[256];
             char *xstr = mp_posit_number_tostring(mp, x_orig);
-            mp_snprintf(msg, 256, "Square root of %s has been replaced by 0", xstr);
+            snprintf(msg, 256, "Square root of %s has been replaced by 0", xstr);
             mp_memory_free(xstr);
             mp_error(
                 mp,
@@ -673,7 +673,7 @@ static void mp_posit_pyth_sub (MP mp, mp_number *ret, mp_number *a_orig, mp_numb
             char msg[256];
             char *astr = mp_posit_number_tostring(mp, a_orig);
             char *bstr = mp_posit_number_tostring(mp, b_orig);
-            mp_snprintf(msg, 256, "Pythagorean subtraction %s+-+%s has been replaced by 0", astr, bstr);
+            snprintf(msg, 256, "Pythagorean subtraction %s+-+%s has been replaced by 0", astr, bstr);
             mp_memory_free(astr);
             mp_memory_free(bstr);
             mp_error(
@@ -706,7 +706,7 @@ static void mp_posit_m_log (MP mp, mp_number *ret, mp_number *x_orig)
     } else {
         char msg[256];
         char *xstr = mp_posit_number_tostring(mp, x_orig);
-        mp_snprintf(msg, 256, "Logarithm of %s has been replaced by 0", xstr);
+        snprintf(msg, 256, "Logarithm of %s has been replaced by 0", xstr);
         mp_memory_free(xstr);
         mp_error(
             mp,
@@ -1240,15 +1240,15 @@ math_data *mp_initialize_posit_math(MP mp)
     math->md_add_scaled               = mp_posit_add_scaled;
     math->md_multiply_int             = mp_posit_multiply_int;
     math->md_divide_int               = mp_posit_divide_int;
+    math->md_to_int                   = mp_posit_to_int;
     math->md_to_boolean               = mp_posit_to_boolean;
     math->md_to_scaled                = mp_posit_to_scaled;
     math->md_to_double                = mp_posit_to_double;
-    math->md_to_int                   = mp_posit_to_int;
     math->md_odd                      = mp_posit_odd;
     math->md_equal                    = mp_posit_equal;
     math->md_less                     = mp_posit_less;
     math->md_greater                  = mp_posit_greater;
-    math->md_nonequalabs              = mp_posit_nonequalabs;
+    math->md_non_equal_abs            = mp_posit_non_equal_abs;
     math->md_round_unscaled           = mp_posit_round_unscaled;
     math->md_floor_scaled             = mp_posit_floor;
     math->md_fraction_to_round_scaled = mp_posit_fraction_to_round_scaled;
