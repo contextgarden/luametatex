@@ -1149,15 +1149,15 @@ static int aux_is_curved_gr(mp_gr_knot ith, mp_gr_knot pth, lua_Number tolerance
         return 1;
     }
     eps = v2x * v3x + v2y * v3y; /* \im { v__2 \cdot v__3 = |v__2| \times |v__3|\times cos([v__2,v__3]) } */
-    if (eps < 0) {
+    if  (eps > 0) {
         return 1;
     }
-        eps = (v1x * v1x + v1y * v1y) - (v3x * v3x + v3y * v3y) ; /* checking lengths */
-    if (eps < 0) {
+    eps = (v1x * v1x + v1y * v1y) - (v3x * v3x + v3y * v3y) ; /* checking lengths */
+    if (eps > 0) {
         return 1;
     }
     eps = (v2x * v2x + v2y * v2y) - (v3x * v3x + v3y * v3y); /* checking lengths */
-    if (eps < 0) {
+    if (eps > 0) {
         return 1;
     }
     return 0;
@@ -1180,6 +1180,7 @@ static void mplib_aux_push_path(lua_State *L, mp_gr_knot h, int ispen, lua_Numbe
         mp_gr_knot p = h;
         mp_gr_knot q = h;
         int iscycle = 1;
+        curvature = curvature == mp_always_curvature_code;
         lua_createtable(L, ispen ? 1 : MPLIB_PATH_SIZE, ispen ? 2 : 1);
         do {
             mp_gr_knot n = p->next;
@@ -1187,16 +1188,15 @@ static void mplib_aux_push_path(lua_State *L, mp_gr_knot h, int ispen, lua_Numbe
             int rt = p->right_type;
             if (ispen) {
                 lua_createtable(L, 0, 6);
-         // } else if (i > 0 && p != h && aux_is_duplicate_gr(p, n, movetolerance) && ! aux_is_curved_gr(p, n, bendtolerance) ) {
-            } else if (i > 0 && p != h && n != h && aux_is_duplicate_gr(p, n, movetolerance) && ! aux_is_curved_gr(p, n, bendtolerance) ) {
+            } else if (i > 0 && p != h && n != h && aux_is_duplicate_gr(p, n, movetolerance) && (curvature || aux_is_curved_gr(p, n, bendtolerance)) ) {
                 n->left_x = p->left_x;
                 n->left_y = p->left_y;
                 goto NEXTONE;
             } else {
                 int ln = lt != mp_explicit_knot;
                 int rn = rt != mp_explicit_knot;
-                int ic = curvature != mp_default_curvature_code ? 1 : (i > 0 && aux_is_curved_gr(q, p, bendtolerance));
                 int st = p->state;
+                int ic = curvature || (i > 0 && aux_is_curved_gr(q, p, bendtolerance));
                 lua_createtable(L, 0, 6 + (ic ? 1 : 0) + (ln ? 1 : 0) + (rn ? 1 : 0) + (st ? 1: 0));
                 if (ln && valid_knot_type(lt)) {
                     lua_push_svalue_at_key(L, left_type, mplib_values_knot[lt]);
@@ -1226,7 +1226,7 @@ static void mplib_aux_push_path(lua_State *L, mp_gr_knot h, int ispen, lua_Numbe
             q = p;
             p = n;
         } while (p && p != h);
-        if (iscycle && i > 1 && aux_is_curved_gr(q, h, bendtolerance)) {
+        if (iscycle && i > 1 && (curvature || aux_is_curved_gr(q, h, bendtolerance))) {
             lua_rawgeti(L, -1, 1);
             lua_push_boolean_at_key(L, curved, 1);
             lua_pop(L, 1);
