@@ -22122,51 +22122,8 @@ static void mp_set_up_boundingpath (MP mp, mp_node p)
         mp_bad_binary(mp, p, mp_boundingpath_operation);
         mp_set_cur_exp_knot(mp, q);
         mp->cur_exp.type = mp_path_type;
-        return;
     } else {
-        mp_knot ll = mp_new_knot(mp);
-        mp_knot lr = mp_new_knot(mp);
-        mp_knot ur = mp_new_knot(mp);
-        mp_knot ul = mp_new_knot(mp);
-        if (ll == NULL || lr == NULL || ur == NULL || ul == NULL) { /* weird test */
-            mp_bad_binary(mp, p, mp_boundingpath_operation);
-            mp_set_cur_exp_knot(mp, q);
-            mp->cur_exp.type = mp_path_type;
-            return;
-        } else {
-            mp_make_bounding_box(mp);
-
-         // mp_left_type(ll) = mp_endpoint_knot;
-         // mp_right_type(ll) = mp_endpoint_knot;
-         // mp_originator(ll) = mp_program_code;
-         // mp_knotstate(ll) = mp_regular_knot;
-         // number_clone(ll->x_coord, mp_minx);
-         // number_clone(ll->y_coord, mp_miny);
-         // mp_originator(lr) = mp_program_code;
-         // mp_knotstate(lr) = mp_regular_knot;
-         // number_clone(lr->x_coord, mp_maxx);
-         // number_clone(lr->y_coord, mp_miny);
-         // mp_originator(ur) = mp_program_code;
-         // mp_knotstate(ur) = mp_regular_knot;
-         // number_clone(ur->x_coord, mp_maxx);
-         // number_clone(ur->y_coord, mp_maxy);
-         // mp_originator(ul) = mp_program_code;
-         // mp_knotstate(ul) = mp_regular_knot;
-         // number_clone(ul->x_coord, mp_minx);
-         // number_clone(ul->y_coord, mp_maxy);
-         // mp_prev_knot(lr) = ll;
-         // mp_next_knot(ll) = lr;
-         // mp_prev_knot(ur) = lr;
-         // mp_next_knot(lr) = ur;
-         // mp_prev_knot(ul) = ur;
-         // mp_next_knot(ur) = ul;
-         // mp_close_path_cycle(mp, ul, ll);
-         // mp_make_path(mp, ll);
-         // mp->cur_exp.type = mp_path_type;
-         // mp_set_cur_exp_knot(mp, ll);
-
-            mp_free_path(mp, qq);
-        }
+        mp_make_bounding_box(mp);
     }
 }
 
