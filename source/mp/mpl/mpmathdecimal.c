@@ -1537,7 +1537,7 @@ math_data *mp_initialize_decimal_math (MP mp)
     math->md_half_from_addition       = mp_decimal_set_half_from_addition;
     math->md_from_subtraction         = mp_decimal_set_from_subtraction;
     math->md_half_from_subtraction    = mp_decimal_set_half_from_subtraction;
-    math->md_from_oftheway            = mp_decimal_set_from_of_the_way;
+    math->md_from_of_the_way          = mp_decimal_set_from_of_the_way;
     math->md_from_div                 = mp_decimal_set_from_div;
     math->md_from_mul                 = mp_decimal_set_from_mul;
     math->md_from_int_div             = mp_decimal_set_from_int_div;

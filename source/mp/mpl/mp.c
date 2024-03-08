@@ -796,7 +796,7 @@ The first set of numerical values goes into the header
 # define  free_math()                             mp->math->md_free_math(mp)
 # define  scan_numeric_token(A)                   mp->math->md_scan_numeric(mp,A)
 # define  scan_fractional_token(A)                mp->math->md_scan_fractional(mp,A)
-# define  set_number_from_of_the_way(A,t,B,C)     mp->math->md_from_oftheway(mp,&(A),&(t),&(B),&(C))
+# define  set_number_from_of_the_way(A,t,B,C)     mp->math->md_from_of_the_way(mp,&(A),&(t),&(B),&(C))
 # define  set_number_from_int(A,B)                mp->math->md_from_int(&(A),B)
 # define  set_number_from_scaled(A,B)             mp->math->md_from_scaled(&(A),B)
 # define  set_number_from_boolean(A,B)            mp->math->md_from_boolean(&(A),B)
@@ -905,8 +905,10 @@ code when we make then the same. Todo: use char for some.
 # define  mp_line_cap(A)       ((mp_shape_node) (A))->linecap
 # define  mp_line_join(A)      ((mp_shape_node) (A))->linejoin
 # define  mp_miterlimit(A)     ((mp_shape_node) (A))->miterlimit
+# define  mp_curvature(A)      ((mp_shape_node) (A))->curvature
 # define  mp_set_linecap(A,B)  ((mp_shape_node) (A))->linecap = (unsigned char) (B)
 # define  mp_set_linejoin(A,B) ((mp_shape_node) (A))->linejoin = (unsigned char) (B)
+# define  mp_set_curvature(A,B)((mp_shape_node) (A))->curvature = (unsigned char) (B)
 # define  mp_pre_script(A)     ((mp_shape_node) (A))->pre_script
 # define  mp_post_script(A)    ((mp_shape_node) (A))->post_script
 # define  mp_color_model(A)    ((mp_shape_node) (A))->color_model
@@ -1713,6 +1715,7 @@ backend can do that, but we keep the number.
 # define  gr_linecap_val(A)    (A)->linecap
 # define  gr_stacking_val(A)   (A)->stacking
 # define  gr_miterlimit_val(A) (A)->miterlimit
+# define  gr_curvature_val(A)  (A)->curvature
 # define  gr_pre_script(A)     (A)->pre_script
 # define  gr_post_script(A)    (A)->post_script
 # define  gr_pre_length(A)     (A)->pre_length
@@ -7199,24 +7202,39 @@ static void mp_bound_cubic (MP mp, mp_knot p, mp_knot q, int c)
             number_clone(del, del3);
         }
         if (number_nonzero(del)) {
-            mp_number absval1;
-            new_number(absval1);
-            number_abs_clone(dmax, del1);
-            number_abs_clone(absval1, del2);
-            if (number_greater(absval1, dmax)) {
-                number_clone(dmax, absval1);
+//            mp_number absval1;
+//            new_number(absval1);
+//            number_abs_clone(dmax, del1);
+//            number_abs_clone(absval1, del2);
+//            if (number_greater(absval1, dmax)) {
+//                number_clone(dmax, absval1);
+//            }
+//            number_abs_clone(absval1, del3);
+//            if (number_greater(absval1, dmax)) {
+//                number_clone(dmax, absval1);
+//            }
+//            free_number(absval1);
+
+            if (number_greater(del1, del2)) {
+                if (number_greater(del1, del3)) {
+                    number_clone(dmax, del1);
+                } else {       
+                    number_clone(dmax, del3);
+                }
+            } else {
+                if (number_greater(del2, del3)) {
+                    number_clone(dmax, del2);
+                } else {       
+                    number_clone(dmax, del3);
+                }
             }
-            number_abs_clone(absval1, del3);
-            if (number_greater(absval1, dmax)) {
-                number_clone(dmax, absval1);
-            }
+
             while (number_less(dmax, fraction_half_t)) {
                 number_double(dmax);
                 number_double(del1);
                 number_double(del2);
                 number_double(del3);
             }
-            free_number(absval1);
         }
         if (number_negative(del)) {
             number_negate(del1);
@@ -7228,8 +7246,42 @@ static void mp_bound_cubic (MP mp, mp_knot p, mp_knot q, int c)
             /*tex
                 Test the extremes of the cubic against the bounding box.
             */
+            mp_eval_cubic(mp, &x, p, q, c, &t);
+            /*tex
+                Adjust |bbmin[c]| and |bbmax[c]| to accommodate |x|.
+            */
+            if (number_less(x, mp->bbmin[c])) {
+                number_clone(mp->bbmin[c], x);
+            }
+            if (number_greater(x, mp->bbmax[c])) {
+                number_clone(mp->bbmax[c], x);
+            }
+            set_number_from_of_the_way(del2, t, del2, del3);
+            /*tex
+                Now |0,del2,del3| represent the derivative on the remaining interval.
+            */
+            if (number_positive(del2)) {
+                set_number_to_zero(del2);
+            }
             {
-                mp_eval_cubic(mp, &x, p, q, c, &t);
+                mp_number arg2, arg3;
+                new_number(arg2);
+                new_number(arg3);
+                number_negated_clone(arg2, del2);
+                number_negated_clone(arg3, del3);
+                crossing_point(tt, zero_t, arg2, arg3);
+                free_number(arg2);
+                free_number(arg3);
+            }
+            if (number_less(tt, fraction_one_t)) {
+                /*tex
+                    Test the second extreme against the bounding box.
+                */
+                mp_number arg;
+                new_number(arg);
+                set_number_from_of_the_way(arg, t, tt, fraction_one_t);
+                mp_eval_cubic(mp, &x, p, q, c, &arg);
+                free_number(arg);
                 /*tex
                     Adjust |bbmin[c]| and |bbmax[c]| to accommodate |x|.
                 */
@@ -7238,42 +7290,6 @@ static void mp_bound_cubic (MP mp, mp_knot p, mp_knot q, int c)
                 }
                 if (number_greater(x, mp->bbmax[c])) {
                     number_clone(mp->bbmax[c], x);
-                }
-                set_number_from_of_the_way(del2, t, del2, del3);
-                /*tex
-                    Now |0,del2,del3| represent the derivative on the remaining interval.
-                */
-                if (number_positive(del2)) {
-                    set_number_to_zero(del2);
-                }
-                {
-                    mp_number arg2, arg3;
-                    new_number(arg2);
-                    new_number(arg3);
-                    number_negated_clone(arg2, del2);
-                    number_negated_clone(arg3, del3);
-                    crossing_point(tt, zero_t, arg2, arg3);
-                    free_number(arg2);
-                    free_number(arg3);
-                }
-                if (number_less(tt, fraction_one_t)) {
-                    /*tex
-                        Test the second extreme against the bounding box.
-                    */
-                    mp_number arg;
-                    new_number(arg);
-                    set_number_from_of_the_way(arg, t, tt, fraction_one_t);
-                    mp_eval_cubic(mp, &x, p, q, c, &arg);
-                    free_number(arg);
-                    /*tex
-                        Adjust |bbmin[c]| and |bbmax[c]| to accommodate |x|.
-                    */
-                    if (number_less(x, mp->bbmin[c])) {
-                        number_clone(mp->bbmin[c], x);
-                    }
-                    if (number_greater(x, mp->bbmax[c])) {
-                        number_clone(mp->bbmax[c], x);
-                    }
                 }
             }
         }
@@ -8795,6 +8811,9 @@ static mp_node mp_new_shape_node (MP mp, mp_knot p, int type)
     } else {
         t->linecap = mp_butt_linecap_code;
     }
+    /* */
+    t->curvature = mp_default_curvature_code;
+    /* */
     return (mp_node) t;
 }
 
@@ -9469,7 +9488,21 @@ void mp_print_edges (MP mp, mp_node h, const char *s, int nuline)
                         mp_print_str(mp, "?? joins");
                         break;
                 }
-
+                /*tex
+                    Print curvature treatment for graphical object |p|.
+                */
+                switch (((mp_shape_node) p)->curvature) {
+                    case mp_default_curvature_code:
+                        mp_print_str(mp, "default curvature");
+                        break;
+                    case mp_always_curvature_code:
+                        mp_print_str(mp, "always curvature");
+                        break;
+                    default:
+                        mp_print_str(mp, "?? curvature");
+                        break;
+                }
+                /* */
                 mp_print_str(mp, " with pen");
                 mp_print_ln(mp);
                 if (mp_pen_ptr((mp_shape_node) p) == NULL) {
@@ -13933,6 +13966,7 @@ const char *mp_cmd_mod_string (MP mp, int c, int m)
                 case mp_with_linecap_code            : return "withlinecap";
                 case mp_with_linejoin_code           : return "withlinejoin";
                 case mp_with_miterlimit_code         : return "withmiterlimit";
+                case mp_with_curvature_code          : return "withcurvature";
             }
             break;
         case mp_bounds_command:
@@ -19125,6 +19159,51 @@ static mp_knot mp_simple_knot(MP mp, mp_number *x, mp_number *y)
     return k;
 }
 
+static void mp_make_bounding_box(MP mp)
+{
+    mp_knot ll = mp_simple_knot(mp, &mp_minx, &mp_miny);
+    mp_knot lr = mp_simple_knot(mp, &mp_maxx, &mp_miny);
+    mp_knot ur = mp_simple_knot(mp, &mp_maxx, &mp_maxy);
+    mp_knot ul = mp_simple_knot(mp, &mp_minx, &mp_maxy);
+    mp_number dx;
+    mp_number dy;
+    mp_prev_knot(lr) = ll;
+    mp_next_knot(ll) = lr;
+    mp_prev_knot(ur) = lr;
+    mp_next_knot(lr) = ur;
+    mp_prev_knot(ul) = ur;
+    mp_next_knot(ur) = ul;
+    mp_prev_knot(ll) = ul;
+    mp_next_knot(ul) = ll;
+    /* */
+    new_number(dx);
+    number_clone(dx, lr->x_coord);
+    number_subtract(dx, ll->x_coord);
+    number_abs(dx);
+    number_divide_int(dx, 3);
+    new_number(dy);
+    number_clone(dy, ul->y_coord);
+    number_subtract(dy, ll->y_coord);
+    number_abs(dy);
+    number_divide_int(dy, 3);
+    /* */
+    number_add(ll->right_x, dx);
+    number_add(ul->left_x, dx);
+    number_subtract(lr->left_x, dx);
+    number_subtract(ur->right_x, dx);
+    number_add(ll->left_y, dy);
+    number_add(lr->right_y, dy);
+    number_subtract(ur->left_y, dy);
+    number_subtract(ul->right_y, dy);
+    /* */
+    free_number(dx);
+    free_number(dy);
+    /* */
+ // mp_solve_path(mp, ll);
+    mp->cur_exp.type = mp_path_type;
+    mp_set_cur_exp_knot(mp, ll);
+}
+
 static mp_knot mp_complex_knot(MP mp, mp_knot o)
 {
     mp_knot k = mp_new_knot(mp);
@@ -20629,20 +20708,7 @@ static void mp_do_unary (MP mp, int c)
             if (! mp_get_cur_bbox(mp)) {
                 mp_bad_unary(mp, mp_corners_operation);
             } else {
-                mp_knot ll = mp_simple_knot(mp, &mp_minx, &mp_miny);
-                mp_knot lr = mp_simple_knot(mp, &mp_maxx, &mp_miny);
-                mp_knot ur = mp_simple_knot(mp, &mp_maxx, &mp_maxy);
-                mp_knot ul = mp_simple_knot(mp, &mp_minx, &mp_maxy);
-                mp_prev_knot(lr) = ll;
-                mp_next_knot(ll) = lr;
-                mp_prev_knot(ur) = lr;
-                mp_next_knot(lr) = ur;
-                mp_prev_knot(ul) = ur;
-                mp_next_knot(ur) = ul;
-                mp_prev_knot(ll) = ul;
-                mp_next_knot(ul) = ll;
-                mp->cur_exp.type = mp_path_type;
-                mp_set_cur_exp_knot(mp, ll);
+                mp_make_bounding_box(mp);
             }
             break;
         case mp_x_range_operation:
@@ -22068,34 +22134,37 @@ static void mp_set_up_boundingpath (MP mp, mp_node p)
             mp->cur_exp.type = mp_path_type;
             return;
         } else {
-            mp_left_type(ll) = mp_endpoint_knot;
-            mp_right_type(ll) = mp_endpoint_knot;
-            mp_originator(ll) = mp_program_code;
-            mp_knotstate(ll) = mp_regular_knot;
-            number_clone(ll->x_coord, mp_minx);
-            number_clone(ll->y_coord, mp_miny);
-            mp_originator(lr) = mp_program_code;
-            mp_knotstate(lr) = mp_regular_knot;
-            number_clone(lr->x_coord, mp_maxx);
-            number_clone(lr->y_coord, mp_miny);
-            mp_originator(ur) = mp_program_code;
-            mp_knotstate(ur) = mp_regular_knot;
-            number_clone(ur->x_coord, mp_maxx);
-            number_clone(ur->y_coord, mp_maxy);
-            mp_originator(ul) = mp_program_code;
-            mp_knotstate(ul) = mp_regular_knot;
-            number_clone(ul->x_coord, mp_minx);
-            number_clone(ul->y_coord, mp_maxy);
-            mp_prev_knot(lr) = ll;
-            mp_next_knot(ll) = lr;
-            mp_prev_knot(ur) = lr;
-            mp_next_knot(lr) = ur;
-            mp_prev_knot(ul) = ur;
-            mp_next_knot(ur) = ul;
-            mp_close_path_cycle(mp, ul, ll);
-            mp_make_path(mp, ll);
-            mp->cur_exp.type = mp_path_type;
-            mp_set_cur_exp_knot(mp, ll);
+            mp_make_bounding_box(mp);
+
+         // mp_left_type(ll) = mp_endpoint_knot;
+         // mp_right_type(ll) = mp_endpoint_knot;
+         // mp_originator(ll) = mp_program_code;
+         // mp_knotstate(ll) = mp_regular_knot;
+         // number_clone(ll->x_coord, mp_minx);
+         // number_clone(ll->y_coord, mp_miny);
+         // mp_originator(lr) = mp_program_code;
+         // mp_knotstate(lr) = mp_regular_knot;
+         // number_clone(lr->x_coord, mp_maxx);
+         // number_clone(lr->y_coord, mp_miny);
+         // mp_originator(ur) = mp_program_code;
+         // mp_knotstate(ur) = mp_regular_knot;
+         // number_clone(ur->x_coord, mp_maxx);
+         // number_clone(ur->y_coord, mp_maxy);
+         // mp_originator(ul) = mp_program_code;
+         // mp_knotstate(ul) = mp_regular_knot;
+         // number_clone(ul->x_coord, mp_minx);
+         // number_clone(ul->y_coord, mp_maxy);
+         // mp_prev_knot(lr) = ll;
+         // mp_next_knot(ll) = lr;
+         // mp_prev_knot(ur) = lr;
+         // mp_next_knot(lr) = ur;
+         // mp_prev_knot(ul) = ur;
+         // mp_next_knot(ur) = ul;
+         // mp_close_path_cycle(mp, ul, ll);
+         // mp_make_path(mp, ll);
+         // mp->cur_exp.type = mp_path_type;
+         // mp_set_cur_exp_knot(mp, ll);
+
             mp_free_path(mp, qq);
         }
     }
@@ -25125,6 +25194,11 @@ static void complain_invalid_with_list (MP mp, mp_variable_type t)
                 "Next time say 'miterlimit <known numeric expression>'; I'll ignore the bad\n"
                 "'with' clause and look for another.";
             break;
+        case mp_with_curvature_code:
+            hlp =
+                "Next time say 'withcurvaturejoin <known numeric expression>'; I'll ignore the bad\n"
+                "'with' clause and look for another.";
+            break;
         default:
             hlp =
                 "Next time say 'withpen <known pen expression>'; I'll ignore the bad 'with' clause\n"
@@ -25149,6 +25223,7 @@ void mp_scan_with_list (MP mp, mp_node p, mp_node pstop)
     int miterlimit = 0;
     int linecap = -1;
     int linejoin = -1;
+    int curvature = -1;
     while (cur_cmd == mp_with_option_command) {
         /*tex
             |cur_mod| of the |with_option| (should match |cur_type|).
@@ -25519,6 +25594,21 @@ void mp_scan_with_list (MP mp, mp_node p, mp_node pstop)
                         }
                 }
                 break;
+            case mp_with_curvature_code:
+                switch (mp->cur_exp.type) {
+                    case mp_known_type:
+                        {
+                            curvature = round_unscaled(cur_exp_value_number);
+                            mp->cur_exp.type = mp_vacuous_type;
+                            break;
+                        }
+                    default:
+                        {
+                            complain_invalid_with_list(mp, t);
+                            goto CONTINUE;
+                        }
+                }
+                break;
             case mp_with_dashed_code:
                 if (mp->cur_exp.type != mp_picture_type) {
                     complain_invalid_with_list(mp, t);
@@ -25650,6 +25740,20 @@ void mp_scan_with_list (MP mp, mp_node p, mp_node pstop)
             q = q->link;
         }
         free_number(ml);
+    }
+    if (curvature >= 0 && curvature < mp_weird_curvature_code) {
+        mp_node q = p;
+        while (q != NULL) {
+            switch (q->type) {
+                case mp_fill_node_type:
+                case mp_stroked_node_type:
+                    mp_set_curvature(q, curvature);
+                    break;
+                default:
+                    break;
+            }
+            q = q->link;
+        }
     }
     if (! pp && sp > MP_VOID) {
         mp_node q = sp->link;
@@ -26183,6 +26287,7 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h)
                     mp_gr_export_color(tf, p0);
                     mp_gr_export_scripts(tf, p);
                     gr_linejoin_val(tf) = p0->linejoin;
+                    gr_curvature_val(tf) = p0->curvature;
                     gr_stacking_val(tf) = p0->stacking;
                     gr_miterlimit_val(tf) = number_to_double(p0->miterlimit);
                 }
@@ -26214,6 +26319,7 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h)
                     mp_gr_export_scripts(ts, p);
                     gr_linejoin_val(ts) = p0->linejoin;
                     gr_miterlimit_val(ts) = number_to_double(p0->miterlimit);
+                    gr_curvature_val(ts) = p0->curvature;
                     gr_linecap_val(ts) = p0->linecap;
                     gr_stacking_val(ts) = p0->stacking;
                     gr_dash_ptr(ts) = mp_export_dashes(mp, p0, &d_width);
@@ -28542,6 +28648,7 @@ static void mp_initialize_primitives (MP mp)
     mp_primitive(mp, "withcolor",             mp_with_option_command,      mp_with_uninitialized_model_code);
     mp_primitive(mp, "withrgbcolor",          mp_with_option_command,      mp_with_rgb_model_code);
     mp_primitive(mp, "withcmykcolor",         mp_with_option_command,      mp_with_cmyk_model_code);
+    mp_primitive(mp, "withcurvature",         mp_with_option_command,      mp_with_curvature_code);
                                                                            
     mp_primitive(mp, "clip",                  mp_bounds_command,           mp_start_clip_node_type);
     mp_primitive(mp, "setgroup",              mp_bounds_command,           mp_start_group_node_type);

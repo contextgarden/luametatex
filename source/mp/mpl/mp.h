@@ -230,7 +230,11 @@ typedef struct mp_shape_object {
     unsigned char             color_model;
     unsigned char             linejoin;
     unsigned char             linecap;
-    unsigned char             padding; /* pen_type */
+    unsigned char             padding_0; /* pen_type */
+    unsigned char             curvature;
+    unsigned char             padding_1;
+    unsigned char             padding_2;
+    unsigned char             padding_3;
 } mp_shape_object;
 
 typedef struct mp_start_object {
@@ -760,6 +764,7 @@ typedef enum mp_with_codes {
     mp_with_linecap_code,
     mp_with_linejoin_code,
     mp_with_miterlimit_code,
+    mp_with_curvature_code,
 } mp_with_codes;
 
 typedef enum mp_add_codes {
@@ -815,7 +820,7 @@ typedef void   (*number_from_div_func)              (mp_number *A, mp_number *B,
 typedef void   (*number_from_mul_func)              (mp_number *A, mp_number *B, mp_number *C);
 typedef void   (*number_from_int_div_func)          (mp_number *A, mp_number *B, int C);
 typedef void   (*number_from_int_mul_func)          (mp_number *A, mp_number *B, int C);
-typedef void   (*number_from_oftheway_func)         (MP mp, mp_number *A, mp_number *t, mp_number *B, mp_number *C);
+typedef void   (*number_from_of_the_way_func)       (MP mp, mp_number *A, mp_number *t, mp_number *B, mp_number *C);
 typedef void   (*number_negate_func)                (mp_number *A);
 typedef void   (*number_add_func)                   (mp_number *A, mp_number *B);
 typedef void   (*number_subtract_func)              (mp_number *A, mp_number *B);
@@ -922,7 +927,7 @@ typedef struct math_data {
     number_from_mul_func              md_from_mul;
     number_from_int_div_func          md_from_int_div;
     number_from_int_mul_func          md_from_int_mul;
-    number_from_oftheway_func         md_from_oftheway;
+    number_from_of_the_way_func       md_from_of_the_way;
     number_negate_func                md_negate;
     number_add_func                   md_add;
     number_subtract_func              md_subtract;
@@ -1507,6 +1512,13 @@ typedef enum mp_linejoin_codes {
     mp_weird_linejoin_code,
 } mp_linejoin_codes;
 
+typedef enum mp_curvature_codes {
+    mp_default_curvature_code,
+    mp_always_curvature_code,
+    /* we see this value being used */
+    mp_weird_curvature_code,
+} mp_curvature_codes;
+
 # define internal_value(A)        mp->internal[(A)].v.data.n
 # define internal_string(A)       mp->internal[A].v.data.str
 # define set_internal_string(A,B) mp->internal[(A)].v.data.str=(B)
@@ -1626,6 +1638,10 @@ typedef struct mp_shape_node_data {
     unsigned char        linejoin;
     unsigned char        linecap;
     unsigned char        pen_type;
+    unsigned char        curvature;
+    unsigned char        padding_1;
+    unsigned char        padding_2;
+    unsigned char        padding_3;
 } mp_shape_node_data;
 
 typedef struct mp_shape_node_data *mp_shape_node;
