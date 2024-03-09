@@ -96,35 +96,35 @@ inline static posit_t mp_posit_aux_make_scaled   (posit_t p, posit_t q) { return
     and |mpmathdouble| for documentation. 
 */
 
-static void mp_posit_allocate_number (MP mp, mp_number *n, mp_number_type t)
+static void mp_posit_allocate_number(MP mp, mp_number *n, mp_number_type t)
 {
     (void) mp;
     n->data.pval = mp_posit_data.zero;
     n->type = t;
 }
 
-static void mp_posit_allocate_clone (MP mp, mp_number *n, mp_number_type t, mp_number *v)
+static void mp_posit_allocate_clone(MP mp, mp_number *n, mp_number_type t, mp_number *v)
 {
     (void) mp;
     n->type = t;
     n->data.pval = v->data.pval;
 }
 
-static void mp_posit_allocate_abs (MP mp, mp_number *n, mp_number_type t, mp_number *v)
+static void mp_posit_allocate_abs(MP mp, mp_number *n, mp_number_type t, mp_number *v)
 {
     (void) mp;
     n->type = t;
     n->data.pval = posit_fabs(v->data.pval);
 }
 
-static void mp_posit_allocate_double (MP mp, mp_number *n, double v)
+static void mp_posit_allocate_double(MP mp, mp_number *n, double v)
 {
     (void) mp;
     n->type = mp_scaled_type;
     n->data.pval = double_to_posit(v);
 }
 
-static void mp_posit_free_number (MP mp, mp_number *n)
+static void mp_posit_free_number(MP mp, mp_number *n)
 {
     (void) mp;
     n->type = mp_nan_type;
@@ -190,7 +190,7 @@ static void mp_posit_set_from_int_mul(mp_number *A, mp_number *B, int C)
     A->data.pval = posit_mul(B->data.pval, integer_to_posit(C));
 }
 
-static void mp_posit_set_from_of_the_way (MP mp, mp_number *A, mp_number *t, mp_number *B, mp_number *C)
+static void mp_posit_set_from_of_the_way(MP mp, mp_number *A, mp_number *t, mp_number *B, mp_number *C)
 {
     (void) mp;
     A->data.pval = posit_sub(B->data.pval, mp_posit_aux_take_fraction(posit_sub(B->data.pval, C->data.pval), t->data.pval));
@@ -333,7 +333,7 @@ static int mp_posit_non_equal_abs(mp_number *A, mp_number *B)
     return ! posit_eq(posit_fabs(A->data.pval), posit_fabs(B->data.pval));
 }
 
-static char *mp_posit_number_tostring (MP mp, mp_number *n)
+static char *mp_posit_number_tostring(MP mp, mp_number *n)
 {
     static char set[64];
     int l = 0;
@@ -347,7 +347,7 @@ static char *mp_posit_number_tostring (MP mp, mp_number *n)
     return ret;
 }
 
-static void mp_posit_print_number (MP mp, mp_number *n)
+static void mp_posit_print_number(MP mp, mp_number *n)
 {
     char *str = mp_posit_number_tostring(mp, n);
     mp_print_e_str(mp, str);
@@ -356,7 +356,7 @@ static void mp_posit_print_number (MP mp, mp_number *n)
 
 /* Todo: it is hard to overflow posits. Also, we can check zero fast. */
 
-static void mp_posit_slow_add (MP mp, mp_number *ret, mp_number *x_orig, mp_number *y_orig)
+static void mp_posit_slow_add(MP mp, mp_number *ret, mp_number *x_orig, mp_number *y_orig)
 {
     if (posit_gt(x_orig->data.pval, mp_posit_data.zero)) {
         if (posit_le(y_orig->data.pval, posit_sub(mp_posit_data.EL_GORDO, x_orig->data.pval))) {
@@ -373,29 +373,29 @@ static void mp_posit_slow_add (MP mp, mp_number *ret, mp_number *x_orig, mp_numb
     }
 }
 
-static void mp_posit_make_fraction (MP mp, mp_number *ret, mp_number *p, mp_number *q) {
+static void mp_posit_make_fraction(MP mp, mp_number *ret, mp_number *p, mp_number *q) {
     (void) mp;
     ret->data.pval = mp_posit_aux_make_fraction(p->data.pval, q->data.pval);
 }
 
-static void mp_posit_take_fraction (MP mp, mp_number *ret, mp_number *p, mp_number *q) {
+static void mp_posit_take_fraction(MP mp, mp_number *ret, mp_number *p, mp_number *q) {
    (void) mp;
    ret->data.pval = mp_posit_aux_take_fraction(p->data.pval, q->data.pval);
 }
 
-static void mp_posit_take_scaled (MP mp, mp_number *ret, mp_number *p_orig, mp_number *q_orig)
+static void mp_posit_take_scaled(MP mp, mp_number *ret, mp_number *p_orig, mp_number *q_orig)
 {
     (void) mp;
     ret->data.pval = posit_mul(p_orig->data.pval, q_orig->data.pval);
 }
 
-static void mp_posit_make_scaled (MP mp, mp_number *ret, mp_number *p_orig, mp_number *q_orig)
+static void mp_posit_make_scaled(MP mp, mp_number *ret, mp_number *p_orig, mp_number *q_orig)
 {
     (void) mp;
     ret->data.pval = posit_div(p_orig->data.pval, q_orig->data.pval);
 }
 
-static void mp_posit_aux_wrapup_numeric_token (MP mp, unsigned char *start, unsigned char *stop)
+static void mp_posit_aux_wrapup_numeric_token(MP mp, unsigned char *start, unsigned char *stop)
 {
     double result;
     char *end = (char *) stop;
@@ -427,7 +427,7 @@ static void mp_posit_aux_wrapup_numeric_token (MP mp, unsigned char *start, unsi
     set_cur_cmd(mp_numeric_command);
 }
 
-static void mp_posit_aux_find_exponent (MP mp)
+static void mp_posit_aux_find_exponent(MP mp)
 {
     if (mp->buffer[mp->cur_input.loc_field] == 'e' || mp->buffer[mp->cur_input.loc_field] == 'E') {
         mp->cur_input.loc_field++;
@@ -447,7 +447,7 @@ static void mp_posit_aux_find_exponent (MP mp)
     }
 }
 
-static void mp_posit_scan_fractional_token (MP mp, int n) /* n is scaled */
+static void mp_posit_scan_fractional_token(MP mp, int n) /* n is scaled */
 {
     unsigned char *start = &mp->buffer[mp->cur_input.loc_field -1];
     unsigned char *stop;
@@ -460,7 +460,7 @@ static void mp_posit_scan_fractional_token (MP mp, int n) /* n is scaled */
     mp_posit_aux_wrapup_numeric_token(mp, start, stop);
 }
 
-static void mp_posit_scan_numeric_token (MP mp, int n) /* n is scaled */
+static void mp_posit_scan_numeric_token(MP mp, int n) /* n is scaled */
 {
     unsigned char *start = &mp->buffer[mp->cur_input.loc_field -1];
     unsigned char *stop;
@@ -479,7 +479,7 @@ static void mp_posit_scan_numeric_token (MP mp, int n) /* n is scaled */
     mp_posit_aux_wrapup_numeric_token(mp, start, stop);
 }
 
-static void mp_posit_velocity (MP mp, mp_number *ret, mp_number *st, mp_number *ct, mp_number *sf, mp_number *cf, mp_number *t)
+static void mp_posit_velocity(MP mp, mp_number *ret, mp_number *st, mp_number *ct, mp_number *sf, mp_number *cf, mp_number *t)
 {
     posit_t acc, num, denom; /* registers for intermediate calculations */
     (void) mp;
@@ -533,7 +533,7 @@ static int mp_posit_ab_vs_cd (mp_number *a_orig, mp_number *b_orig, mp_number *c
     }
 }
 
-static void mp_posit_crossing_point (MP mp, mp_number *ret, mp_number *aa, mp_number *bb, mp_number *cc)
+static void mp_posit_crossing_point(MP mp, mp_number *ret, mp_number *aa, mp_number *bb, mp_number *cc)
 {
     posit_t d;
     posit_t xx, x0, x1, x2;
@@ -614,7 +614,7 @@ static void mp_posit_fraction_to_round_scaled(mp_number *x_orig)
     x_orig->data.pval = posit_div(x_orig->data.pval, mp_posit_data.fraction_multiplier);
 }
 
-static void mp_posit_square_rt (MP mp, mp_number *ret, mp_number *x_orig) /* return, x: scaled */
+static void mp_posit_square_rt(MP mp, mp_number *ret, mp_number *x_orig) /* return, x: scaled */
 {
     if (posit_gt(x_orig->data.pval, mp_posit_data.zero)) {
         ret->data.pval = posit_sqrt(x_orig->data.pval);
@@ -635,7 +635,7 @@ static void mp_posit_square_rt (MP mp, mp_number *ret, mp_number *x_orig) /* ret
     }
 }
 
-static void mp_posit_pyth_add (MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig)
+static void mp_posit_pyth_add(MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig)
 {
     (void) mp;
     ret->data.pval = posit_sqrt(
@@ -652,7 +652,7 @@ static void mp_posit_pyth_add (MP mp, mp_number *ret, mp_number *a_orig, mp_numb
     );
 }
 
-static void mp_posit_pyth_sub (MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig)
+static void mp_posit_pyth_sub(MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig)
 {
     /* can be made nicer */
     if (posit_gt(a_orig->data.pval,b_orig->data.pval)) {
@@ -688,7 +688,7 @@ static void mp_posit_pyth_sub (MP mp, mp_number *ret, mp_number *a_orig, mp_numb
     ret->data.pval = a_orig->data.pval;
 }
 
-static void mp_posit_power_of (MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig)
+static void mp_posit_power_of(MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig)
 {
     errno = 0;
     ret->data.pval = posit_pow(a_orig->data.pval, b_orig->data.pval);
@@ -698,7 +698,7 @@ static void mp_posit_power_of (MP mp, mp_number *ret, mp_number *a_orig, mp_numb
     }
 }
 
-static void mp_posit_m_log (MP mp, mp_number *ret, mp_number *x_orig)
+static void mp_posit_m_log(MP mp, mp_number *ret, mp_number *x_orig)
 {
     /* TODO: int mult */
     if (posit_gt(x_orig->data.pval,mp_posit_data.zero)) {
@@ -718,7 +718,7 @@ static void mp_posit_m_log (MP mp, mp_number *ret, mp_number *x_orig)
     }
 }
 
-static void mp_posit_m_exp (MP mp, mp_number *ret, mp_number *x_orig)
+static void mp_posit_m_exp(MP mp, mp_number *ret, mp_number *x_orig)
 {
     errno = 0;
     ret->data.pval = posit_exp(posit_div(x_orig->data.pval,mp_posit_data.d256));
@@ -732,7 +732,7 @@ static void mp_posit_m_exp (MP mp, mp_number *ret, mp_number *x_orig)
     }
 }
 
-static void mp_posit_n_arg (MP mp, mp_number *ret, mp_number *x_orig, mp_number *y_orig)
+static void mp_posit_n_arg(MP mp, mp_number *ret, mp_number *x_orig, mp_number *y_orig)
 {
     if (posit_eq_zero(x_orig->data.pval) && posit_eq_zero(y_orig->data.pval)) {
         mp_error(
@@ -752,10 +752,11 @@ static void mp_posit_n_arg (MP mp, mp_number *ret, mp_number *x_orig, mp_number 
             ),
             mp_posit_data.d180_divided_by_pi_mul_angle
         );
+// printf("P x=%f y=%f atan=%f\n",posit_to_double(y_orig->data.pval),posit_to_double(x_orig->data.pval),posit_to_double(ret->data.pval));
     }
 }
 
-static void mp_posit_sin_cos (MP mp, mp_number *z_orig, mp_number *n_cos, mp_number *n_sin)
+static void mp_posit_sin_cos(MP mp, mp_number *z_orig, mp_number *n_cos, mp_number *n_sin)
 {
     posit_t rad = posit_div(z_orig->data.pval, mp_posit_data.angle_multiplier);
     (void) mp;
@@ -889,7 +890,7 @@ static long mp_posit_aux_ran_arr_cycle(void)
     return mp_posit_random_data.buf[0];
 }
 
-static void mp_posit_init_randoms (MP mp, int seed)
+static void mp_posit_init_randoms(MP mp, int seed)
 {
     int k = 1;
     int j = abs(seed);
@@ -918,7 +919,7 @@ static void mp_posit_modulo(mp_number *a, mp_number *b)
     a->data.pval = posit_mul(posit_modf(posit_div(a->data.pval, b->data.pval)), b->data.pval);
 }
 
-static void mp_posit_next_unif_random (MP mp, mp_number *ret)
+static void mp_posit_next_unif_random(MP mp, mp_number *ret)
 {
     unsigned long int op = (unsigned) (*mp_posit_random_data.ptr >=0 ? *mp_posit_random_data.ptr++: mp_posit_aux_ran_arr_cycle());
     double a = op / (MM * 1.0);
@@ -926,7 +927,7 @@ static void mp_posit_next_unif_random (MP mp, mp_number *ret)
     ret->data.pval = double_to_posit(a);
 }
 
-static void mp_posit_aux_next_random (MP mp, mp_number *ret)
+static void mp_posit_aux_next_random(MP mp, mp_number *ret)
 {
     if (mp->j_random==0) {
         mp_new_randoms(mp);
@@ -936,7 +937,7 @@ static void mp_posit_aux_next_random (MP mp, mp_number *ret)
     mp_posit_clone(ret, &(mp->randoms[mp->j_random]));
 }
 
-static void mp_posit_m_unif_rand (MP mp, mp_number *ret, mp_number *x_orig)
+static void mp_posit_m_unif_rand(MP mp, mp_number *ret, mp_number *x_orig)
 {
     mp_number x, abs_x, u, y;
     mp_posit_allocate_number(mp, &y, mp_fraction_type);
@@ -958,7 +959,7 @@ static void mp_posit_m_unif_rand (MP mp, mp_number *ret, mp_number *x_orig)
     mp_posit_free_number(mp, &y);
 }
 
-static void mp_posit_m_norm_rand (MP mp, mp_number *ret)
+static void mp_posit_m_norm_rand(MP mp, mp_number *ret)
 {
     mp_number abs_x, u, r, la, xa;
     mp_posit_allocate_number(mp, &la, mp_scaled_type);
@@ -991,12 +992,12 @@ static void mp_posit_m_norm_rand (MP mp, mp_number *ret)
     mp_posit_free_number(mp, &u);
 }
 
-static void mp_posit_set_precision (MP mp)
+static void mp_posit_set_precision(MP mp)
 {
     (void) mp;
 }
 
-static void mp_posit_free_math (MP mp)
+static void mp_posit_free_math(MP mp)
 {
     /* Is this list up to date? Also check elewhere. */
     mp_posit_free_number(mp, &(mp->math->md_three_sixty_deg_t));

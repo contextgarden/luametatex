@@ -5757,120 +5757,116 @@ static void mp_make_choices (MP mp, mp_knot knots)
     p = h;
     do {
         /*tex
-            Fill in the control points between |p| and the next breakpoint, thenadvance |p| to that
-            breakpoint. If |mp_right_type(p) < given| and |q = mp_link(p)|, we must have 
+            Fill in the control points between |p| and the next breakpoint, then advance |p| to 
+            that breakpoint. If |mp_right_type(p) < given| and |q = mp_link(p)|, we must have 
             |mp_right_type(p) = mp_left_type(q) = mp_explicit| or |endpoint|.
         */
         q = mp_next_knot(p);
         if (mp_right_type(p) >= mp_given_knot) {
+            /*tex
+                Fill in the control information between consecutive breakpoints |p| and |q|.
+            */
+            mp_number sine, cosine;       /*tex trig functions of various angles */
+            mp_number arg1, arg2, r1, r2;
+            mp_number delx, dely;         /*tex directions where |open| meets |explicit| */
+            new_fraction(sine);
+            new_fraction(cosine);
+            new_number(arg1);
+            new_number(arg2);
+            new_fraction(r1);
+            new_fraction(r2);
+            new_number(delx);
+            new_number(dely);
+            /* */
             while ((mp_left_type(q) == mp_open_knot) && (mp_right_type(q) == mp_open_knot)) {
                 q = mp_next_knot(q);
             }
             /*tex
-                Some variables are defined, and we want to avoid compiler warnings.
+                Calculate the turning angles $\psi_k$ and the distances $d_{k,k+1}$; set $n$ to
+                the length of the path
             */
             {
-                /*tex
-                    Fill in the control information between consecutive breakpoints |p| and |q|.
-                */
-                mp_number sine, cosine;       /*tex trig functions of various angles */
-                mp_number arg1, arg2, r1, r2;
-                mp_number delx, dely;         /*tex directions where |open| meets |explicit| */
-                new_fraction(sine);
-                new_fraction(cosine);
-                new_number(arg1);
-                new_number(arg2);
-                new_fraction(r1);
-                new_fraction(r2);
-                new_number(delx);
-                new_number(dely);
-                /*tex
-                    Calculate the turning angles $\psi_k$ and the distances $d_{k,k+1}$; set $n$ to
-                    the length of the path
-                */
-                {
-                  RESTART:
-                    k = 0;
-                    s = p;
-                    n = mp->path_size;
-                    do {
-                        t = mp_next_knot(s);
-                        set_number_from_subtraction(mp->delta_x[k], t->x_coord, s->x_coord);
-                        set_number_from_subtraction(mp->delta_y[k], t->y_coord, s->y_coord);
-                        pyth_add(mp->delta[k], mp->delta_x[k], mp->delta_y[k]);
-                        if (k > 0) {
-                            make_fraction(r1, mp->delta_y[k - 1], mp->delta[k - 1]);
-                            number_clone(sine, r1);
-                            make_fraction(r2, mp->delta_x[k - 1], mp->delta[k - 1]);
-                            number_clone(cosine, r2);
-                            take_fraction(r1, mp->delta_x[k], cosine);
-                            take_fraction(r2, mp->delta_y[k], sine);
-                            set_number_from_addition(arg1, r1, r2);
-                            take_fraction(r1, mp->delta_y[k], cosine);
-                            take_fraction(r2, mp->delta_x[k], sine);
-                            set_number_from_subtraction(arg2, r1, r2);
-                            n_arg(mp->psi[k], arg1, arg2 );
-                        }
-                        ++k;
-                        s = t;
-                        if (k == mp->path_size) {
-                            mp_reallocate_paths(mp, mp->path_size + (mp->path_size / 4));
-                            /*tex Retry, loop size has changed. */
-                            goto RESTART;
-                        } else if (s == q) {
-                            n = k;
-                        }
-                    } while (! ((k >= n) && (mp_left_type(s) != mp_end_cycle_knot)));
-                    if (k == n) {
-                        set_number_to_zero(mp->psi[k]);
-                    } else {
-                        number_clone(mp->psi[k], mp->psi[1]);
+                RESTART:
+                k = 0;
+                s = p;
+                n = mp->path_size;
+                do {
+                    t = mp_next_knot(s);
+                    set_number_from_subtraction(mp->delta_x[k], t->x_coord, s->x_coord);
+                    set_number_from_subtraction(mp->delta_y[k], t->y_coord, s->y_coord);
+                    pyth_add(mp->delta[k], mp->delta_x[k], mp->delta_y[k]);
+                    if (k > 0) {
+                        make_fraction(r1, mp->delta_y[k - 1], mp->delta[k - 1]);
+                        number_clone(sine, r1);
+                        make_fraction(r2, mp->delta_x[k - 1], mp->delta[k - 1]);
+                        number_clone(cosine, r2);
+                        take_fraction(r1, mp->delta_x[k], cosine);
+                        take_fraction(r2, mp->delta_y[k], sine);
+                        set_number_from_addition(arg1, r1, r2);
+                        take_fraction(r1, mp->delta_y[k], cosine);
+                        take_fraction(r2, mp->delta_x[k], sine);
+                        set_number_from_subtraction(arg2, r1, r2);
+                        n_arg(mp->psi[k], arg1, arg2 );
                     }
-                }
-                /*tex
-                    Remove |open| types at the breakpoints. When we get to this point of the code, 
-                    |mp_right_type(p)| is either |given| or |curl| or |open|. If it is |open|, we
-                    must have |mp_left_type(p)=mp_end_cycle| or |mp_left_type(p)=mp_explicit|. In 
-                    the latter case, the |open| type is converted to |given|; however, if the 
-                    velocity coming into this knot is zero, the |open| type is converted to a
-                    |curl|, since we don't know the incoming direction. 
-                    
-                    Similarly, |mp_left_type(q)| is either |given| or |curl| or |open| or 
-                    |mp_end_cycle|. The |open| possibility is reduced either to |given| or to 
-                    |curl|.
-                */
-                if (mp_left_type(q) == mp_open_knot) {
-                    set_number_from_subtraction(delx, q->right_x, q->x_coord);
-                    set_number_from_subtraction(dely, q->right_y, q->y_coord);
-                    if (number_zero(delx) && number_zero(dely)) {
-                        mp_left_type(q) = mp_curl_knot;
-                        set_number_to_unity(q->left_curl);
-                    } else {
-                        mp_left_type(q) = mp_given_knot;
-                        n_arg(q->left_given, delx, dely);
+                    ++k;
+                    s = t;
+                    if (k == mp->path_size) {
+                        mp_reallocate_paths(mp, mp->path_size + (mp->path_size / 4));
+                        /*tex Retry, loop size has changed. */
+                        goto RESTART;
+                    } else if (s == q) {
+                        n = k;
                     }
+                } while (! ((k >= n) && (mp_left_type(s) != mp_end_cycle_knot)));
+                if (k == n) {
+                    set_number_to_zero(mp->psi[k]);
+                } else {
+                    number_clone(mp->psi[k], mp->psi[1]);
                 }
-                if ((mp_right_type(p) == mp_open_knot) && (mp_left_type(p) == mp_explicit_knot)) {
-                    set_number_from_subtraction(delx, p->x_coord, p->left_x);
-                    set_number_from_subtraction(dely, p->y_coord, p->left_y);
-                    if (number_zero(delx) && number_zero(dely)) {
-                        mp_right_type(p) = mp_curl_knot;
-                        set_number_to_unity(p->right_curl);
-                    } else {
-                        mp_right_type(p) = mp_given_knot;
-                        n_arg(p->right_given, delx, dely);
-                    }
-                }
-                free_number(sine);
-                free_number(cosine);
-                free_number(arg1);
-                free_number(arg2);
-                free_number(r1);
-                free_number(r2);
-                free_number(delx);
-                free_number(dely);
-                mp_solve_choices(mp, p, q, n);
             }
+            /*tex
+                Remove |open| types at the breakpoints. When we get to this point of the code, 
+                |mp_right_type(p)| is either |given| or |curl| or |open|. If it is |open|, we
+                must have |mp_left_type(p) = mp_end_cycle| or |mp_left_type(p) = mp_explicit|.
+                In the latter case, the |open| type is converted to |given|; however, if the 
+                velocity coming into this knot is zero, the |open| type is converted to a
+                |curl|, since we don't know the incoming direction. 
+                    
+                Similarly, |mp_left_type(q)| is either |given| or |curl| or |open| or 
+                |mp_end_cycle|. The |open| possibility is reduced either to |given| or to 
+                |curl|.
+            */
+            if (mp_left_type(q) == mp_open_knot) {
+                set_number_from_subtraction(delx, q->right_x, q->x_coord);
+                set_number_from_subtraction(dely, q->right_y, q->y_coord);
+                if (number_zero(delx) && number_zero(dely)) {
+                    mp_left_type(q) = mp_curl_knot;
+                    set_number_to_unity(q->left_curl);
+                } else {
+                    mp_left_type(q) = mp_given_knot;
+                    n_arg(q->left_given, delx, dely);
+                }
+            }
+            if ((mp_right_type(p) == mp_open_knot) && (mp_left_type(p) == mp_explicit_knot)) {
+                set_number_from_subtraction(delx, p->x_coord, p->left_x);
+                set_number_from_subtraction(dely, p->y_coord, p->left_y);
+                if (number_zero(delx) && number_zero(dely)) {
+                    mp_right_type(p) = mp_curl_knot;
+                    set_number_to_unity(p->right_curl);
+                } else {
+                    mp_right_type(p) = mp_given_knot;
+                    n_arg(p->right_given, delx, dely);
+                }
+            }
+            free_number(sine);
+            free_number(cosine);
+            free_number(arg1);
+            free_number(arg2);
+            free_number(r1);
+            free_number(r2);
+            free_number(delx);
+            free_number(dely);
+            mp_solve_choices(mp, p, q, n);
         } else if (mp_right_type(p) == mp_endpoint_knot) {
             /*tex
                 Give reasonable values for the unused control points between |p| and~|q|.
@@ -5997,7 +5993,7 @@ void mp_solve_choices (MP mp, mp_knot p, mp_knot q, int n)
                         set_number_from_subtraction(arg1, q->left_given, narg);
                         n_sin_cos(arg1, mp->cf, mp->sf);
                         number_negate(mp->sf);
-                        mp_set_controls (mp, p, q, 0);
+                        mp_set_controls(mp, p, q, 0);
                         free_number(narg);
                         free_number(arg1);
                         free_number(ff);
@@ -6461,7 +6457,7 @@ void mp_solve_choices (MP mp, mp_knot p, mp_knot q, int n)
             number_negated_clone(arg, mp->psi[k + 1]);
             number_subtract(arg, mp->theta[k + 1]);
             n_sin_cos(arg, mp->cf, mp->sf);
-            mp_set_controls (mp, s, t, k);
+            mp_set_controls(mp, s, t, k);
             ++k;
             s = t;
         } while (k != n);
@@ -6597,7 +6593,7 @@ void mp_set_controls (MP mp, mp_knot p, mp_knot q, int k)
                     number_abs_clone(arg1, mp->sf);
                     if (ab_vs_cd(arg1, fraction_one_t, rr, sine) < 0) {
                         number_abs_clone(arg1, mp->sf);
-                         make_fraction(rr, arg1, sine);
+                        make_fraction(rr, arg1, sine);
                     }
                 }
                 if (number_negative(q->left_tension)) {
@@ -6613,8 +6609,8 @@ void mp_set_controls (MP mp, mp_knot p, mp_knot q, int k)
             free_number(r2);
         }
     }
-    take_fraction(r1, mp->delta_x [k], mp->ct);
-    take_fraction(r2, mp->delta_y [k], mp->st);
+    take_fraction(r1, mp->delta_x[k], mp->ct);
+    take_fraction(r2, mp->delta_y[k], mp->st);
     number_subtract(r1, r2);
     take_fraction(tmp, r1, rr);
     set_number_from_addition(p->right_x, p->x_coord, tmp);
@@ -27755,7 +27751,7 @@ static int mp_scan_path (MP mp)
             {
                 /*tex 
                     This is a shortcut for the macro |--| that is defined as |{curl 1} .. {curl 1}|
-                    sop that we avoid scanning and (temporary) allocations, which could somewhat 
+                    so that we avoid scanning and (temporary) allocations, which could somewhat 
                     (not that much in practice) pay off when we construct enormous paths.  
                 */
                 command = cur_cmd;
@@ -27795,7 +27791,14 @@ static int mp_scan_path (MP mp)
                     }
                 }
                 break;
+                /*tex We now can have a join command. */
             }
+     // case mp_path_join_command: 
+     //     /* according to the comment above */
+     //     break;
+     // case mp_ampersand_command: 
+     //     /* according to the comment above */
+     //     break;
         default:
             break;
     }
@@ -27874,9 +27877,9 @@ static int mp_scan_path (MP mp)
                 }
                 break;
             default:
+                /*tex Default tension. */
                 set_number_to_unity(path_q->right_tension);
                 set_number_to_unity(y);
-                /*tex Default tension. */
                 goto DONE_1;
         }
         if (cur_cmd != mp_path_join_command) {

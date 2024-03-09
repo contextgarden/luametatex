@@ -13,7 +13,7 @@
 
 extern void tex_normal_warning (const char *t, const char *p);
 
-math_data *mp_initialize_binary_math (MP mp)
+math_data *mp_initialize_binary_math(MP mp)
 {
     (void) (mp);
     tex_normal_warning("mplib", "binary mode is not available.");

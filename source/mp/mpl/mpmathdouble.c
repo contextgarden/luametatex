@@ -4,7 +4,7 @@
 */
 
 /* 
-    todo: check the random code, we moght as well use the lua randomizer for all number models. 
+    todo: check the random code, we might as well use the lua randomizer for all number models. 
 */
 
 # include "mpconfig.h"
@@ -51,35 +51,35 @@ inline static double mp_double_make_fraction (double p, double q) { return (p / 
 inline static double mp_double_take_fraction (double p, double q) { return (p * q) / fraction_multiplier; }
 inline static double mp_double_make_scaled   (double p, double q) { return  p / q; }
 
-static void mp_double_allocate_number (MP mp, mp_number *n, mp_number_type t)
+static void mp_double_allocate_number(MP mp, mp_number *n, mp_number_type t)
 {
     (void) mp;
     n->data.dval = 0.0;
     n->type = t;
 }
 
-static void mp_double_allocate_clone (MP mp, mp_number *n, mp_number_type t, mp_number *v)
+static void mp_double_allocate_clone(MP mp, mp_number *n, mp_number_type t, mp_number *v)
 {
     (void) mp;
     n->type = t;
     n->data.dval = v->data.dval;
 }
 
-static void mp_double_allocate_abs (MP mp, mp_number *n, mp_number_type t, mp_number *v)
+static void mp_double_allocate_abs(MP mp, mp_number *n, mp_number_type t, mp_number *v)
 {
     (void) mp;
     n->type = t;
     n->data.dval = fabs(v->data.dval);
 }
 
-static void mp_double_allocate_double (MP mp, mp_number *n, double v)
+static void mp_double_allocate_double(MP mp, mp_number *n, double v)
 {
     (void) mp;
     n->type = mp_scaled_type;
     n->data.dval = v;
 }
 
-static void mp_double_free_number (MP mp, mp_number *n)
+static void mp_double_free_number(MP mp, mp_number *n)
 {
     (void) mp;
     n->type = mp_nan_type;
@@ -145,7 +145,7 @@ static void mp_double_set_from_int_mul(mp_number *A, mp_number *B, int C)
     A->data.dval = B->data.dval * C;
 }
 
-static void mp_double_set_from_of_the_way (MP mp, mp_number *A, mp_number *t, mp_number *B, mp_number *C)
+static void mp_double_set_from_of_the_way(MP mp, mp_number *A, mp_number *t, mp_number *B, mp_number *C)
 {
     (void) mp;
     A->data.dval = B->data.dval - mp_double_take_fraction(B->data.dval - C->data.dval, t->data.dval);
@@ -294,7 +294,7 @@ static int mp_double_non_equal_abs(mp_number *A, mp_number *B)
     return fabs(A->data.dval) != fabs(B->data.dval);
 }
 
-static char *mp_double_number_tostring (MP mp, mp_number *n)
+static char *mp_double_number_tostring(MP mp, mp_number *n)
 {
     static char set[64];
     int l = 0;
@@ -308,14 +308,14 @@ static char *mp_double_number_tostring (MP mp, mp_number *n)
     return ret;
 }
 
-static void mp_double_print_number (MP mp, mp_number *n)
+static void mp_double_print_number(MP mp, mp_number *n)
 {
     char *str = mp_double_number_tostring(mp, n);
     mp_print_e_str(mp, str);
     mp_memory_free(str);
 }
 
-static void mp_double_slow_add (MP mp, mp_number *ret, mp_number *x_orig, mp_number *y_orig)
+static void mp_double_slow_add(MP mp, mp_number *ret, mp_number *x_orig, mp_number *y_orig)
 {
     double x = x_orig->data.dval;
     double y = y_orig->data.dval;
@@ -334,29 +334,29 @@ static void mp_double_slow_add (MP mp, mp_number *ret, mp_number *x_orig, mp_num
     }
 }
 
-static void mp_double_number_make_fraction (MP mp, mp_number *ret, mp_number *p, mp_number *q) {
+static void mp_double_number_make_fraction(MP mp, mp_number *ret, mp_number *p, mp_number *q) {
     (void) mp;
     ret->data.dval = mp_double_make_fraction(p->data.dval, q->data.dval);
 }
 
-static void mp_double_number_take_fraction (MP mp, mp_number *ret, mp_number *p, mp_number *q) {
+static void mp_double_number_take_fraction(MP mp, mp_number *ret, mp_number *p, mp_number *q) {
    (void) mp;
    ret->data.dval = mp_double_take_fraction(p->data.dval, q->data.dval);
 }
 
-static void mp_double_number_take_scaled (MP mp, mp_number *ret, mp_number *p_orig, mp_number *q_orig)
+static void mp_double_number_take_scaled(MP mp, mp_number *ret, mp_number *p_orig, mp_number *q_orig)
 {
     (void) mp;
     ret->data.dval = p_orig->data.dval * q_orig->data.dval;
 }
 
-static void mp_double_number_make_scaled (MP mp, mp_number *ret, mp_number *p_orig, mp_number *q_orig)
+static void mp_double_number_make_scaled(MP mp, mp_number *ret, mp_number *p_orig, mp_number *q_orig)
 {
     (void) mp;
     ret->data.dval = p_orig->data.dval / q_orig->data.dval;
 }
 
-static void mp_wrapup_numeric_token (MP mp, unsigned char *start, unsigned char *stop)
+static void mp_wrapup_numeric_token(MP mp, unsigned char *start, unsigned char *stop)
 {
     double result;
     char *end = (char *) stop;
@@ -388,7 +388,7 @@ static void mp_wrapup_numeric_token (MP mp, unsigned char *start, unsigned char 
     set_cur_cmd(mp_numeric_command);
 }
 
-static void mp_double_aux_find_exponent (MP mp)
+static void mp_double_aux_find_exponent(MP mp)
 {
     if (mp->buffer[mp->cur_input.loc_field] == 'e' || mp->buffer[mp->cur_input.loc_field] == 'E') {
         mp->cur_input.loc_field++;
@@ -408,7 +408,7 @@ static void mp_double_aux_find_exponent (MP mp)
     }
 }
 
-static void mp_double_scan_fractional_token (MP mp, int n) /* n is scaled */
+static void mp_double_scan_fractional_token(MP mp, int n) /* n is scaled */
 {
     unsigned char *start = &mp->buffer[mp->cur_input.loc_field -1];
     unsigned char *stop;
@@ -426,7 +426,7 @@ static void mp_double_scan_fractional_token (MP mp, int n) /* n is scaled */
     buffer, then call |strtod()|. It looks like we have no buffer overflow check here. 
 */
 
-static void mp_double_scan_numeric_token (MP mp, int n) /* n is scaled */
+static void mp_double_scan_numeric_token(MP mp, int n) /* n is scaled */
 {
     unsigned char *start = &mp->buffer[mp->cur_input.loc_field -1];
     unsigned char *stop;
@@ -445,7 +445,7 @@ static void mp_double_scan_numeric_token (MP mp, int n) /* n is scaled */
     mp_wrapup_numeric_token(mp, start, stop);
 }
 
-static void mp_double_velocity (MP mp, mp_number *ret, mp_number *st, mp_number *ct, mp_number *sf, mp_number *cf, mp_number *t)
+static void mp_double_velocity(MP mp, mp_number *ret, mp_number *st, mp_number *ct, mp_number *sf, mp_number *cf, mp_number *t)
 {
     double acc, num, denom; /* registers for intermediate calculations */
     (void) mp;
@@ -465,7 +465,7 @@ static void mp_double_velocity (MP mp, mp_number *ret, mp_number *st, mp_number 
     }
 }
 
-static int mp_double_ab_vs_cd (mp_number *a_orig, mp_number *b_orig, mp_number *c_orig, mp_number *d_orig)
+static int mp_double_ab_vs_cd(mp_number *a_orig, mp_number *b_orig, mp_number *c_orig, mp_number *d_orig)
 {
     double ab = a_orig->data.dval * b_orig->data.dval;
     double cd = c_orig->data.dval * d_orig->data.dval;
@@ -478,7 +478,7 @@ static int mp_double_ab_vs_cd (mp_number *a_orig, mp_number *b_orig, mp_number *
     }
 }
 
-static void mp_double_crossing_point (MP mp, mp_number *ret, mp_number *aa, mp_number *bb, mp_number *cc)
+static void mp_double_crossing_point(MP mp, mp_number *ret, mp_number *aa, mp_number *bb, mp_number *cc)
 {
     double a = aa->data.dval;
     double b = bb->data.dval;
@@ -562,7 +562,7 @@ static void mp_double_fraction_to_round_scaled(mp_number *x_orig)
     x_orig->data.dval = x/fraction_multiplier;
 }
 
-static void mp_double_square_rt (MP mp, mp_number *ret, mp_number *x_orig) /* return, x: scaled */
+static void mp_double_square_rt(MP mp, mp_number *ret, mp_number *x_orig) /* return, x: scaled */
 {
     double x = x_orig->data.dval;
     if (x > 0) {
@@ -584,7 +584,7 @@ static void mp_double_square_rt (MP mp, mp_number *ret, mp_number *x_orig) /* re
     }
 }
 
-static void mp_double_pyth_add (MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig)
+static void mp_double_pyth_add(MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig)
 {
     double a = fabs(a_orig->data.dval);
     double b = fabs(b_orig->data.dval);
@@ -596,7 +596,7 @@ static void mp_double_pyth_add (MP mp, mp_number *ret, mp_number *a_orig, mp_num
     }
 }
 
-static void mp_double_pyth_sub (MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig)
+static void mp_double_pyth_sub(MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig)
 {
     double a = fabs(a_orig->data.dval);
     double b = fabs(b_orig->data.dval);
@@ -622,7 +622,7 @@ static void mp_double_pyth_sub (MP mp, mp_number *ret, mp_number *a_orig, mp_num
     ret->data.dval = a;
 }
 
-static void mp_double_power_of (MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig)
+static void mp_double_power_of(MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig)
 {
     errno = 0;
     ret->data.dval = pow(a_orig->data.dval, b_orig->data.dval);
@@ -632,7 +632,7 @@ static void mp_double_power_of (MP mp, mp_number *ret, mp_number *a_orig, mp_num
     }
 }
 
-static void mp_double_m_log (MP mp, mp_number *ret, mp_number *x_orig)
+static void mp_double_m_log(MP mp, mp_number *ret, mp_number *x_orig)
 {
     if (x_orig->data.dval > 0) {
         ret->data.dval = log(x_orig->data.dval)*256.0;
@@ -651,7 +651,7 @@ static void mp_double_m_log (MP mp, mp_number *ret, mp_number *x_orig)
     }
 }
 
-static void mp_double_m_exp (MP mp, mp_number *ret, mp_number *x_orig)
+static void mp_double_m_exp(MP mp, mp_number *ret, mp_number *x_orig)
 {
     errno = 0;
     ret->data.dval = exp(x_orig->data.dval/256.0);
@@ -665,8 +665,25 @@ static void mp_double_m_exp (MP mp, mp_number *ret, mp_number *x_orig)
     }
 }
 
-static void mp_double_n_arg (MP mp, mp_number *ret, mp_number *x_orig, mp_number *y_orig)
+/*tex
+
+    We (MS/HH) ran into an issue @ 2024-03-09 that showed up because a file from early 2023 gave 
+    different results: |draw (50,0) {dir 120} .. (-50,0)  ..{dir 60} (50,0);| and in the end the 
+    issue was due to a |-0| not making |atan2| happy. It was ok in scaled (what was the default
+    in \CONTEXT\ before 2024), posit and decimal, but failed in double (which became default in 
+    mid 2023) and in binary (both also tested in \LUATEX). 
+
+    Todo: backport to \LUATEX\ when further tests work out okay. 
+*/
+
+static void mp_double_n_arg(MP mp, mp_number *ret, mp_number *x_orig, mp_number *y_orig)
 {
+    if (x_orig->data.dval == -0.0) {
+        x_orig->data.dval = 0.0;
+    }
+    if (y_orig->data.dval == -0.0) {
+        y_orig->data.dval = 0.0;
+    }
     if (x_orig->data.dval == 0.0 && y_orig->data.dval == 0.0) {
         mp_error(
             mp,
@@ -677,14 +694,15 @@ static void mp_double_n_arg (MP mp, mp_number *ret, mp_number *x_orig, mp_number
         ret->data.dval = 0;
     } else {
         ret->type = mp_angle_type;
-        ret->data.dval = atan2(y_orig->data.dval, x_orig->data.dval) * (180.0 / PI)  * angle_multiplier;
+        ret->data.dval = atan2(y_orig->data.dval, x_orig->data.dval) * (180.0 / PI) * angle_multiplier;
         if (ret->data.dval == -0.0) {
             ret->data.dval = 0.0;
         }
+// printf("D x=%f y=%f atan=%f\n",y_orig->data.dval,x_orig->data.dval,ret->data.dval);
     }
 }
 
-static void mp_double_sin_cos (MP mp, mp_number *z_orig, mp_number *n_cos, mp_number *n_sin)
+static void mp_double_sin_cos(MP mp, mp_number *z_orig, mp_number *n_cos, mp_number *n_sin)
 {
     double rad = (z_orig->data.dval / angle_multiplier); /* still degrees */
     (void) mp;
@@ -819,7 +837,7 @@ static long mp_double_aux_ran_arr_cycle(void)
     return mp_double_random_data.buf[0];
 }
 
-static void mp_double_init_randoms (MP mp, int seed)
+static void mp_double_init_randoms(MP mp, int seed)
 {
     int k = 1;
     int j = abs(seed);
@@ -849,7 +867,7 @@ static void mp_double_modulo(mp_number *a, mp_number *b)
     a->data.dval = modf((double) a->data.dval / (double) b->data.dval, &tmp) * (double) b->data.dval;
 }
 
-static void mp_double_aux_next_unif_random (MP mp, mp_number *ret)
+static void mp_double_aux_next_unif_random(MP mp, mp_number *ret)
 {
     unsigned long int op = (unsigned) (*mp_double_random_data.ptr>=0? *mp_double_random_data.ptr++: mp_double_aux_ran_arr_cycle());
     double a = op / (MM * 1.0);
@@ -857,7 +875,7 @@ static void mp_double_aux_next_unif_random (MP mp, mp_number *ret)
     ret->data.dval = a;
 }
 
-static void mp_double_aux_next_random (MP mp, mp_number *ret)
+static void mp_double_aux_next_random(MP mp, mp_number *ret)
 {
     if ( mp->j_random==0) {
         mp_new_randoms(mp);
@@ -867,7 +885,7 @@ static void mp_double_aux_next_random (MP mp, mp_number *ret)
     mp_double_clone(ret, &(mp->randoms[mp->j_random]));
 }
 
-static void mp_double_m_unif_rand (MP mp, mp_number *ret, mp_number *x_orig)
+static void mp_double_m_unif_rand(MP mp, mp_number *ret, mp_number *x_orig)
 {
     mp_number x, abs_x, u, y; /* |y| is trial value */
     mp_double_allocate_number(mp, &y, mp_fraction_type);
@@ -889,7 +907,7 @@ static void mp_double_m_unif_rand (MP mp, mp_number *ret, mp_number *x_orig)
     mp_double_free_number(mp, &y);
 }
 
-static void mp_double_m_norm_rand (MP mp, mp_number *ret)
+static void mp_double_m_norm_rand(MP mp, mp_number *ret)
 {
     mp_number abs_x, u, r, la, xa;
     mp_double_allocate_number(mp, &la, mp_scaled_type);
@@ -922,12 +940,12 @@ static void mp_double_m_norm_rand (MP mp, mp_number *ret)
     mp_double_free_number(mp, &u);
 }
 
-static void mp_double_set_precision (MP mp)
+static void mp_double_set_precision(MP mp)
 {
     (void) mp;
 }
 
-static void mp_double_free_math (MP mp)
+static void mp_double_free_math(MP mp)
 {
     mp_double_free_number(mp, &(mp->math->md_three_sixty_deg_t));
     mp_double_free_number(mp, &(mp->math->md_one_eighty_deg_t));
@@ -1034,14 +1052,14 @@ math_data *mp_initialize_double_math(MP mp)
     math->md_one_eighty_deg_t.data.dval          = one_eighty_deg;
     math->md_negative_one_eighty_deg_t.data.dval = negative_one_eighty_deg;
     math->md_one_k.data.dval                     = 1.0/64 ;
-    math->md_sqrt_8_e_k.data.dval                = 1.71552776992141359295;      /* $2^{16}\sqrt{8/e}\approx 112428.82793$ */
-    math->md_twelve_ln_2_k.data.dval             = 8.31776616671934371292 *256; /* $2^{24}\cdot12\ln2\approx139548959.6165$ */
+    math->md_sqrt_8_e_k.data.dval                = 1.71552776992141359295;       /* $2^{16}\sqrt{8/e}\approx 112428.82793$ */
+    math->md_twelve_ln_2_k.data.dval             = 8.31776616671934371292 * 256; /* $2^{24}\cdot12\ln2\approx139548959.6165$ */
     math->md_coef_bound_k.data.dval              = coef_bound;
     math->md_coef_bound_minus_1.data.dval        = coef_bound - 1/65536.0;
-    math->md_twelvebits_3.data.dval              = 1365 / 65536.0;              /* $1365\approx 2^{12}/3$ */
-    math->md_twentysixbits_sqrt2_t.data.dval     = 94906266 / 65536.0;          /* $2^{26}\sqrt2\approx94906265.62$ */
-    math->md_twentyeightbits_d_t.data.dval       = 35596755 / 65536.0;          /* $2^{28}d\approx35596754.69$ */
-    math->md_twentysevenbits_sqrt2_d_t.data.dval = 25170707 / 65536.0;          /* $2^{27}\sqrt2\,d\approx25170706.63$ */
+    math->md_twelvebits_3.data.dval              = 1365 / 65536.0;               /* $1365\approx 2^{12}/3$ */
+    math->md_twentysixbits_sqrt2_t.data.dval     = 94906266 / 65536.0;           /* $2^{26}\sqrt2\approx94906265.62$ */
+    math->md_twentyeightbits_d_t.data.dval       = 35596755 / 65536.0;           /* $2^{28}d\approx35596754.69$ */
+    math->md_twentysevenbits_sqrt2_d_t.data.dval = 25170707 / 65536.0;           /* $2^{27}\sqrt2\,d\approx25170706.63$ */
     math->md_fraction_threshold_t.data.dval      = fraction_threshold;
     math->md_half_fraction_threshold_t.data.dval = half_fraction_threshold;
     math->md_scaled_threshold_t.data.dval        = scaled_threshold;
