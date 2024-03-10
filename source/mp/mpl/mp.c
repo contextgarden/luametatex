@@ -656,7 +656,7 @@ Variables of type |color| have 3~values in 6~words identified by |mp_red_part_op
 When a \MP\ user specifies a path, \MP\ will create a list of knots and control points for the
 associated cubic spline curves. If the knots are $z_0$, $z_1$, \dots, $z_n$, there are control points
 $z_k^+$ and $z_{k+1}^-$ such that the cubic splines between knots $z_k$ and $z_{k+1}$ are defined by
-Béº©er's formula 
+Bézier's formula 
 
 $$
 \eqalign{z(t)&=B(z_k,z_k^+,z_{k+1}^-,z_{k+1};t)\cr
@@ -687,7 +687,7 @@ used.
 
 /*tex
 
-Before the Béº©er control points have been calculated, the memory space they will ultimately occupy
+Before the Bézier control points have been calculated, the memory space they will ultimately occupy
 is taken up by information that can be used to compute them. There are four cases:
 
 \startitemize
@@ -708,7 +708,7 @@ is taken up by information that can be used to compute them. There are four case
 \stopitem
 
 \startitem
-    If |mp_right_type=mp_explicit|, the Béº©er control point for leaving this knot has already been
+    If |mp_right_type=mp_explicit|, the Bézier control point for leaving this knot has already been
     computed; it is in the |mp_right_x| and |mp_right_y| fields.
 \stopitem
 
@@ -2304,11 +2304,13 @@ static void mp_do_initialize (MP mp)
     }
     mp->save_ptr = NULL;
     /*tex
-        The magic constant for |d_cos| is the distance between $({1\over2},0)$ and
-        $({1\over4}\sqrt2,{1\over4}\sqrt2)$ times the result of the |velocity| function for
-        $\theta=\phi=22.5^\circ$. This comes out to be
+        The magic constant for |d_cos| is the distance between $({1 \over 2},0)$ and
+        $({1 \over 4} \sqrt2,{1 \over 4} \sqrt2)$ times the result of the |velocity| function for
+        $\theta = \phi = 22.5^\circ$. This comes out to be
 
-        $$ d = {\sqrt{2-\sqrt2}\over 3+3\cos22.5^\circ} \approx 0.132608244919772. $$
+        $$ 
+        d = {\sqrt{2 - \sqrt2} \over 3 + 3 \cos22.5^\circ} \approx 0.132608244919772 
+        $$
     */
     for (int k = 0; k <= 7; k++) {
         new_fraction(mp->half_cos[k]);
@@ -2377,17 +2379,34 @@ occasions when one can find a way to make the program a little less bad than it 
 have two choices, either to attack I/O now and get it over with, or to postpone I/O until near the
 end. Neither prospect is very attractive, so let's get it over with.
 
-The basic operations we need to do are (1)~inputting and outputting of text, to or from a file or the
-user's terminal; (2)~inputting and outputting of eight-bit bytes, to or from a file; (3)~instructing
-the operating system to initiate \quote {open} or to terminate \quote {close} input or output from a
-specified file; (4)~testing whether the end of an input file has been reached; (5)~display of bits on
-the user's screen. The bit-display operation will be discussed in a later section; we shall deal here
-only with more traditional kinds of I/O.
+The basic operations we need to do are 
+
+\startitemize[n]
+\startitem 
+    inputting and outputting of text, to or from a file or the user's terminal; 
+\stopitem 
+\startitem 
+    inputting and outputting of eight-bit bytes, to or from a file; 
+\stopitem 
+\startitem 
+    instructing the operating system to initiate \quote {open} or to terminate \quote {close} input
+    or output from a specified file; 
+\stopitem 
+\startitem 
+    testing whether the end of an input file has been reached; 
+\stopitem 
+\startitem 
+    display of bits on the user's screen. 
+\stopitem 
+\stopitmize
+    
+The bit-display operation will be discussed in a later section; we shall deal here only with more 
+traditional kinds of I/O.
 
 Finding files happens in a slightly roundabout fashion: the \MP\ instance object contains a field
-that holds a function pointer that finds a file, and returns its name, or NULL. For this, it receives
-three parameters: the non-qualified name |fname|, the intended |fopen| operation type |fmode|, and
-the type of the file |ftype|.
+that holds a function pointer that finds a file, and returns its name, or NULL. For this, it 
+receives three parameters: the non-qualified name |fname|, the intended |fopen| operation type 
+|fmode|, and the type of the file |ftype|.
 
 The file types that are passed on in |ftype| can be used to differentiate file searches if a library
 like kpathsea is used, the fopen mode is passed along for the same reason.
@@ -2460,8 +2479,8 @@ static void mp_check_overload (MP mp, mp_symbol p)
 
 /*tex
 
-Error and warning handling can be delegated too. Warnings are not really used yet but they might show
-up some day.
+Error and warning handling can be delegated too. Warnings are not really used yet but they might 
+show up some day.
 
 */
 
@@ -2479,8 +2498,8 @@ static void mp_run_warning (MP mp, const char *msg)
 
 /*tex
 
-The |btex ... etex| handling is still present and depends on a callback and some cooperation with the
-backend. In \CONTEXT\ we implements text objects as paths with properties (pre- and postscripts).
+The |btex ... etex| handling is still present and depends on a callback and some cooperation with 
+the backend. In \CONTEXT\ we implements text objects as paths with properties (pre- and postscripts).
 
 */
 
@@ -2493,7 +2512,7 @@ static char *mp_make_text (MP mp, const char *str, size_t len, int mode)
 
 /*tex
 
-(Almost) all file names pass through |name_of_file|.If this parameter is true, the terminal and log
+(Almost) all file names pass through |name_of_file|. If this parameter is true, the terminal and log
 will report the found file names for input files instead of the requested ones. It is off by default
 because it creates an extra filename lookup.
 
@@ -2565,8 +2584,8 @@ static void mp_close_file (MP mp, void *f)
 /*tex
 
 The \MP\ system does nearly all of its own memory allocation, so that it can readily be transported
-into environments that do not have automatic facilities for strings, garbage collection, etc., and so
-that it can be in control of what error messages the user receives.
+into environments that do not have automatic facilities for strings, garbage collection, etc., and 
+so that it can be in control of what error messages the user receives.
 
 We want to be able to overload the allocator but then we also need to pass to the avl handler and
 that one doesn't take the |mp| pointer so we just do a hard exit.
@@ -3233,9 +3252,9 @@ static void mp_free_value_node (MP mp, mp_node p)
 
 /*tex
 
-Some nodes are created statically, since static allocation is more efficient than
-dynamic allocation when we can get away with it. The procedure |flush_node_list(p)| frees an entire linked list of nodes that
-starts at a given position, until coming to a |NULL| pointer.
+Some nodes are created statically, since static allocation is more efficient than dynamic allocation
+when we can get away with it. The procedure |flush_node_list(p)| frees an entire linked list of 
+nodes that starts at a given position, until coming to a |NULL| pointer.
 
 */
 
@@ -3569,8 +3588,8 @@ void mp_end_diagnostic (MP mp, int blank_line)
 
 /*tex
 
-We will occasionally use |begin_diagnostic| in connection with line-number printing, as follows. (The
-parameter |s| is typically |"Path"| or |"Cycle spec"|, etc.)
+We will occasionally use |begin_diagnostic| in connection with line-number printing, as follows. 
+The parameter |s| is typically \quote {Path} or \quote {Cycle spec}, etc.
 
 */
 
@@ -3916,16 +3935,16 @@ static void mp_flush_token_list (MP mp, mp_node p)
 /*tex
 
 The procedure |show_token_list|, which prints a symbolic form of the token list that starts at a
-given node |p|, illustrates these conventions. The token list being displayed should not begin with a
-reference count.
+given node |p|, illustrates these conventions. The token list being displayed should not begin with 
+a reference count.
 
 An additional parameter |q| is also given; this parameter is either NULL or it points to a node in
 the token list where a certain magic computation takes place that will be explained later.
 (Basically, |q| is non-NULL when we are printing the two-line context information at the time of an
 error message; |q| marks the place corresponding to where the second line should begin.)
 
-Unusual entries are printed in the form of all-caps tokens preceded by a space, e.g., |\char`\
-BAD|.We go for a spacy layout because we have more screen estate today.
+Unusual entries are printed in the form of all-caps tokens preceded by a space, e.g., |BAD|. We go 
+for a spacy layout because we have more screen real estate today.
 
 */
 
@@ -4214,7 +4233,7 @@ that will help to firm up the ideas.) Suppose that |x| and |x.a| and |x[]b| and 
 been mentioned in a user's program, where |x[]b| has been declared to be of |boolean| type. Let
 |h(x)|, |h(a)|, and |h(b)| be the hash addresses of \.x, \.a, and~\.b. Then |eq_type(h(x)) = name|
 and |equiv(h(x)) = p|, where |p|~is a non-symbolic value node with |mp_name_type(p) = root| and
-|mp_link(p)=h(x)|. We have |type(p) = mp_structured|, |mp_get_attribute_head(p) = q|, and
+|mp_link(p) = h(x)|. We have |type(p) = mp_structured|, |mp_get_attribute_head(p) = q|, and
 |mp_get_subscr_head(p) = r|, where |q| points to a value node and |r| to a subscript node. (Are you
 still following this? Use a pencil to draw a diagram.) The lone variable |x| is represented by
 |type(q)| and |value(q)|; furthermore |mp_name_type(q) = mp_structured_root_operation| and
@@ -4226,14 +4245,14 @@ numeric, because |qq| represents |x[]| with no further attributes), |mp_name_typ
 structured_root|, |mp_get_hashloc(qq)=0|, |mp_get_parent(qq) = p|, and |mp_link(qq) = qq1|. (Now pay
 attention to the next part.) Node |qq1| is an attribute node representing |x[][]|, which has never
 yet occurred; its |type| field is |undefined|, and its |value| field is undefined. We have
-|mp_name_type(qq1) = attr|, |mp_get_hashloc(qq1)=mp_collective_subscript|, |mp_get_parent(qq1) = q1|,
-and |mp_link(qq1) = qq2|. Since |qq2| represents |x[]b|, |type(qq2) = mp_unknown_boolean|; also
+|mp_name_type(qq1) = attr|, |mp_get_hashloc(qq1) = mp_collective_subscript|, |mp_get_parent(qq1) = 
+q1|, and |mp_link(qq1) = qq2|. Since |qq2| represents |x[]b|, |type(qq2) = mp_unknown_boolean|; also
 |mp_get_hashloc(qq2) = h(b)|, |mp_get_parent(qq2) = q1|, |mp_name_type(qq2) = attr|, |mp_link(qq2) =
 end_attr|. (Maybe colored lines will help untangle your picture.) Node |r| is a subscript node with
 |type| and |value| representing |x5|; |mp_name_type(r) = subscr|, |subscript(r) = 5.0|, and
 |mp_link(r) = r1| is another subscript node. To complete the picture, see if you can guess what
 |mp_link(r1)| is; give up? It's~|q1|. Furthermore |subscript(r1) = 20.0|, |mp_name_type(r1) =
-subscr|, |type(r1)=mp_structured|, |mp_get_attribute_head(r1) = qqq|, |mp_get_subscr_head(r1) =
+subscr|, |type(r1) = mp_structured|, |mp_get_attribute_head(r1) = qqq|, |mp_get_subscr_head(r1) =
 qqq1|, and we finish things off with three more nodes |qqq|, |qqq1|, and |qqq2| hung onto~|r1|.
 (Perhaps you should start again with a larger sheet of paper.) The value of variable |x20b| appears
 in node~|qqq2|, as you can well imagine.
@@ -4301,7 +4320,7 @@ static void mp_free_pair_node (MP mp, mp_node p)
 /*tex
 
 If |type(p) = mp_pair_type| or if |value(p) = NULL|, the procedure call |init_pair_node(p)| will
-allocate a pair node for~|p|. The individual parts of such nodes are initially of type
+allocate a pair node for |p|. The individual parts of such nodes are initially of type
 |mp_independent|.
 
 */
@@ -4331,9 +4350,9 @@ static mp_node mp_get_transform_node (MP mp)
 
 static void mp_init_transform_node (MP mp, mp_node p)
 {
-    mp_node q;    /* the new node */
+    mp_node q; /* the new node */
     p->type = mp_transform_type;
-    q = mp_get_transform_node(mp);       /* big node */
+    q = mp_get_transform_node(mp);    /* big node */
     mp_yy_part(q) = mp_new_value_node(mp);
     mp_new_indep(mp, mp_yy_part(q));  /* sets |type(q)| and |value(q)| */
     mp_yy_part(q)->name_type = mp_yy_part_operation;
@@ -4414,10 +4433,9 @@ static void mp_init_color_node (MP mp, mp_node p, int type)
 /*tex
 
 When an entire structured variable is saved, the |root| indication is temporarily replaced by
-|saved_root|. Some variables have no name; they just are used for temporary storage while expressions
-are being evaluated. We call them {\sl capsules}.
-
-The |id_transform| function creates a capsule for the identity transformation.
+|saved_root|. Some variables have no name; they just are used for temporary storage while 
+expressions are being evaluated. We call them {\sl capsules}. The |id_transform| function creates 
+a capsule for the identity transformation.
 
 */
 
@@ -4446,9 +4464,9 @@ static mp_node mp_id_transform (MP mp)
 
 /*tex
 
-Tokens are of type |tag_token| when they first appear, but they point to |NULL| until they are first
-used as the root of a variable. The following subroutine establishes the root node on such grand
-occasions.
+Tokens are of type |tag_token| when they first appear, but they point to |NULL| until they are 
+first used as the root of a variable. The following subroutine establishes the root node on such 
+grand occasions.
 
 */
 
@@ -4573,10 +4591,10 @@ static int mp_interesting (MP mp, mp_node p)
 
 Now here is a subroutine that converts an unstructured type into an equivalent structured type, by
 inserting a |mp_structured| node that is capable of growing. This operation is done only when
-|mp_name_type(p)=root|, |subscr|, or |attr|.
+|mp_name_type(p) = root|, |subscr|, or |attr|.
 
 The procedure returns a pointer to the new node that has taken node~|p|'s place in the structure.
-Node~|p| itself does not move, nor are its |value| or |type| fields changed in any way.
+Node |p| itself does not move, nor are its |value| or |type| fields changed in any way.
 
 */
 
@@ -4678,14 +4696,14 @@ static mp_node mp_new_structure (MP mp, mp_node p)
 
 The |find_variable| routine is given a pointer~|t| to a nonempty token list of suffixes; it returns a
 pointer to the corresponding non-symbolic value. For example, if |t| points to token |x| followed by
-a numeric token containing the value~7, |find_variable| finds where the value of |x7| is stored in
+a numeric token containing the value 7, |find_variable| finds where the value of |x7| is stored in
 memory. This may seem a simple task, and it usually is, except when |x7| has never been referenced
 before. Indeed, |x| may never have even been subscripted before; complexities arise with respect to
 updating the collective subscript information.
 
 If a macro type is detected anywhere along path~|t|, or if the first item on |t| isn't a |tag_token|,
-the value |NULL| is returned. Otherwise |p| will be a non-NULL pointer to a node such that |undefined
-< type(p) < mp_structured|.
+the value |NULL| is returned. Otherwise |p| will be a non-NULL pointer to a node such that 
+|undefined < type(p) < mp_structured|.
 
 */
 
@@ -4706,9 +4724,9 @@ static mp_node mp_find_variable (MP mp, mp_node t)
         pp = p;
         while (t != NULL) {
             /*tex
-                Make sure that both nodes |p| and |pp| are of |mp_structured| type Although |pp| and
-                |p| begin together, they diverge when a subscript occurs; |pp|~stays in the
-                collective line while |p|~goes through actual subscript values.
+                Make sure that both nodes |p| and |pp| are of |mp_structured| type Although |pp| 
+                and |p| begin together, they diverge when a subscript occurs; |pp| stays in the
+                collective line while |p| goes through actual subscript values.
             */
             if (pp->type != mp_structured_type) {
                 if (pp->type > mp_structured_type) {
@@ -4916,9 +4934,9 @@ void mp_flush_below_variable (MP mp, mp_node p)
 
 /*tex
 
-Just before assigning a new value to a variable, we will recycle the old value and make the old value
-undefined. The |und_type| routine determines what type of undefined value should be given, based on
-the current type before recycling.
+Just before assigning a new value to a variable, we will recycle the old value and make the old 
+value undefined. The |und_type| routine determines what type of undefined value should be given, 
+based on the current type before recycling.
 
 */
 
@@ -5493,8 +5511,8 @@ static mp_graphic_knot mp_export_knot_list (MP mp, mp_knot p)
 
 /*tex
 
-Similarly, there's a way to copy the {\em reverse} of a path. This procedure returns a pointer to the
-first node of the copy, if the path is a cycle, but to the final node of a non-cyclic copy. The
+Similarly, there's a way to copy the {\em reverse} of a path. This procedure returns a pointer to
+the first node of the copy, if the path is a cycle, but to the final node of a non-cyclic copy. The
 global variable |path_tail| will point to the final node of the original path; this trick makes it
 easier to implement |doublepath|. All node types are assumed to be |endpoint| or |explicit| only.
 
@@ -5625,59 +5643,79 @@ is passed, and this has been found to produce excellent results.
 It is convenient to introduce some notations that simplify the necessary formulas. Let
 $d_{k,k+1}=\vert z\k-z_k\vert$ be the (nonzero) distance between knots |k| and |k+1|; and let
 
-$${z\k-z_k\over z_k-z_{k-1}}={d_{k,k+1}\over d_{k-1,k}}e^{i\psi_k}$$
+$$
+{z\k-z_k\over z_k-z_{k-1}} = {d_{k,k+1}\over d_{k-1,k}}e^{i\psi_k}
+$$
 
-so that a polygonal line from $z_{k-1}$ to $z_k$ to $z\k$ turns left through an angle of~$\psi_k$. We
-assume that $\vert\psi_k\vert\L180^\circ$. The control points for the spline from $z_k$ to $z\k$ will
-be denoted by
+so that a polygonal line from $z_{k-1}$ to $z_k$ to $z\k$ turns left through an angle of $\psi_k$. 
+We assume that $\vert\psi_k\vert\L180^\circ$. The control points for the spline from $z_k$ to 
+$z\k$ will be denoted by
 
-$$\eqalign{z_k^+&=z_k+ \textstyle{1\over3}\rho_k e^{i\theta_k}(z\k-z_k),\cr z\k^-&=z\k-
-\textstyle{1\over3}\sigma\k e^{-i\phi\k}(z\k-z_k),\cr}$$
+$$
+\eqalign{z_k^+&=z_k+ \textstyle{1\over3}\rho_k e^{i\theta_k}(z\k-z_k),\cr z\k^-&=z\k-
+\textstyle{1\over3}\sigma\k e^{-i\phi\k}(z\k-z_k),\cr}
+$$
 
 where $\rho_k$ and $\sigma\k$ are nonnegative \quote {velocity ratios} at the beginning and end of
 the curve, while $\theta_k$ and $\phi\k$ are the corresponding \quote {offset angles.} These angles
 satisfy the condition
 
-$$\theta_k+\phi_k+\psi_k=0,\eqno(*)$$
+$$
+\theta_k+\phi_k+\psi_k=0,\eqno(*)
+$$
 
 whenever the curve leaves an intermediate knot~|k| in the direction that it enters.
 
-Let $\alpha_k$ and $\beta\k$ be the reciprocals of the \quote {tension} of the curve at its beginning
-and ending points. This means that $\rho_k=\alpha_k f(\theta_k,\phi\k)$ and $\sigma\k=\beta\k
-f(\phi\k,\theta_k)$, where $f(\theta,\phi)$ is \MP's standard velocity function defined in the
-|velocity| subroutine. The cubic spline $B(z_k^{\phantom+},z_k^+, z\k^-,z\k^{\phantom+};t)$ has
+Let $\alpha_k$ and $\beta\k$ be the reciprocals of the \quote {tension} of the curve at its 
+beginning and ending points. This means that $\rho_k = \alpha_k f(\theta_k,\phi\k)$ and $\sigma\k =
+\beta\k f(\phi\k,\theta_k)$, where $f(\theta,\phi)$ is \MP's standard velocity function defined in 
+the |velocity| subroutine. The cubic spline $B(z_k^{\phantom{+}},z_k^+, z\k^-,z\k^{\phantom{+}};t)$ has
 curvature
 
-$${2\sigma\k\sin(\theta_k+\phi\k)-6\sin\theta_k\over\rho_k^2d_{k,k+1}} \qquad{\rm and}\qquad
-{2\rho_k\sin(\theta_k+\phi\k)-6\sin\phi\k\over\sigma\k^2d_{k,k+1}}$$
+$$
+{2\sigma\k\sin(\theta_k+\phi\k)-6\sin\theta_k\over\rho_k^2d_{k,k+1}} \qquad{\rm and}\qquad
+{2\rho_k\sin(\theta_k+\phi\k)-6\sin\phi\k\over\sigma\k^2d_{k,k+1}}
+$$
 
 at |t=0| and |t=1|, respectively. The mock curvature is the linear approximation to this true
 curvature that arises in the limit for small $\theta_k$ and~$\phi\k$, if second-order terms are
 discarded. The standard velocity function satisfies
-$$f(\theta,\phi)=1+O(\theta^2+\theta\phi+\phi^2);$$ hence the mock curvatures are respectively
 
-$${2\beta\k(\theta_k+\phi\k)-6\theta_k\over\alpha_k^2d_{k,k+1}} \qquad{\rm and}\qquad
-{2\alpha_k(\theta_k+\phi\k)-6\phi\k\over\beta\k^2d_{k,k+1}}.\eqno(**)$$
+$$
+f(\theta,\phi)=1+O(\theta^2+\theta\phi+\phi^2);
+$$ 
+
+hence the mock curvatures are respectively
+
+$$
+{2\beta\k(\theta_k+\phi\k)-6\theta_k\over\alpha_k^2d_{k,k+1}} \qquad{\rm and}\qquad
+{2\alpha_k(\theta_k+\phi\k)-6\phi\k\over\beta\k^2d_{k,k+1}}.\eqno(**)
+$$
 
 The turning angles $\psi_k$ are given, and equation $(*)$ above determines $\phi_k$ when $\theta_k$
 is known, so the task of angle selection is essentially to choose appropriate values for each
 $\theta_k$. When equation~$(*)$ is used to eliminate $\phi$~variables from $(**)$, we obtain a system
 of linear equations of the form
 
-$$A_k\theta_{k-1}+(B_k+C_k)\theta_k+D_k\theta\k=-B_k\psi_k-D_k\psi\k,$$
+$$
+A_k\theta_{k-1}+(B_k+C_k)\theta_k+D_k\theta\k=-B_k\psi_k-D_k\psi\k,
+$$
 
 where
 
-$$A_k={\alpha_{k-1}\over\beta_k^2d_{k-1,k}}, \qquad
+$$
+A_k={\alpha_{k-1}\over\beta_k^2d_{k-1,k}}, \qquad
 B_k={3-\alpha_{k-1}\over\beta_k^2d_{k-1,k}}, \qquad
 C_k={3-\beta\k\over\alpha_k^2d_{k,k+1}}, \qquad
-D_k={\beta\k\over\alpha_k^2d_{k,k+1}}.$$
+D_k={\beta\k\over\alpha_k^2d_{k,k+1}}.
+$$
 
 The tensions are always $3\over4$ or more, hence each $\alpha$ and~$\beta$ will be at most $4\over3$.
 It follows that $B_k|5\over4|A_k$ and $C_k|5\over4|D_k$; hence the equations are diagonally dominant;
 hence they have a unique solution. Moreover, in most cases the tensions are equal to~1, so that
-$B_k=2A_k$ and $C_k=2D_k$. This makes the solution numerically stable, and there is an exponential
-damping effect: The data at knot $k\pm j$ affects the angle at knot~$k$ by a factor of~$O(2^{-j})$.
+$B_k = 2A_k$ and $C_k = 2D_k$. This makes the solution numerically stable, and there is an 
+exponential damping effect: The data at knot $k\pm j$ affects the angle at knot $k$ by a factor of
+$O(2^{-j})$.
 
 However, we still must consider the angles at the starting and ending knots of a non-cyclic path.
 These angles might be given explicitly, or they might be specified implicitly in terms of an amount
@@ -5686,35 +5724,45 @@ of \quote {curl.}
 Let's assume that angles need to be determined for a non-cyclic path starting at $z_0$ and ending
 at~$z_n$. Then equations of the form
 
-$$A_k\theta_{k-1}+(B_k+C_k)\theta_k+D_k\theta_{k+1}=R_k$$
+$$
+A_k\theta_{k-1}+(B_k+C_k)\theta_k+D_k\theta_{k+1}=R_k
+$$
 
 have been given for $0<k<n$, and it will be convenient to introduce equations of the same form for
 $k=0$ and $k=n$, where
 
-$$A_0=B_0=C_n=D_n=0.$$
+$$
+A_0=B_0=C_n=D_n=0.
+$$
 
-If $\theta_0$ is supposed to have a given value $E_0$, we simply define $C_0=1$, $D_0=0$, and
+If $\theta_0$ is supposed to have a given value $E_0$, we simply define $C_0 = 1$, $D_0 = 0$, and
 $R_0=E_0$. Otherwise a curl parameter, $\gamma_0$, has been specified at~$z_0$; this means that the
 mock curvature at $z_0$ should be $\gamma_0$ times the mock curvature at $z_1$; i.e.,
 
-$${2\beta_1(\theta_0+\phi_1)-6\theta_0\over\alpha_0^2d_{01}}
-=\gamma_0{2\alpha_0(\theta_0+\phi_1)-6\phi_1\over\beta_1^2d_{01}}.$$
+$$
+{2\beta_1(\theta_0+\phi_1)-6\theta_0\over\alpha_0^2d_{01}}
+=\gamma_0{2\alpha_0(\theta_0+\phi_1)-6\phi_1\over\beta_1^2d_{01}}.
+$$
 
 This equation simplifies to
 
-$$(\alpha_0\chi_0+3-\beta_1)\theta_0+ \bigl((3-\alpha_0)\chi_0+\beta_1\bigr)\theta_1=
--\bigl((3-\alpha_0)\chi_0+\beta_1\bigr)\psi_1,$$
+$$
+(\alpha_0\chi_0+3-\beta_1)\theta_0+ \bigl((3-\alpha_0)\chi_0+\beta_1\bigr)\theta_1=
+-\bigl((3-\alpha_0)\chi_0+\beta_1\bigr)\psi_1,
+$$
 
-where $\chi_0=\alpha_0^2\gamma_0/\beta_1^2$; so we can set $C_0= \chi_0\alpha_0+3-\beta_1$,
-$D_0=(3-\alpha_0)\chi_0+\beta_1$, $R_0=-D_0\psi_1$. It can be shown that $C_0 > 0$ and
-$C_0B_1-A_1D_0>0$ when $\gamma_0\G0$, hence the linear equations remain nonsingular.
+where $\chi_0 = \alpha_0^2\gamma_0 / \beta_1^2$; so we can set $C_0 = \chi_0\alpha_0 + 3-\beta_1$,
+$D_0 = (3-\alpha_0)\chi_0 + \beta_1$, $R_0 = -D_0\psi_1$. It can be shown that $C_0 > 0$ and
+$C_0B_1-A_1D_0 > 0$ when $\gamma_0\G0$, hence the linear equations remain nonsingular.
 
 Similar considerations apply at the right end, when the final angle $\phi_n$ may or may not need to
-be determined. It is convenient to let $\psi_n=0$, hence $\theta_n=-\phi_n$. We either have an
-explicit equation $\theta_n=E_n$, or we have
+be determined. It is convenient to let $\psi_n=0$, hence $\theta_n = -\phi_n$. We either have an
+explicit equation $\theta_n = E_n$, or we have
 
-$$\bigl((3-\beta_n)\chi_n+\alpha_{n-1}\bigr)\theta_{n-1}+
-(\beta_n\chi_n+3-\alpha_{n-1})\theta_n=0,\qquad \chi_n={\beta_n^2\gamma_n\over\alpha_{n-1}^2}.$$
+$$
+\bigl((3-\beta_n)\chi_n+\alpha_{n-1}\bigr)\theta_{n-1}+
+(\beta_n\chi_n+3-\alpha_{n-1})\theta_n=0,\qquad \chi_n={\beta_n^2\gamma_n\over\alpha_{n-1}^2}.
+$$
 
 */
 
@@ -5928,26 +5976,28 @@ But before coding up the simple cases, we might as well face the general case, s
 with it sooner or later, and since the general case is likely to give some insight into the way
 simple cases can be handled best.
 
-When there is no cycle, the linear equations to be solved form a tridiagonal system, and we can apply
-the standard technique of Gaussian elimination to convert that system to a sequence of equations of
-the form
+When there is no cycle, the linear equations to be solved form a tridiagonal system, and we can 
+apply the standard technique of Gaussian elimination to convert that system to a sequence of 
+equations of the form
 
-$$\theta_0+u_0\theta_1=v_0,\quad \theta_1+u_1\theta_2=v_1,\quad\ldots,\quad
-\theta_{n-1}+u_{n-1}\theta_n=v_{n-1},\quad \theta_n=v_n.$$
+$$
+\theta_0+u_0\theta_1=v_0,\quad \theta_1+u_1\theta_2=v_1,\quad\ldots,\quad
+\theta_{n-1}+u_{n-1}\theta_n=v_{n-1},\quad \theta_n=v_n.
+$$
 
 It is possible to do this diagonalization while generating the equations. Once $\theta_n$ is known,
 it is easy to determine $\theta_{n-1}$, \dots, $\theta_1$, $\theta_0$; thus, the equations will be
 solved.
 
 The procedure is slightly more complex when there is a cycle, but the basic idea will be nearly the
-same. In the cyclic case the right-hand sides will be $v_k+w_k\theta_0$ instead of simply $v_k$, and
-we will start the process off with $u_0=v_0=0$, $w_0=1$. The final equation will be not
-$\theta_n=v_n$ but $\theta_n+u_n\theta_1=v_n+w_n\theta_0$; an appropriate ending routine will take
-account of the fact that $\theta_n=\theta_0$ and eliminate the $w$'s from the system, after which the
-solution can be obtained as before.
+same. In the cyclic case the right-hand sides will be $v_k + w_k\theta_0$ instead of simply $v_k$, 
+and we will start the process off with $u_0 = v_0 = 0$, $w_0 = 1$. The final equation will be not
+$\theta_n = v_n$ but $\theta_n + u_n\theta_1 = v_n+w_n\theta_0$; an appropriate ending routine will
+take account of the fact that $\theta_n=\theta_0$ and eliminate the $w$'s from the system, after 
+which the solution can be obtained as before.
 
 When $u_k$, $v_k$, and $w_k$ are being computed, the three pointer variables |r|, |s|,~|t| will point
-respectively to knots |k-1|, |k|, and~|k+1|. The $u$'s and $w$'s are scaled by $2^{28}$, i.e., they
+respectively to knots |k-1|, |k|, and |k+1|. The $u$'s and $w$'s are scaled by $2^{28}$, i.e., they
 are of type |fraction|; the $\theta$'s and $v$'s are of type |angle|.
 
 */
@@ -5998,7 +6048,7 @@ void mp_solve_choices (MP mp, mp_knot p, mp_knot q, int n)
                 linear equations needn't be solved.
 
                 On the first time through the loop, we have |k=0| and |r| is not yet defined. The 
-                first linear equation, if any, will have $A_0=B_0=0$.
+                first linear equation, if any, will have $A_0 = B_0 = 0$.
             */
             switch (mp_right_type(s)) {
                 case mp_given_knot:
@@ -6068,7 +6118,7 @@ void mp_solve_choices (MP mp, mp_knot p, mp_knot q, int n)
                             new_fraction(r1);
                             new_number_clone(arg2, rt);
                             number_multiply_int(arg2, 3);
-                            make_fraction(ff, unity_t, arg2);    /* $\alpha/3$ */
+                            make_fraction(ff, unity_t, arg2); /* $\alpha/3$ */
                             free_number(arg2);
                             take_fraction(r1, mp->delta_x[0], ff);
                             set_number_from_addition(p->right_x, p->x_coord, r1);
@@ -6158,17 +6208,21 @@ void mp_solve_choices (MP mp, mp_knot p, mp_knot q, int n)
                             The general equation that specifies equality of mock curvature at $z_k$ 
                             is
                             
-                            $$A_k\theta_{k-1}+(B_k+C_k)\theta_k+D_k\theta\k=-B_k\psi_k-D_k\psi\k,$$
+                            $$
+                            A_k\theta_{k-1}+(B_k+C_k)\theta_k+D_k\theta\k=-B_k\psi_k-D_k\psi\k,
+                            $$
 
                             as derived above. We want to combine this with the already-derived 
                             equation $\theta_{k-1}+u_{k-1}\theta_k=v_{k-1}+w_{k-1}\theta_0$ in order 
                             to obtain a new equation $\theta_k+u_k\theta\k=v_k+w_k\theta_0$. This 
                             can be done by dividing the equation
 
-                            $$(B_k-u_{k-1}A_k+C_k)\theta_k+D_k\theta\k=-B_k\psi_k-D_k\psi\k-A_kv_{k-1}
-                            -A_kw_{k-1}\theta_0$$
+                            $$
+                            (B_k-u_{k-1}A_k+C_k)\theta_k+D_k\theta\k=-B_k\psi_k-D_k\psi\k-A_kv_{k-1}
+                            -A_kw_{k-1}\theta_0
+                            $$
 
-                            by $B_k-u_{k-1}A_k+C_k$. The trick is to do this carefully with 
+                            by $B_k-u_{k-1}A_k + C_k$. The trick is to do this carefully with 
                             fixed-point arithmetic, avoiding the chance of overflow while retaining 
                             suitable precision.
 
@@ -6184,9 +6238,12 @@ void mp_solve_choices (MP mp, mp_knot p, mp_knot q, int n)
                         new_number(dd);
                         new_number(ee);
                         /*tex
-                            Calculate the values $|aa|=a_k/b_k$, $|bb|=d_k/c_k$,
-                            $|dd|=(3-\alpha_{k-1})d_{k,k+1}$, $|ee|=(3-\beta\k)d_{k-1,k}$, and
-                            $|cc|=(b_k-u_{k-1}a_k)/b_k$.
+                            Calculate the values 
+                                $|aa| = a_k / b_k$, $|bb| = d_k / c_k$,
+                                $|dd| = (3 - \alpha_{k - 1})d_{k,k + 1}$, 
+                                $|ee| = (3 - \beta\k)d_{k - 1,k}$, 
+                            and 
+                                $|cc| = (b_k - u_{k - 1}a_k) / b_k$.
 
                             Since tension values are never less than 3/4, the values |aa| and |bb| 
                             computed here are never more than 4/5.
@@ -6246,11 +6303,12 @@ void mp_solve_choices (MP mp, mp_knot p, mp_knot q, int n)
                             free_number(r1);
                         }
                         /*tex
-                            Calculate the ratio $|ff|=c_k/(c_k+b_k-u_{k-1}a_k)$. The ratio to be
-                            calculated in this step can be written in the form
+                            Calculate the ratio $|ff| = c_k / (c_k + b_k-u_{k - 1}a_k)$. The ratio 
+                            to be calculated in this step can be written in the form
 
-                            $$\beta_k^2\cdot|ee|\over\beta_k^2\cdot|ee|+\alpha_k^2\cdot
-                            |cc|\cdot|dd|,$$
+                            $$
+                            \beta_k^2\cdot|ee|\over\beta_k^2\cdot|ee|+\alpha_k^2\cdot|cc|\cdot|dd|,
+                            $$
 
                             because of the quantities just calculated. The values of |dd| and |ee| 
                             will not be needed after this step has been performed.
@@ -6289,14 +6347,14 @@ void mp_solve_choices (MP mp, mp_knot p, mp_knot q, int n)
                         }
                         take_fraction(mp->uu[k], ff, bb);
                         /*tex
-                            Calculate the values of $v_k$ and $w_k$. The value of $u_{k-1}$ will be 
-                            |<=1| except when $k=1$ and the previous equation was specified by a
-                            curl. In that case we must use a special method of computation to 
+                            Calculate the values of $v_k$ and $w_k$. The value of $u_{k - 1}$ will 
+                            be $<= 1$ except when $k = 1$ and the previous equation was specified by
+                            a curl. In that case we must use a special method of computation to 
                             prevent overflow.
 
                             Fortunately, the calculations turn out to be even simpler in this 
                             \quote {hard} case. The curl equation makes $w_0=0$ and $v_0=-u_0
-                            \psi_1$, hence $-B_1\psi_1-A_1v_0=-(B_1-u_0A_1)\psi_1=-|cc|\cdot
+                            \psi_1$, hence $-B_1\psi_1-A_1v_0 = -(B_1 - u_0A_1)\psi_1 = -|cc|\cdot
                             B_1\psi_1$.
                         */
                         take_fraction(acc, mp->psi[k + 1], mp->uu[k]);
@@ -6345,9 +6403,11 @@ void mp_solve_choices (MP mp, mp_knot p, mp_knot q, int n)
 
                                 The idea in the following code is to observe that
 
-                                $$\eqalign{\theta_n&=v_n+w_n\theta_0-u_n\theta_1=\cdots\cr
+                                $$
+                                \eqalign{\theta_n&=v_n+w_n\theta_0-u_n\theta_1=\cdots\cr
                                 &=v_n+w_n\theta_0-u_n\bigl(v_1+w_1\theta_0-u_1(v_2+\cdots
-                                -u_{n-2}(v_{n-1}+w_{n-1}\theta_0-u_{n-1}\theta_0))\bigr),\cr}$$
+                                -u_{n-2}(v_{n-1}+w_{n-1}\theta_0-u_{n-1}\theta_0))\bigr),\cr}
+                                $$
 
                                 so we can solve for $\theta_n=\theta_0$.
                             */
@@ -6508,7 +6568,9 @@ static void mp_reduce_angle (MP mp, mp_number *a)
 The |curl_ratio| subroutine has three arguments, which our previous notation encourages us to call
 $\gamma$, $\alpha^{-1}$, and $\beta^{-1}$. It is a somewhat tedious program to calculate
 
-$${(3-\alpha)\alpha^2\gamma+\beta^3\over \alpha^3\gamma+(3-\beta)\beta^2},$$
+$$
+{(3-\alpha)\alpha^2\gamma+\beta^3\over \alpha^3\gamma+(3-\beta)\beta^2},
+$$
 
 with the result reduced to 4 if it exceeds 4. (This reduction of curl is necessary only if the curl
 and tension are both large.) The values of $\alpha$ and $\beta$ will be at most~4/3.
@@ -6572,9 +6634,9 @@ void mp_curl_ratio (MP mp, mp_number *ret, mp_number *gamma_orig, mp_number *a_t
 
 /*tex
 
-We're in the home stretch now.The |set_controls| routine actually puts the control points into a pair
-of consecutive nodes |p| and~|q|. Global variables are used to record the values of $\sin\theta$,
-$\cos\theta$, $\sin\phi$, and $\cos\phi$ needed in this calculation.
+We're in the home stretch now.The |set_controls| routine actually puts the control points into a 
+pair of consecutive nodes |p| and~|q|. Global variables are used to record the values of $\sin
+\theta$, $\cos \theta$, $\sin \phi$, and $\cos \phi$ needed in this calculation.
 
 */
 
@@ -6666,16 +6728,14 @@ void mp_set_controls (MP mp, mp_knot p, mp_knot q, int k)
 
 /*tex
 
-The boundedness conditions $|rr|\L\sin\phi\,/\sin(\theta+\phi)$ and
-$|ss|\L\sin\theta\,/\sin(\theta+\phi)$ are to be enforced if $\sin\theta$, $\sin\phi$, and
-$\sin(\theta+\phi)$ all have the same sign. Otherwise there is no \quote {bounding triangle.}Only the
-simple cases remain to be handled.
-
-Various subroutines that are useful for the new (1.770) exported api for solving path choices
+The boundedness conditions $|rr|\L\sin\phi / \sin(\theta+\phi)$ and $|ss|\L\sin\theta / 
+\sin(\theta+\phi)$ are to be enforced if $\sin\theta$, $\sin\phi$, and $\sin(\theta+\phi)$ all 
+have the same sign. Otherwise there is no \quote {bounding triangle}. Only the simple cases remain 
+to be handled.
 
 */
 
-# define TOO_LARGE(a) (fabs((a))>4096.0)
+# define TOO_LARGE(a) (fabs((a)) > 4096.0)
 # define PI           3.1415926535897932384626433832795028841971
 
 static int out_of_range (MP mp, double a)
@@ -7082,7 +7142,9 @@ on the interesting parts of the path.
 Computing an accurate bounding box involves a theme that will come up again and again. Given a
 Bernshte{\u\i}n polynomial
 
-$$B(z_0,z_1,\ldots,z_n;t)=\sum_k{n\choose k}t^k(1-t)^{n-k}z_k,$$
+$$
+B(z_0,z_1,\ldots,z_n;t)=\sum_k{n\choose k}t^k(1-t)^{n-k}z_k,
+$$
 
 we can conveniently bisect its range as follows:
 
@@ -7100,8 +7162,10 @@ we can conveniently bisect its range as follows:
 
 Then
 
-$$B(z_0,z_1,\ldots,z_n;t)=B(z_0^{(0)},z_0^{(1)},\ldots,z_0^{(n)};2t)
-=B(z_0^{(n)},z_1^{(n-1)},\ldots,z_n^{(0)};2t-1).$$
+$$
+B(z_0,z_1,\ldots,z_n;t)=B(z_0^{(0)},z_0^{(1)},\ldots,z_0^{(n)};2t)
+=B(z_0^{(n)},z_1^{(n-1)},\ldots,z_n^{(0)};2t-1).
+$$
 
 This formula gives us the coefficients of polynomials to use over the ranges $0\L t|1\over2|$ and
 ${1\over2}\L t\L1$.
@@ -7344,12 +7408,12 @@ static void mp_bound_cubic (MP mp, mp_knot p, mp_knot q, int c)
 
 /*tex
 
-If |del1=del2=del3=0|, it's impossible to obey the title of this section. We just set |del=0| in that
-case.Since |crossing_point| has tried to choose |t| so that $B(|del1|, |del2|, |del3|; \tau)$ crosses
-zero at $\tau = |t|$ with negative slope, the value of |del2| computed below should not be positive.
-But rounding error could make it slightly positive in which case we must cut it to zero to avoid
-confusion.Finding the bounding box of a path is basically a matter of applying |bound_cubic| twice
-for each pair of adjacent knots.
+If |del1 = del2=del3=0|, it's impossible to obey the title of this section. We just set |del = 0| in 
+that case.Since |crossing_point| has tried to choose |t| so that $B(|del1|, |del2|, |del3|; \tau)$ 
+crosses zero at $\tau = |t|$ with negative slope, the value of |del2| computed below should not be
+positive. But rounding error could make it slightly positive in which case we must cut it to zero to
+avoid confusion.Finding the bounding box of a path is basically a matter of applying |bound_cubic| 
+twice for each pair of adjacent knots.
 
 */
 
@@ -7418,17 +7482,23 @@ Since the arc length is the integral with respect to time of the magnitude of th
 natural to use Simpson's rule for the approximation. If $\dot B(t)$ is the spline velocity, Simpson's
 rule gives
 
-$$ \vb\dot B(0)\vb + 4\vb\dot B({1\over2})\vb + \vb\dot B(1)\vb \over 6 $$
+$$ 
+\vb\dot B(0)\vb + 4\vb\dot B({1\over2})\vb + \vb\dot B(1)\vb \over 6 
+$$
 
 for the arc length of a path of length~1. For a cubic spline $B(z_0,z_1,z_2,z_3;t)$, the time
 derivative $\dot B(t)$ is $3B(dz_0,dz_1,dz_2;t)$, where $dz_i=z_{i+1}-z_i$. Hence the arc length
 approximation is
 
-$$ {\vb dz_0\vb \over 2} + 2\vb dz_{02}\vb + {\vb dz_2\vb \over 2}, $$
+$$ 
+{\vb dz_0\vb \over 2} + 2\vb dz_{02}\vb + {\vb dz_2\vb \over 2}, 
+$$
 
 where
 
-$$ dz_{02}={1\over2}\left({dz_0+dz_1\over 2}+{dz_1+dz_2\over 2}\right)$$
+$$ 
+dz_{02}={1\over2}\left({dz_0+dz_1\over 2}+{dz_1+dz_2\over 2}\right)
+$$
 
 is the result of the bisection algorithm.
 
@@ -7496,7 +7566,7 @@ static void mp_arc_test (MP mp,
     new_number(simply);
     new_number_clone(tol, *tol_orig);
     /*tex
-        Bisect the béº©er quadratic given by |dx0|, |dy0|, |dx1|, |dy1|, |dx2|, |dy2|.
+        Bisect the bézier quadratic given by |dx0|, |dy0|, |dx1|, |dy1|, |dx2|, |dy2|.
     */
     set_number_half_from_addition(dx01, *dx0, *dx1);
     set_number_half_from_addition(dx12, *dx1, *dx2);
@@ -7601,7 +7671,8 @@ static void mp_arc_test (MP mp,
                 appropriate to use the same approximation to decide when the integral reaches the 
                 intermediate value |a_goal|. At this point
 
-                $$\eqalign{
+                $$
+                \eqalign{
                     {\vb\dot B(0)\vb\over 3} &= \hbox{|v0|}, \qquad
                     {\vb\dot B({1\over4})\vb\over 3} = {\hbox{|v002|}\over 2}, \qquad
                     {\vb\dot B({1\over2})\vb\over 3} = {\hbox{|v02|}\over 2}, \cr
@@ -7612,7 +7683,8 @@ static void mp_arc_test (MP mp,
 
                 and
 
-                $$ {\vb\dot B(t)\vb\over 3} \approx
+                $$ 
+                {\vb\dot B(t)\vb\over 3} \approx
                   \cases{B\left(\hbox{|v0|},
                       \hbox{|v002|}-{1\over 2}\hbox{|v0|}-{1\over 4}\hbox{|v02|},
                       {1\over 2}\hbox{|v02|}; 2t \right)&
@@ -7626,7 +7698,8 @@ static void mp_arc_test (MP mp,
 
                 We can integrate $\vb\dot B(t)\vb$ by using
 
-                $$\int 3B(a,b,c;\tau)\,dt =
+                $$
+                \int 3B(a,b,c;\tau)\,dt =
                   {B(0,a,a+b,a+b+c;\tau) + {\rm constant} \over {d\tau\over dt}}.
                 $$
 
@@ -7782,10 +7855,15 @@ static void mp_arc_test (MP mp,
 
 /*
 
-Here is the |solve_rising_cubic| routine that finds the time~$t$ when $$ B(0, a, a+b, a+b+c; t) = x.
-$$ This routine is based on |crossing_point| but is simplified by the assumptions that
-$B(a,b,c;t)\ge0$ for $0\le t\le1$ and that |0<=x<=a+b+c|. If rounding error causes this condition to
-be violated slightly, we just ignore it and proceed with binary search. This finds a time when the
+Here is the |solve_rising_cubic| routine that finds the time~$t$ when 
+
+$$ 
+B(0, a, a+b, a+b+c; t) = x.
+$$ 
+
+This routine is based on |crossing_point| but is simplified by the assumptions that $B(a,b,c;t) 
+\ge 0$ for $0\le t\le1$ and that |0 <= x <= a+b+c|. If rounding error causes this condition to be 
+violated slightly, we just ignore it and proceed with binary search. This finds a time when the 
 function value reaches |x| and the slope is positive.
 
 */
@@ -7832,7 +7910,7 @@ void mp_solve_rising_cubic (MP mp, mp_number *ret, mp_number *a_orig, mp_number 
         do {
             number_add(t, t);
             /*tex
-                Subdivide the béº©er quadratic defined by |a|, |b|, |c|.
+                Subdivide the bézier quadratic defined by |a|, |b|, |c|.
             */
             set_number_half_from_addition(ab, a, b);
             set_number_half_from_addition(bc, b, c);
@@ -7870,8 +7948,8 @@ void mp_solve_rising_cubic (MP mp, mp_number *ret, mp_number *a_orig, mp_number 
 
 /*tex
 
-It is convenient to have a simpler interface to |arc_test| that requires no unnecessary arguments and
-ensures that each $({\it dx},{\it dy})$ pair has length less than |fraction_four|.
+It is convenient to have a simpler interface to |arc_test| that requires no unnecessary arguments 
+and ensures that each $({\it dx},{\it dy})$ pair has length less than |fraction_four|.
 
 */
 
@@ -10969,12 +11047,21 @@ void mp_remove_cubic (MP mp, mp_knot p)
 
 Let $d\prec d'$ mean that the counter-clockwise angle from $d$ to~$d'$ is strictly between zero and
 $180^\circ$. Then we can define $d\preceq d'$ to mean that the angle could be zero or $180^\circ$. If
-$w_k=(u_k,v_k)$ is the $k$th pen offset, the $k$th pen edge direction is defined by the formula
-$$d_k=(u\k-u_k,\,v\k-v_k).$$ When listed by increasing $k$, these directions occur in
-counter-clockwise order so that $d_k\preceq d\k$ for all~$k$. The goal of |offset_prep| is to find an
-offset index~|k| to associate with each cubic, such that the direction $d(t)$ of the cubic satisfies
-$$d_{k-1}\preceq d(t)\preceq d_k\qquad\hbox{for $0\le t\le 1$.}\eqno(*)$$ We may have to split a
-cubic into many pieces before each piece corresponds to a unique offset.
+$w_k = (u_k,v_k)$ is the $k$th pen offset, the $k$th pen edge direction is defined by the formula
+
+$$
+d_k = (u\k-u_k,\,v\k-v_k).
+$$ 
+
+When listed by increasing $k$, these directions occur in counter-clockwise order so that $d_k
+\preceq d\k$ for all~$k$. The goal of |offset_prep| is to find an offset index~|k| to associate 
+with each cubic, such that the direction $d(t)$ of the cubic satisfies
+
+$$
+d_{k-1}\preceq d(t)\preceq d_k\qquad\hbox{for $0\le t\le 1$.}\eqno(*)
+$$ 
+
+We may have to split a cubic into many pieces before each piece corresponds to a unique offset.
 
 */
 
@@ -10997,26 +11084,36 @@ mp_knot mp_pen_walk (MP mp, mp_knot w, int k)
 
 /*tex
 
-The direction of a cubic $B(z_0,z_1,z_2,z_3;t)=\bigl(x(t),y(t)\bigr)$ can be calculated from the
-quadratic polynomials ${1\over3}x'(t)=B(x_1-x_0,x_2-x_1,x_3-x_2;t)$ and
-${1\over3}y'(t)=B(y_1-y_0,y_2-y_1,y_3-y_2;t)$. Since we may be calculating directions from several
-cubics split from the current one, it is desirable to do these calculations without losing too much
+The direction of a cubic $B(z_0,z_1,z_2,z_3;t) = \bigl(x(t),y(t)\bigr)$ can be calculated from the
+quadratic polynomials ${1\over3}x'(t) = B(x_1 - x_0,x_2 - x_1,x_3 - x_2;t)$ and ${1\over3}y'(t) = 
+B(y_1 - y_0,y_2 - y_1,y_3 - y_2;t)$. Since we may be calculating directions from several cubics 
+split from the current one, it is desirable to do these calculations without losing too much
 precision. \quote {Scaled up} values of the derivatives, which will be less tainted by accumulated
 errors than derivatives found from the cubics themselves, are maintained in local variables |x0|,
-|x1|, and |x2|, representing $X_0=2^l(x_1-x_0)$, $X_1=2^l(x_2-x_1)$, and $X_2=2^l(x_3-x_2)$;
-similarly |y0|, |y1|, and~|y2| represent $Y_0=2^l(y_1-y_0)$, $Y_1=2^l(y_2-y_1)$, and
-$Y_2=2^l(y_3-y_2)$.
+|x1|, and |x2|, representing $X_0 = 2^l(x_1 - x_0)$, $X_1 = 2^l(x_2 - x_1)$, and $X_2 = 2^l(x_3 - 
+x_2)$; similarly |y0|, |y1|, and~|y2| represent $Y_0 = 2^l(y_1 - y_0)$, $Y_1 = 2^l(y_2 - y_1)$, and
+$Y_2 = 2^l(y_3 - y_2)$.
 
 Let us first solve a special case of the problem: Suppose we know an index~$k$ such that either
-(i)~$d(t)\succeq d_{k-1}$ for all~$t$ and $d(0)\prec d_k$, or (ii)~$d(t)\preceq d_k$ for all~$t$ and
-$d(0)\succ d_{k-1}$. Then, in a sense, we're halfway done, since one of the two relations in $(*)$ is
-satisfied, and the other couldn't be satisfied for any other value of~|k|. Actually, the conditions
-can be relaxed somewhat since a relation such as
 
-$d(t)\succeq d_{k-1}$ restricts $d(t)$ to a half plane when all that really matters is whether $d(t)$
-crosses the ray in the $d_{k-1}$ direction from the origin. The condition for case~(i) becomes
-$d_{k-1}\preceq d(0)\prec d_k$ and $d(t)$ never crosses the $d_{k-1}$ ray in the clockwise direction.
-Case~(ii) is similar except $d(t)$ cannot cross the $d_k$ ray in the counterclockwise direction.
+\startitemize[r,packed]
+\startitem 
+    $d(t)\succeq d_{k-1}$ for all~$t$ and $d(0)\prec d_k$, or 
+\stopitem 
+\startitem 
+  (ii)~$d(t)\preceq d_k$ for all~$t$
+\stopitem 
+\stopitemize
+
+and $d(0) \succ d_{k-1}$. Then, in a sense, we're halfway done, since one of the two relations in 
+$(*)$ is satisfied, and the other couldn't be satisfied for any other value of~|k|. Actually, the 
+conditions can be relaxed somewhat since a relation such as
+
+$d(t)\succeq d_{k - 1}$ restricts $d(t)$ to a half plane when all that really matters is whether 
+$d(t)$ crosses the ray in the $d_{k - 1}$ direction from the origin. The condition for case~(i) 
+becomes $d_{k - 1} \preceq d(0) \prec d_k$ and $d(t)$ never crosses the $d_{k - 1}$ ray in the 
+clockwise direction. Case~(ii) is similar except $d(t)$ cannot cross the $d_k$ ray in the 
+counterclockwise direction.
 
 The |fin_offset_prep| subroutine solves the stated subproblem. It has a parameter called |rise| that
 is |1| in case~(i), |-1| in case~(ii). Parameters |x0| through |y2| represent the derivative of the
@@ -11034,7 +11131,7 @@ again and return towards $s_{k-1}$ or $s_k$, respectively, yielding another solu
 Now we must consider the general problem of |offset_prep|, when nothing is known about a given cubic.
 We start by finding its direction in the vicinity of |t=0|.
 
-If $z'(t)=0$, the given cubic is numerically unstable but |offset_prep| has not yet introduced any
+If $z'(t) = 0$, the given cubic is numerically unstable but |offset_prep| has not yet introduced any
 more numerical errors. Thus we can compute the true initial direction for the given cubic, even if it
 is almost degenerate.
 
@@ -11044,9 +11141,9 @@ turn must be counter-clockwise in order to make |doublepath| envelopes come out 
 depends on |w0| being the offset for |(dxin,dyin)|.
 
 Decide how many pen offsets to go away from |w| in order to find the offset for |(dx,dy)|, going
-counterclockwise if |ccw| is |true|. This assumes that |w| is the offset for some direction $(x',y')$
-from which the angle to |(dx,dy)| in the sense determined by |ccw| is less than or equal to
-$180^\circ$.
+counterclockwise if |ccw| is |true|. This assumes that |w| is the offset for some direction 
+$(x',y')$ from which the angle to |(dx,dy)| in the sense determined by |ccw| is less than or equal
+to $180^\circ$.
 
 If the pen polygon has only two edges, they could both be parallel to |(dx,dy)|. In this case, we
 must be careful to stop after crossing the first such edge in order to avoid an infinite loop.
@@ -11460,10 +11557,14 @@ static mp_knot mp_make_envelope (MP mp, mp_knot c, mp_knot h, int linejoin, int 
                             /* |mp_confusion(mp, "degenerate spec");| */
                             /*
                                 But apparently, it actually can happen. The test case is this:
-                                  path p;
-                                  linejoin := mitered;
-                                  p:= (10,0)..(0,10)..(-10,0)..(0,-10)..cycle;
-                                  addto currentpicture contour p withpen pensquare;
+
+                                \starttyping
+                                path p;
+                                linejoin := mitered;
+                                p:= (10,0)..(0,10)..(-10,0)..(0,-10)..cycle;
+                                addto currentpicture contour p withpen pensquare;
+                                \stoptyping
+
                                 The reason for failure here is the addition of |r != q| in revision
                                 1757 in \quote {Advance |p| to node |q|, removing any ``dead} cubics'',
                                 which itself was needed to fix a bug with disappearing knots in a
@@ -11482,7 +11583,7 @@ static mp_knot mp_make_envelope (MP mp, mp_knot c, mp_knot h, int linejoin, int 
                     if (join_type == 0) { /* mp_mitered_linejoin_code */
                         /*tex
                             If |miterlimit| is less than the secant of half the angle at |q| then set
-                            |join_type:=2|.
+                            |join_type := 2|.
                         */
                         mp_number r1, r2;
                         new_fraction(r1);
@@ -11757,11 +11858,12 @@ mp_knot mp_insert_knot (MP mp, mp_knot q, mp_number *x, mp_number *y)
 The dot product of the vector from |w0| to |ww| with |(ht_x,ht_y)| ranges from zero to |max_ht|.
 
 In degenerate situations we might have to look at the knot preceding~|q|. That knot is |p| but if
-|p<>c|, its coordinates have already been offset by |w|.If |q=c| then the coordinates of |r| and the
-control points between |q| and~|r| have already been offset by |h|.Direction and intersection times
+|p<>c|, its coordinates have already been offset by |w|. If |q = c| then the coordinates of |r| and 
+the control points between |q| and~|r| have already been offset by |h|.Direction and intersection
+times
 
-A path of length $n$ is defined parametrically by functions $x(t)$ and $y(t)$, for |0<=t<=n|; we can
-regard $t$ as the \quote {time} at which the path reaches the point $\bigl(x(t),y(t)\bigr)$. In this
+A path of length $n$ is defined parametrically by functions $x(t)$ and $y(t)$, for |0 <= t <= n|; 
+we can regard $t$ as the \quote {time} at which the path reaches the point $\bigl(x(t),y(t)\bigr)$. In this
 section of the program we shall consider operations that determine special times associated with
 given paths: the first time that a path travels in a given direction, and a pair of times at which
 two paths cross each other.
@@ -11770,12 +11872,12 @@ Let's start with the easier task. The function |find_direction_time| is given a 
 a path starting at~|h|. If the path never travels in direction |(x,y)|, the direction time will
 be~|-1|; otherwise it will be nonnegative.
 
-Certain anomalous cases can arise: If |(x,y)=(0,0)|, so that the given direction is undefined, the
-direction time will be~0. If $\bigl(x'(t), y'(t)\bigr)=(0,0)$, so that the path direction is
+Certain anomalous cases can arise: If |(x,y) = (0,0)|, so that the given direction is undefined, the
+direction time will be~0. If $\bigl(x'(t), y'(t)\bigr) = (0,0)$, so that the path direction is
 undefined, it will be assumed to match any given direction at time~|t|.
 
 The routine solves this problem in nondegenerate cases by rotating the path and the given direction
-so that |(x,y)=(1,0)|; i.e., the main task will be to find when a given path first travels \quote
+so that |(x,y) = (1,0)|; i.e., the main task will be to find when a given path first travels \quote
 {due east.}
 
 */
@@ -11963,10 +12065,10 @@ static void mp_find_direction_time (MP mp, mp_number *ret, mp_number *x_orig, mp
             /*tex
                 Exit to |found| if the curve whose derivatives are specified by |x1,x2,x3,y1,y2,y3|
                 travels eastward at some time~|tt|. In this step we want to use the |crossing_point|
-                routine to find the roots of the quadratic equation $B(y_1,y_2,y_3;t)=0$. Several
+                routine to find the roots of the quadratic equation $B(y_1,y_2,y_3;t) = 0$. Several
                 complications arise: If the quadratic equation has a double root, the curve never
                 crosses zero, and |crossing_point| will find nothing; this case occurs iff
-                $y_1y_3=y_2^2$ and $y_1y_2<0$. If the quadratic equation has simple roots, or only
+                $y_1y_3 = y_2^2$ and $y_1y_2 < 0$. If the quadratic equation has simple roots, or only
                 one root, we may have to negate it so that $B(y_1,y_2,y_3;t)$ crosses from positive
                 to negative at its first root. And finally, we need to do special things if
                 $B(y_1,y_2,y_3;t)$ is identically zero.
@@ -12003,9 +12105,9 @@ static void mp_find_direction_time (MP mp, mp_number *ret, mp_number *x_orig, mp
                             if (number_zero(y1)) {
                                 /*tex
                                      Exit to |found| if the derivative $B(x_1,x_2,x_3;t)$ becomes
-                                     |>=0| At this point we know that the derivative of |y(t)| is
-                                     identically zero, and that |x1<0|; but either |x2>=0| or
-                                     |x3>=0|, so there's some hope of traveling east.
+                                     |>= 0| At this point we know that the derivative of |y(t)| is
+                                     identically zero, and that |x1 < 0|; but either |x2 >= 0| or
+                                     |x3 >= 0|, so there's some hope of traveling east.
                                 */
                                 mp_number arg1, arg2, arg3;
                                 new_number(arg1);
@@ -12056,7 +12158,7 @@ static void mp_find_direction_time (MP mp, mp_number *ret, mp_number *x_orig, mp
                 quadratic polynomial $B(y_1,y_2,y_3;t)$ begins |>=0| and has at most two roots,
                 because we know that it isn't identically zero. It must be admitted that the
                 |crossing_point| routine is not perfectly accurate; rounding errors might cause it to
-                find a root when $y_1y_3>y_2^2$, or to miss the roots when $y_1y_3<y_2^2$. The
+                find a root when $y_1y_3 > y_2^2$, or to miss the roots when $y_1y_3 < y_2^2$. The
                 rotation process is itself subject to rounding errors. Yet this code optimistically
                 tries to do the right thing.
             */
@@ -12275,8 +12377,8 @@ static int mp_cubic_intersection(MP mp, mp_knot p, mp_knot pp, int run)
                                     number_divide_int(mp->cur_tt,1<<2);
                                     set_number_from_scaled(mp->cur_t, ((number_to_scaled(mp->cur_t) + 1)/2));
                                     set_number_from_scaled(mp->cur_tt, ((number_to_scaled(mp->cur_tt) + 1)/2));
-free_number(x_two_t);
-free_number(x_two_t_low_precision);
+                                    free_number(x_two_t);
+                                    free_number(x_two_t_low_precision);
                                     return 1;
                                 } else {
                                     run--;
@@ -12354,8 +12456,8 @@ free_number(x_two_t_low_precision);
             }
             number_clone(mp->cur_t, mp->appr_t);
             number_clone(mp->cur_tt, mp->appr_tt);
-free_number(x_two_t);
-free_number(x_two_t_low_precision);
+            free_number(x_two_t);
+            free_number(x_two_t_low_precision);
             return 2;
         }
       NOT_FOUND:
@@ -12372,8 +12474,8 @@ free_number(x_two_t_low_precision);
                 set_number_from_scaled(mp->cur_t, half (number_to_scaled(mp->cur_t)));
                 set_number_from_scaled(mp->cur_tt, half (number_to_scaled(mp->cur_tt)));
                 if (number_to_scaled(mp->cur_t) == 0) {
-free_number(x_two_t);
-free_number(x_two_t_low_precision);
+                    free_number(x_two_t);
+                    free_number(x_two_t_low_precision);
                     return 3;
                 } else {
                     mp->bisect_ptr -= int_increment;
@@ -12417,8 +12519,8 @@ free_number(x_two_t_low_precision);
             mp->xy = mp->xy + int_packets;
         }
     }
-free_number(x_two_t);
-free_number(x_two_t_low_precision);
+    free_number(x_two_t);
+    free_number(x_two_t_low_precision);
 }
 
 static mp_knot mp_path_intersection_add(MP mp, mp_knot list, mp_knot *last, mp_number *t, mp_number *tt)
@@ -12588,32 +12690,32 @@ so, by distinguishing five different types of numeric values:
 \startitemize
 
 \startitem
-    |type(p)=mp_known| is the nice case, when |value(p)| is the |scaled| value of the variable whose
-    address is~|p|.
+    |type(p) = mp_known| is the nice case, when |value(p)| is the |scaled| value of the variable 
+    whose address is~|p|.
 \stopitem
 
 \startitem
-    |type(p)=mp_dependent| means that |value(p)| is not present, but |mp_get_dep_list(p)| points to a
-    {\sl dependency list} that expresses the value of variable~|p| as a |scaled| number plus a sum of
-    independent variables with |fraction| coefficients.
+    |type(p)=mp_dependent| means that |value(p)| is not present, but |mp_get_dep_list(p)| points to 
+    a {\sl dependency list} that expresses the value of variable~|p| as a |scaled| number plus a sum 
+    of independent variables with |fraction| coefficients.
 \stopitem
 
 \startitem
-    |type(p)=mp_independent| means that |mp_get_indep_value(p)=s|, where |s>0| is a \quote {serial
+    |type(p) = mp_independent| means that |mp_get_indep_value(p)=s|, where |s>0| is a \quote {serial
     number} reflecting the time this variable was first used in an equation; and there is an extra
-    field |mp_get_indep_scale(p)=m|, with |0<=m<64|, each dependent variable that refers to this one
-    is actually referring to the future value of this variable times~$2^m$. (Usually |m=0|, but
-    higher degrees of scaling are sometimes needed to keep the coefficients in dependency lists from
-    getting too large. The value of~|m| will always be even.)
+    field |mp_get_indep_scale(p) = m|, with |0 <= m <64|, each dependent variable that refers to 
+    this one is actually referring to the future value of this variable times~$2^m$. (Usually 
+    |m = 0|, but higher degrees of scaling are sometimes needed to keep the coefficients in 
+    dependency lists from getting too large. The value of~|m| will always be even.)
 \stopitem
 
 \startitem
-    |type(p)=mp_numeric_type| means that variable |p| hasn't appeared in an equation before, but it
+    |type(p) = mp_numeric_type| means that variable |p| hasn't appeared in an equation before, but it
     has been explicitly declared to be numeric.
 \stopitem
 
 \startitem
-    |type(p)=undefined| means that variable |p| hasn't appeared
+    |type(p) = undefined| means that variable |p| hasn't appeared
 before.
 \stopitem
 
@@ -13475,8 +13577,8 @@ static mp_value_node find_node_with_largest_coefficient (MP mp, mp_value_node p,
 
 /*
 Here we want to change the coefficients from |scaled| to |fraction|, except in
-the constant term. In the common case of a trivial equation like |x=3.14|, we
-will have |v=-fraction_one|, |q=p|, and |t=mp_dependent|.
+the constant term. In the common case of a trivial equation like |x = 3.14|, we
+will have |v = -fraction_one|, |q = p|, and |t=mp_dependent|.
 */
 
 static mp_value_node divide_p_by_minusv_removing_q (MP mp,
@@ -15546,7 +15648,7 @@ static void mp_scan_def (MP mp, int code)
     mp_node q;                     /*tex tail of the macro token list */
     mp_node p;                     /*tex temporary storage */
     int sym_type;                  /*tex |expr_sym|, |suffix_sym|, or |text_sym| */
-    mp_symbol l_delim, r_delim;       /*tex matching delimiters */
+    mp_symbol l_delim, r_delim;    /*tex matching delimiters */
     int c = mp_general_macro;      /*tex the kind of macro we're defining */
     mp->hold_head->link = NULL;
     q = mp_new_symbolic_node(mp);
@@ -15703,8 +15805,8 @@ static void mp_scan_def (MP mp, int code)
     p->name_type = mp_macro_operation;
     q->link = p;
     /*tex
-        Attach the replacement text to the tail of node |p|. We don't put |mp->frozen_end_group| into
-        the replacement text of a |vardef|, because the user may want to redefine |endgroup|.
+        Attach the replacement text to the tail of node |p|. We don't put |mp->frozen_end_group| 
+        into the replacement text of a |vardef|, because the user may want to redefine |endgroup|.
     */
     if (code == mp_def_code) {
         p->link = mp_scan_toks(mp, mp_macro_def_command, r, NULL, (int) n);
@@ -16167,8 +16269,8 @@ static void mp_macro_call (MP mp, mp_node def_ref, mp_node arg_list, mp_symbol m
 {
     int n;                     /*tex the number of arguments */
     mp_node tail = 0;          /*tex tail of the argument list */
-    mp_symbol l_delim = NULL;     /*tex a delimiter pair */
-    mp_symbol r_delim = NULL;     /*tex a delimiter pair */
+    mp_symbol l_delim = NULL;  /*tex a delimiter pair */
+    mp_symbol r_delim = NULL;  /*tex a delimiter pair */
     mp_node r = def_ref->link; /*tex current node in the macro's token list */
     mp_add_mac_ref(def_ref);
     if (arg_list == NULL) {
@@ -16297,7 +16399,7 @@ static void mp_macro_call (MP mp, mp_node def_ref, mp_node arg_list, mp_symbol m
         /*tex
             Append the current expression to |arg_list|. A |suffix| or |text| parameter will have 
             been scanned as a token list pointed to by |cur_exp|, in which case we will have 
-            |cur_type=token_list|.
+            |cur_type = token_list|.
         */
         {
             mp_node p = mp_new_symbolic_node(mp);
@@ -16610,8 +16712,8 @@ specifies the largest code of a |fi_or_else| command that is syntactically legal
 the line number at which the current conditional began.
 
 If no conditions are currently in progress, the condition stack has the special state
-|cond_ptr=NULL|, |if_limit=normal|, |cur_if=0|, |if_line=0|. Otherwise |cond_ptr| points to a
-non-symbolic node; the |type|, |name_type|, and |link| fields of the first word contain |if_limit|,
+|cond_ptr = NULL|, |if_limit = normal|, |cur_if = 0|, |if_line = 0|. Otherwise |cond_ptr| points to 
+a non-symbolic node; the |type|, |name_type|, and |link| fields of the first word contain |if_limit|,
 |cur_if|, and |cond_ptr| at the next level, and the second word contains the corresponding |if_line|.
 
 */
@@ -16625,7 +16727,7 @@ static mp_node mp_get_if_node (MP mp) {
 /*tex
 
 Here is a procedure that ignores text until coming to an |elseif|, |else|, or |fi| at level zero of
-$|if|\ldots|fi|$ nesting. After it has acted, |cur_mod| will indicate the token that was found.
+$|if| \ldots |fi|$ nesting. After it has acted, |cur_mod| will indicate the token that was found.
 
 \MP's smallest two command codes are |if_test| and |fi_or_else|; this makes the skipping process a
 bit simpler.
@@ -16713,7 +16815,7 @@ A condition is started when the |get_x_next| procedure encounters an |if_test| c
 
 /*tex
 
-When we begin to process a new |if|, we set |if_limit:=mp_if_code|; then if |elseif| or |else| or
+When we begin to process a new |if|, we set |if_limit := mp_if_code|; then if |elseif| or |else| or
 |fi| occurs before the current |if| condition has been evaluated, a colon will be inserted. A
 construction like |if fi| would otherwise get \MP\ confused.
 
@@ -16835,7 +16937,7 @@ Now that we know all about loop control, we can finish up the missing portion of
 and we'll be done.
 
 The following code is performed after the |=| has been scanned in a |for| construction (if
-|m=start_for|) or a |forsuffixes| construction (if |m=start_forsuffixes|).
+|m = start_for|) or a |forsuffixes| construction (if |m = start_forsuffixes|).
 
 The last case is when we have just seen |within|, and we need to parse a picture expression and
 prepare to iterate over it.
@@ -17043,13 +17145,11 @@ void mp_begin_iteration (MP mp)
 /*tex
 
 We append a special |mp->frozen_repeat_loop| token in place of the |endfor| at the end of the loop.
-This will come through \MP's scanner at the proper time to cause the loop to be repeated.
-
-(If the user tries some shenanigan like `|for| $\ldots$ |let| |endfor|', he will be foiled by the
-|get_symbol| routine, which keeps frozen tokens unchanged. Furthermore the |mp->frozen_repeat_loop|
-is an |outer| token, so it won't be lost accidentally.)
-
-The loop text is inserted into \MP's scanning apparatus by the |resume_iteration| routine.
+This will come through \MP's scanner at the proper time to cause the loop to be repeated. If the 
+user tries some shenanigan like \quote {|for| $\ldots$ |let| |endfor|{'}, he will be foiled by the 
+|get_symbol| routine, which keeps frozen tokens unchanged. Furthermore the |mp->frozen_repeat_loop| 
+is an |outer| token, so it won't be lost accidentally. The loop text is inserted into \MP's scanning 
+apparatus by the |resume_iteration| routine.
 
 */
 
@@ -17213,17 +17313,20 @@ in different ways, we must cope with the fact that completely different naming c
 by different groups of people. The following programs show what is required for one particular
 operating system; similar routines for other systems are not difficult to devise.
 
+{\em This section doesn't really apply to the library because files are mostly delegated to the main 
+program but we keep some comments fo rhistoric reasons.}
+
 \MP\ assumes that a file name has three parts: the name proper; its \quote {extension}; and a \quote
 {file area} where it is found in an external file system. The extension of an input file is assumed
 to be |.mp| unless otherwise specified; it is |.log| on the transcript file that records each run of
 \MP; it is |.tfm| on the font metric files that describe characters in any fonts created by \MP; it
-is |.ps| or `.{\it nnn}' for some number {\it nnn} on the \ps\ output files. The file area can be
+is |.ps| or |.nnn| for some number |nnn| on the \POSTSCRIPT\ output files. The file area can be
 arbitrary on input files, but files are usually output to the user's current area. If an input file
 cannot be found on the specified area, \MP\ will look for it on a special system area; this special
 area is intended for commonly used input files.
 
 Simple uses of \MP\ refer only to file names that have no explicit extension or area. For example, a
-person usually says `|input| |cmr10|' instead of `|input| |cmr10.new|'. Simple file names are best,
+person usually says |input cmr10| instead of |input cmr10.new|. Simple file names are best,
 because they make the \MP\ source files portable; whenever a file name consists entirely of letters
 and digits, it should be treated in the same way by all implementations of \MP. However, users need
 the ability to refer to other files in their environment, especially when responding to error
@@ -17233,15 +17336,21 @@ their favorite operating system.
 \MP\ uses the same conventions that have proved to be satisfactory for \TeX\ and \MF. In order to
 isolate the system-dependent aspects of file names, the system-independent parts of \MP\ are
 expressed in terms of three system-dependent procedures called |begin_name|, |more_name|, and
-|end_name|. In essence, if the user-specified characters of the file name are $c_1\ldots c_n$, the
+|end_name|. In essence, if the user-specified characters of the file name are $c_1 \ldots c_n$, the
 system-independent driver program does the operations
-$$|begin_name|;\,|more_name|(c_1);\,\ldots\,;\,|more_name|(c_n); \,|end_name|.$$ These three
-procedures communicate with each other via global variables. Afterwards the file name will appear in
-the string pool as |cur_name|.
+
+\starttyping
+|begin_name|
+|more_name|(c_1) ... |more_name|(c_n)
+|end_name|
+\stoptyping
+
+These three procedures communicate with each other via global variables. Afterwards the file name 
+will appear in the string pool as |cur_name|.
 
 Actually the situation is slightly more complicated, because \MP\ needs to know when the file name
 ends. The |more_name| routine is a function (with side effects) that returns |true| on the calls
-|more_name|$(c_1)$, \dots, |more_name|$(c_{n-1})$. The final call |more_name|$(c_n)$ returns |false|;
+|more_name(c_1)|, \dots, |more_name(c_{n-1}(_)|. The final call |more_name(c_n)| returns |false|;
 or, it returns |true| and $c_n$ is the last character on the current input line. In other words,
 |more_name| is supposed to return |true| unless it is sure that the file name has been completely
 scanned; and |end_name| is supposed to be able to finish the assembly of |cur_name| regardless of
@@ -17675,7 +17784,7 @@ variables of those types are allowed. Conversely, \MP\ has no variables of type 
 
 Capsules are non-symbolic nodes that have a similar meaning to |cur_type| and |cur_exp|. Such nodes
 have |name_type=capsule|, and their |type| field is one of the possibilities for |cur_type| listed
-above. Also |link<=void| in capsules that aren't part of a token list.
+above. Also |link <= void| in capsules that aren't part of a token list.
 
 The |value| field of a capsule is, in most cases, the value that corresponds to its |type|, as
 |cur_exp| corresponds to |cur_type|. However, when |cur_exp| would point to a capsule, no extra layer
@@ -17691,10 +17800,10 @@ say, |mp_unknown_boolean| to |mp_boolean_type|, or from |dependent| to |known| o
 during the time |get_x_next| is called. The programs below are careful to stash sensitive
 intermediate results in capsules, so that \MP's generality doesn't cause trouble.
 
-Here's a procedure that illustrates these conventions. It takes the contents of
-$(|cur_type|\kern-.3pt,|cur_exp|\kern-.3pt)$ and stashes them away in a capsule. It is not used when
-|cur_type=mp_token_list|. After the operation, |cur_type=mp_vacuous|; hence there is no need to copy
-path lists or to update reference counts, etc.
+Here's a procedure that illustrates these conventions. It takes the contents of |(cur_type, cur_exp)|
+and stashes them away in a capsule. It is not used when|cur_type=mp_token_list|. After the operation, 
+|cur_type = mp_vacuous|; hence there is no need to copy path lists or to update reference counts, 
+etc.
 
 The special link |MP_VOID| is put on the capsule returned by |stash_cur_exp|, because this procedure
 is used to store macro parameters that must be easily distinguishable from token lists.
@@ -18232,23 +18341,25 @@ relevant algorithm is due to Ignacio~A. Zabala, who implemented it as part of hi
 (Stanford University, December 1982).
 
 For example, suppose that variable $x$ is being recycled, and that the only variables depending
-on~$x$ are $y=2x+a$ and $z=x+b$. In this case we want to make $y$ independent and $z=.5y-.5a+b$; no
-other variables will depend on~$y$. If $|tracingequations|>0$ in this situation, we will print
-|\#\#\# -2x=-y+a|.
+on~$x$ are $y = 2x + a$ and $z = x + b$. In this case we want to make $y$ independent and $z =
+.5y - .5a + b$; no other variables will depend on~$y$. If $|tracingequations|>0$ in this situation, 
+we will print |\#\#\# -2x = -y + a|.
 
 There's a slight complication, however: An independent variable $x$ can occur both in dependency
 lists and in proto-dependency lists. This makes it necessary to be careful when deciding which
 coefficient is maximal.
 
 Furthermore, this complication is not so slight when a proto-dependent variable is chosen to become
-independent. For example, suppose that $y=2x+100a$ is proto-dependent while $z=x+b$ is dependent;
-then we must change $z=.5y-50a+b$ to a proto-dependency, because of the large coefficient `50'.
+independent. For example, suppose that $y = 2x +100a$ is proto-dependent while $z = x + b$ is 
+dependent; then we must change $z = .5y - 50a + b$ to a proto-dependency, because of the large 
+coefficient \quote {50{'}.
 
 In order to deal with these complications without wasting too much time, we shall link together the
-occurrences of~$x$ among all the linear dependencies, maintaining separate lists for the dependent
+occurrences of $x$ among all the linear dependencies, maintaining separate lists for the dependent
 and proto-dependent cases.
 
 */
+
 static void mp_recycle_independent_value (MP mp, mp_node p)
 {
     mp_value_node q, r, s;
@@ -18315,7 +18426,7 @@ static void mp_recycle_independent_value (MP mp, mp_node p)
             t = mp_proto_dependent_type;
         }
         /*tex
-             Let |s=max_ptr[t]|. At this point we have $|value|(s)=\pm|max_c|[t]$, and
+             Let |s = max_ptr[t]|. At this point we have $|value|(s) = \pm |max_c|[t]$, and
              |mp_get_dep_info(s)| points to the dependent variable~|pp| of type~|t| from whose
              dependency list we have removed node~|s|. We must reinsert node~|s| into the dependency
              list, with coefficient $-1.0$, and with |pp| as the new independent variable. Since |pp|
@@ -18360,8 +18471,8 @@ static void mp_recycle_independent_value (MP mp, mp_node p)
             mp->max_link[t] = mp->max_ptr[t];
         }
         /*tex
-            Finally, there are dependent and proto-dependent variables whose dependency lists must be
-            brought up to date.
+            Finally, there are dependent and proto-dependent variables whose dependency lists must 
+            be brought up to date.
         */
         if (t != mp_dependent_type) {
             /*tex
@@ -18460,11 +18571,11 @@ The code for independency removal makes use of three non-symbolic arrays.
 A global variable |var_flag| is set to a special command code just before \MP\ calls
 |scan_expression|, if the expression should be treated as a variable when this command code
 immediately follows. For example, |var_flag| is set to |assignment| at the beginning of a statement,
-because we want to know the {\sl location} of a variable at the left of |:=|, not the {\sl value} of
-that variable.
+because we want to know the \quote {location} of a variable at the left of |:=|, not the \quote 
+{value} of that variable.
 
 The |scan_expression| subroutine calls |scan_tertiary|, which calls |scan_secondary|, which calls
-|scan_primary|, which sets |var_flag:=0|. In this way each of the scanning routines \quote {knows}
+|scan_primary|, which sets |var_flag := 0|. In this way each of the scanning routines \quote {knows}
 when it has been called with a special |var_flag|, but |var_flag| is usually zero.
 
 A variable preceding a command that equals |var_flag| is converted to a token list rather than a
@@ -18472,7 +18583,7 @@ value. Furthermore, an |=| sign following an expression with |var_flag=assignmen
 to be a relation that produces boolean expressions.
 
 The first parsing routine, |scan_primary|, is also the most complicated one, since it involves so
-many different cases. But each case---with one exception---is fairly simple by itself.
+many different cases. But each case (with one exception) is fairly simple by itself.
 
 When |scan_primary| begins, the first token of the primary to be scanned should already appear in
 |cur_cmd|, |cur_mod|, and |cur_sym|. The values of |cur_type| and |cur_exp| should be either dead or
@@ -18495,8 +18606,8 @@ that the suspense won't be too bad:
 
 \startitem
     |do_binary(p,c)| applies a primitive operation to the capsule~|p| and the current
-    expression.Expressions of the form |a[b,c]| are converted into |b+a*(c-b)|, without checking the
-    types of \.b~or~\.c, provided that \.a is numeric.Errors at the beginning of expressions are
+    expression.Expressions of the form |a[b,c]| are converted into |b + a*(c - b)|, without checking the
+    types of |b| or |c|, provided that |a| is numeric. Errors at the beginning of expressions are
     flagged by |bad_exp|.
 \stopitem
 
@@ -18585,9 +18696,9 @@ The local variables |pre_head| and |post_head| will point to the beginning of th
 lists; |tail| will point to the end of the list that is currently growing.
 
 Another local variable, |tt|, contains partial information about the declared type of the
-variable-so-far. If |tt>=mp_unsuffixed_macro|, the relation |tt=mp_type(q)| will always hold. If
-|tt=undefined|, the routine doesn't bother to update its information about type. And if
-|undefined<tt<mp_unsuffixed_macro|, the precise value of |tt| isn't critical.
+variable-so-far. If |tt >= mp_unsuffixed_macro|, the relation |tt = mp_type(q)| will always hold. If
+|tt = undefined|, the routine doesn't bother to update its information about type. And if |undefined
+< tt < mp_unsuffixed_macro|, the precise value of |tt| isn't critical.
 
 Here's a routine that puts the current expression back to be read again.
 
@@ -18626,7 +18737,7 @@ static void mp_bad_subscript (MP mp)
 
 How do things stand now? Well, we have scanned an entire variable name, including possible subscripts
 and/or attributes; |cur_cmd|, |cur_mod|, and |cur_sym| represent the token that follows. If
-|post_head=NULL|, a token list for this variable name starts at |mp_link(pre_head)|, with all
+|post_head = NULL|, a token list for this variable name starts at |mp_link(pre_head)|, with all
 subscripts evaluated. But if |post_head<>NULL|, the variable turned out to be a suffixed macro;
 |pre_head| is the head of the prefix list, while |post_head| is the head of a token list containing
 both |\AT!| and the suffix.
@@ -18658,17 +18769,17 @@ static char *mp_obliterated (MP mp, mp_node q)
 Our remaining job is simply to make a copy of the value that has been found. Some cases are harder
 than others, but complexity arises solely because of the multiplicity of possible cases.The
 |encapsulate| subroutine assumes that |dep_final| is the tail of dependency list~|p|.The |install|
-procedure copies a numeric field~|q| into field~|r| of a big node that will be part of a capsule.Here
-is a comparatively simple routine that is used to scan the |suffix| parameters of a macro.Parsing
-secondary and higher expressions
+procedure copies a numeric field~|q| into field~|r| of a big node that will be part of a capsule.
+Here is a comparatively simple routine that is used to scan the |suffix| parameters of a macro.
+Parsing secondary and higher expressions
 
-After the intricacies of |scan_primary|\kern-1pt, the |scan_secondary| routine is refreshingly
-simple. It's not trivial, but the operations are relatively straightforward; the main difficulty is,
-again, that expressions and data structures might change drastically every time we call |get_x_next|,
-so a cautious approach is mandatory. For example, a macro defined by |primarydef| might have
-disappeared by the time its second argument has been scanned; we solve this by increasing the
-reference count of its token list, so that the macro can be called even after it has been
-clobbered.The following procedure calls a macro that has two parameters, |p| and |cur_exp|.
+After the intricacies of |scan_primary|, the |scan_secondary| routine is refreshingly simple. It's 
+not trivial, but the operations are relatively straightforward; the main difficulty is, again, that 
+expressions and data structures might change drastically every time we call |get_x_next|, so a 
+cautious approach is mandatory. For example, a macro defined by |primarydef| might have disappeared 
+by the time its second argument has been scanned; we solve this by increasing the reference count 
+of its token list, so that the macro can be called even after it has been clobbered. The following 
+procedure calls a macro that has two parameters, |p| and |cur_exp|.
 
 */
 
@@ -18814,13 +18925,13 @@ void mp_known_pair (MP mp)
 
 /*tex
 
-The |scan_direction| subroutine looks at the directional information that is enclosed in braces, and
-also scans ahead to the following character. A type code is returned, either |open| (if the direction
-was $(0,0)$), or |curl| (if the direction was a curl of known value |cur_exp|), or |given| (if the
-direction is given by the |angle| value that now appears in |cur_exp|).
+The |scan_direction| subroutine looks at the directional information that is enclosed in braces, 
+and also scans ahead to the following character. A type code is returned, either |open| (if the 
+direction was $(0,0)$), or |curl| (if the direction was a curl of known value |cur_exp|), or 
+|given| (if the direction is given by the |angle| value that now appears in |cur_exp|).
 
-There's nothing difficult about this subroutine, but the program is rather lengthy because a variety
-of potential errors need to be nipped in the bud.
+There's nothing difficult about this subroutine, but the program is rather lengthy because a 
+variety of potential errors need to be nipped in the bud.
 
 */
 
@@ -20960,19 +21071,19 @@ static void mp_bezier_slope (MP mp, mp_number *ret, mp_number *AX, mp_number *AY
 The |pair_value| routine changes the current expression to a given ordered pair of values.
 
 Here is a function that sets |minx|, |maxx|, |miny|, |maxy| to the bounding box of the current
-expression. The boolean result is |false| if the expression has the wrong type.Here is a routine that
-interprets |cur_exp| as a file name and tries to read a line from the file or to close the file.The
-string denoting end-of-file is a one-byte string at position zero, by definition. I have to cheat a
-little here because .... CHECK
+expression. The boolean result is |false| if the expression has the wrong type.Here is a routine 
+that interprets |cur_exp| as a file name and tries to read a line from the file or to close the
+file. The string denoting end-of-file is a one-byte string at position zero, by definition. I have 
+to cheat a little here because .... CHECK
 
 Finally, we have the operations that combine a capsule~|p| with the current expression.
 
 Several of the binary operations are potentially complicated by the fact that |independent| values
 can sneak into capsules. For example, we've seen an instance of this difficulty in the unary
 operation of negation. In order to reduce the number of cases that need to be handled, we first
-change the two operands (if necessary) to rid them of |independent| components. The original operands
-are put into capsules called |old_p| and |old_exp|, which will be recycled after the binary operation
-has been safely carried out.
+change the two operands (if necessary) to rid them of |independent| components. The original 
+operands are put into capsules called |old_p| and |old_exp|, which will be recycled after the 
+binary operation has been safely carried out.
 
 */
 
@@ -21255,7 +21366,7 @@ static void mp_hard_times (MP mp, mp_node p)
         p = (mp_node) q;
     }
     /*tex
-        Now |cur_type=mp_pair_type| or |cur_type=mp_color_type| or |cur_type=mp_cmykcolor_type|.
+        Now |cur_type = mp_pair_type| or |cur_type = mp_color_type| or |cur_type = mp_cmykcolor_type|.
     */
     pp = (mp_value_node) p;
     switch (mp->cur_exp.type) {
@@ -21362,8 +21473,8 @@ static void mp_set_up_trans (MP mp, int c)
         mp->cur_exp.type = mp_transform_type;
         q = mp_get_value_node(cur_exp_node);
         /*tex
-            For each of the eight cases, change the relevant fields of |cur_exp| and |goto done|; but
-            do nothing if capsule |p| doesn't have the appropriate type.
+            For each of the eight cases, change the relevant fields of |cur_exp| and |goto done|; 
+            but do nothing if capsule |p| doesn't have the appropriate type.
         */
         switch (c) {
             case mp_rotated_operation:
@@ -21813,9 +21924,11 @@ static void mp_bilin2 (MP mp, mp_node p, mp_node t, mp_number *v, mp_node u, mp_
 {
     mp_number vv; /*tex temporary storage for |value(p)| */
     new_number_clone(vv, mp_get_value_number(p));
-    mp_new_dep(mp, p, mp_proto_dependent_type, mp_const_dependency(mp, &zero_t)); /*tex this sets |dep_final| */
+    /*tex This sets |dep_final|: */
+    mp_new_dep(mp, p, mp_proto_dependent_type, mp_const_dependency(mp, &zero_t));
     if (number_nonzero(vv)) {
-        mp_add_mult_dep(mp, (mp_value_node) p, &vv, t); /*tex |dep_final| doesn't change */
+         /*tex |dep_final| doesn't change. */
+        mp_add_mult_dep(mp, (mp_value_node) p, &vv, t);
     }
     if (number_nonzero(*v)) {
         mp_number arg1;
@@ -21872,15 +21985,11 @@ static void mp_big_trans (MP mp, mp_node p, int c)
         goto UNKNOWN;
     }
     {
-        /*tex
-            Transform a known big node.
-        */
+        /*tex Transform a known big node. */
         mp_node r, pp, qq;
         mp_set_up_trans(mp, c);
         if (mp->cur_exp.type == mp_known_type) {
-            /*tex
-                Transform known by known.
-            */
+            /*tex Transform known by known. */
             mp_make_exp_copy(mp, p);
             r = mp_get_value_node(cur_exp_node);
             if (mp->cur_exp.type == mp_transform_type) {
@@ -21911,9 +22020,7 @@ static void mp_big_trans (MP mp, mp_node p, int c)
     }
   UNKNOWN:
     {
-        /*tex
-            Transform an unknown big node and |return|.
-        */
+        /*tex Transform an unknown big node and |return|. */
         mp_node r;
         mp_set_up_known_trans(mp, c);
         mp_make_exp_copy(mp, p);
@@ -21936,7 +22043,7 @@ static void mp_chop_path (MP mp, mp_node p)
     mp_knot pp, qq; /*tex link variables for copies of path nodes */
     mp_number a, b; /*tex indices for chopping */
     mp_number l;
-    int reversed;   /*tex was |a>b|? */
+    int reversed;   /*tex was |a > b|? */
     new_number(l);
     mp_path_length(mp, &l);
     new_number_clone(a, mp_get_value_number(mp_x_part(p)));
@@ -21948,7 +22055,7 @@ static void mp_chop_path (MP mp, mp_node p)
         number_swap(a, b);
     }
     /*tex
-        Dispense with the cases |a<0| and/or |b>l|.
+        Dispense with the cases |a < 0| and/or |b > l|.
     */
     if (number_negative(a)) {
         if (mp_left_type(cur_exp_knot) == mp_endpoint_knot) {
@@ -21962,7 +22069,7 @@ static void mp_chop_path (MP mp, mp_node p)
                 number_add(b, l);
             } while (number_negative(a));
             /*tex
-                A cycle always has length |l>0|.
+                A cycle always has length |l > 0|.
             */
         }
     }
@@ -22001,7 +22108,7 @@ static void mp_chop_path (MP mp, mp_node p)
         qq = pp;
     } else {
         /*tex
-            Construct a path from |pp| to |qq| of length $\lceil b\rceil$.
+            Construct a path from |pp| to |qq| of length $\lceil b \rceil$.
         */
         mp_knot rr;
         pp = mp_copy_knot(mp, q);
@@ -22394,7 +22501,7 @@ static void mp_do_binary (MP mp, mp_node p, int c)
                 At this point |arith_error| should be |false|?
             */
             if ((mp->cur_exp.type > mp_pair_type) && (p->type > mp_pair_type)) {
-                /*tex |cur_exp:=(p)-cur_exp| */
+                /*tex |cur_exp := (p) - cur_exp| */
                 mp_add_or_subtract(mp, p, NULL, mp_minus_operation);
             } else if (mp->cur_exp.type != p->type) {
                 mp_bad_binary(mp, p, (int) c);
@@ -23174,7 +23281,7 @@ of |cur_exp|, or it is NULL (which means that |cur_exp| itself should be the sec
 third argument is either |plus| or |minus|.
 
 The sum or difference of the numeric quantities will replace the second operand. Arithmetic overflow
-may go undetected; users aren't supposed to be monkeying around with really big values.Here's the
+may go undetected; users aren't supposed to be monkeying around with really big values. Here's the
 current situation: The dependency list |v| of type |t| should either be put into the current
 expression (if |q=NULL|) or into location |q| within a pair node (otherwise). The destination
 (|cur_exp| or |q|) formerly held a dependency list with the same final pointer as the list |v|.
@@ -23294,19 +23401,19 @@ picture contains text that uses downloaded bitmap fonts. The binary action proce
 that update an edge structure |h|, except that they have to return a (possibly new) structure because
 of the need to call |private_edges|.
 
-The sum |txx+txy| is whichever of |txx| or |txy| is nonzero. The other sum is similar.Now we ready
+The sum |txx + txy| is whichever of |txx| or |txy| is nonzero. The other sum is similar.Now we ready
 for the main task of transforming the graphical objects in edge structure~|h|.The hard cases of
 transformation occur when big nodes are involved, and when some of their components are unknown.
 
 Let |p| point to a value field inside a big node of |cur_exp|, and let |q| point to a another value
-field. The |bilin1| procedure replaces |p| by $p\cdot t+q\cdot u+\delta$.
+field. The |bilin1| procedure replaces |p| by $p \cdot t + q \cdot u + \delta$.
 
 Let |p| be a |mp_proto_dependent| value whose dependency list ends at |dep_final|. The following
 procedure adds |v| times another numeric quantity to~|p|.The |bilin2| procedure is something like
 |bilin1|, but with known and unknown quantities reversed. Parameter |p| points to a value field
 within the big node for |cur_exp|; and |type(p)=mp_known|. Parameters |t| and~|u| point to value
 fields elsewhere; so does parameter~|q|, unless it is |NULL| (which stands for zero). Location~|p|
-will be replaced by $p\cdot t+v\cdot u+q$.Finally, in |bilin3| everything is |known|.
+will be replaced by $p \cdot t + v \cdot u + q $.Finally, in |bilin3| everything is |known|.
 
 The chief executive of \MP\ is the |do_statement| routine, which contains the master switch that
 causes all the various pieces of \MP\ to do their things, in the right order.
@@ -23323,12 +23430,8 @@ assignment, or a title. Otherwise we use a |case| construction to branch at high
 appropriate routine for various and sundry other types of commands, each of which has an \quote
 {action procedure} that does the necessary work.
 
-The program uses the fact that
-
-$$\hbox{|min_primary_command=max_statement_command=type_name|}$$
-
-to interpret a statement that starts with, e.g., |string|, as a type declaration rather than a
-boolean expression.
+The program uses the fact that |min_primary_command = max_statement_command=type_name| to interpret
+a statement that starts with, e.g., |string|, as a type declaration rather than a boolean expression.
 
 */
 
@@ -23344,8 +23447,8 @@ void mp_do_statement (MP mp)
         worry_about_bad_statement(mp);
     } else if (cur_cmd > mp_max_statement_command) {
         /*tex
-            Do an equation, assignment, title, or `$\langle\,$expression$\,\rangle\,$|endgroup|'; The
-            most important statements begin with expressions
+            Do an equation, assignment, title, or |<expression> endgroup|. The most important 
+            statements begin with expressions.
         */
         mp_value new_expr;
         mp->var_flag = mp_assignment_command;
@@ -23380,9 +23483,9 @@ void mp_do_statement (MP mp)
     } else {
         /*tex
             Do a statement that doesn't begin with an expression. If |do_statement| ends with
-            |cur_cmd=end_group|, we should have |cur_type=mp_vacuous| unless the statement was simply
-            an expression; in the latter case, |cur_type| and |cur_exp| should represent that
-            expression.
+            |cur_cmd = end_group|, we should have |cur_type=mp_vacuous| unless the statement was 
+            simply an expression; in the latter case, |cur_type| and |cur_exp| should represent 
+            that expression.
         */
         if (number_positive(internal_value(mp_tracing_commands_internal))) {
             mp_show_cmd_mod(mp, cur_cmd, cur_mod);
@@ -23481,8 +23584,8 @@ void mp_do_statement (MP mp)
 
 /*tex
 
-The only command codes |>max_primary_command| that can be present at the beginning of a statement are
-|semicolon| and higher; these occur when the statement is null.
+The only command codes |>max_primary_command| that can be present at the beginning of a statement 
+are |semicolon| and higher; these occur when the statement is null.
 
 */
 
@@ -23530,7 +23633,7 @@ static void flush_unparsable_junk_after_statement (MP mp)
         if (cur_cmd == mp_string_command) {
             delete_str_ref(cur_mod_str);
         }
-    } while (! mp_end_of_statement); /* |cur_cmd=semicolon|, |end_group|, or |stop| */
+    } while (! mp_end_of_statement); /*tex |cur_cmd = semicolon|, |end_group|, or |stop| */
     mp->scanner_status = mp_normal_state;
 }
 
@@ -23548,7 +23651,7 @@ static void trace_equation (MP mp, mp_node lhs)
 /*tex
 
 Equations and assignments are performed by the pair of mutually recursive routines |do_equation| and
-|do_assignment|. These routines are called when |cur_cmd=equals| and when |cur_cmd=assignment|,
+|do_assignment|. These routines are called when |cur_cmd = equals| and when |cur_cmd=assignment|,
 respectively; the left-hand side is in |cur_type| and |cur_exp|, while the right-hand side is yet to
 be scanned. After the routines are finished, |cur_type| and |cur_exp| will be equal to the right-hand
 side (which will normally be equal to the left-hand side).
@@ -23721,9 +23824,7 @@ void mp_do_assignment (MP mp)
             trace_assignment (mp, lhs);
         }
         if (lhs->name_type == mp_internal_operation) {
-            /*tex
-                Assign the current expression to an internal variable.
-            */
+            /*tex Assign the current expression to an internal variable. */
             switch (mp->cur_exp.type) {
                 case mp_known_type:
                 case mp_string_type:
@@ -23769,12 +23870,10 @@ void mp_do_assignment (MP mp)
                     mp_bad_internal_assignment(mp, lhs);
                 }
         } else {
-            /*tex
-                Assign the current expression to the variable |lhs|.
-            */
-            mp_node p = mp_find_variable(mp, lhs); /* where the left-hand value is stored */
+            /*tex Assign the current expression to the variable |lhs|. */
+            mp_node p = mp_find_variable(mp, lhs); /*tex Where the left-hand value is stored. */
             if (p != NULL) {
-                mp_node q = mp_stash_cur_exp(mp);  /* temporary capsule for the right-hand value */
+                mp_node q = mp_stash_cur_exp(mp); /*tex Temporary capsule for the right-hand value. */
                 mp->cur_exp.type = mp_und_type(mp, p);
                 mp_recycle_value(mp, p);
                 p->type = mp->cur_exp.type;
@@ -23928,7 +24027,7 @@ void mp_make_eq (MP mp, mp_node lhs)
         case mp_cmykcolor_type:
         case mp_pair_type:
             if (mp->cur_exp.type == t) {
-                /* Do multiple equations */
+                /*tex Do multiple equations. */
                 mp_node q = mp_get_value_node(cur_exp_node);
                 mp_node p = mp_get_value_node(lhs);
                 switch (t) {
@@ -24140,7 +24239,7 @@ it will appear in |cur_cmd|, |cur_mod|, and~|cur_sym|.
 
 mp_node mp_scan_declared_variable (MP mp)
 {
-    mp_symbol x;     /*tex hash address of the variable's root */
+    mp_symbol x;  /*tex hash address of the variable's root */
     mp_node h, t; /*tex head and tail of the token list to be returned */
     mp_get_symbol(mp);
     x = cur_sym;
@@ -24162,7 +24261,7 @@ mp_node mp_scan_declared_variable (MP mp)
                         Descend past a collective subscript If the subscript isn't collective, we
                         don't accept it as part of the declared variable.
                     */
-                    mp_symbol ll = cur_sym; /* hash address of left bracket */
+                    mp_symbol ll = cur_sym; /*tex hash address of left bracket */
                     mp_get_x_next(mp);
                     if (cur_cmd == mp_right_bracket_command) {
                         set_cur_sym(mp_collective_subscript);
@@ -24322,10 +24421,8 @@ int mp_run (MP mp)
 /*tex
 
 This function allows setting of internals from an external source (like the command line or a
-controlling application).
-
-It accepts two |char *|'s, even for numeric assignments when it calls |atoi| to get an integer from
-the start of the string.
+controlling application). It accepts two |char *|'s, even for numeric assignments when it calls 
+|atoi| to get an integer from the start of the string.
 
 */
 
@@ -24968,8 +25065,10 @@ void mp_disp_token (MP mp)
 }
 
 /*
-The following cases of |print_cmd_mod| might arise in connection with
-|disp_token|, although they don't necessarily correspond to primitive tokens.
+
+The following cases of |print_cmd_mod| might arise in connection with |disp_token|, although they 
+don't necessarily correspond to primitive tokens.
+
 */
 
 void mp_do_show_token (MP mp)
@@ -25960,9 +26059,9 @@ void mp_do_add_to (MP mp)
             }
         } else {
             /*tex
-                Create a graphical object |p| based on |add_type| and the current expression. In this
-                case |add_type<>also_code| so setting |p:=NULL| suppresses future attempts to add to
-                the edge structure.
+                Create a graphical object |p| based on |add_type| and the current expression. In 
+                this case |add_type <> also_code| so setting |p := NULL| suppresses future attempts 
+                to add to the edge structure.
             */
             e = NULL;
             p = NULL;
@@ -26950,7 +27049,7 @@ void mp_scan_primary (MP mp)
                     mp_get_x_next(mp);
                     mp_scan_expression(mp);
                     /*tex
-                        Make sure the second part of a pair or color has a numeric type
+                        Make sure the second part of a pair or color has a numeric type.
                     */
                     if (mp->cur_exp.type < mp_known_type) {
                         mp_primary_error(mp);
@@ -27028,9 +27127,7 @@ void mp_scan_primary (MP mp)
                                 }
                               HERE:
                                 mp_init_transform_node(mp, q);
-                                /*tex
-                                    Package the transform: |xx xy yx yy tx ty|.
-                                */
+                                /*tex Package the transform: |xx xy yx yy tx ty|. */
                                 r = mp_get_value_node(q);
                                 mp_stash_in(mp, mp_ty_part(r));
                                 mp_unstash_cur_exp(mp, p5);
@@ -27056,9 +27153,9 @@ void mp_scan_primary (MP mp)
             break;
         case mp_begin_group_command:
             /*tex
-                Scan a grouped primary. The local variable |group_line| keeps track of the line where
-                a |begingroup| command occurred; this will be useful in an error message if the group
-                doesn't actually end.
+                Scan a grouped primary. The local variable |group_line| keeps track of the line 
+                where a |begingroup| command occurred; this will be useful in an error message 
+                if the group doesn't actually end.
             */
             {
                 int group_line = mp_true_line(mp); /* where a group began */
@@ -27103,11 +27200,11 @@ void mp_scan_primary (MP mp)
                     primary by itself, or it might be the numerator of a fraction composed solely of
                     numeric tokens, or it might multiply the primary that follows (provided that the
                     primary doesn't begin with a plus sign or a minus sign). The code here uses the
-                    facts that |max_primary_command=plus_or_minus| and
-                    |max_primary_command-1=numeric_token|. If a fraction is found that is less than
-                    unity, we try to retain higher precision when we use it in scalar multiplication.
+                    facts that |max_primary_command = plus_or_minus| and |max_primary_command-1 = 
+                    numeric_token|. If a fraction is found that is less than unity, we try to retain
+                    higher precision when we use it in scalar multiplication.
                 */
-                mp_number num, denom; /* for primaries that are fractions, like `1/2' */
+                mp_number num, denom; /*tex For primaries that are fractions, like $1/2$. */
                 mp_set_cur_exp_value_number(mp, &cur_mod_number);
                 mp->cur_exp.type = mp_known_type;
                 mp_get_x_next(mp);
@@ -27335,7 +27432,7 @@ void mp_scan_primary (MP mp)
                       DONE2:
                         if (tt >= mp_unsuffixed_macro_type) {
                             /*tex
-                                Either begin an unsuffixed macro call or prepare for a suffixed one
+                                Either begin an unsuffixed macro call or prepare for a suffixed one.
                             */
                             tail->link = NULL;
                             if (tt > mp_unsuffixed_macro_type) {
@@ -27349,9 +27446,9 @@ void mp_scan_primary (MP mp)
                             } else {
                                 /*tex
                                     Set up unsuffixed macro call and |goto restart|. The only
-                                    complication associated with macro calling is that the prefix and
-                                    \quote {at} parameters must be packaged in an appropriate list of
-                                    lists.
+                                    complication associated with macro calling is that the prefix 
+                                    and \quote {at} parameters must be packaged in an appropriate 
+                                    list of lists.
                                 */
                                 p = mp_new_symbolic_node(mp);
                                 mp_set_sym_sym(pre_head, pre_head->link);
@@ -27376,11 +27473,12 @@ void mp_scan_primary (MP mp)
                                 Put the left bracket and the expression back to be rescanned. The
                                 left bracket that we thought was introducing a subscript might have
                                 actually been the left bracket in a mediation construction like
-                                |x[a,b]|. So we don't issue an error message at this point; but we do
-                                want to back up so as to avoid any embarrassment about our incorrect
-                                assumption.
+                                |x[a,b]|. So we don't issue an error message at this point; but we 
+                                do want to back up so as to avoid any embarrassment about our 
+                                incorrect assumption.
                             */
-                            mp_back_input(mp); /*tex That was the token following the current expression. */
+                            mp_back_input(mp); 
+                            /*tex That was the token following the current expression. */
                             mp_back_expr(mp);
                             set_cur_cmd(mp_left_bracket_command);
                             set_cur_mod_number(zero_t);
@@ -27410,8 +27508,8 @@ void mp_scan_primary (MP mp)
                 if (post_head != NULL) {
                     /*tex
                         Set up suffixed macro call and |goto restart|. If the \quote {variable} that
-                        turned out to be a suffixed macro no longer exists, we don't care, because we
-                        have reserved a pointer (|macro_ref|) to its token list.
+                        turned out to be a suffixed macro no longer exists, we don't care, because 
+                        we have reserved a pointer (|macro_ref|) to its token list.
                     */
                     mp_back_input(mp);
                     p = mp_new_symbolic_node(mp);
@@ -27478,10 +27576,10 @@ static void check_for_mediation (MP mp)
         if (cur_cmd != mp_comma_command) {
             /*tex
                 Put the left bracket and the expression back to be rescanned. The left bracket that
-                we thought was introducing a subscript might have actually been the left bracket in a
-                mediation construction like |x[a,b]|. So we don't issue an error message at this
-                point; but we do want to back up so as to avoid any embarrassment about our incorrect
-                assumption.
+                we thought was introducing a subscript might have actually been the left bracket in 
+                a mediation construction like |x[a,b]|. So we don't issue an error message at this
+                point; but we do want to back up so as to avoid any embarrassment about our 
+                incorrect assumption.
             */
             mp_back_input(mp);
             /* that was the token following the current expression */
@@ -27728,9 +27826,9 @@ static int mp_scan_path (MP mp)
     int future = 0;
     int knottype = mp_endpoint_knot; /*tex knot type following a path join */
     /*tex
-        Convert the left operand, |p|, into a partial path ending at~|q|; but |return| if |p| doesn't
-        have a suitable type. Keep in mind that as we progress, cur_cmd can be ahead of the expression
-        we just consumed. 
+        Convert the left operand, |p|, into a partial path ending at~|q|; but |return| if |p| 
+        doesn't have a suitable type. Keep in mind that as we progress, cur_cmd can be ahead 
+        of the expression we just consumed. 
     */
     switch (mp->cur_exp.type) { 
         case mp_pair_type:
@@ -27798,10 +27896,11 @@ static int mp_scan_path (MP mp)
         case mp_left_brace_command: 
             {
                 /*tex
-                    Put the pre-join direction information into node |q|. At this point |mp_right_type(q)| 
-                    is usually |open|, but it may have been set to some other value by a previous operation. 
-                    We must maintain the value of |mp_right_type(q)| in cases such as |.. \{ curl 2 \| z 
-                    (0,0) \} ..|.
+                    Put the pre-join direction information into node |q|. At this point 
+                    |mp_right_type(q)| is usually |open|, but it may have been set to some 
+                    other value by a previous operation. We must maintain the value of 
+                    |mp_right_type(q)| in cases such as |.. { curl 2} ..| or |.. {z(0,0)} 
+                    ..|.
                 */
                 knottype = mp_scan_direction(mp);
                 if (knottype != mp_open_knot) {
@@ -27810,7 +27909,7 @@ static int mp_scan_path (MP mp)
                     if (mp_left_type(path_q) == mp_open_knot) {
                         mp_left_type(path_q) = (unsigned char) knottype;
                         number_clone(path_q->left_given, cur_exp_value_number);
-                        /*tex note that |left_given(q)=left_curl(q)|. */
+                        /*tex Note that |left_given(q) = left_curl(q)|. */
                     }
                 }
                 break;
