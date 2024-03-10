@@ -6,11 +6,32 @@
 # ifndef MP_H
 # define MP_H 1
 
+# include <errno.h>
+# include <string.h>
+# include <float.h>
+# include <math.h>
+# include <stdlib.h>
+# include <stdarg.h>
+# include <ctype.h>
+# include <sys/stat.h>
+# include <time.h>
+# include <setjmp.h>
+
+# ifdef _WIN32
+
+    # include <stdio.h>
+    # include <fcntl.h>
+    # include <io.h>
+
+# else
+
+    # include <unistd.h>
+
+# endif
+
 # include "avl.h"
 # include "auxmemory.h"
 # include "auxposit.h"
-# include <string.h>
-# include <setjmp.h>
 
 /*tex
 

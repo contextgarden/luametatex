@@ -3,7 +3,6 @@
     files but now maintained as C file.
 */
 
-# include "mpconfig.h"
 # include "mpmathscaled.h"
 # include "mpstrings.h"
 

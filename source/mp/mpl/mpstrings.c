@@ -3,7 +3,6 @@
     now maintained as C file.
 */
 
-# include "mpconfig.h"
 # include "mpstrings.h"
 
 /*tex

@@ -8,7 +8,6 @@
     todo: share scanners and random
 */
 
-# include "mpconfig.h"
 # include "mpmathposit.h"
 
 # define  mp_fraction_multiplier 4096

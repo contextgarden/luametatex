@@ -7,7 +7,6 @@
     todo: check the random code, we might as well use the lua randomizer for all number models. 
 */
 
-# include "mpconfig.h"
 # include "mpmathdouble.h"
 
 # define  PI                      3.1415926535897932384626433832795028841971

@@ -21,7 +21,6 @@
 
 */
 
-# include "mpconfig.h"
 # include "mp.h"
 
 /*tex

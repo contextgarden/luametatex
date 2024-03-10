@@ -3,7 +3,6 @@
     files but now maintained as C file.
 */
 
-# include "mpconfig.h"
 # include "mp.h"
 # include "mpmathscaled.h"
 # include "mpmathdouble.h"
@@ -202,15 +201,16 @@ the history documents in the \CONTEXT\ distribution and articles. It was around 
 May 2022).
 
 In March 2024 I decided to merge the documentation into the C files and work from those instead of
-the WEB files. The main reason fo rthis move was that we (Mikael Sundqvist and HH) were picking up
+the WEB files. The main reason for this move was that we (Mikael Sundqvist and HH) were picking up
 on some pending extensions and it's easier to implement these after a little more reshuffling (and
-maybe breaking up large functions).
+maybe breaking up large functions). There has been extensions without bumping the version number
+we now went to 3.15 (normally one can rely on the version number of \LUAMETATEX\ anyway). 
 
 (Hans Hagen, 2022+)
 
 */
 
-# define  default_banner "This is MPLIB for LuaMetaTeX, version 3.14"
+# define  default_banner "This is MPLIB for LuaMetaTeX, version 3.15"
 
 /*tex
 
@@ -656,7 +656,7 @@ Variables of type |color| have 3~values in 6~words identified by |mp_red_part_op
 When a \MP\ user specifies a path, \MP\ will create a list of knots and control points for the
 associated cubic spline curves. If the knots are $z_0$, $z_1$, \dots, $z_n$, there are control points
 $z_k^+$ and $z_{k+1}^-$ such that the cubic splines between knots $z_k$ and $z_{k+1}$ are defined by
-Bézier's formula 
+Béº©er's formula 
 
 $$
 \eqalign{z(t)&=B(z_k,z_k^+,z_{k+1}^-,z_{k+1};t)\cr
@@ -687,7 +687,7 @@ used.
 
 /*tex
 
-Before the Bézier control points have been calculated, the memory space they will ultimately occupy
+Before the Béº©er control points have been calculated, the memory space they will ultimately occupy
 is taken up by information that can be used to compute them. There are four cases:
 
 \startitemize
@@ -708,7 +708,7 @@ is taken up by information that can be used to compute them. There are four case
 \stopitem
 
 \startitem
-    If |mp_right_type=mp_explicit|, the Bézier control point for leaving this knot has already been
+    If |mp_right_type=mp_explicit|, the Béº©er control point for leaving this knot has already been
     computed; it is in the |mp_right_x| and |mp_right_y| fields.
 \stopitem
 
@@ -7566,7 +7566,7 @@ static void mp_arc_test (MP mp,
     new_number(simply);
     new_number_clone(tol, *tol_orig);
     /*tex
-        Bisect the bézier quadratic given by |dx0|, |dy0|, |dx1|, |dy1|, |dx2|, |dy2|.
+        Bisect the béº©er quadratic given by |dx0|, |dy0|, |dx1|, |dy1|, |dx2|, |dy2|.
     */
     set_number_half_from_addition(dx01, *dx0, *dx1);
     set_number_half_from_addition(dx12, *dx1, *dx2);
@@ -7910,7 +7910,7 @@ void mp_solve_rising_cubic (MP mp, mp_number *ret, mp_number *a_orig, mp_number 
         do {
             number_add(t, t);
             /*tex
-                Subdivide the bézier quadratic defined by |a|, |b|, |c|.
+                Subdivide the béº©er quadratic defined by |a|, |b|, |c|.
             */
             set_number_half_from_addition(ab, a, b);
             set_number_half_from_addition(bc, b, c);
@@ -28906,13 +28906,13 @@ static void mp_initialize_tables (MP mp)
         Relatively siumple initializations: 
     */
 
-    mp->spec_head       = mp_new_symbolic_node(mp);
-    mp->temp_head       = mp_new_symbolic_node(mp);
-    mp->hold_head       = mp_new_symbolic_node(mp);
-    mp->id_lookup_test  = mp_new_symbols_entry(mp, NULL, 0);
-    mp->end_attr        = (mp_node) mp_get_attribute_node(mp);
-    mp->null_dash       = mp_get_dash_node(mp);
-    mp->cur_mod_        = mp_new_symbolic_node(mp);
+    mp->spec_head      = mp_new_symbolic_node(mp);
+    mp->temp_head      = mp_new_symbolic_node(mp);
+    mp->hold_head      = mp_new_symbolic_node(mp);
+    mp->id_lookup_test = mp_new_symbols_entry(mp, NULL, 0);
+    mp->end_attr       = (mp_node) mp_get_attribute_node(mp);
+    mp->null_dash      = mp_get_dash_node(mp);
+    mp->cur_mod_       = mp_new_symbolic_node(mp);
 
     /*tex
         More sophisticated initializations: 
@@ -28921,7 +28921,7 @@ static void mp_initialize_tables (MP mp)
     mp_set_hashloc(mp->end_attr, (mp_symbol)-1);
     mp_set_parent((mp_value_node) mp->end_attr, NULL);
 
-    mp->dep_head  = mp_get_dep_node(mp);
+    mp->dep_head = mp_get_dep_node(mp);
     mp_set_link(mp->dep_head, mp->dep_head);
     mp_set_prev_dep(mp->dep_head, mp->dep_head);
     mp_set_dep_info(mp->dep_head, NULL);
@@ -28970,7 +28970,7 @@ MP mp_initialize (MP_options * opt)
     mp->job_name        = mp_strdup(opt->job_name);
     mp->userdata        = opt->userdata;
     mp->extensions      = opt->extensions;
-    /*tex  set default function pointers */
+    /*tex set default function pointers */
     mp->find_file       = mp_find_file;
     mp->open_file       = mp_open_file;
     mp->close_file      = mp_close_file;
