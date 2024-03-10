@@ -352,9 +352,9 @@ and |left_brace..ampersand|. At any rate, here is the list, for future reference
 
 */
 
-# define  mp_max_command_code       mp_stop
+# define  mp_max_command_code       mp_undefined_cs_command
 # define  mp_max_pre_command        mp_etex_command
-# define  mp_min_command            (mp_defined_macro_command+1)
+# define  mp_min_command            (mp_defined_macro_command + 1)
 # define  mp_max_statement_command  mp_type_name_command
 # define  mp_min_primary_command    mp_type_name_command
 # define  mp_min_suffix_token       mp_internal_command
@@ -458,8 +458,8 @@ table of error recovery symbols.
 
 Note: simple symbols like |+|, |-|, |*| and |/| are also looked up. One can argue that a user can
 redefine them but colons etc. are interpreted direct. Maybe there's room for some optimization here.
-We could just put references (to |mp_symbol|) in the |mp| instance object for the handful. Okay, we also
-have |:=| so maybe only for single character ones ... not worth the trouble.
+We could just put references (to |mp_symbol|) in the |mp| instance object for the handful. Okay, we 
+also have |:=| so maybe only for single character ones ... not worth the trouble.
 
 */
 
@@ -656,8 +656,14 @@ Variables of type |color| have 3~values in 6~words identified by |mp_red_part_op
 When a \MP\ user specifies a path, \MP\ will create a list of knots and control points for the
 associated cubic spline curves. If the knots are $z_0$, $z_1$, \dots, $z_n$, there are control points
 $z_k^+$ and $z_{k+1}^-$ such that the cubic splines between knots $z_k$ and $z_{k+1}$ are defined by
-B\'ezier's formula $$\eqalign{z(t)&=B(z_k,z_k^+,z_{k+1}^-,z_{k+1};t)\cr
-&=(1-t)^3z_k+3(1-t)^2tz_k^++3(1-t)t^2z_{k+1}^-+t^3z_{k+1}\cr}$$ for |0<=t<=1|.
+B麩er's formula 
+
+$$
+\eqalign{z(t)&=B(z_k,z_k^+,z_{k+1}^-,z_{k+1};t)\cr
+&=(1-t)^3z_k+3(1-t)^2tz_k^++3(1-t)t^2z_{k+1}^-+t^3z_{k+1}\cr}
+$$ 
+
+for |0<=t<=1|.
 
 There is a 8-word node for each knot $z_k$, containing one word of control information and six words
 for the |x| and |y| coordinates of $z_k^-$ and $z_k$ and~$z_k^+$. The control information appears in
@@ -681,7 +687,7 @@ used.
 
 /*tex
 
-Before the B\'ezier control points have been calculated, the memory space they will ultimately occupy
+Before the B麩er control points have been calculated, the memory space they will ultimately occupy
 is taken up by information that can be used to compute them. There are four cases:
 
 \startitemize
@@ -702,7 +708,7 @@ is taken up by information that can be used to compute them. There are four case
 \stopitem
 
 \startitem
-    If |mp_right_type=mp_explicit|, the B\'ezier control point for leaving this knot has already been
+    If |mp_right_type=mp_explicit|, the B麩er control point for leaving this knot has already been
     computed; it is in the |mp_right_x| and |mp_right_y| fields.
 \stopitem
 
@@ -715,27 +721,40 @@ represented by negative tension values.
 
 For example, the \MP\ path specification 
 
-$$|z0..z1..tension atleast 1..\{curl 2\|z2..z3\{-1,-2\}..tension 3 and 4..p},$$ 
+$$
+|z0..z1..tension atleast 1..\{curl 2\|z2..z3\{-1,-2\}..tension 3 and 4..p},
+$$ 
 
 where \.p is the path |z4..controls z45 and z54..z5|, will
 be represented by the six knots \def\lodash{\hbox to 1.1em{\thinspace\hrulefill\thinspace}}
 
-$$\vbox{\halign{#\hfil&&\qquad#\hfil\cr |mp_left_type|&|left|
+$$
+\vbox{\halign{#\hfil&&\qquad#\hfil\cr |mp_left_type|&|left|
 info&|x_coord,y_coord|&|mp_right_type|&|right| info\cr \noalign{\yskip}
 |endpoint|&\lodash$,\,$\lodash&$x_0,y_0$&|curl|&$1.0,1.0$\cr
 |open|&\lodash$,1.0$&$x_1,y_1$&|open|&\lodash$,-1.0$\cr
 |curl|&$2.0,-1.0$&$x_2,y_2$&|curl|&$2.0,1.0$\cr |given|&$d,1.0$&$x_3,y_3$&|given|&$d,3.0$\cr
 |open|&\lodash$,4.0$&$x_4,y_4$&|explicit|&$x_{45},y_{45}$\cr
-|explicit|&$x_{54},y_{54}$&$x_5,y_5$&|endpoint|&\lodash$,\,$\lodash\cr}}$$ 
+|explicit|&$x_{54},y_{54}$&$x_5,y_5$&|endpoint|&\lodash$,\,$\lodash\cr}}
+$$ 
 
-Here |d| is the |angle|
-obtained by calling |n_arg(-unity,-two)|. Of course, this example is more complicated than anything a
-normal user would ever write.
+Here |d| is the |angle| obtained by calling |n_arg (-unity, -two)|. Of course, this example is more 
+complicated than anything a normal user would ever write.
 
-These types must satisfy certain restrictions because of the form of \MP's path syntax: (i)~|open|
-type never appears in the same node together with |endpoint|, |given|, or |curl|. (ii)~The
-|mp_right_type| of a node is |explicit| if and only if the |mp_left_type| of the following node is
-|explicit|. (iii)~|endpoint| types occur only at the ends, as mentioned above.
+These types must satisfy certain restrictions because of the form of \MP's path syntax: 
+
+\startitemize[r]
+\startitem 
+    |open| type never appears in the same node together with |endpoint|, |given|, or |curl|. 
+ \stopitem 
+ \startitem 
+    The |mp_right_type| of a node is |explicit| if and only if the |mp_left_type| of the following 
+    node is |explicit|. 
+ \stopitem 
+ \startitem 
+   |endpoint| types occur only at the ends, as mentioned above.
+\stopitem
+\stopitemize
 
 Knots can be user-supplied, or they can be created by program code, like the |split_cubic| function,
 or |copy_path|. The distinction is needed for the cleanup routine that runs after |split_cubic|,
@@ -946,8 +965,6 @@ no overlap between dashes). Since the $y$~coordinate of the dash pattern is need
 period of repetition, this needs to be stored in the edge header along with a pointer to the list of
 dash nodes.
 
-The |dash_info| is explained below.
-
 */
 
 # define  mp_get_dash_list(A)   (mp_dash_node) (((mp_dash_node) (A))->link)
@@ -957,7 +974,7 @@ The |dash_info| is explained below.
 
 It is also convenient for an edge header to contain the bounding box information needed by the
 |llcorner| and |urcorner| operators so that this does not have to be recomputed unnecessarily. This
-is done by adding fields for the $x$~and $y$ extremes as well as a pointer that indicates how far the
+is done by adding fields for the $x$ and $y$ extremes as well as a pointer that indicates how far the
 bounding box computation has gotten. Thus if the user asks for the bounding box and then adds some
 more text to the picture before asking for more bounding box information, the second computation need
 only look at the additional text. When the bounding box has not been computed, the |bblast| pointer
@@ -1002,7 +1019,7 @@ dereference edge structures that are used as dash patterns.
 
 /*tex
 
-We stash |p| in |dash_info(d)| if |mp_dash_ptr(p)<>0| so that subsequent processing can handle the
+We stash |p| in |dash_info(d)| if |mp_dash_ptr(p) <> 0| so that subsequent processing can handle the
 case where the pen stroke |p| is itself dashed.
 
 */
@@ -1021,14 +1038,14 @@ determining what offset to use for each segment of the path.
 
 Given a pointer |c| to a cyclic path, and a pointer~|h| to the first knot of a pen polygon, the
 |offset_prep| routine changes the path into cubics that are associated with particular pen offsets.
-Thus if the cubic between |p| and~|q| is associated with the |k|th offset and the cubic between |q|
+Thus if the cubic between |p| and |q| is associated with the |k|th offset and the cubic between |q|
 and~|r| has offset |l| then |mp_info(q) = zero_off + l - k|. (The constant |zero_off| is added to
 because |l - k| could be negative.)
 
 After overwriting the type information with offset differences, we no longer have a true path so we
-refer to the knot list returned by |offset_prep| as an \quote {envelope spec.} Since an envelope spec
-only determines relative changes in pen offsets, |offset_prep| sets a global variable |spec_offset|
-to the relative change from |h| to the first offset.
+refer to the knot list returned by |offset_prep| as an \quote {envelope spec.} Since an envelope 
+spec only determines relative changes in pen offsets, |offset_prep| sets a global variable 
+|spec_offset| to the relative change from |h| to the first offset.
 
 */
 
@@ -1036,8 +1053,9 @@ to the relative change from |h| to the first offset.
 
 /*tex
 
-After setting |p:=mp_link(p)|, either |join_type=1| or |q=mp_link(p)|.For very small angles, adding a
-knot is unnecessary and would cause numerical problems, so we just set |r:=NULL| in that case.
+After setting |p := mp_link(p)|, either |join_type = 1| or |q = mp_link(p)|. For very small angles, 
+adding a knot is unnecessary and would cause numerical problems, so we just set |r := NULL| in that 
+case.
 
 */
 
@@ -1046,15 +1064,20 @@ knot is unnecessary and would cause numerical problems, so we just set |r:=NULL|
 /*tex
 
 Since we're interested in the tangent directions, we work with the derivative
-$${1\over3}B'(x_0,x_1,x_2,x_3;t)= B(x_1-x_0,x_2-x_1,x_3-x_2;t)$$ instead of $B(x_0,x_1,x_2,x_3;t)$
-itself. The derived coefficients are also scale-d up in order to achieve better accuracy.
+
+$$
+{1\over3}B'(x_0,x_1,x_2,x_3;t)= B(x_1-x_0,x_2-x_1,x_3-x_2;t)
+$$ 
+
+instead of $B(x_0,x_1,x_2,x_3;t)$ itself. The derived coefficients are also scale-d up in order to 
+achieve better accuracy.
 
 The given path may turn abruptly at a knot, and it might pass the critical tangent direction at such
 a time. Therefore we remember the direction |phi| in which the previous rotated cubic was traveling.
 (The value of |phi| will be undefined on the first cubic, i.e., when |n=0|.)The intersection of two
 cubics can be found by an interesting variant of the general bisection scheme described in the
-introduction to |crossing_point|.\ Given $w(t)=B(w_0,w_1,w_2,w_3;t)$ and $z(t)=B(z_0,z_1,z_2,z_3;t)$,
-we wish to find a pair of times $(t_1,t_2)$ such that $w(t_1)=z(t_2)$, if an intersection exists.
+introduction to |crossing_point|.\ Given $w(t) = B(w_0,w_1,w_2,w_3;t)$ and $z(t) = B(z_0,z_1,z_2,z_3;t)$,
+we wish to find a pair of times $(t_1,t_2)$ such that $w(t_1) = z(t_2)$, if an intersection exists.
 First we find the smallest rectangle that encloses the points $\{w_0,w_1,w_2,w_3\}$ and check that it
 overlaps the smallest rectangle that encloses $\{z_0,z_1,z_2,z_3\}$; if not, the cubics certainly
 don't intersect. But if the rectangles do overlap, we bisect the intervals, getting new cubics $w'$
@@ -1065,12 +1088,12 @@ bisection we will have determined the intersection times $t_1$ and~$t_2$ to $l$~
 
 \def\submin{_{\rm min}} \def\submax{_{\rm max}}
 
-As before, it is better to work with the numbers $W_k=2^l(w_k-w_{k-1})$ and $Z_k=2^l(z_k-z_{k-1})$
+As before, it is better to work with the numbers $W_k = 2^l(w_k-w_{k-1})$ and $Z_k = 2^l(z_k-z_{k-1})$
 rather than the coefficients $w_k$ and $z_k$ themselves. We also need one other quantity,
-$\Delta=2^l(w_0-z_0)$, to determine when the enclosing rectangles overlap. Here's why: The
-$x$~coordinates of~$w(t)$ are between $u\submin$ and $u\submax$, and the $x$~coordinates of~$z(t)$
-are between $x\submin$ and $x\submax$, if we write $w_k=(u_k,v_k)$ and $z_k=(x_k,y_k)$ and $u\submin=
-\min(u_0,u_1,u_2,u_3)$, etc. These intervals of $x$~coordinates overlap if and only if $u\submin\L
+$\Delta = 2^l(w_0-z_0)$, to determine when the enclosing rectangles overlap. Here's why: The
+$x$~coordinates of~$w(t)$ are between $u\submin$ and $u\submax$, and the $x$ coordinates of $z(t)$
+are between $x\submin$ and $x\submax$, if we write $w_k=(u_k,v_k)$ and $z_k = (x_k,y_k)$ and $u\submin
+= \min(u_0,u_1,u_2,u_3)$, etc. These intervals of $x$ coordinates overlap if and only if $u\submin\L
 x\submax$ and $x\submin\L u\submax$. Letting
 
 $$
@@ -1078,40 +1101,40 @@ U\submin=\min(0,U_1,U_1+U_2,U_1+U_2+U_3),\;
 U\submax=\max(0,U_1,U_1+U_2,U_1+U_2+U_3),
 $$
 
-we have $2^lu\submin=2^lu_0+U\submin$, etc.; the condition for overlap reduces to
+we have $2^lu\submin = 2^lu_0+U\submin$, etc.; the condition for overlap reduces to
 
 $$
 X\submin-U\submax\L 2^l(u_0-x_0)\L X\submax-U\submin.
 $$
 
 Thus we want to maintain the quantity $2^l(u_0-x_0)$; similarly, the quantity $2^l(v_0-y_0)$ accounts
-for the $y$~coordinates. The coordinates of $\Delta=2^l(w_0-z_0)$ must stay bounded as $l$ increases,
+for the $y$ coordinates. The coordinates of $\Delta = 2^l(w_0-z_0)$ must stay bounded as $l$ increases,
 because of the overlap condition; i.e., we know that $X\submin$, $X\submax$, and their relatives are
 bounded, hence $X\submax- U\submin$ and $X\submin-U\submax$ are bounded.
 
 Incidentally, if the given cubics intersect more than once, the process just sketched will not
 necessarily find the lexicographically smallest pair $(t_1,t_2)$. The solution actually obtained will
-be smallest in \quote {shuffled order}; i.e., if $t_1=(.a_1a_2\ldots a_{16})_2$ and
-$t_2=(.b_1b_2\ldots b_{16})_2$, then we will minimize $a_1b_1a_2b_2\ldots a_{16}b_{16}$, not
+be smallest in \quote {shuffled order}; i.e., if $t_1 = (.a_1a_2\ldots a_{16})_2$ and
+$t_2 = (.b_1b_2\ldots b_{16})_2$, then we will minimize $a_1b_1a_2b_2\ldots a_{16}b_{16}$, not
 $a_1a_2\ldots a_{16}b_1b_2\ldots b_{16}$. Shuffled order agrees with lexicographic order if all pairs
-of solutions $(t_1,t_2)$ and $(t_1',t_2')$ have the property that $t_1<t_1'$ iff $t_2<t_2'$; but in
+of solutions $(t_1,t_2)$ and $(t_1',t_2')$ have the property that $t_1 < t_1'$ iff $t_2 < t_2'$; but in
 general, lexicographic order can be quite different, and the bisection algorithm would be
 substantially less efficient if it were constrained by lexicographic order.
 
-For example, suppose that an overlap has been found for $l=3$ and $(t_1,t_2)= (.101,.011)$ in binary,
+For example, suppose that an overlap has been found for $l = 3$ and $(t_1,t_2) = (.101,.011)$ in binary,
 but that no overlap is produced by either of the alternatives $(.1010,.0110)$, $(.1010,.0111)$ at
 level~4. Then there is probably an intersection in one of the subintervals $(.1011,.011x)$; but
 lexicographic order would require us to explore $(.1010,.1xxx)$ and $(.1011,.00xx)$ and
 $(.1011,.010x)$ first. We wouldn't want to store all of the subdivision data for the second path, so
 the subdivisions would have to be regenerated many times. Such inefficiencies would be associated
-with every `1' in the binary representation of~$t_1$.
+with every `1' in the binary representation of $t_1$.
 
 The subdivision process introduces rounding errors, hence we need to make a more liberal test for
 overlap. It is not hard to show that the computed values of $U_i$ differ from the truth by at
 most~$l$, on level~$l$, hence $U\submin$ and $U\submax$ will be at most $3l$ in error. If $\beta$ is
-an upper bound on the absolute error in the computed components of $\Delta=(|delx|,|dely|)$ on
+an upper bound on the absolute error in the computed components of $\Delta = (|delx|,|dely|)$ on
 level~$l$, we will replace the test `$X\submin-U\submax\L|delx|$' by the more liberal test
-`$X\submin-U\submax\L|delx|+|tol|$', where $|tol|=6l+\beta$.
+`$X\submin-U\submax\L|delx| + |tol|$', where $|tol| = 6l+\beta$.
 
 More accuracy is obtained if we try the algorithm first with |tol=0|; the more liberal tolerance is
 used only if an exact approach fails. It is convenient to do this double-take by letting `3' in the
@@ -1185,14 +1208,15 @@ bisection-intersection.
 
 /*tex
 
-It's convenient to keep the current values of $l$, $t_1$, and $t_2$ in the integer form $2^l+2^lt_1$
-and $2^l+2^lt_2$. The |cubic_intersection| routine uses global variables |cur_t| and |cur_tt| for
-this purpose; after successful completion, |cur_t| and |cur_tt| will contain |unity| plus the
-|scaled| values of $t_1$ and~$t_2$.
+It's convenient to keep the current values of $l$, $t_1$, and $t_2$ in the integer form $2^l +
+2^lt_1$ and $2^l + 2^lt_2$. The |cubic_intersection| routine uses global variables |cur_t| and 
+|cur_tt| for this purpose; after successful completion, |cur_t| and |cur_tt| will contain |unity| 
+plus the |scaled| values of $t_1$ and $t_2$.
 
-The values of |cur_t| and |cur_tt| will be set to zero if |cubic_intersection| finds no intersection.
-The routine gives up and gives an approximate answer if it has backtracked more than 5000 times
-(otherwise there are cases where several minutes of fruitless computation would be possible).
+The values of |cur_t| and |cur_tt| will be set to zero if |cubic_intersection| finds no 
+intersection. The routine gives up and gives an approximate answer if it has backtracked more than 
+5000 times (otherwise there are cases where several minutes of fruitless computation would be 
+possible).
 
 */
 
@@ -1231,25 +1255,25 @@ order until finding a pair of cubics that intersect. The final intersection time
 /*tex
 
 But how are dependency lists represented? It's simple: The linear combination
-$\alpha_1v_1+\cdots+\alpha_kv_k+\beta$ appears in |k+1| value nodes. If |q=mp_get_dep_list(p)| points
-to this list, and if |k>0|, then |mp_get_dep_value(q)= | (which is a |fraction|);
+$\alpha_1v_1 + \cdots + \alpha_kv_k + \beta$ appears in |k+1| value nodes. If |q = mp_get_dep_list(p)| 
+points to this list, and if |k > 0|, then |mp_get_dep_value(q) = ?| (which is a |fraction|);
 |mp_get_dep_info(q)| points to the location of $\alpha_1$; and |mp_link(p)| points to the dependency
-list $\alpha_2v_2+\cdots+\alpha_kv_k+\beta$. On the other hand if |k=0|, then |mp_get_dep_value(q)=|
-(which is |scaled|) and |mp_get_dep_info(q)=NULL|. The independent variables $v_1$, \dots,~$v_k$ have
-been sorted so that they appear in decreasing order of their |value| fields (i.e., of their serial
-numbers). \ (It is convenient to use decreasing order, since |value(NULL)=0|. If the independent
-variables were not sorted by serial number but by some other criterion, such as their location in
-|mem|, the equation-solving mechanism would be too system-dependent, because the ordering can affect
-the computed results.)
+list $\alpha_2v_2 + \cdots + \alpha_kv_k + \beta$. On the other hand if |k = 0|, then 
+|mp_get_dep_value(q) = ?| (which is |scaled|) and |mp_get_dep_info(q) = NULL|. The independent 
+variables $v_1$, \dots,~$v_k$ have been sorted so that they appear in decreasing order of their 
+|value| fields (i.e., of their serial numbers). \ (It is convenient to use decreasing order, since 
+|value(NULL) = 0|. If the independent variables were not sorted by serial number but by some other 
+criterion, such as their location in |mem|, the equation-solving mechanism would be too 
+system-dependent, because the ordering can affect the computed results.)
 
 The |link| field in the node that contains the constant term $\beta$ is called the {\sl final link}
 of the dependency list. \MP\ maintains a doubly-linked master list of all dependency lists, in terms
 of a permanently allocated node in |mem| called |dep_head|. If there are no dependencies, we have
-|mp_link(dep_head)=dep_head| and |mp_get_prev_dep(dep_head)=dep_head|; otherwise |mp_link(dep_head)|
-points to the first dependent variable, say~|p|, and |mp_get_prev_dep(p)=dep_head|. We have
-|type(p)=mp_dependent|, and |mp_get_dep_list(p)| points to its dependency list. If the final link of
-that dependency list occurs in location~|q|, then |mp_link(q)| points to the next dependent variable
-(say~|r|); and we have |mp_get_prev_dep(r)=q|, etc.
+|mp_link(dep_head) = dep_head| and |mp_get_prev_dep(dep_head) = dep_head|; otherwise 
+|mp_link(dep_head)| points to the first dependent variable, say~|p|, and |mp_get_prev_dep(p)=dep_head|. 
+We have |type(p) = mp_dependent|, and |mp_get_dep_list(p)| points to its dependency list. If the final
+link of that dependency list occurs in location~|q|, then |mp_link(q)| points to the next dependent 
+variable (say |r|); and we have |mp_get_prev_dep(r) = q|, etc.
 
 Dependency nodes sometimes mutate into value nodes and vice versa, so their structures have to match.
 
@@ -1271,9 +1295,9 @@ we call this |p_plus_fq|, where |p| and~|q| point to dependency lists and |f| is
 
 If the coefficient of any independent variable becomes |coef_bound| or more, in absolute value, this
 procedure changes the type of that variable to |independent_needing_fix|, and sets the global
-variable |fix_needed| to~|true|. The value of $|coef_bound|=\mu$ is chosen so that $\mu^2+\mu<8$;
+variable |fix_needed| to |true|. The value of $|coef_bound|=\mu$ is chosen so that $\mu^2 + \mu<8$;
 this means that the numbers we deal with won't get too large. (Instead of the \quote {optimum}
-$\mu=(\sqrt{33}-1)/2\approx 2.3723$, the safer value 7/3 is taken as the threshold.)
+$\mu=(\sqrt{33} - 1) / 2\approx 2.3723$, the safer value 7/3 is taken as the threshold.)
 
 The changes mentioned in the preceding paragraph are actually done only if the global variable
 |watch_coefs| is |true|. But it usually is; in fact, it is |false| only when \MP\ is making a
@@ -1357,7 +1381,7 @@ input-output routines. The other components of |cur_input| are defined in the sa
 
 /*tex
 
-Let's look more closely now at the five control variables (|index|,~|start|,~|loc|,~|limit|,~|name|),
+Let's look more closely now at the five control variables (|index|, |start|, |loc|, |limit|, |name|),
 assuming that \MP\ is reading a line of characters that have been input from some file or from the
 user's terminal. There is an array called |buffer| that acts as a stack of all lines of characters
 that are currently being read from files, including all lines on subsidiary levels of the input stack
@@ -1406,8 +1430,8 @@ the current file, for use in error messages. More precisely, |line| is a macro f
 
 If more information about the input state is needed, it can be included in small arrays like those
 shown here. For example, the current page or segment number in the input file might be put into a
-variable |page|, that is really a macro for the current entry in
-`\ignorespaces|page_stack:array[0..max_in_open] of integer|\unskip' by analogy with |line_stack|.
+variable |page|, that is really a macro for the current entry in \quote {|page_stack:array [0 .. 
+max_in_open] of integer|} by analogy with |line_stack|.
 
 */
 
@@ -1422,19 +1446,19 @@ This has to be more than |file_bottom|, so:
 
 However, all this discussion about input state really applies only to the case that we are inputting
 from a file. There is another important case, namely when we are currently getting input from a token
-list. In this case |iindex>max_in_open|, and the conventions about the other state variables are
+list. In this case |iindex > max_in_open|, and the conventions about the other state variables are
 different:
 
 \startitemize
 
 \startitem
-|nloc| is a pointer to the current node in the token list, i.e., the node that will be read next. If
-|nloc=NULL|, the token list has been fully read.
+    |nloc| is a pointer to the current node in the token list, i.e., the node that will be read 
+    next. If |nloc = NULL|, the token list has been fully read.
 \stopitem
 
 \startitem
-|start| points to the first node of the token list; this node may or may not contain a reference
-count, depending on the type of token list involved.
+    |start| points to the first node of the token list; this node may or may not contain a 
+    reference count, depending on the type of token list involved.
 \stopitem
 
 \startitem
@@ -1444,8 +1468,8 @@ count, depending on the type of token list involved.
 
 \startitem
     |name| points to the |eqtb| address of the control sequence being expanded, if the current token
-    list is a macro not defined by |vardef|. Macros defined by |vardef| have |name=NULL|; their name
-    can be deduced by looking at their first two parameters.
+    list is a macro not defined by |vardef|. Macros defined by |vardef| have |name = NULL|; their 
+    name can be deduced by looking at their first two parameters.
 \stopitem
 
 \startitem
@@ -1501,9 +1525,9 @@ The token list begins with a reference count if and only if |token_type= macro|.
 
 /*tex
 
-In a construction like `|if| |if| |true|: $0=1$: |foo| |else|: |bar| |fi|', the first |else| that we
-come to after learning that the |if| is false is not the |else| we're looking for. Hence the
-following curious logic is needed.
+In a construction like \quote {|if| |if| |true|: $0=1$: |foo| |else|: |bar| |fi|{'}, the first 
+|else| that we come to after learning that the |if| is false is not the |else| we're looking for. 
+Hence the following curious logic is needed.
 
 The processing of conditionals is complete except for the following code, which is actually part of
 |get_x_next|. It comes into play when |elseif|, |else|, or |fi| is scanned.
@@ -1514,29 +1538,29 @@ To bring our treatment of |get_x_next| to a close, we need to consider what \MP\
 |loop_ptr.info| points to the iterative text of the current (innermost) loop, and |loop_ptr.link|
 points to the data for any other loops that enclose the current one.
 
-A loop-control node also has two other fields, called |type| and |list|, whose contents depend on the
-type of loop:
+A loop-control node also has two other fields, called |type| and |list|, whose contents depend on 
+the type of loop:
 
 \startitemize
 
 \startitem
-|loop_ptr.type=NULL| means that the link of |loop_ptr.list| points to a list of symbolic nodes whose
-|info| fields point to the remaining argument values of a suffix list and expression list. In this
-case, an extra field |loop_ptr.start_list| is needed to make sure that |resume_operation| skips
+|loop_ptr.type = NULL| means that the link of |loop_ptr.list| points to a list of symbolic nodes 
+whose |info| fields point to the remaining argument values of a suffix list and expression list. In 
+this case, an extra field |loop_ptr.start_list| is needed to make sure that |resume_operation| skips
 ahead.
 \stopitem
 
 \startitem
-|loop_ptr.type=MP_VOID| means that the current loop is |forever|.
+|loop_ptr.type = MP_VOID| means that the current loop is |forever|.
 \stopitem
 
 \startitem
-|loop_ptr.type=MP_PROGRESSION_FLAG| means that |loop_ptr.value|, |loop_ptr.step_size|, and
+|loop_ptr.type = MP_PROGRESSION_FLAG| means that |loop_ptr.value|, |loop_ptr.step_size|, and
 |loop_ptr.final_value| contain the data for an arithmetic progression.
 \stopitem
 
 \startitem
-|loop_ptr.type=p>MP_PROGRESSION_FLAG| means that |p| points to an edge header and |loop_ptr.list|
+|loop_ptr.type = p > MP_PROGRESSION_FLAG| means that |p| points to an edge header and |loop_ptr.list|
 points into the graphical object list for that edge header.
 \stopitem
 
@@ -1562,8 +1586,8 @@ Each of them is parameterless and begins with the first token to be scanned alre
 tertiary or expression that was found will appear in the global variables |cur_type| and |cur_exp|.
 The token following the expression will be represented in |cur_cmd|, |cur_mod|, and |cur_sym|.
 
-Technically speaking, the parsing algorithms are \quote {LL(1),} more or less; backup mechanisms have
-been added in order to provide reasonable error recovery.
+Technically speaking, the parsing algorithms are \quote {LL(1),} more or less; backup mechanisms 
+have been added in order to provide reasonable error recovery.
 
 */
 
@@ -1596,13 +1620,13 @@ the first character and then just interprets the character as byte. One can impl
 interpreter in \LUA.This computes the length of the current path or picture. The only benefit from
 not using the numbers but a temporary |int| instead is .5K smaller which is due to less interfacing.
 But it also demonstrates that on the one hand the number system indirectness adds quite some bytes
-but on the other hand todays compilers do a pretty good job at optimizing (for performance). Which of
-course doesn't mean that scaled outperforms double manyfold while decimal is always way slower.
+but on the other hand todays compilers do a pretty good job at optimizing (for performance). Which 
+of course doesn't mean that scaled outperforms double manyfold while decimal is always way slower.
 
 The function |an_angle| returns the value of the |angle| primitive, or $0$ if the argument is
 |origin|.The actual turning number is (for the moment) computed in a C function that receives eight
-integers corresponding to the four controlling points, and returns a single angle. Besides those, we
-have to account for discrete moves at the actual points.
+integers corresponding to the four controlling points, and returns a single angle. Besides those, 
+we have to account for discrete moves at the actual points.
 
 */
 
@@ -1630,10 +1654,11 @@ idea is to leave |cur_exp| unchanged, but to equate the two operands.
 We have all kind of with variants.We use enums so that it looks better in the editor:The |addto|
 command needs the following additional primitives:
 
-The |scan_with_list| procedure parses a $\langle$with list$\rangle$ and updates the list of graphical
-objects starting at |p|. Each $\langle$with clause$\rangle$ updates all graphical objects whose
-|type| is compatible. Other objects are ignored.Forcing the color to be between |0| and |unity| here
-guarantees that no picture will ever contain a color outside the legal range for \ps\ graphics.
+The |scan_with_list| procedure parses a $\langle$with list$\rangle$ and updates the list of 
+graphical objects starting at |p|. Each $\langle$with clause$\rangle$ updates all graphical 
+objects whose |type| is compatible. Other objects are ignored.Forcing the color to be between |0| 
+and |unity| here guarantees that no picture will ever contain a color outside the legal range for
+\POSTSCRIPT\ graphics.
 
 */
 
@@ -1683,16 +1708,14 @@ To print |scaled| value to PDF output we need some subroutines to ensure accurar
 
 Shipping pictures out.
 
-The |ship_out| procedure, to be described below, is given a pointer to an edge \ structure.
-Originally teh output was targeted at \POSTSCRIPT\ but the library \ has no backend. It privides the
-result as a structure that reflects the original \ \POSTSCRIPT\ backend. We could use more direct
-methods but for now we follow the \ route with an intermediate. Actually, it's that intermediate that
-is kind of \ the standard output \API. We no longer report the shipped outfigure because the \
-backend can do that, but we keep the number.
+The |ship_out| procedure, to be described below, is given a pointer to an edge structure.
+Originally the output was targeted at \POSTSCRIPT\ but the library has no backend. It privides the
+result as a structure that reflects the original \POSTSCRIPT\ backend. We could use more direct
+methods but for now we follow the route with an intermediate. Actually, it's that intermediate that
+is kind of the standard output \API. We no longer report the shipped outfigure because the  backend 
+can do that, but we keep the number.
 
 */
-
-/* Some of these types are already used earlier. */
 
 # define  mp_knotstate(A)      (A)->state
 
@@ -7473,7 +7496,7 @@ static void mp_arc_test (MP mp,
     new_number(simply);
     new_number_clone(tol, *tol_orig);
     /*tex
-        Bisect the b\'ezier quadratic given by |dx0|, |dy0|, |dx1|, |dy1|, |dx2|, |dy2|.
+        Bisect the b麩er quadratic given by |dx0|, |dy0|, |dx1|, |dy1|, |dx2|, |dy2|.
     */
     set_number_half_from_addition(dx01, *dx0, *dx1);
     set_number_half_from_addition(dx12, *dx1, *dx2);
@@ -7809,7 +7832,7 @@ void mp_solve_rising_cubic (MP mp, mp_number *ret, mp_number *a_orig, mp_number 
         do {
             number_add(t, t);
             /*tex
-                Subdivide the b\'ezier quadratic defined by |a|, |b|, |c|.
+                Subdivide the b麩er quadratic defined by |a|, |b|, |c|.
             */
             set_number_half_from_addition(ab, a, b);
             set_number_half_from_addition(bc, b, c);

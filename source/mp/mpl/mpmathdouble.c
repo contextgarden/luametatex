@@ -28,9 +28,9 @@
 # define  three                   3.0
 # define  half_unit               0.5
 # define  three_quarter_unit      0.75
-# define  EL_GORDO                (DBL_MAX/2.0-1.0)
+# define  EL_GORDO                (DBL_MAX / 2.0 - 1.0)
 # define  negative_EL_GORDO       (-EL_GORDO)
-# define  one_third_EL_GORDO      (EL_GORDO/3.0)
+# define  one_third_EL_GORDO      (EL_GORDO / 3.0)
 # define  fraction_half           (0.5*fraction_multiplier)
 # define  fraction_one            (1.0*fraction_multiplier)
 # define  fraction_two            (2.0*fraction_multiplier)
@@ -42,14 +42,37 @@
 # define  one_eighty_deg          (180.0*angle_multiplier)
 # define  negative_one_eighty_deg (-180.0*angle_multiplier)
 # define  three_sixty_deg         (360.0*angle_multiplier)
-# define  odd(A)                  (abs(A)%2==1)
+# define  odd(A)                  (abs(A) % 2 == 1)
 # define  two_to_the(A)           (1<<(unsigned)(A))
 # define  set_cur_cmd(A)          mp->cur_mod_->command = (A)
 # define  set_cur_mod(A)          mp->cur_mod_->data.n.data.dval = (A)
 
-inline static double mp_double_make_fraction (double p, double q) { return (p / q) * fraction_multiplier; }
-inline static double mp_double_take_fraction (double p, double q) { return (p * q) / fraction_multiplier; }
-inline static double mp_double_make_scaled   (double p, double q) { return  p / q; }
+/*tex 
+
+Apart from it looking weird in results a |-0.0| can also give wrong results, for instance in a 
+|tan2|, see there for a comment. This is why we now do some checking on zero which in some cases
+also might be a bit more efficient as it avoids a multiplication or division, so likely we break 
+even. 
+
+*/
+
+inline static double mp_double_make_fraction (double p, double q) { 
+ // return (p / q) * fraction_multiplier; 
+    return p == 0.0 ? 0.0 : (p / q) * fraction_multiplier; 
+}
+
+// printf("%f %f %f %f\n",p,q,p*q,(p * q) / fraction_multiplier);
+// -4096.000000 0.000000 -0.000000 -0.000000
+
+inline static double mp_double_take_fraction(double p, double q) { 
+ // return (p * q) / fraction_multiplier; 
+    return p == 0.0 ? 0.0 : q == 0.0 ? 0.0 : (p * q) / fraction_multiplier; 
+}
+
+inline static double mp_double_make_scaled(double p, double q) { 
+ // return p / q; 
+    return p == 0.0 ? 0.0 : p / q; 
+}
 
 static void mp_double_allocate_number(MP mp, mp_number *n, mp_number_type t)
 {
@@ -97,7 +120,7 @@ static void mp_double_set_from_boolean(mp_number *A, int B)
 
 static void mp_double_set_from_scaled(mp_number *A, int B)
 {
-    A->data.dval = B / 65536.0;
+    A->data.dval = B == 0 ? 0.0 : B / 65536.0;
 }
 
 static void mp_double_set_from_double(mp_number *A, double B)
@@ -127,22 +150,22 @@ static void mp_double_set_half_from_subtraction(mp_number *A, mp_number *B, mp_n
 
 static void mp_double_set_from_div(mp_number *A, mp_number *B, mp_number *C)
 {
-    A->data.dval = B->data.dval / C->data.dval;
+    A->data.dval = B->data.dval == 0.0 ? 0.0 : B->data.dval / C->data.dval;
 }
 
 static void mp_double_set_from_mul(mp_number *A, mp_number *B, mp_number *C)
 {
-    A->data.dval = B->data.dval * C->data.dval;
+    A->data.dval = B->data.dval == 0.0 || C->data.dval == 0.0 ? 0.0 : B->data.dval * C->data.dval;
 }
 
 static void mp_double_set_from_int_div(mp_number *A, mp_number *B, int C)
 {
-    A->data.dval = B->data.dval / C;
+    A->data.dval = B->data.dval == 0.0 ? 0.0 : B->data.dval / C;
 }
 
 static void mp_double_set_from_int_mul(mp_number *A, mp_number *B, int C)
 {
-    A->data.dval = B->data.dval * C;
+    A->data.dval = B->data.dval == 0.0 || C == 0 ? 0.0 : B->data.dval * C;
 }
 
 static void mp_double_set_from_of_the_way(MP mp, mp_number *A, mp_number *t, mp_number *B, mp_number *C)
@@ -153,46 +176,55 @@ static void mp_double_set_from_of_the_way(MP mp, mp_number *A, mp_number *t, mp_
 
 static void mp_double_negate(mp_number *A)
 {
-    A->data.dval = -A->data.dval;
-    if (A->data.dval == -0.0) {
+    if (A->data.dval == -0.0) { /* already checked */
         A->data.dval = 0.0;
+    } else if (A->data.dval != 0.0) {
+        A->data.dval = -A->data.dval;
     }
 }
 
 static void mp_double_add(mp_number *A, mp_number *B)
 {
-    A->data.dval = A->data.dval + B->data.dval;
+    A->data.dval += B->data.dval;
 }
 
 static void mp_double_subtract(mp_number *A, mp_number *B)
 {
-    A->data.dval = A->data.dval - B->data.dval;
+    A->data.dval -= B->data.dval;
 }
 
 static void mp_double_half(mp_number *A)
 {
-    A->data.dval = A->data.dval / 2.0;
+    if (A->data.dval != 0.0) {
+        A->data.dval /= 2.0;
+    }
 }
 
 static void mp_double_double(mp_number *A)
 {
-    A->data.dval = A->data.dval * 2.0;
+    if (A->data.dval != 0.0) {
+        A->data.dval *= 2.0;
+    }
 }
 
 static void mp_double_add_scaled(mp_number *A, int B)
 {
     /* also for negative B */
-    A->data.dval = A->data.dval + (B / 65536.0);
+    A->data.dval += (B / 65536.0);
 }
 
 static void mp_double_multiply_int(mp_number *A, int B)
 {
-    A->data.dval = (double)(A->data.dval * B);
+    if (A->data.dval != 0.0) {
+        A->data.dval *= (double) B;
+    }
 }
 
 static void mp_double_divide_int(mp_number *A, int B)
 {
-    A->data.dval = A->data.dval / (double)B;
+    if (A->data.dval != 0.0) {
+        A->data.dval /= (double) B;
+    }
 }
 
 static void mp_double_abs(mp_number *A)
@@ -228,25 +260,33 @@ static void mp_double_swap(mp_number *A, mp_number *B)
 static void mp_double_fraction_to_scaled(mp_number *A)
 {
     A->type = mp_scaled_type;
-    A->data.dval = A->data.dval / fraction_multiplier;
+    if (A->data.dval != 0.0) {
+        A->data.dval /= fraction_multiplier;
+    }
 }
 
 static void mp_double_angle_to_scaled(mp_number *A)
 {
     A->type = mp_scaled_type;
-    A->data.dval = A->data.dval / angle_multiplier;
+    if (A->data.dval != 0.0) {
+        A->data.dval /= angle_multiplier;
+    }
 }
 
 static void mp_double_scaled_to_fraction(mp_number *A)
 {
     A->type = mp_fraction_type;
-    A->data.dval = A->data.dval * fraction_multiplier;
+    if (A->data.dval != 0.0) {
+        A->data.dval *= fraction_multiplier;
+    }
 }
 
 static void mp_double_scaled_to_angle(mp_number *A)
 {
     A->type = mp_angle_type;
-    A->data.dval = A->data.dval * angle_multiplier;
+    if (A->data.dval != 0.0) {
+        A->data.dval *= angle_multiplier;
+    }
 }
 
 static int mp_double_to_scaled(mp_number *A)
@@ -559,7 +599,7 @@ static void mp_double_fraction_to_round_scaled(mp_number *x_orig)
 {
     double x = x_orig->data.dval;
     x_orig->type = mp_scaled_type;
-    x_orig->data.dval = x/fraction_multiplier;
+    x_orig->data.dval = x / fraction_multiplier;
 }
 
 static void mp_double_square_rt(MP mp, mp_number *ret, mp_number *x_orig) /* return, x: scaled */
@@ -654,7 +694,7 @@ static void mp_double_m_log(MP mp, mp_number *ret, mp_number *x_orig)
 static void mp_double_m_exp(MP mp, mp_number *ret, mp_number *x_orig)
 {
     errno = 0;
-    ret->data.dval = exp(x_orig->data.dval/256.0);
+    ret->data.dval = exp(x_orig->data.dval / 256.0);
     if (errno) {
         if (x_orig->data.dval > 0) {
             mp->arith_error = 1;
@@ -673,17 +713,20 @@ static void mp_double_m_exp(MP mp, mp_number *ret, mp_number *x_orig)
     in \CONTEXT\ before 2024), posit and decimal, but failed in double (which became default in 
     mid 2023) and in binary (both also tested in \LUATEX). 
 
-    Todo: backport to \LUATEX\ when further tests work out okay. 
+    We now try to catch the |-0.0| upstream hbu we keep the patch commented.
+
 */
 
 static void mp_double_n_arg(MP mp, mp_number *ret, mp_number *x_orig, mp_number *y_orig)
 {
-    if (x_orig->data.dval == -0.0) {
-        x_orig->data.dval = 0.0;
-    }
-    if (y_orig->data.dval == -0.0) {
-        y_orig->data.dval = 0.0;
-    }
+    /* */
+ // if (x_orig->data.dval == -0.0) {
+ //     x_orig->data.dval = 0.0;
+ // }
+ // if (y_orig->data.dval == -0.0) {
+ //     y_orig->data.dval = 0.0;
+ // }
+    /* */
     if (x_orig->data.dval == 0.0 && y_orig->data.dval == 0.0) {
         mp_error(
             mp,
@@ -716,7 +759,7 @@ static void mp_double_sin_cos(MP mp, mp_number *z_orig, mp_number *n_cos, mp_num
         n_cos->data.dval = -fraction_multiplier;
         n_sin->data.dval = 0.0;
     } else {
-        rad = rad * PI/180.0;
+        rad = rad * PI / 180.0;
         n_cos->data.dval = cos(rad) * fraction_multiplier;
         n_sin->data.dval = sin(rad) * fraction_multiplier;
     }
@@ -843,7 +886,7 @@ static void mp_double_init_randoms(MP mp, int seed)
     int j = abs(seed);
     int f = (int) fraction_one; /* avoid warnings */
     while (j >= f) {
-        j = j/2;
+        j = j / 2;
     }
     for (int i = 0; i <= 54; i++) {
         int jj = k;
