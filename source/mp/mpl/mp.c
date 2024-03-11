@@ -726,16 +726,19 @@ $$
 $$ 
 
 where \.p is the path |z4..controls z45 and z54..z5|, will
-be represented by the six knots \def\lodash{\hbox to 1.1em{\thinspace\hrulefill\thinspace}}
+be represented by the six knots
+
+\def\lodash{\hbox to 1.1em{\thinspace\hrulefill\thinspace}}
 
 $$
-\vbox{\halign{#\hfil&&\qquad#\hfil\cr |mp_left_type|&|left|
-info&|x_coord,y_coord|&|mp_right_type|&|right| info\cr \noalign{\yskip}
-|endpoint|&\lodash$,\,$\lodash&$x_0,y_0$&|curl|&$1.0,1.0$\cr
-|open|&\lodash$,1.0$&$x_1,y_1$&|open|&\lodash$,-1.0$\cr
-|curl|&$2.0,-1.0$&$x_2,y_2$&|curl|&$2.0,1.0$\cr |given|&$d,1.0$&$x_3,y_3$&|given|&$d,3.0$\cr
-|open|&\lodash$,4.0$&$x_4,y_4$&|explicit|&$x_{45},y_{45}$\cr
-|explicit|&$x_{54},y_{54}$&$x_5,y_5$&|endpoint|&\lodash$,\,$\lodash\cr}}
+\vbox{\halign{#\hfil&&\qquad#\hfil\cr 
+|mp_left_type| & |left|info          & |x_coord,y_coord| & |mp_right_type| & |right| info\cr 
+\noalign{\yskip}
+|endpoint|     & \lodash$,\,$\lodash & $x_0,y_0$         & |curl|          & $1.0,1.0$\cr
+|open|         & \lodash$,1.0$       & $x_1,y_1$         & |open|          & \lodash$,-1.0$\cr
+|curl|         & $2.0,-1.0$          & $x_2,y_2$         & |curl|          & $2.0,1.0$\cr |given|&$d,1.0$&$x_3,y_3$&|given|&$d,3.0$\cr
+|open|         & \lodash$,4.0$       & $x_4,y_4$         & |explicit|      & $x_{45},y_{45}$\cr
+|explicit|     & $x_{54},y_{54}$     & $x_5,y_5$         & |endpoint|      & \lodash$,\,$\lodash\cr}}
 $$ 
 
 Here |d| is the |angle| obtained by calling |n_arg (-unity, -two)|. Of course, this example is more 
