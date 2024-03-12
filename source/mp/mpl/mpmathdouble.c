@@ -712,7 +712,7 @@ static void mp_double_m_exp(MP mp, mp_number *ret, mp_number *x_orig)
     in \CONTEXT\ before 2024), posit and decimal, but failed in double (which became default in 
     mid 2023) and in binary (both also tested in \LUATEX). 
 
-    We now try to catch the |-0.0| upstream hbu we keep the patch commented.
+    We now try to catch the |-0.0| upstream but we keep the patch commented.
 
 */
 

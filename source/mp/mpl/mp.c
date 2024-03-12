@@ -656,7 +656,7 @@ Variables of type |color| have 3~values in 6~words identified by |mp_red_part_op
 When a \MP\ user specifies a path, \MP\ will create a list of knots and control points for the
 associated cubic spline curves. If the knots are $z_0$, $z_1$, \dots, $z_n$, there are control points
 $z_k^+$ and $z_{k+1}^-$ such that the cubic splines between knots $z_k$ and $z_{k+1}$ are defined by
-Béº©er's formula 
+Bézier's formula 
 
 $$
 \eqalign{z(t)&=B(z_k,z_k^+,z_{k+1}^-,z_{k+1};t)\cr
@@ -687,7 +687,7 @@ used.
 
 /*tex
 
-Before the Béº©er control points have been calculated, the memory space they will ultimately occupy
+Before the Bézier control points have been calculated, the memory space they will ultimately occupy
 is taken up by information that can be used to compute them. There are four cases:
 
 \startitemize
@@ -708,7 +708,7 @@ is taken up by information that can be used to compute them. There are four case
 \stopitem
 
 \startitem
-    If |mp_right_type=mp_explicit|, the Béº©er control point for leaving this knot has already been
+    If |mp_right_type=mp_explicit|, the Bézier control point for leaving this knot has already been
     computed; it is in the |mp_right_x| and |mp_right_y| fields.
 \stopitem
 
@@ -7569,7 +7569,7 @@ static void mp_arc_test (MP mp,
     new_number(simply);
     new_number_clone(tol, *tol_orig);
     /*tex
-        Bisect the béº©er quadratic given by |dx0|, |dy0|, |dx1|, |dy1|, |dx2|, |dy2|.
+        Bisect the bézier quadratic given by |dx0|, |dy0|, |dx1|, |dy1|, |dx2|, |dy2|.
     */
     set_number_half_from_addition(dx01, *dx0, *dx1);
     set_number_half_from_addition(dx12, *dx1, *dx2);
@@ -7913,7 +7913,7 @@ void mp_solve_rising_cubic (MP mp, mp_number *ret, mp_number *a_orig, mp_number 
         do {
             number_add(t, t);
             /*tex
-                Subdivide the béº©er quadratic defined by |a|, |b|, |c|.
+                Subdivide the bézier quadratic defined by |a|, |b|, |c|.
             */
             set_number_half_from_addition(ab, a, b);
             set_number_half_from_addition(bc, b, c);
