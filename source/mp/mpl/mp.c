@@ -656,7 +656,7 @@ Variables of type |color| have 3~values in 6~words identified by |mp_red_part_op
 When a \MP\ user specifies a path, \MP\ will create a list of knots and control points for the
 associated cubic spline curves. If the knots are $z_0$, $z_1$, \dots, $z_n$, there are control points
 $z_k^+$ and $z_{k+1}^-$ such that the cubic splines between knots $z_k$ and $z_{k+1}$ are defined by
-Bézier's formula 
+Béº©er's formula 
 
 $$
 \eqalign{z(t)&=B(z_k,z_k^+,z_{k+1}^-,z_{k+1};t)\cr
@@ -687,7 +687,7 @@ used.
 
 /*tex
 
-Before the Bézier control points have been calculated, the memory space they will ultimately occupy
+Before the Béº©er control points have been calculated, the memory space they will ultimately occupy
 is taken up by information that can be used to compute them. There are four cases:
 
 \startitemize
@@ -708,7 +708,7 @@ is taken up by information that can be used to compute them. There are four case
 \stopitem
 
 \startitem
-    If |mp_right_type=mp_explicit|, the Bézier control point for leaving this knot has already been
+    If |mp_right_type=mp_explicit|, the Béº©er control point for leaving this knot has already been
     computed; it is in the |mp_right_x| and |mp_right_y| fields.
 \stopitem
 
@@ -1788,34 +1788,55 @@ static void                mp_run_warning                 (MP mp, const char *);
                                                           
 static char               *mp_make_text                   (MP mp, const char *str, size_t len, int mode);
                                                           
+/*tex 
+
+    These print functions are the main ones. We try to use the format variant when possible, 
+    although, unlike in \TEX\ we don't save much but that might change as we add more tracing 
+    options. It's a stepwise process to introduce this. 
+
+*/
+
+static void                mp_print_char                  (MP mp, unsigned char k);
+static void                mp_print_string_length         (MP mp, const char *s, size_t len);
+static void                mp_print_string                (MP mp, const char *s);
+static void                mp_print_flush_line            (MP mp);
+static void                mp_print_format                (MP mp, const char *format, ...);
+
 static void                mp_begin_diagnostic            (MP mp);
+static void                mp_begin_diagnostic_print      (MP mp, const char *s, const char *t, int nuline);
 static void                mp_end_diagnostic              (MP mp, int blank_line);
-                                                          
-static void                mp_print_str                   (MP mp, const char *s);
+
+static void                mp_print_path                  (MP mp, mp_knot h, const char *s, int nuline); // diagnostic 
+static void                mp_print_pen                   (MP mp, mp_knot h, const char *s, int nuline); // diagnostic 
+static void                mp_print_edges                 (MP mp, mp_node h, const char *s, int nuline); // diagnostic 
+
+# define                   mp_print_number(mp,n)          mp->math->md_print(mp,&(n))
+
+//     void                mp_print_fmt                   (MP mp, const char *s, ...);
+//     void                mp_print_two                   (MP mp, mp_number *x, mp_number *y);
+//     void                mp_print_int                   (MP mp, int n);
+
 static void                mp_print_nl                    (MP mp, const char *s);
-static void                mp_print_fmt                   (MP mp, const char *s, ...);
 static void                mp_print_ln                    (MP mp);
-static void                mp_print_chr                   (MP mp, unsigned char k);
-static void                mp_print_mp_str                (MP mp, mp_string s);
-static void                mp_print_nl                    (MP mp, const char *s);
-static void                mp_print_two                   (MP mp, mp_number *x, mp_number *y);
-static void                mp_print_nl_only               (MP mp);
-static void                mp_print_int                   (MP mp, int n);
+static void                mp_print_mp_string             (MP mp, mp_string s);
 static void                mp_print_type                  (MP mp, int t);
-static void                mp_print_diagnostic            (MP mp, const char *s, const char *t, int nuline);
 static void                mp_print_capsule               (MP mp, mp_node p);
 static void                mp_print_variable_name         (MP mp, mp_node p);
 static void                mp_print_dp                    (MP mp, int t, mp_value_node p, int verbosity);
 static void                mp_print_exp                   (MP mp, mp_node p, int verbosity);
 static void                mp_print_big_node              (MP mp, mp_node p, int verbosity);
+
 static void                mp_print_path_only             (MP mp, mp_knot h);
-static void                mp_print_path                  (MP mp, mp_knot h, const char *s, int nuline);
 static void                mp_print_pen_only              (MP mp, mp_knot h);
-static void                mp_print_pen                   (MP mp, mp_knot h, const char *s, int nuline);
+
 static void                mp_print_macro_name            (MP mp, mp_node a, mp_symbol n);
-static void                mp_print_arg                   (MP mp, mp_node q, int n, int b, int bb);
+static void                mp_print_argument              (MP mp, mp_node q, int n, int b, int bb);
 static void                mp_print_cmd_mod               (MP mp, int c, int m);
-                                                          
+static void                mp_print_obj_color             (MP mp, mp_node p);
+static void                mp_print_dependency            (MP mp, mp_value_node p, int t);
+
+/* */
+
 static void                mp_show_token_list             (MP mp, mp_node p, mp_node q);
 static void                mp_show_token_list_space       (MP mp, mp_node p, mp_node q);
                                                           
@@ -1863,8 +1884,6 @@ static void                mp_sqrt_det                    (MP mp, mp_number *ret
 static void                mp_flush_dash_list             (MP mp, mp_edge_header_node h);
 static void                mp_toss_edges                  (MP mp, mp_edge_header_node h);
 static mp_edge_header_node mp_copy_objects                (MP mp, mp_node p, mp_node q);
-static void                mp_print_edges                 (MP mp, mp_node h, const char *s, int nuline);
-static void                mp_print_obj_color             (MP mp, mp_node p);
 static void                mp_dash_offset                 (MP mp, mp_number *x, mp_dash_node h);
 static void                mp_x_retrace_error             (MP mp);
 static void                mp_set_bbox                    (MP mp, mp_edge_header_node h, int top_level);
@@ -1880,7 +1899,6 @@ static void                mp_new_indep                   (MP mp, mp_node p);
 inline static mp_node      do_get_dep_info                (MP mp, mp_value_node p);
 inline static void         do_set_dep_value               (MP mp, mp_value_node p, mp_number *q);
 static void                mp_free_dep_node               (MP mp, mp_value_node p);
-static void                mp_print_dependency            (MP mp, mp_value_node p, int t);
 static mp_value_node       mp_p_plus_fq                   (MP mp, mp_value_node p, mp_number *f, mp_value_node q, mp_variable_type t, mp_variable_type tt);
 static mp_value_node       mp_p_over_v                    (MP mp, mp_value_node p, mp_number *v, int t0, int t1);
 static void                mp_val_too_big                 (MP mp, mp_number *x);
@@ -1931,7 +1949,7 @@ static void                mp_set_cur_exp_str             (MP mp, mp_string s);
                                                           
 static mp_node             mp_stash_cur_exp               (MP mp);
 static void                mp_unstash_cur_exp             (MP mp, mp_node p);
-static void                mp_disp_err                    (MP mp, mp_node p);
+static void                mp_display_error               (MP mp, mp_node p);
 static void                mp_recycle_value               (MP mp, mp_node p);
 static void                mp_recycle_independent_value   (MP mp, mp_node p);
 static void                mp_show_transformed_dependency (MP mp, mp_number *v, mp_variable_type t, mp_node p);
@@ -1977,7 +1995,6 @@ static void                mp_do_add_to                   (MP mp);
 static void                mp_ship_out                    (MP mp, mp_node h);
 static void                mp_do_ship_out                 (MP mp);
 static void                mp_do_message                  (MP mp);
-static void                mp_no_string_err               (MP mp, const char *s);
 static void                mp_do_write                    (MP mp);
 static void                mp_do_write_string             (MP mp, mp_string t);
                                                           
@@ -1997,6 +2014,140 @@ static void                mp_shipout_backend             (MP mp, void *h);
 static void                mp_close_files                 (MP mp);
 static void                mp_close_files_and_terminate   (MP mp);
 static void                mp_final_cleanup               (MP mp);
+
+/*tex 
+
+    The format function accepts these specifiers:
+
+    %% : percent 
+
+    %l : flush line when there is content 
+    %s : C string 
+    %q : C string quoted
+    %i : integer 
+    %b : boolean (TODO) 
+
+    %B : MP big mode (TODO)
+    %C : MP command, operation (mod) 
+    %N : MP number
+    %O : MP operator (TODO)
+    %P : MP pointer (for capsule) 
+    %Q : MP string quoted
+    %S : MP string 
+    %T : MP type (TODO)
+    %V : MP variable name (TODO)
+
+    \n : newline 
+    \r : newline
+    \0 : finish 
+
+*/
+
+inline static void mp_print_format_args(MP mp, const char *format, va_list args)
+{
+    while (1) {
+        int chr = *format++;
+        switch (chr) {
+            case '\0':
+                return;
+            case '%':
+                {
+                    chr = *format++;
+                    switch (chr) {
+                        case '\0':
+                            return;
+                        case 'c':
+                            mp_print_char(mp, va_arg(args, int));
+                            break;
+                        case 'i':
+                            {
+                                char s[12];
+                                snprintf(s, 12, "%d", (int) va_arg(args, int));
+                                mp_print_string_length(mp, s, strlen(s));
+                                break;
+                            }
+                        case 's':
+                            {
+                                const char *s = va_arg(args, char *);
+                                mp_print_string_length(mp, s, strlen(s));
+                                break;
+                            }
+                        case 'q':
+                            {
+                                const char *s = va_arg(args, char *);
+                                mp_print_char(mp, '\"'); /* ' in tex */
+                             // mp_print_str(mp, va_arg(args, char *));
+                                mp_print_string_length(mp, s, strlen(s));
+                                mp_print_char(mp, '\"'); /* ' in tex */
+                                break;
+                            }
+                        case 'l':
+                            mp_print_flush_line(mp);
+                            break;
+                        case 'N':
+                            { 
+                                mp_number n; 
+                                n = va_arg(args, mp_number);
+                                print_number(n);
+                                break;
+                            }
+                        case 'P': /* pointer, for capsule */
+                            {
+                                char s[16];
+                                snprintf(s, 16, "%p", va_arg(args, void *));
+                                mp_print_string_length(mp, s, strlen(s));
+                                break;
+                            }
+                        case 'C':
+                            {
+                                int cmd = va_arg(args, int);
+                                int mod = va_arg(args, int);
+                                const char *s = mp_cmd_mod_string(mp, cmd, mod);
+                                mp_print_string_length(mp, s, strlen(s));
+                             // mp_print_str(mp, mp_cmd_mod_string(mp, cmd, mod));
+                                break;
+                            }
+                        case 'S':
+                            {
+                                mp_string s = va_arg(args, mp_string);
+                                mp_print_string_length(mp, (const char *) s->str, s->len);
+                                break;
+                            }
+                        case 'Q':
+                            {
+                                mp_string s = va_arg(args, mp_string);
+                                mp_print_char(mp, '\"'); /* ' in tex */
+                                mp_print_string_length(mp, (const char *) s->str, s->len);
+                                mp_print_char(mp, '\"'); /* ' in tex */
+                                break;
+                            }
+                        case '%':
+                            mp_print_char(mp, '%');
+                            break;
+                        default:
+                            /* ignore bad one */
+                            break;
+                    }
+                }
+                break;
+            case '\n':
+            case '\r':
+                mp_print_ln(mp);
+                break;
+            default:
+                mp_print_char(mp, chr); /* todo: utf */
+                break;
+        }
+    }
+}
+
+void mp_print_format(MP mp, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format); /* hm, weird, no number */
+    mp_print_format_args(mp, format, args);
+    va_end(args);
+}
 
 /*tex
 
@@ -2025,7 +2176,7 @@ void mp_warn (MP mp, const char *msg)
     int selector = mp->selector;
     mp_normalize_selector(mp);
     mp_print_nl(mp, "Warning: ");
-    mp_print_str(mp, msg);
+    mp_print_string(mp, msg);
     mp_print_ln(mp);
     mp->selector = selector;
 }
@@ -2806,7 +2957,7 @@ is not safe to cut up lines arbitrarily in \POSTSCRIPT. Anyway, we don't have a 
 
 */
 
-static void mp_print_chr (MP mp, unsigned char s)
+static void mp_print_char (MP mp, unsigned char s)
 {
     switch (mp->selector) {
         case mp_term_and_log_selector:
@@ -2836,12 +2987,12 @@ static void mp_print_chr (MP mp, unsigned char s)
     }
 }
 
-void mp_print_e_chr (MP mp, unsigned char s)
-{
-    mp_print_chr(mp, s);
-}
+// void mp_print_e_chr (MP mp, unsigned char s)
+// {
+//     mp_print_char(mp, s);
+// }
 
-static void mp_do_print (MP mp, const char *s, size_t len)
+static void mp_print_string_length (MP mp, const char *s, size_t len)
 {
     if (len == 0) {
         return;
@@ -2877,29 +3028,29 @@ static void mp_do_print (MP mp, const char *s, size_t len)
     }
 }
 
-static void mp_print_str (MP mp, const char *s)
+static void mp_print_string (MP mp, const char *s)
 {
-    mp_do_print(mp, s, strlen(s));
+    mp_print_string_length(mp, s, strlen(s));
 }
 
 void mp_print_e_str (MP mp, const char *s)
 {
-    mp_print_str(mp, s);
+    mp_print_string(mp, s);
 }
 
-static void mp_print_fmt (MP mp, const char *s, ...)
-{
-    va_list ap;
-    char pval[256];
-    va_start(ap, s);
-    vsnprintf(pval, 256, s, ap);
-    mp_do_print(mp, pval, strlen(pval));
-    va_end(ap);
-}
+// static void mp_print_fmt (MP mp, const char *s, ...)
+// {
+//     va_list ap;
+//     char pval[256];
+//     va_start(ap, s);
+//     vsnprintf(pval, 256, s, ap);
+//     mp_print_string_length(mp, pval, strlen(pval));
+//     va_end(ap);
+// }
 
-static void mp_print_mp_str (MP mp, mp_string s)
+static void mp_print_mp_string (MP mp, mp_string s)
 {
-    mp_do_print(mp, (const char *) s->str, s->len);
+    mp_print_string_length(mp, (const char *) s->str, s->len);
 }
 
 /*tex
@@ -2912,7 +3063,7 @@ of a new line.
 
 */
 
-static void mp_print_nl_only (MP mp)
+static void mp_print_flush_line (MP mp)
 {
     switch (mp->selector) {
         case mp_term_and_log_selector:
@@ -2945,8 +3096,8 @@ static void mp_print_nl_only (MP mp)
 
 static void mp_print_nl (MP mp, const char *s)
 {
-    mp_print_nl_only(mp);
-    mp_print_str(mp, s);
+    mp_print_flush_line(mp);
+    mp_print_string(mp, s);
 }
 
 /*tex
@@ -2956,12 +3107,12 @@ that all integers fit nicely into a |int|.
 
 */
 
-static void mp_print_int (MP mp, int n)
-{
-    char s[12];
-    snprintf(s, 12, "%d", (int) n);
-    mp_print_str(mp, s);
-}
+// static void mp_print_int (MP mp, int n)
+// {
+//     char s[12];
+//     snprintf(s, 12, "%d", (int) n);
+//     mp_print_string(mp, s);
+// }
 
 /*tex
 
@@ -3075,14 +3226,14 @@ separated by a comma.
 
 */
 
-static void mp_print_two (MP mp, mp_number *x, mp_number *y)
-{
-    mp_print_chr(mp, '(');
-    print_number(*x);
-    mp_print_chr(mp, ',');
-    print_number(*y);
-    mp_print_chr(mp, ')');
-}
+// static void mp_print_two (MP mp, mp_number *x, mp_number *y)
+// {
+//     mp_print_char(mp, '(');
+//     print_number(*x);
+//     mp_print_char(mp, ',');
+//     print_number(*y);
+//     mp_print_char(mp, ')');
+// }
 
 /*tex 
 
@@ -3325,21 +3476,16 @@ static const char *mp_type_string(int t)
         case mp_dep_node_type          : return "dependency node";  
         case mp_if_node_type           : return "if node";          
         case mp_edge_header_node_type  : return "edge header node"; 
-        default:
-            {
-                char ss[256];
-                snprintf(ss, 256, "<unknown type %d>", t);
-                return mp_strdup(ss);
-            }
+        default                        : return "unknown node";
     }
 }
 
-void mp_print_type (MP mp, int t)
+static void mp_print_type (MP mp, int t)
 {
     if (t >= 0 && t <= mp_edge_header_node_type) {
-        mp_print_str(mp, mp_type_string(t));
+        mp_print_string(mp, mp_type_string(t));
     } else {
-        mp_print_str(mp, "unknown");
+        mp_print_string(mp, "unknown");
     }
 }
 
@@ -3351,6 +3497,11 @@ static const char *mp_op_string (int c)
         return mp_type_string(c);
     } else {
         switch (c) {
+         // case mp_root_operation             : return "";
+         // case mp_saved_root_operation       : return "";
+         // case mp_structured_root_operation  : return "";
+         // case mp_subscript_operation        : return "";
+         // case mp_attribute_operation        : return "";
             case mp_x_part_operation           : return "xpart";
             case mp_y_part_operation           : return "ypart";
             case mp_xx_part_operation          : return "xxpart";
@@ -3510,13 +3661,13 @@ static const char *mp_op_string (int c)
             case mp_version_operation          : return "mpversion";
             case mp_envelope_operation         : return "envelope";
             case mp_boundingpath_operation     : return "boundingpath";
-            default                            : return "TODO";
+            default                            : return "unknown operation";
         }
     }
 }
 static void mp_print_op (MP mp, int c)
 {
-    mp_print_str(mp, mp_op_string(c));
+    mp_print_string(mp, mp_op_string(c));
 }
 
 /*tex
@@ -3596,18 +3747,22 @@ The parameter |s| is typically \quote {Path} or \quote {Cycle spec}, etc.
 
 */
 
-static void mp_print_diagnostic (MP mp, const char *s, const char *t, int nuline)
+static void mp_begin_diagnostic_print (MP mp, const char *s, const char *t, int nuline)
 {
     mp_begin_diagnostic(mp);
+ // if (nuline) {
+ //     mp_print_nl(mp, s);
+ // } else {
+ //     mp_print_string(mp, s);
+ // }
+ // mp_print_string(mp, " at line ");
+ // mp_print_int(mp, mp_true_line(mp));
+ // mp_print_string(mp, t);
+ // mp_print_char(mp, ':');
     if (nuline) {
-        mp_print_nl(mp, s);
-    } else {
-        mp_print_str(mp, s);
+        mp_print_flush_line(mp);
     }
-    mp_print_str(mp, " at line ");
-    mp_print_int(mp, mp_true_line(mp));
-    mp_print_str(mp, t);
-    mp_print_chr(mp, ':');
+    mp_print_format(mp, "%s at line %i %s:", s, mp_true_line(mp), t);
 }
 
 # define text(A)        (A)->text
@@ -3961,64 +4116,73 @@ void mp_show_token_list (MP mp, mp_node p, mp_node q)
             if (p->name_type == mp_token_operation) {
                 if (p->type == mp_known_type) {
                     if (cclass == mp_digit_class) {
-                        mp_print_chr(mp, ' ');
+                        mp_print_char(mp, ' ');
                     }
                     if (number_negative(mp_get_value_number(p))) {
                         if (cclass == mp_left_bracket_class) {
-                            mp_print_chr(mp, ' ');
+                            mp_print_char(mp, ' ');
                         }
-                        mp_print_chr(mp, '[');
-                        print_number(mp_get_value_number(p));
-                        mp_print_chr(mp, ']');
+                     // mp_print_char(mp, '[');
+                     // mp_print_number(mp, mp_get_value_number(p));
+                     // mp_print_char(mp, ']');
+                        mp_print_format(mp, "[%N]", mp_get_value_number(p));
                         c = mp_right_bracket_class;
                     } else {
-                        print_number(mp_get_value_number(p));
+                        mp_print_number(mp, mp_get_value_number(p));
                         c = mp_digit_class;
                     }
                 } else if (p->type == mp_string_type) {
-                    mp_print_chr(mp, '"');
-                    mp_print_mp_str(mp, mp_get_value_str(p));
-                    mp_print_chr(mp, '"');
+                 // mp_print_char(mp, '"');
+                 // mp_print_mp_str(mp, mp_get_value_str(p));
+                 // mp_print_char(mp, '"');
+                    mp_print_format(mp, "%Q", mp_get_value_str(p));
                     c = mp_string_class;
                 } else {
-                    mp_print_str(mp, " BAD");
+                    mp_print_string(mp, " BAD");
                 }
             } else if ((p->name_type != mp_capsule_operation) || (p->type < mp_vacuous_type) || (p->type > mp_independent_type)) {
-                mp_print_str(mp, " BAD");
+                mp_print_string(mp, " BAD");
             } else {
                 mp_print_capsule(mp, p);
                 c = mp_right_parenthesis_class;
             }
         } else if (p->name_type == mp_expr_operation || p->name_type == mp_suffix_operation || p->name_type == mp_text_operation) {
             int r = mp_get_sym_info(p);
+         // if (p->name_type == mp_expr_operation) {
+         //     mp_print_string(mp, "(EXPR");
+         // } else if (p->name_type == mp_suffix_operation) {
+         //     mp_print_string(mp, "(SUFFIX");
+         // } else {
+         //     mp_print_string(mp, "(TEXT");
+         // }
+         // mp_print_int(mp, r);
+         // mp_print_char(mp, ')');
             if (p->name_type == mp_expr_operation) {
-                mp_print_str(mp, "(EXPR");
+                mp_print_format(mp, "(EXPR %i)", r);
             } else if (p->name_type == mp_suffix_operation) {
-                mp_print_str(mp, "(SUFFIX");
+                mp_print_format(mp, "(SUFFIX %i)", r);
             } else {
-                mp_print_str(mp, "(TEXT");
+                mp_print_format(mp, "(TEXT %i)", r);
             }
-            mp_print_int(mp, r);
-            mp_print_chr(mp, ')');
             c = mp_right_parenthesis_class;
         } else {
             mp_symbol sr = mp_get_sym_sym(p);
             if (sr == mp_collective_subscript) {
                 if (cclass == mp_left_bracket_class) {
-                    mp_print_chr(mp, ' ');
+                    mp_print_char(mp, ' ');
                 }
-                mp_print_str(mp, "[]");
+                mp_print_string(mp, "[]");
                 c = mp_right_bracket_class;
             } else {
                 mp_string rr = text(sr);
                 if (rr == NULL || rr->str == NULL) {
-                    mp_print_str(mp, " NONEXISTENT");
+                    mp_print_string(mp, " NONEXISTENT");
                 } else {
                     c = mp->char_class[(rr->str[0])];
                     if (c == cclass) {
                         switch (c) {
                             case mp_letter_class:
-                                mp_print_chr(mp, '.');
+                                mp_print_char(mp, '.');
                                 break;
                             case mp_comma_class:
                             case mp_semicolon_class:
@@ -4026,11 +4190,11 @@ void mp_show_token_list (MP mp, mp_node p, mp_node q)
                             case mp_right_parenthesis_class:
                                 break;
                             default:
-                                mp_print_chr(mp, ' ');
+                                mp_print_char(mp, ' ');
                                 break;
                             }
                     }
-                    mp_print_mp_str(mp, rr);
+                    mp_print_mp_string(mp, rr);
                 }
             }
         }
@@ -4048,51 +4212,61 @@ void mp_show_token_list_space (MP mp, mp_node p, mp_node q)
             if (p->name_type == mp_token_operation) {
                 if (p->type == mp_known_type) {
                     if (number_negative(mp_get_value_number(p))) {
-                        mp_print_str(mp, "[ ");
-                        print_number(mp_get_value_number(p));
-                        mp_print_str(mp, " ]");
+                     // mp_print_string(mp, "[ ");
+                     // mp_print_number(mp, mp_get_value_number(p));
+                     // mp_print_string(mp, " ]");
+                        mp_print_format(mp, "[%N]", mp_get_value_number(p));
                     } else {
                         print_number(mp_get_value_number(p));
                     }
                 } else if (p->type == mp_string_type) {
-                    mp_print_chr(mp, '"');
-                    mp_print_mp_str(mp, mp_get_value_str(p));
-                    mp_print_chr(mp, '"');
+                 // mp_print_char(mp, '"');
+                 // mp_print_mp_str(mp, mp_get_value_str(p));
+                 // mp_print_char(mp, '"');
+                    mp_print_format(mp, "%Q", mp_get_value_str(p));
+
                 } else {
-                    mp_print_str(mp, "BAD");
+                    mp_print_string(mp, "BAD");
                 }
             } else if ((p->name_type != mp_capsule_operation) || (p->type < mp_vacuous_type) || (p->type > mp_independent_type)) {
-                mp_print_str(mp, "BAD");
+                mp_print_string(mp, "BAD");
             } else {
                 mp_print_capsule(mp, p);
             }
         } else if (p->name_type == mp_expr_operation || p->name_type == mp_suffix_operation || p->name_type == mp_text_operation) {
             int r = mp_get_sym_info(p);
+         // if (p->name_type == mp_expr_operation) {
+         //     mp_print_string(mp, "(EXPR ");
+         // } else if (p->name_type == mp_suffix_operation) {
+         //     mp_print_string(mp, "(SUFFIX ");
+         // } else {
+         //     mp_print_string(mp, "(TEXT ");
+         // }
+         // mp_print_int(mp, r);
+         // mp_print_char(mp, ')');
             if (p->name_type == mp_expr_operation) {
-                mp_print_str(mp, "(EXPR ");
+                mp_print_format(mp, "(EXPR %i)", r);
             } else if (p->name_type == mp_suffix_operation) {
-                mp_print_str(mp, "(SUFFIX ");
+                mp_print_format(mp, "(SUFFIX %i)", r);
             } else {
-                mp_print_str(mp, "(TEXT ");
+                mp_print_format(mp, "(TEXT %i)", r);
             }
-            mp_print_int(mp, r);
-            mp_print_chr(mp, ')');
         } else {
             mp_symbol sr = mp_get_sym_sym(p);
             if (sr == mp_collective_subscript) {
-                mp_print_str(mp, "[]");
+                mp_print_string(mp, "[]");
             } else {
                 mp_string rr = text(sr);
                 if (rr == NULL || rr->str == NULL) {
-                    mp_print_str(mp, "NONEXISTENT");
+                    mp_print_string(mp, "NONEXISTENT");
                 } else {
-                    mp_print_mp_str(mp, rr);
+                    mp_print_mp_string(mp, rr);
                 }
             }
         }
         p = p->link;
         if (p) {
-            mp_print_chr(mp, ' ');
+            mp_print_char(mp, ' ');
         }
     }
     return;
@@ -4126,26 +4300,27 @@ static void mp_show_macro (MP mp, mp_node p, mp_node q)
     }
     switch (mp_get_sym_info(p)) {
         case mp_general_macro:
-            mp_print_str(mp, "-> ");
+            mp_print_string(mp, "-> ");
             break;
         case mp_primary_macro:
         case mp_secondary_macro:
         case mp_tertiary_macro:
-            mp_print_str(mp, "<");
-            mp_print_cmd_mod(mp, mp_parameter_commmand, mp_get_sym_info(p));
-            mp_print_str(mp, "> -> ");
+         // mp_print_string(mp, "<");
+         // mp_print_cmd_mod(mp, mp_parameter_commmand, mp_get_sym_info(p));
+         // mp_print_string(mp, "> -> ");
+            mp_print_format(mp, "<%C> -> ", mp_parameter_commmand, mp_get_sym_info(p));
             break;
         case mp_expr_macro:
-            mp_print_str(mp, "<expr> -> ");
+            mp_print_string(mp, "<expr> -> ");
             break;
         case mp_of_macro:
-            mp_print_str(mp, "<expr> of <primary> -> ");
+            mp_print_string(mp, "<expr> of <primary> -> ");
             break;
         case mp_suffix_macro:
-            mp_print_str(mp, "<suffix> -> ");
+            mp_print_string(mp, "<suffix> -> ");
             break;
         case mp_text_macro:
-            mp_print_str(mp, "<text> -> ");
+            mp_print_string(mp, "<text> -> ");
             break;
     }
     mp_show_token_list(mp, p->link, q);
@@ -4495,22 +4670,23 @@ void mp_print_variable_name (MP mp, mp_node p)
     mp_node r = NULL; /* temporary for token list creation */
     while (p->name_type >= mp_x_part_operation) {
         switch (p->name_type) {
-            case mp_x_part_operation      : mp_print_str(mp, "xpart ");         break;
-            case mp_y_part_operation      : mp_print_str(mp, "ypart ");         break;
-            case mp_xx_part_operation     : mp_print_str(mp, "xxpart ");        break;
-            case mp_xy_part_operation     : mp_print_str(mp, "xypart ");        break;
-            case mp_yx_part_operation     : mp_print_str(mp, "yxpart ");        break;
-            case mp_yy_part_operation     : mp_print_str(mp, "yypart ");        break;
-            case mp_red_part_operation    : mp_print_str(mp, "redpart ");       break;
-            case mp_green_part_operation  : mp_print_str(mp, "greenpart ");     break;
-            case mp_blue_part_operation   : mp_print_str(mp, "bluepart ");      break;
-            case mp_cyan_part_operation   : mp_print_str(mp, "cyanpart ");      break;
-            case mp_magenta_part_operation: mp_print_str(mp, "magentapart ");   break;
-            case mp_yellow_part_operation : mp_print_str(mp, "yellowpart ");    break;
-            case mp_black_part_operation  : mp_print_str(mp, "blackpart ");     break;
-            case mp_grey_part_operation   : mp_print_str(mp, "greypart ");      break;
-            case mp_capsule_operation     : mp_print_fmt(mp, "%%CAPSULE%p", p); return;
-            default                       :                                     break;
+            case mp_x_part_operation      : mp_print_string(mp, "xpart ");         break;
+            case mp_y_part_operation      : mp_print_string(mp, "ypart ");         break;
+            case mp_xx_part_operation     : mp_print_string(mp, "xxpart ");        break;
+            case mp_xy_part_operation     : mp_print_string(mp, "xypart ");        break;
+            case mp_yx_part_operation     : mp_print_string(mp, "yxpart ");        break;
+            case mp_yy_part_operation     : mp_print_string(mp, "yypart ");        break;
+            case mp_red_part_operation    : mp_print_string(mp, "redpart ");       break;
+            case mp_green_part_operation  : mp_print_string(mp, "greenpart ");     break;
+            case mp_blue_part_operation   : mp_print_string(mp, "bluepart ");      break;
+            case mp_cyan_part_operation   : mp_print_string(mp, "cyanpart ");      break;
+            case mp_magenta_part_operation: mp_print_string(mp, "magentapart ");   break;
+            case mp_yellow_part_operation : mp_print_string(mp, "yellowpart ");    break;
+            case mp_black_part_operation  : mp_print_string(mp, "blackpart ");     break;
+            case mp_grey_part_operation   : mp_print_string(mp, "greypart ");      break;
+         // case mp_capsule_operation     : mp_print_fmt(mp, "%%CAPSULE%p", p); return;
+            case mp_capsule_operation     : mp_print_format(mp, "%%CAPSULE%P", p); return;
+            default                       :                                        break;
         }
         p = p->link;
     }
@@ -4547,7 +4723,7 @@ void mp_print_variable_name (MP mp, mp_node p)
     mp_set_sym_sym(r, mp_get_value_sym(p));
     r->link = q;
     if (p->name_type == mp_saved_root_operation) {
-        mp_print_str(mp, "(SAVED)");
+        mp_print_string(mp, "(SAVED)");
     }
     mp_show_token_list(mp, r, NULL);
     mp_flush_token_list(mp, r);
@@ -5096,9 +5272,10 @@ static void mp_unsave_variable (MP mp)
     mp_symbol q = (mp_symbol) mp->save_ptr->value.v.data.p;
     if (number_positive(internal_value(mp_tracing_restores_internal))) {
         mp_begin_diagnostic(mp);
-        mp_print_nl(mp, "{restoring ");
-        mp_print_mp_str(mp,text(q));
-        mp_print_chr(mp, '}');
+     // mp_print_nl(mp, "{restoring ");
+     // mp_print_mp_str(mp, text(q));
+     // mp_print_char(mp, '}');
+        mp_print_format(mp, "%l{restoring %S}", text(q));
         mp_end_diagnostic(mp, 0);
     }
     mp_clear_symbol(mp, q, 0);
@@ -5146,28 +5323,26 @@ static void mp_unsave_internal (MP mp)
     mp_internal saved = mp->save_ptr->value;
     if (number_positive(internal_value(mp_tracing_restores_internal))) {
         mp_begin_diagnostic(mp);
-        mp_print_nl(mp, "{restoring ");
-        mp_print_str(mp, internal_name(q));
-        mp_print_chr(mp, '=');
+     // mp_print_nl(mp, "{restoring ");
+     // mp_print_string(mp, internal_name(q));
+     // mp_print_char(mp, '=');
+        mp_print_format(mp, "%l{restoring %s=", internal_name(q));
         switch (internal_type(q)) {
             case mp_known_type:
             case mp_numeric_type:
-                print_number(saved.v.data.n);
+                mp_print_number(mp, saved.v.data.n);
                 break;
             case mp_boolean_type:
-                mp_print_str(mp, number_to_boolean(saved.v.data.n) == mp_true_operation ? "true" : "false");
+                mp_print_string(mp, number_to_boolean(saved.v.data.n) == mp_true_operation ? "true" : "false");
                 break;
             case mp_string_type:
-                {
-                    char *s = mp_str(mp, saved.v.data.str);
-                    mp_print_str(mp, s);
-                    break;
-                }
+                mp_print_mp_string(mp, saved.v.data.str);
+                break;
             default:
                 mp_confusion(mp, "internal restore");
                 break;
         }
-        mp_print_chr(mp, '}');
+        mp_print_char(mp, '}');
         mp_end_diagnostic(mp, 0);
     }
     free_number(mp->internal[q].v.data.n);
@@ -5224,20 +5399,21 @@ void mp_print_path_only (MP mp, mp_knot h)
             return; /* this won't happen */
         } else {
             /*tex  print information for adjacent knots |p| and |q| */
-            mp_print_two(mp, &(p->x_coord), &(p->y_coord));
+         // mp_print_two(mp, &(p->x_coord), &(p->y_coord));
+            mp_print_format(mp, "(%N,%N)", p->x_coord, p->y_coord);
             switch (mp_knotstate(p)) {
                 case mp_begin_knot:
-                    mp_print_str(mp, " {begin}");
+                    mp_print_string(mp, " {begin}");
                     break;
                 case mp_end_knot:
-                    mp_print_str(mp, " {end}");
+                    mp_print_string(mp, " {end}");
                     break;
             }
             switch (mp_right_type(p)) {
                 case mp_endpoint_knot:
                     {
                         if (mp_left_type(p) == mp_open_knot) {
-                            mp_print_str(mp, " {open?}"); /* can't happen */
+                            mp_print_string(mp, " {open?}"); /* can't happen */
                         }
                         if ((mp_left_type(q) != mp_endpoint_knot) || (q != h)) {
                             q = NULL; /* force an error */
@@ -5248,13 +5424,18 @@ void mp_print_path_only (MP mp, mp_knot h)
                 case mp_explicit_knot:
                     {
                         /*tex  print control points between |p| and |q|, then |goto done1| */
-                        mp_print_str(mp, " .. controls ");
-                        mp_print_two(mp, &(p->right_x), &(p->right_y));
-                        mp_print_str(mp, " and ");
+                     // mp_print_string(mp, " .. controls ");
+                     // mp_print_two(mp, &(p->right_x), &(p->right_y));
+                     // mp_print_string(mp, " and ");
+                     // if (mp_left_type(q) != mp_explicit_knot) {
+                     //     mp_print_string(mp, "??"); /* can't happen */
+                     // } else {
+                     //     mp_print_two(mp, &(q->left_x), &(q->left_y));
+                     // }
                         if (mp_left_type(q) != mp_explicit_knot) {
-                            mp_print_str(mp, "??"); /* can't happen */
+                            mp_print_format(mp, " .. controls (%N,%N) and ??", p->right_x, p->right_y); /* can't happen */
                         } else {
-                            mp_print_two(mp, &(q->left_x), &(q->left_y));
+                            mp_print_format(mp, " .. controls (%N,%N) and (%N,%N)", p->right_x, p->right_y, q->left_x, q->left_y);
                         }
                         goto DONE1;
                     }
@@ -5263,7 +5444,7 @@ void mp_print_path_only (MP mp, mp_knot h)
                     {
                         /*tex  print information for a curve that begins |open| */
                         if ((mp_left_type(p) != mp_explicit_knot) && (mp_left_type(p) != mp_open_knot)) {
-                            mp_print_str(mp, " {open?}"); /* can't happen */
+                            mp_print_string(mp, " {open ?}"); /* can't happen */
                         }
                     }
                     break;
@@ -5272,50 +5453,53 @@ void mp_print_path_only (MP mp, mp_knot h)
                     {
                         /*tex  print information for a curve that begins |curl| or |given| */
                         if (mp_left_type(p) == mp_open_knot) {
-                            mp_print_str(mp, " ??"); /* can't happen */
+                            mp_print_string(mp, " {?} "); /* can't happen */
                         }
                         if (mp_right_type(p) == mp_curl_knot) {
-                            mp_print_str(mp, " {curl");
-                            print_number(p->right_curl);
+                         // mp_print_string(mp, " {curl");
+                         // print_number(p->right_curl);
+                         // mp_print_string(mp, "} ");
+                            mp_print_format(mp, " {curl %N} ", p->right_curl);
                         } else {
                             mp_number n_sin, n_cos;
                             new_fraction(n_sin);
                             new_fraction(n_cos);
                             n_sin_cos(p->right_given, n_cos, n_sin);
-                            mp_print_str(mp, " {");
-                            print_number(n_cos);
-                            mp_print_chr(mp, ',');
-                            print_number(n_sin);
+                         // mp_print_string(mp, " {");
+                         // print_number(n_cos);
+                         // mp_print_char(mp, ',');
+                         // print_number(n_sin);
+                         // mp_print_string(mp, "} ");
+                            mp_print_format(mp, " {%N,%N} ", n_sin, n_cos);
                             free_number(n_sin);
                             free_number(n_cos);
                         }
-                        mp_print_str(mp, "} ");
                     }
                     break;
                 default:
                     {
-                        mp_print_str(mp, "???"); /* can't happen */
+                        mp_print_string(mp, "???"); /* can't happen */
                     }
                     break;
             }
             if (mp_left_type(q) <= mp_explicit_knot) {
-                mp_print_str(mp, " .. control ?"); /* can't happen */
+                mp_print_string(mp, " .. control ?"); /* can't happen */
             } else if ((! number_equal(p->right_tension, unity_t)) || (! number_equal(q->left_tension, unity_t))) {
                 /*tex  print tension between |p| and |q| */
                 mp_number v1;
-                mp_print_str(mp, " .. tension");
+                mp_print_string(mp, " .. tension");
                 if (number_negative(p->right_tension)) {
-                    mp_print_str(mp, " atleast");
+                    mp_print_string(mp, " atleast");
                 }
                 new_number_abs(v1, p->right_tension);
-                print_number(v1);
+                mp_print_number(mp, v1);
                 if (! number_equal(p->right_tension, q->left_tension)) {
-                    mp_print_str(mp, " and");
+                    mp_print_string(mp, " and");
                     if (number_negative(q->left_tension)) {
-                        mp_print_str(mp, " atleast");
+                        mp_print_string(mp, " atleast");
                     }
                     number_abs_clone(v1, p->left_tension);
-                    print_number(v1);
+                    mp_print_number(mp, v1);
                 }
                 free_number(v1);
             }
@@ -5327,18 +5511,22 @@ void mp_print_path_only (MP mp, mp_knot h)
                 mp_number n_sin, n_cos;
                 new_fraction(n_sin);
                 new_fraction(n_cos);
-                mp_print_nl(mp, " .. ");
+             // mp_print_nl(mp, " .. ");
                 if (mp_left_type(p) == mp_given_knot) {
                     n_sin_cos(p->left_given, n_cos, n_sin);
-                    mp_print_str(mp, "{");
-                    print_number(n_cos);
-                    mp_print_chr(mp, ',');
-                    print_number(n_sin);
-                    mp_print_chr(mp, '}');
+                 // mp_print_string(mp, "{");
+                 // print_number(n_cos);
+                 // mp_print_char(mp, ',');
+                 // print_number(n_sin);
+                 // mp_print_char(mp, '}');
+                    mp_print_format(mp, "%l.. {%N,%N}", n_cos, n_sin);
                 } else if (mp_left_type(p) == mp_curl_knot) {
-                    mp_print_str(mp, "{curl ");
-                    print_number(p->left_curl);
-                    mp_print_chr(mp, '}');
+                 // mp_print_string(mp, "{curl ");
+                 // print_number(p->left_curl);
+                 // mp_print_char(mp, '}');
+                    mp_print_format(mp, "%l.. {curl %N}", p->left_curl);
+                } else { 
+                    mp_print_format(mp, "%l.. ");
                 }
                 free_number(n_sin);
                 free_number(n_cos);
@@ -5346,7 +5534,7 @@ void mp_print_path_only (MP mp, mp_knot h)
         }
     } while (p != h);
     if (mp_left_type(h) != mp_endpoint_knot) {
-        mp_print_str(mp, " cycle");
+        mp_print_string(mp, "cycle");
     }
 }
 
@@ -5358,7 +5546,7 @@ It is convenient to have another version of |pr_path| that prints the path as a 
 
 void mp_print_path (MP mp, mp_knot h, const char *s, int nuline)
 {
-    mp_print_diagnostic(mp, "Path", s, nuline);
+    mp_begin_diagnostic_print(mp, "Path", s, nuline);
     mp_print_ln(mp);
     mp_print_path_only(mp, h);
     mp_end_diagnostic(mp, 1);
@@ -7569,7 +7757,7 @@ static void mp_arc_test (MP mp,
     new_number(simply);
     new_number_clone(tol, *tol_orig);
     /*tex
-        Bisect the bézier quadratic given by |dx0|, |dy0|, |dx1|, |dy1|, |dx2|, |dy2|.
+        Bisect the béº©er quadratic given by |dx0|, |dy0|, |dx1|, |dy1|, |dx2|, |dy2|.
     */
     set_number_half_from_addition(dx01, *dx0, *dx1);
     set_number_half_from_addition(dx12, *dx1, *dx2);
@@ -7913,7 +8101,7 @@ void mp_solve_rising_cubic (MP mp, mp_number *ret, mp_number *a_orig, mp_number 
         do {
             number_add(t, t);
             /*tex
-                Subdivide the bézier quadratic defined by |a|, |b|, |c|.
+                Subdivide the béº©er quadratic defined by |a|, |b|, |c|.
             */
             set_number_half_from_addition(ab, a, b);
             set_number_half_from_addition(bc, b, c);
@@ -8319,26 +8507,42 @@ void mp_print_pen_only (MP mp, mp_knot h)
         /*tex
             Print the elliptical pen |h|.
         */
-        mp_number v1;
-        new_number(v1);
-        mp_print_str(mp, "pencircle transformed (");
-        print_number(h->x_coord);
-        mp_print_chr(mp, ',');
-        print_number(h->y_coord);
-        mp_print_chr(mp, ',');
-        set_number_from_subtraction(v1, h->left_x, h->x_coord);
-        print_number(v1);
-        mp_print_chr(mp, ',');
-        set_number_from_subtraction(v1, h->right_x, h->x_coord);
-        print_number(v1);
-        mp_print_chr(mp, ',');
-        set_number_from_subtraction(v1, h->left_y, h->y_coord);
-        print_number(v1);
-        mp_print_chr(mp, ',');
-        set_number_from_subtraction(v1, h->right_y, h->y_coord);
-        print_number(v1);
-        mp_print_chr(mp, ')');
-        free_number(v1);
+     // mp_number v1;
+     // new_number(v1);
+     // mp_print_string(mp, "pencircle transformed (");
+     // print_number(h->x_coord);
+     // mp_print_char(mp, ',');
+     // print_number(h->y_coord);
+     // mp_print_char(mp, ',');
+     // set_number_from_subtraction(v1, h->left_x, h->x_coord);
+     // print_number(v1);
+     // mp_print_char(mp, ',');
+     // set_number_from_subtraction(v1, h->right_x, h->x_coord);
+     // print_number(v1);
+     // mp_print_char(mp, ',');
+     // set_number_from_subtraction(v1, h->left_y, h->y_coord);
+     // print_number(v1);
+     // mp_print_char(mp, ',');
+     // set_number_from_subtraction(v1, h->right_y, h->y_coord);
+     // print_number(v1);
+     // mp_print_char(mp, ')');
+     // free_number(v1);
+        mp_number lxx, lyy, rxx, ryy;
+        new_number(lxx);
+        new_number(lyy);
+        new_number(rxx);
+        new_number(ryy);
+        set_number_from_subtraction(lxx, h->left_x, h->x_coord);
+        set_number_from_subtraction(rxx, h->right_x, h->x_coord);
+        set_number_from_subtraction(lyy, h->left_y, h->y_coord);
+        set_number_from_subtraction(ryy, h->right_y, h->y_coord);
+        mp_print_format(mp, "pencircle transformed (%N,%N,%N,%N,%N,%N)", h->x_coord, h->y_coord, lxx, rxx, lyy, ryy);
+        free_number(lxx);
+        free_number(lyy);
+        free_number(rxx);
+        free_number(ryy);
+
+
     } else {
         mp_knot p = h;
         do {
@@ -8346,15 +8550,16 @@ void mp_print_pen_only (MP mp, mp_knot h)
                 Advance |p| making sure the links are OK and |return| if there is a problem.
             */
             mp_knot q = mp_next_knot(p);
-            mp_print_two(mp, &(p->x_coord), &(p->y_coord));
-            mp_print_nl(mp, " .. ");
+         // mp_print_two(mp, &(p->x_coord), &(p->y_coord));
+         // mp_print_nl(mp, " .. ");
+            mp_print_format(mp, "(%N,%N) .. ", p->x_coord, p->y_coord);
             if ((q == NULL) || (mp_prev_knot(q) != p)) {
                 mp_print_nl(mp, "???");
                 return; /* this won't happen */
             }
             p = q;
         } while (p != h);
-        mp_print_str(mp, "cycle");
+        mp_print_string(mp, "cycle");
     }
 }
 
@@ -8365,7 +8570,7 @@ void mp_print_pen_only (MP mp, mp_knot h)
 */
 
 void mp_print_pen (MP mp, mp_knot h, const char *s, int nuline) {
-    mp_print_diagnostic(mp, "Pen", s, nuline);
+    mp_begin_diagnostic_print(mp, "Pen", s, nuline);
     mp_print_ln(mp);
     mp_print_pen_only(mp, h);
     mp_end_diagnostic(mp, 1);
@@ -9475,7 +9680,7 @@ void mp_print_edges (MP mp, mp_node h, const char *s, int nuline)
     mp_node p = mp_edge_list(h); /*tex a graphical object to be printed */
     mp_number scf;               /*tex a scale factor for the dash pattern */
     new_number(scf);
-    mp_print_diagnostic(mp, "Edge structure", s, nuline);
+    mp_begin_diagnostic_print(mp, "Edge structure", s, nuline);
     while (p->link != NULL) {
         p = p->link;
         mp_print_ln(mp);
@@ -9484,9 +9689,9 @@ void mp_print_edges (MP mp, mp_node h, const char *s, int nuline)
                 Cases for printing graphical object node |p|.
             */
             case mp_fill_node_type:
-                mp_print_str(mp, "Filled contour ");
+                mp_print_string(mp, "Filled contour ");
                 mp_print_obj_color (mp, p);
-                mp_print_chr(mp, ':');
+                mp_print_char(mp, ':');
                 mp_print_ln(mp);
                 mp_print_path_only(mp, mp_path_ptr((mp_shape_node) p));
                 mp_print_ln(mp);
@@ -9496,28 +9701,28 @@ void mp_print_edges (MP mp, mp_node h, const char *s, int nuline)
                     */
                     switch (((mp_shape_node) p)->linejoin) {
                         case mp_mitered_linejoin_code:
-                            mp_print_str(mp, "mitered joins limited ");
-                            print_number(((mp_shape_node) p)->miterlimit);
+                            mp_print_string(mp, "mitered joins limited ");
+                            mp_print_number(mp, ((mp_shape_node) p)->miterlimit);
                             break;
                         case mp_rounded_linejoin_code:
-                            mp_print_str(mp, "round joins");
+                            mp_print_string(mp, "round joins");
                             break;
                         case mp_beveled_linejoin_code:
-                            mp_print_str(mp, "beveled joins");
+                            mp_print_string(mp, "beveled joins");
                             break;
                         default:
-                            mp_print_str(mp, "?? joins");
+                            mp_print_string(mp, "?? joins");
                             break;
                     }
-                    mp_print_str(mp, " with pen");
+                    mp_print_string(mp, " with pen");
                     mp_print_ln(mp);
                     mp_print_pen_only(mp, mp_pen_ptr((mp_shape_node) p));
                 }
                 break;
             case mp_stroked_node_type:
-                mp_print_str(mp, "Filled pen stroke ");
+                mp_print_string(mp, "Filled pen stroke ");
                 mp_print_obj_color (mp, p);
-                mp_print_chr(mp, ':');
+                mp_print_char(mp, ':');
                 mp_print_ln(mp);
                 mp_print_path_only(mp, mp_path_ptr((mp_shape_node) p));
                 if (mp_dash_ptr(p) != NULL) {
@@ -9526,7 +9731,6 @@ void mp_print_edges (MP mp, mp_node h, const char *s, int nuline)
                     */
                     mp_dash_node ppd, hhd;
                     int ok_to_dash = mp_pen_is_elliptical(mp_pen_ptr((mp_shape_node) p));
-                    mp_print_nl(mp, "dashed (");
                     if (! ok_to_dash) {
                         set_number_to_unity(scf);
                     } else {
@@ -9535,38 +9739,39 @@ void mp_print_edges (MP mp, mp_node h, const char *s, int nuline)
                     hhd = (mp_dash_node) mp_dash_ptr(p);
                     ppd = mp_get_dash_list(hhd);
                     if ((ppd == mp->null_dash) || number_negative(hhd->dash_y)) {
-                        mp_print_str(mp, " ??");
+                        mp_print_string(mp, " dashed ??");
                     } else {
-                        mp_number dashoff;
+                        mp_number dashoffset;
                         mp_number ret, arg1;
                         new_number(ret);
                         new_number(arg1);
-                        new_number(dashoff);
+                        new_number(dashoffset);
                         set_number_from_addition(mp->null_dash->start_x, ppd->start_x, hhd->dash_y );
+                        mp_print_nl(mp, "dashed (");
                         while (ppd != mp->null_dash) {
-                            mp_print_str(mp, "on ");
+                            mp_print_string(mp, "on ");
                             set_number_from_subtraction(arg1, ppd->stop_x, ppd->start_x);
                             take_scaled(ret, arg1, scf);
-                            print_number( ret);
-                            mp_print_str(mp, " off ");
+                            mp_print_number(mp, ret);
+                            mp_print_string(mp, " off ");
                             set_number_from_subtraction(arg1, ((mp_dash_node) ppd->link)->start_x, ppd->stop_x);
                             take_scaled(ret, arg1, scf);
-                            print_number(ret);
+                            mp_print_number(mp, ret);
                             ppd = (mp_dash_node) ppd->link;
                             if (ppd != mp->null_dash) {
-                                mp_print_chr(mp, ' ');
+                                mp_print_char(mp, ' ');
                             }
                         }
-                        mp_print_str(mp, ") shifted ");
-                        mp_dash_offset(mp, &dashoff, hhd);
-                        take_scaled(ret, dashoff, scf);
+                        mp_print_string(mp, ") shifted ");
+                        mp_dash_offset(mp, &dashoffset, hhd);
+                        take_scaled(ret, dashoffset, scf);
                         number_negate(ret);
-                        print_number(ret);
-                        free_number(dashoff);
+                        mp_print_number(mp, ret);
+                        free_number(dashoffset);
                         free_number(ret);
                         free_number(arg1);
                         if (!ok_to_dash || number_zero(hhd->dash_y)) {
-                            mp_print_str(mp, " (this will be ignored)");
+                            mp_print_string(mp, " (this will be ignored)");
                         }
                     }
                 }
@@ -9576,35 +9781,35 @@ void mp_print_edges (MP mp, mp_node h, const char *s, int nuline)
                 */
                 switch (((mp_shape_node) p)->linecap) {
                     case mp_butt_linecap_code:
-                        mp_print_str(mp, "butt");
+                        mp_print_string(mp, "butt");
                         break;
                     case mp_rounded_linecap_code:
-                        mp_print_str(mp, "round");
+                        mp_print_string(mp, "round");
                         break;
                     case mp_squared_linecap_code:
-                        mp_print_str(mp, "square");
+                        mp_print_string(mp, "square");
                         break;
                     default:
-                        mp_print_str(mp, "??");
+                        mp_print_string(mp, "??");
                         break;
                 }
-                mp_print_str(mp, " ends, ");
+                mp_print_string(mp, " ends, ");
                 /*tex
                     Print join type for graphical object |p|.
                 */
                 switch (((mp_shape_node) p)->linejoin) {
                     case mp_mitered_linejoin_code:
-                        mp_print_str(mp, "mitered joins limited ");
-                        print_number(((mp_shape_node) p)->miterlimit);
+                        mp_print_string(mp, "mitered joins limited ");
+                        mp_print_number(mp, ((mp_shape_node) p)->miterlimit);
                         break;
                     case mp_rounded_linejoin_code:
-                        mp_print_str(mp, "round joins");
+                        mp_print_string(mp, "round joins");
                         break;
                     case mp_beveled_linejoin_code:
-                        mp_print_str(mp, "beveled joins");
+                        mp_print_string(mp, "beveled joins");
                         break;
                     default:
-                        mp_print_str(mp, "?? joins");
+                        mp_print_string(mp, "?? joins");
                         break;
                 }
                 /*tex
@@ -9612,54 +9817,54 @@ void mp_print_edges (MP mp, mp_node h, const char *s, int nuline)
                 */
                 switch (((mp_shape_node) p)->curvature) {
                     case mp_default_curvature_code:
-                        mp_print_str(mp, "default curvature");
+                        mp_print_string(mp, "default curvature");
                         break;
                     case mp_always_curvature_code:
-                        mp_print_str(mp, "always curvature");
+                        mp_print_string(mp, "always curvature");
                         break;
                     default:
-                        mp_print_str(mp, "?? curvature");
+                        mp_print_string(mp, "?? curvature");
                         break;
                 }
                 /* */
-                mp_print_str(mp, " with pen");
+                mp_print_string(mp, " with pen");
                 mp_print_ln(mp);
                 if (mp_pen_ptr((mp_shape_node) p) == NULL) {
-                    mp_print_str(mp, "???"); /* shouldn't happen */
+                    mp_print_string(mp, "???"); /* shouldn't happen */
                 } else {
                     mp_print_pen_only(mp, mp_pen_ptr((mp_shape_node) p));
                 }
                 break;
             case mp_start_clip_node_type:
-                mp_print_str(mp, "clipping path:");
+                mp_print_string(mp, "clipping path:");
                 goto COMMONSTART;
             case mp_start_group_node_type:
-                mp_print_str(mp, "setgroup path:");
+                mp_print_string(mp, "setgroup path:");
                 goto COMMONSTART;
             case mp_start_bounds_node_type:
-                mp_print_str(mp, "setbounds path:");
+                mp_print_string(mp, "setbounds path:");
               COMMONSTART:
                 mp_print_ln(mp);
                 mp_print_path_only(mp, mp_path_ptr((mp_start_node) p));
                 break;
             case mp_stop_clip_node_type:
-                mp_print_str(mp, "stop clipping");
+                mp_print_string(mp, "stop clipping");
                 break;
             case mp_stop_group_node_type:
-                mp_print_str(mp, "stop group");
+                mp_print_string(mp, "stop group");
                 break;
             case mp_stop_bounds_node_type:
-                mp_print_str(mp, "end of setbounds");
+                mp_print_string(mp, "end of setbounds");
                 break;
 
             default:
-                mp_print_str(mp, "[unknown object type!]");
+                mp_print_string(mp, "[unknown object type!]");
                 break;
         }
     }
     mp_print_nl(mp, "End edges");
     if (p != mp_obj_tail(h)) {
-        mp_print_str(mp, "?");
+        mp_print_string(mp, "?");
     }
     mp_end_diagnostic(mp, 1);
     free_number(scf);
@@ -9677,37 +9882,40 @@ void mp_print_obj_color (MP mp, mp_node p)
     switch (mp_color_model(p)) {
         case mp_grey_model:
             if (number_positive(p0->grey)) {
-                mp_print_str(mp, "greyed ");
-                mp_print_chr(mp, '(');
-                print_number(p0->grey);
-                mp_print_chr(mp, ')');
+         // mp_print_string(mp, "greyed ");
+         // mp_print_char(mp, '(');
+         // print_number(p0->grey);
+         // mp_print_char(mp, ')');
+                mp_print_format(mp,"greyed (%N)", p0->grey);
             };
             break;
         case mp_cmyk_model:
             if (number_positive(p0->cyan)   || number_positive(p0->magenta)
              || number_positive(p0->yellow) || number_positive(p0->black)) {
-                mp_print_str(mp, "processcolored ");
-                mp_print_chr(mp, '(');
-                print_number(p0->cyan);
-                mp_print_chr(mp, ',');
-                print_number(p0->magenta);
-                mp_print_chr(mp, ',');
-                print_number(p0->yellow);
-                mp_print_chr(mp, ',');
-                print_number(p0->black);
-                mp_print_chr(mp, ')');
+             // mp_print_string(mp, "processcolored ");
+             // mp_print_char(mp, '(');
+             // print_number(p0->cyan);
+             // mp_print_char(mp, ',');
+             // print_number(p0->magenta);
+             // mp_print_char(mp, ',');
+             // print_number(p0->yellow);
+             // mp_print_char(mp, ',');
+             // print_number(p0->black);
+             // mp_print_char(mp, ')');
+                mp_print_format(mp,"processcolored (%N,%N,%N,%N)", p0->cyan, p0->magenta, p0->yellow, p0->black);
             };
             break;
         case mp_rgb_model:
             if (number_positive(p0->red) || number_positive(p0->green) || number_positive(p0->blue)) {
-                mp_print_str(mp, "colored ");
-                mp_print_chr(mp, '(');
-                print_number(p0->red);
-                mp_print_chr(mp, ',');
-                print_number(p0->green);
-                mp_print_chr(mp, ',');
-                print_number(p0->blue);
-                mp_print_chr(mp, ')');
+             // mp_print_string(mp, "colored ");
+             // mp_print_char(mp, '(');
+             // print_number(p0->red);
+             // mp_print_char(mp, ',');
+             // print_number(p0->green);
+             // mp_print_char(mp, ',');
+             // print_number(p0->blue);
+             // mp_print_char(mp, ')');
+                mp_print_format(mp,"colored (%N,%N,%N)", p0->red, p0->green, p0->blue);
             }
             break;
         default:
@@ -11359,24 +11567,26 @@ static void mp_print_spec (MP mp, mp_knot cur_spec, mp_knot cur_pen, const char 
 {
     mp_knot w;            /*tex the current pen offset */
     mp_knot p = cur_spec; /*tex list traversal */
-    mp_print_diagnostic(mp, "Envelope spec", s, 1);
+    mp_begin_diagnostic_print(mp, "Envelope spec", s, 1);
     w = mp_pen_walk(mp, cur_pen, mp->spec_offset);
     mp_print_ln(mp);
-    mp_print_two(mp, &(cur_spec->x_coord), &(cur_spec->y_coord));
-    mp_print_str(mp, " % beginning with offset ");
-    mp_print_two(mp, &(w->x_coord), &(w->y_coord));
+ // mp_print_two(mp, &(cur_spec->x_coord), &(cur_spec->y_coord));
+ // mp_print_string(mp, " % beginning with offset ");
+ // mp_print_two(mp, &(w->x_coord), &(w->y_coord));
+    mp_print_format(mp, " (%N,%N) %% beginning with offset (%N,%N) ", cur_spec->x_coord, cur_spec->y_coord, w->x_coord, w->y_coord);
     do {
         while (1) {
             mp_knot q = mp_next_knot(p);
             /*tex
                 Print the cubic between |p| and |q|.
             */
-            mp_print_nl(mp, " .. controls ");
-            mp_print_two(mp, &(p->right_x), &(p->right_y));
-            mp_print_str(mp, " and ");
-            mp_print_two(mp, &(q->left_x), &(q->left_y));
-            mp_print_nl(mp, " .. ");
-            mp_print_two(mp, &(q->x_coord), &(q->y_coord));
+         // mp_print_nl(mp, " .. controls ");
+         // mp_print_two(mp, &(p->right_x), &(p->right_y));
+         // mp_print_string(mp, " and ");
+         // mp_print_two(mp, &(q->left_x), &(q->left_y));
+         // mp_print_nl(mp, " .. ");
+         // mp_print_two(mp, &(q->x_coord), &(q->y_coord));
+            mp_print_format(mp, "%l\n .. controls (%N,%N) and (%N,%N) .. (%N,%N)", p->right_x, p->right_y, q->left_x, q->left_y, q->x_coord, q->y_coord);
 
             p = q;
             if ((p == cur_spec) || (mp_knot_info(p) != zero_off)) {
@@ -11388,15 +11598,17 @@ static void mp_print_spec (MP mp, mp_knot cur_spec, mp_knot cur_pen, const char 
                 Update |w| as indicated by |mp_knot_info(p)| and print an explanation.
             */
             w = mp_pen_walk (mp, w, (mp_knot_info(p) - zero_off));
-            mp_print_str(mp, " % ");
+            mp_print_string(mp, " % ");
             if (mp_knot_info(p) > zero_off) {
-                mp_print_str(mp, "counter");
+                mp_print_string(mp, "counter");
             }
-            mp_print_str(mp, "clockwise to offset ");
-            mp_print_two(mp, &(w->x_coord), &(w->y_coord));
+         // mp_print_string(mp, "clockwise to offset ");
+         // mp_print_two(mp, &(w->x_coord), &(w->y_coord));
+            mp_print_format(mp, "clockwise to offset (%N,%N)", w->x_coord, w->y_coord);
         }
     } while (p != cur_spec);
-    mp_print_nl(mp, " & cycle");
+ // mp_print_nl(mp, " & cycle");
+    mp_print_format(mp, "%l\n & cycle");
     mp_end_diagnostic(mp, 1);
 }
 
@@ -12800,23 +13012,23 @@ void mp_print_dependency (MP mp, mp_value_node p, int t)
             /*tex The constant term. */
             if (number_nonzero(v) || (p == pp)) {
                 if (number_positive(mp_get_dep_value(p)) && p != pp) {
-                    mp_print_chr(mp, '+');
+                    mp_print_char(mp, '+');
                 }
-                print_number(mp_get_dep_value(p));
+                mp_print_number(mp, mp_get_dep_value(p));
             }
             return;
         }
         /*tex Print the coefficient, unless it's $\pm1.0$. */
         if (number_negative(mp_get_dep_value(p))) {
-            mp_print_chr(mp, '-');
+            mp_print_char(mp, '-');
         } else if (p != pp) {
-            mp_print_chr(mp, '+');
+            mp_print_char(mp, '+');
         }
         if (t == mp_dependent_type) {
             fraction_to_round_scaled(v);
         }
         if (! number_equal(v, unity_t)) {
-            print_number(v);
+            mp_print_number(mp, v);
         }
         if (q->type != mp_independent_type) {
             mp_confusion(mp, "dependency");
@@ -12824,7 +13036,7 @@ void mp_print_dependency (MP mp, mp_value_node p, int t)
             mp_print_variable_name(mp, q);
             set_number_from_scaled(v, mp_get_indep_scale(q));
             while (number_positive(v)) {
-                mp_print_str(mp, "*4");
+                mp_print_string(mp, "*4");
                 number_add_scaled(v, -2);
             }
             p = (mp_value_node) p->link;
@@ -13335,8 +13547,8 @@ void mp_make_known (MP mp, mp_value_node p, mp_value_node q)
         mp_begin_diagnostic(mp);
         mp_print_nl(mp, "#### ");
         mp_print_variable_name(mp, (mp_node) p);
-        mp_print_chr(mp, '=');
-        print_number(mp_get_value_number(p));
+        mp_print_char(mp, '=');
+        mp_print_number(mp, mp_get_value_number(p));
         mp_end_diagnostic(mp, 0);
     }
     if (cur_exp_node == (mp_node) p && mp->cur_exp.type == t) {
@@ -13642,10 +13854,10 @@ static void display_new_dependency (MP mp, mp_value_node p, mp_node x, int n)
         mp_print_nl(mp, "## ");
         mp_print_variable_name(mp, x);
         while (n > 0) {
-            mp_print_str(mp, "*4");
+            mp_print_string(mp, "*4");
             n = n - 2;
         }
-        mp_print_chr(mp, '=');
+        mp_print_char(mp, '=');
         mp_print_dependency(mp, p, mp_dependent_type);
         mp_end_diagnostic(mp, 0);
     }
@@ -14110,6 +14322,7 @@ const char *mp_cmd_mod_string (MP mp, int c, int m)
                 case mp_with_linejoin_code           : return "withlinejoin";
                 case mp_with_miterlimit_code         : return "withmiterlimit";
                 case mp_with_curvature_code          : return "withcurvature";
+                case mp_with_nothing_code            : return "withnothing";
             }
             break;
         case mp_bounds_command:
@@ -14141,7 +14354,7 @@ this procedure appears elsewhere in the program, together with the corresponding
 
 void mp_print_cmd_mod (MP mp, int c, int m)
 {
-    mp_print_str(mp, mp_cmd_mod_string(mp, c, m));
+    mp_print_string(mp, mp_cmd_mod_string(mp, c, m));
 }
 
 /*tex
@@ -14158,16 +14371,17 @@ static void mp_show_cmd_mod (MP mp, int c, int m)
         case mp_primary_def_command:
         case mp_secondary_def_command:
         case mp_tertiary_def_command:
-            mp_print_cmd_mod(mp, mp_macro_def_command, c);
-            mp_print_str(mp, "'d macro:");
-            mp_print_ln(mp);
-            mp_show_token_list(mp, cur_mod_node->link->link,0);
+         // mp_print_cmd_mod(mp, mp_macro_def_command, c);
+         // mp_print_string(mp, "'d macro:");
+         // mp_print_ln(mp);
+            mp_print_format(mp, "%C'd macro:", mp_macro_def_command, c);
+            mp_show_token_list(mp, cur_mod_node->link->link, 0);
             break;
         default:
             mp_print_cmd_mod(mp, c, m);
             break;
     }
-    mp_print_chr(mp, '}');
+    mp_print_char(mp, '}');
     mp_end_diagnostic(mp, 0);
 }
 
@@ -14243,9 +14457,10 @@ void mp_show_context (MP mp)
             if (file_state) {
                 /*tex  print location of current line */
                 if (name > max_spec_src) {
-                    mp_print_nl(mp, "<line ");
-                    mp_print_int(mp, mp_true_line(mp));
-                    mp_print_chr(mp, '>');
+                 // mp_print_nl(mp, "<line ");
+                 // mp_print_int(mp, mp_true_line(mp));
+                 // mp_print_char(mp, '>');
+                    mp_print_format(mp, "%l<line %i>", mp_true_line(mp));
                 } else if (terminal_input) {
                     if (mp->file_ptr == 0) {
                         mp_print_nl(mp, "<direct>");
@@ -14257,10 +14472,10 @@ void mp_show_context (MP mp)
                 } else {
                     mp_print_nl(mp, "<read>");
                 }
-                mp_print_chr(mp, ' ');
+                mp_print_char(mp, ' ');
                 if (limit > 0) {
                     for (int i = start; i <= limit - 1; i++) {
-                        mp_print_chr(mp, mp->buffer[i]);
+                        mp_print_char(mp, mp->buffer[i]);
                     }
                 }
             } else {
@@ -14288,7 +14503,7 @@ void mp_show_context (MP mp)
                                     mp_show_token_list(mp, pp, NULL);
                                 }
                             }
-                            mp_print_str(mp, ")> ");
+                            mp_print_string(mp, ")> ");
                         }
                         break;
                     case mp_parameter_text:
@@ -14303,7 +14518,7 @@ void mp_show_context (MP mp)
                     case mp_macro_text:
                         mp_print_nl(mp, "<macro> ");
                         if (name != NULL) {
-                            mp_print_mp_str(mp, name);
+                            mp_print_mp_string(mp, name);
                         } else {
                             /*tex 
                                 Print the name of a |vardef|'d macro. The first two parameters of a
@@ -14324,7 +14539,7 @@ void mp_show_context (MP mp)
                                 qq->link = NULL;
                             }
                         }
-                        mp_print_str(mp, " -> ");
+                        mp_print_string(mp, " -> ");
                         break;
                     default:
                         mp_print_nl(mp, "?"); /* this should never happen */
@@ -14924,14 +15139,14 @@ void mp_runaway (MP mp)
         mp_print_nl(mp, "Runaway ");
         switch (mp->scanner_status) {
             case mp_absorbing_state:
-                mp_print_str(mp, "text?");
+                mp_print_string(mp, "text?");
                 break;
             case mp_var_defining_state:
             case mp_op_defining_state:
-                mp_print_str(mp, "definition?");
+                mp_print_string(mp, "definition?");
                 break;
             case mp_loop_defining_state:
-                mp_print_str(mp, "loop?");
+                mp_print_string(mp, "loop?");
                 break;
         }
         mp_print_ln(mp);
@@ -15168,10 +15383,10 @@ static int mp_move_to_next_line (MP mp)
             mp->force_eof = 0;
             --loc;
             if (mp->interaction < mp_silent_mode) {
-                mp_print_chr(mp, ')');
                 --mp->open_parens;
                 /*tex Show the user that file has been read. */
-                mp_print_nl_only(mp);
+                mp_print_char(mp, ')');
+                mp_print_flush_line(mp);
             }
             /*tex Resume the previous level. */
             mp_end_file_reading(mp);
@@ -16052,7 +16267,7 @@ static void mp_expand (MP mp)
                 mp_value new_expr;
                 memset(&new_expr, 0, sizeof(mp_value));
                 new_number(new_expr.data.n);
-                mp_disp_err(mp, NULL);
+                mp_display_error(mp, NULL);
                 mp_back_error(
                     mp,
                     "Not a string",
@@ -16125,7 +16340,7 @@ static void mp_expand (MP mp)
                             mp_value new_expr;
                             memset(&new_expr, 0, sizeof(mp_value));
                             new_number(new_expr.data.n);
-                            mp_disp_err(mp, NULL);
+                            mp_display_error(mp, NULL);
                             mp_back_error(
                                 mp,
                                 "Not a string",
@@ -16155,7 +16370,7 @@ static void mp_expand (MP mp)
                     mp_value new_expr;
                     memset(&new_expr, 0, sizeof(mp_value));
                     new_number(new_expr.data.n);
-                    mp_disp_err(mp, NULL);
+                    mp_display_error(mp, NULL);
                     mp_back_error(
                         mp,
                         "Not a string",
@@ -16298,7 +16513,7 @@ static void mp_macro_call (MP mp, mp_node def_ref, mp_node arg_list, mp_symbol m
         mp_print_ln(mp);
         mp_print_macro_name(mp, arg_list, macro_name);
         if (n == 3) {
-            mp_print_str(mp, "@#"); /*tex A suffixed macro. */
+            mp_print_string(mp, "@#"); /*tex A suffixed macro. */
         }
         mp_show_macro (mp, def_ref, NULL);
         if (arg_list != NULL) {
@@ -16306,7 +16521,7 @@ static void mp_macro_call (MP mp, mp_node def_ref, mp_node arg_list, mp_symbol m
             n = 0;
             do {
                 mp_node q = (mp_node) mp_get_sym_sym(p);
-                mp_print_arg(mp, q, n, 0, 0);
+                mp_print_argument(mp, q, n, 0, 0);
                 ++n;
                 p = p->link;
             } while (p != NULL);
@@ -16413,7 +16628,7 @@ static void mp_macro_call (MP mp, mp_node def_ref, mp_node arg_list, mp_symbol m
             }
             if (number_positive(internal_value(mp_tracing_macros_internal))) {
                 mp_begin_diagnostic(mp);
-                mp_print_arg(mp, (mp_node) mp_get_sym_sym(p), n, mp_get_sym_info(r), r->name_type);
+                mp_print_argument(mp, (mp_node) mp_get_sym_sym(p), n, mp_get_sym_info(r), r->name_type);
                 mp_end_diagnostic(mp, 0);
             }
             if (arg_list == NULL) {
@@ -16482,7 +16697,7 @@ static void mp_macro_call (MP mp, mp_node def_ref, mp_node arg_list, mp_symbol m
                     mp_set_sym_sym(p, mp_stash_cur_exp(mp));
                     if (number_positive(internal_value(mp_tracing_macros_internal))) {
                         mp_begin_diagnostic(mp);
-                        mp_print_arg(mp, (mp_node) mp_get_sym_sym(p), n, 0, 0);
+                        mp_print_argument(mp, (mp_node) mp_get_sym_sym(p), n, 0, 0);
                         mp_end_diagnostic(mp, 0);
                     }
                     if (arg_list == NULL) {
@@ -16548,7 +16763,7 @@ static void mp_macro_call (MP mp, mp_node def_ref, mp_node arg_list, mp_symbol m
             }
             if (number_positive(internal_value(mp_tracing_macros_internal))) {
                 mp_begin_diagnostic(mp);
-                mp_print_arg(mp, (mp_node) mp_get_sym_sym(p), n, mp_get_sym_info(r), r->name_type);
+                mp_print_argument(mp, (mp_node) mp_get_sym_sym(p), n, mp_get_sym_info(r), r->name_type);
                 mp_end_diagnostic(mp, 0);
             }
             if (arg_list == NULL) {
@@ -16589,7 +16804,7 @@ static void mp_macro_call (MP mp, mp_node def_ref, mp_node arg_list, mp_symbol m
 static void mp_print_macro_name (MP mp, mp_node a, mp_symbol n)
 {
     if (n) {
-        mp_print_mp_str(mp,text(n));
+        mp_print_mp_string(mp, text(n));
     } else {
         mp_node p = (mp_node) mp_get_sym_sym(a);
         if (p) {
@@ -16602,22 +16817,29 @@ static void mp_print_macro_name (MP mp, mp_node a, mp_symbol n)
             mp_show_token_list(mp, p, NULL);
             q->link = NULL;
         } else {
-            mp_print_mp_str(mp,text(mp_get_sym_sym((mp_node) mp_get_sym_sym(a->link))));
+            mp_print_mp_string(mp, text(mp_get_sym_sym((mp_node) mp_get_sym_sym(a->link))));
         }
     }
 }
 
-static void mp_print_arg (MP mp, mp_node q, int n, int b, int bb)
+static void mp_print_argument (MP mp, mp_node q, int n, int b, int bb)
 {
+ // if (q && q->link == MP_VOID) {
+ //     mp_print_nl(mp, "(EXPR");
+ // } else if ((bb < mp_text_operation) && (b != mp_text_macro)) {
+ //     mp_print_nl(mp, "(SUFFIX");
+ // } else {
+ //     mp_print_nl(mp, "(TEXT");
+ // }
+ // mp_print_int(mp, n);
+ // mp_print_string(mp, ")<-");
     if (q && q->link == MP_VOID) {
-        mp_print_nl(mp, "(EXPR");
-    } else if ((bb < mp_text_operation) && (b != mp_text_macro)) {
-        mp_print_nl(mp, "(SUFFIX");
+        mp_print_format(mp, "%l(EXPR %i)<-", n);
+    } else if (bb < mp_text_operation && b != mp_text_macro) {
+        mp_print_format(mp, "%l(SUFFIX %i)<-", n);
     } else {
-        mp_print_nl(mp, "(TEXT");
+        mp_print_format(mp, "%l(TEXT %i)<-", n);
     }
-    mp_print_int(mp, n);
-    mp_print_str(mp, ")<-");
     if (q && q->link == MP_VOID) {
         mp_print_exp(mp, q, 1);
     } else {
@@ -16865,7 +17087,7 @@ void mp_conditional (MP mp)
             Display the boolean value of |cur_exp|
         */
         mp_begin_diagnostic(mp);
-        mp_print_str(mp, cur_exp_value_boolean == mp_true_operation ? "{true}" : "{false}");
+        mp_print_string(mp, cur_exp_value_boolean == mp_true_operation ? "{true}" : "{false}");
         mp_end_diagnostic(mp, 0);
     }
   FOUND:
@@ -16916,8 +17138,8 @@ static void mp_bad_for (MP mp, const char *s)
     mp_value new_expr;
     memset(&new_expr, 0, sizeof(mp_value));
     new_number(new_expr.data.n);
-    mp_disp_err(mp, NULL);
     snprintf(msg, 256, "Improper %s has been replaced by 0", s);
+    mp_display_error(mp, NULL);
     mp_back_error(
         mp,
         msg,
@@ -17023,7 +17245,7 @@ void mp_begin_iteration (MP mp)
                     memset(&new_expr, 0, sizeof(mp_value));
                     new_number(new_expr.data.n);
                     new_expr.data.node = (mp_node) mp_get_edge_header_node(mp);
-                    mp_disp_err(mp, NULL);
+                    mp_display_error(mp, NULL);
                     mp_back_error(
                         mp,
                         "Improper iteration spec has been replaced by nullpicture",
@@ -17254,7 +17476,7 @@ void mp_resume_iteration (MP mp)
         } else {
             mp_show_token_list(mp, q, NULL);
         }
-        mp_print_chr(mp, '}');
+        mp_print_char(mp, '}');
         mp_end_diagnostic(mp, 0);
     }
     return;
@@ -17523,14 +17745,14 @@ void mp_start_input (MP mp)
         if (mp->interaction < mp_silent_mode) {
             /* This needs a cleanup! */
             if ((mp->term_offset > 0) || (mp->file_offset > 0)) {
-                mp_print_chr(mp, ' ');
+                mp_print_char(mp, ' ');
             }
-            mp_print_chr(mp, '(');
+            mp_print_char(mp, '(');
             ++mp->open_parens;
-            mp_print_str(mp, fname);
+            mp_print_string(mp, fname);
         }
         mp_memory_free(fname);
-        mp_print_nl_only(mp);
+        mp_print_flush_line(mp);
         /*tex
             Flush |name| and replace it with |cur_name| if it won't be needed.
         */
@@ -17967,10 +18189,10 @@ void mp_print_exp (MP mp, mp_node p, int verbosity)
     */
     switch (t) {
         case mp_vacuous_type:
-            mp_print_str(mp, "vacuous");
+            mp_print_string(mp, "vacuous");
             break;
         case mp_boolean_type:
-            mp_print_str(mp, number_to_boolean(vv) == mp_true_operation ? "true": "false");
+            mp_print_string(mp, number_to_boolean(vv) == mp_true_operation ? "true" : "false");
             break;
         case mp_unknown_boolean_type:
         case mp_unknown_string_type:
@@ -17986,7 +18208,7 @@ void mp_print_exp (MP mp, mp_node p, int verbosity)
             */
             mp_print_type(mp, t);
             if (v != NULL) {
-                mp_print_chr(mp, ' ');
+                mp_print_char(mp, ' ');
                 while ((v->name_type == mp_capsule_operation) && (v != p)) {
                     v = mp_get_value_node(v);
                 }
@@ -17994,9 +18216,10 @@ void mp_print_exp (MP mp, mp_node p, int verbosity)
             };
             break;
         case mp_string_type:
-            mp_print_chr(mp, '"');
-            mp_print_mp_str(mp, mp_get_value_str(p));
-            mp_print_chr(mp, '"');
+         // mp_print_char(mp, '"');
+         // mp_print_mp_str(mp, mp_get_value_str(p));
+         // mp_print_char(mp, '"');
+            mp_print_format(mp, "%Q", mp_get_value_str(p));
             break;
         case mp_pen_type:
         case mp_nep_type:
@@ -18009,7 +18232,7 @@ void mp_print_exp (MP mp, mp_node p, int verbosity)
                     if (number_nonpositive(internal_value(mp_tracing_online_internal))) {
                         mp->selector = mp_term_only_selector;
                         mp_print_type(mp, t);
-                        mp_print_str(mp, " (see the transcript file)");
+                        mp_print_string(mp, " (see the transcript file)");
                         mp->selector = mp_term_and_log_selector;
                     };
                 switch (t) {
@@ -18032,62 +18255,62 @@ void mp_print_exp (MP mp, mp_node p, int verbosity)
             if (number_zero(vv) && v == NULL) {
                 mp_print_type(mp, t);
             } else {
-                mp_print_chr(mp, '(');
+                mp_print_char(mp, '(');
                 mp_print_big_node(mp, mp_tx_part(v), verbosity);
-                mp_print_chr(mp, ',');
+                mp_print_char(mp, ',');
                 mp_print_big_node(mp, mp_ty_part(v), verbosity);
-                mp_print_chr(mp, ',');
+                mp_print_char(mp, ',');
                 mp_print_big_node(mp, mp_xx_part(v), verbosity);
-                mp_print_chr(mp, ',');
+                mp_print_char(mp, ',');
                 mp_print_big_node(mp, mp_xy_part(v), verbosity);
-                mp_print_chr(mp, ',');
+                mp_print_char(mp, ',');
                 mp_print_big_node(mp, mp_yx_part(v), verbosity);
-                mp_print_chr(mp, ',');
+                mp_print_char(mp, ',');
                 mp_print_big_node(mp, mp_yy_part(v), verbosity);
-                mp_print_chr(mp, ')');
+                mp_print_char(mp, ')');
             }
             break;
         case mp_color_type:
             if (number_zero(vv) && v == NULL) {
                 mp_print_type(mp, t);
             } else {
-                mp_print_chr(mp, '(');
+                mp_print_char(mp, '(');
                 mp_print_big_node(mp, mp_red_part(v), verbosity);
-                mp_print_chr(mp, ',');
+                mp_print_char(mp, ',');
                 mp_print_big_node(mp, mp_green_part(v), verbosity);
-                mp_print_chr(mp, ',');
+                mp_print_char(mp, ',');
                 mp_print_big_node(mp, mp_blue_part(v), verbosity);
-                mp_print_chr(mp, ')');
+                mp_print_char(mp, ')');
             }
             break;
         case mp_pair_type:
             if (number_zero(vv) && v == NULL) {
                 mp_print_type(mp, t);
             } else {
-                mp_print_chr(mp, '(');
+                mp_print_char(mp, '(');
                 mp_print_big_node(mp, mp_x_part(v), verbosity);
-                mp_print_chr(mp, ',');
+                mp_print_char(mp, ',');
                 mp_print_big_node(mp, mp_y_part(v), verbosity);
-                mp_print_chr(mp, ')');
+                mp_print_char(mp, ')');
             }
             break;
         case mp_cmykcolor_type:
             if (number_zero(vv) && v == NULL) {
                 mp_print_type(mp, t);
             } else {
-                mp_print_chr(mp, '(');
+                mp_print_char(mp, '(');
                 mp_print_big_node(mp, mp_cyan_part(v), verbosity);
-                mp_print_chr(mp, ',');
+                mp_print_char(mp, ',');
                 mp_print_big_node(mp, mp_magenta_part(v), verbosity);
-                mp_print_chr(mp, ',');
+                mp_print_char(mp, ',');
                 mp_print_big_node(mp, mp_yellow_part(v), verbosity);
-                mp_print_chr(mp, ',');
+                mp_print_char(mp, ',');
                 mp_print_big_node(mp, mp_black_part(v), verbosity);
-                mp_print_chr(mp, ')');
+                mp_print_char(mp, ')');
             }
             break;
         case mp_known_type:
-            print_number(vv);
+            mp_print_number(mp, vv);
             break;
         case mp_dependent_type:
         case mp_proto_dependent_type:
@@ -18110,7 +18333,7 @@ void mp_print_big_node (MP mp, mp_node v, int verbosity)
 {
     switch (v->type) {
         case mp_known_type:
-            print_number(mp_get_value_number(v));
+            mp_print_number(mp, mp_get_value_number(v));
             break;
         case mp_independent_type:
             mp_print_variable_name(mp, v);
@@ -18134,7 +18357,7 @@ static void mp_print_dp (MP mp, int t, mp_value_node p, int verbosity)
     if ((mp_get_dep_info(q) == NULL) || (verbosity > 0)) {
         mp_print_dependency(mp, p, t);
     } else {
-        mp_print_str(mp, "linearform");
+        mp_print_string(mp, "linearform");
     }
 }
 
@@ -18145,10 +18368,10 @@ error message, using |disp_err| just before |mp_error|.
 
 */
 
-void mp_disp_err (MP mp, mp_node p)
+void mp_display_error (MP mp, mp_node p)
 {
     if (mp->interaction >= mp_error_stop_mode) {
-        mp_print_nl_only(mp);
+        mp_print_flush_line(mp);
     }
     mp_print_nl(mp, "<error> ");
     mp_print_exp(mp, p, 1);
@@ -18543,7 +18766,7 @@ static void mp_show_transformed_dependency (MP mp, mp_number *v, mp_variable_typ
     mp_number vv; /* for temp use */
     mp_print_nl(mp, "### ");
     if (number_positive(*v)) {
-        mp_print_chr(mp, '-');
+        mp_print_char(mp, '-');
     }
     if (t == mp_dependent_type) {
         new_number_clone(vv, mp->max_c[mp_dependent_type]);
@@ -18552,17 +18775,17 @@ static void mp_show_transformed_dependency (MP mp, mp_number *v, mp_variable_typ
         new_number_clone(vv, mp->max_c[mp_proto_dependent_type]);
     }
     if (! number_equal(vv, unity_t)) {
-        print_number(vv);
+        mp_print_number(mp, vv);
     }
     mp_print_variable_name(mp, p);
     while (mp_get_indep_scale(p) > 0) {
-        mp_print_str(mp, "*4");
+        mp_print_string(mp, "*4");
         mp_set_indep_scale(p, mp_get_indep_scale(p)-2);
     }
     if (t == mp_dependent_type) {
-        mp_print_chr(mp, '=');
+        mp_print_char(mp, '=');
     } else {
-        mp_print_str(mp, " = ");
+        mp_print_string(mp, " = ");
     }
     free_number(vv);
 }
@@ -18725,7 +18948,7 @@ static void mp_bad_subscript (MP mp)
     mp_value new_expr;
     memset(&new_expr, 0, sizeof(mp_value));
     new_number(new_expr.data.n);
-    mp_disp_err(mp, NULL);
+    mp_display_error(mp, NULL);
     mp_error(
         mp,
         "Improper subscript has been replaced by zero",
@@ -18877,7 +19100,7 @@ void mp_known_pair (MP mp)
     memset(&new_expr, 0, sizeof(mp_value));
     new_number(new_expr.data.n);
     if (mp->cur_exp.type != mp_pair_type) {
-        mp_disp_err(mp, NULL);
+        mp_display_error(mp, NULL);
         mp_back_error(
             mp,
             "Undefined coordinates have been replaced by (0,0)",
@@ -18897,7 +19120,7 @@ void mp_known_pair (MP mp)
         if (mp_x_part(p)->type == mp_known_type) {
             number_clone(mp->cur_x, mp_get_value_number(mp_x_part(p)));
         } else {
-            mp_disp_err(mp, mp_x_part(p));
+            mp_display_error(mp, mp_x_part(p));
             mp_back_error(
                 mp,
                 "Undefined x coordinate has been replaced by 0",
@@ -18911,7 +19134,7 @@ void mp_known_pair (MP mp)
         if (mp_y_part(p)->type == mp_known_type) {
             number_clone(mp->cur_y, mp_get_value_number(mp_y_part(p)));
         } else {
-            mp_disp_err(mp, mp_y_part(p));
+            mp_display_error(mp, mp_y_part(p));
             mp_back_error(
                 mp,
                 "Undefined y coordinate has been replaced by 0",
@@ -18951,7 +19174,7 @@ static int mp_scan_direction (MP mp)
             memset(&new_expr, 0, sizeof(mp_value));
             new_number(new_expr.data.n);
             set_number_to_unity(new_expr.data.n);
-            mp_disp_err(mp, NULL);
+            mp_display_error(mp, NULL);
             mp_back_error(
                 mp,
                 "Improper curl has been replaced by 1",
@@ -18972,7 +19195,7 @@ static int mp_scan_direction (MP mp)
                 mp_value new_expr;
                 memset(&new_expr, 0, sizeof(mp_value));
                 new_number(new_expr.data.n);
-                mp_disp_err(mp, NULL);
+                mp_display_error(mp, NULL);
                 mp_back_error(
                     mp,
                     "Undefined x coordinate has been replaced by 0",
@@ -18997,7 +19220,7 @@ static int mp_scan_direction (MP mp)
                 mp_value new_expr;
                 memset(&new_expr, 0, sizeof(mp_value));
                 new_number(new_expr.data.n);
-                mp_disp_err(mp, NULL);
+                mp_display_error(mp, NULL);
                 mp_back_error(
                     mp,
                     "Undefined y coordinate has been replaced by 0",
@@ -19395,22 +19618,22 @@ static int mp_nice_color_or_pair (MP mp, mp_node p, int t)
 
 static void mp_print_known_or_unknown_type (MP mp, int t, mp_node v)
 {
-    mp_print_chr(mp, '(');
+    mp_print_char(mp, '(');
     if (t > mp_known_type) {
-        mp_print_str(mp, "unknown numeric");
+        mp_print_string(mp, "unknown numeric");
     } else {
         switch (t) {
             case mp_pair_type:
             case mp_color_type:
             case mp_cmykcolor_type:
                 if (! mp_nice_color_or_pair (mp, v, t)) {
-                    mp_print_str(mp, "unknown ");
+                    mp_print_string(mp, "unknown ");
                 }
                 break;
         }
         mp_print_type(mp, t);
     }
-    mp_print_chr(mp, ')');
+    mp_print_char(mp, ')');
 }
 
 static void mp_bad_unary (MP mp, int c)
@@ -19425,7 +19648,7 @@ static void mp_bad_unary (MP mp, int c)
     mp->selector = selector;
     snprintf(msg, 256, "Not implemented: %s", mp_str(mp, sname));
     delete_str_ref(sname);
-    mp_disp_err(mp, NULL);
+    mp_display_error(mp, NULL);
     mp_back_error(
         mp,
         msg,
@@ -20212,9 +20435,9 @@ static void mp_do_unary (MP mp, int c)
         mp_begin_diagnostic(mp);
         mp_print_nl(mp, "{");
         mp_print_op(mp, c);
-        mp_print_chr(mp, '(');
+        mp_print_char(mp, '(');
         mp_print_exp(mp, NULL, 0); /* show the operand, but not verbosely */
-        mp_print_str(mp, ")}");
+        mp_print_string(mp, ")}");
         mp_end_diagnostic(mp, 0);
     }
     /*tex
@@ -20475,7 +20698,7 @@ static void mp_do_unary (MP mp, int c)
             } else {
                 int selector = mp->selector;
                 mp->selector = mp_new_string_selector;
-                print_number(cur_exp_value_number);
+                mp_print_number(mp, cur_exp_value_number);
                 mp_set_cur_exp_str(mp, mp_make_string(mp));
                 mp->selector = selector;
                 mp->cur_exp.type = mp_string_type;
@@ -20940,7 +21163,7 @@ static void mp_bad_color_part (MP mp, int c)
     memset(&new_expr, 0, sizeof(mp_value));
     new_number(new_expr.data.n);
     p = mp_edge_list(cur_exp_node)->link;
-    mp_disp_err(mp, NULL);
+ // mp_display_error(mp, NULL);
     selector = mp->selector;
     mp->selector = mp_new_string_selector;
     mp_print_op(mp, c);
@@ -20954,6 +21177,7 @@ static void mp_bad_color_part (MP mp, int c)
         default:            snprintf(msg, 256, "Wrong picture color model: %s of defaulted object", mp_str(mp, sname)); break;
     }
     delete_str_ref(sname);
+    mp_display_error(mp, NULL);
     mp_error(
         mp,
         msg,
@@ -21101,7 +21325,7 @@ static void mp_bad_binary (MP mp, mp_node p, int c)
     }
     mp_print_known_or_unknown_type(mp, p->type, p);
     if (c >= mp_min_of_operation) {
-        mp_print_str(mp, "of");
+        mp_print_string(mp, "of");
     } else {
         mp_print_op(mp, c);
     }
@@ -21110,8 +21334,8 @@ static void mp_bad_binary (MP mp, mp_node p, int c)
     mp->selector = selector;
     snprintf(msg, 256, "Not implemented: %s", mp_str(mp, sname));
     delete_str_ref(sname);
-    mp_disp_err(mp, p);
-    mp_disp_err(mp, NULL);
+    mp_display_error(mp, p);
+ // mp_display_error(mp, NULL); /* weird */
     mp_back_error(
         mp,
         msg,
@@ -21123,8 +21347,8 @@ static void mp_bad_binary (MP mp, mp_node p, int c)
 }
 static void mp_bad_envelope_pen (MP mp)
 {
-    mp_disp_err(mp, NULL);
-    mp_disp_err(mp, NULL);
+    mp_display_error(mp, NULL);
+ // mp_display_error(mp, NULL); /* weird */
     mp_back_error(
         mp,
         "Not implemented: 'envelope(elliptical pen) of (path)'",
@@ -21565,7 +21789,7 @@ static void mp_set_up_trans (MP mp, int c)
             case mp_transformed_operation:
                 break;
         }
-        mp_disp_err(mp, p);
+        mp_display_error(mp, p);
         mp_back_error(
             mp,
             "Improper transformation argument",
@@ -21600,7 +21824,7 @@ static void mp_set_up_known_trans (MP mp, int c)
         mp_value new_expr;
         memset(&new_expr, 0, sizeof(mp_value));
         new_number(new_expr.data.n);
-        mp_disp_err(mp, NULL);
+        mp_display_error(mp, NULL);
         mp_back_error(
             mp,
             "Transform components aren't all known",
@@ -22362,11 +22586,11 @@ static void mp_do_binary (MP mp, mp_node p, int c)
             Show the operand, but not verbosely.
         */
         mp_print_exp(mp, p, 0);
-        mp_print_chr(mp, ')');
+        mp_print_char(mp, ')');
         mp_print_op(mp, (int) c);
-        mp_print_chr(mp, '(');
+        mp_print_char(mp, '(');
         mp_print_exp(mp, NULL, 0);
-        mp_print_str(mp, ")}");
+        mp_print_string(mp, ")}");
         mp_end_diagnostic(mp, 0);
     }
     /*tex
@@ -22692,20 +22916,23 @@ static void mp_do_binary (MP mp, mp_node p, int c)
                 Compare the current expression with zero.
             */
             if (mp->cur_exp.type != mp_known_type) {
-                const char *hlp = NULL;
                 if (mp->cur_exp.type < mp_known_type) {
-                    mp_disp_err(mp, p);
-                    hlp = "The quantities shown above have not been equated.";
+                    mp_display_error(mp, p);
+                    mp_back_error(mp, 
+                        "Unknown relation will be considered false", 
+                        "The quantities shown above have not been equated."
+                    );
                 } else {
-                    hlp =
+                    mp_display_error(mp, NULL);
+                    mp_back_error(mp, 
+                        "Unknown relation will be considered false", 
                         "Oh dear. I can't decide if the expression above is positive, negative, or zero.\n"
-                        "So this comparison test won't be 'true'.";
+                        "So this comparison test won't be 'true'."
+                );
                 }
-                mp_disp_err(mp, NULL);
                 memset(&new_expr, 0, sizeof(mp_value));
                 new_number(new_expr.data.n);
                 set_number_from_boolean(new_expr.data.n, mp_false_operation);
-                mp_back_error(mp, "Unknown relation will be considered false", hlp);
                 mp_get_x_next(mp);
                 mp_flush_cur_exp(mp, new_expr);
             } else {
@@ -22824,7 +23051,7 @@ static void mp_do_binary (MP mp, mp_node p, int c)
                 new_number_clone(v_n, cur_exp_value_number);
                 mp_unstash_cur_exp(mp, p);
                 if (number_zero(v_n)) {
-                    mp_disp_err(mp, NULL);
+                    mp_display_error(mp, NULL);
                     mp_back_error(
                         mp,
                         "Division by zero",
@@ -23302,13 +23529,16 @@ static void mp_frac_mult (MP mp, mp_number *n, mp_number *d)
     new_fraction(v);
     if (number_greater(internal_value(mp_tracing_commands_internal), two_t)) {
         mp_begin_diagnostic(mp);
-        mp_print_nl(mp, "{(");
-        print_number(*n);
-        mp_print_chr(mp, '/');
-        print_number(*d);
-        mp_print_str(mp, ")*(");
+     // mp_print_nl(mp, "{(");
+     // print_number(*n);
+     // mp_print_char(mp, '/');
+     // print_number(*d);
+     // mp_print_string(mp, ")*(");
+     // mp_print_exp(mp, NULL, 0);
+     // mp_print_string(mp, ")}");
+        mp_print_format(mp, "%l{(%N/%N)*(", *n, *d);
         mp_print_exp(mp, NULL, 0);
-        mp_print_str(mp, ")}");
+        mp_print_string(mp, ")}");
         mp_end_diagnostic(mp, 0);
     }
     switch (mp->cur_exp.type) {
@@ -23464,12 +23694,13 @@ void mp_do_statement (MP mp)
             } else if (mp->cur_exp.type == mp_string_type) {
                 /* Do a title */
                 if (number_positive(internal_value(mp_tracing_titles_internal))) {
-                    mp_print_nl(mp, "");
-                    mp_print_mp_str(mp, cur_exp_str);
-                    mp_print_nl_only(mp);
+                 // mp_print_nl(mp, "");
+                 // mp_print_mp_str(mp, cur_exp_str);
+                 // mp_print_flush_line(mp);
+                    mp_print_format(mp, "%l%S\n", cur_exp_str);
                 }
             } else if (mp->cur_exp.type != mp_vacuous_type) {
-                mp_disp_err(mp, NULL);
+                mp_display_error(mp, NULL);
                 mp_back_error(
                     mp,
                     "Isolated expression",
@@ -23645,9 +23876,9 @@ static void trace_equation (MP mp, mp_node lhs)
     mp_begin_diagnostic(mp);
     mp_print_nl(mp, "{(");
     mp_print_exp(mp, lhs, 0);
-    mp_print_str(mp, ")=(");
+    mp_print_string(mp, ")=(");
     mp_print_exp(mp, NULL, 0);
-    mp_print_str(mp, ")}");
+    mp_print_string(mp, ")}");
     mp_end_diagnostic(mp, 0);
 }
 
@@ -23692,7 +23923,7 @@ void mp_do_equation (MP mp)
 
 static void mp_bad_lhs (MP mp)
 {
-    mp_disp_err(mp, NULL);
+    mp_display_error(mp, NULL);
     mp_error(
         mp,
         "Improper ':=' will be changed to '='",
@@ -23704,13 +23935,13 @@ static void mp_bad_lhs (MP mp)
 
 static void mp_bad_internal_assignment (MP mp, mp_node lhs)
 {
-    char msg[256];
-    mp_disp_err(mp, NULL);
     if (internal_type(mp_get_sym_info(lhs)) == mp_known_type) {
+        char msg[256];
         snprintf(msg, 256,
             "Internal quantity '%s' must receive a known numeric value",
             internal_name(mp_get_sym_info(lhs))
         );
+        mp_display_error(mp, NULL);
         mp_back_error(
             mp,
             msg,
@@ -23718,10 +23949,12 @@ static void mp_bad_internal_assignment (MP mp, mp_node lhs)
             "have to ignore this assignment."
         );
     } else if (internal_type(mp_get_sym_info(lhs)) == mp_boolean_type) {
+        char msg[256];
         snprintf(msg, 256,
             "Internal quantity '%s' must receive a known boolean value",
             internal_name(mp_get_sym_info(lhs))
         );
+        mp_display_error(mp, NULL);
         mp_back_error(
             mp,
             msg,
@@ -23729,10 +23962,12 @@ static void mp_bad_internal_assignment (MP mp, mp_node lhs)
             "have to ignore this assignment."
         );
     } else {
+        char msg[256];
         snprintf(msg, 256,
             "Internal quantity '%s' must receive a known string",
             internal_name(mp_get_sym_info(lhs))
         );
+        mp_display_error(mp, NULL);
         mp_back_error(
             mp,
             msg,
@@ -23791,13 +24026,13 @@ static void trace_assignment (MP mp, mp_node lhs)
     mp_begin_diagnostic(mp);
     mp_print_nl(mp, "{");
     if (lhs->name_type == mp_internal_operation) {
-        mp_print_str(mp, internal_name(mp_get_sym_info(lhs)));
+        mp_print_string(mp, internal_name(mp_get_sym_info(lhs)));
     } else {
         mp_show_token_list(mp, lhs, NULL);
     }
-    mp_print_str(mp, ":=");
+    mp_print_string(mp, ":=");
     mp_print_exp(mp, NULL, 0);
-    mp_print_chr(mp, '}');
+    mp_print_char(mp, '}');
     mp_end_diagnostic(mp, 0);
 }
 
@@ -23900,8 +24135,8 @@ static void announce_bad_equation (MP mp, mp_node lhs)
         "Equation cannot be performed (%s=%s)",
         (lhs->type <= mp_pair_type ? mp_type_string(lhs->type) : "numeric"),
         (mp->cur_exp.type <= mp_pair_type ? mp_type_string(mp->cur_exp.type) : "numeric"));
-    mp_disp_err(mp, lhs);
-    mp_disp_err(mp, NULL);
+    mp_display_error(mp, lhs);
+ // mp_display_error(mp, NULL); /* weird */
     mp_back_error(
         mp,
         msg,
@@ -24561,7 +24796,7 @@ int mp_execute (MP mp, const char *s, size_t l)
                 mp_log_string(mp_term_logging_target, mp_str(mp, internal_string(mp_number_system_internal)));
                 mp_log_string(mp_term_logging_target, " mode.");
                 mp_print_ln(mp);
-                mp_print_nl_only(mp);
+                mp_print_flush_line(mp);
                 mp->input_ptr = 0;
                 mp->max_in_stack = mp_file_bottom_text;
                 mp->in_open = mp_file_bottom_text;
@@ -24667,7 +24902,7 @@ void mp_do_max_knot_pool (MP mp)
     mp_get_x_next(mp);
     mp_scan_expression(mp);
     if (mp->cur_exp.type != mp_known_type) {
-        mp_disp_err(mp, NULL);
+        mp_display_error(mp, NULL);
         mp_back_error(
             mp,
             "Unknown value will be ignored",
@@ -24705,7 +24940,7 @@ void mp_do_random_seed (MP mp)
     mp_get_x_next(mp);
     mp_scan_expression(mp);
     if (mp->cur_exp.type != mp_known_type) {
-        mp_disp_err(mp, NULL);
+        mp_display_error(mp, NULL);
         mp_back_error(
             mp,
             "Unknown value will be ignored",
@@ -24722,10 +24957,11 @@ void mp_do_random_seed (MP mp)
         if (mp->interaction < mp_silent_mode && (mp->selector == mp_log_only_selector || mp->selector == mp_term_and_log_selector)) {
             int selector = mp->selector;
             mp->selector = mp_log_only_selector;
-            mp_print_nl(mp, "{randomseed:=");
-            print_number(cur_exp_value_number);
-            mp_print_chr(mp, '}');
-            mp_print_nl(mp, "");
+         // mp_print_nl(mp, "{randomseed:=");
+         // mp_print_number(mp, cur_exp_value_number);
+         // mp_print_char(mp, '}');
+         // mp_print_nl(mp, "");
+            mp_print_format(mp, "%l{randomseed:=%N}\n", cur_exp_value_number);
             mp->selector = selector;
         }
     }
@@ -24777,10 +25013,8 @@ void mp_do_property (MP mp)
    switch (mp->cur_exp.type) {
         case mp_numeric_type:
         case mp_known_type:
-            {
-                mp_back_input(mp);
-                p = (int) number_to_scaled (cur_exp_value_number) / 65536; // hm
-            }
+            mp_back_input(mp);
+            p = (int) number_to_scaled (cur_exp_value_number) / 65536; // hm
             break;
         default:
             mp_back_error(mp, "Bad property value", NULL);
@@ -25040,25 +25274,27 @@ void mp_disp_token (MP mp)
         */
         switch (cur_cmd) {
             case mp_numeric_command:
-                print_number(cur_mod_number);
+                mp_print_number(mp, cur_mod_number);
                 break;
             case mp_capsule_command:
                 mp_print_capsule(mp, cur_mod_node);
                 break;
             default:
-                mp_print_chr(mp, '"');
-                mp_print_mp_str(mp, cur_mod_str);
-                mp_print_chr(mp, '"');
+             // mp_print_char(mp, '"');
+             // mp_print_mp_str(mp, cur_mod_str);
+             // mp_print_char(mp, '"');
+                mp_print_format(mp, "%Q", cur_mod_str);
                 delete_str_ref(cur_mod_str);
                 break;
         }
     } else {
-        mp_print_mp_str(mp,text(cur_sym));
-        mp_print_chr(mp, '=');
-     // if (eq_type(cur_sym) >= mp_outer_tag_command) {
-     //     mp_print_str(mp, "(outer) ");
-     // }
-        mp_print_cmd_mod(mp, cur_cmd, cur_mod);
+     // mp_print_mp_str(mp, text(cur_sym));
+     // mp_print_char(mp, '=');
+     // // if (eq_type(cur_sym) >= mp_outer_tag_command) {
+     // //     mp_print_string(mp, "(outer) ");
+     // // }
+     // mp_print_cmd_mod(mp, cur_cmd, cur_mod);
+        mp_print_format(mp, "%S=%C", text(cur_sym), cur_cmd, cur_mod);
         if (cur_cmd == mp_defined_macro_command) {
             mp_print_ln(mp);
             mp_show_macro (mp, cur_mod_node, NULL);
@@ -25085,13 +25321,16 @@ void mp_do_show_token (MP mp)
 
 void mp_do_show_stats (MP mp)
 {
-    mp_print_nl(mp, "Memory usage ");
-    mp_print_int(mp, (int) mp->var_used);
+ // mp_print_nl(mp, "Memory usage ");
+ // mp_print_int(mp, (int) mp->var_used);
+ // mp_print_ln(mp);
+ // mp_print_nl(mp, "String usage ");
+ // mp_print_int(mp, (int) mp->strs_in_use);
+ // mp_print_char(mp, '&');
+ // mp_print_int(mp, (int) mp->pool_in_use);
+ // mp_print_ln(mp);
     mp_print_ln(mp);
-    mp_print_nl(mp, "String usage ");
-    mp_print_int(mp, (int) mp->strs_in_use);
-    mp_print_chr(mp, '&');
-    mp_print_int(mp, (int) mp->pool_in_use);
+    mp_print_format(mp, "%l\nMemory usage %i %i&%i", mp->var_used, mp->strs_in_use, mp->pool_in_use);
     mp_print_ln(mp);
     mp_get_x_next(mp);
 }
@@ -25122,14 +25361,14 @@ void mp_disp_var (MP mp, mp_node p)
         mp_print_nl(mp, "");
         mp_print_variable_name(mp, p);
         if (p->type > mp_unsuffixed_macro_type) {
-            mp_print_str(mp, "@#"); /* |suffixed_macro| */
+            mp_print_string(mp, "@#"); /* |suffixed_macro| */
         }
-        mp_print_str(mp, "=macro:");
+        mp_print_string(mp, "=macro:");
         mp_show_macro(mp, mp_get_value_node(p), NULL);
     } else if (p->type != mp_undefined_type) {
         mp_print_nl(mp, "");
         mp_print_variable_name(mp, p);
-        mp_print_chr(mp, '=');
+        mp_print_char(mp, '=');
         mp_print_exp(mp, p, 0);
     }
 }
@@ -25158,9 +25397,9 @@ void mp_do_show_dependencies (MP mp)
             mp_print_nl(mp, "");
             mp_print_variable_name(mp, (mp_node) p);
             if (p->type == mp_dependent_type) {
-                mp_print_chr(mp, '=');
+                mp_print_char(mp, '=');
             } else {
-                mp_print_str(mp, " = "); /* extra spaces imply proto-dependency */
+                mp_print_string(mp, " = "); /* extra spaces imply proto-dependency */
             }
             mp_print_dependency(mp, (mp_value_node) mp_get_dep_list(p), p->type);
         }
@@ -25182,7 +25421,7 @@ Finally we are ready for the procedure that governs all of the show commands.
 void mp_do_show_whatever (MP mp)
 {
     if (mp->interaction == mp_error_stop_mode) {
-        mp_print_nl_only(mp);
+        mp_print_flush_line(mp);
     }
     switch (cur_mod) {
         case mp_show_token_code:
@@ -25232,7 +25471,6 @@ static void complain_invalid_with_list (MP mp, mp_variable_type t)
     const char *hlp = NULL;
     memset(&new_expr, 0, sizeof(mp_value));
     new_number(new_expr.data.n);
-    mp_disp_err(mp, NULL);
     switch (t) {
         case mp_with_pre_script_code:
             hlp =
@@ -25300,6 +25538,7 @@ static void complain_invalid_with_list (MP mp, mp_variable_type t)
                 "and look for another.";
             break;
     }
+    mp_display_error(mp, NULL);
     mp_back_error(mp, "Improper type", hlp);
     mp_get_x_next(mp);
     mp_flush_cur_exp(mp, new_expr);
@@ -25327,7 +25566,7 @@ void mp_scan_with_list (MP mp, mp_node p, mp_node pstop)
       CONTINUE:
         t = cur_mod;
         mp_get_x_next(mp);
-        if (t != mp_with_no_model_code) {
+        if (t != mp_with_no_model_code && t != mp_with_nothing_code) {
             mp_scan_expression(mp);
         }
         switch (t) {
@@ -25546,10 +25785,10 @@ void mp_scan_with_list (MP mp, mp_node p, mp_node pstop)
                             mp_string s = mp_pre_script(ap); /*tex For string cleanup after combining. */
                             mp->selector = mp_new_string_selector;
                             mp_str_room(mp, (int) (mp_pre_script(ap)->len + cur_exp_str->len + 2));
-                            mp_print_mp_str(mp, cur_exp_str);
+                            mp_print_mp_string(mp, cur_exp_str);
                             mp_str_room(mp, 1);
                             mp_append_char(mp, 13);
-                            mp_print_mp_str(mp, mp_pre_script(ap));
+                            mp_print_mp_string(mp, mp_pre_script(ap));
                             mp_pre_script(ap) = mp_make_string(mp);
                             delete_str_ref(s);
                             mp->selector = selector;
@@ -25578,10 +25817,10 @@ void mp_scan_with_list (MP mp, mp_node p, mp_node pstop)
                             mp_string s = mp_post_script(bp); /*tex For string cleanup after combining. */
                             mp->selector = mp_new_string_selector;
                             mp_str_room(mp, (int) (mp_post_script(bp)->len + cur_exp_str->len + 2));
-                            mp_print_mp_str(mp, mp_post_script(bp));
+                            mp_print_mp_string(mp, mp_post_script(bp));
                             mp_str_room(mp, 1);
                             mp_append_char(mp, 13);
-                            mp_print_mp_str(mp, cur_exp_str);
+                            mp_print_mp_string(mp, cur_exp_str);
                             mp_post_script(bp) = mp_make_string(mp);
                             delete_str_ref(s);
                             mp->selector = selector;
@@ -25704,6 +25943,9 @@ void mp_scan_with_list (MP mp, mp_node p, mp_node pstop)
                         }
                 }
                 break;
+            case mp_with_nothing_code:
+                /*tex Nicer would be a generic quit scanning expression. */
+                continue;
             case mp_with_dashed_code:
                 if (mp->cur_exp.type != mp_picture_type) {
                     complain_invalid_with_list(mp, t);
@@ -25932,7 +26174,7 @@ mp_node mp_start_draw_cmd (MP mp, int sep)
         mp_value new_expr;
         memset(&new_expr, 0, sizeof(mp_value));
         new_number(new_expr.data.n);
-        mp_disp_err(mp, NULL);
+        mp_display_error(mp, NULL);
         mp_back_error(
             mp,
             "Not a suitable variable",
@@ -25975,9 +26217,9 @@ void mp_do_bounds (MP mp)
             mp_flush_cur_exp(mp, new_expr);
         } else if (mp->cur_exp.type != mp_path_type) {
             char msg[256];
-            mp_disp_err(mp, NULL);
             new_number(new_expr.data.n);
             snprintf(msg, 256, "Improper '%s'", mp_cmd_mod_string(mp, c, m));
+            mp_display_error(mp, NULL);
             mp_back_error(
                 mp,
                 msg,
@@ -25987,6 +26229,7 @@ void mp_do_bounds (MP mp)
             mp_get_x_next(mp);
             mp_flush_cur_exp(mp, new_expr);
         } else if (mp_left_type(cur_exp_knot) == mp_endpoint_knot) {
+         /* mp_display_error(mp, NULL); */ /* why not here, now just a message */
             mp_back_error(
                 mp,
                 "Not a cycle",
@@ -26046,7 +26289,7 @@ void mp_do_add_to (MP mp)
                 mp_value new_expr;
                 memset(&new_expr, 0, sizeof(mp_value));
                 new_number(new_expr.data.n);
-                mp_disp_err(mp, NULL);
+                mp_display_error(mp, NULL);
                 mp_back_error(
                     mp,
                     "Improper 'addto'",
@@ -26075,7 +26318,7 @@ void mp_do_add_to (MP mp)
                 mp_value new_expr;
                 memset(&new_expr, 0, sizeof(mp_value));
                 new_number(new_expr.data.n);
-                mp_disp_err(mp, NULL);
+                mp_display_error(mp, NULL);
                 mp_back_error(
                     mp,
                     "Improper 'addto'",
@@ -26143,17 +26386,16 @@ void mp_do_ship_out (MP mp)
     mp_value new_expr;
     memset(&new_expr, 0, sizeof(mp_value));
     new_number(new_expr.data.n);
+    set_number_to_zero(new_expr.data.n);
     mp_get_x_next(mp);
     mp_scan_expression(mp);
     if (mp->cur_exp.type != mp_picture_type) {
-        mp_disp_err(mp, NULL);
-        set_number_to_zero(new_expr.data.n);
+        mp_display_error(mp, NULL);
         mp_back_error(mp, "Not a known picture", "I can only output known pictures.");
         mp_get_x_next(mp);
         mp_flush_cur_exp(mp, new_expr);
     } else {
         mp_ship_out(mp, cur_exp_node);
-        set_number_to_zero(new_expr.data.n);
         mp_flush_cur_exp(mp, new_expr);
     }
 }
@@ -26167,12 +26409,15 @@ void mp_do_message (MP mp)
     mp_get_x_next(mp);
     mp_scan_expression(mp);
     if (mp->cur_exp.type != mp_string_type) {
-        mp_no_string_err(mp, "A message should be a known string expression.");
+        mp_display_error(mp, NULL);
+        mp_back_error(mp, "Not a string", "A message should be a known string expression.");
+        mp_get_x_next(mp); /* undo backup */
     } else {
         switch (m) {
             case mp_normal_message_code:
-                mp_print_nl(mp, "");
-                mp_print_mp_str(mp, cur_exp_str);
+             // mp_print_nl(mp, "");
+             // mp_print_mp_str(mp, cur_exp_str);
+                mp_print_format(mp, "%l\n%S", cur_exp_str);
                 break;
             case mp_error_message_code:
                 /*tex
@@ -26223,13 +26468,6 @@ void mp_do_message (MP mp)
     mp_flush_cur_exp(mp, new_expr);
 }
 
-static void mp_no_string_err (MP mp, const char *s)
-{
-    mp_disp_err(mp, NULL);
-    mp_back_error(mp, "Not a string", s);
-    mp_get_x_next(mp);
-}
-
 /*tex
 
 The global variable |err_help| is zero when the user has most recently given an empty help string, or
@@ -26247,17 +26485,21 @@ void mp_do_write (MP mp)
     mp_get_x_next(mp);
     mp_scan_expression(mp);
     if (mp->cur_exp.type != mp_string_type) {
-        mp_no_string_err(mp, "The text to be written should be a known string expression");
+        mp_display_error(mp, NULL);
+        mp_back_error(mp, "Not a string", "The text to be written should be a known string expression");
+        mp_get_x_next(mp); /* undo backup */
     } else if (cur_cmd != mp_to_command) {
         mp_back_error(mp, "Missing 'to' clause", "A write command should end with 'to <filename>'");
-        mp_get_x_next(mp);
+        mp_get_x_next(mp); /* undo backup */
     } else {
         mp_string t = cur_exp_str; /*tex The line of text to be written. */
         mp->cur_exp.type = mp_vacuous_type;
         mp_get_x_next(mp);
         mp_scan_expression(mp);
         if (mp->cur_exp.type != mp_string_type) {
-            mp_no_string_err(mp, "I can\'t write to that file name. It isn't a known string");
+            mp_display_error(mp, NULL);
+            mp_back_error(mp, "Not a string", "I can't write to that file name. It isn't a known string");
+            mp_get_x_next(mp); /* undo backup */
         } else {
             mp_do_write_string(mp, t);
         }
@@ -26316,8 +26558,9 @@ static void mp_do_write_string (MP mp, mp_string t)
     } else {
         int selector = mp->selector;
         mp->selector = n + mp_first_file_selector;
-        mp_print_mp_str(mp, t);
-        mp_print_ln(mp);
+     // mp_print_mp_str(mp, t);
+     // mp_print_ln(mp);
+        mp_print_format(mp, "%S\n");
         mp->selector = selector;
     }
 }
@@ -27009,8 +27252,8 @@ static void mp_primary_error(MP mp)
 {
     mp_value new_expr;
     memset(&new_expr, 0, sizeof(mp_value));
-    mp_disp_err(mp, NULL);
     new_number(new_expr.data.n);
+    mp_display_error(mp, NULL);
     mp_back_error(
         mp,
         "Nonnumeric part has been replaced by 0",
@@ -27167,7 +27410,7 @@ void mp_scan_primary (MP mp)
                 }
                 mp_save_boundary(mp);
                 do {
-                    mp_do_statement(mp); /* ends with |cur_cmd>=semicolon| */
+                    mp_do_statement(mp); /* ends with |cur_cmd >= semicolon| */
                 } while (cur_cmd == mp_semicolon_command);
                 if (cur_cmd != mp_end_group_command) {
                     char msg[256];
@@ -27787,8 +28030,8 @@ static void force_valid_tension_setting (MP mp)
         mp_value new_expr;
         memset(&new_expr, 0, sizeof(mp_value));
         new_number(new_expr.data.n);
-        mp_disp_err(mp, NULL);
         number_clone(new_expr.data.n, unity_t);
+        mp_display_error(mp, NULL);
         mp_back_error(
             mp,
             "Improper tension has been set to 1",
@@ -28326,8 +28569,8 @@ static void mp_do_boolean_error (MP mp)
     mp_value new_expr;
     memset(&new_expr, 0, sizeof(mp_value));
     new_number(new_expr.data.n);
-    mp_disp_err(mp, NULL);
     set_number_from_boolean(new_expr.data.n, mp_false_operation);
+    mp_display_error(mp, NULL);
     mp_back_error(
         mp,
         "Undefined condition will be treated as 'false'",
@@ -28347,9 +28590,9 @@ static void mp_do_boolean_error (MP mp)
 
 void mp_print_capsule (MP mp, mp_node p)
 {
-    mp_print_chr(mp, '(');
+    mp_print_char(mp, '(');
     mp_print_exp(mp, p, 0);
-    mp_print_chr(mp, ')');
+    mp_print_char(mp, ')');
 }
 
 /*
@@ -28392,7 +28635,7 @@ void mp_close_files_and_terminate (MP mp)
         return;
     } else {
         mp_close_files(mp);
-        mp_print_nl_only(mp);
+        mp_print_flush_line(mp);
         mp_print_ln(mp);
         mp->finished = 1;
     }
@@ -28418,19 +28661,24 @@ void mp_final_cleanup (MP mp)
     }
     if (mp->interaction < mp_silent_mode) {
         while (mp->open_parens > 0) {
-            mp_print_str(mp, " )");
+            mp_print_string(mp, " )");
             --mp->open_parens;
         }
     }
     while (mp->cond_ptr != NULL) {
-        mp_print_nl(mp, "(end occurred when ");
-        mp_print_cmd_mod(mp, mp_fi_or_else_command, mp->cur_if);
+     // mp_print_nl(mp, "(end occurred when ");
+     // mp_print_cmd_mod(mp, mp_fi_or_else_command, mp->cur_if);
+     // /* |if| or |elseif| or |else| */
+     // if (mp->if_line != 0) {
+     //     mp_print_str(mp, " on line ");
+     //     mp_print_int(mp, mp->if_line);
+     // }
         /* |if| or |elseif| or |else| */
         if (mp->if_line != 0) {
-            mp_print_str(mp, " on line ");
-            mp_print_int(mp, mp->if_line);
+            mp_print_format(mp, "(end occurred when %C on line %i was incomplete", mp_fi_or_else_command, mp->cur_if, mp->if_line);
+        } else { 
+            mp_print_format(mp, "(end occurred when %C was incomplete", mp_fi_or_else_command, mp->cur_if);
         }
-        mp_print_str(mp, " was incomplete)");
         mp->if_line = mp_if_line_field(mp->cond_ptr);
         mp->cur_if = mp->cond_ptr->name_type;
         mp->cond_ptr = mp->cond_ptr->link;
@@ -28779,6 +29027,7 @@ static void mp_initialize_primitives (MP mp)
     mp_primitive(mp, "withrgbcolor",          mp_with_option_command,      mp_with_rgb_model_code);
     mp_primitive(mp, "withcmykcolor",         mp_with_option_command,      mp_with_cmyk_model_code);
     mp_primitive(mp, "withcurvature",         mp_with_option_command,      mp_with_curvature_code);
+    mp_primitive(mp, "withnothing",           mp_with_option_command,      mp_with_nothing_code);
                                                                            
     mp_primitive(mp, "clip",                  mp_bounds_command,           mp_start_clip_node_type);
     mp_primitive(mp, "setgroup",              mp_bounds_command,           mp_start_group_node_type);

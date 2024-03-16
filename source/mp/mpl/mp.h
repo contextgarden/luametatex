@@ -786,6 +786,7 @@ typedef enum mp_with_codes {
     mp_with_linejoin_code,
     mp_with_miterlimit_code,
     mp_with_curvature_code,
+    mp_with_nothing_code,    /* quits scanning of a with, avoids lookahead */
 } mp_with_codes;
 
 typedef enum mp_add_codes {
@@ -1748,7 +1749,7 @@ typedef struct mp_if_node_data *mp_if_node;
 /* mp header stuff */
 
 extern void             mp_print_e_str                (MP mp, const char *s);
-extern void             mp_print_e_chr                (MP mp, unsigned char k);
+//extern void             mp_print_e_chr                (MP mp, unsigned char k);
 extern void             mp_show_context               (MP mp);
 extern void             mp_error                      (MP mp, const char *msg, const char *hlp);
 extern void             mp_warn                       (MP mp, const char *msg);
