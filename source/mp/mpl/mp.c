@@ -8863,17 +8863,37 @@ mp_knot mp_convex_hull (MP mp, mp_knot h)
     }
 }
 
+// /* cheap solution */
+//
+// void mp_simplify_path (MP mp, mp_knot h)
+// {
+//     mp_knot p = h;
+//     (void) mp;
+//     do {
+//         number_clone(p->left_x, p->x_coord);
+//         number_clone(p->left_y, p->y_coord);
+//         number_clone(p->right_x, p->x_coord);
+//         number_clone(p->right_y, p->y_coord);
+//         p = mp_next_knot(p);
+//     } while (p != h);
+// }
+
+/* solution with equaldistant fractional times on path */
+
 void mp_simplify_path (MP mp, mp_knot h)
 {
     mp_knot p = h;
     (void) mp;
     do {
-        p->left_x = p->x_coord;
-        p->left_y = p->y_coord;
-        p->right_x = p->x_coord;
-        p->right_y = p->y_coord;
+        mp_right_type(p) = mp_curl_knot;
+        mp_left_type(p) = mp_curl_knot;
+        set_number_to_unity(p->right_given);
+        set_number_to_unity(p->left_given);
+        set_number_to_unity(p->right_tension);
+        set_number_to_unity(p->left_tension);
         p = mp_next_knot(p);
     } while (p != h);
+    mp_make_choices(mp, h);
 }
 
 /*tex
@@ -11058,7 +11078,7 @@ static mp_knot mp_offset_prep (MP mp, mp_knot c, mp_knot h)
                 mp_fin_offset_prep(mp, r, ww, &x0, &x1, &x2, &y0, &y1, &y2, -1, (-1 - turn_amt));
             }
         }
-        w0 = mp_pen_walk (mp, w0, turn_amt);
+        w0 = mp_pen_walk(mp, w0, turn_amt);
       NOT_FOUND:
         /*tex
             Advance |p| to node |q|, removing any \quote {dead} cubics that might have been
