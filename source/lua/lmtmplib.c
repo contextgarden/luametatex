@@ -2139,7 +2139,7 @@ static const char * mplib_aux_with_path_indexed(lua_State *L, MP mp, int index, 
         *cyclic = 1;
     }
     /* 
-        We could handle the cycle here but we need to do it for th ehashed variant anyway so let's
+        We could handle the cycle here but we need to do it for the hashed variant anyway so let's
         stay with the old method and only do mid cycles here. 
     */
     return NULL;
@@ -2172,8 +2172,8 @@ static const char * mplib_aux_with_path_hashed(lua_State *L, MP mp, mp_knot *fir
     *q = *p;
     if (*q) {
         /*tex
-            We have to save the right_tension because |mp_append_knot| trashes it,
-            believing that it is as yet uninitialized .. I need to check this.
+            We have to save the right_tension because |mp_append_knot| trashes it, believing that 
+            it is as yet uninitialized .. I need to check this.
         */
         double saved_tension = mp_number_as_double(mp, (*p)->right_tension);
         *p = mp_append_knot(mp, *p, x_coord, y_coord);
@@ -2183,7 +2183,7 @@ static const char * mplib_aux_with_path_hashed(lua_State *L, MP mp, mp_knot *fir
     } else {
         *p = mp_append_knot(mp, *p, x_coord, y_coord);
     }
-    if (*p) {
+    if (! *p) {
         return "knot creation failure";
     }
     /* */
@@ -2212,10 +2212,10 @@ static const char * mplib_aux_with_path_hashed(lua_State *L, MP mp, mp_knot *fir
     }
     lua_push_key(left_x);
     if (lua_rawget(L, -2) != LUA_TNUMBER) {
-        lua_pop(L, 1);
+        lua_pop(L, 1); /* ignore left_y */
     } else if (left_set) {
         return "left side already set";
-    } else if (! mplib_aux_set_left_control(L, mp, *p)) {
+    } else if (! mplib_aux_set_left_control(L, mp, *p)) { /* also uses left_y */
         return "failed to set left control";
     }
     lua_push_key(right_curl);
@@ -2336,12 +2336,13 @@ static int mplib_aux_with_path(lua_State *L, MP mp, int index, int inject, int m
                                 f->state = mp_begin_knot;
                                 l->state = mp_end_knot;   
                             }
+                            /* these two can go */
                             lua_pop(L, 1);
                             continue;
                         } else {
                             lua_pop(L, 1);
                             errormsg = mplib_aux_with_path_hashed(L, mp, &first, &p, &q, &solve);
-                            if (errormsg ) {
+                            if (errormsg) {
                                 goto BAD;
                             }
                         }
@@ -2361,6 +2362,7 @@ static int mplib_aux_with_path(lua_State *L, MP mp, int index, int inject, int m
                 first->left_type = mp_endpoint_knot;
             }
             p->next = first;
+first->prev = p; 
             if (inject) {
                 if (solve && ! mp_solve_path(mp, first)) {
                     tex_normal_warning("lua", "failed to solve the path");
@@ -2402,6 +2404,7 @@ static int mplib_aux_with_path(lua_State *L, MP mp, int index, int inject, int m
         }
       BAD:
         if (p) {
+            /* can fail */
             mp_free_path(mp, p);
         }
         lua_pushboolean(L, 0);

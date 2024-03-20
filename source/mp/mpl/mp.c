@@ -663,7 +663,7 @@ $$
 &=(1-t)^3z_k+3(1-t)^2tz_k^++3(1-t)t^2z_{k+1}^-+t^3z_{k+1}\cr}
 $$ 
 
-for |0<=t<=1|.
+for |0 <= t <= 1|.
 
 There is a 8-word node for each knot $z_k$, containing one word of control information and six words
 for the |x| and |y| coordinates of $z_k^-$ and $z_k$ and~$z_k^+$. The control information appears in
@@ -693,22 +693,22 @@ is taken up by information that can be used to compute them. There are four case
 \startitemize
 
 \startitem
-    If |mp_right_type=mp_open|, the curve should leave the knot in the same direction it entered;
+    If |mp_right_type = mp_open|, the curve should leave the knot in the same direction it entered;
     \MP\ will figure out a suitable direction.
 \stopitem
 
 \startitem
-    If |mp_right_type=mp_curl|, the curve should leave the knot in a direction depending on the angle
+    If |mp_right_type = mp_curl|, the curve should leave the knot in a direction depending on the angle
     at which it enters the next knot and on the curl parameter stored in |right_curl|.
 \stopitem
 
 \startitem
-    If |mp_right_type=mp_given|, the curve should leave the knot in a nonzero direction stored as an
+    If |mp_right_type = mp_given|, the curve should leave the knot in a nonzero direction stored as an
     |angle| in |right_given|.
 \stopitem
 
 \startitem
-    If |mp_right_type=mp_explicit|, the B麩er control point for leaving this knot has already been
+    If |mp_right_type = mp_explicit|, the B麩er control point for leaving this knot has already been
     computed; it is in the |mp_right_x| and |mp_right_y| fields.
 \stopitem
 
@@ -1650,7 +1650,7 @@ idea is to leave |cur_exp| unchanged, but to equate the two operands.
 
 */
 
-# define  equation_threshold_k mp->math->md_equation_threshold_t
+# define  equation_threshold_t mp->math->md_equation_threshold_t
 
 /*tex  MOVE
 
@@ -10630,7 +10630,7 @@ void mp_set_bbox (MP mp, mp_edge_header_node h, int top_level)
 /*tex
 
 The next function calculates $1/3 B'(t) = (-p + (3c_1 + (-3c_2 + q)))*t^2 + (2p + (-4c_1 + 2*c_2))t +
-(-p + c_1)$, for cubic curve |B(t)| given by |p|,|c1|,|c2|,|q| and it's used for |t| near 0 and |t|
+(-p + c_1)$, for cubic curve |B(t)| given by |p|, |c1|, |c2|, |q| and it's used for |t| near 0 and |t|
 near 1. We use double mode, otherwise we have to take care of overflow.
 
 */
@@ -10800,14 +10800,14 @@ static mp_knot mp_offset_prep (MP mp, mp_knot c, mp_knot h)
             number_clone(dy0, dy);
         }
         /*tex
-            Update |mp_knot_info(p)| and find the offset $w_k$ such that
-            $d_{k-1}\preceq(|dx|,|dy|)\prec d_k$; also advance |w0| for the direction change at |p|
+            Update |mp_knot_info(p)| and find the offset $w_k$ such that $d_{k-1} \preceq 
+            (|dx|,|dy|) \prec d_k$; also advance |w0| for the direction change at |p|.
         */
         {
             turn_amt = mp_get_turn_amt(mp, w0, &dx, &dy, ab_vs_cd(dy, dxin, dx, dyin) >= 0);
             w = mp_pen_walk(mp, w0, turn_amt);
             w0 = w;
-            mp_knot_info(p) = mp_knot_info(p) + turn_amt;
+            mp_knot_info(p) +=  turn_amt;
         }
         /*tex
             Find the final direction |(dxin,dyin)|.
@@ -10991,7 +10991,7 @@ static mp_knot mp_offset_prep (MP mp, mp_knot c, mp_knot h)
             }
         }
         /*tex
-            Find the first |t| where $d(t)$ crosses $d_{k-1}$ or set |t:=fraction_one+1|.
+            Find the first |t| where $d(t)$ crosses $d_{k-1}$ or set |t := fraction_one + 1|.
         */
         crossing_point(t, t0, t1, t2);
         if (turn_amt >= 0) {
@@ -11567,12 +11567,12 @@ and apply |fin_offset_prep| to each part.
 At this point, the direction of the incoming pen edge is |(-du,-dv)|. When the component of $d(t)$
 perpendicular to |(-du,-dv)| crosses zero, we need to decide whether the directions are parallel or
 antiparallel. We can test this by finding the dot product of $d(t)$ and |(-du,-dv)|, but this should
-be avoided when the value of |turn_amt| already determines the answer. If |t2<0|, there is one
-crossing and it is antiparallel only if |turn_amt>=0|. If |turn_amt<0|, there should always be at
+be avoided when the value of |turn_amt| already determines the answer. If |t2 < 0|, there is one
+crossing and it is antiparallel only if |turn_amt >= 0|. If |turn_amt < 0|, there should always be at
 least one crossing and the first crossing cannot be antiparallel.If the cubic almost has a cusp, it
 is a numerically ill-conditioned problem to decide which way it loops around but that's OK as long
 we're consistent. To make |doublepath| envelopes work properly, reversing the path should always
-change the sign of |turn_amt|.We check rotation direction by looking at the vector connecting the
+change the sign of |turn_amt|. We check rotation direction by looking at the vector connecting the
 current node with the next. If its angle with incoming and outgoing tangents has the same sign, we
 pick this as |d_sign|, since it means we have a flex, not a cusp. Otherwise we proceed to the cusp
 code.In order to be invariant under path reversal, the result of this computation should not change
@@ -11607,7 +11607,6 @@ static void mp_print_spec (MP mp, mp_knot cur_spec, mp_knot cur_pen, const char 
          // mp_print_nl(mp, " .. ");
          // mp_print_two(mp, &(q->x_coord), &(q->y_coord));
             mp_print_format(mp, "%l\n .. controls (%N,%N) and (%N,%N) .. (%N,%N)", p->right_x, p->right_y, q->left_x, q->left_y, q->x_coord, q->y_coord);
-
             p = q;
             if ((p == cur_spec) || (mp_knot_info(p) != zero_off)) {
                 break;
@@ -11617,7 +11616,7 @@ static void mp_print_spec (MP mp, mp_knot cur_spec, mp_knot cur_pen, const char 
             /*tex
                 Update |w| as indicated by |mp_knot_info(p)| and print an explanation.
             */
-            w = mp_pen_walk (mp, w, (mp_knot_info(p) - zero_off));
+            w = mp_pen_walk(mp, w, (mp_knot_info(p) - zero_off));
             mp_print_string(mp, " % ");
             if (mp_knot_info(p) > zero_off) {
                 mp_print_string(mp, "counter");
@@ -11707,11 +11706,11 @@ static mp_knot mp_make_envelope (MP mp, mp_knot c, mp_knot h, int linejoin, int 
     /*tex
         Use |offset_prep| to compute the envelope spec then walk |h| around to the initial offset.
     */
-    c = mp_offset_prep (mp, c, h);
+    c = mp_offset_prep(mp, c, h);
     if (number_positive(internal_value(mp_tracing_specs_internal))) {
         mp_print_spec(mp, c, h, "");
     }
-    h = mp_pen_walk (mp, h, mp->spec_offset);
+    h = mp_pen_walk(mp, h, mp->spec_offset);
     w = h;
     p = c;
     do {
@@ -11739,7 +11738,7 @@ static mp_knot mp_make_envelope (MP mp, mp_knot c, mp_knot h, int linejoin, int 
                 if ((join_type == 0) || (join_type == 3)) { /* mp_mitered_linejoin_code || mp_weird_linejoin_code */
                     /*tex
                         Set the incoming and outgoing directions at |q|; in case of degeneracy set
-                        |join_type:=2|.
+                        |join_type := 2|.
                     */
                     set_number_from_subtraction(dxin, q->x_coord, q->left_x);
                     set_number_from_subtraction(dyin, q->y_coord, q->left_y);
@@ -11992,7 +11991,7 @@ static mp_knot mp_make_envelope (MP mp, mp_knot c, mp_knot h, int linejoin, int 
                         }
                     }
                     {
-                        mp_number    r1 ,r2;
+                        mp_number r1 ,r2;
                         new_fraction(r1);
                         new_fraction(r2);
                         take_fraction(r1, dxin, ht_x);
@@ -22311,13 +22310,13 @@ static void mp_chop_path (MP mp, mp_node p)
                 set_number_to_zero(b);
             }
         } else {
+            /*tex
+                A cycle always has length |l > 0|.
+            */
             do {
                 number_add(a, l);
                 number_add(b, l);
             } while (number_negative(a));
-            /*tex
-                A cycle always has length |l > 0|.
-            */
         }
     }
     if (number_greater(b, l)) {
@@ -24346,7 +24345,7 @@ static void deal_with_redundant_or_inconsistent_equation (MP mp, mp_value_node p
 {
     mp_number absp;
     new_number_abs(absp, mp_get_value_number(p));
-    if (number_greater(absp, equation_threshold_k)) {   /* off by .001 or more */
+    if (number_greater(absp, equation_threshold_t)) {   /* off by .001 or more */
         char msg[256];
         snprintf(msg, 256, "Inconsistent equation (off by %s)", number_tostring (mp_get_value_number(p)));
         mp_back_error(
