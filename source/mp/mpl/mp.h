@@ -776,6 +776,8 @@ typedef enum mp_with_codes {
     mp_with_dashed_code,
     mp_with_pre_script_code,
     mp_with_post_script_code,
+    mp_with_nested_pre_script_code,
+    mp_with_nested_post_script_code,
     mp_with_stacking_code,
     mp_with_no_model_code,
     mp_with_grey_model_code,

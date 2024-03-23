@@ -2122,17 +2122,17 @@ static const char * mplib_aux_with_path_indexed(lua_State *L, MP mp, int index, 
                         midcycle = 1;
                     } else if (lua_key_eq(s, append)) { 
                         if (*f && *l) { 
-if (midcycle) {
-    (*f)->left_type = mp_explicit_knot;
-    (*l)->right_type = mp_explicit_knot;
-    midcycle = 0; 
-}
+                            if (midcycle) {
+                                (*f)->left_type = mp_explicit_knot;
+                                (*l)->right_type = mp_explicit_knot;
+                                midcycle = 0; 
+                            }
                             (*f)->right_type = mp_explicit_knot;
                             (*l)->left_type = mp_explicit_knot;
                             (*f)->state = mp_begin_knot;
                             (*l)->state = mp_end_knot;   
-*f = NULL;
-*l = NULL;
+                            *f = NULL;
+                            *l = NULL;
                         }
                     }
                     break;

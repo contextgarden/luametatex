@@ -14331,6 +14331,8 @@ const char *mp_cmd_mod_string (MP mp, int c, int m)
                 case mp_with_dashed_code             : return "dashed";
                 case mp_with_pre_script_code         : return "withprescript";
                 case mp_with_post_script_code        : return "withpostscript";
+                case mp_with_nested_pre_script_code  : return "withnestedprescript";
+                case mp_with_nested_post_script_code : return "withnestedpostscript";
                 case mp_with_stacking_code           : return "withstacking";
                 case mp_with_no_model_code           : return "withoutcolor";
                 case mp_with_rgb_model_code          : return "withrgbcolor";
@@ -25492,11 +25494,13 @@ static void complain_invalid_with_list (MP mp, mp_variable_type t)
     new_number(new_expr.data.n);
     switch (t) {
         case mp_with_pre_script_code:
+        case mp_with_nested_pre_script_code:
             hlp =
                 "Next time say 'withprescript <known string expression>'; I'll ignore the bad\n"
                 "'with' clause and look for another.";
             break;
         case mp_with_post_script_code:
+        case mp_with_nested_post_script_code:
             hlp =
                 "Next time say 'withpostscript <known string expression>'; I'll ignore the bad\n"
                 "'with' clause and look for another.";
@@ -25563,13 +25567,65 @@ static void complain_invalid_with_list (MP mp, mp_variable_type t)
     mp_flush_cur_exp(mp, new_expr);
 }
 
+/*tex 
+
+    Some properties are applied after scanning all |with*| which means that we can set the same 
+    property multiple times and only the last one applies. They get applied to all components of 
+    a picture. However the scripts are accumulating so these get a different treatment. Here we 
+    also need to be more selective to what it gets applied to because one doesn't always want 
+    a picture property to be applied to all components.  
+
+*/
+
+static mp_string mp_aux_append_pre_script (MP mp, mp_string target)
+{
+    if (target != NULL) {
+        int selector = mp->selector;
+        mp_string old = target; /*tex For string cleanup after combining. */
+        mp->selector = mp_new_string_selector;
+        mp_str_room(mp, (int) (target->len + cur_exp_str->len + 2));
+        mp_print_mp_string(mp, cur_exp_str);
+        mp_str_room(mp, 1);
+        mp_append_char(mp, 13);
+        mp_print_mp_string(mp, target);
+        target = mp_make_string(mp);
+        delete_str_ref(old);
+        mp->selector = selector;
+    } else {
+        target = cur_exp_str;
+    }
+    add_str_ref(target);
+    return target;
+}
+
+static mp_string mp_aux_prepend_post_script (MP mp, mp_string target)
+{
+    if (target != NULL) {
+        int selector = mp->selector;
+        mp_string old = target; /*tex For string cleanup after combining. */
+        mp->selector = mp_new_string_selector;
+        mp_str_room(mp, (int) (target->len + cur_exp_str->len + 2));
+        mp_print_mp_string(mp, target);
+        mp_str_room(mp, 1);
+        mp_append_char(mp, 13);
+        mp_print_mp_string(mp, cur_exp_str);
+        target = mp_make_string(mp);
+        delete_str_ref(old);
+        mp->selector = selector;
+    } else {
+        target = cur_exp_str;
+    }
+    add_str_ref(target);
+    return target; 
+}
+
 void mp_scan_with_list (MP mp, mp_node p, mp_node pstop)
 {
-    mp_node cp = MP_VOID; /* can't we reuse some? */
+    mp_node cp = MP_VOID; 
     mp_node pp = MP_VOID;
     mp_node dp = MP_VOID;
-    mp_node ap = MP_VOID;
-    mp_node bp = MP_VOID;
+ // mp_node ap = MP_VOID;
+ // mp_node bp = MP_VOID;
     mp_node sp = MP_VOID;
     mp_node spstop = MP_VOID;
     mp_number ml;
@@ -25788,67 +25844,75 @@ void mp_scan_with_list (MP mp, mp_node p, mp_node pstop)
                 }
                 break;
             case mp_with_pre_script_code:
+            case mp_with_nested_pre_script_code:
                 if (mp->cur_exp.type != mp_string_type) {
                     complain_invalid_with_list(mp, t);
                     goto CONTINUE;
                 } else if (cur_exp_str->len) {
-                    if (ap == MP_VOID) {
-                        ap = p;
+                    /*tex 
+                        In this version we always can set scripts so the |mp_has_script|.test is 
+                        not really needed. 
+                    */
+                    mp_node ap = p;
+                 // if (ap == MP_VOID) {
+                 //     ap = p;
+                 // }
+                 // while ((ap != NULL) && (! mp_has_script(ap))) {
+                 //     ap = ap->link;
+                 // }
+                 // if (ap != NULL) {
+                 //     mp_pre_script(ap) = mp_aux_append_pre_script(mp, mp_pre_script(ap));
+                 //     mp->cur_exp.type = mp_vacuous_type;
+                 // }
+                    add_str_ref(cur_exp_str);
+                    if (ap && mp_has_script(ap)) {
+                        mp_pre_script(ap) = mp_aux_append_pre_script(mp, mp_pre_script(ap));
                     }
-                    while ((ap != NULL) && (! mp_has_script(ap))) {
+                    if (t == mp_with_nested_pre_script_code) { 
                         ap = ap->link;
-                    }
-                    if (ap != NULL) {
-                        if (mp_pre_script(ap) != NULL) {
-                            int selector = mp->selector;
-                            mp_string s = mp_pre_script(ap); /*tex For string cleanup after combining. */
-                            mp->selector = mp_new_string_selector;
-                            mp_str_room(mp, (int) (mp_pre_script(ap)->len + cur_exp_str->len + 2));
-                            mp_print_mp_string(mp, cur_exp_str);
-                            mp_str_room(mp, 1);
-                            mp_append_char(mp, 13);
-                            mp_print_mp_string(mp, mp_pre_script(ap));
-                            mp_pre_script(ap) = mp_make_string(mp);
-                            delete_str_ref(s);
-                            mp->selector = selector;
-                        } else {
-                            mp_pre_script(ap) = cur_exp_str;
+                        while (ap) { 
+                            if (mp_has_script(ap)) {
+                                mp_pre_script(ap) = mp_aux_append_pre_script(mp, mp_pre_script(ap));
+                            }
+                            ap = ap->link;
                         }
-                        add_str_ref(mp_pre_script(ap));
-                        mp->cur_exp.type = mp_vacuous_type;
                     }
+                    delete_str_ref(cur_exp_str);
+                    mp->cur_exp.type = mp_vacuous_type;
                 }
                 break;
             case mp_with_post_script_code:
+            case mp_with_nested_post_script_code:
                 if (mp->cur_exp.type != mp_string_type) {
                     complain_invalid_with_list(mp, t);
                     goto CONTINUE;
                 } else if (cur_exp_str->len) {
-                    if (bp == MP_VOID) {
-                        bp = p;
+                    mp_node bp = p;
+                 // if (bp == MP_VOID) {
+                 //     bp = p;
+                 // }
+                 // while ((bp != NULL) && (! mp_has_script(bp))) {
+                 //     bp = bp->link;
+                 // }
+                 // if (bp != NULL) {
+                 //     mp_post_script(ap) = mp_aux_prepend_post_script(mp, mp_post_script(ap));
+                 //     mp->cur_exp.type = mp_vacuous_type;
+                 // }
+                    add_str_ref(cur_exp_str);
+                    if (bp && mp_has_script(bp)) {
+                        mp_post_script(bp) = mp_aux_prepend_post_script(mp, mp_post_script(bp));
                     }
-                    while ((bp != NULL) && (! mp_has_script(bp))) {
+                    if (t == mp_with_nested_pre_script_code) { 
                         bp = bp->link;
-                    }
-                    if (bp != NULL) {
-                        if (mp_post_script(bp) != NULL) {
-                            int selector = mp->selector;
-                            mp_string s = mp_post_script(bp); /*tex For string cleanup after combining. */
-                            mp->selector = mp_new_string_selector;
-                            mp_str_room(mp, (int) (mp_post_script(bp)->len + cur_exp_str->len + 2));
-                            mp_print_mp_string(mp, mp_post_script(bp));
-                            mp_str_room(mp, 1);
-                            mp_append_char(mp, 13);
-                            mp_print_mp_string(mp, cur_exp_str);
-                            mp_post_script(bp) = mp_make_string(mp);
-                            delete_str_ref(s);
-                            mp->selector = selector;
-                        } else {
-                            mp_post_script(bp) = cur_exp_str;
+                        while (bp) { 
+                            if (mp_has_script(bp)) {
+                                mp_post_script(bp) = mp_aux_prepend_post_script(mp, mp_post_script(bp));
+                            }
+                            bp = bp->link;
                         }
-                        add_str_ref(mp_post_script(bp));
-                        mp->cur_exp.type = mp_vacuous_type;
                     }
+                    delete_str_ref(cur_exp_str);
+                    mp->cur_exp.type = mp_vacuous_type;
                 }
                 break;
             case mp_with_stacking_code:
@@ -29036,6 +29100,8 @@ static void mp_initialize_primitives (MP mp)
     mp_primitive(mp, "dashed",                mp_with_option_command,      mp_with_dashed_code);
     mp_primitive(mp, "withprescript",         mp_with_option_command,      mp_with_pre_script_code);
     mp_primitive(mp, "withpostscript",        mp_with_option_command,      mp_with_post_script_code);
+    mp_primitive(mp, "withnestedprescript",   mp_with_option_command,      mp_with_nested_pre_script_code);
+    mp_primitive(mp, "withnestedpostscript",  mp_with_option_command,      mp_with_nested_post_script_code);
     mp_primitive(mp, "withstacking",          mp_with_option_command,      mp_with_stacking_code);
     mp_primitive(mp, "withlinecap",           mp_with_option_command,      mp_with_linecap_code);
     mp_primitive(mp, "withlinejoin",          mp_with_option_command,      mp_with_linejoin_code);
