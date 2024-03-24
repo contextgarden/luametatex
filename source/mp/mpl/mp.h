@@ -649,6 +649,7 @@ typedef enum mp_name_type_type {
     mp_intertimes_operation,        /* operation code for |intersectiontimes| */
     mp_intertimes_list_operation,   /* operation code for |intersectiontimeslist| */
     mp_double_dot_operation,        /* operation code for improper |..| */
+    /* the |of| operations: */
     mp_substring_operation,         /* operation code for |substring| */
     mp_subpath_operation,           /* operation code for |subpath| */
     mp_direction_time_operation,    /* operation code for |directiontime| */
@@ -675,6 +676,8 @@ typedef enum mp_name_type_type {
     mp_envelope_operation,          /* operation code for |envelope| */
     mp_boundingpath_operation,      /* operation code for |boundingpath| */
 } mp_name_type_type;
+
+# define mp_min_of_operation mp_substring_operation
 
 typedef enum mp_class_codes {
     mp_digit_class             =  0, /* the class number of |0123456789| */
@@ -1081,7 +1084,10 @@ typedef enum mp_given_internal {
     mp_true_corners_internal,        /* positive to make |llcorner| etc. ignore |setbounds| */
     mp_default_color_model_internal, /* the default color model for unspecified items */
     mp_restore_clip_color_internal,
+    mp_join_tolerance_internal,
 } mp_given_internal;
+
+# define max_given_internal mp_join_tolerance_internal
 
 typedef struct mp_internal {
     mp_value  v;

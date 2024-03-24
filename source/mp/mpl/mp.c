@@ -402,9 +402,6 @@ duplicate the code (or to use a function call).
 
 */
 
-# define  mp_min_of_operation mp_substring_operation
-# define  max_given_internal  mp_restore_clip_color_internal
-
 /*tex
 
 The 256 |unsigned char| characters are grouped into classes by means of the |char_class| table.
@@ -28499,6 +28496,40 @@ static int mp_scan_path (MP mp)
         switch (operation) {
             case mp_concat_operation:
                 if (! (number_equal(path_q->x_coord, pp->x_coord)) || ! (number_equal(path_q->y_coord, pp->y_coord))) {
+                    if (number_greater(internal_value(mp_join_tolerance_internal), zero_t)) {
+                        mp_number dx, dy;
+                        new_number(dx);
+                        new_number(dy);
+                        set_number_from_subtraction(dx, path_q->x_coord, pp->x_coord);
+                        set_number_from_subtraction(dy, path_q->y_coord, pp->y_coord);
+                        number_abs(dx);
+                        number_abs(dy);
+                        if (number_lessequal(dx, internal_value(mp_join_tolerance_internal)) 
+                         && number_lessequal(dy, internal_value(mp_join_tolerance_internal))) {
+                            number_half(dx);
+                            number_half(dy);
+                            if (number_less(path_q->x_coord, pp->x_coord)) {
+                                number_add(path_q->x_coord, dx);
+                                number_subtract(pp->x_coord, dx);
+                            } else {
+                                number_subtract(path_q->x_coord, dx);
+                                number_add(pp->x_coord, dx);
+                            }
+                            if (number_less(path_q->y_coord, pp->y_coord)) {
+                                number_add(path_q->y_coord, dy);
+                                number_subtract(pp->y_coord, dy);
+                            } else {
+                                number_subtract(path_q->y_coord, dy);
+                                number_add(pp->y_coord, dy);
+                            }
+                            free_number(dx);
+                            free_number(dy);
+                            break;
+                        } else {
+                            free_number(dx);
+                            free_number(dy);
+                        }
+                    }
                     mp_back_error(
                         mp,
                         "Paths don't touch; '&' will be changed to '..'",
@@ -28816,6 +28847,7 @@ static void mp_initialize_primitives (MP mp)
     mp_primitive(mp, "numbersystem",          mp_internal_command,         mp_number_system_internal);
     mp_primitive(mp, "numberprecision",       mp_internal_command,         mp_number_precision_internal);
     mp_primitive(mp, "jobname",               mp_internal_command,         mp_job_name_internal);
+    mp_primitive(mp, "jointolerance",         mp_internal_command,         mp_join_tolerance_internal);
 
     mp_primitive(mp, "..",                    mp_path_join_command,        0);
     mp_primitive(mp, "--",                    mp_path_connect_command,     0);
@@ -29198,6 +29230,7 @@ static void mp_initialize_tables (MP mp)
     number_clone(internal_value(mp_number_precision_internal),   precision_default);
     number_clone(internal_value(mp_texscriptmode_internal),      unity_t);
     number_clone(internal_value(mp_overloadmode_internal),       zero_t);
+    number_clone(internal_value(mp_join_tolerance_internal),     zero_t);
 
     set_internal_string(mp_number_system_internal, mp_intern(mp, "scaled"));
 
@@ -29238,6 +29271,7 @@ static void mp_initialize_tables (MP mp)
     set_internal_name(mp_job_name_internal,            mp_strdup("jobname"));
     set_internal_name(mp_number_system_internal,       mp_strdup("numbersystem"));
     set_internal_name(mp_number_precision_internal,    mp_strdup("numberprecision"));
+    set_internal_name(mp_join_tolerance_internal,      mp_strdup("jointolerance"));
 
     /*tex
         Relatively siumple initializations: 
