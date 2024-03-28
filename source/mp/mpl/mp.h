@@ -1084,6 +1084,7 @@ typedef enum mp_given_internal {
     mp_true_corners_internal,        /* positive to make |llcorner| etc. ignore |setbounds| */
     mp_default_color_model_internal, /* the default color model for unspecified items */
     mp_restore_clip_color_internal,
+    mp_less_digits_internal,
     mp_join_tolerance_internal,
 } mp_given_internal;
 
@@ -1177,12 +1178,12 @@ typedef struct File {
 
 typedef struct MP_instance {
     /*  */
-    int                 halt_on_error;          /* do we quit at the first error? */
     void               *userdata;               /* this allows the calling application to setup local (e.g. L for Lua) */
     char               *banner;                 /* the banner that is printed to the screen and log */
     int                 utf8_mode;
     int                 text_mode;
     int                 show_mode;
+    int                 halt_on_error;          /* do we quit at the first error? */
     /*  */
     mp_file_finder      find_file;
     mp_script_runner    run_script;
@@ -1206,11 +1207,10 @@ typedef struct MP_instance {
     int                 make_text_id;
     int                 open_file_id;
     /*  */
+    int                 less_digits; 
     int                 interaction;
     int                 extensions;
-    /*  */
     int                 random_seed;
-    /*  */
     int                 math_mode;
     /*  */
     char               *job_name;
@@ -1221,7 +1221,6 @@ typedef struct MP_instance {
     /*  */
     int                 max_in_open;            /* maximum number of input files and error insertions that can be going on simultaneously */
     int                 param_size;             /* maximum number of simultaneous macro parameters */
-    int                 padding_size;           /* so that the next array nicely sits in the cache */
     /*  */
     char               *name_of_file;           /* the name of a system file */
     /*  */
@@ -1319,7 +1318,7 @@ typedef struct MP_instance {
     mp_symbol           frozen_undefined;
     mp_symbol           frozen_dump;
     /*  */
-    mp_symbol              id_lookup_test;
+    mp_symbol           id_lookup_test;
     /*  */
     mp_save_data       *save_ptr;               /* the most recently saved item */
     /*  */

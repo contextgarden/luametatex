@@ -339,7 +339,7 @@ static char *mp_double_number_tostring(MP mp, mp_number *n)
     int l = 0;
     char *ret = mp_memory_allocate(64);
     (void) mp;
-    snprintf(set, 64, "%.17g", n->data.dval);
+    snprintf(set, 64, mp->less_digits ? "%.3g" : "%.17g", n->data.dval);
     while (set[l] == ' ') {
         l++;
     }

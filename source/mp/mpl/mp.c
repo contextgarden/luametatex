@@ -24109,6 +24109,14 @@ void mp_do_assignment (MP mp)
                                 } else {
                                     mp_bad_internal_assignment_precision(mp, lhs, &precision_min, &precision_max);
                                 }
+                            case mp_less_digits_internal:
+                                if (mp->cur_exp.type == mp_boolean_type) {
+                                     number_clone(internal_value(mp_get_sym_info(lhs)), cur_exp_value_number);
+                                     mp->less_digits = cur_exp_value_boolean == mp_true_operation ? 1 : 0; 
+                                } else {
+                                    mp_bad_internal_assignment(mp, lhs);
+                                }
+                                break;
                             default:
                                 if (internal_type(mp_get_sym_info(lhs)) == mp_string_type) {
                                     add_str_ref(cur_exp_str);
@@ -28530,12 +28538,14 @@ static int mp_scan_path (MP mp)
                             free_number(dy);
                         }
                     }
+                    /* todo: < 0 then skip error (warning) */
                     mp_back_error(
                         mp,
                         "Paths don't touch; '&' will be changed to '..'",
                         "When you join paths 'p & q', the ending point of p must be exactly equal to the\n"
                         "starting point of q. So I'm going to pretend that you said 'p .. q' instead."
                     );
+                    /* todo: -- instead of .. */
                     mp_get_x_next(mp);
                     command = mp_path_join_command;
                     set_number_to_unity(path_q->right_tension);
@@ -28847,6 +28857,7 @@ static void mp_initialize_primitives (MP mp)
     mp_primitive(mp, "numbersystem",          mp_internal_command,         mp_number_system_internal);
     mp_primitive(mp, "numberprecision",       mp_internal_command,         mp_number_precision_internal);
     mp_primitive(mp, "jobname",               mp_internal_command,         mp_job_name_internal);
+    mp_primitive(mp, "lessdigits",            mp_internal_command,         mp_less_digits_internal);
     mp_primitive(mp, "jointolerance",         mp_internal_command,         mp_join_tolerance_internal);
 
     mp_primitive(mp, "..",                    mp_path_join_command,        0);
@@ -29230,6 +29241,7 @@ static void mp_initialize_tables (MP mp)
     number_clone(internal_value(mp_number_precision_internal),   precision_default);
     number_clone(internal_value(mp_texscriptmode_internal),      unity_t);
     number_clone(internal_value(mp_overloadmode_internal),       zero_t);
+    number_clone(internal_value(mp_less_digits_internal),        zero_t);
     number_clone(internal_value(mp_join_tolerance_internal),     zero_t);
 
     set_internal_string(mp_number_system_internal, mp_intern(mp, "scaled"));
@@ -29271,6 +29283,7 @@ static void mp_initialize_tables (MP mp)
     set_internal_name(mp_job_name_internal,            mp_strdup("jobname"));
     set_internal_name(mp_number_system_internal,       mp_strdup("numbersystem"));
     set_internal_name(mp_number_precision_internal,    mp_strdup("numberprecision"));
+    set_internal_name(mp_less_digits_internal,         mp_strdup("lessdigits"));
     set_internal_name(mp_join_tolerance_internal,      mp_strdup("jointolerance"));
 
     /*tex
@@ -29428,6 +29441,7 @@ MP mp_initialize (MP_options * opt)
     mp->finished     = 0;
     mp->arith_error  = 0;
     mp->random_seed  = opt->random_seed;
+    mp->less_digits  = 0;
     for (int i = 0; i < 55; i++) {
         new_fraction(mp->randoms[i]);
     }
@@ -29453,6 +29467,7 @@ MP mp_initialize (MP_options * opt)
     }
     set_internal_type(mp_number_system_internal, mp_string_type);
     set_internal_type(mp_job_name_internal, mp_string_type);
+    set_internal_type(mp_less_digits_internal, mp_boolean_type);
     mp->symbols = avl_create(mp_compare_symbols_entry, mp_copy_symbols_entry, mp_delete_symbols_entry, mp_memory_allocate, mp_memory_free, NULL);
     mp->frozen_symbols = avl_create(mp_compare_symbols_entry, mp_copy_symbols_entry, mp_delete_symbols_entry, mp_memory_allocate, mp_memory_free, NULL);
     mp->bisect_stack = mp_memory_allocate((size_t) (bistack_size + 1) * sizeof(mp_number));
