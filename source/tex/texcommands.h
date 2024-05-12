@@ -110,7 +110,7 @@ typedef enum code_classifications {
 typedef enum tex_command_code {
     /*tex
         The first 16 command codes are used for characters with a special meaning. In traditional
-        \TEX\ some have different names and also aliases. because we have a public token interface
+        \TEX\ some have different names and also aliases. Because we have a public token interface
         they now are uniquely used for characters and the aliases have their own cmd/chr codes.
     */
     escape_cmd,                       /*tex  0: escape delimiter*/
@@ -410,8 +410,10 @@ typedef enum arithmic_codes {
 # define last_arithmic_code r_divide_code
 
 typedef enum math_script_codes {
-    math_no_script_code,
-    math_no_ruling_code,
+    /* It's a bit strange to have this here but both inject a control glue. */
+    math_no_script_space_code,
+    math_no_ruling_space_code,   
+    /* */
     math_sub_script_code,
     math_super_script_code,
     math_super_pre_script_code,
@@ -425,9 +427,10 @@ typedef enum math_script_codes {
     math_shifted_sub_pre_script_code,
     math_shifted_super_pre_script_code,
     math_prime_script_code,
+    math_no_script_code,
 } math_script_codes;
 
-# define last_math_script_code math_prime_script_code
+# define last_math_script_code math_no_script_code
 
 typedef enum math_fraction_codes {
     math_above_code,
@@ -1121,6 +1124,7 @@ typedef enum local_box_codes {
     local_middle_box_code,
     /* room for more but then we go internal_box_codes */
     number_box_pars,
+    local_reset_boxes_code,
 } local_box_codes;
 
 # define first_local_box_code local_left_box_code

@@ -5,6 +5,8 @@
 # git clone https://github.com/contextgarden/luametatex
 # cd luametatex
 # git checkout work
+#
+# git config pull.rebase true 
 
 mkdir -p luametatex
 mkdir -p texbinaries

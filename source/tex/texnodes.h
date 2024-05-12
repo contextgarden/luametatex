@@ -147,9 +147,9 @@ typedef enum node_types {
     passive_node,
 } node_types;
 
- /*tex The largest node is now |par_node| which need 30 slots. */
+ /*tex The largest node is now |par_node| which need 32 slots. */
 
-# define max_chain_size  32
+# define max_chain_size       40
 
 # define unknown_node_type    -1
 # define unknown_node_subtype -1
@@ -374,20 +374,15 @@ extern void     lmt_nodelib_initialize  (void); /* name ? */
     have some extra fields in some nodes. In \LUAMETATEX\ only glyph and list nodes have these fields
     as it makes no sense to have them elsewhere: macro packages can add glue and kerns and rules and
     \unknown\ all over the place and adding file state info there only makes things confusing and
-    working less well. This is what the mode parameter can handle in \LUATEX\ and in \LUAMETATEX\ it
-    only supports the modes 1 and 3.
+    working less well. This is what the mode parameter can handle in \LUATEX\ and in \LUAMETATEX\ we
+    have no control other than what the macro package provides. The engine can set the file and line 
+    fields or it can be done from \LUA. Automatic setting is controlled by |input_file_state.mode|.
 
     As a side note: the fact that a viewer needs to embed the library is also a limitation. Calling
     out to an external program that analyzes the file and gives back the filename and line is more
     flexible and robust. Because we have such an analyzer in \MKIV\ it was no big deal to add a few
     lines so that the \TEX shop environment could use that script/method (bidirectional); hopefully
     other viewers and editors will follow.
-
-    So, compared to \LUATEX\ less nodes have the extra fields (which saves memory) and therefore
-    less has to be set. Because there is no library at all, writing a synctex file is up to some
-    additional \LUA\ code, but that was already the case in \MKIV\ anyway. We might at some point
-    change the field names to \quote {file} and \quote {line} and remove interface options that
-    have no use any more. We also moved to a more generic naming of (input related) fields.
 
 */
 
@@ -447,6 +442,7 @@ typedef enum penalty_option_codes {
     penalty_option_orphaned      = 0x0004,
     penalty_option_widowed       = 0x0008,
     penalty_option_clubbed       = 0x0010,
+    penalty_option_toddlered     = 0x0020,
 } penalty_option_codes; 
 
 typedef enum penalty_subtypes {
@@ -455,6 +451,7 @@ typedef enum penalty_subtypes {
     line_penalty_subtype,
     word_penalty_subtype,
     orphan_penalty_subtype,
+    toddler_penalty_subtype,
     single_line_penalty_subtype,
     final_penalty_subtype,
     math_pre_penalty_subtype,
@@ -462,9 +459,10 @@ typedef enum penalty_subtypes {
     before_display_penalty_subtype,
     after_display_penalty_subtype,
     equation_number_penalty_subtype,
+    discretionary_penalty_subtype,      /* not (yet) used */
 } penalty_subtypes;
 
-# define last_penalty_subtype equation_number_penalty_subtype
+# define last_penalty_subtype discretionary_penalty_subtype
 
 /*tex
     We have plenty of glue variables and in the node lists most are also flagged. There is no
@@ -753,7 +751,7 @@ typedef enum discretionary_subtypes {
 # define last_discretionary_subtype syllable_discretionary_code
 # define last_discretionary_code    automatic_discretionary_code
 
-typedef enum disc_options {
+typedef enum disc_option_codes {
     disc_option_normal_word               = 0x00000000,
     disc_option_pre_word                  = 0x00000001,
     disc_option_post_word                 = 0x00000002,
@@ -768,7 +766,7 @@ typedef enum disc_options {
     disc_option_user_last                 = 0x40000000,
     /*tex So watch out: these are subsets! */
     disc_option_valid                     = 0x4FFF0FFF,
-} disc_options;
+} disc_option_codes;
 
 # define first_disc_option disc_option_prefer_break
 # define last_disc_option  disc_option_prefer_nobreak
@@ -927,20 +925,20 @@ typedef enum list_geometries {
 # define box_d_offset(a)        vinfo(a,3)
 # define box_height(a)          vlink(a,4)
 # define box_h_offset(a)        vinfo(a,4)
-# define box_list(a)            vlink(a,5)    /* 5 = list_offset */
+# define box_list(a)            vlink(a,5)   /* 5 = list_offset */
 # define box_shift_amount(a)    vinfo(a,5)
-# define box_glue_order(a)      vlink(a,6)    /* quarterword (?) */
-# define box_glue_sign(a)       vinfo(a,6)    /* quarterword (!) */
+# define box_glue_order(a)      vlink(a,6)   /* quarterword (?) */
+# define box_glue_sign(a)       vinfo(a,6)   /* quarterword (!) */
 //define box_glue_order(a)      vlink00(a,6)  
 //define box_glue_sign(a)       vlink01(a,6)  
 //define box_glue_reserved_1(a) vlink02(a,6)  
 //define box_glue_reserved_2(a) vlink03(a,6)  
-# define box_glue_set(a)        dvalue(a,7)   /* So we reserve a whole memory word! */
-# define box_dir(a)             vlink00(a,8)  /* We could encode it as geomtry but not now. */
+# define box_glue_set(a)        dvalue(a,7)  /* So we reserve a whole memory word! */
+# define box_dir(a)             vlink00(a,8) /* We could encode it as geomtry but not now. */
 # define box_package_state(a)   vlink01(a,8)
 # define box_axis(a)            vlink02(a,8)
 # define box_geometry(a)        vlink03(a,8)
-# define box_orientation(a)     vinfo(a,8)    /* Also used for size in alignments. */
+# define box_orientation(a)     vinfo(a,8)   /* Also used for size in alignments. */
 # define box_x_offset(a)        vlink(a,9)
 # define box_y_offset(a)        vinfo(a,9)
 # define box_pre_migrated(a)    vlink(a,10)
@@ -951,8 +949,8 @@ typedef enum list_geometries {
 # define box_target_anchor(a)   vinfo(a,12)
 # define box_anchor(a)          vlink(a,13)
 # define box_index(a)           vinfo(a,13)
-# define box_input_file(a)      vlink(a,14) /* aka box_synctex_tag  */
-# define box_input_line(a)      vinfo(a,14) /* aka box_synctex_line */
+# define box_input_file(a)      vlink(a,14) 
+# define box_input_line(a)      vinfo(a,14) 
 
 # define box_total(a) (box_height(a) + box_depth(a)) /* Here we add, with glyphs we maximize. */ 
 
@@ -1049,8 +1047,8 @@ typedef enum rule_subtypes {
     normal_rule_subtype,
     empty_rule_subtype,
     strut_rule_subtype,
-    outline_rule_subtype,
     virtual_rule_subtype,
+    outline_rule_subtype,
     user_rule_subtype,
     math_over_rule_subtype,
     math_under_rule_subtype,
@@ -1067,21 +1065,34 @@ typedef enum rule_codes {
     strut_rule_code
 } rule_codes;
 
+typedef enum rule_option_codes {
+    rule_option_horizontal = 0x01, /* maybe we want both at some time */
+    rule_option_vertical   = 0x02, /* when none is set we have a math rule */
+    rule_option_thickness  = 0x04, /* future */
+    rule_option_running    = 0x08,
+    rule_option_valid      = 0x0F,
+} rule_option_codes;
+
 # define last_rule_subtype image_rule_subtype
 # define first_rule_code   normal_rule_code
 # define last_rule_code    strut_rule_code
 
-# define rule_node_size    7
+# define rule_node_size    8
 # define rule_width(a)     vlink(a,2)
 # define rule_x_offset(a)  vinfo(a,2)
 # define rule_depth(a)     vlink(a,3)
 # define rule_y_offset(a)  vinfo(a,3)
 # define rule_height(a)    vlink(a,4)
-# define rule_data(a)      vinfo(a,4)
-# define rule_left(a)      vinfo(a,5) /* depends on subtype */ 
-# define rule_right(a)     vlink(a,5) /* depends on subtype */ 
-# define rule_extra_1(a)   vinfo(a,6) /* depends on subtype */ 
-# define rule_extra_2(a)   vlink(a,6) /* depends on subtype */ 
+# define rule_data(a)      vinfo(a,4) /* used for linewidth */
+# define rule_options(a)   vlink(a,5)
+# define rule_thickness(a) vinfo(a,5) /* future see data */
+# define rule_left(a)      vinfo(a,6) /* depends on subtype */ 
+# define rule_right(a)     vlink(a,6) /* depends on subtype */ 
+# define rule_extra_1(a)   vinfo(a,7) /* depends on subtype */ 
+# define rule_extra_2(a)   vlink(a,7) /* depends on subtype */ 
+
+# define rule_line_on         rule_extra_1
+# define rule_line_off        rule_extra_2
 
 # define rule_strut_font      rule_extra_1
 # define rule_strut_character rule_extra_2
@@ -1092,6 +1103,8 @@ typedef enum rule_codes {
 # define rule_virtual_unused  rule_extra_2
 
 # define rule_total(a) (rule_height(a) + rule_depth(a))
+
+# define set_rule_options(a,b)  rule_options(a) |= b
 
 /*tex
 
@@ -1253,6 +1266,8 @@ typedef enum glyph_subtypes {
     glyph_math_extra_subtype = 31,
 } glyph_subtypes;
 
+# define glyph_node_is_text(g) (node_subtype(g) <= glyph_ligature_subtype)
+
 # define last_glyph_subtype glyph_math_accent_subtype
 
 typedef enum glyph_hstate_codes {
@@ -1410,7 +1425,7 @@ typedef enum split_subtypes {
 
 # define precedes_break(a)  (node_type(a) <= last_preceding_break_node)
 # define precedes_kern(a)   ((node_type(a) == kern_node) && (node_subtype(a) == font_kern_subtype || node_subtype(a) == accent_kern_subtype || node_subtype(a) == math_shape_kern_subtype))
-# define precedes_dir(a)    ((node_type(a) == dir_node) && normalize_line_mode_permitted(normalize_line_mode_par,break_after_dir_mode))
+# define precedes_dir(a)    ((node_type(a) == dir_node) && normalize_line_mode_option(break_after_dir_mode))
 # define non_discardable(a) (node_type(a) <= last_non_discardable_node)
 
 static inline int tex_nodetype_is_complex     (halfword t) { return t <= last_complex_node; }
@@ -1469,7 +1484,19 @@ static inline int tex_nodetype_is_visible     (halfword t) { return (t >= 0) && 
     code and also makes save and restore more complex.
 */
 
+typedef enum fontspec_states { 
+    font_spec_scale_set   = 0x0001,
+    font_spec_x_scale_set = 0x0002,
+    font_spec_y_scale_set = 0x0004,
+    font_spec_slant_set   = 0x0008,
+    font_spec_weight_set  = 0x0010,
+    font_spec_all_set     = 0x001F,
+} font_spec_states;
+
+
+
 # define font_spec_node_size     5           /* we can be smaller: no attr and no prev */
+# define font_spec_state(a)      vinfo(a,1)  /* slot of node_attr */
 # define font_spec_identifier(a) vinfo(a,2)
 # define font_spec_scale(a)      vlink(a,2)
 # define font_spec_x_scale(a)    vinfo(a,3)
@@ -1477,11 +1504,14 @@ static inline int tex_nodetype_is_visible     (halfword t) { return (t >= 0) && 
 # define font_spec_slant(a)      vinfo(a,4)
 # define font_spec_weight(a)     vlink(a,4)
 
+# define font_spec_property_is_set(a,b) ((font_spec_state(a) & b) == b)
+
 static inline int tex_same_fontspec(halfword a, halfword b)
 {
     return
         (a == b)
-     || (a && b && font_spec_identifier(a) == font_spec_identifier(b)
+     || (a && b && font_spec_state(a)      == font_spec_state(b)
+                && font_spec_identifier(a) == font_spec_identifier(b)
                 && font_spec_scale(a)      == font_spec_scale(b)
                 && font_spec_x_scale(a)    == font_spec_x_scale(b)
                 && font_spec_y_scale(a)    == font_spec_y_scale(b)
@@ -1596,17 +1626,27 @@ static inline int tex_same_mathspec(halfword a, halfword b)
 
 typedef enum specification_options {
     specification_option_repeat = 0x0001,
+    specification_option_values = 0x0002,
 } specifications_options;
 
 # define specification_index(a,n) ((memoryword *) specification_pointer(a))[n - 1]
 
 # define specification_repeat(a)  ((specification_options(a) & specification_option_repeat) == specification_option_repeat)
+# define specification_values(a)  ((specification_options(a) & specification_option_values) == specification_option_values)
 
 # define specification_n(a,n)     (specification_repeat(a) ? ((n - 1) % specification_count(a) + 1) : (n > specification_count(a) ? specification_count(a) : n))
 
 /* interesting: 1Kb smaller bin: */
 
 // static inline halfword specification_n(halfword a, halfword n) { return specification_repeat(a) ? ((n - 1) % specification_count(a) + 1) : (n > specification_count(a) ? specification_count(a) : n); }
+
+# define n_of_fitness_values 32 
+
+# define fitness_demerits_size  2
+# define par_passes_size       12
+
+# define fitness_demerits_slot(n,m) ((n-1)*fitness_demerits_size+m)
+# define par_passes_slot(n,m)       ((n-1)*par_passes_size      +m)
 
 extern void            tex_null_specification_list     (halfword a);
 extern void            tex_new_specification_list      (halfword a, halfword n, halfword o);
@@ -1616,6 +1656,10 @@ extern void            tex_shift_specification_list    (halfword a, int n, int r
 
 static inline int      tex_get_specification_count     (halfword a)                         { return a ? specification_count(a) : 0; }
 static inline void     tex_set_specification_option    (halfword a, int o)                  { specification_options(a) |= o; }
+static inline int      tex_has_specification_option    (halfword a, int o)                  { return (specification_options(a) & o) == o; }
+
+static inline int      tex_get_specification_decent    (halfword a)                         { return specification_unused(a); }
+static inline void     tex_set_specification_decent    (halfword a, int d)                  { specification_unused(a) = d; }
 
 static inline halfword tex_get_specification_indent    (halfword a, halfword n)             { return specification_index(a,specification_n(a,n)).half0; }
 static inline halfword tex_get_specification_width     (halfword a, halfword n)             { return specification_index(a,specification_n(a,n)).half1; }
@@ -1625,77 +1669,96 @@ static inline void     tex_set_specification_indent    (halfword a, halfword n, 
 static inline void     tex_set_specification_width     (halfword a, halfword n, halfword v) { specification_index(a,n).half1 = v; }
 static inline void     tex_set_specification_penalty   (halfword a, halfword n, halfword v) { specification_index(a,n).half0 = v; }
 
-# define par_passes_size 11
+/* Here come the slot ones: */
 
-# define par_passes_slot(n,m) ((n-1)*par_passes_size+m)
+static inline halfword tex_get_specification_fitness   (halfword a, halfword n)             { return specification_index(a,fitness_demerits_slot(n,1)).half0; }
+static inline halfword tex_get_specification_demerits_d(halfword a, halfword n)             { return specification_index(a,fitness_demerits_slot(n,2)).half0; }
+static inline halfword tex_get_specification_demerits_u(halfword a, halfword n)             { return specification_index(a,fitness_demerits_slot(n,2)).half1; }
+
+static inline void     tex_set_specification_fitness   (halfword a, halfword n, halfword v) { specification_index(a,fitness_demerits_slot(n,1)).half0 = v; }
+static inline void     tex_set_specification_demerits_d(halfword a, halfword n, halfword v) { specification_index(a,fitness_demerits_slot(n,2)).half0 = v; }
+static inline void     tex_set_specification_demerits_u(halfword a, halfword n, halfword v) { specification_index(a,fitness_demerits_slot(n,2)).half1 = v; }
 
 typedef enum passes_features { 
-    passes_quit_pass          = 0x0001,
-    passes_skip_pass          = 0x0002,
-    passes_optional_set       = 0x0004,
-    passes_callback_set       = 0x0008,
-    passes_orphan_penalty_set = 0x0010,
-    passes_if_adjust_spacing  = 0x0020,
+    passes_quit_pass           = 0x0001,
+    passes_skip_pass           = 0x0002,
+    passes_optional_set        = 0x0004,
+    passes_callback_set        = 0x0008,
+    passes_orphan_penalty_set  = 0x0010,
+    passes_if_adjust_spacing   = 0x0020,
+    passes_toddler_penalty_set = 0x0040,
 } passes_features;
 
-typedef enum passes_classes { 
-    very_loose_class     = 0x0001,
-    loose_fit_class      = 0x0002,     
-    semi_loose_fit_class = 0x0004,
-    decent_fit_class     = 0x0008,    
-    semi_tight_fit_class = 0x0010,
-    tight_fit_class      = 0x0020,     
-} passes_classes;
+/*tex 
+    As a step up to more granular fitness we had nine classes and therefore a nine bit class 
+    vector:
 
-// todo: optimize order 
+    \starttyping
+    typedef enum passes_classes { 
+        very_loose_fit_class   = 0x0001,
+        loose_fit_class        = 0x0002,     
+        almost_loose_fit_class = 0x0004,
+        barely_loose_fit_class = 0x0008,    
+        decent_fit_class       = 0x0010,    
+        barely_tight_fit_class = 0x0020,
+        almost_tight_fit_class = 0x0040,     
+        tight_fit_class        = 0x0080,     
+        very_tight_fit_class   = 0x0100,     
+    } passes_classes;
+    \stoptyping
 
-static inline void     tex_set_passes_threshold            (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 1)).half0 = v; }
-static inline void     tex_set_passes_badness              (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 1)).half1 = v; }
-static inline void     tex_set_passes_features             (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 2)).quart00 |= (v & 0xFFFF); }
-static inline void     tex_set_passes_classes              (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 2)).quart01 |= (v & 0xFFFF); }
-static inline void     tex_set_passes_tolerance            (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 2)).half1 = v; }
-static inline void     tex_set_passes_linepenalty          (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 3)).half0 = v; }
-static inline void     tex_set_passes_extrahyphenpenalty   (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 3)).half1 = v; }
-static inline void     tex_set_passes_doublehyphendemerits (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 4)).half0 = v; }
-static inline void     tex_set_passes_finalhyphendemerits  (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 4)).half1 = v; }
-static inline void     tex_set_passes_adjdemerits          (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 5)).half0 = v; }
-static inline void     tex_set_passes_linebreakcriterion   (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 5)).half1 = v; }
-static inline void     tex_set_passes_emergencystretch     (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 6)).half0 = v; }
-static inline void     tex_set_passes_looseness            (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 6)).half1 = v; }
-static inline void     tex_set_passes_adjustspacingstep    (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 7)).half0 = v; }
-static inline void     tex_set_passes_adjustspacingshrink  (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 7)).half1 = v; }
-static inline void     tex_set_passes_adjustspacingstretch (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 8)).half0 = v; }
-static inline void     tex_set_passes_adjustspacing        (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 8)).half1 = v; }
-static inline void     tex_set_passes_identifier           (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 9)).half0 = v; }
-static inline void     tex_set_passes_optional             (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 9)).half1 = v; }
-static inline void     tex_set_passes_callback             (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,10)).half0 = v; }
-static inline void     tex_set_passes_orphanpenalty        (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,10)).half1 = v; }
-static inline void     tex_set_passes_doubleadjdemerits    (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,11)).half0 = v; }
-static inline void     tex_set_passes_reserved             (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,11)).half1 = v; } /* available */
+    We no longer use these names but keep it here as a possible naming scheme (one that we 
+    actually use in \CONTEXT). 
 
-static inline halfword tex_get_passes_threshold            (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 1)).half0; }
-static inline halfword tex_get_passes_badness              (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 1)).half1; }
-static inline halfword tex_get_passes_features             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 2)).quart00; }
-static inline halfword tex_get_passes_classes              (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 2)).quart01; }
-static inline halfword tex_get_passes_tolerance            (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 2)).half1; }
-static inline halfword tex_get_passes_linepenalty          (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 3)).half0; }
-static inline halfword tex_get_passes_extrahyphenpenalty   (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 3)).half1; }
-static inline halfword tex_get_passes_doublehyphendemerits (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 4)).half0; }
-static inline halfword tex_get_passes_finalhyphendemerits  (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 4)).half1; }
-static inline halfword tex_get_passes_adjdemerits          (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 5)).half0; }
-static inline halfword tex_get_passes_linebreakcriterion   (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 5)).half1; }
-static inline halfword tex_get_passes_emergencystretch     (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 6)).half0; }
-static inline halfword tex_get_passes_looseness            (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 6)).half1; }
-static inline halfword tex_get_passes_adjustspacingstep    (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 7)).half0; }
-static inline halfword tex_get_passes_adjustspacingshrink  (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 7)).half1; }
-static inline halfword tex_get_passes_adjustspacingstretch (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 8)).half0; }
-static inline halfword tex_get_passes_adjustspacing        (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 8)).half1; }
-static inline halfword tex_get_passes_identifier           (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 9)).half0; }
-static inline halfword tex_get_passes_optional             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 9)).half1; }
-static inline halfword tex_get_passes_callback             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,10)).half0; }
-static inline halfword tex_get_passes_orphanpenalty        (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,10)).half1; }
-static inline halfword tex_get_passes_doubleadjdemerits    (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,11)).half0; }
-static inline halfword tex_get_passes_reserved             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,11)).half1; } /* available */
+*/
+
+static inline void     tex_set_passes_threshold                 (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 1)).half0 = v; }
+static inline void     tex_set_passes_badness                   (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 1)).half1 = v; }
+static inline void     tex_set_passes_features                  (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 2)).quart00 |= (v & 0xFFFF); }
+static inline void     tex_set_passes_classes                   (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 2)).quart01 |= (v & 0xFFFF); }
+static inline void     tex_set_passes_tolerance                 (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 2)).half1 = v; }
+static inline void     tex_set_passes_linepenalty               (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 3)).half0 = v; }
+static inline void     tex_set_passes_extrahyphenpenalty        (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 3)).half1 = v; }
+static inline void     tex_set_passes_doublehyphendemerits      (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 4)).half0 = v; }
+static inline void     tex_set_passes_finalhyphendemerits       (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 4)).half1 = v; }
+static inline void     tex_set_passes_adjdemerits               (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 5)).half0 = v; }
+static inline void     tex_set_passes_emergencystretch          (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 5)).half1 = v; }
+static inline void     tex_set_passes_looseness                 (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 6)).half0 = v; }
+static inline void     tex_set_passes_adjustspacingstep         (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 6)).half1 = v; }
+static inline void     tex_set_passes_adjustspacingshrink       (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 7)).half0 = v; }
+static inline void     tex_set_passes_adjustspacingstretch      (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 7)).half1 = v; }
+static inline void     tex_set_passes_adjustspacing             (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 8)).half0 = v; }
+static inline void     tex_set_passes_identifier                (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 8)).half1 = v; }
+static inline void     tex_set_passes_optional                  (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 9)).half0 = v; }
+static inline void     tex_set_passes_callback                  (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 9)).half1 = v; }
+static inline void     tex_set_passes_orphanpenalty             (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,10)).half0 = v; }
+static inline void     tex_set_passes_fitnessdemerits           (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,10)).half1 = v; }
+static inline void     tex_set_passes_toddlerpenalty            (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,11)).half0 = v; }
+static inline void     tex_set_passes_reserved                  (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,11)).half1 = v; }
+
+static inline halfword tex_get_passes_threshold                 (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 1)).half0; }
+static inline halfword tex_get_passes_badness                   (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 1)).half1; }
+static inline halfword tex_get_passes_features                  (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 2)).quart00; }
+static inline halfword tex_get_passes_classes                   (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 2)).quart01; }
+static inline halfword tex_get_passes_tolerance                 (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 2)).half1; }
+static inline halfword tex_get_passes_linepenalty               (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 3)).half0; }
+static inline halfword tex_get_passes_extrahyphenpenalty        (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 3)).half1; }
+static inline halfword tex_get_passes_doublehyphendemerits      (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 4)).half0; }
+static inline halfword tex_get_passes_finalhyphendemerits       (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 4)).half1; }
+static inline halfword tex_get_passes_adjdemerits               (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 5)).half0; }
+static inline halfword tex_get_passes_emergencystretch          (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 5)).half1; }
+static inline halfword tex_get_passes_looseness                 (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 6)).half0; }
+static inline halfword tex_get_passes_adjustspacingstep         (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 6)).half1; }
+static inline halfword tex_get_passes_adjustspacingshrink       (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 7)).half0; }
+static inline halfword tex_get_passes_adjustspacingstretch      (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 7)).half1; }
+static inline halfword tex_get_passes_adjustspacing             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 8)).half0; }
+static inline halfword tex_get_passes_identifier                (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 8)).half1; }
+static inline halfword tex_get_passes_optional                  (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 9)).half0; }
+static inline halfword tex_get_passes_callback                  (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 9)).half1; }
+static inline halfword tex_get_passes_orphanpenalty             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,10)).half0; }
+static inline halfword tex_get_passes_fitnessdemerits           (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,10)).half1; }
+static inline halfword tex_get_passes_toddlerpenalty            (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,11)).half0; }
+static inline halfword tex_get_passes_reserved                  (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,11)).half1; }
 
 extern        halfword tex_new_specification_node      (halfword n, quarterword s, halfword options);
 extern        void     tex_dispose_specification_nodes (void);
@@ -2000,6 +2063,8 @@ typedef enum noad_options {
 # define noad_option_continuation_kernel        (uint64_t) 0x0020000000000000 /* relates to script continuation */
 # define noad_option_reorder_pre_scripts        (uint64_t) 0x0040000000000000 /* relates to script continuation */
 # define noad_option_ignore                     (uint64_t) 0x0080000000000000 /* whatever fence */
+# define noad_option_no_more_scripts            (uint64_t) 0x0100000000000000 
+# define noad_option_carry_over_classes         (uint64_t) 0x0200000000000000 
 
 # define has_option(a,b)     (((a) & (b)) == (b))
 # define unset_option(a,b)   ((a) & ~(b))
@@ -2026,58 +2091,60 @@ static inline int has_noad_no_script_option(halfword n, halfword option)
 # define has_noad_option_nosubprescript(a) has_noad_no_script_option(a, noad_option_no_sub_pre_script)
 # define has_noad_option_nosupprescript(a) has_noad_no_script_option(a, noad_option_no_super_pre_script)
 
-# define has_noad_option_shiftedsubscript(a)            (has_option(noad_options(a), noad_option_shifted_sub_script))
-# define has_noad_option_shiftedsupscript(a)            (has_option(noad_options(a), noad_option_shifted_super_script))
-# define has_noad_option_shiftedsubprescript(a)         (has_option(noad_options(a), noad_option_shifted_sub_pre_script))
-# define has_noad_option_shiftedsupprescript(a)         (has_option(noad_options(a), noad_option_shifted_super_pre_script))
-# define has_noad_option_axis(a)                        (has_option(noad_options(a), noad_option_axis))
-# define has_noad_option_exact(a)                       (has_option(noad_options(a), noad_option_exact))
-# define has_noad_option_noaxis(a)                      (has_option(noad_options(a), noad_option_no_axis))
-# define has_noad_option_openupheight(a)                (has_option(noad_options(a), noad_option_openup_height))
-# define has_noad_option_openupdepth(a)                 (has_option(noad_options(a), noad_option_openup_depth))
-# define has_noad_option_adapttoleft(a)                 (has_option(noad_options(a), noad_option_adapt_to_left_size))
-# define has_noad_option_adapttoright(a)                (has_option(noad_options(a), noad_option_adapt_to_right_size))
-# define has_noad_option_limits(a)                      (has_option(noad_options(a), noad_option_limits))
-# define has_noad_option_nolimits(a)                    (has_option(noad_options(a), noad_option_no_limits))
-# define has_noad_option_nooverflow(a)                  (has_option(noad_options(a), noad_option_no_overflow))
-# define has_noad_option_preferfontthickness(a)         (has_option(noad_options(a), noad_option_prefer_font_thickness))
-# define has_noad_option_noruling(a)                    (has_option(noad_options(a), noad_option_no_ruling))
-# define has_noad_option_unpacklist(a)                  (has_option(noad_options(a), noad_option_unpack_list))
-# define has_noad_option_nocheck(a)                     (has_option(noad_options(a), noad_option_no_check))
-# define has_noad_option_exact(a)                       (has_option(noad_options(a), noad_option_exact))
-# define has_noad_option_left(a)                        (has_option(noad_options(a), noad_option_left))
-# define has_noad_option_middle(a)                      (has_option(noad_options(a), noad_option_middle))
-# define has_noad_option_right(a)                       (has_option(noad_options(a), noad_option_right))
-# define has_noad_option_auto(a)                        (has_option(noad_options(a), noad_option_auto))
-# define has_noad_option_phantom(a)                     (has_option(noad_options(a), noad_option_phantom))
-# define has_noad_option_void(a)                        (has_option(noad_options(a), noad_option_void))
-# define has_noad_option_unrolllist(a)                  (has_option(noad_options(a), noad_option_unroll_list))
-# define has_noad_option_followedbyspace(a)             (has_option(noad_options(a), noad_option_followed_by_space))
-# define has_noad_option_proportional(a)                (has_option(noad_options(a), noad_option_proportional))
-# define has_noad_option_center(a)                      (has_option(noad_options(a), noad_option_center))
-# define has_noad_option_source_on_nucleus(a)           (has_option(noad_options(a), noad_option_source_on_nucleus))
-# define has_noad_option_fixed_super_or_sub_script(a)   (has_option(noad_options(a), noad_option_fixed_super_or_sub_script))
-# define has_noad_option_fixed_super_and_sub_script(a)  (has_option(noad_options(a), noad_option_fixed_super_and_sub_script))
-# define has_noad_option_stretch(a)                     (has_option(noad_options(a), noad_option_stretch))
-# define has_noad_option_shrink(a)                      (has_option(noad_options(a), noad_option_shrink))
-# define has_noad_option_auto_base(a)                   (has_option(noad_options(a), noad_option_auto_base))
-# define has_noad_option_scale(a)                       (has_option(noad_options(a), noad_option_scale))
-# define has_noad_option_keep_base(a)                   (has_option(noad_options(a), noad_option_keep_base))
-# define has_noad_option_single(a)                      (has_option(noad_options(a), noad_option_single))
-# define has_noad_option_norule(a)                      (has_option(noad_options(a), noad_option_no_rule))
-# define has_noad_option_auto_middle(a)                 (has_option(noad_options(a), noad_option_auto_middle))
-# define has_noad_option_reflected(a)                   (has_option(noad_options(a), noad_option_reflected))
-# define has_noad_option_continuation(a)                (has_option(noad_options(a), noad_option_continuation))
-# define has_noad_option_inherit_class(a)               (has_option(noad_options(a), noad_option_inherit_class))
-# define has_noad_option_discard_shape_kern(a)          (has_option(noad_options(a), noad_option_discard_shape_kern))
-# define has_noad_option_realign_scripts(a)             (has_option(noad_options(a), noad_option_realign_scripts))
-# define has_noad_option_ignore_empty_sub_script(a)     (has_option(noad_options(a), noad_option_ignore_empty_sub_script))
-# define has_noad_option_ignore_empty_super_script(a)   (has_option(noad_options(a), noad_option_ignore_empty_super_script))
-# define has_noad_option_ignore_empty_prime_script(a)   (has_option(noad_options(a), noad_option_ignore_empty_prime_script))
-# define has_noad_option_continuation_head(a)           (has_option(noad_options(a), noad_option_continuation_head))
-# define has_noad_option_continuation_kernel(a)         (has_option(noad_options(a), noad_option_continuation_kernel))
-# define has_noad_option_reorder_pre_scripts(a)         (has_option(noad_options(a), noad_option_reorder_pre_scripts))
-# define has_noad_option_ignore(a)                      (has_option(noad_options(a), noad_option_ignore))
+# define has_noad_option_shiftedsubscript(a)           (has_option(noad_options(a), noad_option_shifted_sub_script))
+# define has_noad_option_shiftedsupscript(a)           (has_option(noad_options(a), noad_option_shifted_super_script))
+# define has_noad_option_shiftedsubprescript(a)        (has_option(noad_options(a), noad_option_shifted_sub_pre_script))
+# define has_noad_option_shiftedsupprescript(a)        (has_option(noad_options(a), noad_option_shifted_super_pre_script))
+# define has_noad_option_axis(a)                       (has_option(noad_options(a), noad_option_axis))
+# define has_noad_option_exact(a)                      (has_option(noad_options(a), noad_option_exact))
+# define has_noad_option_noaxis(a)                     (has_option(noad_options(a), noad_option_no_axis))
+# define has_noad_option_openupheight(a)               (has_option(noad_options(a), noad_option_openup_height))
+# define has_noad_option_openupdepth(a)                (has_option(noad_options(a), noad_option_openup_depth))
+# define has_noad_option_adapttoleft(a)                (has_option(noad_options(a), noad_option_adapt_to_left_size))
+# define has_noad_option_adapttoright(a)               (has_option(noad_options(a), noad_option_adapt_to_right_size))
+# define has_noad_option_limits(a)                     (has_option(noad_options(a), noad_option_limits))
+# define has_noad_option_nolimits(a)                   (has_option(noad_options(a), noad_option_no_limits))
+# define has_noad_option_nooverflow(a)                 (has_option(noad_options(a), noad_option_no_overflow))
+# define has_noad_option_preferfontthickness(a)        (has_option(noad_options(a), noad_option_prefer_font_thickness))
+# define has_noad_option_noruling(a)                   (has_option(noad_options(a), noad_option_no_ruling))
+# define has_noad_option_unpacklist(a)                 (has_option(noad_options(a), noad_option_unpack_list))
+# define has_noad_option_nocheck(a)                    (has_option(noad_options(a), noad_option_no_check))
+# define has_noad_option_exact(a)                      (has_option(noad_options(a), noad_option_exact))
+# define has_noad_option_left(a)                       (has_option(noad_options(a), noad_option_left))
+# define has_noad_option_middle(a)                     (has_option(noad_options(a), noad_option_middle))
+# define has_noad_option_right(a)                      (has_option(noad_options(a), noad_option_right))
+# define has_noad_option_auto(a)                       (has_option(noad_options(a), noad_option_auto))
+# define has_noad_option_phantom(a)                    (has_option(noad_options(a), noad_option_phantom))
+# define has_noad_option_void(a)                       (has_option(noad_options(a), noad_option_void))
+# define has_noad_option_unrolllist(a)                 (has_option(noad_options(a), noad_option_unroll_list))
+# define has_noad_option_followedbyspace(a)            (has_option(noad_options(a), noad_option_followed_by_space))
+# define has_noad_option_proportional(a)               (has_option(noad_options(a), noad_option_proportional))
+# define has_noad_option_center(a)                     (has_option(noad_options(a), noad_option_center))
+# define has_noad_option_source_on_nucleus(a)          (has_option(noad_options(a), noad_option_source_on_nucleus))
+# define has_noad_option_fixed_super_or_sub_script(a)  (has_option(noad_options(a), noad_option_fixed_super_or_sub_script))
+# define has_noad_option_fixed_super_and_sub_script(a) (has_option(noad_options(a), noad_option_fixed_super_and_sub_script))
+# define has_noad_option_stretch(a)                    (has_option(noad_options(a), noad_option_stretch))
+# define has_noad_option_shrink(a)                     (has_option(noad_options(a), noad_option_shrink))
+# define has_noad_option_auto_base(a)                  (has_option(noad_options(a), noad_option_auto_base))
+# define has_noad_option_scale(a)                      (has_option(noad_options(a), noad_option_scale))
+# define has_noad_option_keep_base(a)                  (has_option(noad_options(a), noad_option_keep_base))
+# define has_noad_option_single(a)                     (has_option(noad_options(a), noad_option_single))
+# define has_noad_option_norule(a)                     (has_option(noad_options(a), noad_option_no_rule))
+# define has_noad_option_auto_middle(a)                (has_option(noad_options(a), noad_option_auto_middle))
+# define has_noad_option_reflected(a)                  (has_option(noad_options(a), noad_option_reflected))
+# define has_noad_option_continuation(a)               (has_option(noad_options(a), noad_option_continuation))
+# define has_noad_option_inherit_class(a)              (has_option(noad_options(a), noad_option_inherit_class))
+# define has_noad_option_discard_shape_kern(a)         (has_option(noad_options(a), noad_option_discard_shape_kern))
+# define has_noad_option_realign_scripts(a)            (has_option(noad_options(a), noad_option_realign_scripts))
+# define has_noad_option_ignore_empty_sub_script(a)    (has_option(noad_options(a), noad_option_ignore_empty_sub_script))
+# define has_noad_option_ignore_empty_super_script(a)  (has_option(noad_options(a), noad_option_ignore_empty_super_script))
+# define has_noad_option_ignore_empty_prime_script(a)  (has_option(noad_options(a), noad_option_ignore_empty_prime_script))
+# define has_noad_option_continuation_head(a)          (has_option(noad_options(a), noad_option_continuation_head))
+# define has_noad_option_continuation_kernel(a)        (has_option(noad_options(a), noad_option_continuation_kernel))
+# define has_noad_option_reorder_pre_scripts(a)        (has_option(noad_options(a), noad_option_reorder_pre_scripts))
+# define has_noad_option_ignore(a)                     (has_option(noad_options(a), noad_option_ignore))
+# define has_noad_option_no_more_scripts(a)            (has_option(noad_options(a), noad_option_no_more_scripts))
+# define has_noad_option_carry_over_classes(a)         (has_option(noad_options(a), noad_option_carry_over_classes))
 
 typedef enum double_atom_options {
     inherit_class_double_atom_option      = 0x01,
@@ -2402,8 +2469,8 @@ typedef enum dir_subtypes {
     subtype so that the initial and successive instances can be recognized.
  */
 
-typedef enum par_codes {
-    par_none_code,
+typedef enum par_codes {                   /* extrahyphenpenalty : in parpass     */
+    par_none_code,                         /* hyphenpenalty      : why not stored */
     par_hsize_code,
     par_left_skip_code,
     par_right_skip_code,
@@ -2416,128 +2483,141 @@ typedef enum par_codes {
     par_par_init_right_skip_code,
     par_emergency_left_skip_code,
     par_emergency_right_skip_code,
-    par_adjust_spacing_code,
+    par_adjust_spacing_code,               /* parpass */
     par_protrude_chars_code,
     par_pre_tolerance_code,
-    par_tolerance_code,
-    par_emergency_stretch_code,
-    par_looseness_code,
+    par_tolerance_code,                    /* parpass */
+    par_emergency_stretch_code,            /* parpass */
+    par_looseness_code,                    /* parpass */
     par_last_line_fit_code,
-    par_line_penalty_code,
+    par_line_penalty_code,                 /* parpass */
     par_inter_line_penalty_code,
     par_club_penalty_code,
     par_widow_penalty_code,
     par_display_widow_penalty_code,
-    par_orphan_penalty_code,
+    par_orphan_penalty_code,               /* parpass */ 
+    par_toddler_penalty_code,              /* parpass */
     par_broken_penalty_code,
-    par_adj_demerits_code,
-    par_double_adj_demerits_code,
-    par_double_hyphen_demerits_code,
-    par_final_hyphen_demerits_code,
+    par_adj_demerits_code,                 /* parpass */
+ // par_double_adj_demerits_code,
+    par_double_hyphen_demerits_code,       /* parpass */
+    par_final_hyphen_demerits_code,        /* parpass */
     par_par_shape_code,
     par_inter_line_penalties_code,
     par_club_penalties_code,
     par_widow_penalties_code,
     par_display_widow_penalties_code,
     par_orphan_penalties_code,
+    par_fitness_demerits_code,             /* parpass */
     par_baseline_skip_code,
     par_line_skip_code,
     par_line_skip_limit_code,
-    par_adjust_spacing_step_code,
-    par_adjust_spacing_shrink_code,
-    par_adjust_spacing_stretch_code,
+    par_adjust_spacing_step_code,          /* parpass */
+    par_adjust_spacing_shrink_code,        /* parpass */
+    par_adjust_spacing_stretch_code,       /* parpass */
     par_hyphenation_mode_code,
     par_shaping_penalties_mode_code,
     par_shaping_penalty_code,
     par_emergency_extra_stretch_code,
     par_par_passes_code,
     par_single_line_penalty_code,
+    par_hyphen_penalty_code,
+    par_ex_hyphen_penalty_code,
 } par_codes;
 
 typedef enum par_categories {
-    par_none_category                    = 0x00000000,
-    par_hsize_category                   = 0x00000001, // \hsize
-    par_skip_category                    = 0x00000002, // \leftskip \rightskip
-    par_hang_category                    = 0x00000004, // \hangindent \hangafter
-    par_indent_category                  = 0x00000008, // \parindent
-    par_par_fill_category                = 0x00000010, // \parfillskip \parfillleftskip
-    par_adjust_category                  = 0x00000020, // \adjustspacing
-    par_protrude_category                = 0x00000040, // \protrudechars
-    par_tolerance_category               = 0x00000080, // \tolerance \pretolerance
-    par_stretch_category                 = 0x00000100, // \emergcystretch
-    par_looseness_category               = 0x00000200, // \looseness
-    par_last_line_category               = 0x00000400, // \lastlinefit
-    par_line_penalty_category            = 0x00000800, // \linepenalty \interlinepenalty \interlinepenalties
-    par_club_penalty_category            = 0x00001000, // \clubpenalty \clubpenalties
-    par_widow_penalty_category           = 0x00002000, // \widowpenalty \widowpenalties
-    par_display_penalty_category         = 0x00004000, // \displaypenalty \displaypenalties
-    par_broken_penalty_category          = 0x00008000, // \brokenpenalty
-    par_demerits_category                = 0x00010000, // \doublehyphendemerits \finalhyphendemerits \adjdemerits
-    par_shape_category                   = 0x00020000, // \parshape
-    par_line_category                    = 0x00040000, // \baselineskip \lineskip \lineskiplimit
-    par_hyphenation_category             = 0x00080000, // \Hyphenationmode
-    par_shaping_penalty_category         = 0x00100000, // \shapingpenaltiesmode
-    par_orphan_penalty_category          = 0x00200000, // \orphanpenalties
-    par_emergency_category               = 0x00400000, // \emergencyleftskip \emergencyrightskip \emergencyextrastretch
-    par_par_passes_category              = 0x00800000,
-    par_par_single_line_penalty_category = 0x01000000,
-    par_all_category                     = 0x7FFFFFFF, //
+    par_none_category                = 0x00000000,
+    par_hsize_category               = 0x00000001, // \hsize
+    par_skip_category                = 0x00000002, // \leftskip \rightskip
+    par_hang_category                = 0x00000004, // \hangindent \hangafter
+    par_indent_category              = 0x00000008, // \parindent
+    par_par_fill_category            = 0x00000010, // \parfillskip \parfillleftskip
+    par_adjust_category              = 0x00000020, // \adjustspacing
+    par_protrude_category            = 0x00000040, // \protrudechars
+    par_tolerance_category           = 0x00000080, // \tolerance \pretolerance
+    par_stretch_category             = 0x00000100, // \emergcystretch
+    par_looseness_category           = 0x00000200, // \looseness
+    par_last_line_category           = 0x00000400, // \lastlinefit
+    par_line_penalty_category        = 0x00000800, // \linepenalty \interlinepenalty \interlinepenalties
+    par_club_penalty_category        = 0x00001000, // \clubpenalty \clubpenalties
+    par_widow_penalty_category       = 0x00002000, // \widowpenalty \widowpenalties
+    par_display_penalty_category     = 0x00004000, // \displaypenalty \displaypenalties
+    par_broken_penalty_category      = 0x00008000, // \brokenpenalty
+    par_demerits_category            = 0x00010000, // \doublehyphendemerits \finalhyphendemerits \adjdemerits
+    par_shape_category               = 0x00020000, // \parshape
+    par_line_category                = 0x00040000, // \baselineskip \lineskip \lineskiplimit
+    par_hyphenation_category         = 0x00080000, // \hyphenationmode
+    par_shaping_penalty_category     = 0x00100000, // \shapingpenaltiesmode
+    par_orphan_penalty_category      = 0x00200000, // \orphanpenalties
+    par_toddler_penalty_category     = 0x00400000, // \orphanpenalties
+    par_emergency_category           = 0x00800000, // \emergencyleftskip \emergencyrightskip \emergencyextrastretch
+    par_par_passes_category          = 0x01000000,
+    par_single_line_penalty_category = 0x02000000,
+    par_hyphen_penalty_category      = 0x04000000,
+    par_ex_hyphen_penalty_category   = 0x08000000,
+    par_all_category                 = 0x7FFFFFFF, //
 } par_categories;
 
 static int par_category_to_codes[] = {
     par_none_category,
-    par_hsize_category,           // par_hsize_code
-    par_skip_category,            // par_left_skip_code
-    par_skip_category,            // par_right_skip_code
-    par_hang_category,            // par_hang_indent_code
-    par_hang_category,            // par_hang_after_code
-    par_indent_category,          // par_par_indent_code
-    par_par_fill_category,        // par_par_fill_skip_code
-    par_par_fill_category,        // par_par_fill_left_skip_code
-    par_par_fill_category,        // par_par_init_skip_code
-    par_par_fill_category,        // par_par_init_skip_code
-    par_emergency_category,       // par_par_emergency_left_skip
-    par_emergency_category,       // par_par_emergency_right_skip
-    par_adjust_category,          // par_adjust_spacing_code
-    par_protrude_category,        // par_protrude_chars_code
-    par_tolerance_category,       // par_pre_tolerance_code
-    par_tolerance_category,       // par_tolerance_code
-    par_stretch_category,         // par_emergency_stretch_code
-    par_looseness_category,       // par_looseness_code
-    par_last_line_category,       // par_last_line_fit_code
-    par_line_penalty_category,    // par_line_penalty_code
-    par_line_penalty_category,    // par_inter_line_penalty_code
-    par_club_penalty_category,    // par_club_penalty_code
-    par_widow_penalty_category,   // par_widow_penalty_code
-    par_display_penalty_category, // par_display_widow_penalty_code
-    par_orphan_penalty_category,  // par_orphan_penalty_code
-    par_broken_penalty_category,  // par_broken_penalty_code
-    par_demerits_category,        // par_adj_demerits_code
-    par_demerits_category,        // par_double_adj_demerits_code
-    par_demerits_category,        // par_double_hyphen_demerits_code
-    par_demerits_category,        // par_final_hyphen_demerits_code
-    par_shape_category,           // par_par_shape_code
-    par_line_penalty_category,    // par_inter_line_penalties_code
-    par_club_penalty_category,    // par_club_penalties_code
-    par_widow_penalty_category,   // par_widow_penalties_code
-    par_display_penalty_category, // par_display_widow_penalties_code
-    par_orphan_penalty_category,  // par_orphan_penalties_code
-    par_line_category,            // par_baseline_skip_code
-    par_line_category,            // par_line_skip_code
-    par_line_category,            // par_line_skip_limit_code
-    par_adjust_category,          // par_adjust_spacing_step_code
-    par_adjust_category,          // par_adjust_spacing_shrink_code
-    par_adjust_category,          // par_adjust_spacing_stretch_code
-    par_hyphenation_category,     // par_hyphenation_mode_code
-    par_shaping_penalty_category, // par_shaping_penalties_mode_code
-    par_shaping_penalty_category, // par_shaping_penalty_code
-    par_emergency_category,
-    par_par_passes_category,
-    par_par_single_line_penalty_category,
+    par_hsize_category,               // par_hsize_code
+    par_skip_category,                // par_left_skip_code
+    par_skip_category,                // par_right_skip_code
+    par_hang_category,                // par_hang_indent_code
+    par_hang_category,                // par_hang_after_code
+    par_indent_category,              // par_par_indent_code
+    par_par_fill_category,            // par_par_fill_skip_code
+    par_par_fill_category,            // par_par_fill_left_skip_code
+    par_par_fill_category,            // par_par_init_skip_code
+    par_par_fill_category,            // par_par_init_skip_code
+    par_emergency_category,           // par_par_emergency_left_skip
+    par_emergency_category,           // par_par_emergency_right_skip
+    par_adjust_category,              // par_adjust_spacing_code
+    par_protrude_category,            // par_protrude_chars_code
+    par_tolerance_category,           // par_pre_tolerance_code
+    par_tolerance_category,           // par_tolerance_code
+    par_stretch_category,             // par_emergency_stretch_code
+    par_looseness_category,           // par_looseness_code
+    par_last_line_category,           // par_last_line_fit_code
+    par_line_penalty_category,        // par_line_penalty_code
+    par_line_penalty_category,        // par_inter_line_penalty_code
+    par_club_penalty_category,        // par_club_penalty_code
+    par_widow_penalty_category,       // par_widow_penalty_code
+    par_display_penalty_category,     // par_display_widow_penalty_code
+    par_orphan_penalty_category,      // par_orphan_penalty_code
+    par_toddler_penalty_category,     // par_toddler_penalty_code
+    par_broken_penalty_category,      // par_broken_penalty_code
+    par_demerits_category,            // par_adj_demerits_code
+ // par_demerits_category,            // par_double_adj_demerits_code
+    par_demerits_category,            // par_double_hyphen_demerits_code
+    par_demerits_category,            // par_final_hyphen_demerits_code
+    par_shape_category,               // par_par_shape_code
+    par_line_penalty_category,        // par_inter_line_penalties_code
+    par_club_penalty_category,        // par_club_penalties_code
+    par_widow_penalty_category,       // par_widow_penalties_code
+    par_display_penalty_category,     // par_display_widow_penalties_code
+    par_orphan_penalty_category,      // par_orphan_penalties_code
+    par_demerits_category,            // par_fitness_demerits_code
+    par_line_category,                // par_baseline_skip_code
+    par_line_category,                // par_line_skip_code
+    par_line_category,                // par_line_skip_limit_code
+    par_adjust_category,              // par_adjust_spacing_step_code
+    par_adjust_category,              // par_adjust_spacing_shrink_code
+    par_adjust_category,              // par_adjust_spacing_stretch_code
+    par_hyphenation_category,         // par_hyphenation_mode_code
+    par_shaping_penalty_category,     // par_shaping_penalties_mode_code
+    par_shaping_penalty_category,     // par_shaping_penalty_code
+    par_emergency_category,           // 
+    par_par_passes_category,          // 
+    par_single_line_penalty_category, // 
+    par_hyphen_penalty_category,      // 
+    par_ex_hyphen_penalty_category,   // 
 };
 
+/*tex Make sure that |max_chain_size| is large enough to have this huge node! */
 
-# define par_node_size                  31          /*tex Make sure thet |max_chain_size| is large enough! */
+# define par_node_size                  32          
+
 # define par_single_line_penalty(a)     vinfo(a, 2) 
 # define par_prev_graf(a)               vlink(a, 2) /*tex A bit of a joke but maybe handy indeed. */
 # define par_box_left(a)                vinfo(a, 3)
@@ -2555,47 +2635,49 @@ static int par_category_to_codes[] = {
 # define par_par_indent(a)              vinfo(a, 9)
 # define par_par_fill_left_skip(a)      vlink(a, 9)
 # define par_par_fill_right_skip(a)     vinfo(a,10)
-# define par_adjust_spacing(a)          vlink(a,10)
-# define par_protrude_chars(a)          vinfo(a,11)
+# define par_adjust_spacing(a)          vlink(a,10) /* can be single */
+# define par_protrude_chars(a)          vinfo(a,11) /* can be single */
 # define par_pre_tolerance(a)           vlink(a,11)
 # define par_tolerance(a)               vinfo(a,12)
 # define par_emergency_stretch(a)       vlink(a,12)
-# define par_looseness(a)               vinfo(a,13)
-# define par_last_line_fit(a)           vlink(a,13)
+# define par_looseness(a)               vinfo(a,13) /* can be less */
+# define par_last_line_fit(a)           vlink(a,13) /* can be less */
 # define par_line_penalty(a)            vinfo(a,14)
-# define par_inter_line_penalty(a)      vlink(a,14) /* */
+# define par_inter_line_penalty(a)      vlink(a,14)
 # define par_club_penalty(a)            vinfo(a,15)
 # define par_widow_penalty(a)           vlink(a,15)
 # define par_display_widow_penalty(a)   vinfo(a,16)
 # define par_orphan_penalty(a)          vlink(a,16)
-# define par_broken_penalty(a)          vinfo(a,17) /* */
-# define par_adj_demerits(a)            vlink(a,17)
+# define par_toddler_penalty(a)         vlink(a,17)
+# define par_broken_penalty(a)          vinfo(a,17)
+# define par_adj_demerits(a)            vlink(a,18)
 # define par_double_hyphen_demerits(a)  vinfo(a,18)
-# define par_final_hyphen_demerits(a)   vlink(a,18)
+# define par_final_hyphen_demerits(a)   vlink(a,19)
 # define par_par_shape(a)               vinfo(a,19)
-# define par_inter_line_penalties(a)    vlink(a,19)
+# define par_inter_line_penalties(a)    vlink(a,20)
 # define par_club_penalties(a)          vinfo(a,20)
-# define par_widow_penalties(a)         vlink(a,20)
+# define par_widow_penalties(a)         vlink(a,21)
 # define par_display_widow_penalties(a) vinfo(a,21)
-# define par_orphan_penalties(a)        vlink(a,21)
+# define par_orphan_penalties(a)        vlink(a,22)
 # define par_baseline_skip(a)           vinfo(a,22)
-# define par_line_skip(a)               vlink(a,22)
+# define par_line_skip(a)               vlink(a,23)
 # define par_line_skip_limit(a)         vinfo(a,23)
-# define par_adjust_spacing_step(a)     vlink(a,23)
+# define par_adjust_spacing_step(a)     vlink(a,24)
 # define par_adjust_spacing_shrink(a)   vinfo(a,24)
-# define par_adjust_spacing_stretch(a)  vlink(a,24)
+# define par_adjust_spacing_stretch(a)  vlink(a,25)
 # define par_end_par_tokens(a)          vinfo(a,25)
-# define par_hyphenation_mode(a)        vlink(a,25)
-# define par_shaping_penalties_mode(a)  vinfo(a,26)
-# define par_shaping_penalty(a)         vlink(a,26)
+# define par_hyphenation_mode(a)        vlink(a,26) /* can be single */
+# define par_shaping_penalties_mode(a)  vinfo(a,26) /* can be single */
+# define par_shaping_penalty(a)         vlink(a,27)
 # define par_par_init_left_skip(a)      vinfo(a,27)
-# define par_par_init_right_skip(a)     vlink(a,27) 
+# define par_par_init_right_skip(a)     vlink(a,28) 
 # define par_emergency_left_skip(a)     vinfo(a,28)
-# define par_emergency_right_skip(a)    vlink(a,28) 
+# define par_emergency_right_skip(a)    vlink(a,29) 
 # define par_emergency_extra_stretch(a) vinfo(a,29) 
-# define par_par_passes(a)              vlink(a,29) 
-# define par_double_adj_demerits(a)     vinfo(a,30)
-# define par_reserved(a)                vlink(a,30)
+# define par_par_passes(a)              vlink(a,30) 
+# define par_fitness_demerits(a)        vinfo(a,30)
+# define par_hyphen_penalty(a)          vinfo(a,31)
+# define par_ex_hyphen_penalty(a)       vinfo(a,31)
 
 /*
     At some point we will have this (array with double values), depends on the outcome of an  
@@ -2674,7 +2756,8 @@ static inline int  tex_par_to_be_set        (halfword state, halfword what) { re
 */
 
 # define active_node_size                  6            /*tex |hyphenated_node| or |unhyphenated_node| */
-# define active_fitness                    node_subtype /*tex |very_loose_fit..tight_fit| on final line for this break */
+//define active_fitness                    node_subtype /*tex |very_loose_fit..tight_fit| on final line for this break */
+# define active_fitness(a)                 vinfo1(a,0)  
 # define active_break_node(a)              vlink(a,1)   /*tex pointer to the corresponding passive node */
 # define active_line_number(a)             vinfo(a,1)   /*tex line that begins at this breakpoint */
 # define active_total_demerits(a)          vlink(a,2)   /*tex the quantity that \TEX\ minimizes */
@@ -3026,7 +3109,7 @@ extern halfword  tex_new_param_glue_node  (quarterword param, quarterword subtyp
 extern halfword  tex_new_glue_node        (halfword qlue, quarterword subtype);
 extern halfword  tex_new_kern_node        (scaled width, quarterword subtype);
 extern halfword  tex_new_penalty_node     (halfword penalty, quarterword subtype);
-extern halfword  tex_new_par_node         (quarterword mode);
+extern halfword  tex_new_par_node         (quarterword subtype);
 
 extern halfword  tex_new_temp_node        (void);
 

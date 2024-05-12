@@ -672,13 +672,6 @@ static scaled tex_aux_check_rule_thickness(halfword target, int size, halfword *
 
 /*tex Fake character */
 
-// static bool tex_aux_has_fake_nucleus(halfword n)
-// {
-//     return n && node_type(n) == simple_noad 
-//         && noad_nucleus(n) && node_type(noad_nucleus(n)) == math_char_node
-//         && math_kernel_node_has_option(noad_nucleus(n), math_kernel_ignored_character);
-// }
-
 static halfword tex_aux_fake_nucleus(quarterword cls)
 {
     halfword n = tex_new_node(simple_noad, cls);
@@ -1533,7 +1526,7 @@ static halfword tex_aux_make_delimiter(halfword target, halfword delimiter, int 
                 (and did that) but this is rather easy. 
             */
             int curfam = delimiter_small_family(delimiter);
-            int curchr = delimiter_small_character(delimiter);;
+            int curchr = delimiter_small_character(delimiter);
             halfword curfnt = tex_fam_fnt(curfam, size);
             if (curchr && curfnt != null_font && tex_char_exists(curfnt, curchr)) {
                 fnt = curfnt;
@@ -1683,7 +1676,7 @@ static halfword tex_aux_make_delimiter(halfword target, halfword delimiter, int 
                 the traditional width (which is fake width + italic) becomes less and the delta is
                 added. See (**).
             */
-        HERE:
+          HERE:
             result = tex_aux_char_box(fnt, chr, att, delta, glyph_math_delimiter_subtype, flat ? targetsize : 0, style, shrink, stretch, &isscaled);
             if (flat) { 
                 /* This will be done when we have a reasonable example. */
@@ -2038,7 +2031,7 @@ static void tex_aux_show_math_list(const char *fmt, halfword list)
 
 /*tex 
 
-    The continuation code is a bit weird but we don't want a linked list of scripts and stay abit close 
+    The continuation code is a bit weird but we don't want a linked list of scripts and stay a bit close 
     to the original. So, when we have a sequence of scripts we have an pseudo list marked by option bits:
 
     \startitemize 
@@ -2050,20 +2043,22 @@ static void tex_aux_show_math_list(const char *fmt, halfword list)
     When we move pending pre script up front we do adapt the head but not the kernel. 
 */
 
-halfword tex_mlist_to_hlist_prepare(halfword mlist)
+void tex_mlist_to_hlist_prepare(void)
 {
-    if (mlist) {
-        halfword current = mlist;
+    if (cur_list.head) {
+        halfword current = cur_list.head;
         halfword first = null;
         if (tracing_math_par >= 2) {
-            tex_aux_show_math_list("[math: prescript reordering pass, level %i]", mlist);
+            tex_aux_show_math_list("[math: prescript reordering pass, level %i]", cur_list.head);
         }
         while (current) {
             halfword next = node_next(current);
             if (tex_math_scripts_allowed(current)) {
                 if (has_noad_option_continuation_head(current)) {
                     first = current;
-                } else if (has_noad_option_continuation(current) && has_noad_option_reorder_pre_scripts(current) && (noad_subprescr(current) || noad_supprescr(current))) { 
+                } else if (! has_noad_option_continuation(current)) { 
+                    first = null;
+                } else if (has_noad_option_reorder_pre_scripts(current) && (noad_subprescr(current) || noad_supprescr(current))) { 
                     halfword temp = null;
                     if (noad_subscr(current) || noad_supscr(current) || noad_prime(current)) {
                         /* inject new one */
@@ -2073,30 +2068,30 @@ halfword tex_mlist_to_hlist_prepare(halfword mlist)
                         noad_subprescr(current) = null;
                         noad_supprescr(current) = null;
                     } else { 
-                        /* move current one */
+                        /* move current one. i.e. remove current from list */
                         temp = current;
-                        tex_try_couple_nodes(node_prev(current), node_next(current));
+                        tex_try_couple_nodes(node_prev(current), next);
                     }
+                    /*tex We have |first| set. */
                     tex_remove_noad_option(first, noad_option_continuation_head);
                     tex_add_noad_option(first, noad_option_continuation);
                     tex_remove_noad_option(temp, noad_option_continuation);
                     tex_add_noad_option(temp, noad_option_continuation_head);
-                    tex_couple_nodes(node_prev(first), temp);
+                    // if (! first) { 
+                    //     printf("shouldn't happen\n");
+                    // }   
+                    tex_try_couple_nodes(node_prev(first), temp); /* first can be a temp head */
                     tex_couple_nodes(temp, first);
-                    if (first == mlist) { 
-                        mlist = temp;
+                    if (first == cur_list.head) { 
+                        cur_list.head = temp;
                     }
                     first = temp; 
-                } else {
-                    first = null;
                 }
-            } else {
-                first = null;
             }
             current = next;
         }
     }
-    return mlist;
+    cur_list.tail = tex_tail_of_node_list(cur_list.head);
 }
 
 void tex_run_mlist_to_hlist(halfword mlist, halfword penalties, halfword style, int beginclass, int endclass)
@@ -5573,10 +5568,10 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
         information. Prescripts we handle differently: they are always aligned, so there the 
         maximum kern wins. 
     */
-    postsupdata.shifted = noad_supscr(target) && has_noad_option_shiftedsupscript(target);
-    postsubdata.shifted = noad_subscr(target) && has_noad_option_shiftedsubscript(target);
-    presupdata.shifted = noad_supprescr(target) && has_noad_option_shiftedsupprescript(target);
-    presubdata.shifted = noad_subprescr(target) && has_noad_option_shiftedsubprescript(target);
+ //  postsupdata.shifted = noad_supscr(target) && has_noad_option_shiftedsupscript(target);
+ //  postsubdata.shifted = noad_subscr(target) && has_noad_option_shiftedsubscript(target);
+ //  presupdata.shifted = noad_supprescr(target) && has_noad_option_shiftedsupprescript(target);
+ //  presubdata.shifted = noad_subprescr(target) && has_noad_option_shiftedsubprescript(target);
     /* 
         When we have a shifted super or subscript (stored in the prescripts) we don't need to kern
         the super and subscripts. What to do with the shifts?  
@@ -5742,31 +5737,31 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
                 presubdata.box = null;
             }
         }
-        /*tex 
-            We want to retain the kern because it is a visual thing but it could be an option to 
-            only add the excess over the shift. We're talking tiny here. 
-
-            We could be clever and deal with combinations of shifted but lets play safe and let
-            the user worry about it. The sub index always wins. 
-        */
-        if (postsubdata.box && postsupdata.shifted) {
-            halfword shift = tex_get_math_x_parameter_checked(style, math_parameter_subscript_shift_distance);
-            halfword amount = box_width(postsupdata.box) + shift;
-            tex_aux_prepend_hkern_to_box_list(postsubdata.box, amount, horizontal_math_kern_subtype, "post shifted");
-        } else if (postsupdata.box && postsubdata.shifted) {
-            halfword shift = tex_get_math_x_parameter_checked(style, math_parameter_superscript_shift_distance);
-            halfword amount = box_width(postsubdata.box) + shift;
-            tex_aux_prepend_hkern_to_box_list(postsupdata.box, amount, horizontal_math_kern_subtype, "post shifted");
-        }
-        if (presubdata.box && presupdata.shifted) {
-            halfword shift = tex_get_math_x_parameter_checked(style, math_parameter_subprescript_shift_distance);
-            halfword amount = box_width(presupdata.box) + shift;
-            tex_aux_append_hkern_to_box_list(presubdata.box, amount, horizontal_math_kern_subtype, "pre shifted");
-        } else if (presupdata.box && presubdata.shifted) {
-            halfword shift = tex_get_math_x_parameter_checked(style, math_parameter_superprescript_shift_distance);
-            halfword amount = box_width(presubdata.box) + shift;
-            tex_aux_append_hkern_to_box_list(presupdata.box, amount, horizontal_math_kern_subtype, "pre shifted");
-        }
+     // /*tex 
+     //     We want to retain the kern because it is a visual thing but it could be an option to 
+     //     only add the excess over the shift. We're talking tiny here. 
+     //
+     //     We could be clever and deal with combinations of shifted but lets play safe and let
+     //     the user worry about it. The sub index always wins. 
+     // */
+     // if (postsubdata.box && postsupdata.shifted) {
+     //     halfword shift = tex_get_math_x_parameter_checked(style, math_parameter_subscript_shift_distance);
+     //     halfword amount = box_width(postsupdata.box) + shift;
+     //     tex_aux_prepend_hkern_to_box_list(postsubdata.box, amount, horizontal_math_kern_subtype, "post shifted");
+     // } else if (postsupdata.box && postsubdata.shifted) {
+     //     halfword shift = tex_get_math_x_parameter_checked(style, math_parameter_superscript_shift_distance);
+     //     halfword amount = box_width(postsubdata.box) + shift;
+     //     tex_aux_prepend_hkern_to_box_list(postsupdata.box, amount, horizontal_math_kern_subtype, "post shifted");
+     // }
+     // if (presubdata.box && presupdata.shifted) {
+     //     halfword shift = tex_get_math_x_parameter_checked(style, math_parameter_subprescript_shift_distance);
+     //     halfword amount = box_width(presupdata.box) + shift;
+     //     tex_aux_append_hkern_to_box_list(presubdata.box, amount, horizontal_math_kern_subtype, "pre shifted");
+     // } else if (presupdata.box && presubdata.shifted) {
+     //     halfword shift = tex_get_math_x_parameter_checked(style, math_parameter_superprescript_shift_distance);
+     //     halfword amount = box_width(presubdata.box) + shift;
+     //     tex_aux_append_hkern_to_box_list(presupdata.box, amount, horizontal_math_kern_subtype, "pre shifted");
+     // }
         /* */
         if (postsupdata.box) {
             /* Do we still want to chain these sups or should we combine it? */
@@ -6758,6 +6753,9 @@ static void tex_aux_finish_fenced(halfword current, halfword main_style, halfwor
     a more generic class and penalty handling the two stages are clearly separated, also variable
     wise.
 
+    We only unroll lists so don't change this without testign all places in \CONTEXT\ where we use
+    ghost nodes! 
+
 */
 
 static halfword tex_aux_unroll_noad(halfword tail, halfword l, quarterword s)
@@ -7396,6 +7394,11 @@ static void tex_mlist_aux_realign(halfword first, halfword last)
                                     if (has_noad_option_realign_scripts(last)) {
                                         box_shift_amount(list) += d;  
                                     }
+                                    goto COMMON;
+                                case math_pre_post_list:
+                                    if (has_noad_option_realign_scripts(last)) {
+                                        box_shift_amount(list) += d;  
+                                    }
                                   COMMON:
                                     if (has_noad_option_discard_shape_kern(last)) {
                                         halfword c = box_list(list);
@@ -7407,9 +7410,6 @@ static void tex_mlist_aux_realign(halfword first, halfword last)
                                             c = node_next(c);
                                         }
                                     }
-                                    break;
-                                case math_pre_post_list:
-                                    /* what */
                                     break;
                             }
                             break;
@@ -7604,7 +7604,6 @@ static void tex_mlist_to_hlist_finalize_list(mliststate *state)
     scaled current_mu = 0;
     halfword current = state->mlist;
     halfword p = temp_head;
-    halfword ghost = null;
     int boundarylevel = 0;
     int boundaryfactor = scaling_factor;
     int nestinglevel = 0;
@@ -7612,8 +7611,7 @@ static void tex_mlist_to_hlist_finalize_list(mliststate *state)
     node_next(p) = null;
     tex_aux_set_current_math_size(current_style);
     tex_aux_set_current_math_scale(state->scale);
- // current_mu = tex_get_math_quad_size_scaled(lmt_math_state.size);
-    current_mu = tex_get_math_quad_size_unscaled(lmt_math_state.size);
+    current_mu = tex_get_math_quad_size_unscaled(lmt_math_state.size); /* not _scaled */
     if (math_penalties_mode_par) {
         state->penalties = 1; /* move to caller ? */
     }
@@ -7655,8 +7653,11 @@ static void tex_mlist_to_hlist_finalize_list(mliststate *state)
         switch (node_type(current)) {
             case simple_noad:
                 {
-                    if (node_subtype(current) == ghost_noad_subtype) {
-                        ghost = current;
+                    if (node_subtype(current) == ghost_noad_subtype && ! has_noad_option_carry_over_classes(current)) {
+                        p = tex_aux_append_ghost(current, p, 0);
+                        recent = current; 
+                        current = node_next(current);
+                        goto WIPE;
                     }
                     /*tex
                         Here we have a wrapped list of left, middle, right and content nodes.  
@@ -7726,7 +7727,6 @@ static void tex_mlist_to_hlist_finalize_list(mliststate *state)
                 break;
             case accent_noad:
                 current_type = simple_noad; /*tex Same kind of fields. */
-             // current_subtype = accent_noad_subtype;
                 current_subtype = get_noad_main_class(current);
                 current_left_slack = noad_left_slack(current);
                 current_right_slack = noad_right_slack(current);
@@ -7817,7 +7817,7 @@ static void tex_mlist_to_hlist_finalize_list(mliststate *state)
                     }
                 }
                 goto PICKUP;
-            // case glyph_node:
+         /* case glyph_node: */
             case disc_node:
             case hlist_node:
             case whatsit_node:
@@ -8054,13 +8054,12 @@ static void tex_mlist_to_hlist_finalize_list(mliststate *state)
                 p = kern;
             }
         }
-        if (ghost && ! fenced && ! packedfence) {
-            p = tex_aux_append_ghost(ghost, p, 0);
-            ghost = null;
-        } else {
+        {
             halfword l = noad_new_hlist(current);
             if (! l) { 
                 /* curious */
+            } else if (current_subtype == ghost_noad_subtype) {
+                p = tex_aux_append_ghost(current, p, 0);
             } else if (node_type(l) == hlist_node && box_source_anchor(l)) {
                 tex_couple_nodes(p, l);
             } else if (packedfence) { 

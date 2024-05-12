@@ -1559,7 +1559,9 @@ static int nodelib_direct_getoffsets(lua_State *L)
                 lua_pushinteger(L, rule_y_offset(n));
                 lua_pushinteger(L, tex_get_rule_left(n));
                 lua_pushinteger(L, tex_get_rule_right(n));
-                return 4;
+                lua_pushinteger(L, tex_get_rule_on(n));
+                lua_pushinteger(L, tex_get_rule_off(n));
+                return 6;
         }
     }
     return 0;
@@ -1609,6 +1611,12 @@ static int nodelib_direct_setoffsets(lua_State *L)
                 }
                 if (lua_type(L, 5) == LUA_TNUMBER) {
                     tex_set_rule_right(n, (halfword) lmt_roundnumber(L, 5));
+                }
+                if (lua_type(L, 6) == LUA_TNUMBER) {
+                    tex_set_rule_on(n,  (halfword) lmt_roundnumber(L, 6));
+                }
+                if (lua_type(L, 7) == LUA_TNUMBER) {
+                    tex_set_rule_off(n, (halfword) lmt_roundnumber(L, 7));
                 }
                 break;
         }
@@ -2793,6 +2801,9 @@ static int nodelib_direct_getoptions(lua_State *L)
             case glue_node:
                 lua_pushinteger(L, glue_options(n));
                 return 1;
+            case rule_node:
+                lua_pushinteger(L, rule_options(n));
+                return 1;
             case math_node:
                 lua_pushinteger(L, math_options(n));
                 return 1;
@@ -2829,6 +2840,9 @@ static int nodelib_direct_setoptions(lua_State *L)
             case glue_node:
                 tex_add_glue_option(n, lmt_tohalfword(L, 2));
                 return 1;
+            case rule_node:
+                set_rule_options(n, lmt_tohalfword(L, 2) & rule_option_valid);
+                break;
             case math_node:
                 tex_add_math_option(n, lmt_tohalfword(L, 2));
                 return 1;
@@ -3943,10 +3957,12 @@ static int nodelib_direct_getparstate(lua_State *L)
                         lua_push_integer_at_key(L, widowpenalty,                   tex_get_par_par(p, par_widow_penalty_code));
                         lua_push_integer_at_key(L, displaywidowpenalty,            tex_get_par_par(p, par_display_widow_penalty_code));
                         lua_push_integer_at_key(L, orphanpenalty,                  tex_get_par_par(p, par_orphan_penalty_code));
+                        lua_push_integer_at_key(L, toddlerpenalty,                 tex_get_par_par(p, par_toddler_penalty_code));
                         lua_push_integer_at_key(L, singlelinepenalty,              tex_get_par_par(p, par_single_line_penalty_code));
+                        lua_push_integer_at_key(L, hyphenpenalty,                  tex_get_par_par(p, par_hyphen_penalty_code));
+                        lua_push_integer_at_key(L, exhyphenpenalty,                tex_get_par_par(p, par_ex_hyphen_penalty_code));
                         lua_push_integer_at_key(L, brokenpenalty,                  tex_get_par_par(p, par_broken_penalty_code));
                         lua_push_integer_at_key(L, adjdemerits,                    tex_get_par_par(p, par_adj_demerits_code));
-                        lua_push_integer_at_key(L, doubleadjdemerits,              tex_get_par_par(p, par_double_adj_demerits_code));
                         lua_push_integer_at_key(L, doublehyphendemerits,           tex_get_par_par(p, par_double_hyphen_demerits_code));
                         lua_push_integer_at_key(L, finalhyphendemerits,            tex_get_par_par(p, par_final_hyphen_demerits_code));
                         lua_push_integer_at_key(L, baselineskip,       glue_amount(tex_get_par_par(p, par_baseline_skip_code)));
@@ -6956,8 +6972,14 @@ static int nodelib_common_getfield(lua_State *L, int direct, halfword n)
                                 lua_pushinteger(L, tex_get_rule_left(n));
                             } else if (lua_key_eq(s, right)) {
                                 lua_pushinteger(L, tex_get_rule_right(n));
+                            } else if (lua_key_eq(s, on)) {
+                                lua_pushinteger(L, tex_get_rule_on(n));
+                            } else if (lua_key_eq(s, off)) {
+                                lua_pushinteger(L, tex_get_rule_off(n));
                             } else if (lua_key_eq(s, data)) {
                                 lua_pushinteger(L, rule_data(n));
+                            } else if (lua_key_eq(s, options)) {
+                                lua_pushinteger(L, rule_options(n));
                             } else if (lua_key_eq(s, font)) {
                                 lua_pushinteger(L, tex_get_rule_font(n, text_style));
                             } else if (lua_key_eq(s, fam)) {
@@ -7649,8 +7671,14 @@ static int nodelib_common_setfield(lua_State *L, int direct, halfword n)
                                 tex_set_rule_left(n, (halfword) lmt_roundnumber(L, 3));
                             } else if (lua_key_eq(s, right)) {
                                 tex_set_rule_right(n, (halfword) lmt_roundnumber(L, 3));
+                            } else if (lua_key_eq(s, on)) {
+                                tex_set_rule_on(n, (halfword) lmt_roundnumber(L, 3));
+                            } else if (lua_key_eq(s, off)) {
+                                tex_set_rule_off(n, (halfword) lmt_roundnumber(L, 3));
                             } else if (lua_key_eq(s, data)) {
                                 rule_data(n) = lmt_tohalfword(L, 3);
+                             } else if (lua_key_eq(s, options)) {
+                                rule_options(n) = lmt_tohalfword(L, 3) & rule_option_valid;
                             } else if (lua_key_eq(s, font)) {
                                 tex_set_rule_font(n, lmt_tohalfword(L, 3));
                             } else if (lua_key_eq(s, fam)) {
@@ -11119,6 +11147,9 @@ int lmt_par_pass_callback(
                                 if (v) {
                                     properties->orphan_penalty = v;
                                 }
+                                if (v) {
+                                    properties->toddler_penalty = v;
+                                }
                                 get_integer_par(v, singlelinepenalty, 0);
                                 if (v) {
                                     properties->single_line_penalty = v;
@@ -11138,14 +11169,6 @@ int lmt_par_pass_callback(
                                 get_integer_par(v, adjdemerits, 0);
                                 if (v) { 
                                     properties->adj_demerits = v;
-                                }
-                                get_integer_par(v, doubleadjdemerits, 0);
-                                if (v) { 
-                                    properties->double_adj_demerits = v;
-                                }
-                                get_integer_par(v, linebreakcriterion, 0);
-                                if (v) {
-                                    properties->line_break_criterion = v;
                                 }
                                 get_dimension_par(v, emergencystretch, 0);
                                 if (v) {
