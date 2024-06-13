@@ -389,6 +389,7 @@ typedef enum specification_codes {
     club_penalties_code,          /*tex penalties for creating club lines */
     widow_penalties_code,         /*tex penalties for creating widow lines */
     display_widow_penalties_code, /*tex ditto, just before a display */
+    broken_penalties_code,
     orphan_penalties_code,
     fitness_demerits_code,
     math_forward_penalties_code,
@@ -508,7 +509,8 @@ typedef enum int_codes {
     double_hyphen_demerits_code,        /*tex demerits for double hyphen break */
     final_hyphen_demerits_code,         /*tex demerits for final hyphen break */
     adj_demerits_code,                  /*tex demerits for adjacent incompatible lines with distance > 1 */
- /* mag_code,                        */ /*tex magnification ratio */
+    double_penalty_mode_code,           /*tex force alternative widow, club, broken penalties */
+    /* mag_code,                        */ /*tex magnification ratio */
     delimiter_factor_code,              /*tex ratio for variable-size delimiters */
     looseness_code,                     /*tex change in number of lines for a paragraph */
     time_code,                          /*tex current time of day */
@@ -549,6 +551,7 @@ typedef enum int_codes {
     tracing_lists_code,   
     tracing_passes_code,   
     tracing_fitness_code,   
+    tracing_loners_code,                /*tex show widow and club penalties calculations */
  // uc_hyph_code,                       /*tex hyphenate words beginning with a capital letter */
     output_penalty_code,                /*tex penalty found at current page break */
     max_dead_cycles_code,               /*tex bound on consecutive dead cycles of output */
@@ -557,6 +560,7 @@ typedef enum int_codes {
     global_defs_code,                   /*tex override |\global| specifications */
     family_code,                        /*tex current family */
     escape_char_code,                   /*tex escape character for token output */
+    space_char_code,                    /*tex space character */
     default_hyphen_char_code,           /*tex value of |\hyphenchar| when a font is loaded */
     default_skew_char_code,             /*tex value of |\skewchar| when a font is loaded */
  // end_line_char_code,                 /*tex character placed at the right end of the buffer */
@@ -664,6 +668,7 @@ typedef enum int_codes {
     space_factor_mode,
     space_factor_shrink_limit_code,
     space_factor_stretch_limit_code,
+    space_factor_overload_code,
     box_limit_mode_code,
     script_space_before_factor_code,
     script_space_between_factor_code,
@@ -1086,156 +1091,6 @@ inline static int unit_parameter_index(int l, int r) {
 
 # define is_valid_local_box_code(c) (c >= first_local_box_code && c <= last_local_box_code)
 
-/*tex
-
-    Here are the group codes that are used to discriminate between different kinds of groups. They
-    allow \TEX\ to decide what special actions, if any, should be performed when a group ends.
-
-    Some groups are not supposed to be ended by right braces. For example, the |$| that begins a
-    math formula causes a |math_shift_group| to be started, and this should be terminated by a
-    matching |$|. Similarly, a group that starts with |\left| should end with |\right|, and one
-    that starts with |\begingroup| should end with |\endgroup|.
-
-*/
-
-typedef enum tex_group_codes {
-    bottom_level_group,  /*tex group code for the outside world */
-    simple_group,        /*tex group code for local structure only */
-    hbox_group,          /*tex code for |\hbox| */
-    adjusted_hbox_group, /*tex code for |\hbox| in vertical mode */
-    vbox_group,          /*tex code for |\vbox| */
-    vtop_group,          /*tex code for |\vtop| */
-    dbox_group,          /*tex code for |\dbox| */
-    align_group,         /*tex code for |\halign|, |\valign| */
-    no_align_group,      /*tex code for |\noalign| */
-    output_group,        /*tex code for output routine */
-    math_group,          /*tex code for, e.g., |\char'136| */
-    math_stack_group,
-    math_component_group,
-    discretionary_group, /*tex code for |\discretionary|' */
-    insert_group,        /*tex code for |\insert| */
-    vadjust_group,       /*tex code for |\vadjust| */
-    vcenter_group,       /*tex code for |\vcenter| */
-    math_fraction_group, /*tex code for |\over| and friends */
-    math_operator_group,
-    math_radical_group,
-    math_choice_group,   /*tex code for |\mathchoice| */
-    also_simple_group,   /*tex code for |\begingroup|\unknown|\egroup| */
-    semi_simple_group,   /*tex code for |\begingroup|\unknown|\endgroup| */
-    math_simple_group,   /*tex code for |\beginmathgroup|\unknown|\endmathgroup| */
-    math_fence_group,    /*tex code for fences |\left|\unknown|\right| */
-    math_inline_group,   
-    math_display_group,  
-    math_number_group,     
-    local_box_group,     /*tex code for |\localleftbox|\unknown|localrightbox| */
-    split_off_group,     /*tex box code for the top part of a |\vsplit| */
-    split_keep_group,    /*tex box code for the bottom part of a |\vsplit| */
-    preamble_group,      /*tex box code for the preamble processing  in an alignment */
-    align_set_group,     /*tex box code for the final item pass in an alignment */
-    finish_row_group,    /*tex box code for a provisory line in an alignment */
-    lua_group,
-} tex_group_codes;
-
-inline static void tex_aux_show_group_count(int n)
-{
-    for (int i = 1; i <= n; i++) {
-        tex_print_str("{}");
-    }
-}
-
-/*
-    In the end I decided to split them into context and begin, but maybe some day
-    they all merge into one (easier on tracing and reporting in shared helpers).
-*/
-
-typedef enum tex_par_context_codes {
-    normal_par_context,
-    vmode_par_context,
-    vbox_par_context,
-    vtop_par_context,
-    dbox_par_context,
-    vcenter_par_context,
-    vadjust_par_context,
-    insert_par_context,
-    output_par_context,
-    align_par_context,
-    no_align_par_context,
-    span_par_context,
-    reset_par_context,
-} tex_par_context_codes;
-
-typedef enum tex_alignment_context_codes {
-    preamble_pass_alignment_context,
-    preroll_pass_alignment_context,
-    package_pass_alignment_context,
-    wrapup_pass_alignment_context,
-} tex_alignment_context_codes;
-
-typedef enum tex_breaks_context_codes {
-    initialize_show_breaks_context,
-    start_show_breaks_context,
-    list_show_breaks_context,
-    stop_show_breaks_context,
-    collect_show_breaks_context,
-    line_show_breaks_context,
-    delete_show_breaks_context,
-    report_show_breaks_context,
-    wrapup_show_breaks_context,
-} tex_breaks_context_codes;
-
-typedef enum tex_build_context_codes {
-    initialize_show_build_context,
-    step_show_build_context,
-    check_show_build_context,
-    skip_show_build_context,
-    move_show_build_context,
-    fireup_show_build_context,
-    wrapup_show_build_context,
-} tex_build_context_codes;
-
-typedef enum tex_page_context_codes {
-    box_page_context,
-    end_page_context,
-    vadjust_page_context,
-    penalty_page_context,
-    boundary_page_context,
-    insert_page_context,
-    hmode_par_page_context,
-    vmode_par_page_context,
-    begin_paragraph_page_context,
-    before_display_page_context,
-    after_display_page_context,
-    after_output_page_context,
-    alignment_page_context,
-    triggered_page_context
-} tex_page_context_codes;
-
-typedef enum tex_append_line_context_codes {
-    box_append_line_context,
-    pre_box_append_line_context,
-    pre_adjust_append_line_context,
-    post_adjust_append_line_context,
-    pre_migrate_append_line_context,
-    post_migrate_append_line_context,
-} tex_append_line_context_codes;
-
-typedef enum tex_par_trigger_codes {
-    normal_par_trigger,
-    force_par_trigger,
-    indent_par_trigger,
-    no_indent_par_trigger,
-    math_char_par_trigger,
-    char_par_trigger,
-    boundary_par_trigger,
-    space_par_trigger,
-    math_par_trigger,
-    kern_par_trigger,
-    hskip_par_trigger,
-    un_hbox_char_par_trigger,
-    valign_char_par_trigger,
-    vrule_char_par_trigger,
-} tex_par_trigger_codes;
-
 typedef enum tex_tracing_levels_codes {
     tracing_levels_group    = 0x01,
     tracing_levels_input    = 0x02,
@@ -1517,6 +1372,7 @@ extern void tex_word_define        (int g, halfword p, halfword w);
 # define protrude_chars_par               integer_parameter(protrude_chars_code)
 # define line_penalty_par                 integer_parameter(line_penalty_code)
 # define last_line_fit_par                integer_parameter(last_line_fit_code)
+# define double_penalty_mode_par          integer_parameter(double_penalty_mode_code)
 # define double_hyphen_demerits_par       integer_parameter(double_hyphen_demerits_code)
 # define final_hyphen_demerits_par        integer_parameter(final_hyphen_demerits_code)
 # define inter_line_penalty_par           integer_parameter(inter_line_penalty_code)
@@ -1555,6 +1411,7 @@ extern void tex_word_define        (int g, halfword p, halfword w);
 # define space_factor_mode_par            integer_parameter(space_factor_mode)
 # define space_factor_shrink_limit_par    integer_parameter(space_factor_shrink_limit_code)
 # define space_factor_stretch_limit_par   integer_parameter(space_factor_stretch_limit_code)
+# define space_factor_overload_par        integer_parameter(space_factor_overload_code)
 # define box_limit_mode_par               integer_parameter(box_limit_mode_code)
 # define pre_display_direction_par        integer_parameter(pre_display_direction_code)
 # define pre_display_penalty_par          integer_parameter(pre_display_penalty_code)
@@ -1580,6 +1437,7 @@ extern void tex_word_define        (int g, halfword p, halfword w);
 # define end_line_char_par                integer_parameter(end_line_char_code)
 # define new_line_char_par                integer_parameter(new_line_char_code)
 # define escape_char_par                  integer_parameter(escape_char_code)
+# define space_char_par                   integer_parameter(space_char_code)
                                           
 # define end_line_char_inactive           ((end_line_char_par < 0) || (end_line_char_par > max_endline_character))
 
@@ -1687,6 +1545,7 @@ typedef enum shaping_penalties_mode_bits {
 # define club_penalties_par              specification_parameter(club_penalties_code)
 # define widow_penalties_par             specification_parameter(widow_penalties_code)
 # define display_widow_penalties_par     specification_parameter(display_widow_penalties_code)
+# define broken_penalties_par            specification_parameter(broken_penalties_code)
 # define orphan_penalties_par            specification_parameter(orphan_penalties_code)
 # define fitness_demerits_par            specification_parameter(fitness_demerits_code)
 # define math_forward_penalties_par      specification_parameter(math_forward_penalties_code)
@@ -1742,6 +1601,7 @@ typedef enum shaping_penalties_mode_bits {
 # define tracing_lists_par               integer_parameter(tracing_lists_code)
 # define tracing_passes_par              integer_parameter(tracing_passes_code)
 # define tracing_fitness_par             integer_parameter(tracing_fitness_code)
+# define tracing_loners_par              integer_parameter(tracing_loners_code)
 
 /*tex 
     This tracer is mostly there for debugging purposes. Therefore what gets traced and how might
@@ -1848,6 +1708,7 @@ typedef enum normalize_line_mode_bits {
     flatten_discretionaries_mode = 0x0080,
     discard_zero_tab_skips_mode  = 0x0100,
     flatten_h_leaders_mode       = 0x0200,
+    balance_inline_math_mode     = 0x0400,
 } normalize_line_mode_bits;
 
 typedef enum normalize_par_mode_bits {
@@ -2005,6 +1866,7 @@ extern halfword tex_explicit_disc_penalty  (halfword mode);
 # define update_tex_club_penalties(v)          tex_eq_define(internal_specification_location(club_penalties_code),          specification_reference_cmd, v)
 # define update_tex_widow_penalties(v)         tex_eq_define(internal_specification_location(widow_penalties_code),         specification_reference_cmd, v)
 # define update_tex_display_widow_penalties(v) tex_eq_define(internal_specification_location(display_widow_penalties_code), specification_reference_cmd, v)
+# define update_tex_broken_penalties(v)        tex_eq_define(internal_specification_location(broken_penalties_code),        specification_reference_cmd, v)
 # define update_tex_orphan_penalties(v)        tex_eq_define(internal_specification_location(orphan_penalties_code),        specification_reference_cmd, v)
 # define update_tex_fitness_demerits(v)        tex_eq_define(internal_specification_location(fitness_demerits_code),        specification_reference_cmd, v)
 

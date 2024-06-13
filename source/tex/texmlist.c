@@ -2,6 +2,17 @@
     See license.txt in the root of this project.
 */
 
+/*tex 
+
+On the agenda: 
+
+-- remove italic correction
+-- remove delimiter small/large distinction 
+-- remove old school compatibility
+
+because, after all, we can't test that anyway. 
+
+*/
 
 /*tex 
 
@@ -18,7 +29,7 @@
     on a combination of engine control and patching fonts runtime (aka goodie tweaks). This does
     actually mean that in principle we can remove most of the code related to italic correction 
     and simplify kerning, which makes for cleaner code. We can then also ditch many control 
-    options. It could also make some of the resulting constructs les scomplex (this is something
+    options. It could also make some of the resulting constructs less complex (this is something
     that might happen eventually anyway).
 
     In addition to this, the machinery below also has opened up atoms, fractions, accents, fences, 
@@ -45,6 +56,14 @@
     what we see below!
 
     HH & MS 
+
+*/
+
+/*tex 
+
+    Beware: we need to free (decrment refcount) for fields like |noad_extra_attr| here explicitly 
+    because we don't flush nodes with the big flusher; we just free the noads. Failign to do so can 
+    be seen in the \CONTEXT\ cleaup report. 
 
 */
 
@@ -470,6 +489,21 @@ inline static scaled tex_aux_math_glyph_scale(scaled v)
     return v ? scaledround(0.001 * glyph_scale_par * v) : 0;
 }
 
+inline static scaled tex_aux_math_glyph_x_scale(scaled v)
+{
+    return v ? scaledround(0.001 * glyph_x_scale_par * v) : 0;
+}
+
+inline static scaled tex_aux_math_glyph_y_scale(scaled v)
+{
+    return v ? scaledround(0.001 * glyph_y_scale_par * v) : 0;
+}
+
+inline static scaled tex_aux_math_glyph_weight(scaled v)
+{
+    return glyph_weight_par + v;
+}
+
 inline static scaled tex_aux_math_x_scaled(scaled v, int style)
 {
     scaled scale = tex_get_math_parameter(style, math_parameter_x_scale, NULL);
@@ -508,18 +542,32 @@ scaled tex_math_parameter_y_scaled(int style, int param)
 
 inline static scaled tex_aux_math_axis(halfword size)
 {
-    scaled v = tex_math_axis_size(size); /* already scaled to size and x_scale */
+    scaled v = tex_get_math_axis_size(size); /* already scaled to size and x_scale */
+    return v ? limited_rounded(0.000001 * glyph_scale_par * glyph_y_scale_par * v) : 0;
+}
+
+inline static scaled tex_aux_math_exheight(halfword size)
+{
+    scaled v = tex_get_math_exheight_size(size); /* already scaled to size and x_scale */
+    return v ? limited_rounded(0.000001 * glyph_scale_par * glyph_y_scale_par * v) : 0;
+}
+
+inline static scaled tex_aux_math_emwidth(halfword size)
+{
+    scaled v = tex_get_math_quad_size(size); /* already scaled to size and x_scale */
     return v ? limited_rounded(0.000001 * glyph_scale_par * glyph_y_scale_par * v) : 0;
 }
 
 inline static scaled tex_aux_math_x_size_scaled(halfword f, scaled v, halfword size)
 {
-    return v ? limited_rounded(0.000000001 * tex_get_math_font_scale(f, size) * glyph_scale_par * glyph_x_scale_par * v) : 0;
+ // return v ? limited_rounded(0.000000001 * tex_get_math_font_scale(f, size) * glyph_scale_par * glyph_x_scale_par * v) : 0;
+    return v ? limited_rounded(0.000000000001 * tex_get_math_font_scale(f, size) * tex_get_math_font_x_scale(f, size) * glyph_scale_par * glyph_x_scale_par * v) : 0;
 }
 
 inline static scaled tex_aux_math_y_size_scaled(halfword f, scaled v, halfword size)
 {
-    return v ? limited_rounded(0.000000001 * tex_get_math_font_scale(f, size) * glyph_scale_par * glyph_y_scale_par * v) : 0;
+ // return v ? limited_rounded(0.000000001 * tex_get_math_font_scale(f, size) * glyph_scale_par * glyph_y_scale_par * v) : 0;
+    return v ? limited_rounded(0.000000000001 * tex_get_math_font_scale(f, size) * tex_get_math_font_y_scale(f, size) * glyph_scale_par * glyph_y_scale_par * v) : 0;
 }
 
 halfword tex_math_font_char_ht(halfword fnt, halfword chr, halfword style)
@@ -534,12 +582,18 @@ halfword tex_math_font_char_dp(halfword fnt, halfword chr, halfword style)
 
 inline static halfword tex_aux_new_math_glyph(halfword fnt, halfword chr, quarterword subtype) {
     halfword scale = scaling_factor;
-    halfword glyph = tex_new_glyph_node(subtype, fnt, tex_get_math_char(fnt, chr, lmt_math_state.size, &scale, math_direction_par), null); /* todo: data */;
+    halfword xscale = scaling_factor;
+    halfword yscale = scaling_factor;
+    halfword weight = 0;
+    halfword glyph = tex_new_glyph_node(subtype, fnt, tex_get_math_char(fnt, chr, lmt_math_state.size, &scale, &xscale, &yscale, &weight, math_direction_par), null); /* todo: data */;
     set_glyph_options(glyph, glyph_options_par);
     glyph_scale(glyph) = tex_aux_math_glyph_scale(scale);
-    glyph_x_scale(glyph) = glyph_x_scale_par;
-    glyph_y_scale(glyph) = glyph_y_scale_par;
+ // glyph_x_scale(glyph) = glyph_x_scale_par;
+ // glyph_y_scale(glyph) = glyph_y_scale_par;
+    glyph_x_scale(glyph) = tex_aux_math_glyph_x_scale(xscale);
+    glyph_y_scale(glyph) = tex_aux_math_glyph_y_scale(yscale);
     glyph_protected(glyph) = glyph_protected_math_code;
+glyph_weight(glyph) = tex_aux_math_glyph_weight(weight);
     return glyph;
 }
 
@@ -857,12 +911,12 @@ static halfword tex_aux_fraction_rule(scaled width, scaled height, halfword att,
 
 */
 
-static halfword tex_aux_make_delimiter(halfword target, halfword delimiter, int size, scaled targetsize, int flat, int style, int shift, int *stack, scaled *delta, scaled tolerance, int nooverflow, delimiterextremes *extremes, scaled move, halfword attr, halfword variant);
+static halfword tex_aux_make_delimiter(halfword target, halfword delimiter, int size, scaled targetsize, int flat, int style, int shift, int *stack, scaled *delta, scaled tolerance, int nooverflow, delimiterextremes *extremes, scaled move, halfword attr, halfword variant, int reg);
 
 static halfword tex_aux_overbar(halfword box, scaled gap, scaled height, scaled krn, halfword att, quarterword index, halfword size, halfword fam, halfword topdelimiter, halfword style)
 {
     halfword rule = (topdelimiter  > 0 && tex_aux_has_extensible(topdelimiter, size))
-        ? tex_aux_make_delimiter(null, topdelimiter, size, box_width(box), 1, style, 0, NULL, NULL, 0, 0, NULL, 0, att, 0)
+        ? tex_aux_make_delimiter(null, topdelimiter, size, box_width(box), 1, style, 0, NULL, NULL, 0, 0, NULL, 0, att, 0, 1)
         : tex_aux_fraction_rule(box_width(box), height, att, index, size, fam);
     /*tex Safeguard: */
     if (topdelimiter > 0 && box_width(rule) > box_width(box)) {
@@ -896,7 +950,7 @@ static halfword tex_aux_overbar(halfword box, scaled gap, scaled height, scaled 
 static halfword tex_aux_underbar(halfword box, scaled gap, scaled height, scaled krn, halfword att, quarterword index, halfword size, halfword fam, halfword botdelimiter, halfword style)
 {
     halfword rule = (botdelimiter && tex_aux_has_extensible(botdelimiter, size))
-        ? tex_aux_make_delimiter(null, botdelimiter, size, box_width(box), 1, style, 0, NULL, NULL, 0, 0, NULL, 0, att, 0)
+        ? tex_aux_make_delimiter(null, botdelimiter, size, box_width(box), 1, style, 0, NULL, NULL, 0, 0, NULL, 0, att, 0, 1)
         : tex_aux_fraction_rule(box_width(box), height, att, index, size, fam);
     if (gap) {
         halfword kern = tex_new_kern_node(gap, vertical_math_kern_subtype);
@@ -1131,17 +1185,14 @@ static halfword tex_aux_bottom_extensible_from_box(halfword e)
     return g; /* hit is last */
 }
 
-static halfword tex_aux_get_delimiter_box(halfword fnt, halfword chr, scaled target, scaled minoverlap, int horizontal, halfword att)
+/* todo: pickup fnt and chr here as well as linewidth */
+
+static halfword tex_made_extensible(halfword node, halfword fnt, halfword chr, halfword size, scaled width, scaled height, scaled depth, scaled linewidth, scaled axis, scaled exheight, scaled emwidth)
 {
-    halfword size = lmt_math_state.size;
     int callback_id = lmt_callback_defined(make_extensible_callback);
     if (callback_id > 0) {
-        /*tex
-            This call is not optimized as it hardly makes sense to use it ... special
-            and a bit of feature creep too.
-        */
         halfword boxed = null;
-        lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddddbNd->N", fnt, chr, target, minoverlap, horizontal, att, size, &boxed);
+        lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "Ndddddddddd->N", node, fnt, chr, size, width, height, depth, linewidth, axis, exheight, emwidth, &boxed);
         if (boxed) {
             switch (node_type(boxed)) {
                 case hlist_node:
@@ -1153,8 +1204,14 @@ static halfword tex_aux_get_delimiter_box(halfword fnt, halfword chr, scaled tar
             }
         }
     }
-    return tex_make_extensible(fnt, chr, target, minoverlap, horizontal, att, size);
+    return null;
 }
+
+// static halfword tex_aux_get_delimiter_box(halfword fnt, halfword chr, scaled target, scaled minoverlap, int horizontal, halfword att)
+// {
+//     /* we can avoid this indirectness */
+//     return tex_make_extensible(fnt, chr, target, minoverlap, horizontal, att, lmt_math_state.size);
+// }
 
 halfword tex_make_extensible(halfword fnt, halfword chr, scaled target, scaled minoverlap, int horizontal, halfword att, halfword size)
 {
@@ -1485,7 +1542,7 @@ static halfword register_extensible(halfword fnt, halfword chr, int size, halfwo
      we can register a composed delimiter which can result in a flush of these nodes. 
 */
 
-static halfword tex_aux_make_delimiter(halfword target, halfword delimiter, int size, scaled targetsize, int flat, int style, int shift, int *stack, scaled *delta, scaled tolerance, int nooverflow, delimiterextremes *extremes, scaled move, halfword attr, halfword variant)
+static halfword tex_aux_make_delimiter(halfword target, halfword delimiter, int size, scaled targetsize, int flat, int style, int shift, int *stack, scaled *delta, scaled tolerance, int nooverflow, delimiterextremes *extremes, scaled move, halfword attr, halfword variant, int reg)
 {
     /*tex the box that will be constructed */
     halfword result = null;
@@ -1626,6 +1683,7 @@ static halfword tex_aux_make_delimiter(halfword target, halfword delimiter, int 
             The builder below sets the list if needed and we dereference later because otherwise
             the list gets flushed before it can be reused.
         */
+// crap 
         att = get_attribute_list(delimiter);
         wipe_attribute_list_only(delimiter);
         tex_flush_node(delimiter);
@@ -1641,7 +1699,8 @@ static halfword tex_aux_make_delimiter(halfword target, halfword delimiter, int 
         extinfo *ext = do_parts ? tex_char_extensible_recipe_from_font(fnt, chr) : NULL;
         if (ext) {
             scaled minoverlap = flat ? tex_get_math_x_parameter_default(style, math_parameter_connector_overlap_min, 0) : tex_get_math_y_parameter_default(style, math_parameter_connector_overlap_min, 0);
-            result = tex_aux_get_delimiter_box(fnt, chr, targetsize, minoverlap, flat, attr ? attr : att);
+         // result = tex_aux_get_delimiter_box(fnt, chr, targetsize, minoverlap, flat, attr ? attr : att);
+            result = tex_make_extensible(fnt, chr, targetsize, minoverlap, flat, attr ? attr : att, lmt_math_state.size);                
             if (stretch && flat && (box_width(result) > targetsize)) { // threshold nooverflow
                 tex_flush_node_list(result);
                 do_parts = 0;
@@ -1677,7 +1736,7 @@ static halfword tex_aux_make_delimiter(halfword target, halfword delimiter, int 
                 added. See (**).
             */
           HERE:
-            result = tex_aux_char_box(fnt, chr, att, delta, glyph_math_delimiter_subtype, flat ? targetsize : 0, style, shrink, stretch, &isscaled);
+            result = tex_aux_char_box(fnt, chr, attr ? attr : att, delta, glyph_math_delimiter_subtype, flat ? targetsize : 0, style, shrink, stretch, &isscaled);
             if (flat) { 
                 /* This will be done when we have a reasonable example. */
             } else {
@@ -1711,7 +1770,7 @@ static halfword tex_aux_make_delimiter(halfword target, halfword delimiter, int 
     } else {
         /*tex This can be an empty one as is often the case with fractions! */
         result = tex_new_null_box_node(hlist_node, flat ? math_h_delimiter_list : math_v_delimiter_list);
-        tex_attach_attribute_list_attribute(result, att);
+        tex_attach_attribute_list_attribute(result, attr ? attr : att);
         /*tex Use this width if no delimiter was found. */
         if (! flat) {
             tex_aux_fake_delimiter(result);
@@ -1725,9 +1784,9 @@ static halfword tex_aux_make_delimiter(halfword target, halfword delimiter, int 
     }
     if (do_parts) {
         if (target && (has_noad_option_phantom(target) || has_noad_option_void(target))) {
-            result = tex_aux_make_list_phantom(result, has_noad_option_void(target), att);
-        } else {
-            result = register_extensible(fnt, chr, size, result, att);
+            result = tex_aux_make_list_phantom(result, has_noad_option_void(target), attr ? attr : att);
+        } else if (reg) {
+            result = register_extensible(fnt, chr, size, result, attr ? attr : att);
         }
     }
     if (! flat) {
@@ -2533,8 +2592,30 @@ static void tex_aux_make_hextension(halfword target, int style, int size)
     int stack = 0;
     scaled radicalwidth = tex_aux_math_given_x_scaled(noad_width(target));
     halfword extensible = radical_left_delimiter(target); /* middle key used */
-    halfword delimiter = tex_aux_make_delimiter(target, extensible, size, radicalwidth, 1, style, 1, &stack, NULL, 0, has_noad_option_nooverflow(target), NULL, 0, null, 0);
-    halfword delimiterwidth = box_width(delimiter);
+    halfword mergedattr = tex_merge_attribute_list(node_attr(extensible), noad_extra_attr(target));
+    halfword delimiter = null;
+    scaled delimiterwidth =0;
+    /* */
+    if (has_noad_option_use_callback(target)) {
+        halfword fam = delimiter_small_family(extensible);
+        halfword chr = delimiter_small_character(extensible);
+        halfword fnt = tex_fam_fnt(fam, size);
+        if (chr && fnt != null_font) {
+            halfword thickness = tex_get_math_y_parameter_checked(style, math_parameter_fraction_rule);
+            scaled axis = tex_aux_math_axis(size);
+            scaled exheight = tex_aux_math_exheight(size);
+            scaled emwidth = tex_aux_math_emwidth(size);
+            halfword result = tex_made_extensible(target, fnt, chr, size, radicalwidth, 0, 0, thickness, axis, exheight, emwidth);
+            if (result) { 
+                delimiter = register_extensible(fnt, chr, size, result, mergedattr);
+                goto PICKUP;
+            }
+        }
+    }
+    delimiter = tex_aux_make_delimiter(target, extensible, size, radicalwidth, 1, style, 1, &stack, NULL, 0, has_noad_option_nooverflow(target), NULL, 0, mergedattr, 0, 1);
+  PICKUP:
+    /* */
+    delimiterwidth = box_width(delimiter);
     if (! stack && radicalwidth && (radicalwidth != delimiterwidth)) {
         if (has_noad_option_middle(target)) {
             scaled delta = tex_half_scaled(radicalwidth - delimiterwidth);
@@ -2551,11 +2632,15 @@ static void tex_aux_make_hextension(halfword target, int style, int size)
     }
     delimiter = tex_hpack(delimiter, 0, packing_additional, direction_unknown, holding_none_option, box_limit_none);
     box_width(delimiter) = delimiterwidth;
-//    tex_attach_attribute_list_copy(delimiter, target); /* yes or no */
-    tex_attach_attribute_list_copy(delimiter, extensible); /* yes or no */
+ // tex_attach_attribute_list_copy(delimiter, target); /* yes or no */
+    tex_attach_attribute_list_copy(delimiter, extensible); /* better */
     kernel_math_list(noad_nucleus(target)) = delimiter;
     radical_left_delimiter(target) = null;
     radical_right_delimiter(target) = null;
+    if (mergedattr) { 
+        delete_attribute_reference(mergedattr);
+        delete_attribute_reference(noad_extra_attr(target));
+    }
 }
 
 static void tex_aux_preroll_root_radical(halfword target, int style, int size)
@@ -2567,6 +2652,7 @@ static void tex_aux_preroll_root_radical(halfword target, int style, int size)
 static halfword tex_aux_link_radical(halfword nucleus, halfword delimiter, halfword companion, halfword rightdelimiter)
 {
     if (companion) {
+        /* make one delimiter */
         tex_couple_nodes(delimiter, nucleus);
         tex_couple_nodes(nucleus, companion);
         return delimiter;
@@ -2614,30 +2700,33 @@ static void tex_aux_set_radical_kerns(delimiterextremes *extremes, kernset *kern
     }
 }
 
+/* challenge: register the extensible as a whole, so with the rule */
+
 static void tex_aux_make_root_radical(halfword target, int style, int size, kernset *kerns)
 {
     halfword nucleus = noad_new_hlist(target);
     scaled clearance = tex_get_math_y_parameter_checked(style, math_parameter_radical_vgap);
     scaled theta = tex_get_math_y_parameter(style, math_parameter_radical_rule);
     scaled kern = tex_get_math_y_parameter_checked(style, math_parameter_radical_kern);
-    scaled fam = delimiter_small_family(radical_left_delimiter(target));
     halfword leftdelimiter = radical_left_delimiter(target);
     halfword rightdelimiter = radical_right_delimiter(target);
     halfword topdelimiter = radical_top_delimiter(target);
     halfword delimiter = leftdelimiter ? leftdelimiter : rightdelimiter;
     halfword companion = leftdelimiter ? rightdelimiter : null;
     halfword radical = null;
+    halfword fam = delimiter_small_family(leftdelimiter);
     delimiterextremes extremes = { .tfont = null_font, .tchar = 0, .bfont = null_font, .bchar = 0, .height = 0, .depth = 0 };
     scaled innerx = INT_MIN;
     scaled innery = INT_MIN;
     int norule = has_noad_option_norule(target);
+    halfword mergedattr = tex_merge_attribute_list(node_attr(delimiter), noad_extra_attr(target));
     noad_new_hlist(target) = null;
     /*tex
         We can take the rule width from the fam/style of the delimiter or use the most recent math
         parameters value.
     */
     {
-        halfword t = tex_aux_check_rule_thickness(target, size, &fam, math_control_radical_rule, RadicalRuleThickness);
+        scaled t = tex_aux_check_rule_thickness(target, size, &fam, math_control_radical_rule, RadicalRuleThickness);
         if (t != undefined_math_parameter) {
             theta = t;
         }
@@ -2648,7 +2737,36 @@ static void tex_aux_make_root_radical(halfword target, int style, int size, kern
             /*tex What do we have here. Why not issue an error */
             theta = tex_get_math_y_parameter_checked(style, math_parameter_fraction_rule); /* a bit weird this one */
         }
-        delimiter = tex_aux_make_delimiter(target, delimiter, size, box_total(nucleus) + clearance + theta, 0, style, 1, NULL, NULL, 0, has_noad_option_nooverflow(target), &extremes, 0, null, 0);
+        {
+            scaled targetsize = box_total(nucleus) + clearance + theta;
+            if (has_noad_option_use_callback(target)) {
+                halfword chr = delimiter_small_character(leftdelimiter);
+                halfword fnt = tex_fam_fnt(fam, size);
+                if (chr && fnt != null_font) {
+                    scaled axis = tex_aux_math_axis(size);
+                    scaled exheight = tex_aux_math_exheight(size);
+                    scaled emwidth = tex_aux_math_emwidth(size);
+                    scaled width = box_width(nucleus)
+                        + tex_get_math_x_parameter_default(style, math_parameter_radical_extensible_before, 0); 
+                        + tex_get_math_x_parameter_default(style, math_parameter_radical_extensible_after, 0); 
+                    halfword result = tex_made_extensible(target, fnt, chr, size, width, targetsize, 0, theta, axis, exheight, emwidth);
+                    if (result) { 
+                        delimiter = register_extensible(fnt, chr, size, result, mergedattr);
+                        norule = 1;
+                        box_width(result) -= width; 
+                        goto PICKUP;
+                    }
+                 // if (delimiter) {
+                 //     extremes.bfont = fnt;
+                 //     extremes.bchar = chr;
+                 //     extremes.tfont = fnt;
+                 //     extremes.tchar = chr;
+                 // }
+                }
+            }
+            delimiter = tex_aux_make_delimiter(target, delimiter, size, targetsize, 0, style, 1, NULL, NULL, 0, has_noad_option_nooverflow(target), &extremes, 0, mergedattr, 0, 1);
+        }
+      PICKUP:
         if (extremes.bfont) { 
             scaled margin = tex_char_left_margin_from_font(extremes.bfont, extremes.bchar);
             if (margin && margin != INT_MIN) {
@@ -2677,7 +2795,11 @@ static void tex_aux_make_root_radical(halfword target, int style, int size, kern
                 For now we assume symmetry and same height and depth! Should we have a dedicated 
                 |extremes| here? 
             */
-            companion = tex_aux_make_delimiter(target, companion, size, box_total(nucleus) + clearance + theta, 0, style, 1, NULL, NULL, 0, has_noad_option_nooverflow(target), &extremes, 0, null, 0);
+            if (mergedattr) { 
+                delete_attribute_reference(mergedattr);
+            }
+            mergedattr = tex_merge_attribute_list(node_attr(companion), noad_extra_attr(target));
+            companion = tex_aux_make_delimiter(target, companion, size, box_total(nucleus) + clearance + theta, 0, style, 1, NULL, NULL, 0, has_noad_option_nooverflow(target), &extremes, 0, mergedattr, 0, 1);
             if (extremes.bfont) { 
                 scaled margin = tex_char_right_margin_from_font(extremes.bfont, extremes.bchar);
                 if (margin && margin != INT_MIN) {
@@ -2742,13 +2864,18 @@ static void tex_aux_make_root_radical(halfword target, int style, int size, kern
     if (node_type(companion) == vlist_node && node_subtype(companion) == math_v_delimiter_list) {
         halfword after = tex_get_math_x_parameter_default(style, math_parameter_radical_extensible_after, 0); 
         tex_aux_append_hkern_to_box_list(nucleus, after, horizontal_math_kern_subtype, "bad delimiter");
-    }
+    } 
     {
         /* todo bottomdelimiter */
         halfword total = box_total(delimiter);
         halfword list = (has_noad_option_reflected(target) ? tex_aux_underbar : tex_aux_overbar)
-            (nucleus,clearance,theta,kern,get_attribute_list(delimiter),math_radical_rule_subtype,size,fam,norule ? -1 : topdelimiter,style);
+            (nucleus, clearance, theta, kern, 
+                get_attribute_list(delimiter), 
+//node_attr(target), 
+            math_radical_rule_subtype, size, fam, norule ? -1 : topdelimiter, style);
+        // todo: link whole delimiter 
         radical = tex_aux_link_radical(list, delimiter, companion, rightdelimiter);
+// tex_attach_attribute_list_copy(radical, target);
         if (radical_degree(target)) {
             /*tex
                 This is a bit messy because we handle style at the texmath end already. Anyway, a
@@ -2802,12 +2929,47 @@ static void tex_aux_make_root_radical(halfword target, int style, int size, kern
         }
     }
     tex_aux_assign_radical(target, radical);
+    if (mergedattr) { 
+        delete_attribute_reference(mergedattr);
+        delete_attribute_reference(noad_extra_attr(target));
+    }
 }
 
 /*tex 
     This is pretty much the same as the above when the |norule| option is set. But by splitting this 
     variant off we can enhance it more cleanly. 
 */
+
+static halfword tex_aux_radical_delimiter_cb(halfword target, halfword delimiter, int style, int size, halfword mergedattr, scaled linewidth, scaled targetsize)
+{
+    if (has_noad_option_use_callback(target)) {
+        halfword fam = delimiter_small_family(delimiter);
+        halfword chr = delimiter_small_character(delimiter);
+        halfword fnt = tex_fam_fnt(fam, size);
+        if (chr && fnt != null_font) {
+            scaled axis = tex_aux_math_axis(size);
+            scaled exheight = tex_aux_math_exheight(size);
+            scaled emwidth = tex_aux_math_emwidth(size);
+            scaled width = box_width(noad_nucleus(target));
+                + tex_get_math_x_parameter_default(style, math_parameter_radical_extensible_before, 0); 
+                + tex_get_math_x_parameter_default(style, math_parameter_radical_extensible_after, 0); 
+            halfword result = tex_made_extensible(target, fnt, chr, size, width, targetsize, 0, linewidth, axis, exheight, emwidth);
+            if (result) { 
+                halfword delimiter = register_extensible(fnt, chr, size, result, mergedattr);
+                box_width(result) -= width; 
+                return delimiter;
+            }
+        }
+    }
+    return null;
+}
+
+// tex_aux_make_delimiter(target, delimiter,       size,                                        targetsize, 0, style, 2, NULL,   NULL, 0, has_noad_option_nooverflow(target),          &extremes, depth, mergedattr, 0, 1);
+//                                                                                                                                                                                     
+// tex_aux_make_delimiter(target, over_delimiter,  size,                                        width,      1, style, 1, &stack, NULL, 0, has_noad_option_nooverflow(target),          NULL,      0,     mergedattr, 0, 1);
+// tex_aux_make_delimiter(target, under_delimiter, size,                                        width,      1, style, 1, &stack, NULL, 0, has_noad_option_nooverflow(target),          NULL,      0,     mergedattr, 0, 1);    
+// tex_aux_make_delimiter(target, over_delimiter,  size + (size == script_script_size ? 0 : 1), width,      1, style, 1, &stack, NULL, 0, has_noad_option_nooverflow(over_delimiter),  NULL,      0,     mergedattr, 0, 1);
+// tex_aux_make_delimiter(target, under_delimiter, size + (size == script_script_size ? 0 : 1), width,      1, style, 1, &stack, NULL, 0, has_noad_option_nooverflow(under_delimiter), NULL,      0,     mergedattr, 0, 1);
 
 static void tex_aux_make_delimited_radical(halfword target, int style, int size, kernset *kerns)
 {
@@ -2820,8 +2982,10 @@ static void tex_aux_make_delimited_radical(halfword target, int style, int size,
     halfword radical = null;
     halfword depth = has_noad_option_exact(target) ? radical_depth(target) : (box_depth(nucleus) + radical_depth(target));
     halfword height = has_noad_option_exact(target) ? radical_height(target) : (box_height(nucleus) + radical_height(target));
-    halfword total = height + depth;
+    halfword targetsize = height + depth;
+    scaled linewidth = tex_get_math_y_parameter(style, math_parameter_radical_rule);
     delimiterextremes extremes = { .tfont = null_font, .tchar = 0, .bfont = null_font, .bchar = 0, .height = 0, .depth = 0 };
+    halfword mergedattr = tex_merge_attribute_list(node_attr(delimiter), noad_extra_attr(target));
     noad_new_hlist(target) = null;
     size += radical_size(target);
     if (size < text_size) { 
@@ -2829,14 +2993,53 @@ static void tex_aux_make_delimited_radical(halfword target, int style, int size,
     } else if (size > script_script_size) {
         size = script_script_size;
     }
-    delimiter = tex_aux_make_delimiter(target, delimiter, size, total, 0, style, 2, NULL, NULL, 0, has_noad_option_nooverflow(target), &extremes, depth, null, 0);
+    { 
+        halfword result = tex_aux_radical_delimiter_cb(target, delimiter, style, size, mergedattr, linewidth, targetsize);
+        if (! result) { 
+            result = tex_aux_make_delimiter(target, delimiter, size, targetsize, 0, style, 2, NULL, NULL, 0, has_noad_option_nooverflow(target), &extremes, depth, mergedattr, 0, 1);
+        } else if (depth) { 
+            /* todo: move */
+        }
+        delimiter = result;
+    }
+
+ //  if (has_noad_option_use_callback(target)) {
+ //      halfword fam = delimiter_small_family(leftdelimiter);
+ //      halfword chr = delimiter_small_character(leftdelimiter);
+ //      halfword fnt = tex_fam_fnt(fam, size);
+ //      if (chr && fnt != null_font) {
+ //          scaled axis = tex_aux_math_axis(size);
+ //          scaled exheight = tex_aux_math_exheight(size);
+ //          scaled emwidth = tex_aux_math_emwidth(size);
+ //          scaled width = box_width(nucleus)
+ //              + tex_get_math_x_parameter_default(style, math_parameter_radical_extensible_before, 0); 
+ //              + tex_get_math_x_parameter_default(style, math_parameter_radical_extensible_after, 0); 
+ //          halfword result = tex_made_extensible(target, fnt, chr, size, width, targetsize, 0, theta, axis, exheight, emwidth);
+ //          if (result) { 
+ //              delimiter = register_extensible(fnt, chr, size, result, mergedattr);
+ //              box_width(result) -= width; 
+ //              goto PICKUP;
+ //          }
+ //      }
+ //  }
+ //  delimiter = tex_aux_make_delimiter(target, delimiter, size, targetsize, 0, style, 2, NULL, NULL, 0, has_noad_option_nooverflow(target), &extremes, depth, mergedattr, 0, 1);
+ //PICKUP:
+
     if (companion) {
         /*tex For now we assume symmetry and same height and depth! */
-        companion = tex_aux_make_delimiter(target, companion, size, total, 0, style, 2, NULL, NULL, 0, has_noad_option_nooverflow(target), &extremes, depth, null, 0);
+        if (mergedattr) { 
+            delete_attribute_reference(mergedattr);
+        }
+        mergedattr = tex_merge_attribute_list(node_attr(companion), noad_extra_attr(target));
+        companion = tex_aux_make_delimiter(target, companion, size, targetsize, 0, style, 2, NULL, NULL, 0, has_noad_option_nooverflow(target), &extremes, depth, mergedattr, 0, 1);
     }
     tex_aux_set_radical_kerns(&extremes, kerns, size);
     radical = tex_aux_link_radical(nucleus, delimiter, companion, rightdelimiter);
     tex_aux_assign_radical(target, radical);
+    if (mergedattr) { 
+        delete_attribute_reference(mergedattr);
+        delete_attribute_reference(noad_extra_attr(target));
+    }
 }
 
 /*tex Construct a vlist box: */
@@ -2927,7 +3130,14 @@ static void tex_aux_make_over_delimiter(halfword target, int style, int size)
     halfword content = tex_aux_clean_box(noad_nucleus(target), tex_math_style_variant(style, math_parameter_over_delimiter_variant), style, math_nucleus_list, 0, NULL);
     scaled width = tex_aux_get_radical_width(target, content);
     halfword over_delimiter = fraction_left_delimiter(target);
-    halfword delimiter = tex_aux_make_delimiter(target, over_delimiter, size, width, 1, style, 1, &stack, NULL, 0, has_noad_option_nooverflow(target), NULL, 0, null, 0);
+    halfword mergedattr = tex_merge_attribute_list(node_attr(over_delimiter), noad_extra_attr(target));
+    scaled linewidth = tex_get_math_y_parameter(style, math_parameter_radical_rule);
+
+    halfword delimiter = tex_aux_radical_delimiter_cb(target, over_delimiter, style, size, mergedattr, linewidth, width);
+    if (! delimiter) {
+        delimiter = tex_aux_make_delimiter(target, over_delimiter, size, width, 1, style, 1, &stack, NULL, 0, has_noad_option_nooverflow(target), NULL, 0, mergedattr, 0, 1);
+    }
+
     fraction_left_delimiter(target) = null;
     delimiter = tex_aux_check_radical(target, stack, delimiter, content);
     tex_aux_fixup_radical_width(target, content, delimiter);
@@ -2939,6 +3149,10 @@ static void tex_aux_make_over_delimiter(halfword target, int style, int size)
     box_width(result) = box_width(content);
     kernel_math_list(noad_nucleus(target)) = result;
     node_type(noad_nucleus(target)) = sub_box_node;
+    if (mergedattr) { 
+        delete_attribute_reference(mergedattr);
+        delete_attribute_reference(noad_extra_attr(target));
+    }
 }
 
 /*tex
@@ -2955,7 +3169,15 @@ static void tex_aux_make_under_delimiter(halfword target, int style, int size)
     halfword content = tex_aux_clean_box(noad_nucleus(target), tex_math_style_variant(style, math_parameter_under_delimiter_variant), style, math_nucleus_list, 0, NULL);
     scaled width = tex_aux_get_radical_width(target, content);
     halfword under_delimiter = fraction_left_delimiter(target);
-    halfword delimiter = tex_aux_make_delimiter(target, under_delimiter, size, width, 1, style, 1, &stack, NULL, 0, has_noad_option_nooverflow(target), NULL, 0, null, 0);    fraction_left_delimiter(target) = null;
+    halfword mergedattr = tex_merge_attribute_list(node_attr(under_delimiter), noad_extra_attr(target));
+    scaled linewidth = tex_get_math_y_parameter(style, math_parameter_radical_rule);
+
+    halfword delimiter = tex_aux_radical_delimiter_cb(target, under_delimiter, style, size, mergedattr, linewidth, width);
+    if (! delimiter) {
+        delimiter = tex_aux_make_delimiter(target, under_delimiter, size, width, 1, style, 1, &stack, NULL, 0, has_noad_option_nooverflow(target), NULL, 0, mergedattr, 0, 1);    
+    }
+
+    fraction_left_delimiter(target) = null;
     delimiter = tex_aux_check_radical(target, stack, delimiter, content);
     tex_aux_fixup_radical_width(target, delimiter, content);
     delta = clearance - (- box_depth(delimiter) - (box_height(content) - shift));
@@ -2966,6 +3188,10 @@ static void tex_aux_make_under_delimiter(halfword target, int style, int size)
     box_width(result) = box_width(content);
     kernel_math_list(noad_nucleus(target)) = result;
     node_type(noad_nucleus(target)) = sub_box_node;
+    if (mergedattr) { 
+        delete_attribute_reference(mergedattr);
+        delete_attribute_reference(noad_extra_attr(target));
+    }
 }
 
 /*tex
@@ -2976,13 +3202,25 @@ static void tex_aux_make_delimiter_over(halfword target, int style, int size)
 {
     halfword result;
     scaled actual;
-    int stack;
+    halfword delimiter; 
+    int stack = 0;
     scaled shift = tex_get_math_y_parameter_checked(style, math_parameter_over_delimiter_bgap);
     scaled clearance = tex_get_math_y_parameter_checked(style, math_parameter_over_delimiter_vgap);
     halfword content = tex_aux_clean_box(noad_nucleus(target), tex_math_style_variant(style, math_parameter_delimiter_over_variant), style, math_nucleus_list, 0, NULL);
     scaled width = tex_aux_get_radical_width(target, content);
     halfword over_delimiter = fraction_left_delimiter(target);
-    halfword delimiter = tex_aux_make_delimiter(target, over_delimiter, size + (size == script_script_size ? 0 : 1), width, 1, style, 1, &stack, NULL, 0, has_noad_option_nooverflow(over_delimiter), NULL, 0, null, 0);
+    halfword mergedattr = tex_merge_attribute_list(node_attr(over_delimiter), noad_extra_attr(target));
+    scaled linewidth = tex_get_math_y_parameter(style, math_parameter_radical_rule);
+
+    if (size != script_script_size) { 
+        size += 1; 
+    }
+
+    delimiter = tex_aux_radical_delimiter_cb(target, over_delimiter, style, size, mergedattr, linewidth, width);
+    if (! delimiter) {
+        delimiter = tex_aux_make_delimiter(target, over_delimiter, size, width, 1, style, 1, &stack, NULL, 0, has_noad_option_nooverflow(over_delimiter), NULL, 0, mergedattr, 0, 1);
+    }
+
     fraction_left_delimiter(target) = null;
     delimiter = tex_aux_check_radical(target, stack, delimiter, content);
     tex_aux_fixup_radical_width(target, delimiter, content);
@@ -2995,6 +3233,10 @@ static void tex_aux_make_delimiter_over(halfword target, int style, int size)
     box_width(result) = box_width(delimiter);
     kernel_math_list(noad_nucleus(target)) = result;
     node_type(noad_nucleus(target)) = sub_box_node;
+    if (mergedattr) { 
+        delete_attribute_reference(mergedattr);
+        delete_attribute_reference(noad_extra_attr(target));
+    }
 }
 
 /*tex
@@ -3005,13 +3247,25 @@ static void tex_aux_make_delimiter_under(halfword target, int style, int size)
 {
     halfword result;
     scaled actual;
-    int stack;
+    halfword delimiter; 
+    int stack = 0;
     scaled shift = tex_get_math_y_parameter_checked(style, math_parameter_under_delimiter_bgap);
     scaled clearance = tex_get_math_y_parameter_checked(style, math_parameter_under_delimiter_vgap);
     halfword content = tex_aux_clean_box(noad_nucleus(target), tex_math_style_variant(style, math_parameter_delimiter_under_variant), style, math_nucleus_list, 0, NULL);
     scaled width = tex_aux_get_radical_width(target, content);
     halfword under_delimiter = fraction_left_delimiter(target);
-    halfword delimiter = tex_aux_make_delimiter(target, under_delimiter, size + (size == script_script_size ? 0 : 1), width, 1, style, 1, &stack, NULL, 0, has_noad_option_nooverflow(under_delimiter), NULL, 0, null, 0);
+    halfword mergedattr = tex_merge_attribute_list(node_attr(under_delimiter), noad_extra_attr(target));
+    scaled linewidth = tex_get_math_y_parameter(style, math_parameter_radical_rule);
+
+    if (size != script_script_size) { 
+        size += 1; 
+    }
+
+    delimiter = tex_aux_radical_delimiter_cb(target, under_delimiter, style, size, mergedattr, linewidth, width);
+    if (! delimiter) {
+        delimiter = tex_aux_make_delimiter(target, under_delimiter, size, width, 1, style, 1, &stack, NULL, 0, has_noad_option_nooverflow(under_delimiter), NULL, 0, mergedattr, 0, 1);
+    }
+
     fraction_left_delimiter(target) = null;
     delimiter = tex_aux_check_radical(target, stack, delimiter, content);
     tex_aux_fixup_radical_width(target, content, delimiter);
@@ -3025,6 +3279,10 @@ static void tex_aux_make_delimiter_under(halfword target, int style, int size)
     box_width(result) = box_width(delimiter);
     kernel_math_list(noad_nucleus(target)) = result;
     node_type(noad_nucleus(target)) = sub_box_node;
+    if (mergedattr) { 
+        delete_attribute_reference(mergedattr);
+        delete_attribute_reference(noad_extra_attr(target));
+    }
 }
 
 static void tex_aux_make_radical(halfword target, int style, int size, kernset *kerns)
@@ -3101,7 +3359,7 @@ static int tex_aux_compute_accent_skew(halfword target, int flags, scaled *skew,
                 halfword fnt = null;
                 tex_aux_fetch(noad_nucleus(target), "accent", &fnt, &chr);
                 /* We have an unprocessed character, no glyph yet (in compact mode). */
-                chr = tex_get_math_char(fnt, chr, size, NULL, 0);
+                chr = tex_get_math_char(fnt, chr, size, NULL, NULL, NULL, NULL, 0);
                 if (tex_aux_math_engine_control(fnt, math_control_accent_skew_apply)) {
                     /*tex
                         There is no bot_accent so let's assume that the shift also applies
@@ -3193,27 +3451,26 @@ static void tex_aux_do_make_math_accent(halfword target, halfword source, halfwo
     scaled delta = 0;
     scaled overshoot = 0;
     extinfo *extended = NULL;
-    halfword attrlist = node_attr(source);
     scaled fraction = accent_fraction(target) > 0 ? accent_fraction(target) : scaling_factor;
     scaled skew = 0;
     scaled offset = 0;
     scaled innery = 0;
     halfword accent = null;
     halfword base = null;
-    halfword result = null;
     halfword nucleus = noad_nucleus(target);
     halfword stretch = (flags & stretch_accent_code) == stretch_accent_code;
     halfword basefnt = null_font;
     halfword basechr = 0;
     halfword accentbasefnt = accentfnt;
     halfword accentbasechr = accentchr;
+    halfword mergedattr = tex_merge_attribute_list(node_attr(source), noad_extra_attr(target));
     int found = 0;
     int isscaled = 0;
     int keep = 0;
     /*tex
         Compute the amount of skew, or set |skew| to an alignment point. This will be true if a
         top-accent has been determined. This concerns the base! Beware, we have not yet processed 
-        the base so the (optional) smaller size is nto yet set. 
+        the base so the (optional) smaller size is not yet set. 
     */
     int absolute = tex_aux_compute_accent_skew(target, flags, &skew, size);
     {
@@ -3281,9 +3538,23 @@ static void tex_aux_do_make_math_accent(halfword target, halfword source, halfwo
         usedwidth = basewidth;
     }
     /*tex
-        Todo: |w = w - loffset - roffset| but then we also need to add a few
-        kerns so no hurry with that one.
+        Todo: |w = w - loffset - roffset| but then we also need to add a few kerns so no hurry with 
+        that one.
     */
+    /* */
+    if (has_noad_option_use_callback(target)) {
+        halfword thickness = tex_get_math_y_parameter_checked(style, math_parameter_fraction_rule);
+        scaled axis = tex_aux_math_axis(size);
+        scaled exheight = tex_aux_math_exheight(size);
+        scaled emwidth = tex_aux_math_emwidth(size);
+        halfword result = tex_made_extensible(target, accentfnt, accentchr, size, usedwidth, baseheight, 0, thickness, axis, exheight, emwidth);
+        if (result) { 
+            accent = register_extensible(accentfnt, accentchr, size, result, mergedattr);
+            found = 1; 
+            goto PICKUP;
+        }
+    }
+    /* */
     if (stretch && (tex_char_width_from_font(accentfnt, accentchr) < usedwidth)) {
         /*tex Switch to a larger accent if available and appropriate */
         scaled target = 0; 
@@ -3309,8 +3580,9 @@ static void tex_aux_do_make_math_accent(halfword target, halfword source, halfwo
                     we don't step.
                 */
                 halfword overlap = tex_get_math_x_parameter_checked(style, math_parameter_connector_overlap_min);
-                accent = tex_aux_get_delimiter_box(accentfnt, accentchr, usedwidth, overlap, 1, attrlist);
-                accent = register_extensible(accentfnt, accentchr, size, accent, attrlist);
+             // accent = tex_aux_get_delimiter_box(accentfnt, accentchr, usedwidth, overlap, 1, attrlist);
+                accent = tex_make_extensible(accentfnt, accentchr, usedwidth, overlap, 1, mergedattr, lmt_math_state.size);                
+                accent = register_extensible(accentfnt, accentchr, size, accent, mergedattr);
                 break;
             } else if (! tex_char_has_tag_from_font(accentfnt, accentchr, list_tag)) {
                 break;
@@ -3332,6 +3604,7 @@ static void tex_aux_do_make_math_accent(halfword target, halfword source, halfwo
         }
 
     }
+  PICKUP:
     keep = (accentfnt == accentbasefnt) && (accentchr == accentbasechr) && (has_noad_option_keep_base(target) || tex_char_has_tag_from_font(accentfnt, accentchr, keep_base_tag));
     if (accent) {
         /*tex
@@ -3342,7 +3615,7 @@ static void tex_aux_do_make_math_accent(halfword target, halfword source, halfwo
             We have a base char or a variant. For traditional fonts the italic correction gets 
             added to width (not that we have these in \CONTEXT).  
         */
-        accent = tex_aux_char_box(accentfnt, accentchr, attrlist, NULL, glyph_math_accent_subtype, usedwidth, style, keep ? 0 : has_noad_option_shrink(target), keep ? 0 : has_noad_option_stretch(target), &isscaled); // basewidth 
+        accent = tex_aux_char_box(accentfnt, accentchr, mergedattr, NULL, glyph_math_accent_subtype, usedwidth, style, keep ? 0 : has_noad_option_shrink(target), keep ? 0 : has_noad_option_stretch(target), &isscaled); // basewidth 
         found = 1; 
     }
     if (flags & top_accent_code) {
@@ -3359,7 +3632,7 @@ static void tex_aux_do_make_math_accent(halfword target, halfword source, halfwo
                         u = uf; 
                     }
                     tex_flush_node(accent);
-                    accent = tex_aux_char_box(accentfnt, flatchr, attrlist, NULL, glyph_math_accent_subtype, usedwidth, style, keep ? 0 : has_noad_option_shrink(target), keep ? 0 : has_noad_option_stretch(target), &isscaled);
+                    accent = tex_aux_char_box(accentfnt, flatchr, mergedattr, NULL, glyph_math_accent_subtype, usedwidth, style, keep ? 0 : has_noad_option_shrink(target), keep ? 0 : has_noad_option_stretch(target), &isscaled);
                     if (tracing_math_par >= 2) {
                         tex_begin_diagnostic();
                         tex_print_format("[math: flattening accent, old %x, new %x]", accentchr, flatchr);
@@ -3500,54 +3773,59 @@ static void tex_aux_do_make_math_accent(halfword target, halfword source, halfwo
     if (flags & (bot_accent_code)) {
         accent_bot_overshoot(target) = overshoot;
     }
-    if (flags & (top_accent_code | overlay_accent_code)) {
-        delta += innery;
-        if (delta) {
-            halfword kern = tex_new_kern_node(-delta, vertical_math_kern_subtype);
+    {
+        halfword result = null;
+        if (flags & (top_accent_code | overlay_accent_code)) {
+            delta += innery;
+            if (delta) {
+                halfword kern = tex_new_kern_node(-delta, vertical_math_kern_subtype);
+                tex_attach_attribute_list_copy(kern, target);
+                tex_couple_nodes(accent, kern);
+                tex_couple_nodes(kern, base);
+            } else {
+                tex_couple_nodes(accent, base);
+            }
+            result = accent;
+        } else if ((flags & bot_accent_code) && innery) {
+            halfword kern = tex_new_kern_node(innery, vertical_math_kern_subtype);
             tex_attach_attribute_list_copy(kern, target);
-            tex_couple_nodes(accent, kern);
-            tex_couple_nodes(kern, base);
+            tex_couple_nodes(base, kern);
+            tex_couple_nodes(kern, accent);
+            result = base;
         } else {
-            tex_couple_nodes(accent, base);
+            tex_couple_nodes(base, accent);
+            result = base;
         }
-        result = accent;
-    } else if ((flags & bot_accent_code) && innery) {
-        halfword kern = tex_new_kern_node(innery, vertical_math_kern_subtype);
-        tex_attach_attribute_list_copy(kern, target);
-        tex_couple_nodes(base, kern);
-        tex_couple_nodes(kern, accent);
-        result = base;
-    } else {
-        tex_couple_nodes(base, accent);
-        result = base;
-    }
-    result = tex_vpack(result, 0, packing_additional, max_dimension, (singleword) math_direction_par, holding_none_option, NULL);
-    tex_attach_attribute_list_copy(result, target);
-    node_subtype(result) = math_accent_list;
-    box_width(result) = box_width(base); // basewidth
-    delta = baseheight - box_height(result);
-    if (flags & (top_accent_code | overlay_accent_code)) {
-        if (delta > 0) {
-            /*tex make the height of box |y| equal to |h| */
-            halfword kern = tex_new_kern_node(delta, vertical_math_kern_subtype);
-            tex_attach_attribute_list_copy(kern, target);
-            tex_try_couple_nodes(kern, box_list(result));
-            box_list(result) = kern;
-            box_height(result) = baseheight;
+        result = tex_vpack(result, 0, packing_additional, max_dimension, (singleword) math_direction_par, holding_none_option, NULL);
+        tex_attach_attribute_list_copy(result, target);
+        node_subtype(result) = math_accent_list;
+        box_width(result) = box_width(base); // basewidth
+        delta = baseheight - box_height(result);
+        if (flags & (top_accent_code | overlay_accent_code)) {
+            if (delta > 0) {
+                /*tex make the height of box |y| equal to |h| */
+                halfword kern = tex_new_kern_node(delta, vertical_math_kern_subtype);
+                tex_attach_attribute_list_copy(kern, target);
+                tex_try_couple_nodes(kern, box_list(result));
+                box_list(result) = kern;
+                box_height(result) = baseheight;
+            }
+        } else {
+            box_shift_amount(result) = - delta;
         }
-    } else {
-        box_shift_amount(result) = - delta;
+        box_width(result) += overshoot;
+        if (node_type(result) == vlist_node) {
+            result = tex_hpack(result, 0, packing_additional, direction_unknown, holding_none_option, box_limit_none);
+            tex_attach_attribute_list_copy(result, target);
+            node_subtype(result) = math_accent_list;
+        }
+        kernel_math_list(nucleus) = result;
+        node_type(nucleus) = sub_box_node;
     }
-    box_width(result) += overshoot;
-
-if (node_type(result) == vlist_node) {
-    result = tex_hpack(result, 0, packing_additional, direction_unknown, holding_none_option, box_limit_none);
-    tex_attach_attribute_list_copy(result, target);
-    node_subtype(result) = math_accent_list;
-}
-
-    kernel_math_list(nucleus) = result;
-    node_type(nucleus) = sub_box_node;
+    if (mergedattr) { 
+        delete_attribute_reference(mergedattr);
+        delete_attribute_reference(noad_extra_attr(target));
+    }
 }
 
 static void tex_aux_make_accent(halfword target, int style, int size, kernset *kerns)
@@ -3661,8 +3939,8 @@ static void tex_aux_wrap_fraction_result(halfword target, int style, int size, h
             delta = tex_aux_get_delimiter_height(box_height(fraction), box_depth(fraction), 1, size, style);
         }
         /*tex Watch out: there can be empty delimiter boxes but with width. */
-        left = tex_aux_make_delimiter(target, left_delimiter, size, delta, 0, style, 1, NULL, NULL, 0, has_noad_option_nooverflow(target), NULL, 0, null, 0);
-        right = tex_aux_make_delimiter(target, right_delimiter, size, delta, 0, style, 1, NULL, NULL, 0, has_noad_option_nooverflow(target), &extremes, 0, null, 0);
+        left = tex_aux_make_delimiter(target, left_delimiter, size, delta, 0, style, 1, NULL, NULL, 0, has_noad_option_nooverflow(target), NULL, 0, null, 0, 1);
+        right = tex_aux_make_delimiter(target, right_delimiter, size, delta, 0, style, 1, NULL, NULL, 0, has_noad_option_nooverflow(target), &extremes, 0, null, 0, 1);
         if (kerns && extremes.tfont) { 
             if (tex_math_has_class_option(fraction_noad_subtype, carry_over_left_top_kern_class_option)) {  
                 kerns->topleft = tex_aux_math_x_size_scaled(extremes.tfont, tex_char_top_left_kern_from_font(extremes.tfont, extremes.tchar), size);
@@ -3833,44 +4111,56 @@ static halfword tex_aux_assemble_fraction(halfword target, int style, int size, 
     return numerator;
 }
 
+/*tex
+
+    Skewed fractions put (normally) a slash between the numerator and denominator. They are 
+    not really supported in traditional \TEX, which means that \MSWORD\ serves as example 
+    implementation when it comes to horizontal and vertical shifting. However, the two font 
+    parameters are shared for all sizes of the shapes. Basically the horizontal skew is the 
+    distance between the two components and the slash is then centered in this gap. The 
+    vertical skew is officially the distance between the bottom of the numerator and the 
+    top of the denominator. Looking at various fonts didn't make it more clear either. 
+    
+    This might work fine for numbers but we decided that in order to also support other
+    components we should not use the horizontal gap specification at all and the vertical 
+    can at best give an indication of how to offset from the axis and/or baseline. These 
+    are examples of useless font variables, so in the end we decided to just ignore both
+    parameters. Anyway, in \CONTEXT\ users can influence the rendering with keys like \typ 
+    {noaxis}, \typ {nooverflow}, \type {vfactor}, \typ {hfactor}, etc. 
+
+*/
+
 static halfword tex_aux_make_skewed_fraction(halfword target, int style, int size, kernset *kerns)
 {
     halfword middle = null;
     halfword fraction = null;
     halfword numerator = null;
     halfword denominator = null;
-    scaled delta = 0;
-    halfword middle_delimiter = fraction_middle_delimiter(target);
+    halfword delimiter = fraction_middle_delimiter(target);
     scaled maxheight = 0;
     scaled maxdepth = 0;
+    scaled maxtotal = 0;
     scaled ngap = 0;
     scaled dgap = 0;
     scaled hgap = 0;
     delimiterextremes extremes = { .tfont = null_font, .tchar = 0, .bfont = null_font, .bchar = 0, .height = 0, .depth = 0 };
     scaled tolerance = tex_get_math_y_parameter_default(style, math_parameter_skewed_delimiter_tolerance, 0);
-    scaled shift_up = 0;
-    scaled shift_down = 0;
+    scaled axis = tex_aux_math_axis(size);
+    scaled shift = tex_round_xn_over_d(axis, fraction_v_factor(target), scaling_factor);
+    halfword mergedattr = tex_merge_attribute_list(node_attr(delimiter), noad_extra_attr(target));
     (void) kerns;
-    if (! has_noad_option_center(target)) { 
-        shift_up = tex_get_math_y_parameter_checked(style, math_parameter_skewed_fraction_vgap);
-        shift_down = tex_round_xn_over_d(shift_up, fraction_v_factor(target), scaling_factor);
-    }
     tex_aux_wrap_fraction_parts(target, style, size, &numerator, &denominator, 0);
-    /*tex 
-        Here we don't share code because we're going horizontal.
-    */
     if (! has_noad_option_noaxis(target)) {
-        shift_up += tex_half_scaled(tex_aux_math_axis(size));
-        shift_down = shift_up;
+        shift += axis;
     }
+    shift = tex_half_scaled(shift);
     /*tex
-        Construct a hlist box for the fraction, according to |hgap| and |vgap|.
+        Construct a hlist box for the fraction, according to |hgap| and |vgap|. Well, we no longer
+        use these often badly set gap parameters.
     */
-    hgap = tex_get_math_x_parameter_checked(style, math_parameter_skewed_fraction_hgap);
-    hgap = tex_round_xn_over_d(hgap, fraction_h_factor(target), scaling_factor);
     {
-        scaled ht = box_height(numerator) + shift_up;
-        scaled dp = box_depth(numerator) - shift_up;
+        scaled ht = box_height(numerator) + shift;
+        scaled dp = box_depth(numerator) - shift;
         if (dp < 0) {
             dp = 0;
         }
@@ -3885,8 +4175,8 @@ static halfword tex_aux_make_skewed_fraction(halfword target, int style, int siz
         }
     }
     {
-        scaled ht = box_height(denominator) - shift_down;
-        scaled dp = box_depth(denominator) + shift_down;
+        scaled ht = box_height(denominator) - shift;
+        scaled dp = box_depth(denominator) + shift;
         if (dp < 0) {
             dp = 0;
         }
@@ -3900,14 +4190,38 @@ static halfword tex_aux_make_skewed_fraction(halfword target, int style, int siz
             maxdepth = dp;
         }
     }
-    box_shift_amount(numerator) = -shift_up;
-    box_shift_amount(denominator) = shift_down;
-    delta = maxheight + maxdepth;
-    middle = tex_aux_make_delimiter(target, middle_delimiter, size, delta, 0, style, 1, NULL, NULL, tolerance, has_noad_option_nooverflow(target), &extremes, 0, null, 0);
-    if (has_noad_option_center(target)) { 
-       box_shift_amount(middle) -= box_total(middle) - delta;
+    box_shift_amount(numerator) = -shift;
+    box_shift_amount(denominator) = shift;
+    maxtotal = maxheight + maxdepth;
+    /* */
+    if (has_noad_option_use_callback(target)) {
+        halfword fam = delimiter_small_family(delimiter);
+        halfword chr = delimiter_small_character(delimiter);
+        halfword fnt = tex_fam_fnt(fam, size);
+        if (chr && fnt != null_font) {
+         // halfword thickness = tex_aux_check_fraction_rule(target, style, size, skewed_fraction_subtype, &fam);
+            halfword thickness = tex_get_math_y_parameter_checked(style, math_parameter_fraction_rule);
+            scaled exheight = tex_aux_math_exheight(size);
+            scaled emwidth = tex_aux_math_emwidth(size);
+            halfword result = tex_made_extensible(target, fnt, chr, size, 0, maxheight, maxdepth, thickness, axis, exheight, emwidth);
+            if (result) { 
+                middle = register_extensible(fnt, chr, size, result, mergedattr);
+                goto PICKUP;
+            }
+        }
     }
+    /* */
+    middle = tex_aux_make_delimiter(target, delimiter, size, maxtotal, 0, style, 1, NULL, NULL, tolerance, has_noad_option_nooverflow(target), &extremes, 0, mergedattr, 0, 1);
+  PICKUP:
     fraction = tex_new_null_box_node(hlist_node, math_fraction_list);
+    /*tex 
+        We no longer do this this: 
+    */
+    /*
+        hgap = tex_get_math_x_parameter_checked(style, math_parameter_skewed_fraction_hgap); 
+    */
+    hgap = box_width(middle);
+    hgap = tex_round_xn_over_d(hgap, fraction_h_factor(target), scaling_factor);
     tex_attach_attribute_list_copy(fraction, target);
     box_width(fraction) = box_width(numerator) + box_width(denominator) + box_width(middle) - hgap;
     hgap = -tex_half_scaled(hgap);
@@ -3915,7 +4229,9 @@ static halfword tex_aux_make_skewed_fraction(halfword target, int style, int siz
     box_depth(fraction) = box_depth(middle) > maxdepth ? box_depth(middle) : maxdepth;
     ngap = hgap; 
     dgap = hgap; 
-    /*tex Better not do this, as we now have factors to control it and can fix the parameters. */
+    /*tex 
+        Better not do this, as we now have factors to control it and can fix the parameters. 
+    */
     /*
         if (tex_math_has_class_option(fraction_noad_subtype, carry_over_left_top_kern_class_option)) {  
             ngap += tex_aux_math_x_size_scaled(extremes.tfont, tex_char_top_left_kern_from_font(extremes.tfont, extremes.tchar), size);
@@ -3925,7 +4241,6 @@ static halfword tex_aux_make_skewed_fraction(halfword target, int style, int siz
         }
     */
     if (ngap || dgap) {
-        // todo: only add when non zero 
         halfword nkern = tex_new_kern_node(ngap, horizontal_math_kern_subtype);
         halfword dkern = tex_new_kern_node(dgap, horizontal_math_kern_subtype);
         tex_attach_attribute_list_copy(nkern, target);
@@ -3939,6 +4254,10 @@ static halfword tex_aux_make_skewed_fraction(halfword target, int style, int siz
         tex_couple_nodes(middle, denominator);
     }
     box_list(fraction) = numerator;     
+    if (mergedattr) { 
+        delete_attribute_reference(mergedattr);
+        delete_attribute_reference(noad_extra_attr(target));
+    }
     return fraction;
 }
 
@@ -3953,6 +4272,7 @@ static halfword tex_aux_make_ruled_fraction(halfword target, int style, int size
     halfword thickness = tex_aux_check_fraction_rule(target, style, size, fractiontype, &fam);
     halfword fraction = tex_new_null_box_node(vlist_node, math_fraction_list);
     halfword rule = null;
+    halfword mergedattr = tex_merge_attribute_list(null, noad_extra_attr(target));
     (void) kerns;
     tex_attach_attribute_list_copy(fraction, target);
     tex_aux_wrap_fraction_parts(target, style, size, &numerator, &denominator, 1);
@@ -3963,17 +4283,21 @@ static halfword tex_aux_make_ruled_fraction(halfword target, int style, int size
     }
     tex_aux_apply_fraction_shifts(fraction, numerator, denominator, shift_up, shift_down);
     if (fractiontype != atop_fraction_subtype) {
-        rule = tex_aux_fraction_rule(box_width(fraction), thickness, get_attribute_list(target), math_fraction_rule_subtype, size, fam);
+        rule = tex_aux_fraction_rule(box_width(fraction), thickness, mergedattr, math_fraction_rule_subtype, size, fam);
         tex_aux_compensate_fraction_rule(target, fraction, rule, thickness);
     }
     box_list(fraction) = tex_aux_assemble_fraction(target, style, size, numerator, denominator, rule, delta, shift_up, shift_down);
+    if (mergedattr) { 
+        delete_attribute_reference(mergedattr);
+        delete_attribute_reference(noad_extra_attr(target));
+    }
     return fraction;
 }
 
 static halfword tex_aux_make_stretched_fraction(halfword target, int style, int size, kernset *kerns)
 {
-    halfword middle_delimiter = fraction_middle_delimiter(target);
-    if (tex_aux_has_extensible(middle_delimiter, size)) {
+    halfword delimiter = fraction_middle_delimiter(target);
+    if (tex_aux_has_extensible(delimiter, size)) {
         halfword middle = null;
         halfword numerator = null;
         halfword denominator = null;
@@ -3982,12 +4306,13 @@ static halfword tex_aux_make_stretched_fraction(halfword target, int style, int 
         scaled delta = 0;
         halfword thickness = tex_aux_check_fraction_rule(target, style, size, stretched_fraction_subtype, NULL);
         halfword fraction = tex_new_null_box_node(vlist_node, math_fraction_list);
+        halfword mergedattr = tex_merge_attribute_list(node_attr(delimiter), noad_extra_attr(target));
         (void) kerns;
         tex_attach_attribute_list_copy(fraction, target);
         tex_aux_wrap_fraction_parts(target, style, size, &numerator, &denominator, 1);
         tex_aux_calculate_fraction_shifts_normal(target, style, size, numerator, denominator, &shift_up, &shift_down, &delta);
         tex_aux_apply_fraction_shifts(fraction, numerator, denominator, shift_up, shift_down);
-        middle = tex_aux_make_delimiter(target, middle_delimiter, size, box_width(fraction), 1, style, 0, NULL, NULL, 0, 0, NULL, 0, node_attr(middle_delimiter), 0);
+        middle = tex_aux_make_delimiter(target, delimiter, size, box_width(fraction), 1, style, 0, NULL, NULL, 0, 0, NULL, 0, mergedattr, 0, 1);
         if (box_width(middle) < box_width(fraction)) {
             /*tex It's always in the details: */
             scaled delta = (box_width(fraction) - box_width(middle)) / 2;
@@ -4004,6 +4329,10 @@ static halfword tex_aux_make_stretched_fraction(halfword target, int style, int 
         }
         tex_aux_compensate_fraction_rule(target, fraction, middle, thickness);
         box_list(fraction) = tex_aux_assemble_fraction(target, style, size, numerator, denominator, middle, delta, shift_up, shift_down);
+        if (mergedattr) { 
+            delete_attribute_reference(mergedattr);
+            delete_attribute_reference(noad_extra_attr(target));
+        }
         return fraction;
     } else { 
         return tex_aux_make_ruled_fraction(target, style, size, kerns, over_fraction_subtype);
@@ -4442,7 +4771,7 @@ static scaled tex_aux_op_wrapup(halfword target, int style, int size, int italic
             /* we need to check for overflow here */
             opsize += limited_scaled(openupheight);
             opsize += openupdepth;
-            box = tex_aux_make_delimiter(target, y, text_size, opsize, 0, style, ! has_noad_option_noaxis(target), NULL, &italic, 0, has_noad_option_nooverflow(target), NULL, 0, null, 0);
+            box = tex_aux_make_delimiter(target, y, text_size, opsize, 0, style, ! has_noad_option_noaxis(target), NULL, &italic, 0, has_noad_option_nooverflow(target), NULL, 0, null, 0, 1);
         } else {
             /*tex
                 Where was the weird + 1 coming from? It tweaks the comparison. Anyway, because we
@@ -4729,6 +5058,11 @@ static void tex_aux_prepend_hkern_to_box_list(halfword box, scaled delta, halfwo
     Instead of a few mode parameters we now control this via the control options bitset. In this 
     case we cheat a bit as there is no relationship with a font (the first |null| parameter that 
     gets passed here). In the archive we can find all the variants. 
+
+    We used to have (four) shifted scripts with associated parameters that set the horizontal 
+    shifts but in the end this was removed because multiscripts can do the same. Instead we 
+    have indexed scripts but these are just flagged normal ones. All traces of the shifted 
+    variants were removed end May 2024. 
 
 */
 
@@ -5334,6 +5668,17 @@ static int tex_aux_math_empty_script(halfword n)
     return ! n || (node_type(n) == sub_mlist_node && ! kernel_math_list(n));
 }
 
+/*tex
+
+We register if a prime is entered before a superscript so in principle we could act upon that but
+in the end we decided to always put it after the superscript. This happened after we introduced
+multiscript support. At that time we also changed the shifted scripts to behave like normal ones 
+but with a different flag that indicates that they are indices. The backend can then use that 
+information (for what we call meaningful math) and again the shifting has been replaced by the 
+multiscripts (and |noscript|) which is easier to explain and configure. 
+
+*/
+
 static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic, int style, scaled supshift, scaled subshift, scaled supdrop, kernset *kerns, halfword single)
 {
     halfword result = null;
@@ -5343,11 +5688,11 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
     scaled shift_up = 0;
     scaled shift_down = 0;
     scaled prime_up = 0;
-    scriptdata postsubdata = { .node = null, .fnt = null_font, .chr = 0, .box = null, .kern = null, .slack = 0, .shifted = 0, .whatever = 0 };
-    scriptdata postsupdata = { .node = null, .fnt = null_font, .chr = 0, .box = null, .kern = null, .slack = 0, .shifted = 0, .whatever = 0 }; 
-    scriptdata presubdata  = { .node = null, .fnt = null_font, .chr = 0, .box = null, .kern = null, .slack = 0, .shifted = 0, .whatever = 0 };
-    scriptdata presupdata  = { .node = null, .fnt = null_font, .chr = 0, .box = null, .kern = null, .slack = 0, .shifted = 0, .whatever = 0 };
-    scriptdata primedata   = { .node = null, .fnt = null_font, .chr = 0, .box = null, .kern = null, .slack = 0, .shifted = 0, .whatever = 0 };
+    scriptdata postsubdata = { .node = null, .fnt = null_font, .chr = 0, .box = null, .kern = null, .slack = 0, .whatever = 0 };
+    scriptdata postsupdata = { .node = null, .fnt = null_font, .chr = 0, .box = null, .kern = null, .slack = 0, .whatever = 0 }; 
+    scriptdata presubdata  = { .node = null, .fnt = null_font, .chr = 0, .box = null, .kern = null, .slack = 0, .whatever = 0 };
+    scriptdata presupdata  = { .node = null, .fnt = null_font, .chr = 0, .box = null, .kern = null, .slack = 0, .whatever = 0 };
+    scriptdata primedata   = { .node = null, .fnt = null_font, .chr = 0, .box = null, .kern = null, .slack = 0, .whatever = 0 };
     halfword maxleftkern = 0;
  // halfword maxrightkern = 0;
     scaled leftslack = 0;
@@ -5356,7 +5701,6 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
  // scaled primewidth = 0;
     scaled topovershoot = 0;
     scaled botovershoot = 0;
-    int italicmultiplier = 1; /* This was a hard coded 2 so it needs more checking! */
     int splitscripts = 0;
     halfword primetarget = target;
     scaled prime_drop = noad_prime(target) ? tex_get_math_y_parameter_default(style, math_parameter_prime_shift_drop, 0) : 0;
@@ -5374,9 +5718,7 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
 
         It's a mess. By adding more and more and also trying to be a bit like old \TEX\ we now have 
         too many kerns. 
-
     */
-
     if (has_noad_option_ignore_empty_super_script(target) && tex_aux_math_empty_script(noad_supscr(target))) {
         tex_flush_node(noad_supscr(target));
         noad_supscr(target) = null;
@@ -5389,6 +5731,10 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
         tex_flush_node(noad_prime(target));
         noad_prime(target) = null;
     }
+    /*tex 
+        When we have a wide accent that exceeds the base we have what is called an overshoot, for 
+        which we need to compensate. See Pagella for an example (goodie file). 
+    */
     if (node_type(target) == accent_noad) {
         scaled top = tex_get_math_parameter_default(style, math_parameter_accent_top_overshoot, 0);
         scaled bot = tex_get_math_parameter_default(style, math_parameter_accent_bottom_overshoot, 0);
@@ -5469,7 +5815,7 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
                             an |f| is above and so we get inconsistent positioning. By looking at 
                             the prevous primeshift state we avoid this issue in most cases. 
                         */
-//                       if (has_noad_option_continuation(target)) { 
+                      // if (has_noad_option_continuation(target)) { 
                             halfword prev = node_prev(target);
                             while (prev) {
                                 if (tex_math_scripts_allowed(prev)) {
@@ -5486,7 +5832,7 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
                                 }    
                                 prev = node_prev(prev);
                             }
-//                       }
+                      // }
                     }
                 } else { 
                     prime_up = 0;
@@ -5494,8 +5840,8 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
             }
     }
     /*tex
-        Next we're doing some analysis, needed because of all these parameters than control horizontal and vertical
-        spacing. We start with primes.  
+        Next we're doing some analysis, needed because of all these parameters than control 
+        horizontal and vertical spacing. We start with primes.  
     */
     if (noad_prime(target)) {
         /* todo extra */
@@ -5506,13 +5852,27 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
         } else { 
             prime_up = tex_get_math_y_parameter_default(style, math_parameter_prime_shift_up, 0);
         }
-     // scaled width = tex_get_math_x_parameter_default(style, math_parameter_prime_width, 0);
         primedata.box = tex_aux_clean_box(noad_prime(target), (has_noad_option_nosupscript(target) ? style : tex_math_style_variant(style, math_parameter_prime_variant)), style, math_prime_list, 0, NULL);
         box_shift_amount(primedata.box) -= prime_up;
         box_shift_amount(primedata.box) -= scaledround(box_height(primedata.box) * raise / 100.0);
         kernel_math_list(noad_prime(target)) = null;
         tex_flush_node(noad_prime(target));
         noad_prime(target) = null;
+        /*tex   
+            We don't use this (any longer) ... was needed for collapsing (at the Lua end). But 
+            maybe some day it can become an option, not that it makes much sense mathematically.
+            Also, we can use |\noscript| after the prime(s) to move forward and then use the 
+            multiscript mechanism to add a superscript. 
+        */
+     // switch (noad_script_order(target)) {
+     //     case script_primescript_first:
+     //         break;
+     //     case script_subscript_first:
+     //         break;
+     //     case script_superscript_first:
+     //         break;
+     // }
+        /*tex ... till here. */
         if (noad_supscr(target)) {
             primestate = prime_at_end_location;
         } else if (noad_subscr(target)) {
@@ -5564,17 +5924,9 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
     }
     /*tex 
         Each of the scripts gets treated. Traditionally a super and subscript are looked at and 
-        vertically spaced out together which in turn results in the staricase kerns needing that 
+        vertically spaced out together which in turn results in the staircase kerns needing that 
         information. Prescripts we handle differently: they are always aligned, so there the 
         maximum kern wins. 
-    */
- //  postsupdata.shifted = noad_supscr(target) && has_noad_option_shiftedsupscript(target);
- //  postsubdata.shifted = noad_subscr(target) && has_noad_option_shiftedsubscript(target);
- //  presupdata.shifted = noad_supprescr(target) && has_noad_option_shiftedsupprescript(target);
- //  presubdata.shifted = noad_subprescr(target) && has_noad_option_shiftedsubprescript(target);
-    /* 
-        When we have a shifted super or subscript (stored in the prescripts) we don't need to kern
-        the super and subscripts. What to do with the shifts?  
     */
     if (noad_supscr(target)) {
         halfword extra = tex_get_math_y_parameter_checked(style, math_parameter_extra_superscript_shift);
@@ -5737,31 +6089,6 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
                 presubdata.box = null;
             }
         }
-     // /*tex 
-     //     We want to retain the kern because it is a visual thing but it could be an option to 
-     //     only add the excess over the shift. We're talking tiny here. 
-     //
-     //     We could be clever and deal with combinations of shifted but lets play safe and let
-     //     the user worry about it. The sub index always wins. 
-     // */
-     // if (postsubdata.box && postsupdata.shifted) {
-     //     halfword shift = tex_get_math_x_parameter_checked(style, math_parameter_subscript_shift_distance);
-     //     halfword amount = box_width(postsupdata.box) + shift;
-     //     tex_aux_prepend_hkern_to_box_list(postsubdata.box, amount, horizontal_math_kern_subtype, "post shifted");
-     // } else if (postsupdata.box && postsubdata.shifted) {
-     //     halfword shift = tex_get_math_x_parameter_checked(style, math_parameter_superscript_shift_distance);
-     //     halfword amount = box_width(postsubdata.box) + shift;
-     //     tex_aux_prepend_hkern_to_box_list(postsupdata.box, amount, horizontal_math_kern_subtype, "post shifted");
-     // }
-     // if (presubdata.box && presupdata.shifted) {
-     //     halfword shift = tex_get_math_x_parameter_checked(style, math_parameter_subprescript_shift_distance);
-     //     halfword amount = box_width(presupdata.box) + shift;
-     //     tex_aux_append_hkern_to_box_list(presubdata.box, amount, horizontal_math_kern_subtype, "pre shifted");
-     // } else if (presupdata.box && presubdata.shifted) {
-     //     halfword shift = tex_get_math_x_parameter_checked(style, math_parameter_superprescript_shift_distance);
-     //     halfword amount = box_width(presubdata.box) + shift;
-     //     tex_aux_append_hkern_to_box_list(presupdata.box, amount, horizontal_math_kern_subtype, "pre shifted");
-     // }
         /* */
         if (postsupdata.box) {
             /* Do we still want to chain these sups or should we combine it? */
@@ -5791,8 +6118,8 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
                 }
                 if (presupdata.kern) {
                     /* italic needs checking */
-                    kern_amount(presupdata.kern) += -supkern - italicmultiplier * italic;
-                    kern_amount(postsupdata.kern) += supkern + italicmultiplier * italic;
+                    kern_amount(presupdata.kern) += -supkern - italic;
+                    kern_amount(postsupdata.kern) += supkern + italic;
                 }
                 {
                     halfword kern = tex_new_kern_node((shift_up - box_depth(postsupdata.box)) - (box_height(postsubdata.box) - shift_down), vertical_math_kern_subtype);
@@ -5814,8 +6141,8 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
                 }
                 result = tex_aux_shift_to_kern(target, postsupdata.box, -shift_up);
                 if (presupdata.kern) {
-                    kern_amount(presupdata.kern) += -supkern - subkern - italicmultiplier * italic;
-                    kern_amount(postsupdata.kern) += supkern + subkern + italicmultiplier * italic;
+                    kern_amount(presupdata.kern) += -supkern - subkern - italic;
+                    kern_amount(postsupdata.kern) += supkern + subkern + italic;
                 }
             }
         } else {
@@ -5933,7 +6260,6 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
             result = preresult;
         }
         if (prekern) {
-            /* must become horizontal kern */
             halfword list = tex_aux_prepend_hkern_to_new_hlist(target, prekern, horizontal_math_kern_subtype, "pre compensation");
             tex_couple_nodes(tex_tail_of_node_list(list), result);
         } else if (noad_new_hlist(target)) {
@@ -5942,11 +6268,17 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
             noad_new_hlist(target) = result;
         }
     }
-    if (primestate == prime_at_end_location) {
-        tex_couple_nodes(tex_tail_of_node_list(result), primedata.box);
-        rightslack = primedata.slack;
+    /*tex  We now have prines always at the end (after the superscript): */
+    switch (primestate) { 
+        case prime_at_end_location:
+            tex_couple_nodes(tex_tail_of_node_list(result), primedata.box);
+            rightslack = primedata.slack;
+            break;
+        case prime_at_begin_location:
+            rightslack = primedata.slack;
+            break;
     }
-    if (math_slack_mode_par > 0) {
+    if (math_slack_mode_par > 0) { /* brrr what with multiple scripts .... */
         noad_left_slack(target) = leftslack;
         noad_right_slack(target) = rightslack;
         if (tracing_math_par >= 2) {
@@ -5975,22 +6307,6 @@ static void tex_aux_make_scripts(halfword target, halfword kernel, scaled italic
 
 */
 
-// inline static int tex_aux_is_extensible(halfword result)
-// {
-//     if (result) {
-//         switch (node_type(result)) { 
-//             case hlist_node:
-//             case vlist_node:
-//                 switch (node_subtype(result)) { 
-//                     case math_h_delimiter_list:
-//                     case math_v_delimiter_list:
-//                         return 1;
-//                 }
-//         }
-//     }
-//     return 0;
-// }
-
 static halfword tex_aux_make_left_right(halfword target, int style, scaled max_d, scaled max_h, int size, delimiterextremes *extremes)
 {
     halfword tmp;
@@ -6002,6 +6318,8 @@ static halfword tex_aux_make_left_right(halfword target, int style, scaled max_d
     scaled height = tex_aux_math_given_y_scaled(noad_height(target));
     scaled depth = tex_aux_math_given_y_scaled(noad_depth(target));
     int leftoperator = node_type(target) == fence_noad && node_subtype(target) == left_operator_side;
+    halfword delimiter = fence_delimiter(target);
+    halfword mergedattr = tex_merge_attribute_list(node_attr(delimiter), noad_extra_attr(target));
     max_h += fence_top_overshoot(target);
     max_d += fence_bottom_overshoot(target);
     if (extremes) { 
@@ -6017,6 +6335,22 @@ static halfword tex_aux_make_left_right(halfword target, int style, scaled max_d
         depth = tex_aux_math_math_scale(depth);
     }
     tex_aux_set_current_math_size(style);
+    /* */
+    if (has_noad_option_use_callback(target)) {
+        halfword fam = delimiter_small_family(delimiter);
+        halfword chr = delimiter_small_character(delimiter);
+        halfword fnt = tex_fam_fnt(fam, size);
+        halfword thickness = tex_get_math_y_parameter_checked(style, math_parameter_fraction_rule);
+        scaled axis = tex_aux_math_axis(size);
+        scaled exheight = tex_aux_math_exheight(size);
+        scaled emwidth = tex_aux_math_emwidth(size);
+        halfword result = tex_made_extensible(target, fnt, chr, size, 0, max_h, max_d, thickness, axis, exheight, emwidth); /* fence_delimiter_variant(target) */
+        if (result) { 
+            tmp = register_extensible(fnt, chr, size, result, mergedattr);
+            goto PICKUP;
+        }
+    }
+    /* */
     if (fence_delimiter_variant(target)) {
         int axis = ! has_noad_option_noaxis(target);
         scaled delta = 0;
@@ -6025,11 +6359,11 @@ static halfword tex_aux_make_left_right(halfword target, int style, scaled max_d
      // } else if (! delta) { 
      //     delta = tex_aux_get_delimiter_height(max_h, max_d, axis, size, style); // todo: pass scaled axis
      // }
-        tmp = tex_aux_make_delimiter(target, fence_delimiter(target), size, delta, 0, style, axis, &stack, &ic, 0, has_noad_option_nooverflow(target), extremes, 0, null, fence_delimiter_variant(target));
+        tmp = tex_aux_make_delimiter(target, delimiter, size, delta, 0, style, axis, &stack, &ic, 0, has_noad_option_nooverflow(target), extremes, 0, mergedattr, fence_delimiter_variant(target), 1);
     } else if (height || depth || has_noad_option_exact(target)) {
         halfword lst;
         scaled delta = height + depth;
-        tmp = tex_aux_make_delimiter(target, fence_delimiter(target), size, delta, 0, style, 0, &stack, &ic, 0, has_noad_option_nooverflow(target), extremes, 0, null, 0);
+        tmp = tex_aux_make_delimiter(target, delimiter, size, delta, 0, style, 0, &stack, &ic, 0, has_noad_option_nooverflow(target), extremes, 0, mergedattr, 0, 1);
         /* do extremes here */
         noad_italic(target) = ic;
         /*tex
@@ -6052,7 +6386,6 @@ static halfword tex_aux_make_left_right(halfword target, int style, scaled max_d
             depth = box_depth(tmp) + box_shift_amount(tmp);
         }
         if (has_noad_option_axis(target)) {
-         // if (has_noad_option_noaxis(target) && tex_aux_is_extensible(tmp)) {
             if (has_noad_option_noaxis(target) && stack) {
                 /*tex A sort of special case: see sized integrals in ctx examples. */
             } else { 
@@ -6089,8 +6422,9 @@ static halfword tex_aux_make_left_right(halfword target, int style, scaled max_d
         } else if (! delta) { 
             delta = tex_aux_get_delimiter_height(max_h, max_d, axis, size, style); // todo: pass scaled axis
         }
-        tmp = tex_aux_make_delimiter(target, fence_delimiter(target), size, delta, 0, style, axis, &stack, &ic, 0, has_noad_option_nooverflow(target), extremes, 0, null, 0);
+        tmp = tex_aux_make_delimiter(target, delimiter, size, delta, 0, style, axis, &stack, &ic, 0, has_noad_option_nooverflow(target), extremes, 0, mergedattr, 0, 1);
     }
+  PICKUP:
     /* delimiter is wiped */
     noad_height(target) = height;
     noad_depth(target) = depth;
@@ -6104,7 +6438,7 @@ static halfword tex_aux_make_left_right(halfword target, int style, scaled max_d
     }
     /* */
     if (leftoperator) {
-        halfword s = tex_new_node(sub_box_node, 0);
+        halfword nucleus = tex_new_node(sub_box_node, 0);
         kernset kerns;
         tex_math_wipe_kerns(&kerns);
         tex_flush_node_list(noad_supscr(target));
@@ -6118,8 +6452,8 @@ static halfword tex_aux_make_left_right(halfword target, int style, scaled max_d
             noad_subscr(target) = fence_delimiter_bottom(target);
             fence_delimiter_bottom(target) = null;
         }
-        kernel_math_list(s) = tmp;
-        noad_nucleus(target) = s;
+        kernel_math_list(nucleus) = tmp;
+        noad_nucleus(target) = nucleus;
         /* maybe elsewhere as the above case */
         if (extremes && extremes->tfont) { 
             if (tex_math_has_class_option(fenced_noad_subtype, carry_over_right_top_kern_class_option)) {  
@@ -6139,12 +6473,15 @@ static halfword tex_aux_make_left_right(halfword target, int style, scaled max_d
         /* returns italic, so maybe noad_italic(target) = ... */
         tex_aux_make_op(target, style, size, ic, limits_unknown_mode, &kerns);
         /* otherwise a leak: */
-        kernel_math_list(s) = null;
-        tex_flush_node(s);
+        kernel_math_list(nucleus) = null;
+        tex_flush_node(nucleus);
     } else {
         tex_aux_assign_new_hlist(target, tmp);
     }
     /* */
+    if (mergedattr) { 
+        delete_attribute_reference(mergedattr);
+    }
     switch (node_subtype(target)) {
         case left_fence_side:
             if (leftclass != unset_noad_class) {
@@ -6664,7 +7001,7 @@ static int tex_aux_make_fenced(halfword current, halfword current_style, halfwor
                 halfword n = tex_new_node(simple_noad, ordinary_noad_subtype);
                 halfword top = tex_new_node(sub_mlist_node, 0);
                 fence_delimiter_top(list) = top;
-    node_subtype(n) = math_char_node; // smells like a bug 
+                node_subtype(n) = math_char_node; // smells like a bug 
                 noad_nucleus(n) = noad_supscr(current);
                 kernel_math_list(top) = n;
                 noad_supscr(current) = null;
@@ -6678,7 +7015,7 @@ static int tex_aux_make_fenced(halfword current, halfword current_style, halfwor
                 halfword n = tex_new_node(simple_noad, ordinary_noad_subtype);
                 halfword bottom = tex_new_node(sub_mlist_node, 0);
                 fence_delimiter_bottom(list) = bottom;
-    node_subtype(n) = math_char_node; // smells like a bug 
+                node_subtype(n) = math_char_node; // smells like a bug 
                 noad_nucleus(n) = noad_subscr(current);
                 kernel_math_list(bottom) = n;
                 noad_subscr(current) = null;
@@ -7342,40 +7679,40 @@ static void tex_mlist_aux_realign(halfword first, halfword last)
     scaled up = 0;
     scaled down = 0;
     scaled prime = 0;
-    halfword c = first;
-    halfword k = first;
-    while (c) {
-        if (tex_math_scripts_allowed(c)) { 
-            if (has_noad_option_continuation_kernel(c)) {
-                k = c; /* only one so we can have a check */
+    halfword current = first;
+    halfword kernel = first;
+    while (current) {
+        if (tex_math_scripts_allowed(current)) { 
+            if (has_noad_option_continuation_kernel(current)) {
+                kernel = current; /* only one so we can have a check */
             }
             if (has_noad_option_realign_scripts(last)) { // move out 
                 // printf("> up %i, down %i\n",noad_supshift(c),noad_subshift(c));
-                if (noad_supshift(c) > up) {
-                    up = noad_supshift(c);
+                if (noad_supshift(current) > up) {
+                    up = noad_supshift(current);
                 }
-                if (noad_subshift(c) > down) {
-                    down = noad_subshift(c);
+                if (noad_subshift(current) > down) {
+                    down = noad_subshift(current);
                 }
-                if (noad_primeshift(c) > prime) {
-                    prime = noad_primeshift(c);
+                if (noad_primeshift(current) > prime) {
+                    prime = noad_primeshift(current);
                 }
             }
         }
-        if (c == last) {
+        if (current == last) {
             break;
         } else {
-            c = node_next(c);
+            current = node_next(current);
         }
     }
-    c = first;
-    while (c) {
-        if (tex_math_scripts_allowed(c)) {
-            halfword list = noad_new_hlist(c);
+    current = first;
+    while (current) {
+        if (tex_math_scripts_allowed(current)) {
+            halfword list = noad_new_hlist(current);
             if (list) {
-                scaled u = up - noad_supshift(c);
-                scaled d = down - noad_subshift(c);
-                scaled p = prime - noad_primeshift(c);
+                scaled u = up - noad_supshift(current);
+                scaled d = down - noad_subshift(current);
+                scaled p = prime - noad_primeshift(current);
                 while (list) {
                     switch (node_type(list)) { 
                         case hlist_node:
@@ -7461,21 +7798,22 @@ static void tex_mlist_aux_realign(halfword first, halfword last)
                 }
             }
         }
-        if (c == last) {
+        if (current == last) {
             break;
         } else {
-            halfword next = node_next(c);
-            if (c != last && noad_script_kern(first)) { 
-                halfword kern = tex_new_kern_node(noad_script_kern(first), horizontal_math_kern_subtype);
+            halfword next = node_next(current);
+            scaled amount = noad_script_kern(first) - noad_right_slack(current);
+            if (amount) { 
+                halfword kern = tex_new_kern_node(amount, horizontal_math_kern_subtype);
                 tex_attach_attribute_list_copy(kern, first);
-                tex_couple_nodes(c, kern);
+                tex_couple_nodes(current, kern);
                 tex_couple_nodes(kern, next);
             }
-            c = next;
+            current = next;
         }
     }
     if (has_noad_option_inherit_class(last)) {
-        noad_class_right(last) = tex_mlist_aux_guess_class(k);
+        noad_class_right(last) = tex_mlist_aux_guess_class(kernel);
         noad_class_left(first) = noad_class_right(last);
     }
 }

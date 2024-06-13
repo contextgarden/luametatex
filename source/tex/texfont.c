@@ -397,10 +397,16 @@ static charinfo *tex_aux_char_info(halfword f, int c)
     return &(lmt_font_state.fonts[f]->chardata[0]);
 }
 
-static scaled tex_aux_font_weight_done(halfword f, scaled v)
+// static scaled tex_aux_font_weight_done(halfword f, scaled v)
+// {
+//  // return v ? lround(65.536 * v * (double) lmt_font_state.fonts[f]->design_size / (double) lmt_font_state.fonts[f]->size) : 0;
+//     return v ? lround(v * lmt_font_state.fonts[f]->weight) : 0;
+// }
+
+static scaled tex_aux_glyph_weight_done(halfword g)
 {
- // return v ? lround(65.536 * v * (double) lmt_font_state.fonts[f]->design_size / (double) lmt_font_state.fonts[f]->size) : 0;
-    return v ? lround(v * lmt_font_state.fonts[f]->weight) : 0;
+    return glyph_weight(g) && tex_has_glyph_option(g, glyph_option_weight_less) 
+        ? 0 : lround(glyph_weight(g) * lmt_font_state.fonts[glyph_font(g)]->weight);
 }
 
 void tex_char_process(halfword f, int c) 
@@ -459,7 +465,7 @@ int tex_math_char_exists(halfword f, int c, int size)
     a little.
 */
 
-int tex_get_math_char(halfword f, int c, int size, scaled *scale, int direction)
+int tex_get_math_char(halfword f, int c, int size, scaled *scale, scaled *xscale, scaled *yscale, scaled *weight, int direction)
 {
     int id = aux_find_charinfo_id(f, c);
     texfont *tf = lmt_font_state.fonts[f];
@@ -501,8 +507,17 @@ int tex_get_math_char(halfword f, int c, int size, scaled *scale, int direction)
     }
     if (scale) {
         *scale = tex_get_math_font_scale(f, size);
+        *xscale = tex_get_math_font_x_scale(f, size);
+        *yscale = tex_get_math_font_y_scale(f, size);
+        *weight = tex_get_math_font_weight(f, size);
         if (! *scale) {
             *scale = scaling_factor;
+        }
+        if (! *xscale) {
+            *xscale = scaling_factor;
+        }
+        if (! *yscale) {
+            *yscale = scaling_factor;
         }
     }
     return c;
@@ -1985,33 +2000,33 @@ scaled tex_char_inner_y_offset_from_font(halfword f, halfword c)
 scaled tex_char_width_from_glyph(halfword g)
 {
     charinfo *ci = tex_aux_char_info(glyph_font(g), glyph_character(g));
-    return tex_aux_glyph_x_scaled(g, ci->width + 2 * tex_aux_font_weight_done(glyph_font(g),glyph_weight(g)));
+    return tex_aux_glyph_x_scaled(g, ci->width + 2 * tex_aux_glyph_weight_done(g));
 }
 
 scaled tex_char_height_from_glyph(halfword g)
 {
     charinfo *ci = tex_aux_char_info(glyph_font(g), glyph_character(g));
-    return tex_aux_glyph_y_scaled(g, ci->height + (has_charinfo_tag(ci,below_baseline_tag) ? 0 : tex_aux_font_weight_done(glyph_font(g),glyph_weight(g))));
+    return tex_aux_glyph_y_scaled(g, ci->height + (has_charinfo_tag(ci,below_baseline_tag) ? 0 : tex_aux_glyph_weight_done(g)));
 }
 
 scaled tex_char_depth_from_glyph(halfword g)
 {
     charinfo *ci = tex_aux_char_info(glyph_font(g), glyph_character(g));
-    return tex_aux_glyph_y_scaled(g, ci->depth + (has_charinfo_tag(ci,above_baseline_tag) ? 0 : tex_aux_font_weight_done(glyph_font(g),glyph_weight(g))));
+    return tex_aux_glyph_y_scaled(g, ci->depth + (has_charinfo_tag(ci,above_baseline_tag) ? 0 : tex_aux_glyph_weight_done(g)));
 }
 
 scaled tex_char_total_from_glyph(halfword g)
 {
     charinfo *ci = tex_aux_char_info(glyph_font(g), glyph_character(g));
-    scaled ht = ci->height + (has_charinfo_tag(ci,below_baseline_tag) ? 0 : tex_aux_font_weight_done(glyph_font(g),glyph_weight(g)));
-    scaled dp = ci->depth + (has_charinfo_tag(ci,above_baseline_tag) ? 0 : tex_aux_font_weight_done(glyph_font(g),glyph_weight(g)));
+    scaled ht = ci->height + (has_charinfo_tag(ci,below_baseline_tag) ? 0 : tex_aux_glyph_weight_done(g));
+    scaled dp = ci->depth + (has_charinfo_tag(ci,above_baseline_tag) ? 0 : tex_aux_glyph_weight_done(g));
     return tex_aux_glyph_y_scaled(g, (ht > 0 ? ht : 0) + (dp > 0 ? dp : 0)); /* so not progression */
 }
 
 scaled tex_char_italic_from_glyph(halfword g)
 {
     charinfo *ci = tex_aux_char_info(glyph_font(g), glyph_character(g));
- // return tex_aux_glyph_x_scaled(g, ci->italic + tex_aux_font_weight_done(glyph_font(g),glyph_weight(g)));
+ // return tex_aux_glyph_x_scaled(g, ci->italic + tex_aux_glyph_weight_done(g));
     return tex_aux_glyph_x_scaled(g, ci->italic);
 }
 
@@ -2019,7 +2034,7 @@ scaledkrn tex_char_corner_kerns_from_glyph(halfword g)
 {
     charinfo *ci = tex_aux_char_info(glyph_font(g), glyph_character(g));
     if (ci->math) { 
-        scaled w = tex_aux_font_weight_done(glyph_font(g),glyph_weight(g));
+        scaled w = tex_aux_glyph_weight_done(g);
         return (scaledkrn) { 
             .bl = ci->math->bottom_left_kern  ? tex_aux_glyph_y_scaled(g, ci->math->bottom_left_kern  + w) : 0,
             .br = ci->math->bottom_right_kern ? tex_aux_glyph_y_scaled(g, ci->math->bottom_right_kern + w) : 0,
@@ -2034,13 +2049,13 @@ scaledkrn tex_char_corner_kerns_from_glyph(halfword g)
 scaled tex_char_left_protrusion_from_glyph(halfword g)
 {
     charinfo *ci = tex_aux_quality_char_info(glyph_font(g), glyph_character(g));
-    return ci ? tex_aux_glyph_x_scaled(g, ci->leftprotrusion + tex_aux_font_weight_done(glyph_font(g),glyph_weight(g))) : 0;
+    return ci ? tex_aux_glyph_x_scaled(g, ci->leftprotrusion + tex_aux_glyph_weight_done(g)) : 0;
 }
 
 scaled tex_char_right_protrusion_from_glyph(halfword g)
 {
     charinfo *ci = tex_aux_quality_char_info(glyph_font(g), glyph_character(g));
-    return ci ? tex_aux_glyph_x_scaled(g, ci->rightprotrusion + tex_aux_font_weight_done(glyph_font(g),glyph_weight(g))) : 0;
+    return ci ? tex_aux_glyph_x_scaled(g, ci->rightprotrusion + tex_aux_glyph_weight_done(g)) : 0;
 }
 
 // halfword tex_char_options_from_glyph(halfword g)
@@ -2062,7 +2077,7 @@ scaled tex_char_right_protrusion_from_glyph(halfword g)
 scaledwhd tex_char_whd_from_glyph(halfword g)
 {
     charinfo *ci = tex_aux_char_info(glyph_font(g), glyph_character(g));
-    scaled w = tex_aux_font_weight_done(glyph_font(g),glyph_weight(g));
+    scaled w = tex_aux_glyph_weight_done(g);
     return (scaledwhd) {
         .wd = tex_aux_glyph_x_scaled(g, ci->width  + w * 2),
         .ht = tex_aux_glyph_y_scaled(g, ci->height + (has_charinfo_tag(ci,below_baseline_tag) ? 0 : w)),
@@ -2090,7 +2105,7 @@ scaled tex_calculated_char_width(halfword f, halfword c, halfword ex)
 scaled tex_calculated_glyph_width(halfword g, halfword ex)
 {
     charinfo *ci = tex_aux_char_info(glyph_font(g), glyph_character(g));
-    scaled wd = tex_aux_glyph_x_scaled(g, ci->width + 2 * tex_aux_font_weight_done(glyph_font(g),glyph_weight(g)));
+    scaled wd = tex_aux_glyph_x_scaled(g, ci->width + 2 * tex_aux_glyph_weight_done(g));
     return ex ? tex_round_xn_over_d(wd, scaling_factor + ex, scaling_factor) : wd;
 }
 
@@ -2162,17 +2177,6 @@ void tex_set_font_original(halfword f, const char *s)
     set_font_original(f, s ? lmt_memory_strdup(s) : NULL);
 }
 
-// scaled tex_get_math_font_scale(halfword f, halfword size)
-// {
-//     scaled scale = scaling_factor;
-//     switch (size) {
-//         case 2: scale = lmt_font_state.fonts[f]->mathscales[2] ? lmt_font_state.fonts[f]->mathscales[2] : glyph_scriptscript_scale_par; break;
-//         case 1: scale = lmt_font_state.fonts[f]->mathscales[1] ? lmt_font_state.fonts[f]->mathscales[1] : glyph_script_scale_par;       break;
-//         case 0: scale = lmt_font_state.fonts[f]->mathscales[0] ? lmt_font_state.fonts[f]->mathscales[0] : glyph_text_scale_par;         break;
-//     }
-//     return scale ? scale : scaling_factor;
-// 
-
 scaled tex_get_math_font_scale(halfword f, halfword size)
 {
     scaled scale;
@@ -2184,6 +2188,72 @@ scaled tex_get_math_font_scale(halfword f, halfword size)
     scale = scaledround(0.001 * (double) scale);
     return scale ? scale : scaling_factor;
 }
+
+scaled tex_get_math_font_x_scale(halfword f, halfword size)
+{
+    scaled scale;
+    switch (size) {
+        case  2: scale = (lmt_font_state.fonts[f]->mathxscales[2] ? lmt_font_state.fonts[f]->mathxscales[2] : scaling_factor) * glyph_scriptscript_scale_par; break;
+        case  1: scale = (lmt_font_state.fonts[f]->mathxscales[1] ? lmt_font_state.fonts[f]->mathxscales[1] : scaling_factor) * glyph_script_scale_par;       break;
+        default: scale = (lmt_font_state.fonts[f]->mathxscales[0] ? lmt_font_state.fonts[f]->mathxscales[0] : scaling_factor) * glyph_text_scale_par;         break;
+    }
+    scale = scaledround(0.001 * (double) scale);
+    return scale ? scale : scaling_factor;
+}
+
+scaled tex_get_math_font_y_scale(halfword f, halfword size)
+{
+    scaled scale;
+    switch (size) {
+        case  2: scale = (lmt_font_state.fonts[f]->mathyscales[2] ? lmt_font_state.fonts[f]->mathyscales[2] : scaling_factor) * glyph_scriptscript_scale_par; break;
+        case  1: scale = (lmt_font_state.fonts[f]->mathyscales[1] ? lmt_font_state.fonts[f]->mathyscales[1] : scaling_factor) * glyph_script_scale_par;       break;
+        default: scale = (lmt_font_state.fonts[f]->mathyscales[0] ? lmt_font_state.fonts[f]->mathyscales[0] : scaling_factor) * glyph_text_scale_par;         break;
+    }
+    scale = scaledround(0.001 * (double) scale);
+    return scale ? scale : scaling_factor;
+}
+
+scaled tex_get_math_font_weight(halfword f, halfword size)
+{
+    switch (size) {
+        case  2: return lmt_font_state.fonts[f]->mathweights[2] ; break;
+        case  1: return lmt_font_state.fonts[f]->mathweights[1] ; break;
+        default: return lmt_font_state.fonts[f]->mathweights[0] ; break;
+    }
+}
+
+// scaled tex_raw_math_font_scale(halfword f, halfword size)
+// {
+//     scaled scale;
+//     switch (size) {
+//         case  2: scale = (lmt_font_state.fonts[f]->mathscales[2] ? lmt_font_state.fonts[f]->mathscales[2] : scaling_factor) * glyph_scriptscript_scale_par; break;
+//         case  1: scale = (lmt_font_state.fonts[f]->mathscales[1] ? lmt_font_state.fonts[f]->mathscales[1] : scaling_factor) * glyph_script_scale_par;       break;
+//         default: scale = (lmt_font_state.fonts[f]->mathscales[0] ? lmt_font_state.fonts[f]->mathscales[0] : scaling_factor) * glyph_text_scale_par;         break;
+//     }
+//     return scale ? scale : scaling_factor * scaling_factor;
+// }
+// 
+// scaled tex_raw_math_font_x_scale(halfword f, halfword size)
+// {
+//     scaled scale;
+//     switch (size) {
+//         case  2: scale = (lmt_font_state.fonts[f]->mathxscales[2] ? lmt_font_state.fonts[f]->mathxscales[2] : scaling_factor) * glyph_scriptscript_scale_par; break;
+//         case  1: scale = (lmt_font_state.fonts[f]->mathxscales[1] ? lmt_font_state.fonts[f]->mathxscales[1] : scaling_factor) * glyph_script_scale_par;       break;
+//         default: scale = (lmt_font_state.fonts[f]->mathxscales[0] ? lmt_font_state.fonts[f]->mathxscales[0] : scaling_factor) * glyph_text_scale_par;         break;
+//     }
+//     return scale ? scale : scaling_factor * scaling_factor;
+// }
+// 
+// scaled tex_raw_math_font_y_scale(halfword f, halfword size)
+// {
+//     scaled scale;
+//     switch (size) {
+//         case  2: scale = (lmt_font_state.fonts[f]->mathyscales[2] ? lmt_font_state.fonts[f]->mathyscales[2] : scaling_factor) * glyph_scriptscript_scale_par; break;
+//         case  1: scale = (lmt_font_state.fonts[f]->mathyscales[1] ? lmt_font_state.fonts[f]->mathyscales[1] : scaling_factor) * glyph_script_scale_par;       break;
+//         default: scale = (lmt_font_state.fonts[f]->mathyscales[0] ? lmt_font_state.fonts[f]->mathyscales[0] : scaling_factor) * glyph_text_scale_par;         break;
+//     }
+//     return scale ? scale : scaling_factor * scaling_factor;
+// }
 
 scaled tex_get_math_font_factor(halfword size)
 {

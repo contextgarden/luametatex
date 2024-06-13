@@ -64,6 +64,13 @@
 
 typedef halfword fitcriterion[n_of_fitness_values] ;
 
+typedef struct break_passes { 
+    int n_of_first_passes;
+    int n_of_second_passes;
+    int n_of_third_passes;
+    int n_of_sub_passes;
+} break_passes;
+
 typedef struct linebreak_state_info {
     /*tex the |hlist_node| for the last line of the new paragraph */
     halfword     just_box;
@@ -89,12 +96,12 @@ typedef struct linebreak_state_info {
     scaled       break_width[n_of_glue_amounts];
     scaled       disc_width[n_of_glue_amounts];
     scaled       fill_width[4];
-    halfword     internal_penalty_interline;
-    halfword     internal_penalty_broken;
+    halfword     internal_interline_penalty;
+    halfword     internal_broken_penalty;
     halfword     internal_left_box;
     scaled       internal_left_box_width;
-    halfword     internal_left_box_init;
-    scaled       internal_left_box_width_init;
+    halfword     internal_left_box_init;       /* hm: |_init| */
+    scaled       internal_left_box_width_init; /* hm: |_init| */
     halfword     internal_right_box;
     scaled       internal_right_box_width;
     scaled       internal_middle_box;
@@ -115,9 +122,11 @@ typedef struct linebreak_state_info {
     halfword     dir_ptr;
     halfword     warned;
     halfword     calling_back;
-    int          saved_threshold; 
+    int          saved_threshold;   /*tex Saves the value outside inline math. */
+    int          global_threshold;  /*tex Saves the value outside local par states. */
     int          checked_expansion; 
     int          line_break_dir;
+    break_passes passes[n_of_par_context_codes];
 } linebreak_state_info;
 
 extern linebreak_state_info lmt_linebreak_state;
@@ -151,7 +160,8 @@ extern halfword tex_default_fitness_demerits(
 
 extern void tex_line_break (
     int d, 
-    int line_break_context
+    int group_context,
+    int par_context
 );
 
 extern void tex_initialize_active (
@@ -231,4 +241,10 @@ static inline void tex_append_list(halfword head, halfword tail)
     cur_list.tail = tail;
 }
 
+extern void tex_get_line_content_range(
+    halfword  head, 
+    halfword  tail, 
+    halfword *first, 
+    halfword *last
+); 
 # endif

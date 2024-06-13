@@ -81,6 +81,8 @@ static const char *callbacklib_names[total_callbacks] = {
     "paragraph_pass",
     "handle_uleader",
     "italic_correction",
+    "show_loners",
+    "tail_append",
 };
 
 /*tex

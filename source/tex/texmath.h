@@ -146,15 +146,9 @@ typedef enum math_parameters {
     math_parameter_prime_shift_up,
     math_parameter_prime_shift_drop,
     math_parameter_prime_space_after,
-    math_parameter_prime_width,
     /* */
     math_parameter_rule_height,
     math_parameter_rule_depth,
-    /* */
-    math_parameter_superscript_shift_distance,
-    math_parameter_subscript_shift_distance,
-    math_parameter_superprescript_shift_distance,
-    math_parameter_subprescript_shift_distance,
     /* */
     math_parameter_extra_superscript_space,
     math_parameter_extra_subscript_space,
@@ -176,6 +170,8 @@ typedef enum math_parameters {
     math_parameter_delimiter_percent,
     math_parameter_delimiter_shortfall,
     math_parameter_delimiter_extend_margin,
+    /* */
+    /*tex This is overkill as we now set them per style. */
     /* */
     math_parameter_over_line_variant,
     math_parameter_under_line_variant,
@@ -252,6 +248,7 @@ typedef enum math_parameters {
 # define last_math_parameter               math_parameter_stack_variant
 # define math_parameter_first_variant      math_parameter_over_line_variant
 # define math_parameter_last_variant       math_parameter_stack_variant
+# define math_parameter_valid_variant(n)   (n >= math_parameter_over_line_variant && n <= math_parameter_stack_variant)
 # define math_default_spacing_parameter    math_parameter_spacing_pair(ordinary_noad_subtype,ordinary_noad_subtype)
 # define math_default_rules_parameter      0
 
@@ -300,7 +297,7 @@ typedef enum math_atom_font_options {
 
 static inline int math_parameter_value_type(int n)
 {
-    if (n < last_math_parameter) {
+    if (n <= last_math_parameter) {
         return lmt_interface.math_parameter_values[n].type;
     } else if (n >= math_parameter_atom_rules_first && n <= math_parameter_atom_rules_last) {
         return math_pair_parameter;
@@ -344,7 +341,11 @@ typedef enum math_style_variants {
 
 # define last_math_style_variant math_double_superscript_variant
 
+# define valid_math_style_variant(n) (n >= 0 && n <= math_double_superscript_variant)
+
 inline static int tex_is_cramped_style(int s) { return (s % 2) != 0; }
+
+extern int tex_get_math_variant_preset(int n);
 
 /*
 
@@ -598,7 +599,8 @@ extern scaled   tex_get_font_math_y_parameter    (int font, int size, int param)
 extern void     tex_fixup_math_parameters        (int fam, int size, int fnt, int level);
 extern void     tex_finalize_math_parameters     (void);
 extern scaled   tex_get_math_quad_style          (int style);
-extern scaled   tex_math_axis_size               (int size);
+extern scaled   tex_get_math_axis_size           (int size);
+extern scaled   tex_get_math_exheight_size       (int size);
 extern scaled   tex_get_math_quad_size           (int size);
 extern scaled   tex_get_math_quad_size_scaled    (int size);
 extern scaled   tex_get_math_quad_size_unscaled  (int size);
@@ -664,7 +666,8 @@ inline int tex_math_no_more_scripts(halfword node)
 { 
     return (node_type(node) >= simple_noad) && (node_type(node) < fence_noad)
         && has_noad_option_no_more_scripts(node)
-        && ! (noad_supscr(node) || noad_subscr(node) || noad_supprescr(node) || noad_subprescr(node) || noad_prime(node));
+        && (noad_supscr(node) || noad_subscr(node) || noad_supprescr(node) || noad_subprescr(node) || noad_prime(node))
+    ;
 }
 
 extern halfword tex_new_math_continuation_atom   (halfword node, halfword attr);
@@ -765,6 +768,7 @@ typedef enum math_control_codes {
 )
 
 /*tex
+
     In the process of improving the math engine several intermediate features have been
     added that were removed later. They were mostly an aid for testing but in the end it
     made no sense to keep them around. To some extend they could enforce compatibility

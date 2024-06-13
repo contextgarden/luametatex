@@ -642,10 +642,11 @@ typedef enum mp_name_type_type {
     mp_scaled_operation,            /* operation code for |scaled| */
     mp_shifted_operation,           /* operation code for |shifted| */
     mp_transformed_operation,       /* operation code for |transformed| */
-    mp_uncycled_operation,          /* operation code for |uncycled| */
     mp_x_scaled_operation,          /* operation code for |xscaled| */
     mp_y_scaled_operation,          /* operation code for |yscaled| */
     mp_z_scaled_operation,          /* operation code for |zscaled| */
+    mp_xy_scaled_operation,         /* operation code for |xyscaled| */
+    mp_uncycled_operation,          /* operation code for |uncycled| */
     mp_intertimes_operation,        /* operation code for |intersectiontimes| */
     mp_intertimes_list_operation,   /* operation code for |intersectiontimeslist| */
     mp_double_dot_operation,        /* operation code for improper |..| */

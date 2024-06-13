@@ -135,6 +135,8 @@ void lmt_initialize_interface(void)
     set_par_context_value(align_par_context,       align);
     set_par_context_value(no_align_par_context,    noalign);
     set_par_context_value(span_par_context,        span);
+    set_par_context_value(math_par_context,        math);
+    set_par_context_value(lua_par_context,         lua);
     set_par_context_value(reset_par_context,       reset);
 
     lmt_interface.page_context_values = lmt_aux_allocate_value_info(triggered_page_context);
@@ -437,15 +439,9 @@ void lmt_initialize_interface(void)
     set_math_parameter_value(math_parameter_prime_shift_up,                     math_dimension_parameter,  primeshiftup);
     set_math_parameter_value(math_parameter_prime_shift_drop,                   math_dimension_parameter,  primeshiftdrop);
     set_math_parameter_value(math_parameter_prime_space_after,                  math_dimension_parameter,  primespaceafter);
-    set_math_parameter_value(math_parameter_prime_width,                        math_integer_parameter,    primewidth);
 
     set_math_parameter_value(math_parameter_rule_height,                        math_dimension_parameter,  ruleheight);
     set_math_parameter_value(math_parameter_rule_depth,                         math_dimension_parameter,  ruledepth);
-
-    set_math_parameter_value(math_parameter_superscript_shift_distance,         math_dimension_parameter,  superscriptshiftdistance);
-    set_math_parameter_value(math_parameter_subscript_shift_distance,           math_dimension_parameter,  subscriptshiftdistance);
-    set_math_parameter_value(math_parameter_superprescript_shift_distance,      math_dimension_parameter,  presuperscriptshiftdistance);
-    set_math_parameter_value(math_parameter_subprescript_shift_distance,        math_dimension_parameter,  presubscriptshiftdistance);
 
     set_math_parameter_value(math_parameter_extra_superscript_space,            math_dimension_parameter,  extrasuperscriptspace);
     set_math_parameter_value(math_parameter_extra_subscript_space,              math_dimension_parameter,  extrasubscriptspace);
