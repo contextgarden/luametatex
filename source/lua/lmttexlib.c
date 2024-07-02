@@ -5039,10 +5039,12 @@ static int texlib_getglueoptionvalues(lua_State *L)
 
 static int texlib_getmathoptionvalues(lua_State *L)
 {
-    lua_createtable(L, 3, 0);
+    lua_createtable(L, 2, 3);
     lua_set_string_by_index(L, math_option_normal,   "normal");
     lua_set_string_by_index(L, math_option_short,    "short");
     lua_set_string_by_index(L, math_option_orphaned, "orphaned");
+    lua_set_string_by_index(L, math_option_display,  "display");
+    lua_set_string_by_index(L, math_option_cramped,  "cramped");
     return 1;
 }
 

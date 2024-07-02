@@ -588,6 +588,8 @@ typedef enum math_option_codes {
     math_option_normal   = 0x0000,
     math_option_short    = 0x0001,
     math_option_orphaned = 0x0002,
+    math_option_display  = 0x0004,
+    math_option_cramped  = 0x0008,
 } math_option_codes; 
 
 /*tex Here are some (inline) helpers. We need specific ones for math glue. */
