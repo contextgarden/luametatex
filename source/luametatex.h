@@ -82,7 +82,8 @@
     2.10.08 : close to BachoTeX 2023 
     2.10.09 : evolved in May/June 2023 (math & text linebreak experiments) 
     2.10.10 : around the ctx 2023 meeting 
-    2.10.11 : till the end of 2024 
+    2.10.11 : first half of 2024
+    2.10.12 : around the ctx 2024 meeting
 
     At some point the \CONTEXT\ group will be responsible for guaranteeing that the official version
     is what comes with \CONTEXT\ and that long term support and stabilty is guaranteed and that no 
@@ -90,17 +91,19 @@
 
     Hans Hagen
 
+    PS. Does anyone use (lib)cerf? If so, should I strip it a bit? 
+    PS. Maybe use the Lua randomizer.
+
 */
 
 # include "tex/textypes.h"
 
 # define luametatex_version          2
 # define luametatex_revision         11
-# define luametatex_release          03
-# define luametatex_version_string   "2.11.03"
-# define luametatex_version_number   211.3
-# define luametatex_development_id   2024013
-
+# define luametatex_release          04
+# define luametatex_version_string   "2.11.04"
+# define luametatex_version_number   211.4
+# define luametatex_development_id   20240813
 # define luametatex_name_camelcase   "LuaMetaTeX"
 # define luametatex_name_lowercase   "luametatex"
 # define luametatex_copyright_holder "Taco Hoekwater, Hans Hagen, Wolfgang Schuster & Mikael Sundqvist"

@@ -548,11 +548,12 @@ static inline void tex_remove_glue_option (halfword a, halfword r) { glue_option
 static inline int  tex_has_glue_option    (halfword a, halfword r) { return (glue_options(a) & r) == r; }
 
 typedef enum glue_option_codes {
-    glue_option_normal        = 0x0000,
-    glue_option_no_auto_break = 0x0001,
-    glue_option_has_factor    = 0x0002,
-    glue_option_is_limited    = 0x0004,
-    glue_option_limit         = 0x0008,
+    glue_option_normal         = 0x0000,
+    glue_option_no_auto_break  = 0x0001, /* math related */
+    glue_option_has_factor     = 0x0002,
+    glue_option_is_limited     = 0x0004,
+    glue_option_limit          = 0x0008,
+    glue_option_u_leaders_line = 0x0010,
 } glue_option_codes; 
 
 typedef enum math_subtypes {
@@ -588,6 +589,8 @@ typedef enum math_option_codes {
     math_option_normal   = 0x0000,
     math_option_short    = 0x0001,
     math_option_orphaned = 0x0002,
+    math_option_display  = 0x0004,
+    math_option_cramped  = 0x0008,
 } math_option_codes; 
 
 /*tex Here are some (inline) helpers. We need specific ones for math glue. */
@@ -694,9 +697,9 @@ typedef enum kern_subtypes {
 
 # define font_related_kern(s) (s >= font_kern_subtype && s <= space_font_kern_subtype) 
 
-# define kern_node_size       3
-# define kern_amount(a)       vlink(a,2) /*tex aka |width = vlink(a,2)| */
-# define kern_expansion(a)    vinfo(a,2) /*tex expansion factor (hz) */
+# define kern_node_size    3
+# define kern_amount(a)    vlink(a,2) /*tex aka |width = vlink(a,2)| */
+# define kern_expansion(a) vinfo(a,2) /*tex expansion factor (hz) */
 
 /*tex
 
@@ -810,9 +813,9 @@ static inline int  tex_has_disc_option    (halfword a, halfword r) { return (dis
     just call them nodes so that we can use head and tail instead of hlink and tlink.
 */
 
-# define disc_pre_break_node(a)   (a+5)
-# define disc_post_break_node(a)  (a+7)
-# define disc_no_break_node(a)    (a+9)
+# define disc_pre_break_node(a)  (a+5)
+# define disc_post_break_node(a) (a+7)
+# define disc_no_break_node(a)   (a+9)
 
 # define disc_pre_break_head(a)  node_head(disc_pre_break_node(a))
 # define disc_post_break_head(a) node_head(disc_post_break_node(a))
@@ -826,7 +829,7 @@ extern void     tex_set_disc_field          (halfword target, halfword location,
 extern void     tex_check_disc_field        (halfword target);
 extern void     tex_set_discpart            (halfword d, halfword h, halfword t, halfword code);
 extern halfword tex_flatten_discretionaries (halfword head, int *count, int nest);
-extern int      tex_flatten_leaders         (halfword box, int grp, int just_pack);
+extern int      tex_flatten_leaders         (halfword box, int grp, int just_pack, const char *where, int checkline);
 extern void     tex_soften_hyphens          (halfword head, int *found, int *replaced);
 extern halfword tex_harden_spaces           (halfword head, halfword tolerance, int *count);
 
@@ -895,8 +898,8 @@ typedef enum list_subtypes {
     local_middle_list,
 } list_subtypes ;
 
-# define last_list_subtype     local_middle_list
-# define noad_class_list_base  0x0100
+# define last_list_subtype    local_middle_list
+# define noad_class_list_base 0x0100
 
 typedef enum list_anchors {
     left_origin_anchor    = 0x001,
@@ -927,39 +930,41 @@ typedef enum list_geometries {
     anchor_geometry      = 0x4,
 } list_geometries;
 
-# define box_node_size          15
-# define box_width(a)           vlink(a,2)
-# define box_w_offset(a)        vinfo(a,2)
-# define box_depth(a)           vlink(a,3)
-# define box_d_offset(a)        vinfo(a,3)
-# define box_height(a)          vlink(a,4)
-# define box_h_offset(a)        vinfo(a,4)
-# define box_list(a)            vlink(a,5)   /* 5 = list_offset */
-# define box_shift_amount(a)    vinfo(a,5)
-# define box_glue_order(a)      vlink(a,6)   /* quarterword (?) */
-# define box_glue_sign(a)       vinfo(a,6)   /* quarterword (!) */
-//define box_glue_order(a)      vlink00(a,6)  
-//define box_glue_sign(a)       vlink01(a,6)  
-//define box_glue_reserved_1(a) vlink02(a,6)  
-//define box_glue_reserved_2(a) vlink03(a,6)  
-# define box_glue_set(a)        dvalue(a,7)  /* So we reserve a whole memory word! */
-# define box_dir(a)             vlink00(a,8) /* We could encode it as geomtry but not now. */
-# define box_package_state(a)   vlink01(a,8)
-# define box_axis(a)            vlink02(a,8)
-# define box_geometry(a)        vlink03(a,8)
-# define box_orientation(a)     vinfo(a,8)   /* Also used for size in alignments. */
-# define box_x_offset(a)        vlink(a,9)
-# define box_y_offset(a)        vinfo(a,9)
-# define box_pre_migrated(a)    vlink(a,10)
-# define box_post_migrated(a)   vinfo(a,10)
-# define box_pre_adjusted(a)    vlink(a,11)
-# define box_post_adjusted(a)   vinfo(a,11)
-# define box_source_anchor(a)   vlink(a,12)
-# define box_target_anchor(a)   vinfo(a,12)
-# define box_anchor(a)          vlink(a,13)
-# define box_index(a)           vinfo(a,13)
-# define box_input_file(a)      vlink(a,14) 
-# define box_input_line(a)      vinfo(a,14) 
+# define box_node_size        16
+# define box_width(a)         vlink(a,2)
+# define box_w_offset(a)      vinfo(a,2)
+# define box_depth(a)         vlink(a,3)
+# define box_d_offset(a)      vinfo(a,3)
+# define box_height(a)        vlink(a,4)
+# define box_h_offset(a)      vinfo(a,4)
+# define box_list(a)          vlink(a,5)   /* 5 = list_offset */
+# define box_shift_amount(a)  vinfo(a,5)
+# define box_glue_order(a)    vlink(a,6)   /* quarterword (?) */
+# define box_glue_sign(a)     vinfo(a,6)   /* quarterword (?) */
+//define box_glue_order(a)    vlink00(a,6)  
+//define box_glue_sign(a)     vlink01(a,6)  
+//define box_reserved_1(a)    vlink02(a,6)  
+//define box_reserved_2(a)    vlink03(a,6)  
+# define box_glue_set(a)      dvalue(a,7)  /* So we reserve a whole memory word! */
+# define box_dir(a)           vlink00(a,8) /* We could encode it as geomtry but not now. */
+# define box_package_state(a) vlink01(a,8)
+# define box_axis(a)          vlink02(a,8)
+# define box_geometry(a)      vlink03(a,8)
+# define box_orientation(a)   vinfo(a,8)   /* Also used for size in alignments. */
+# define box_x_offset(a)      vlink(a,9)
+# define box_y_offset(a)      vinfo(a,9)
+# define box_pre_migrated(a)  vlink(a,10)
+# define box_post_migrated(a) vinfo(a,10)
+# define box_pre_adjusted(a)  vlink(a,11)
+# define box_post_adjusted(a) vinfo(a,11)
+# define box_source_anchor(a) vlink(a,12)
+# define box_target_anchor(a) vinfo(a,12)
+# define box_anchor(a)        vlink(a,13)
+# define box_index(a)         vinfo(a,13)
+# define box_except(a)        vlink(a,14)
+# define box_exdepth(a)       vinfo(a,14)
+# define box_input_file(a)    vlink(a,15) 
+# define box_input_line(a)    vinfo(a,15) 
 
 # define box_total(a) (box_height(a) + box_depth(a)) /* Here we add, with glyphs we maximize. */ 
 
@@ -969,12 +974,16 @@ static inline void tex_unset_box_geometry (halfword b, halfword g) { box_geometr
 static inline int  tex_has_geometry       (halfword g, halfword f) { return ((singleword) (g) & (singleword) (f)) == (singleword) (f); }
 static inline int  tex_has_box_geometry   (halfword b, halfword g) { return (box_geometry(b) & (singleword) (g)) == (singleword) (g); }
 
+/*tex These are used in reporting states in Lua. */
+
 typedef enum box_pre_post_states { 
     has_pre_adjust    = 0x1,
     has_post_adjust   = 0x2,
     has_pre_migrated  = 0x4,
     has_post_migrated = 0x8,
 } box_pre_post_states;
+
+/*tex These three make the bitset in |box_package_state|. */
 
 typedef enum package_states {
     unknown_package_state = 0x00,
@@ -1172,11 +1181,13 @@ typedef enum rule_option_codes {
 
 # define glyph_node_size     14
 # define glyph_character(a)  vinfo(a,2)
-# define glyph_font(a)       vlink(a,2)
-# define glyph_data(a)       vinfo(a,3)   /*tex We had that unused, so now it's like an attribute. */
-# define glyph_state(a)      vlink(a,3)   /*tex A user field (can be handy in \LUA). */
-# define glyph_language(a)   vinfo(a,4)
-# define glyph_script(a)     vlink(a,4)
+# define glyph_font(a)       vlink(a,2)   /*tex can be quarterword */
+# define glyph_data(a)       vinfo(a,3)   /*tex handy in context */
+# define glyph_state(a)      vlink(a,3)   /*tex handy in context */
+# define glyph_language(a)   vinfo0(a,4) 
+# define glyph_script(a)     vinfo1(a,4) 
+# define glyph_control(a)    vlink0(a,4)  /*tex we store 0xXXXX in the |\cccode| */
+# define glyph_reserved(a)   vlink1(a,4)
 # define glyph_options(a)    vinfo(a,5)
 # define glyph_hyphenate(a)  vlink(a,5)
 # define glyph_protected(a)  vinfo00(a,6)
@@ -1192,18 +1203,19 @@ typedef enum rule_option_codes {
 # define glyph_right(a)      vlink(a,9)
 # define glyph_x_offset(a)   vinfo(a,10)
 # define glyph_y_offset(a)   vlink(a,10)
-# define glyph_properties(a) vinfo0(a,11)
-# define glyph_group(a)      vinfo1(a,11)
-# define glyph_index(a)      vlink(a,11)
-# define glyph_weight(a)     vinfo(a,12)        
-# define glyph_slant(a)      vlink(a,12)  
+# define glyph_weight(a)     vinfo(a,11)        
+# define glyph_slant(a)      vlink(a,11)  
+# define glyph_properties(a) vinfo0(a,12)  /*tex for math */
+# define glyph_group(a)      vinfo1(a,12)  /*tex for math */
+# define glyph_index(a)      vlink(a,12)   /*tex for math */
 # define glyph_input_file(a) vinfo(a,13) 
 # define glyph_input_line(a) vlink(a,13) 
 
 # define get_glyph_data(a)      ((halfword) glyph_data(a))
 # define get_glyph_state(a)     ((halfword) glyph_state(a))
-# define get_glyph_language(a)  ((halfword) glyph_language(a))
-# define get_glyph_script(a)    ((halfword) glyph_script(a))
+# define get_glyph_language(a)  ((quarterword) glyph_language(a))
+# define get_glyph_script(a)    ((quarterword) glyph_script(a))
+# define get_glyph_control(a)   ((quarterword) glyph_control(a))
 # define get_glyph_x_scale(a)   ((halfword) glyph_x_scale(a))
 # define get_glyph_y_scale(a)   ((halfword) glyph_y_scale(a))
 # define get_glyph_scale(a)     ((halfword) glyph_scale(a))
@@ -1214,13 +1226,13 @@ typedef enum rule_option_codes {
 # define get_glyph_right(a)     ((halfword) glyph_right(a))
 # define get_glyph_hyphenate(a) ((halfword) glyph_hyphenate(a))
 # define get_glyph_options(a)   ((halfword) glyph_options(a))
-# define get_glyph_dohyph(a)    (hyphenation_permitted(glyph_hyphenate(a), syllable_hyphenation_mode ) || hyphenation_permitted(glyph_hyphenate(a), force_handler_hyphenation_mode))
-# define get_glyph_uchyph(a)    (hyphenation_permitted(glyph_hyphenate(a), uppercase_hyphenation_mode) || hyphenation_permitted(glyph_hyphenate(a), force_handler_hyphenation_mode))
+# define get_glyph_discpart(a)  ((halfword) glyph_discpart(a))
 
 # define set_glyph_data(a,b)      glyph_data(a) = b
 # define set_glyph_state(a,b)     glyph_state(a) = b
-# define set_glyph_language(a,b)  glyph_language(a) = b
-# define set_glyph_script(a,b)    glyph_script(a) = b
+# define set_glyph_language(a,b)  glyph_language(a) = (quarterword) b
+# define set_glyph_script(a,b)    glyph_script(a) = (quarterword) b
+# define set_glyph_control(a,b)   glyph_control(a) = (quarterword) b
 # define set_glyph_x_scale(a,b)   glyph_x_scale(a) = b
 # define set_glyph_y_scale(a,b)   glyph_y_scale(a) = b
 # define set_glyph_x_offset(a,b)  glyph_x_offset(a) = b
@@ -1231,14 +1243,17 @@ typedef enum rule_option_codes {
 # define set_glyph_raise(a,b)     glyph_raise(a) = b
 # define set_glyph_left(a,b)      glyph_left(a) = b
 # define set_glyph_right(a,b)     glyph_right(a) = b
-# define set_glyph_lhmin(a,b)     glyph_lhmin(a) = (singleword) b
-# define set_glyph_rhmin(a,b)     glyph_rhmin(a) = (singleword) b
-# define set_glyph_hyphenate(a,b) glyph_hyphenate(a) = ((halfword) b)
-# define set_glyph_options(a,b)   glyph_options(a) = ((halfword) b)
-/*       set_glyph_dohyph(a,b)    glyph_hyphenate(a) = ((halfword) flip_hyphenation_mode(glyph_hyphenate(a),syllable_hyphenation_mode)) */
-# define set_glyph_uchyph(a,b)    glyph_hyphenate(a) = ((halfword) flip_hyphenation_mode(glyph_hyphenate(a),uppercase_hyphenation_mode))
-# define set_glyph_discpart(a,b)  glyph_discpart(a) = (singleword) (b)
-# define get_glyph_discpart(a)    ((halfword) glyph_discpart(a))
+# define set_glyph_lhmin(a,b)     glyph_lhmin(a) = ((singleword) (b))
+# define set_glyph_rhmin(a,b)     glyph_rhmin(a) = ((singleword) (b))
+# define set_glyph_hyphenate(a,b) glyph_hyphenate(a) = ((halfword) (b))
+# define set_glyph_options(a,b)   glyph_options(a) = ((halfword) (b))
+# define set_glyph_discpart(a,b)  glyph_discpart(a) = ((singleword) (b))
+
+# define get_glyph_dohyph(a) (hyphenation_permitted(glyph_hyphenate(a), syllable_hyphenation_mode ) || hyphenation_permitted(glyph_hyphenate(a), force_handler_hyphenation_mode))
+# define get_glyph_uchyph(a) (hyphenation_permitted(glyph_hyphenate(a), uppercase_hyphenation_mode) || hyphenation_permitted(glyph_hyphenate(a), force_handler_hyphenation_mode))
+
+/*       set_glyph_dohyph(a,b) glyph_hyphenate(a) = ((halfword) flip_hyphenation_mode(glyph_hyphenate(a),syllable_hyphenation_mode)) */
+# define set_glyph_uchyph(a,b) glyph_hyphenate(a) = ((halfword) flip_hyphenation_mode(glyph_hyphenate(a),uppercase_hyphenation_mode))
 
 typedef enum glyph_subtypes {
     /* initial value: */
@@ -1308,8 +1323,11 @@ typedef enum glyph_option_codes {
     /* */
     glyph_option_weight_less               = 0x00002000,
     glyph_option_space_factor_overload     = 0x00004000,
+    /* */
+    glyph_option_check_toddler             = 0x00008000,
+    glyph_option_check_twin                = 0x00010000,
     /*tex We permit user options. */
-    glyph_option_user_first                = 0x00010000,
+    glyph_option_user_first                = 0x00100000,
     glyph_option_user_last                 = 0x40000000,
     /*tex So watch out: these are subsets! */
     glyph_option_all                       = 0x000003FF,
@@ -1377,6 +1395,7 @@ typedef enum adjust_options {
     adjust_option_depth_after  = 0x08,
     adjust_option_depth_check  = 0x10,
     adjust_option_depth_last   = 0x20,
+    adjust_option_except       = 0x40,
 } adjust_options;
 
 # define last_adjust_subtype local_adjust_code
@@ -1385,7 +1404,7 @@ typedef enum adjust_options {
 # define adjust_list(a)         vlink(a,2)
 # define adjust_options(a)      vinfo(a,2)
 # define adjust_index(a)        vlink(a,3)
-# define adjust_reserved(a)     vinfo(a,3)
+# define adjust_except(a)       vinfo(a,3)
 # define adjust_depth_before(a) vlink(a,4)
 # define adjust_depth_after(a)  vinfo(a,4)
 
@@ -1405,11 +1424,11 @@ typedef enum adjust_options {
 # define insert_max_depth(a)    vlink(a,3)
 # define insert_total_height(a) vlink(a,4) /* the sum of height and depth, i.e. total */
 # define insert_list(a)         vinfo(a,5) /* is alias for |node_next|*/
-# define insert_split_top(a)    vlink(a,5) /* a state variable */
+# define insert_split_top(a)    vlink(a,5) 
 
 # define insert_first_box(a)    (a + 5)    /*tex A fake node where box_list_ptr becomes a next field. */
 
-# define split_node_size        5          /*tex Can become a |split_up_node|. */
+# define split_node_size        5          
 # define split_insert_index(a)  vinfo(a,2) /*tex Same slot! */
 # define split_broken(a)        vlink(a,2) /*tex An insertion for this class will break here if anywhere. */
 # define split_broken_insert(a) vinfo(a,3) /*tex This insertion might break at |broken_ptr|. */
@@ -1505,8 +1524,6 @@ typedef enum fontspec_states {
     font_spec_all_set     = 0x001F,
 } font_spec_states;
 
-
-
 # define font_spec_node_size     5           /* we can be smaller: no attr and no prev */
 # define font_spec_state(a)      vinfo(a,1)  /* slot of node_attr */
 # define font_spec_identifier(a) vinfo(a,2)
@@ -1566,52 +1583,52 @@ static inline int tex_same_mathspec(halfword a, halfword b)
     Here are some more stack related nodes.
 */
 
-# define align_stack_node_size                 16
-# define align_stack_align_ptr(a)              vinfo(a,1)
-# define align_stack_cur_align(a)              vlink(a,1)
-# define align_stack_preamble(a)               vinfo(a,2)
-# define align_stack_cur_span(a)               vlink(a,2)
-# define align_stack_cur_loop(a)               vinfo(a,3)
-# define align_stack_wrap_source(a)            vlink(a,3)
-# define align_stack_align_state(a)            vinfo(a,4)
-# define align_stack_no_align_level(a)         vlink(a,4)
-# define align_stack_cur_post_adjust_head(a)   vinfo(a,5)
-# define align_stack_cur_post_adjust_tail(a)   vlink(a,5)
-# define align_stack_cur_pre_adjust_head(a)    vinfo(a,6)
-# define align_stack_cur_pre_adjust_tail(a)    vlink(a,6)
-# define align_stack_cur_post_migrate_head(a)  vinfo(a,7)
-# define align_stack_cur_post_migrate_tail(a)  vlink(a,7)
-# define align_stack_cur_pre_migrate_head(a)   vinfo(a,8)
-# define align_stack_cur_pre_migrate_tail(a)   vlink(a,8)
-# define align_stack_options(a)                vinfo(a,9)
-# define align_stack_attr_list(a)              vlink(a,9)
-# define align_stack_callback(a)               vinfo(a,10)
-# define align_stack_data(a)                   vlink(a,10) /* maybe */
+# define align_stack_node_size                16
+# define align_stack_align_ptr(a)             vinfo(a,1)
+# define align_stack_cur_align(a)             vlink(a,1)
+# define align_stack_preamble(a)              vinfo(a,2)
+# define align_stack_cur_span(a)              vlink(a,2)
+# define align_stack_cur_loop(a)              vinfo(a,3)
+# define align_stack_wrap_source(a)           vlink(a,3)
+# define align_stack_align_state(a)           vinfo(a,4)
+# define align_stack_no_align_level(a)        vlink(a,4)
+# define align_stack_cur_post_adjust_head(a)  vinfo(a,5)
+# define align_stack_cur_post_adjust_tail(a)  vlink(a,5)
+# define align_stack_cur_pre_adjust_head(a)   vinfo(a,6)
+# define align_stack_cur_pre_adjust_tail(a)   vlink(a,6)
+# define align_stack_cur_post_migrate_head(a) vinfo(a,7)
+# define align_stack_cur_post_migrate_tail(a) vlink(a,7)
+# define align_stack_cur_pre_migrate_head(a)  vinfo(a,8)
+# define align_stack_cur_pre_migrate_tail(a)  vlink(a,8)
+# define align_stack_options(a)               vinfo(a,9)
+# define align_stack_attr_list(a)             vlink(a,9)
+# define align_stack_callback(a)              vinfo(a,10)
+# define align_stack_data(a)                  vlink(a,10) /* maybe */
 
-# define align_stack_row_attrlist(a)           vinfo(a,11) 
-# define align_stack_row_orientation(a)        vlink(a,11)
-# define align_stack_row_yoffset(a)            vinfo(a,12)
-# define align_stack_row_xoffset(a)            vlink(a,12)
-# define align_stack_row_ymove(a)              vinfo(a,13)
-# define align_stack_row_xmove(a)              vlink(a,13)
-# define align_stack_row_shift(a)              vinfo(a,14)
-# define align_stack_row_source(a)             vlink(a,14)
-# define align_stack_row_target(a)             vinfo(a,15)
-# define align_stack_row_anchor(a)             vlink(a,15)
+# define align_stack_row_attrlist(a)          vinfo(a,11) 
+# define align_stack_row_orientation(a)       vlink(a,11)
+# define align_stack_row_yoffset(a)           vinfo(a,12)
+# define align_stack_row_xoffset(a)           vlink(a,12)
+# define align_stack_row_ymove(a)             vinfo(a,13)
+# define align_stack_row_xmove(a)             vlink(a,13)
+# define align_stack_row_shift(a)             vinfo(a,14)
+# define align_stack_row_source(a)            vlink(a,14)
+# define align_stack_row_target(a)            vinfo(a,15)
+# define align_stack_row_anchor(a)            vlink(a,15)
 
 /*tex
     If nodes are for nesting conditionals. We have more state information that in (for instance)
     \LUATEX\ because we have more tracing and more test variants.
 */
 
-# define if_node_size            3             /*tex we can use prev now */
-# define if_limit_type(a)        vinfo0(a,1)   /*tex overlaps with node_attr */
-# define if_limit_subtype(a)     vinfo1(a,1)   /*tex overlaps with node_attr */
-# define if_limit_unless(a)      vinfo00(a,2)
-# define if_limit_step(a)        vinfo01(a,2)
-# define if_limit_stepunless(a)  vinfo02(a,2)
-# define if_limit_unused(a)      vinfo03(a,2)
-# define if_limit_line(a)        vlink(a,2)
+# define if_node_size           3             /*tex we can use prev now */
+# define if_limit_type(a)       vinfo0(a,1)   /*tex overlaps with node_attr */
+# define if_limit_subtype(a)    vinfo1(a,1)   /*tex overlaps with node_attr */
+# define if_limit_unless(a)     vinfo00(a,2)
+# define if_limit_step(a)       vinfo01(a,2)
+# define if_limit_stepunless(a) vinfo02(a,2)
+# define if_limit_unused(a)     vinfo03(a,2)
+# define if_limit_line(a)       vlink(a,2)
 
 /*tex
     Now come some rather special ones. For instance par shapes and file cq.\ line related nodes
@@ -1637,16 +1654,18 @@ static inline int tex_same_mathspec(halfword a, halfword b)
 # define specification_pointer(a) (mvalue(a,2))
 
 typedef enum specification_options {
-    specification_option_repeat = 0x0001,
-    specification_option_values = 0x0002,
-    specification_option_double = 0x0004,
+    specification_option_repeat  = 0x0001,
+    specification_option_values  = 0x0002,
+    specification_option_double  = 0x0004,
+    specification_option_largest = 0x0008, /* of widow or club */
 } specifications_options;
 
 # define specification_index(a,n) ((memoryword *) specification_pointer(a))[n - 1]
 
-# define specification_repeat(a)  ((specification_options(a) & specification_option_repeat) == specification_option_repeat)
-# define specification_values(a)  ((specification_options(a) & specification_option_values) == specification_option_values)
-# define specification_double(a)  ((specification_options(a) & specification_option_double) == specification_option_double)
+# define specification_repeat(a)  ((specification_options(a) & specification_option_repeat)  == specification_option_repeat)
+# define specification_values(a)  ((specification_options(a) & specification_option_values)  == specification_option_values)
+# define specification_double(a)  ((specification_options(a) & specification_option_double)  == specification_option_double)
+# define specification_largest(a) ((specification_options(a) & specification_option_largest) == specification_option_largest)
 
 # define specification_n(a,n)     (specification_repeat(a) ? ((n - 1) % specification_count(a) + 1) : (n > specification_count(a) ? specification_count(a) : n))
 
@@ -1657,7 +1676,7 @@ typedef enum specification_options {
 # define n_of_fitness_values 32 
 
 # define fitness_demerits_size  2
-# define par_passes_size       12
+# define par_passes_size       13
 
 # define fitness_demerits_slot(n,m) ((n-1)*fitness_demerits_size+m)
 # define par_passes_slot(n,m)       ((n-1)*par_passes_size      +m)
@@ -1704,6 +1723,7 @@ typedef enum passes_features {
     passes_orphan_penalty_set  = 0x0010,
     passes_if_adjust_spacing   = 0x0020,
     passes_toddler_penalty_set = 0x0040,
+    passes_twin_demerits_set   = 0x0080,
 } passes_features;
 
 /*tex 
@@ -1729,56 +1749,60 @@ typedef enum passes_features {
 
 */
 
-static inline void     tex_set_passes_threshold                 (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 1)).half0 = v; }
-static inline void     tex_set_passes_badness                   (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 1)).half1 = v; }
-static inline void     tex_set_passes_features                  (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 2)).quart00 |= (v & 0xFFFF); }
-static inline void     tex_set_passes_classes                   (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 2)).quart01 |= (v & 0xFFFF); }
-static inline void     tex_set_passes_tolerance                 (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 2)).half1 = v; }
-static inline void     tex_set_passes_linepenalty               (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 3)).half0 = v; }
-static inline void     tex_set_passes_extrahyphenpenalty        (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 3)).half1 = v; }
-static inline void     tex_set_passes_doublehyphendemerits      (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 4)).half0 = v; }
-static inline void     tex_set_passes_finalhyphendemerits       (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 4)).half1 = v; }
-static inline void     tex_set_passes_adjdemerits               (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 5)).half0 = v; }
-static inline void     tex_set_passes_emergencystretch          (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 5)).half1 = v; }
-static inline void     tex_set_passes_looseness                 (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 6)).half0 = v; }
-static inline void     tex_set_passes_adjustspacingstep         (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 6)).half1 = v; }
-static inline void     tex_set_passes_adjustspacingshrink       (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 7)).half0 = v; }
-static inline void     tex_set_passes_adjustspacingstretch      (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 7)).half1 = v; }
-static inline void     tex_set_passes_adjustspacing             (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 8)).half0 = v; }
-static inline void     tex_set_passes_identifier                (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 8)).half1 = v; }
-static inline void     tex_set_passes_optional                  (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 9)).half0 = v; }
-static inline void     tex_set_passes_callback                  (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 9)).half1 = v; }
-static inline void     tex_set_passes_orphanpenalty             (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,10)).half0 = v; }
-static inline void     tex_set_passes_fitnessdemerits           (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,10)).half1 = v; }
-static inline void     tex_set_passes_toddlerpenalty            (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,11)).half0 = v; }
-static inline void     tex_set_passes_reserved                  (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,11)).half1 = v; }
+static inline void     tex_set_passes_threshold            (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 1)).half0 = v; }
+static inline void     tex_set_passes_badness              (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 1)).half1 = v; }
+static inline void     tex_set_passes_features             (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 2)).quart00 |= (v & 0xFFFF); }
+static inline void     tex_set_passes_classes              (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 2)).quart01 |= (v & 0xFFFF); }
+static inline void     tex_set_passes_tolerance            (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 2)).half1 = v; }
+static inline void     tex_set_passes_linepenalty          (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 3)).half0 = v; }
+static inline void     tex_set_passes_extrahyphenpenalty   (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 3)).half1 = v; }
+static inline void     tex_set_passes_doublehyphendemerits (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 4)).half0 = v; }
+static inline void     tex_set_passes_finalhyphendemerits  (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 4)).half1 = v; }
+static inline void     tex_set_passes_adjdemerits          (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 5)).half0 = v; }
+static inline void     tex_set_passes_emergencystretch     (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 5)).half1 = v; }
+static inline void     tex_set_passes_looseness            (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 6)).half0 = v; }
+static inline void     tex_set_passes_adjustspacingstep    (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 6)).half1 = v; }
+static inline void     tex_set_passes_adjustspacingshrink  (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 7)).half0 = v; }
+static inline void     tex_set_passes_adjustspacingstretch (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 7)).half1 = v; }
+static inline void     tex_set_passes_adjustspacing        (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 8)).half0 = v; }
+static inline void     tex_set_passes_identifier           (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 8)).half1 = v; }
+static inline void     tex_set_passes_optional             (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 9)).half0 = v; }
+static inline void     tex_set_passes_callback             (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n, 9)).half1 = v; }
+static inline void     tex_set_passes_orphanpenalty        (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,10)).half0 = v; }
+static inline void     tex_set_passes_fitnessdemerits      (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,10)).half1 = v; }
+static inline void     tex_set_passes_toddlerpenalty       (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,11)).half0 = v; }
+static inline void     tex_set_passes_linebreakchecks      (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,11)).half1 = v; }
+static inline void     tex_set_passes_lefttwindemerits     (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,12)).half0 = v; }
+static inline void     tex_set_passes_righttwindemerits    (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,12)).half1 = v; }
 
-static inline halfword tex_get_passes_threshold                 (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 1)).half0; }
-static inline halfword tex_get_passes_badness                   (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 1)).half1; }
-static inline halfword tex_get_passes_features                  (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 2)).quart00; }
-static inline halfword tex_get_passes_classes                   (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 2)).quart01; }
-static inline halfword tex_get_passes_tolerance                 (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 2)).half1; }
-static inline halfword tex_get_passes_linepenalty               (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 3)).half0; }
-static inline halfword tex_get_passes_extrahyphenpenalty        (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 3)).half1; }
-static inline halfword tex_get_passes_doublehyphendemerits      (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 4)).half0; }
-static inline halfword tex_get_passes_finalhyphendemerits       (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 4)).half1; }
-static inline halfword tex_get_passes_adjdemerits               (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 5)).half0; }
-static inline halfword tex_get_passes_emergencystretch          (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 5)).half1; }
-static inline halfword tex_get_passes_looseness                 (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 6)).half0; }
-static inline halfword tex_get_passes_adjustspacingstep         (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 6)).half1; }
-static inline halfword tex_get_passes_adjustspacingshrink       (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 7)).half0; }
-static inline halfword tex_get_passes_adjustspacingstretch      (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 7)).half1; }
-static inline halfword tex_get_passes_adjustspacing             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 8)).half0; }
-static inline halfword tex_get_passes_identifier                (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 8)).half1; }
-static inline halfword tex_get_passes_optional                  (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 9)).half0; }
-static inline halfword tex_get_passes_callback                  (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 9)).half1; }
-static inline halfword tex_get_passes_orphanpenalty             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,10)).half0; }
-static inline halfword tex_get_passes_fitnessdemerits           (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,10)).half1; }
-static inline halfword tex_get_passes_toddlerpenalty            (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,11)).half0; }
-static inline halfword tex_get_passes_reserved                  (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,11)).half1; }
+static inline halfword tex_get_passes_threshold            (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 1)).half0; }
+static inline halfword tex_get_passes_badness              (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 1)).half1; }
+static inline halfword tex_get_passes_features             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 2)).quart00; }
+static inline halfword tex_get_passes_classes              (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 2)).quart01; }
+static inline halfword tex_get_passes_tolerance            (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 2)).half1; }
+static inline halfword tex_get_passes_linepenalty          (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 3)).half0; }
+static inline halfword tex_get_passes_extrahyphenpenalty   (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 3)).half1; }
+static inline halfword tex_get_passes_doublehyphendemerits (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 4)).half0; }
+static inline halfword tex_get_passes_finalhyphendemerits  (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 4)).half1; }
+static inline halfword tex_get_passes_adjdemerits          (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 5)).half0; }
+static inline halfword tex_get_passes_emergencystretch     (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 5)).half1; }
+static inline halfword tex_get_passes_looseness            (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 6)).half0; }
+static inline halfword tex_get_passes_adjustspacingstep    (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 6)).half1; }
+static inline halfword tex_get_passes_adjustspacingshrink  (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 7)).half0; }
+static inline halfword tex_get_passes_adjustspacingstretch (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 7)).half1; }
+static inline halfword tex_get_passes_adjustspacing        (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 8)).half0; }
+static inline halfword tex_get_passes_identifier           (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 8)).half1; }
+static inline halfword tex_get_passes_optional             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 9)).half0; }
+static inline halfword tex_get_passes_callback             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 9)).half1; }
+static inline halfword tex_get_passes_orphanpenalty        (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,10)).half0; }
+static inline halfword tex_get_passes_fitnessdemerits      (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,10)).half1; }
+static inline halfword tex_get_passes_toddlerpenalty       (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,11)).half0; }
+static inline halfword tex_get_passes_linebreakchecks      (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,11)).half1; }
+static inline halfword tex_get_passes_lefttwindemerits     (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,12)).half0; }
+static inline halfword tex_get_passes_righttwindemerits    (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,12)).half1; }
 
-extern        halfword tex_new_specification_node      (halfword n, quarterword s, halfword options);
-extern        void     tex_dispose_specification_nodes (void);
+extern        halfword tex_new_specification_node          (halfword n, quarterword s, halfword options);
+extern        void     tex_dispose_specification_nodes     (void);
 
 /*tex
     We now define some math related nodes (and noads) and start with style and choice nodes. Style
@@ -1983,18 +2007,20 @@ typedef struct noad_classes {
     singleword right;
 } noad_classes;
 
-# define reset_noad_classes(n) do { \
-   noad_class_main(n)  = (singleword) unset_noad_class; \
-   noad_class_left(n)  = (singleword) unset_noad_class; \
-   noad_class_right(n) = (singleword) unset_noad_class; \
-   noad_analyzed(n)    = (singleword) unset_noad_class; \
-} while (0);
+inline static void tex_reset_noad_classes(halfword n) 
+{ 
+    noad_class_main(n)  = (singleword) unset_noad_class; 
+    noad_class_left(n)  = (singleword) unset_noad_class; 
+    noad_class_right(n) = (singleword) unset_noad_class; 
+    noad_analyzed(n)    = (singleword) unset_noad_class; 
+} 
 
-# define set_noad_classes(n,c) do { \
-   noad_class_main(n)  = (singleword) (c & 0xFF); \
-   noad_class_left(n)  = (singleword) (c & 0xFF); \
-   noad_class_right(n) = (singleword) (c & 0xFF); \
-} while (0);
+inline static void tex_set_noad_classes(halfword n, halfword c) 
+{ 
+    noad_class_main(n)  = (singleword) (c & 0xFF); 
+    noad_class_left(n)  = (singleword) (c & 0xFF); 
+    noad_class_right(n) = (singleword) (c & 0xFF); 
+}
 
 # define set_noad_main_class(n,c)  noad_class_main(n)  = (singleword) (c & 0xFF)
 # define set_noad_left_class(n,c)  noad_class_left(n)  = (singleword) (c & 0xFF)
@@ -2334,6 +2360,8 @@ typedef enum fraction_subtypes {
 
 # define valid_fraction_subtype(s) (s >= over_fraction_subtype && s <= stretched_fraction_subtype) 
 
+# define last_fraction_subtype stretched_fraction_subtype
+
 /*tex
     Radical noads are like fraction noads, but they only store a |left_delimiter|. They are also
     used for extensibles (over, under, etc) so the name is is somewhat confusing.
@@ -2436,6 +2464,7 @@ typedef enum boundary_subtypes {
     optional_boundary,
     lua_boundary,
     par_boundary,
+    adjust_boundary,
 } boundary_subtypes;
 
 typedef enum protrusion_boundary_options {
@@ -2519,6 +2548,8 @@ typedef enum par_codes {                   /* extrahyphenpenalty : in parpass   
     par_display_widow_penalty_code,
     par_orphan_penalty_code,               /* parpass */ 
     par_toddler_penalty_code,              /* parpass */
+    par_left_twin_demerits_code,           /* parpass */
+    par_right_twin_demerits_code,          /* parpass */
     par_broken_penalty_code,
     par_adj_demerits_code,                 /* parpass */
  // par_double_adj_demerits_code,
@@ -2543,6 +2574,7 @@ typedef enum par_codes {                   /* extrahyphenpenalty : in parpass   
     par_shaping_penalty_code,
     par_emergency_extra_stretch_code,
     par_par_passes_code,
+    par_line_break_checks_code,
     par_single_line_penalty_code,
     par_hyphen_penalty_code,
     par_ex_hyphen_penalty_code,
@@ -2574,10 +2606,12 @@ typedef enum par_categories {
     par_orphan_penalty_category      = 0x00200000, // \orphanpenalties
     par_toddler_penalty_category     = 0x00400000, // \orphanpenalties
     par_emergency_category           = 0x00800000, // \emergencyleftskip \emergencyrightskip \emergencyextrastretch
-    par_par_passes_category          = 0x01000000,
-    par_single_line_penalty_category = 0x02000000,
-    par_hyphen_penalty_category      = 0x04000000,
-    par_ex_hyphen_penalty_category   = 0x08000000,
+    par_par_passes_category          = 0x01000000, //
+    par_single_line_penalty_category = 0x02000000, //
+    par_hyphen_penalty_category      = 0x04000000, //
+    par_ex_hyphen_penalty_category   = 0x08000000, //
+    par_line_break_checks_category   = 0x10000000, //
+    par_twin_demerits_category       = 0x20000000, //
     par_all_category                 = 0x7FFFFFFF, //
 } par_categories;
 
@@ -2609,6 +2643,8 @@ static int par_category_to_codes[] = {
     par_display_penalty_category,     // par_display_widow_penalty_code
     par_orphan_penalty_category,      // par_orphan_penalty_code
     par_toddler_penalty_category,     // par_toddler_penalty_code
+    par_twin_demerits_category,       // par_left_twin_demerits_code
+    par_twin_demerits_category,       // par_right_twin_demerits_code
     par_broken_penalty_category,      // par_broken_penalty_code
     par_demerits_category,            // par_adj_demerits_code
  // par_demerits_category,            // par_double_adj_demerits_code
@@ -2633,6 +2669,7 @@ static int par_category_to_codes[] = {
     par_shaping_penalty_category,     // par_shaping_penalty_code
     par_emergency_category,           // 
     par_par_passes_category,          // 
+    par_line_break_checks_category,   // 
     par_single_line_penalty_category, // 
     par_hyphen_penalty_category,      // 
     par_ex_hyphen_penalty_category,   // 
@@ -2648,8 +2685,8 @@ static int par_category_to_codes[] = {
 # define par_box_right(a)                vinfo(a, 3)
 # define par_box_right_width(a)          vlink(a, 4)
 # define par_box_middle(a)               vinfo(a, 4) 
-# define par_local_inter_line_penalty(a) vlink(a, 5) 
-# define par_local_broken_penalty(a)     vinfo(a, 5) /* no width here */
+# define par_par_passes(a)               vlink(a, 5) 
+# define par_line_break_checks(a)        vinfo(a, 5)
 # define par_state(a)                    vlink(a, 6)
 # define par_prev_graf(a)                vinfo(a, 6) /*tex A bit of a joke but maybe handy indeed. */
 # define par_hsize(a)                    vlink(a, 7)
@@ -2701,25 +2738,26 @@ static int par_category_to_codes[] = {
 # define par_emergency_left_skip(a)      vlink(a,30)
 # define par_emergency_right_skip(a)     vinfo(a,30) 
 # define par_emergency_extra_stretch(a)  vlink(a,31) 
-# define par_par_passes(a)               vinfo(a,31) 
-# define par_fitness_demerits(a)         vlink(a,32)
-# define par_hyphen_penalty(a)           vinfo(a,32)
-# define par_ex_hyphen_penalty(a)        vlink(a,33)
-# define par_reserved(a)                 vinfo(a,33)
+# define par_fitness_demerits(a)         vinfo(a,31)
+# define par_hyphen_penalty(a)           vlink(a,32)
+# define par_ex_hyphen_penalty(a)        vinfo(a,32)
+# define par_left_twin_demerits(a)       vlink(a,33)
+# define par_right_twin_demerits(a)      vinfo(a,33)
 
 /*
     At some point we will have this (array with double values), depends on the outcome of an  
     experiment but I want to reserve this. We then also patch |texlocalboxes.c| line 295+. 
 */
 
-// define par_lousyness(a)              vinfo(a,2) /* par_penalty_interline */
-// define par_reserved(a)               vlink(a,2) /* par_penalty_broken */
+// define par_lousyness(a)               vinfo(a,34) 
+// define par_reserved(a)                vlink(a,34) 
 
 typedef enum par_subtypes {
     vmode_par_par_subtype,
     local_box_par_subtype,
     hmode_par_par_subtype,
     parameter_par_subtype,
+    local_break_par_subtype,
     math_par_subtype,       /* not used yet */
 } par_subtypes;
 
@@ -2813,7 +2851,7 @@ static inline int  tex_par_to_be_set        (halfword state, halfword what) { re
 # define passive_quality(a)                vlink(a,7) 
 # define passive_deficiency(a)             vinfo(a,7)
 # define passive_badness(a)                vlink(a,8) 
-# define passive_unused(a)                 vinfo(a,8) 
+# define passive_par_node(a)               vinfo(a,8)   /*tex experiment */
 
 # define delta_node_size                   6
 # define delta_field_total_glue(d)         vinfo(d,1)
@@ -2926,7 +2964,6 @@ inline static void delete_attribute_reference(halfword a)
         tex_dereference_attribute_list(a); 
     } 
 }
-
 
 # define remove_attribute_list(target) do { \
     halfword old_a = node_attr(target); \

@@ -316,7 +316,7 @@ settings, representing the math value type that will be used in this run. The ty
 is here because it has to come very early.
 
 Most important memory is kept in a chain so we don't need to allocate that often. We could (at some
-point) decide to use mimalloc.This is an attempt to spend less time in |malloc()|:
+point) decide to use mimalloc. This is an attempt to spend less time in |malloc()|:
 
 */
 
@@ -2050,7 +2050,7 @@ inline static void mp_print_format_args(MP mp, const char *format, va_list args)
                         case '\0':
                             return;
                         case 'c':
-                            mp_print_char(mp, va_arg(args, int));
+                            mp_print_char(mp, (unsigned char) va_arg(args, int));
                             break;
                         case 'i':
                             {
@@ -2128,7 +2128,7 @@ inline static void mp_print_format_args(MP mp, const char *format, va_list args)
                 mp_print_ln(mp);
                 break;
             default:
-                mp_print_char(mp, chr); /* todo: utf */
+                mp_print_char(mp, (unsigned char) chr); /* todo: utf */
                 break;
         }
     }
@@ -23251,7 +23251,8 @@ static void mp_do_binary(MP mp, mp_node p, int c)
                     if (k) {
                         int toss = 0;
                         mp_knot kk;
-                        if (number_equal(new_expr.data.n, unity_t)) {
+                        /* somehow we can get numbers way larger than 1 */
+                        if (number_greaterequal(new_expr.data.n, unity_t)) {
                             k = mp_next_knot(k);
                         } else if (! number_equal(new_expr.data.n, zero_t)) {
                             convert_scaled_to_fraction(new_expr.data.n);

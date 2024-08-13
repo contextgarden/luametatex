@@ -50,6 +50,7 @@
 # define TEX_METATABLE_HCCODE    "tex.hccode"
 # define TEX_METATABLE_HMCODE    "tex.hmcode"
 # define TEX_METATABLE_AMCODE    "tex.amcode"
+# define TEX_METATABLE_CCCODE    "tex.cccode"
 # define TEX_METATABLE_CATCODE   "tex.catcode"
 # define TEX_METATABLE_MATHCODE  "tex.mathcode"
 # define TEX_METATABLE_DELCODE   "tex.delcode"
@@ -2253,6 +2254,23 @@ static int texlib_setamcode(lua_State *L)
     return 0;
 }
 
+static int texlib_setcccode(lua_State *L)
+{
+    int top = lua_gettop(L);
+    if (top >= 2) {
+        quarterword level;
+        int slot = lmt_check_for_level(L, 1, &level, cur_level);
+        int ch = lmt_checkinteger(L, slot++);
+        if (character_in_range(ch)) {
+            halfword val = lmt_checkquarterword(L, slot);
+            tex_set_cc_code(ch, val, level);
+        } else {
+            texlib_aux_show_character_error(L, ch);
+        }
+    }
+    return 0;
+}
+
 static int texlib_getlccode(lua_State *L)
 {
     int ch = lmt_checkinteger(L, 1);
@@ -2318,6 +2336,18 @@ static int texlib_getamcode(lua_State *L)
     int ch = lmt_checkinteger(L, 1);
     if (character_in_range(ch)) {
         lua_pushinteger(L, tex_get_am_code(ch));
+    } else {
+        texlib_aux_show_character_error(L, ch);
+        lua_pushinteger(L, 0);
+    }
+    return 1;
+}
+
+static int texlib_getcccode(lua_State *L)
+{
+    int ch = lmt_checkinteger(L, 1);
+    if (character_in_range(ch)) {
+        lua_pushinteger(L, tex_get_cc_code(ch));
     } else {
         texlib_aux_show_character_error(L, ch);
         lua_pushinteger(L, 0);
@@ -3801,7 +3831,8 @@ static int texlib_linebreak(lua_State *L)
         halfword has_penalty = 0;
         halfword prepared = 0;
         properties.initial_par = par;
-        properties.display_math = 0;
+        properties.group_context = lua_group;
+        properties.par_context = lua_par_context;
         properties.paragraph_dir = par_dir(par);
         properties.parfill_left_skip = null;
         properties.parfill_right_skip = null;
@@ -3929,6 +3960,8 @@ static int texlib_linebreak(lua_State *L)
         get_integer_par  (properties.display_widow_penalty,        displaywidowpenalty,       tex_get_par_par(par, par_display_widow_penalty_code));
         get_integer_par  (properties.orphan_penalty,               orphanpenalty,             tex_get_par_par(par, par_orphan_penalty_code));
         get_integer_par  (properties.toddler_penalty,              toddlerpenalty,            tex_get_par_par(par, par_toddler_penalty_code));
+        get_integer_par  (properties.left_twin_demerits,           lefttwindemerits,          tex_get_par_par(par, par_left_twin_demerits_code));
+        get_integer_par  (properties.right_twin_demerits,          righttwindemerits,         tex_get_par_par(par, par_right_twin_demerits_code));
         get_integer_par  (properties.single_line_penalty,          singlelinepenalty,         tex_get_par_par(par, par_single_line_penalty_code));
         get_integer_par  (properties.hyphen_penalty,               hyphenpenalty,             tex_get_par_par(par, par_hyphen_penalty_code));
         get_integer_par  (properties.ex_hyphen_penalty,            exhyphenpenalty,           tex_get_par_par(par, par_ex_hyphen_penalty_code));
@@ -3952,7 +3985,8 @@ static int texlib_linebreak(lua_State *L)
         get_penalties_par(properties.orphan_penalties,             orphanpenalties,           tex_get_par_par(par, par_orphan_penalties_code), orphan_penalties_code);
         get_demerits_par (properties.fitness_demerits,             fitnessdemerits,           tex_get_par_par(par, par_fitness_demerits_code), fitness_demerits_code);
         get_penalties_par(properties.par_passes,                   parpasses,                 tex_get_par_par(par, par_par_passes_code), par_passes_code);
-        get_integer_par  (properties.line_break_optional,          linebreakoptional,         line_break_optional_par);
+        get_integer_par  (properties.line_break_checks,            linebreakchecks,           tex_get_par_par(par, par_line_break_checks_code));
+        get_integer_par  (properties.line_break_optional,          linebreakoptional,         line_break_optional_par); /* hm */
         if (! prepared) {
             halfword attr_template = tail;
             halfword final_line_penalty = tex_new_penalty_node(infinite_penalty, line_penalty_subtype);
@@ -3989,8 +4023,6 @@ static int texlib_linebreak(lua_State *L)
              }
         }
         lmt_linebreak_state.last_line_fill = properties.parfill_right_skip; /*tex I need to redo this. */
-        properties.group_context = lua_group;
-        properties.par_context = lua_par_context;
         tex_do_line_break(&properties);
         {
             halfword fewest_demerits = 0;
@@ -5004,7 +5036,7 @@ static int texlib_gethyphenationvalues(lua_State *L)
 
 static int texlib_getglyphoptionvalues(lua_State *L)
 {
-    lua_createtable(L, 3, 13);
+    lua_createtable(L, 3, 15);
     lua_set_string_by_index(L, glyph_option_normal_glyph,              "normal");
     lua_set_string_by_index(L, glyph_option_no_left_ligature,          "noleftligature");
     lua_set_string_by_index(L, glyph_option_no_right_ligature,         "norightligature");
@@ -5021,6 +5053,8 @@ static int texlib_getglyphoptionvalues(lua_State *L)
     lua_set_string_by_index(L, glyph_option_math_artifact,             "mathartifact");
     lua_set_string_by_index(L, glyph_option_weight_less,               "weightless");
     lua_set_string_by_index(L, glyph_option_space_factor_overload,     "spacefactoroverload");
+    lua_set_string_by_index(L, glyph_option_check_toddler,             "checktoddler");
+    lua_set_string_by_index(L, glyph_option_check_twin,                "checktwin");
     lua_set_string_by_index(L, glyph_option_user_first,                "userfirst");
     lua_set_string_by_index(L, glyph_option_user_last,                 "userlast");
     return 1;
@@ -5028,21 +5062,24 @@ static int texlib_getglyphoptionvalues(lua_State *L)
 
 static int texlib_getglueoptionvalues(lua_State *L)
 {
-    lua_createtable(L, 3, 2);
-    lua_set_string_by_index(L, glue_option_normal,        "normal");
-    lua_set_string_by_index(L, glue_option_no_auto_break, "noautobreak");
-    lua_set_string_by_index(L, glue_option_has_factor,    "hasfactor");
-    lua_set_string_by_index(L, glue_option_is_limited,    "islimited");
-    lua_set_string_by_index(L, glue_option_limit,         "limit");
+    lua_createtable(L, 4, 2);
+    lua_set_string_by_index(L, glue_option_normal,         "normal");
+    lua_set_string_by_index(L, glue_option_no_auto_break,  "noautobreak");
+    lua_set_string_by_index(L, glue_option_has_factor,     "hasfactor");
+    lua_set_string_by_index(L, glue_option_is_limited,     "islimited");
+    lua_set_string_by_index(L, glue_option_limit,          "limit");
+    lua_set_string_by_index(L, glue_option_u_leaders_line, "uleadersline");
     return 1;
 }
 
 static int texlib_getmathoptionvalues(lua_State *L)
 {
-    lua_createtable(L, 3, 0);
+    lua_createtable(L, 2, 3);
     lua_set_string_by_index(L, math_option_normal,   "normal");
     lua_set_string_by_index(L, math_option_short,    "short");
     lua_set_string_by_index(L, math_option_orphaned, "orphaned");
+    lua_set_string_by_index(L, math_option_display,  "display");
+    lua_set_string_by_index(L, math_option_cramped,  "cramped");
     return 1;
 }
 
@@ -5397,7 +5434,7 @@ static int texlib_getiovalues(lua_State *L) /* for reporting so we keep spaces *
 
 static int texlib_getfrozenparvalues(lua_State *L)
 {
-    lua_createtable(L, 2, 22);
+    lua_createtable(L, 2, 23);
     lua_set_string_by_index(L, par_hsize_category,               "hsize");
     lua_set_string_by_index(L, par_skip_category,                "skip");
     lua_set_string_by_index(L, par_hang_category,                "hang");
@@ -5426,6 +5463,8 @@ static int texlib_getfrozenparvalues(lua_State *L)
     lua_set_string_by_index(L, par_single_line_penalty_category, "singlelinepenalty");
     lua_set_string_by_index(L, par_hyphen_penalty_category,      "hyphenpenalty");
     lua_set_string_by_index(L, par_ex_hyphen_penalty_category,   "exhyphenpenalty");
+    lua_set_string_by_index(L, par_line_break_checks_category,   "linebreakchecks");
+    lua_set_string_by_index(L, par_twin_demerits_category,       "twindemerits");
  /* lua_set_string_by_index(L, par_all_category,                 "all"); */
     return 1;
 }
@@ -5668,7 +5707,7 @@ static int texlib_getalignmentcontextvalues(lua_State *L)
 
 static int texlib_getbreakcontextvalues(lua_State *L)
 {
-    return lmt_push_info_values(L, lmt_interface.break_context_values);
+    return lmt_push_info_values(L, lmt_interface.line_break_context_values);
 }
 
 static int texlib_getbuildcontextvalues(lua_State *L)
@@ -5706,6 +5745,16 @@ static int texlib_getmathvariantpresets(lua_State *L)
             lua_set_integer_by_index(L, i, tex_get_math_variant_preset(i));
         }
     }
+    return 1;
+}
+
+static int texlib_getspecificationoptionvalues(lua_State *L)
+{
+    lua_createtable(L, 2, 2);
+    lua_set_string_by_index(L, specification_option_repeat,  "repeat");
+    lua_set_string_by_index(L, specification_option_values,  "values");
+    lua_set_string_by_index(L, specification_option_double,  "double");
+    lua_set_string_by_index(L, specification_option_largest, "largest");
     return 1;
 }
 
@@ -5788,6 +5837,13 @@ static int texlib_getparametermodevalues(lua_State *L)
 {
     lua_createtable(L, 1, 0);
     lua_set_string_by_index(L, parameter_escape_mode, "escape");
+    return 1;
+}
+
+static int texlib_getcharactercontrolvalues(lua_State *L)
+{
+    lua_createtable(L, 1, 0);
+    lua_set_string_by_index(L, ignore_twin_character_control_code, "ignoretwin");
     return 1;
 }
 
@@ -5973,242 +6029,246 @@ static int texlib_getmathstylevariant(lua_State *L)
 /* till here */
 
 static const struct luaL_Reg texlib_function_list[] = {
-    { "write",                       texlib_write                       },
-    { "print",                       texlib_print                       },
-    { "sprint",                      texlib_sprint                      },
-    { "mprint",                      texlib_mprint                      },
-    { "tprint",                      texlib_tprint                      },
-    { "cprint",                      texlib_cprint                      },
-    { "isprintable",                 texlib_isprintable                 },
-    { "pushlocal",                   texlib_pushlocal                   },
-    { "poplocal",                    texlib_poplocal                    },
-    { "runlocal",                    texlib_runlocal                    },
-    { "runstring",                   texlib_runstring                   },
-    { "quitlocal",                   texlib_quitlocal                   },
-    { "expandasvalue",               texlib_expandasvalue               }, /* experiment */
-    { "error",                       texlib_error                       },
-    { "set",                         texlib_set                         },
-    { "get",                         texlib_get                         },
-    { "getregisterindex",            texlib_get_register_index          },
-    { "isdimen",                     texlib_isdimen                     },
-    { "setdimen",                    texlib_setdimen                    },
-    { "getdimen",                    texlib_getdimen                    },
-    { "isfloat",                     texlib_isfloat                     },
-    { "setfloat",                    texlib_setfloat                    },
-    { "getfloat",                    texlib_getfloat                    },
-    { "isskip",                      texlib_isskip                      },
-    { "setskip",                     texlib_setskip                     },
-    { "getskip",                     texlib_getskip                     },
-    { "isglue",                      texlib_isglue                      },
-    { "setglue",                     texlib_setglue                     },
-    { "getglue",                     texlib_getglue                     },
-    { "ismuskip",                    texlib_ismuskip                    },
-    { "setmuskip",                   texlib_setmuskip                   },
-    { "getmuskip",                   texlib_getmuskip                   },
-    { "ismuglue",                    texlib_ismuglue                    },
-    { "setmuglue",                   texlib_setmuglue                   },
-    { "getmuglue",                   texlib_getmuglue                   },
-    { "isattribute",                 texlib_isattribute                 },
-    { "setattribute",                texlib_setattribute                },
-    { "getattribute",                texlib_getattribute                },
-    { "iscount",                     texlib_iscount                     },
-    { "setcount",                    texlib_setcount                    },
-    { "getcount",                    texlib_getcount                    },
-    { "istoks",                      texlib_istoks                      },
-    { "settoks",                     texlib_settoks                     },
-    { "scantoks",                    texlib_scantoks                    },
-    { "gettoks",                     texlib_gettoks                     },
-    { "getmark",                     texlib_getmark                     },
-    { "isbox",                       texlib_isbox                       },
-    { "setbox",                      texlib_setbox                      },
-    { "getbox",                      texlib_getbox                      },
-    { "splitbox",                    texlib_splitbox                    },
-    { "setlist",                     texlib_setlist                     },
-    { "getlist",                     texlib_getlist                     },
-    { "setnest",                     texlib_setnest                     }, /* only a message */
-    { "getnest",                     texlib_getnest                     },
-    { "getnestlevel",                texlib_getnestlevel                },
-    { "setcatcode",                  texlib_setcatcode                  },
-    { "getcatcode",                  texlib_getcatcode                  },
-    { "setdelcode",                  texlib_setdelcode                  },
-    { "getdelcode",                  texlib_getdelcode                  },
-    { "getdelcodes",                 texlib_getdelcodes                 },
-    { "sethccode",                   texlib_sethccode                   },
-    { "gethccode",                   texlib_gethccode                   },
-    { "sethmcode",                   texlib_sethmcode                   },
-    { "gethmcode",                   texlib_gethmcode                   },
-    { "setamcode",                   texlib_setamcode                   },
-    { "getamcode",                   texlib_getamcode                   },
-    { "setlccode",                   texlib_setlccode                   },
-    { "getlccode",                   texlib_getlccode                   },
-    { "setmathcode",                 texlib_setmathcode                 },
-    { "getmathcode",                 texlib_getmathcode                 },
-    { "getmathcodes",                texlib_getmathcodes                },
-    { "setsfcode",                   texlib_setsfcode                   },
-    { "getsfcode",                   texlib_getsfcode                   },
-    { "setuccode",                   texlib_setuccode                   },
-    { "getuccode",                   texlib_getuccode                   },
-    { "round",                       texlib_round                       },
-    { "scale",                       texlib_scale                       },
-    { "sp",                          texlib_toscaled                    },
-    { "toscaled",                    texlib_toscaled                    },
-    { "tonumber",                    texlib_tonumber                    },
-    { "fontname",                    texlib_getfontname                 },
-    { "fontidentifier",              texlib_getfontidentifier           },
-    { "getfontoffamily",             texlib_getfontoffamily             },
-    { "number",                      texlib_getnumber                   },
- // { "dimension",                   texlib_getdimension                },
-    { "romannumeral",                texlib_getromannumeral             },
-    { "definefont",                  texlib_definefont                  },
-    { "hashtokens",                  texlib_hashtokens                  },
-    { "primitives",                  texlib_primitives                  },
-    { "extraprimitives",             texlib_extraprimitives             },
-    { "enableprimitives",            texlib_enableprimitives            },
-    { "shipout",                     texlib_shipout                     },
-    { "badness",                     texlib_badness                     },
-    { "setmath",                     texlib_setmath                     },
-    { "getmath",                     texlib_getmath                     },
-    { "linebreak",                   texlib_linebreak                   },
-    { "preparelinebreak",            texlib_preparelinebreak            },
-    { "resetparagraph",              texlib_resetparagraph              },
-    { "showcontext",                 texlib_showcontext                 },
-    { "triggerbuildpage",            texlib_triggerbuildpage            },
-    { "gethelptext",                 texlib_gethelptext                 },
-    { "getpagestate",                texlib_getpagestate                },
-    { "getlocallevel",               texlib_getlocallevel               },
-    { "setinputstatemode",           texlib_setinputstatemode           },
-    { "getinputstatemode",           texlib_getinputstatemode           },
-    { "setinputstatefile",           texlib_setinputstatefile           },
-    { "getinputstatefile",           texlib_getinputstatefile           },
-    { "forceinputstatefile",         texlib_forceinputstatefile         },
-    { "forceinputstateline",         texlib_forceinputstateline         },
-    { "setinputstateline",           texlib_setinputstateline           },
-    { "getinputstateline",           texlib_getinputstateline           },
-    { "forcehmode",                  texlib_forcehmode                  },
-    { "gettextdir",                  texlib_gettextdir                  },
-    { "settextdir",                  texlib_settextdir                  },
-    { "getlinedir",                  texlib_gettextdir                  }, /* we're nice */
-    { "setlinedir",                  texlib_setlinedir                  },
-    { "getmathdir",                  texlib_getmathdir                  },
-    { "setmathdir",                  texlib_setmathdir                  },
-    { "getpardir",                   texlib_getpardir                   },
-    { "setpardir",                   texlib_setpardir                   },
-    { "getboxdir",                   texlib_getboxdir                   },
-    { "setboxdir",                   texlib_setboxdir                   },
-    { "getinteraction",              texlib_getinteraction              },
-    { "setinteraction",              texlib_setinteraction              },
-    { "getglyphdata",                texlib_getglyphdata                },
-    { "setglyphdata",                texlib_setglyphdata                },
-    { "getglyphstate",               texlib_getglyphstate               },
-    { "setglyphstate",               texlib_setglyphstate               },
-    { "getglyphscript",              texlib_getglyphscript              },
-    { "setglyphscript",              texlib_setglyphscript              },
-    { "getglyphscales",              texlib_getglyphscales              },
-    { "fatalerror",                  texlib_fatalerror                  },
-    { "lastnodetype",                texlib_lastnodetype                },
-    { "chardef",                     texlib_chardef                     },
-    { "mathchardef",                 texlib_mathchardef                 },
-    { "integerdef",                  texlib_setintegervalue             },
-    { "setintegervalue",             texlib_setintegervalue             },
-    { "getintegervalue",             texlib_getintegervalue             },
-    { "positdef",                    texlib_setfloatvalue               },
-    { "setpositvalue",               texlib_setfloatvalue               },
-    { "getpositvalue",               texlib_getfloatvalue               },
-    { "setcardinalvalue",            texlib_setcardinalvalue            },
-    { "getcardinalvalue",            texlib_getintegervalue             },
-    { "dimensiondef",                texlib_setdimensionvalue           },
-    { "setdimensionvalue",           texlib_setdimensionvalue           },
-    { "getdimensionvalue",           texlib_getdimensionvalue           },
-    { "getmode",                     texlib_getmode                     },
-    { "getmodevalues",               texlib_getmodevalues               },
-    { "getrunstatevalues",           texlib_getrunstatevalues           },
-    { "setrunstate",                 texlib_setrunstate                 },
-    { "gethyphenationvalues",        texlib_gethyphenationvalues        },
-    { "getglyphoptionvalues",        texlib_getglyphoptionvalues        },
-    { "getglueoptionvalues",         texlib_getglueoptionvalues         },
-    { "getmathoptionvalues",         texlib_getmathoptionvalues         },
-    { "getpenaltyoptionvalues",      texlib_getpenaltyoptionvalues      },
-    { "getnoadoptionvalues",         texlib_getnoadoptionvalues         },
-    { "getdiscoptionvalues",         texlib_getdiscoptionvalues         },
-    { "getruleoptionvalues",         texlib_getruleoptionvalues         },
-    { "getmathsurroundvalues",       texlib_getmathsurroundvalues       },
-    { "getlistanchorvalues",         texlib_getlistanchorvalues         },
-    { "getlistsignvalues",           texlib_getlistsignvalues           },
-    { "getlistgeometryvalues",       texlib_getlistgeometryvalues       },
-    { "getmathgluevalues",           texlib_getmathgluevalues           },
-    { "getdiscstatevalues",          texlib_getdiscstatevalues          },
-    { "getmathparametervalues",      texlib_getmathparametervalues      },
-    { "getmathstylenamevalues",      texlib_getmathstylenamevalues      },
-    { "getmathstylevalues",          texlib_getmathstylevalues          },
-    { "getmathvariantvalues",        texlib_getmathvariantvalues        },
-    { "getmathvariantpresets",       texlib_getmathvariantpresets       },
-    { "getmathcontrolvalues",        texlib_getmathcontrolvalues        },
-    { "gettextcontrolvalues",        texlib_gettextcontrolvalues        },
-    { "getprepoststatevalues",       texlib_getprepoststatevalues       },
-    { "getpacktypevalues",           texlib_getpacktypevalues           },
-    { "getgroupvalues",              texlib_getgroupvalues              },
-    { "getparcontextvalues",         texlib_getparcontextvalues         },
-    { "getpagecontextvalues",        texlib_getpagecontextvalues        },
-    { "getappendlinecontextvalues",  texlib_getappendlinecontextvalues  },
-    { "getalignmentcontextvalues",   texlib_getalignmentcontextvalues   },
-    { "getbreakcontextvalues",       texlib_getbreakcontextvalues       },
-    { "getbuildcontextvalues",       texlib_getbuildcontextvalues       },
-    { "getpartriggervalues",         texlib_getpartriggervalues         },
-    { "getparmodevalues",            texlib_getparmodevalues            },
-    { "getautomigrationvalues",      texlib_getautomigrationvalues      },
-    { "getflagvalues",               texlib_getflagvalues               },
-    { "getprotrusionboundaryvalues", texlib_getprotrusionboundaryvalues },
-    { "getmathclassoptionvalues",    texlib_getmathclassoptionvalues    },
-    { "getnormalizelinevalues",      texlib_getnormalizelinevalues      },
-    { "getnormalizeparvalues",       texlib_getnormalizeparvalues       },
-    { "getdirectionvalues",          texlib_getdirectionvalues          },
-    { "getparametermodevalues",      texlib_getparametermodevalues      },
-    { "getfillvalues",               texlib_getfillvalues               },
-    { "getunitclassvalues",          texlib_getunitclassvalues          },
-    { "geterrorvalues",              texlib_geterrorvalues              },
-    { "getinteractionmodes",         texlib_getinteractionmodes         },
-    { "getiftypes",                  texlib_getiftypes                  },
-    { "getiovalues",                 texlib_getiovalues                 },
-    { "getprimitiveorigins",         texlib_getprimitiveorigins         },
-    { "getfrozenparvalues",          texlib_getfrozenparvalues          },
-    { "getshapingpenaltiesvalues",   texlib_getshapingpenaltiesvalues   },
-    { "getautoparagraphvalues",      texlib_getautoparagraphvalues      },
-    { "getcharactertagvalues",       texlib_getcharactertagvalues       }, 
-    { "getkerneloptionvalues",       texlib_getkerneloptionvalues       },
-    { "getdoublescriptoptionvalues", texlib_getdoublescriptoptionvalues },
-    { "getspecialmathclassvalues",   texlib_getspecialmathclassvalues   },
-    { "getmathscriptordervalues",    texlib_getmathscriptordervalues    },
-    { "getmathscriptsmodevalues",    texlib_getmathscriptsmodevalues    },
-    { "getlargestusedmark",          texlib_getlargestusedmark          },
-    { "getoutputactive",             texlib_getoutputactive             },
-    /* experiment (metafun update) */                                   
-    { "shiftparshape",               texlib_shiftparshape               },
-    { "snapshotpar",                 texlib_snapshotpar                 },
-    { "getparstate",                 texlib_getparstate                 },
-    /* */                                                               
-    { "getmathstylevariant",         texlib_getmathstylevariant         },
-    /* */                                                               
-    { "getinsertdistance",           texlib_getinsertdistance           },
-    { "getinsertmultiplier",         texlib_getinsertmultiplier         },
-    { "getinsertlimit",              texlib_getinsertlimit              },
-    { "getinsertheight",             texlib_getinsertheight             },
-    { "getinsertdepth",              texlib_getinsertdepth              },
-    { "getinsertwidth",              texlib_getinsertwidth              },
-    { "getinsertcontent",            texlib_getinsertcontent            },
-    { "setinsertdistance",           texlib_setinsertdistance           },
-    { "setinsertmultiplier",         texlib_setinsertmultiplier         },
-    { "setinsertlimit",              texlib_setinsertlimit              },
-    { "setinsertcontent",            texlib_setinsertcontent            },
-    { "getlocalbox",                 texlib_getlocalbox                 },
-    { "setlocalbox",                 texlib_setlocalbox                 },
-    /* */                                                               
-    { "pushsavelevel",               texlib_pushsavelevel               },
-    { "popsavelevel",                texlib_popsavelevel                },
-    /* */                                                               
- // { "savepagestate",               texlib_savepagestate               },
- // { "restorepagestate",            texlib_restorepagestate            },
-    /* */                                                               
-    { NULL,                          NULL                               },
+    { "write",                        texlib_write                        },
+    { "print",                        texlib_print                        },
+    { "sprint",                       texlib_sprint                       },
+    { "mprint",                       texlib_mprint                       },
+    { "tprint",                       texlib_tprint                       },
+    { "cprint",                       texlib_cprint                       },
+    { "isprintable",                  texlib_isprintable                  },
+    { "pushlocal",                    texlib_pushlocal                    },
+    { "poplocal",                     texlib_poplocal                     },
+    { "runlocal",                     texlib_runlocal                     },
+    { "runstring",                    texlib_runstring                    },
+    { "quitlocal",                    texlib_quitlocal                    },
+    { "expandasvalue",                texlib_expandasvalue                }, /* experiment */
+    { "error",                        texlib_error                        },
+    { "set",                          texlib_set                          },
+    { "get",                          texlib_get                          },
+    { "getregisterindex",             texlib_get_register_index           },
+    { "isdimen",                      texlib_isdimen                      },
+    { "setdimen",                     texlib_setdimen                     },
+    { "getdimen",                     texlib_getdimen                     },
+    { "isfloat",                      texlib_isfloat                      },
+    { "setfloat",                     texlib_setfloat                     },
+    { "getfloat",                     texlib_getfloat                     },
+    { "isskip",                       texlib_isskip                       },
+    { "setskip",                      texlib_setskip                      },
+    { "getskip",                      texlib_getskip                      },
+    { "isglue",                       texlib_isglue                       },
+    { "setglue",                      texlib_setglue                      },
+    { "getglue",                      texlib_getglue                      },
+    { "ismuskip",                     texlib_ismuskip                     },
+    { "setmuskip",                    texlib_setmuskip                    },
+    { "getmuskip",                    texlib_getmuskip                    },
+    { "ismuglue",                     texlib_ismuglue                     },
+    { "setmuglue",                    texlib_setmuglue                    },
+    { "getmuglue",                    texlib_getmuglue                    },
+    { "isattribute",                  texlib_isattribute                  },
+    { "setattribute",                 texlib_setattribute                 },
+    { "getattribute",                 texlib_getattribute                 },
+    { "iscount",                      texlib_iscount                      },
+    { "setcount",                     texlib_setcount                     },
+    { "getcount",                     texlib_getcount                     },
+    { "istoks",                       texlib_istoks                       },
+    { "settoks",                      texlib_settoks                      },
+    { "scantoks",                     texlib_scantoks                     },
+    { "gettoks",                      texlib_gettoks                      },
+    { "getmark",                      texlib_getmark                      },
+    { "isbox",                        texlib_isbox                        },
+    { "setbox",                       texlib_setbox                       },
+    { "getbox",                       texlib_getbox                       },
+    { "splitbox",                     texlib_splitbox                     },
+    { "setlist",                      texlib_setlist                      },
+    { "getlist",                      texlib_getlist                      },
+    { "setnest",                      texlib_setnest                      }, /* only a message */
+    { "getnest",                      texlib_getnest                      },
+    { "getnestlevel",                 texlib_getnestlevel                 },
+    { "setcatcode",                   texlib_setcatcode                   },
+    { "getcatcode",                   texlib_getcatcode                   },
+    { "setcccode",                    texlib_setcccode                    },
+    { "getcccode",                    texlib_getcccode                    },
+    { "setdelcode",                   texlib_setdelcode                   },
+    { "getdelcode",                   texlib_getdelcode                   },
+    { "getdelcodes",                  texlib_getdelcodes                  },
+    { "sethccode",                    texlib_sethccode                    },
+    { "gethccode",                    texlib_gethccode                    },
+    { "sethmcode",                    texlib_sethmcode                    },
+    { "gethmcode",                    texlib_gethmcode                    },
+    { "setamcode",                    texlib_setamcode                    },
+    { "getamcode",                    texlib_getamcode                    },
+    { "setlccode",                    texlib_setlccode                    },
+    { "getlccode",                    texlib_getlccode                    },
+    { "setmathcode",                  texlib_setmathcode                  },
+    { "getmathcode",                  texlib_getmathcode                  },
+    { "getmathcodes",                 texlib_getmathcodes                 },
+    { "setsfcode",                    texlib_setsfcode                    },
+    { "getsfcode",                    texlib_getsfcode                    },
+    { "setuccode",                    texlib_setuccode                    },
+    { "getuccode",                    texlib_getuccode                    },
+    { "round",                        texlib_round                        },
+    { "scale",                        texlib_scale                        },
+    { "sp",                           texlib_toscaled                     },
+    { "toscaled",                     texlib_toscaled                     },
+    { "tonumber",                     texlib_tonumber                     },
+    { "fontname",                     texlib_getfontname                  },
+    { "fontidentifier",               texlib_getfontidentifier            },
+    { "getfontoffamily",              texlib_getfontoffamily              },
+    { "number",                       texlib_getnumber                    },
+ // { "dimension",                    texlib_getdimension                 },
+    { "romannumeral",                 texlib_getromannumeral              },
+    { "definefont",                   texlib_definefont                   },
+    { "hashtokens",                   texlib_hashtokens                   },
+    { "primitives",                   texlib_primitives                   },
+    { "extraprimitives",              texlib_extraprimitives              },
+    { "enableprimitives",             texlib_enableprimitives             },
+    { "shipout",                      texlib_shipout                      },
+    { "badness",                      texlib_badness                      },
+    { "setmath",                      texlib_setmath                      },
+    { "getmath",                      texlib_getmath                      },
+    { "linebreak",                    texlib_linebreak                    },
+    { "preparelinebreak",             texlib_preparelinebreak             },
+    { "resetparagraph",               texlib_resetparagraph               },
+    { "showcontext",                  texlib_showcontext                  },
+    { "triggerbuildpage",             texlib_triggerbuildpage             },
+    { "gethelptext",                  texlib_gethelptext                  },
+    { "getpagestate",                 texlib_getpagestate                 },
+    { "getlocallevel",                texlib_getlocallevel                },
+    { "setinputstatemode",            texlib_setinputstatemode            },
+    { "getinputstatemode",            texlib_getinputstatemode            },
+    { "setinputstatefile",            texlib_setinputstatefile            },
+    { "getinputstatefile",            texlib_getinputstatefile            },
+    { "forceinputstatefile",          texlib_forceinputstatefile          },
+    { "forceinputstateline",          texlib_forceinputstateline          },
+    { "setinputstateline",            texlib_setinputstateline            },
+    { "getinputstateline",            texlib_getinputstateline            },
+    { "forcehmode",                   texlib_forcehmode                   },
+    { "gettextdir",                   texlib_gettextdir                   },
+    { "settextdir",                   texlib_settextdir                   },
+    { "getlinedir",                   texlib_gettextdir                   }, /* we're nice */
+    { "setlinedir",                   texlib_setlinedir                   },
+    { "getmathdir",                   texlib_getmathdir                   },
+    { "setmathdir",                   texlib_setmathdir                   },
+    { "getpardir",                    texlib_getpardir                    },
+    { "setpardir",                    texlib_setpardir                    },
+    { "getboxdir",                    texlib_getboxdir                    },
+    { "setboxdir",                    texlib_setboxdir                    },
+    { "getinteraction",               texlib_getinteraction               },
+    { "setinteraction",               texlib_setinteraction               },
+    { "getglyphdata",                 texlib_getglyphdata                 },
+    { "setglyphdata",                 texlib_setglyphdata                 },
+    { "getglyphstate",                texlib_getglyphstate                },
+    { "setglyphstate",                texlib_setglyphstate                },
+    { "getglyphscript",               texlib_getglyphscript               },
+    { "setglyphscript",               texlib_setglyphscript               },
+    { "getglyphscales",               texlib_getglyphscales               },
+    { "fatalerror",                   texlib_fatalerror                   },
+    { "lastnodetype",                 texlib_lastnodetype                 },
+    { "chardef",                      texlib_chardef                      },
+    { "mathchardef",                  texlib_mathchardef                  },
+    { "integerdef",                   texlib_setintegervalue              },
+    { "setintegervalue",              texlib_setintegervalue              },
+    { "getintegervalue",              texlib_getintegervalue              },
+    { "positdef",                     texlib_setfloatvalue                },
+    { "setpositvalue",                texlib_setfloatvalue                },
+    { "getpositvalue",                texlib_getfloatvalue                },
+    { "setcardinalvalue",             texlib_setcardinalvalue             },
+    { "getcardinalvalue",             texlib_getintegervalue              },
+    { "dimensiondef",                 texlib_setdimensionvalue            },
+    { "setdimensionvalue",            texlib_setdimensionvalue            },
+    { "getdimensionvalue",            texlib_getdimensionvalue            },
+    { "getmode",                      texlib_getmode                      },
+    { "getmodevalues",                texlib_getmodevalues                },
+    { "getrunstatevalues",            texlib_getrunstatevalues            },
+    { "setrunstate",                  texlib_setrunstate                  },
+    { "gethyphenationvalues",         texlib_gethyphenationvalues         },
+    { "getglyphoptionvalues",         texlib_getglyphoptionvalues         },
+    { "getglueoptionvalues",          texlib_getglueoptionvalues          },
+    { "getmathoptionvalues",          texlib_getmathoptionvalues          },
+    { "getpenaltyoptionvalues",       texlib_getpenaltyoptionvalues       },
+    { "getnoadoptionvalues",          texlib_getnoadoptionvalues          },
+    { "getdiscoptionvalues",          texlib_getdiscoptionvalues          },
+    { "getruleoptionvalues",          texlib_getruleoptionvalues          },
+    { "getmathsurroundvalues",        texlib_getmathsurroundvalues        },
+    { "getlistanchorvalues",          texlib_getlistanchorvalues          },
+    { "getlistsignvalues",            texlib_getlistsignvalues            },
+    { "getlistgeometryvalues",        texlib_getlistgeometryvalues        },
+    { "getmathgluevalues",            texlib_getmathgluevalues            },
+    { "getdiscstatevalues",           texlib_getdiscstatevalues           },
+    { "getspecificationoptionvalues", texlib_getspecificationoptionvalues },
+    { "getmathparametervalues",       texlib_getmathparametervalues       },
+    { "getmathstylenamevalues",       texlib_getmathstylenamevalues       },
+    { "getmathstylevalues",           texlib_getmathstylevalues           },
+    { "getmathvariantvalues",         texlib_getmathvariantvalues         },
+    { "getmathvariantpresets",        texlib_getmathvariantpresets        },
+    { "getmathcontrolvalues",         texlib_getmathcontrolvalues         },
+    { "gettextcontrolvalues",         texlib_gettextcontrolvalues         },
+    { "getprepoststatevalues",        texlib_getprepoststatevalues        },
+    { "getpacktypevalues",            texlib_getpacktypevalues            },
+    { "getgroupvalues",               texlib_getgroupvalues               },
+    { "getparcontextvalues",          texlib_getparcontextvalues          },
+    { "getpagecontextvalues",         texlib_getpagecontextvalues         },
+    { "getappendlinecontextvalues",   texlib_getappendlinecontextvalues   },
+    { "getalignmentcontextvalues",    texlib_getalignmentcontextvalues    },
+    { "getbreakcontextvalues",        texlib_getbreakcontextvalues        },
+    { "getbuildcontextvalues",        texlib_getbuildcontextvalues        },
+    { "getpartriggervalues",          texlib_getpartriggervalues          },
+    { "getparmodevalues",             texlib_getparmodevalues             },
+    { "getautomigrationvalues",       texlib_getautomigrationvalues       },
+    { "getflagvalues",                texlib_getflagvalues                },
+    { "getprotrusionboundaryvalues",  texlib_getprotrusionboundaryvalues  },
+    { "getmathclassoptionvalues",     texlib_getmathclassoptionvalues     },
+    { "getnormalizelinevalues",       texlib_getnormalizelinevalues       },
+    { "getnormalizeparvalues",        texlib_getnormalizeparvalues        },
+    { "getdirectionvalues",           texlib_getdirectionvalues           },
+    { "getparametermodevalues",       texlib_getparametermodevalues       },
+    { "getcharactercontrolvalues",    texlib_getcharactercontrolvalues    },
+    { "getfillvalues",                texlib_getfillvalues                },
+    { "getunitclassvalues",           texlib_getunitclassvalues           },
+    { "geterrorvalues",               texlib_geterrorvalues               },
+    { "getinteractionmodes",          texlib_getinteractionmodes          },
+    { "getiftypes",                   texlib_getiftypes                   },
+    { "getiovalues",                  texlib_getiovalues                  },
+    { "getprimitiveorigins",          texlib_getprimitiveorigins          },
+    { "getfrozenparvalues",           texlib_getfrozenparvalues           },
+    { "getshapingpenaltiesvalues",    texlib_getshapingpenaltiesvalues    },
+    { "getautoparagraphvalues",       texlib_getautoparagraphvalues       },
+    { "getcharactertagvalues",        texlib_getcharactertagvalues        }, 
+    { "getkerneloptionvalues",        texlib_getkerneloptionvalues        },
+    { "getdoublescriptoptionvalues",  texlib_getdoublescriptoptionvalues  },
+    { "getspecialmathclassvalues",    texlib_getspecialmathclassvalues    },
+    { "getmathscriptordervalues",     texlib_getmathscriptordervalues     },
+    { "getmathscriptsmodevalues",     texlib_getmathscriptsmodevalues     },
+    { "getlargestusedmark",           texlib_getlargestusedmark           },
+    { "getoutputactive",              texlib_getoutputactive              },
+    /* experiment (metafun update) */                                     
+    { "shiftparshape",                texlib_shiftparshape                },
+    { "snapshotpar",                  texlib_snapshotpar                  },
+    { "getparstate",                  texlib_getparstate                  },
+    /* */                                                                 
+    { "getmathstylevariant",          texlib_getmathstylevariant          },
+    /* */                                                                 
+    { "getinsertdistance",            texlib_getinsertdistance            },
+    { "getinsertmultiplier",          texlib_getinsertmultiplier          },
+    { "getinsertlimit",               texlib_getinsertlimit               },
+    { "getinsertheight",              texlib_getinsertheight              },
+    { "getinsertdepth",               texlib_getinsertdepth               },
+    { "getinsertwidth",               texlib_getinsertwidth               },
+    { "getinsertcontent",             texlib_getinsertcontent             },
+    { "setinsertdistance",            texlib_setinsertdistance            },
+    { "setinsertmultiplier",          texlib_setinsertmultiplier          },
+    { "setinsertlimit",               texlib_setinsertlimit               },
+    { "setinsertcontent",             texlib_setinsertcontent             },
+    { "getlocalbox",                  texlib_getlocalbox                  },
+    { "setlocalbox",                  texlib_setlocalbox                  },
+    /* */                                                                 
+    { "pushsavelevel",                texlib_pushsavelevel                },
+    { "popsavelevel",                 texlib_popsavelevel                 },
+    /* */                                                                 
+ // { "savepagestate",                texlib_savepagestate                },
+ // { "restorepagestate",             texlib_restorepagestate             },
+    /* */                                                                 
+    { NULL,                           NULL                                },
 };
 
 # define defineindexers(name) \
@@ -6231,6 +6291,7 @@ defineindexers(uccode)
 defineindexers(hccode)
 defineindexers(hmcode)
 defineindexers(amcode)
+defineindexers(cccode)
 defineindexers(catcode)
 defineindexers(mathcode)
 defineindexers(delcode)
@@ -6266,6 +6327,7 @@ int luaopen_tex(lua_State *L)
     lmt_make_table(L, "hccode",    TEX_METATABLE_HCCODE,    texlib_index_hccode,    texlib_newindex_hccode);
     lmt_make_table(L, "hmcode",    TEX_METATABLE_HMCODE,    texlib_index_hmcode,    texlib_newindex_hmcode);
     lmt_make_table(L, "amcode",    TEX_METATABLE_AMCODE,    texlib_index_amcode,    texlib_newindex_amcode);
+    lmt_make_table(L, "cccode",    TEX_METATABLE_CCCODE,    texlib_index_cccode,    texlib_newindex_cccode);
     lmt_make_table(L, "catcode",   TEX_METATABLE_CATCODE,   texlib_index_catcode,   texlib_newindex_catcode);
     lmt_make_table(L, "mathcode",  TEX_METATABLE_MATHCODE,  texlib_index_mathcode,  texlib_newindex_mathcode);
     lmt_make_table(L, "delcode",   TEX_METATABLE_DELCODE,   texlib_index_delcode,   texlib_newindex_delcode);
