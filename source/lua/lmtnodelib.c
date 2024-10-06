@@ -101,13 +101,13 @@ halfword lmt_check_isdirect(lua_State *L, int i)
     return n && _valid_node_(n) ? n : null;
 }
 
-inline static halfword nodelib_valid_direct_from_index(lua_State *L, int i)
+static inline halfword nodelib_valid_direct_from_index(lua_State *L, int i)
 {
     halfword n = lmt_tohalfword(L, i);
     return n && _valid_node_(n) ? n : null;
 }
 
-inline static void nodelib_push_direct_or_nil(lua_State *L, halfword n)
+static inline void nodelib_push_direct_or_nil(lua_State *L, halfword n)
 {
     if (n) {
         lua_pushinteger(L, n);
@@ -116,7 +116,7 @@ inline static void nodelib_push_direct_or_nil(lua_State *L, halfword n)
     }
 }
 
-inline static void nodelib_push_direct_or_nil_node_prev(lua_State *L, halfword n)
+static inline void nodelib_push_direct_or_nil_node_prev(lua_State *L, halfword n)
 {
     if (n) {
         node_prev(n) = null;
@@ -126,7 +126,7 @@ inline static void nodelib_push_direct_or_nil_node_prev(lua_State *L, halfword n
     }
 }
 
-inline static void nodelib_push_node_on_top(lua_State *L, halfword n)
+static inline void nodelib_push_node_on_top(lua_State *L, halfword n)
 {
      *(halfword *) lua_newuserdatauv(L, sizeof(halfword), 0) = n;
      lua_getmetatable(L, -2);
@@ -252,7 +252,7 @@ static int nodelib_direct_is_loop(lua_State *L)
 
 /*tex Another shortcut: */
 
-inline static singleword nodelib_getdirection(lua_State *L, int i)
+static inline singleword nodelib_getdirection(lua_State *L, int i)
 {
     return ((lua_type(L, i) == LUA_TNUMBER) ? (singleword) checked_direction_value(lmt_tohalfword(L, i)) : direction_def_value);
 }
@@ -6974,7 +6974,7 @@ static int nodelib_direct_count(lua_State *L)
 
 /*tex A few helpers for later usage: */
 
-inline static int nodelib_getattribute_value(lua_State *L, halfword n, int index)
+static inline int nodelib_getattribute_value(lua_State *L, halfword n, int index)
 {
     halfword key = (halfword) lua_tointeger(L, index);
     halfword val = tex_has_attribute(n, key, unused_attribute_value);
@@ -6986,7 +6986,7 @@ inline static int nodelib_getattribute_value(lua_State *L, halfword n, int index
     return 1;
 }
 
-inline static void nodelib_setattribute_value(lua_State *L, halfword n, int kindex, int vindex)
+static inline void nodelib_setattribute_value(lua_State *L, halfword n, int kindex, int vindex)
 {
     if (lua_gettop(L) >= kindex) {
         halfword key = lmt_tohalfword(L, kindex);
@@ -8593,7 +8593,7 @@ static int nodelib_direct_collapsing(lua_State *L)
 /* node.protect_glyphs */
 /* node.unprotect_glyphs */
 
-inline static void nodelib_aux_protect_all(halfword h)
+static inline void nodelib_aux_protect_all(halfword h)
 {
     while (h) {
         if (node_type(h) == glyph_node) {
@@ -8602,7 +8602,7 @@ inline static void nodelib_aux_protect_all(halfword h)
         h = node_next(h);
     }
 }
-inline static void nodelib_aux_unprotect_all(halfword h)
+static inline void nodelib_aux_unprotect_all(halfword h)
 {
     while (h) {
         if (node_type(h) == glyph_node) {
@@ -8612,7 +8612,7 @@ inline static void nodelib_aux_unprotect_all(halfword h)
     }
 }
 
-inline static void nodelib_aux_protect_node(halfword n)
+static inline void nodelib_aux_protect_node(halfword n)
 {
     switch (node_type(n)) {
         case glyph_node:
@@ -8626,7 +8626,7 @@ inline static void nodelib_aux_protect_node(halfword n)
     }
 }
 
-inline static void nodelib_aux_unprotect_node(halfword n)
+static inline void nodelib_aux_unprotect_node(halfword n)
 {
     switch (node_type(n)) {
         case glyph_node:
@@ -8697,7 +8697,7 @@ static int nodelib_direct_unprotectglyphs(lua_State *L)
 
 /*tex This is an experiment. */
 
-inline static void nodelib_aux_protect_all_none(halfword h)
+static inline void nodelib_aux_protect_all_none(halfword h)
 {
     while (h) {
         if (node_type(h) == glyph_node) {
@@ -8710,7 +8710,7 @@ inline static void nodelib_aux_protect_all_none(halfword h)
     }
 }
 
-inline static void nodelib_aux_protect_node_none(halfword n)
+static inline void nodelib_aux_protect_node_none(halfword n)
 {
     switch (node_type(n)) {
         case glyph_node:
@@ -8890,7 +8890,7 @@ static int nodelib_direct_hasglyph(lua_State *L)
 
 /* node.getword */
 
-inline static int nodelib_aux_in_word(halfword n)
+static inline int nodelib_aux_in_word(halfword n)
 {
     switch (node_type(n)) {
         case glyph_node:
@@ -9198,7 +9198,7 @@ static int nodelib_direct_ischar(lua_State *L)
 
 */
 
-inline static int nodelib_aux_similar_glyph(halfword first, halfword second)
+static inline int nodelib_aux_similar_glyph(halfword first, halfword second)
 {
     return
         node_type(second)     == glyph_node
@@ -9340,7 +9340,7 @@ static int nodelib_direct_isprevglyph(lua_State *L)
 
 /* direct.usesfont */
 
-inline static int nodelib_aux_uses_font_disc(lua_State *L, halfword n, halfword font)
+static inline int nodelib_aux_uses_font_disc(lua_State *L, halfword n, halfword font)
 {
     if (font) { 
         while (n) {
@@ -9838,7 +9838,7 @@ static int nodelib_direct_isvalid(lua_State *L)
 
 /* getlinestuff : LS RS LH RH ID PF FIRST LAST */
 
-inline static scaled set_effective_width(halfword source, halfword sign, halfword order, double glue)
+static inline scaled set_effective_width(halfword source, halfword sign, halfword order, double glue)
 {
     scaled amount = glue_amount(source);
     switch (sign) {
@@ -10002,7 +10002,7 @@ static int nodelib_direct_exchange(lua_State *L)
 
 /*tex experiment */
 
-inline static halfword nodelib_aux_migrate_decouple(halfword head, halfword current, halfword next, halfword *first, halfword *last)
+static inline halfword nodelib_aux_migrate_decouple(halfword head, halfword current, halfword next, halfword *first, halfword *last)
 {
     halfword prev = node_prev(current);
     tex_uncouple_node(current);

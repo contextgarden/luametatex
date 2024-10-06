@@ -491,12 +491,11 @@ extern halfword   tex_copy_token_list             (halfword h, halfword *t);
 
 extern halfword   tex_parse_str_to_tok            (halfword head, halfword *tail, halfword ct, const char *str, size_t lstr, int option);
 
-static inline int tex_valid_token                 (int t) { return ((t >= 0) && (t <= (int) lmt_token_memory_state.tokens_data.top)); }
-
 extern halfword   tex_get_at_end_of_file          (void);
 extern void       tex_set_at_end_of_file          (halfword h);
 
-inline halfword   tex_tail_of_token_list          (halfword t) { while (token_link(t)) { t = token_link(t); } return t; }
+static inline int      tex_valid_token            (int t) { return ((t >= 0) && (t <= (int) lmt_token_memory_state.tokens_data.top)); }
+static inline halfword tex_tail_of_token_list     (halfword t) { while (token_link(t)) { t = token_link(t); } return t; }
 
 /*tex 
 

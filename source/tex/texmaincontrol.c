@@ -68,7 +68,7 @@ main_control_state_info lmt_main_control_state = {
     .padding          = 0,
 };
 
-inline static void tex_aux_big_switch       (int mode, int cmd);
+static inline void tex_aux_big_switch       (int mode, int cmd);
 static        void tex_run_prefixed_command (void);
 
 /*tex
@@ -147,7 +147,7 @@ static void tex_aux_fixup_math_and_unsave(void)
 
 */
 
-inline static int tex_aux_use_space_factor_overload(halfword tail, halfword space_factor)
+static inline int tex_aux_use_space_factor_overload(halfword tail, halfword space_factor)
 {
     return 
         (space_factor > 0 && space_factor < default_space_factor) &&
@@ -156,7 +156,7 @@ inline static int tex_aux_use_space_factor_overload(halfword tail, halfword spac
     ;
 }
 
-inline static int tex_aux_used_space_factor_overload(halfword space_factor)
+static inline int tex_aux_used_space_factor_overload(halfword space_factor)
 {
     return default_space_factor - (space_factor_overload_par ? space_factor_overload_par :  - space_factor);
 }
@@ -371,7 +371,7 @@ static void tex_aux_run_node(void)
 
 /* */
 
-inline static void lmt_bytecode_run(int index)
+static inline void lmt_bytecode_run(int index)
 {
     strnumber u = tex_save_cur_string();
     lmt_token_state.luacstrings = 0;
@@ -382,7 +382,7 @@ inline static void lmt_bytecode_run(int index)
     }
 }
 
-inline static void lmt_lua_run(int reference, int prefix)
+static inline void lmt_lua_run(int reference, int prefix)
 {
     strnumber u = tex_save_cur_string();
     lmt_token_state.luacstrings = 0;
@@ -1528,7 +1528,7 @@ static void tex_aux_run_after_something(void)
     }
 }
 
-inline static void tex_aux_finish_after_assignment(void)
+static inline void tex_aux_finish_after_assignment(void)
 {
     if (lmt_main_control_state.after_token) {
         tex_back_input(lmt_main_control_state.after_token);
@@ -1751,7 +1751,7 @@ void tex_local_control(int obeymode)
     tex_unsave_full_scanner_status(saved_full_status);
 }
 
-inline static int tex_aux_is_iterator_value(halfword tokeninfo)
+static inline int tex_aux_is_iterator_value(halfword tokeninfo)
 {
     if (tokeninfo >= cs_token_flag) {
         halfword cs = tokeninfo - cs_token_flag;
@@ -1761,7 +1761,7 @@ inline static int tex_aux_is_iterator_value(halfword tokeninfo)
     }
 }
 
-inline static void tex_push_stack_entry(void)
+static inline void tex_push_stack_entry(void)
 {
     halfword state = tex_get_node(loop_state_node_size);
     node_type(state) = loop_state_node;
@@ -1775,7 +1775,7 @@ inline static void tex_push_stack_entry(void)
     lmt_main_control_state.loop_stack_head = state;
 }
 
-inline static void tex_pop_stack_entry(void)
+static inline void tex_pop_stack_entry(void)
 {
     halfword state = lmt_main_control_state.loop_stack_head;    
     lmt_main_control_state.loop_stack_head = node_next(state);
@@ -1805,7 +1805,7 @@ halfword tex_previous_loop_iterator(void)
     return state ? loop_state_count(state) : 0;
 }
 
-inline static halfword tex_previous_loop_iterator_delta(int delta)
+static inline halfword tex_previous_loop_iterator_delta(int delta)
 {
     halfword state = lmt_main_control_state.loop_stack_head;
     while (delta-- && state) {
@@ -1814,7 +1814,7 @@ inline static halfword tex_previous_loop_iterator_delta(int delta)
     return state ? loop_state_count(state) : 0;
 }
 
-inline static void tex_update_stack_entry(halfword count)
+static inline void tex_update_stack_entry(halfword count)
 {
     loop_state_count(lmt_main_control_state.loop_stack_head) = count;
 }
@@ -2393,19 +2393,19 @@ typedef enum saved_discretionary_entries {
 
 # define saved_discretionary_component saved_value_1(saved_discretionary_component_entry)
 
-inline static void saved_discretionary_initialize(void)
+static inline void saved_discretionary_initialize(void)
 {
     saved_type(0) = saved_record_0;
     saved_record(0) = discretionary_save_type;
 }
 
-inline static int saved_discretionary_current_component(void)
+static inline int saved_discretionary_current_component(void)
 {
     return saved_type(saved_discretionary_component_entry - saved_discretionary_n_of_records) == saved_record_0 
         ? saved_value_1(saved_discretionary_component_entry - saved_discretionary_n_of_records) : -1 ;
 }
 
-inline static void saved_discretionary_update_component(void)
+static inline void saved_discretionary_update_component(void)
 {
     saved_value_1(saved_discretionary_component_entry - saved_discretionary_n_of_records) += 1;
 }
@@ -2738,13 +2738,13 @@ static void tex_aux_extra_right_brace_error(void)
     ++lmt_input_state.align_state;
 }
 
-inline static void tex_aux_finish_hbox(void)
+static inline void tex_aux_finish_hbox(void)
 {
     tex_aux_fixup_directions_only();
     tex_package(hbox_code);
 }
 
-inline static void tex_aux_finish_adjusted_hbox(void)
+static inline void tex_aux_finish_adjusted_hbox(void)
 {
     lmt_packaging_state.post_adjust_tail = post_adjust_head;
     lmt_packaging_state.pre_adjust_tail = pre_adjust_head;
@@ -2753,7 +2753,7 @@ inline static void tex_aux_finish_adjusted_hbox(void)
     tex_package(hbox_code);
 }
 
-inline static void tex_aux_finish_vbox(void)
+static inline void tex_aux_finish_vbox(void)
 {
 
     if (! tex_wrapped_up_paragraph(vbox_par_context, 1)) {
@@ -2762,7 +2762,7 @@ inline static void tex_aux_finish_vbox(void)
     }
 }
 
-inline static void tex_aux_finish_vtop(void)
+static inline void tex_aux_finish_vtop(void)
 {
     if (! tex_wrapped_up_paragraph(vtop_par_context, 1)) {
         tex_end_paragraph(vtop_group, vtop_par_context);
@@ -2770,7 +2770,7 @@ inline static void tex_aux_finish_vtop(void)
     }
 }
 
-inline static void tex_aux_finish_dbox(void)
+static inline void tex_aux_finish_dbox(void)
 {
     if (! tex_wrapped_up_paragraph(dbox_par_context, 1)) {
         tex_end_paragraph(dbox_group, dbox_par_context);
@@ -2778,7 +2778,7 @@ inline static void tex_aux_finish_dbox(void)
     }
 }
 
-inline static void tex_aux_finish_simple_group(void)
+static inline void tex_aux_finish_simple_group(void)
 {
     tex_aux_fixup_directions_and_unsave();
 }
@@ -2793,7 +2793,7 @@ static void tex_aux_finish_bottom_level_group(void)
     );
 }
 
-inline static void tex_aux_finish_output(void)
+static inline void tex_aux_finish_output(void)
 {
     tex_pop_text_dir_ptr();
     tex_resume_after_output();
@@ -3814,7 +3814,7 @@ static void tex_aux_show_frozen_error(halfword cs)
 
 */
 
-inline static halfword tex_aux_get_register_index(int level)
+static inline halfword tex_aux_get_register_index(int level)
 {
     switch (level) {
         case integer_val_level:
@@ -3857,7 +3857,7 @@ inline static halfword tex_aux_get_register_index(int level)
     }
 }
 
-inline static halfword tex_aux_get_register_value(int level, int optionalequal)
+static inline halfword tex_aux_get_register_value(int level, int optionalequal)
 {
     switch (level) {
         case integer_val_level:
@@ -3980,7 +3980,7 @@ static void tex_aux_arithmic_overflow_error(int level, halfword value)
     );
 }
 
-inline static void tex_aux_update_register(int a, int level, halfword index, halfword value, halfword cmd)
+static inline void tex_aux_update_register(int a, int level, halfword index, halfword value, halfword cmd)
 {
     switch (level) {
         case integer_val_level:
@@ -4024,7 +4024,7 @@ inline static void tex_aux_update_register(int a, int level, halfword index, hal
     }
 }
 
-inline static void tex_aux_set_register(int a)
+static inline void tex_aux_set_register(int a)
 {
     halfword level = cur_chr;
     halfword varcmd = cur_cmd;
@@ -4267,7 +4267,7 @@ static void tex_aux_arithmic_register(int a, int code)
 
 */
 
-inline static void tex_aux_set_interaction(halfword mode)
+static inline void tex_aux_set_interaction(halfword mode)
 {
     tex_print_ln();
     if (mode < batch_mode) {
@@ -6958,7 +6958,7 @@ static void tex_aux_run_parameter(void)
 
 */
 
-inline static void tex_aux_big_switch(int mode, int cmd)
+static inline void tex_aux_big_switch(int mode, int cmd)
 {
     /* todo: order */
 

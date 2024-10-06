@@ -379,7 +379,7 @@ static halfword tex_aux_page_badness(scaled goal)
     }
 }
 
-inline static halfword tex_aux_page_costs(halfword badness, halfword penalty)
+static inline halfword tex_aux_page_costs(halfword badness, halfword penalty)
 {
     if (lmt_page_builder_state.insert_penalties >= infinite_penalty) {
         return awful_bad;
@@ -555,7 +555,7 @@ static void tex_aux_append_insert(halfword current)
     }
 }
 
-inline static int tex_aux_get_penalty_option(halfword current) 
+static inline int tex_aux_get_penalty_option(halfword current) 
 {
     while (1) { 
         current = node_prev(current);
@@ -592,7 +592,7 @@ inline static int tex_aux_get_penalty_option(halfword current)
  // return 0;
 }
 
-inline static int tex_aux_get_last_penalty(halfword current) 
+static inline int tex_aux_get_last_penalty(halfword current) 
 {
     return node_type(current) == penalty_node 
         ? penalty_options(current) & (penalty_option_widow | penalty_option_club | penalty_option_broken | penalty_option_shaping)

@@ -6,7 +6,7 @@
 
 /*tex Todo: move some helpers to other places. */
 
-inline static int tex_aux_the_cat_code(halfword b)
+static inline int tex_aux_the_cat_code(halfword b)
 {
     return (lmt_input_state.cur_input.cattable == default_catcode_table_preset) ?
         tex_get_cat_code(cat_code_table_par, b)
@@ -816,7 +816,7 @@ void tex_show_token_list_context(halfword p, halfword q)
 } while (0)
 */
 
-inline static halfword get_unichar_from_buffer(int *b)
+static inline halfword get_unichar_from_buffer(int *b)
 {
     halfword a = (halfword) ((const unsigned char) *(lmt_fileio_state.io_buffer + *b));
     if (a <= 0x80) {
@@ -877,7 +877,7 @@ typedef enum next_line_retval {
     next_line_restart
 } next_line_retval;
 
-inline static next_line_retval tex_aux_next_line(void);
+static inline next_line_retval tex_aux_next_line(void);
 
 /*tex
 
@@ -1506,14 +1506,14 @@ static int tex_aux_get_next_file(void)
 
 # define is_hex(a) ((a >= '0' && a <= '9') || (a >= 'a' && a <= 'f'))
 
- inline static halfword tex_aux_two_hex_to_cur_chr(int c1, int c2)
+static inline halfword tex_aux_two_hex_to_cur_chr(int c1, int c2)
  {
    return
         0x10 * (c1 <= '9' ? c1 - '0' : c1 - 'a' + 10)
       + 0x01 * (c2 <= '9' ? c2 - '0' : c2 - 'a' + 10);
  }
 
- inline static halfword tex_aux_four_hex_to_cur_chr(int c1, int c2,int c3, int c4)
+static inline halfword tex_aux_four_hex_to_cur_chr(int c1, int c2,int c3, int c4)
  {
    return
          0x1000 * (c1 <= '9' ? c1 - '0' : c1 - 'a' + 10)
@@ -1522,7 +1522,7 @@ static int tex_aux_get_next_file(void)
        + 0x0001 * (c4 <= '9' ? c4 - '0' : c4 - 'a' + 10);
 }
 
-inline static halfword tex_aux_six_hex_to_cur_chr(int c1, int c2, int c3, int c4, int c5, int c6)
+static inline halfword tex_aux_six_hex_to_cur_chr(int c1, int c2, int c3, int c4, int c5, int c6)
 {
    return
          0x100000 * (c1 <= '9' ? c1 - '0' : c1 - 'a' + 10)
@@ -1946,7 +1946,7 @@ static inline int tex_aux_every_eof(void)
     }
 }
 
-inline static next_line_retval tex_aux_next_line(void)
+static inline next_line_retval tex_aux_next_line(void)
 {
     if (lmt_input_state.cur_input.name > io_initial_input_code) {
         /*tex Read next line of file into |buffer|, or |goto restart| if the file has ended. */
@@ -3495,7 +3495,7 @@ strnumber tex_tokens_to_string(halfword p)
 
 // todo: check ret
 
-inline static void tex_aux_make_room_in_buffer(int a)
+static inline void tex_aux_make_room_in_buffer(int a)
 {
     if (lmt_token_state.bufloc + a + 1 > lmt_token_state.bufmax) {
         char *tmp = aux_reallocate_array(lmt_token_state.buffer, sizeof(unsigned char), lmt_token_state.bufmax + default_buffer_step, 1);

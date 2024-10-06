@@ -30,14 +30,14 @@
 
 # define POSIT_METATABLE "posit number"
  
-inline static posit_t *positlib_push(lua_State *L)
+static inline posit_t *positlib_push(lua_State *L)
 {
     posit p = lua_newuserdatauv(L, sizeof(posit_t), 0);
     luaL_setmetatable(L, POSIT_METATABLE);
     return p;
 }
 
-inline static int positlib_new(lua_State *L)
+static inline int positlib_new(lua_State *L)
 {
     posit p = positlib_push(L);
     switch (lua_type(L, 1)) {
@@ -58,7 +58,7 @@ inline static int positlib_new(lua_State *L)
     return 1;
 }
 
-inline static int positlib_toposit(lua_State *L)
+static inline int positlib_toposit(lua_State *L)
 {
     if (lua_type(L, 1) == LUA_TNUMBER) {
         posit_t p = double_to_posit(lua_tonumber(L, 1));
@@ -69,7 +69,7 @@ inline static int positlib_toposit(lua_State *L)
     return 1;
 }
 
-inline static int positlib_fromposit(lua_State *L)
+static inline int positlib_fromposit(lua_State *L)
 {
     if (lua_type(L, 1) == LUA_TNUMBER) {
         posit_t p = { .v = lmt_roundnumber(L, 1) };

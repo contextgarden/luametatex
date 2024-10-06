@@ -969,7 +969,7 @@ static void tex_aux_do_exception(halfword wordstart, halfword r, char *replaceme
 
 */
 
-inline static halfword tex_aux_is_hyphen_char(halfword chr)
+static inline halfword tex_aux_is_hyphen_char(halfword chr)
 {
     if (tex_get_hc_code(chr)) {
         return tex_get_hc_code(chr);
@@ -1320,7 +1320,7 @@ static void tex_aux_hyphenate_show(halfword beg, halfword end)
 
 /* maybe split: first a processing run */
 
-inline static int is_traditional_hyphen(halfword n)
+static inline int is_traditional_hyphen(halfword n)
 {
     return (
         (glyph_character(n) == ex_hyphen_char_par)                             /*tex parameter */

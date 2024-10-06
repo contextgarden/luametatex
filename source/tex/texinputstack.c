@@ -658,7 +658,7 @@ void tex_show_context(void)
 
 */
 
-inline static void tex_aux_push_input(void)
+static inline void tex_aux_push_input(void)
 {
     if (tex_aux_room_on_input_stack()) {
         lmt_input_state.input_stack[lmt_input_state.input_stack_data.ptr] = lmt_input_state.cur_input;
@@ -668,7 +668,7 @@ inline static void tex_aux_push_input(void)
     }
 }
 
-inline static void tex_aux_pop_input(void)
+static inline void tex_aux_pop_input(void)
 {
     lmt_input_state.cur_input = lmt_input_state.input_stack[--lmt_input_state.input_stack_data.ptr];
 }

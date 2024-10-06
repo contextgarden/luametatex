@@ -1886,7 +1886,7 @@ typedef struct noad_classes {
     singleword right;
 } noad_classes;
 
-inline static void tex_reset_noad_classes(halfword n) 
+static inline void tex_reset_noad_classes(halfword n) 
 { 
     noad_class_main(n)  = (singleword) unset_noad_class; 
     noad_class_left(n)  = (singleword) unset_noad_class; 
@@ -1894,7 +1894,7 @@ inline static void tex_reset_noad_classes(halfword n)
     noad_analyzed(n)    = (singleword) unset_noad_class; 
 } 
 
-inline static void tex_set_noad_classes(halfword n, halfword c) 
+static inline void tex_set_noad_classes(halfword n, halfword c) 
 { 
     noad_class_main(n)  = (singleword) (c & 0xFF); 
     noad_class_left(n)  = (singleword) (c & 0xFF); 
@@ -2832,7 +2832,7 @@ extern void     tex_reset_node_properties      (halfword target);
 } while (0)
 */
 
-inline static void add_attribute_reference(halfword a) 
+static inline void add_attribute_reference(halfword a) 
 {
     if (a && a != attribute_cache_disabled) { 
         ++attribute_count(a); 
@@ -2847,7 +2847,7 @@ inline static void add_attribute_reference(halfword a)
 } while (0)
 */
 
-inline static void delete_attribute_reference(halfword a)
+static inline void delete_attribute_reference(halfword a)
 {
     if (a && a != attribute_cache_disabled) { 
         tex_dereference_attribute_list(a); 

@@ -32,7 +32,7 @@ FILE *lmt_valid_file(lua_State *L) {
 
 typedef void (*texio_printer) (const char *);
 
-inline static int texiolib_aux_get_selector_value(lua_State *L, int i, int *l, int dflt)
+static inline int texiolib_aux_get_selector_value(lua_State *L, int i, int *l, int dflt)
 {
     switch (lua_type(L, i)) {
         case LUA_TSTRING:

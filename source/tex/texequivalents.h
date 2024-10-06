@@ -1090,7 +1090,7 @@ typedef enum unit_classes {
     user_unit_class       = 4, 
 } unit_classes;
 
-inline static int unit_parameter_index(int l, int r) {
+static inline int unit_parameter_index(int l, int r) {
     if (l >= 'a' && l <= 'z' && r >= 'a' && r <= 'z') { 
         return unit_parameter_hash(l,r);
     } else { 

@@ -880,7 +880,7 @@ void lmt_nodelib_initialize(void) {
 
 */
 
-inline static void lmt_properties_push(lua_State * L)
+static inline void lmt_properties_push(lua_State * L)
 {
     lmt_node_memory_state.lua_properties_level++;
     if (lmt_node_memory_state.lua_properties_level == 1) {
@@ -888,7 +888,7 @@ inline static void lmt_properties_push(lua_State * L)
     }
 }
 
-inline static void lmt_properties_pop(lua_State * L)
+static inline void lmt_properties_pop(lua_State * L)
 {
     if (lmt_node_memory_state.lua_properties_level == 1) {
         lua_pop(L, 1);
@@ -898,7 +898,7 @@ inline static void lmt_properties_pop(lua_State * L)
 
 /*tex Resetting boils down to nilling. */
 
-inline static void lmt_properties_reset(lua_State * L, halfword target)
+static inline void lmt_properties_reset(lua_State * L, halfword target)
 {
     if (lmt_node_memory_state.lua_properties_level == 0) {
         lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_node_memory_state.node_properties_id);
@@ -911,7 +911,7 @@ inline static void lmt_properties_reset(lua_State * L, halfword target)
     }
 }
 
-inline static void lmt_properties_copy(lua_State *L, halfword target, halfword source)
+static inline void lmt_properties_copy(lua_State *L, halfword target, halfword source)
 {
     if (lmt_node_memory_state.lua_properties_level == 0) {
         lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_node_memory_state.node_properties_id);
@@ -967,7 +967,7 @@ static void tex_aux_node_range_test(halfword a, halfword b)
 
 /*tex This needs a cleanup ... there is no need to store the pointer location itself. */
 
-inline static void tex_aux_preset_disc_node(halfword n)
+static inline void tex_aux_preset_disc_node(halfword n)
 {
     disc_pre_break(n) = disc_pre_break_node(n);
     disc_post_break(n) = disc_post_break_node(n);
@@ -980,7 +980,7 @@ inline static void tex_aux_preset_disc_node(halfword n)
     node_subtype(disc_no_break(n)) = no_break_code;
 }
 
-inline static void tex_aux_preset_node(halfword n, quarterword type) 
+static inline void tex_aux_preset_node(halfword n, quarterword type) 
 {
     switch (type) { 
         case glyph_node:
@@ -1352,14 +1352,14 @@ halfword tex_copy_node(halfword original)
     }
 }
 
-inline static void tex_aux_free_sub_node_list(halfword source)
+static inline void tex_aux_free_sub_node_list(halfword source)
 {
     if (source) {
         tex_flush_node_list(source);
     }
 }
 
-inline static void tex_aux_free_sub_node(halfword source)
+static inline void tex_aux_free_sub_node(halfword source)
 {
     if (source) {
         tex_flush_node(source);
@@ -1985,7 +1985,7 @@ extern void tex_change_attribute_register(halfword a, halfword id, halfword valu
     } 
 }
 
-inline static halfword tex_aux_new_attribute_list_node(void)
+static inline halfword tex_aux_new_attribute_list_node(void)
 {
     halfword r = tex_get_node(attribute_node_size);
     node_type(r) = attribute_node;
@@ -1995,7 +1995,7 @@ inline static halfword tex_aux_new_attribute_list_node(void)
     return r;
 }
 
-inline static halfword tex_aux_new_attribute_node(halfword index, int value)
+static inline halfword tex_aux_new_attribute_node(halfword index, int value)
 {
     halfword r = tex_get_node(attribute_node_size);
     node_type(r) = attribute_node;
@@ -2005,7 +2005,7 @@ inline static halfword tex_aux_new_attribute_node(halfword index, int value)
     return r;
 }
 
-inline static halfword tex_aux_copy_attribute_node(halfword n)
+static inline halfword tex_aux_copy_attribute_node(halfword n)
 {
     halfword a = tex_get_node(attribute_node_size);
     memcpy((void *) (lmt_node_memory_state.nodes + a), (void *) (lmt_node_memory_state.nodes + n), (sizeof(memoryword) * attribute_node_size));

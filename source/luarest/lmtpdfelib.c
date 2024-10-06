@@ -303,7 +303,7 @@ static int pdfelib_reference_tostring(lua_State *L) {
 
 */
 
-inline static void pdfe_push_dictionary(lua_State *L, ppdict *dictionary)
+static inline void pdfe_push_dictionary(lua_State *L, ppdict *dictionary)
 {
     pdfe_dictionary *d = (pdfe_dictionary *) lua_newuserdatauv(L, sizeof(pdfe_dictionary), 0);
  // luaL_getmetatable(L, PDFE_METATABLE_DICTIONARY);
@@ -333,7 +333,7 @@ static int pdfelib_aux_pushdictionaryonly(lua_State *L, ppdict *dictionary)
     }
 }
 
-inline static void pdfe_push_array(lua_State *L, pparray *array)
+static inline void pdfe_push_array(lua_State *L, pparray *array)
 {
     pdfe_array *a = (pdfe_array *) lua_newuserdatauv(L, sizeof(pdfe_array), 0);
  // luaL_getmetatable(L, PDFE_METATABLE_ARRAY);
@@ -363,7 +363,7 @@ static int pdfelib_aux_pusharrayonly(lua_State *L, pparray *array)
     }
 }
 
-inline static void pdfe_push_stream(lua_State *L, ppstream *stream)
+static inline void pdfe_push_stream(lua_State *L, ppstream *stream)
 {
     pdfe_stream *s = (pdfe_stream *) lua_newuserdatauv(L, sizeof(pdfe_stream), 0);
  // luaL_getmetatable(L, PDFE_METATABLE_STREAM);
@@ -402,7 +402,7 @@ static int pdfelib_aux_pushstreamonly(lua_State *L, ppstream *stream)
     }
 }
 
-inline static void pdfe_push_reference(lua_State *L, ppref *reference)
+static inline void pdfe_push_reference(lua_State *L, ppref *reference)
 {
     pdfe_reference *r = (pdfe_reference *) lua_newuserdatauv(L, sizeof(pdfe_reference), 0);
  // luaL_getmetatable(L, PDFE_METATABLE_REFERENCE);

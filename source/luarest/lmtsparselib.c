@@ -214,7 +214,7 @@ typedef enum concat_options {
     concat_as_msb  = 2,
 } concat_options;
 
-inline static char sparselib_aux_concat(sa_tree t, int i)
+static inline char sparselib_aux_concat(sa_tree t, int i)
 {
     int h = LMT_SA_H_PART(i);
     if (t->tree[h]) {

@@ -184,10 +184,12 @@ static inline void tex_set_specification_adjacent_u(halfword a, halfword n, half
 }
 
 typedef enum passes_features { 
+    /* */
     passes_quit_pass            = 0x0001,
     passes_skip_pass            = 0x0002,
     passes_callback_set         = 0x0004,
     passes_criterium_set        = 0x0008,
+    /* */
     passes_if_adjust_spacing    = 0x0010,
     passes_if_emergency_stretch = 0x0020,
     passes_if_text              = 0x0040,
@@ -195,13 +197,16 @@ typedef enum passes_features {
     passes_if_space_factor      = 0x0100,
     passes_if_math              = 0x0200,
     passes_unless_math          = 0x0400,
+    passes_if_looseness         = 0x0800,
     passes_test_set             = passes_if_adjust_spacing
                                 | passes_if_emergency_stretch
                                 | passes_if_text             
                                 | passes_if_glue             
                                 | passes_if_space_factor
                                 | passes_if_math             
-                                | passes_unless_math,         
+                                | passes_unless_math         
+                                | passes_if_looseness,         
+    /* */
 } passes_features;
 
 /*tex 

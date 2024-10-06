@@ -626,7 +626,7 @@ typedef enum saved_group_entries {
 # define saved_group_attribute_state saved_value_2(saved_group_attribute_state_entry)
 # define saved_group_input_line      saved_value_3(saved_group_input_line_entry)
 
-inline static void saved_group_initialize(void)
+static inline void saved_group_initialize(void)
 {
     saved_type(0) = level_boundary_save_type;
     /* here level is really level */
@@ -1146,7 +1146,7 @@ static int tex_aux_mutation_permitted(halfword cs)
 //     return eq_value_field(w) ? lmt_hash_state.destructors[eq_type_field(w)] : 0;
 // }
 
-inline static void tex_aux_eq_destroy(memoryword w)
+static inline void tex_aux_eq_destroy(memoryword w)
 {
     halfword p = eq_value_field(w);
     if (p) { 
@@ -1205,7 +1205,7 @@ static void tex_aux_eq_save(halfword p, quarterword l)
 
 */
 
-inline static int tex_aux_equal_eq(halfword p, singleword cmd, singleword flag, halfword chr)
+static inline int tex_aux_equal_eq(halfword p, singleword cmd, singleword flag, halfword chr)
 {
     /* maybe keep flag test at call end and then only flip flags */
     if (eq_flag(p) == flag) {
@@ -1433,7 +1433,7 @@ void tex_geq_word_define(halfword p, int w) /* not used */
     a side effect of looking at the code through a visual studio lense.)
 */
 
-inline static void tex_aux_set_eq_data(halfword p, singleword t, halfword e, singleword f, quarterword l)
+static inline void tex_aux_set_eq_data(halfword p, singleword t, halfword e, singleword f, quarterword l)
 {
     singleword flag = eq_flag(p);
     set_eq_level(p, l);
@@ -2314,7 +2314,7 @@ halfword tex_explicit_disc_penalty(halfword mode)
 
 */
 
-inline static void tex_aux_set_eq(halfword base, quarterword level, singleword cmd, halfword value, halfword count)
+static inline void tex_aux_set_eq(halfword base, quarterword level, singleword cmd, halfword value, halfword count)
 {
     if (count > 0) {
         set_eq_level(base, level);

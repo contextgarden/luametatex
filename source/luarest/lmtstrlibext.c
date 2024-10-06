@@ -8,7 +8,7 @@
 
 /*tex Helpers */
 
-inline static int strlib_aux_tounicode(const char *s, size_t l, size_t *p)
+static inline int strlib_aux_tounicode(const char *s, size_t l, size_t *p)
 {
     unsigned char i = s[*p];
     *p += 1;
@@ -45,7 +45,7 @@ inline static int strlib_aux_tounicode(const char *s, size_t l, size_t *p)
     return 0xFFFD;
 }
 
-inline static int strlib_aux_tounichar(const char *s, size_t l, size_t p)
+static inline int strlib_aux_tounichar(const char *s, size_t l, size_t p)
 {
     unsigned char i = s[p++];
     if (i < 0x80) {
@@ -78,7 +78,7 @@ inline static int strlib_aux_tounichar(const char *s, size_t l, size_t p)
     return 0;
 }
 
-inline static size_t strlib_aux_toline(const char *s, size_t l, size_t p, size_t *b)
+static inline size_t strlib_aux_toline(const char *s, size_t l, size_t p, size_t *b)
 {
     size_t i = p;
     while (i < l) {
@@ -575,7 +575,7 @@ static int strlib_format_f6(lua_State *L)
     wrapping around and such.
 */
 
-inline static unsigned char strlib_aux_hexdigit(unsigned char n) {
+static inline unsigned char strlib_aux_hexdigit(unsigned char n) {
     return (n < 10 ? '0' : 'A' - 10) + n;
 }
 

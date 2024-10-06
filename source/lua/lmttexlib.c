@@ -192,7 +192,7 @@ static spindle_state_info lmt_spindle_state = {
 # define write_spindle lmt_spindle_state.spindles[lmt_spindle_state.spindle_index]
 # define read_spindle  lmt_spindle_state.spindles[lmt_spindle_state.spindle_index - 1]
 
-inline static void texlib_aux_reset_spindle(int i)
+static inline void texlib_aux_reset_spindle(int i)
 {
     lmt_spindle_state.spindles[i].head = NULL;
     lmt_spindle_state.spindles[i].tail = NULL;
@@ -206,7 +206,7 @@ inline static void texlib_aux_reset_spindle(int i)
 
 */
 
-inline static spindle_rope *texlib_aux_new_rope(void)
+static inline spindle_rope *texlib_aux_new_rope(void)
 {
     spindle_rope *rope;
     if (lmt_spindle_state.rope_cache) {
@@ -224,7 +224,7 @@ inline static spindle_rope *texlib_aux_new_rope(void)
     return rope;
 }
 
-inline static void texlib_aux_dispose_rope(spindle_rope *rope)
+static inline void texlib_aux_dispose_rope(spindle_rope *rope)
 {
     if (rope) {
         if (lmt_spindle_state.rope_count > MAX_ROPE_CACHE) {
@@ -1249,7 +1249,7 @@ static int texlib_error(lua_State *L)
 
 */
 
-inline static int texlib_aux_valid_register_index(lua_State *L, int slot, int cmd, int base, int max, int constant_cmd)
+static inline int texlib_aux_valid_register_index(lua_State *L, int slot, int cmd, int base, int max, int constant_cmd)
 {
     int index = -1;
     switch (lua_type(L, slot)) {
@@ -1303,7 +1303,7 @@ static int texlib_get_register_index(lua_State *L)
     return 1;
 }
 
-inline static int texlib_aux_checked_register(lua_State *L, int cmd, int base, int max, int constant_cmd)
+static inline int texlib_aux_checked_register(lua_State *L, int cmd, int base, int max, int constant_cmd)
 {
     int index = texlib_aux_valid_register_index(L, 1, cmd, base, max, constant_cmd);
     if (index >= 0) {
@@ -1576,7 +1576,7 @@ static halfword texlib_aux_make_glue(lua_State *L, int top, int slot)
     return value;
 }
 
-inline static int texlib_aux_push_glue(lua_State* L, halfword g)
+static inline int texlib_aux_push_glue(lua_State* L, halfword g)
 {
     if (g) {
         lua_pushinteger(L, glue_amount(g));

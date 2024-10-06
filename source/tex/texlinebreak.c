@@ -892,7 +892,7 @@ static void tex_aux_clean_up_the_memory(void)
     similar as when we use macros (and sometimes even better).
 */
 
-inline static void tex_aux_add_disc_source_to_target(halfword adjust_spacing, scaled target[], const scaled source[])
+static inline void tex_aux_add_disc_source_to_target(halfword adjust_spacing, scaled target[], const scaled source[])
 {
     target[total_advance_amount] += source[total_advance_amount];
     if (adjust_spacing) {
@@ -901,7 +901,7 @@ inline static void tex_aux_add_disc_source_to_target(halfword adjust_spacing, sc
     }
 }
 
-inline static void tex_aux_sub_disc_target_from_source(halfword adjust_spacing, scaled target[], const scaled source[])
+static inline void tex_aux_sub_disc_target_from_source(halfword adjust_spacing, scaled target[], const scaled source[])
 {
     target[total_advance_amount] -= source[total_advance_amount];
     if (adjust_spacing) {
@@ -910,7 +910,7 @@ inline static void tex_aux_sub_disc_target_from_source(halfword adjust_spacing, 
     }
 }
 
-inline static void tex_aux_reset_disc_target(halfword adjust_spacing, scaled *target)
+static inline void tex_aux_reset_disc_target(halfword adjust_spacing, scaled *target)
 {
     target[total_advance_amount] = 0;
     if (adjust_spacing) {
@@ -921,7 +921,7 @@ inline static void tex_aux_reset_disc_target(halfword adjust_spacing, scaled *ta
 
 /* A memcopy for the whole array is probably more efficient. */
 
-inline static void tex_aux_set_target_to_source(halfword adjust_spacing, scaled target[], const scaled source[])
+static inline void tex_aux_set_target_to_source(halfword adjust_spacing, scaled target[], const scaled source[])
 {
  // memcpy(&target[total_glue_amount], &source[total_glue_amount], font_shrink_amount * sizeof(halfword));
     for (int i = total_advance_amount; i <= total_shrink_amount; i++) {
@@ -955,7 +955,7 @@ inline static void tex_aux_set_target_to_source(halfword adjust_spacing, scaled 
 
 */
 
-inline static void tex_aux_add_to_target_from_delta(halfword adjust_spacing, scaled target[], halfword delta)
+static inline void tex_aux_add_to_target_from_delta(halfword adjust_spacing, scaled target[], halfword delta)
 {
     target[total_advance_amount] += delta_field_total_glue(delta);
     target[total_stretch_amount] += delta_field_total_stretch(delta);
@@ -970,7 +970,7 @@ inline static void tex_aux_add_to_target_from_delta(halfword adjust_spacing, sca
     }
 }
 
-inline static void tex_aux_sub_delta_from_target(halfword adjust_spacing, scaled target[], halfword delta)
+static inline void tex_aux_sub_delta_from_target(halfword adjust_spacing, scaled target[], halfword delta)
 {
     target[total_advance_amount] -= delta_field_total_glue(delta);
     target[total_stretch_amount] -= delta_field_total_stretch(delta);
@@ -985,7 +985,7 @@ inline static void tex_aux_sub_delta_from_target(halfword adjust_spacing, scaled
     }
 }
 
-inline static void tex_aux_add_to_delta_from_delta(halfword adjust_spacing, halfword target, halfword source)
+static inline void tex_aux_add_to_delta_from_delta(halfword adjust_spacing, halfword target, halfword source)
 {
     delta_field_total_glue(target)         += delta_field_total_glue(source);
     delta_field_total_stretch(target)      += delta_field_total_stretch(source);
@@ -1000,7 +1000,7 @@ inline static void tex_aux_add_to_delta_from_delta(halfword adjust_spacing, half
     }
 }
 
-inline static void tex_aux_set_delta_from_difference(halfword adjust_spacing, halfword delta, const scaled source_1[], const scaled source_2[])
+static inline void tex_aux_set_delta_from_difference(halfword adjust_spacing, halfword delta, const scaled source_1[], const scaled source_2[])
 {
     delta_field_total_glue(delta)         = (source_1[total_advance_amount] - source_2[total_advance_amount]);
     delta_field_total_stretch(delta)      = (source_1[total_stretch_amount] - source_2[total_stretch_amount]);
@@ -1015,7 +1015,7 @@ inline static void tex_aux_set_delta_from_difference(halfword adjust_spacing, ha
     }
 }
 
-inline static void tex_aux_add_delta_from_difference(halfword adjust_spacing, halfword delta, const scaled source_1[], const scaled source_2[])
+static inline void tex_aux_add_delta_from_difference(halfword adjust_spacing, halfword delta, const scaled source_1[], const scaled source_2[])
 {
     delta_field_total_glue(delta)         += (source_1[total_advance_amount] - source_2[total_advance_amount]);
     delta_field_total_stretch(delta)      += (source_1[total_stretch_amount] - source_2[total_stretch_amount]);
@@ -1275,44 +1275,60 @@ static void tex_aux_compute_break_width(int break_type, int adjust_spacing, int 
     }
 }
 
-// static halfword lmt_line_break_callback_template(
-//     halfword callback_id,
-//     halfword checks
-// )
-// {
-//  // int callback_id = lmt_callback_defined(italic_correction_callback);
-//     if (callback_id > 0) {
-//         lua_State *L = lmt_lua_state.lua_instance;
-//         int top = 0;
-//         if (lmt_callback_okay(L, callback_id, &top)) {
-//             int i;
-//             lua_pushinteger(L, checks);
-//          // lmt_node_list_to_lua(L, glyph);
-//             i = lmt_callback_call(L, 1, 0, top);
-//             if (i) {
-//                 lmt_callback_error(L, top, i);
-//             } else {
-//              // result = lmt_tohalfword(L, -1);
-//                 lmt_callback_wrapup(L, top);
-//             }
-//         }
-//     }
-//     return 0; // demerits
-// }
+/*tex 
+
+    I changed the report into a table but in the end decided to stick to passing arguments mainly
+    because it is more convenient and efficient at the \LUA\ end. I also played with the following
+    but in the end decided against it as it complicates the \LUA\ end and these callbacks will 
+    not be used beyond tracing and experiments so performance is not an issue. Also, stacking them 
+    will likely create an interference mess. So I payed the price of a few hours wasteful coding. 
+
+    \starttyping
+    # define line_break_callback_step(checks,context) (! (checks >> 16) || ((checks >> 16) & (1 << context)))
+    # define line_break_callback_checks(checks) (checks & 0xFFFF)
+    
+    static void tex_aux_line_break_callback_initialize(int callback_id, halfword checks, int subpasses)
+    {
+      if (line_break_callback_step(checks, initialize_line_break_context)) {
+            lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddd->", 
+                initialize_line_break_context, 
+                line_break_callback_checks(checks),
+                subpasses
+            );
+        }
+    }
+    \stoptyping 
+
+*/
 
 static void tex_aux_line_break_callback_initialize(int callback_id, halfword checks, int subpasses)
 {
-    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddd->", initialize_line_break_context, checks, subpasses);
+    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddd->", 
+        initialize_line_break_context, 
+        checks,
+        subpasses
+    );
 }
 
 static void tex_aux_line_break_callback_start(int callback_id, halfword checks, int pass, int subpass, int classes, int decent)
 {
-    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "dddddd->", start_line_break_context, checks, pass, subpass, classes, decent);
+    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "dddddd->", 
+        start_line_break_context, 
+        checks,
+        pass, 
+        subpass, 
+        classes, 
+        decent
+    );
 }
 
 static void tex_aux_line_break_callback_stop(int callback_id, halfword checks)
 {
-    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddd->", stop_line_break_context, checks, lmt_linebreak_state.fewest_demerits);
+    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddd->", 
+        stop_line_break_context, 
+        checks,
+        lmt_linebreak_state.fewest_demerits
+    );
 }
 
 static void tex_aux_line_break_callback_collect(int callback_id, halfword checks)
@@ -1322,27 +1338,44 @@ static void tex_aux_line_break_callback_collect(int callback_id, halfword checks
 
 static void tex_aux_line_break_callback_line(int callback_id, halfword checks, int line, halfword passive)
 {
-    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddNdddddd->", line_line_break_context, checks,
-        lmt_linebreak_state.just_box, lmt_packaging_state.last_badness,  lmt_packaging_state.last_overshoot,
-        lmt_packaging_state.total_shrink[normal_glue_order], lmt_packaging_state.total_stretch[normal_glue_order], 
-        line, passive_serial(passive)
+    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddNdddddd->", 
+        line_line_break_context, 
+        checks,
+        lmt_linebreak_state.just_box, 
+        lmt_packaging_state.last_badness,  
+        lmt_packaging_state.last_overshoot,
+        lmt_packaging_state.total_shrink[normal_glue_order], 
+        lmt_packaging_state.total_stretch[normal_glue_order], 
+        line, 
+        passive_serial(passive)
     );
 }
 
-static void tex_aux_line_break_callback_delete(halfword active, halfword passive, int callback_id, halfword checks)
+static void tex_aux_line_break_callback_delete(int callback_id, halfword checks, halfword active, halfword passive)
 {
     (void) active;
-    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "dd->", delete_line_break_context, checks, passive_serial(passive));
+    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "dd->", 
+        delete_line_break_context, 
+        checks,
+        passive_serial(passive)
+    );
 }
 
 static void tex_aux_line_break_callback_wrapup(int callback_id, halfword checks)
 {
-    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "dddd->", wrapup_line_break_context, checks, lmt_linebreak_state.fewest_demerits, lmt_linebreak_state.actual_looseness);
+    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "dddd->", 
+        wrapup_line_break_context, 
+        checks,
+        lmt_linebreak_state.fewest_demerits, 
+        lmt_linebreak_state.actual_looseness
+    );
 }
 
-static void tex_aux_line_break_callback_check(halfword active, halfword passive, int callback_id, halfword checks, int pass, halfword subpass, halfword *demerits)
+static halfword tex_aux_line_break_callback_report(int callback_id, halfword checks, int pass, halfword subpass, halfword active, halfword passive)
 {
-    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddddddddddddNddd->r", report_line_break_context, 
+    halfword demerits = active_total_demerits(active);
+    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddddddddddddNddd->r", 
+        report_line_break_context, 
         checks,
         pass,
         subpass,
@@ -1353,19 +1386,21 @@ static void tex_aux_line_break_callback_check(halfword active, halfword passive,
         active_fitness(active) + 1,            /* we offset the class */
         passive_n_of_fitness_classes(passive), /* also in passive  */
         passive_badness(passive),
-        active_total_demerits(active), /* demerits */
+        demerits,
         passive_cur_break(passive),
         active_short(active),
         active_glue(active),
         active_line_width(active),
-        demerits,
-        demerits  /* optionally changed */
+        &demerits  /* optionally changed */
     );
+    return demerits;
 }
 
-static void tex_aux_line_break_callback_list(halfword passive, int callback_id, halfword checks)
+static void tex_aux_line_break_callback_list(int callback_id, halfword checks, halfword passive)
 {
-    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddd->", list_line_break_context, checks, 
+    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddd->", 
+        list_line_break_context, 
+        checks,
         passive_serial(passive)
     );
 }
@@ -1579,17 +1614,17 @@ void tex_check_fitness_classes(halfword fitnessclasses)
     tex_set_specification_decent(fitnessclasses, med);
 }
 
-inline static halfword tex_max_fitness(halfword fitnessclasses)
+static inline halfword tex_max_fitness(halfword fitnessclasses)
 {
     return tex_get_specification_count(fitnessclasses);
 }
 
-inline static halfword tex_med_fitness(halfword fitnessclasses)
+static inline halfword tex_med_fitness(halfword fitnessclasses)
 {
     return tex_get_specification_decent(fitnessclasses);
 }
 
-inline static halfword tex_get_demerits(const line_break_properties *properties, halfword distance, halfword start, halfword stop)
+static inline halfword tex_get_demerits(const line_break_properties *properties, halfword distance, halfword start, halfword stop)
 {
     if (distance) {
         halfword demerits = properties->adjacent_demerits;            
@@ -1617,7 +1652,7 @@ inline static halfword tex_get_demerits(const line_break_properties *properties,
     Watch out: here we map from indices to inbetween (zero based) categories. 
 */
 
-inline static halfword tex_normalized_loose_badness(halfword b, halfword fitnessclasses)
+static inline halfword tex_normalized_loose_badness(halfword b, halfword fitnessclasses)
 {
     halfword med = tex_get_specification_decent(fitnessclasses);
     for (halfword c = med - 1; c >= 1; c--) {
@@ -1628,7 +1663,7 @@ inline static halfword tex_normalized_loose_badness(halfword b, halfword fitness
     return 0;
 }
 
-inline static halfword tex_normalized_tight_badness(halfword b, halfword fitnessclasses) 
+static inline halfword tex_normalized_tight_badness(halfword b, halfword fitnessclasses) 
 {
     halfword max = tex_get_specification_count(fitnessclasses);
     halfword med = tex_get_specification_decent(fitnessclasses);
@@ -2313,9 +2348,7 @@ static scaled tex_aux_try_break(
                         }
                         /* */
                         if (callback_id) {
-                            halfword demerits = active_total_demerits(active);
-                            tex_aux_line_break_callback_check(active, passive, callback_id, checks, pass, subpass, &demerits);
-                            active_total_demerits(active) = demerits;
+                            active_total_demerits(active) = tex_aux_line_break_callback_report(callback_id, checks, pass, subpass, active, passive);
                         }
                         if (properties->tracing_paragraphs > 0) {
                             tex_begin_diagnostic();
@@ -2684,7 +2717,7 @@ static scaled tex_aux_try_break(
         */
         node_next(previous) = node_next(current);
         if (callback_id) {
-             tex_aux_line_break_callback_delete(current, active_break_node(current), callback_id, checks);
+             tex_aux_line_break_callback_delete(callback_id, checks, current, active_break_node(current));
         }
         tex_flush_node(current);
         if (previous == active_head) {
@@ -2753,13 +2786,13 @@ static halfword tex_aux_inject_toddler_penalty(halfword current, halfword amount
     }
 }
 
-inline static int tex_aux_valid_glue_break(halfword p)
+static inline int tex_aux_valid_glue_break(halfword p)
 {
     halfword prv = node_prev(p);
     return (prv && prv != temp_head && (node_type(prv) == glyph_node || precedes_break(prv) || precedes_kern(prv) || precedes_dir(prv)));
 }
 
-inline static halfword tex_aux_upcoming_math_penalty(halfword p, halfword factor) {
+static inline halfword tex_aux_upcoming_math_penalty(halfword p, halfword factor) {
     halfword n = node_next(p);
     if (n && node_type(n) == math_node && node_subtype(n) == begin_inline_math) { 
         return factor ? tex_xn_over_d(math_penalty(n), factor, scaling_factor) : math_penalty(n);
@@ -2792,11 +2825,11 @@ inline static halfword tex_aux_upcoming_math_penalty(halfword p, halfword factor
 
 # define max_prev_graf (max_integer/2)
 
-inline static int tex_aux_short_math(halfword m) {
+static inline int tex_aux_short_math(halfword m) {
     return m && node_subtype(m) == begin_inline_math && math_penalty(m) > 0 && tex_has_math_option(m, math_option_short);
 }
 
-inline static void tex_aux_adapt_short_math_penalty(halfword m, halfword p1, halfword p2, int orphaned) {
+static inline void tex_aux_adapt_short_math_penalty(halfword m, halfword p1, halfword p2, int orphaned) {
     if (p1 > math_penalty(m)) {
         math_penalty(m) = p1;
         if (orphaned) {
@@ -2811,7 +2844,7 @@ inline static void tex_aux_adapt_short_math_penalty(halfword m, halfword p1, hal
     }
 }
 
-inline static halfword tex_aux_backtrack_over_math(halfword m)
+static inline halfword tex_aux_backtrack_over_math(halfword m)
 {
     if (node_subtype(m) == end_inline_math) {
         do {
@@ -2821,7 +2854,7 @@ inline static halfword tex_aux_backtrack_over_math(halfword m)
     return m;
 }
 
-inline static int tex_aux_emergency(const line_break_properties *properties)
+static inline int tex_aux_emergency(const line_break_properties *properties)
 {
     if (properties->emergency_stretch > 0) {
         return 1;
@@ -2836,7 +2869,7 @@ inline static int tex_aux_emergency(const line_break_properties *properties)
     }
 }
 
-inline static int tex_aux_emergency_skip(halfword s)
+static inline int tex_aux_emergency_skip(halfword s)
 {
     return ! tex_glue_is_zero(s) && glue_stretch_order(s) == normal_glue_order && glue_shrink_order(s) == normal_glue_order;
 }
@@ -3233,7 +3266,7 @@ static void tex_aux_set_orphan_penalties(const line_break_properties *properties
     }
 }
 
-inline static int tex_aux_has_expansion(void) /* could be part of this identify pass over the list */
+static inline int tex_aux_has_expansion(void) /* could be part of this identify pass over the list */
 {
     if (lmt_linebreak_state.checked_expansion == -1) {
         halfword current = node_next(temp_head);
@@ -3250,7 +3283,7 @@ inline static int tex_aux_has_expansion(void) /* could be part of this identify 
     return lmt_linebreak_state.checked_expansion;
 }
 
-inline static void tex_aux_set_initial_active(const line_break_properties *properties)
+static inline void tex_aux_set_initial_active(const line_break_properties *properties)
 {
     halfword initial = tex_new_node(unhyphenated_node, (quarterword) tex_get_specification_decent(properties->fitness_classes) - 1);
     node_next(initial) = active_head;
@@ -3263,7 +3296,7 @@ inline static void tex_aux_set_initial_active(const line_break_properties *prope
     node_next(active_head) = initial;
 }
 
-inline static void tex_aux_set_local_par_state(halfword current)
+static inline void tex_aux_set_local_par_state(halfword current)
 {
     if (current && node_type(current) == par_node) {
         switch (node_subtype(current)) {
@@ -3297,7 +3330,7 @@ inline static void tex_aux_set_local_par_state(halfword current)
     lmt_linebreak_state.internal_left_box_width = lmt_linebreak_state.internal_left_box_width_init;
 }
 
-inline static void tex_aux_set_adjust_spacing(line_break_properties *properties)
+static inline void tex_aux_set_adjust_spacing(line_break_properties *properties)
 {
     if (properties->adjust_spacing) {
         lmt_linebreak_state.adjust_spacing = properties->adjust_spacing;
@@ -3325,7 +3358,7 @@ inline static void tex_aux_set_adjust_spacing(line_break_properties *properties)
     lmt_linebreak_state.current_font_step = -1;
 }
 
-inline static void tex_aux_set_looseness(const line_break_properties *properties)
+static inline void tex_aux_set_looseness(const line_break_properties *properties)
 {
     lmt_linebreak_state.actual_looseness = 0;
     if (properties->looseness == 0) {
@@ -3335,7 +3368,7 @@ inline static void tex_aux_set_looseness(const line_break_properties *properties
     }
 }
 
-inline static void tex_aux_set_adjacent_demerits(line_break_properties *properties)
+static inline void tex_aux_set_adjacent_demerits(line_break_properties *properties)
 {
     if (properties->adjacent_demerits) { 
         properties->adj_demerits = 0;
@@ -3544,6 +3577,7 @@ static int tex_aux_set_sub_pass_parameters(
             if (features & passes_if_space_factor)      { tex_print_format("  if space factor      true\n"); }
             if (features & passes_if_adjust_spacing)    { tex_print_format("  if adjust spacing    true\n"); }
             if (features & passes_if_emergency_stretch) { tex_print_format("  if emergency stretch true\n"); }
+            if (features & passes_if_looseness)         { tex_print_format("  if looseness         true\n"); }
             if (features & passes_unless_math)          { tex_print_format("  unless math          true\n"); }
         }
         tex_print_str("  --------------------------------\n");
@@ -3630,7 +3664,7 @@ static void tex_aux_skip_message(halfword passes, int subpass, int nofsubpasses,
     tex_end_diagnostic();
 }
 
-inline static int tex_aux_next_subpass(const line_break_properties *properties, halfword passes, int subpass, int nofsubpasses, halfword state, int tracing)
+static inline int tex_aux_next_subpass(const line_break_properties *properties, halfword passes, int subpass, int nofsubpasses, halfword state, int tracing)
 {
     while (++subpass <= nofsubpasses) {
         halfword features = tex_get_passes_features(passes, subpass);
@@ -3691,13 +3725,21 @@ inline static int tex_aux_next_subpass(const line_break_properties *properties, 
                     continue;
                 }
             }
+            if (features & passes_if_looseness) {
+                if (! properties->looseness) {
+                    if (tracing) {
+                        tex_aux_skip_message(passes, subpass, nofsubpasses, "no looseness");
+                    }
+                    continue;
+                }
+            } 
         }
         return subpass;
     }
     return nofsubpasses + 1;
 }
 
-inline static int tex_aux_check_sub_pass(line_break_properties *properties, halfword state, scaled shortfall, halfword passes, int subpass, int nofsubpasses, halfword first)
+static inline int tex_aux_check_sub_pass(line_break_properties *properties, halfword state, scaled shortfall, halfword passes, int subpass, int nofsubpasses, halfword first)
 {
     scaled overfull = 0;
     scaled underfull = 0;
@@ -3816,7 +3858,7 @@ inline static int tex_aux_check_sub_pass(line_break_properties *properties, half
 
 */
 
-inline static void tex_aux_wipe_optionals(const line_break_properties *properties, halfword current, int state)
+static inline void tex_aux_wipe_optionals(const line_break_properties *properties, halfword current, int state)
 {
     if (paragraph_has_optional(state)) {
         while (current) {
@@ -3868,7 +3910,7 @@ static void tex_aux_show_threshold(const char *what, halfword value)
 
 /*
 
-inline static halfword tex_aux_analyze_list(halfword current)
+static inline halfword tex_aux_analyze_list(halfword current)
 {
     halfword state = 0;
     while (current) {
@@ -3910,7 +3952,7 @@ inline static halfword tex_aux_analyze_list(halfword current)
 }
 */
 
-inline static halfword tex_aux_break_list(const line_break_properties *properties, halfword pass, halfword subpass, halfword current, halfword first, halfword *state, int artificial)
+static inline halfword tex_aux_break_list(const line_break_properties *properties, halfword pass, halfword subpass, halfword current, halfword first, halfword *state, int artificial)
 {
     halfword callback_id = lmt_linebreak_state.callback_id;
     halfword checks = properties->line_break_checks;
@@ -5131,7 +5173,7 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
     if (callback_id) {
         halfword p = cur_p;
         while (p) {
-            tex_aux_line_break_callback_list(p, callback_id, checks);
+            tex_aux_line_break_callback_list(callback_id, checks, p);
             p = passive_next_break(p);
         }
     }

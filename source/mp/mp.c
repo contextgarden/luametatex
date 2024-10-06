@@ -1847,11 +1847,11 @@ static mp_symbol           mp_new_symbols_entry           (MP mp, unsigned char 
                                                           
 static void                mp_fix_date_and_time           (MP mp);
                                                           
-inline static void         mp_do_set_value_sym            (MP mp, mp_token_node A, mp_symbol B);
-inline static void         mp_do_set_value_number         (MP mp, mp_token_node A, mp_number *B);
-inline static void         mp_do_set_value_str            (MP mp, mp_token_node A, mp_string B);
-inline static void         mp_do_set_value_node           (MP mp, mp_token_node A, mp_node B);
-inline static void         mp_do_set_value_knot           (MP mp, mp_token_node A, mp_knot B);
+static inline void         mp_do_set_value_sym            (MP mp, mp_token_node A, mp_symbol B);
+static inline void         mp_do_set_value_number         (MP mp, mp_token_node A, mp_number *B);
+static inline void         mp_do_set_value_str            (MP mp, mp_token_node A, mp_string B);
+static inline void         mp_do_set_value_node           (MP mp, mp_token_node A, mp_node B);
+static inline void         mp_do_set_value_knot           (MP mp, mp_token_node A, mp_knot B);
 static mp_node             mp_do_get_subscr_head          (MP mp, mp_value_node A);
 static mp_node             mp_do_get_attribute_head       (MP mp, mp_value_node A);
 static void                mp_do_set_attribute_head       (MP mp, mp_value_node A, mp_node d);
@@ -1889,8 +1889,8 @@ static int                 mp_get_turn_amt                (MP mp, mp_knot w, mp_
 static mp_knot             mp_insert_knot                 (MP mp, mp_knot q, mp_number *x, mp_number *y);
 static void                mp_set_min_max                 (MP mp, int v);
 static void                mp_new_indep                   (MP mp, mp_node p);
-inline static mp_node      do_get_dep_info                (MP mp, mp_value_node p);
-inline static void         do_set_dep_value               (MP mp, mp_value_node p, mp_number *q);
+static inline mp_node      do_get_dep_info                (MP mp, mp_value_node p);
+static inline void         do_set_dep_value               (MP mp, mp_value_node p, mp_number *q);
 static void                mp_free_dep_node               (MP mp, mp_value_node p);
 static mp_value_node       mp_p_plus_fq                   (MP mp, mp_value_node p, mp_number *f, mp_value_node q, mp_variable_type t, mp_variable_type tt);
 static mp_value_node       mp_p_over_v                    (MP mp, mp_value_node p, mp_number *v, int t0, int t1);
@@ -2036,7 +2036,7 @@ static void                mp_final_cleanup               (MP mp);
 
 */
 
-inline static void mp_print_format_args(MP mp, const char *format, va_list args)
+static inline void mp_print_format_args(MP mp, const char *format, va_list args)
 {
     while (1) {
         int chr = *format++;
@@ -3905,13 +3905,13 @@ static int mp_is_frozen(MP mp, mp_symbol sym)
 # define mp_get_value_str(A)    ((mp_token_node) (A))->data.str
 # define mp_get_value_knot(A)   ((mp_token_node) (A))->data.p
 
-inline static void mp_do_set_value_sym(MP mp, mp_token_node A, mp_symbol B)
+static inline void mp_do_set_value_sym(MP mp, mp_token_node A, mp_symbol B)
 {
     (void) mp;
     A->data.sym=(B);
 }
 
-inline static void mp_do_set_value_number(MP mp, mp_token_node A, mp_number *B)
+static inline void mp_do_set_value_number(MP mp, mp_token_node A, mp_number *B)
 {
     (void) mp;
     A->data.p = NULL;
@@ -3920,7 +3920,7 @@ inline static void mp_do_set_value_number(MP mp, mp_token_node A, mp_number *B)
     number_clone(A->data.n, *B);
 }
 
-inline static void mp_do_set_value_str(MP mp, mp_token_node A, mp_string B)
+static inline void mp_do_set_value_str(MP mp, mp_token_node A, mp_string B)
 {
     (void) mp;
     A->data.p = NULL;
@@ -3930,7 +3930,7 @@ inline static void mp_do_set_value_str(MP mp, mp_token_node A, mp_string B)
     set_number_to_zero(A->data.n);
 }
 
-inline static void mp_do_set_value_node(MP mp, mp_token_node A, mp_node B)
+static inline void mp_do_set_value_node(MP mp, mp_token_node A, mp_node B)
 {
     (void) mp;
     /* store the value in a large token node */
@@ -3940,7 +3940,7 @@ inline static void mp_do_set_value_node(MP mp, mp_token_node A, mp_node B)
     set_number_to_zero(A->data.n);
 }
 
-inline static void mp_do_set_value_knot(MP mp, mp_token_node A, mp_knot B)
+static inline void mp_do_set_value_knot(MP mp, mp_token_node A, mp_knot B)
 {
     (void) mp;
     A->data.p = (B);
@@ -12802,7 +12802,7 @@ static void mp_new_indep(MP mp, mp_node p)
     mp_set_indep_value(p, mp->serial_no);
 }
 
-inline static mp_node do_get_dep_info(MP mp, mp_value_node p)
+static inline mp_node do_get_dep_info(MP mp, mp_value_node p)
 {
     /*tex Half of the |value| field in a |dependent| variable. */
     mp_node d = p->parent;
@@ -12810,7 +12810,7 @@ inline static mp_node do_get_dep_info(MP mp, mp_value_node p)
     return d;
 }
 
-inline static void do_set_dep_value(MP mp, mp_value_node p, mp_number *q)
+static inline void do_set_dep_value(MP mp, mp_value_node p, mp_number *q)
 {
     /*tex Half of the |value| field in a |dependent| variable. */
     number_clone(p->data.n, *q);
@@ -19202,14 +19202,14 @@ A few helpers that safe typing:
 
 */
 
-inline static int mp_pair_is_known(mp_node n)
+static inline int mp_pair_is_known(mp_node n)
 {
     return 
         (mp_x_part(n)->type == mp_known_type) &&
         (mp_y_part(n)->type == mp_known_type);
 }
 
-inline static int mp_transform_is_known(mp_node n)
+static inline int mp_transform_is_known(mp_node n)
 {
     return 
         (mp_tx_part(n)->type == mp_known_type) &&
@@ -19220,7 +19220,7 @@ inline static int mp_transform_is_known(mp_node n)
         (mp_yy_part(n)->type == mp_known_type);
 }
 
-inline static int mp_rgb_color_is_known(mp_node n)
+static inline int mp_rgb_color_is_known(mp_node n)
 {
     return 
         (mp_red_part  (n)->type == mp_known_type) && 
@@ -19228,7 +19228,7 @@ inline static int mp_rgb_color_is_known(mp_node n)
         (mp_blue_part (n)->type == mp_known_type);
 }
 
-inline static int mp_cmyk_color_is_known(mp_node n)
+static inline int mp_cmyk_color_is_known(mp_node n)
 {
     return 
         (mp_cyan_part   (n)->type == mp_known_type) &&

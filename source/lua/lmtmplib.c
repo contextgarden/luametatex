@@ -367,7 +367,7 @@ static void mplib_aux_set_move_tolerance(lua_State *L, lua_Number tolerance)
     lua_setiuservalue(L, -2, mp_move_tolerance);
 }
 
-inline static char *lmt_string_from_index(lua_State *L, int n)
+static inline char *lmt_string_from_index(lua_State *L, int n)
 {
     size_t l;
     const char *x = lua_tolstring(L, n, &l);
@@ -375,7 +375,7 @@ inline static char *lmt_string_from_index(lua_State *L, int n)
     return  (x && l > 0) ? lmt_memory_strdup(x) : NULL;
 }
 
-inline static char *lmt_lstring_from_index(lua_State *L, int n, size_t *l)
+static inline char *lmt_lstring_from_index(lua_State *L, int n, size_t *l)
 {
     const char *x = lua_tolstring(L, n, l);
  // return  (x && l > 0) ? lmt_generic_strdup(x) : NULL;
@@ -392,7 +392,7 @@ static void mplib_aux_invalid_object_error(const char * detail)
     tex_formatted_error("mp lib","lua <mp %s> expected", detail);
 }
 
-inline static MP *mplib_aux_is_mpud(lua_State *L, int n)
+static inline MP *mplib_aux_is_mpud(lua_State *L, int n)
 {
     MP *p = (MP *) lua_touserdata(L, n);
     if (p && lua_getmetatable(L, n)) {
@@ -409,7 +409,7 @@ inline static MP *mplib_aux_is_mpud(lua_State *L, int n)
     return NULL;
 }
 
-inline static MP mplib_aux_is_mp(lua_State *L, int n)
+static inline MP mplib_aux_is_mp(lua_State *L, int n)
 {
     MP *p = (MP *) lua_touserdata(L, n);
     if (p && lua_getmetatable(L, n)) {
@@ -426,7 +426,7 @@ inline static MP mplib_aux_is_mp(lua_State *L, int n)
     return NULL;
 }
 
-inline static mp_edge_object **mplib_aux_is_figure(lua_State *L, int n)
+static inline mp_edge_object **mplib_aux_is_figure(lua_State *L, int n)
 {
     mp_edge_object **p = (mp_edge_object **) lua_touserdata(L, n);
     if (p && lua_getmetatable(L, n)) {
@@ -443,7 +443,7 @@ inline static mp_edge_object **mplib_aux_is_figure(lua_State *L, int n)
     return NULL;
 }
 
-inline static mp_graphic_object **mplib_aux_is_graphic_object(lua_State *L, int n)
+static inline mp_graphic_object **mplib_aux_is_graphic_object(lua_State *L, int n)
 {
     mp_graphic_object **p = (mp_graphic_object **) lua_touserdata(L, n);
     if (p && lua_getmetatable(L, n)) {

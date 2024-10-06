@@ -11,7 +11,7 @@ static void tex_aux_scan_expression (int level);
     A helper.
 */
 
-inline static void tex_push_back(halfword tok, halfword cmd, halfword chr)
+static inline void tex_push_back(halfword tok, halfword cmd, halfword chr)
 {
     if (cmd != spacer_cmd && tok != deep_frozen_relax_token && ! (cmd == relax_cmd && chr == no_relax_code)) {
         tex_back_input(tok);
@@ -156,7 +156,7 @@ scanner_state_info lmt_scanner_state = {
 
 */
 
-inline static void tex_aux_downgrade_cur_val(int level, int succeeded, int negative)
+static inline void tex_aux_downgrade_cur_val(int level, int succeeded, int negative)
 {
     switch (cur_val_level) {
         case posit_val_level:
@@ -2097,7 +2097,7 @@ void tex_scan_something_simple(halfword cmd, halfword chr)
 
 */
 
-inline static halfword tex_aux_scan_limited_int(int optional_equal, int min, int max, const char *invalid)
+static inline halfword tex_aux_scan_limited_int(int optional_equal, int min, int max, const char *invalid)
 {
     halfword v = tex_scan_integer(optional_equal, NULL);
     if (v < min || v > max) {
@@ -4780,7 +4780,7 @@ typedef enum expression_states {
 
 */
 
-inline static void tex_aux_normalize_glue(halfword g)
+static inline void tex_aux_normalize_glue(halfword g)
 {
     if (! glue_stretch(g)) {
         glue_stretch_order(g) = normal_glue_order;
@@ -4804,7 +4804,7 @@ inline static void tex_aux_normalize_glue(halfword g)
 
 */
 
-inline static int tex_aux_add_or_sub(int x, int y, int max_answer, int operation)
+static inline int tex_aux_add_or_sub(int x, int y, int max_answer, int operation)
 {
     switch (operation) {
         case expression_subtract:
@@ -4834,7 +4834,7 @@ inline static int tex_aux_add_or_sub(int x, int y, int max_answer, int operation
 
 */
 
-// inline static int tex_aux_quotient(int n, int d, int round)
+// static inline int tex_aux_quotient(int n, int d, int round)
 // {
 //     /*tex The answer: */
 //     if (d == 0) {
@@ -4870,7 +4870,7 @@ inline static int tex_aux_add_or_sub(int x, int y, int max_answer, int operation
 //     }
 // }
 
-inline static int tex_aux_quotient(int n, int d, int rounded)
+static inline int tex_aux_quotient(int n, int d, int rounded)
 {
     if (d == 0) {
         lmt_scanner_state.arithmic_error = 1;
@@ -4882,7 +4882,7 @@ inline static int tex_aux_quotient(int n, int d, int rounded)
     }
 }
 
-inline static int tex_aux_modulo(int n, int d)
+static inline int tex_aux_modulo(int n, int d)
 {
     if (d == 0) {
         lmt_scanner_state.arithmic_error = 1;

@@ -105,7 +105,7 @@ typedef enum saved_box_options {
     saved_box_mathtext_option  = 0x08,
 } saved_box_options;
 
-inline static void saved_box_initialize(void)
+static inline void saved_box_initialize(void)
 {
     saved_type(0) = saved_record_0;
     saved_type(1) = saved_record_1;
@@ -889,7 +889,7 @@ int tex_ignore_math_skip(halfword p)
 
 # define fix_int(val,min,max) (val < min ? min : (val > max ? max : val))
 
-inline static halfword tex_aux_used_order(halfword *total)
+static inline halfword tex_aux_used_order(halfword *total)
 {
     if (total[filll_glue_order]) {
         return filll_glue_order;
@@ -934,7 +934,7 @@ inline static halfword tex_aux_used_order(halfword *total)
     module (tracing and such). It's a bit fyzzy code anyway. 
 */
 
-inline static void tex_aux_promote_pre_migrated(halfword r, halfword p)
+static inline void tex_aux_promote_pre_migrated(halfword r, halfword p)
 {
     halfword pa = box_pre_adjusted(p);
     halfword pm = box_pre_migrated(p);
@@ -964,7 +964,7 @@ inline static void tex_aux_promote_pre_migrated(halfword r, halfword p)
     }
 }
 
-inline static void tex_aux_promote_post_migrated(halfword r, halfword p)
+static inline void tex_aux_promote_post_migrated(halfword r, halfword p)
 {
     halfword pa = box_post_adjusted(p);
     halfword pm = box_post_migrated(p);
@@ -998,7 +998,7 @@ inline static void tex_aux_promote_post_migrated(halfword r, halfword p)
     }
 }
 
-inline static halfword tex_aux_post_migrate(halfword r, halfword p)
+static inline halfword tex_aux_post_migrate(halfword r, halfword p)
 {
     halfword n = p;
     halfword nn = node_next(p);
@@ -1021,7 +1021,7 @@ inline static halfword tex_aux_post_migrate(halfword r, halfword p)
     return p;
 }
 
-inline static halfword tex_aux_normal_migrate(halfword r, halfword p)
+static inline halfword tex_aux_normal_migrate(halfword r, halfword p)
 {
     halfword n = p;
     halfword nn = node_next(p);

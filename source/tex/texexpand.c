@@ -37,10 +37,10 @@ expand_state_info lmt_expand_state = {
 };
 
        static void tex_aux_macro_call                (halfword cs, halfword cmd, halfword chr);
-inline static void tex_aux_manufacture_csname        (void);
-inline static void tex_aux_manufacture_csname_use    (void);
-inline static void tex_aux_manufacture_csname_future (void);
-inline static void tex_aux_inject_last_tested_cs     (void);
+static inline void tex_aux_manufacture_csname        (void);
+static inline void tex_aux_manufacture_csname_use    (void);
+static inline void tex_aux_manufacture_csname_future (void);
+static inline void tex_aux_inject_last_tested_cs     (void);
 
 /*tex
 
@@ -77,7 +77,7 @@ halfword tex_expand_match_token_head(void)
 
 */
 
-inline static void tex_aux_expand_after(void)
+static inline void tex_aux_expand_after(void)
 {
     /*tex
         Expand the token after the next token. It takes only a little shuffling to do what \TEX\
@@ -94,7 +94,7 @@ inline static void tex_aux_expand_after(void)
     tex_back_input(t1);
 }
 
-inline static void tex_aux_expand_toks_after(void)
+static inline void tex_aux_expand_toks_after(void)
 {
     halfword t1 = tex_scan_toks_normal(0, NULL);
     halfword l1 = token_link(t1);
@@ -725,7 +725,7 @@ static void tex_aux_complain_missing_csname(void)
     );
 }
 
-// inline static int tex_aux_uni_to_buffer(unsigned char *b, int m, int c)
+// static inline int tex_aux_uni_to_buffer(unsigned char *b, int m, int c)
 // {
 //     if (c <= 0x7F) {
 //         b[m++] = (unsigned char) c;
@@ -745,13 +745,13 @@ static void tex_aux_complain_missing_csname(void)
 //     return m;
 // }
 
-inline static int tex_aux_chr_to_buffer(unsigned char *b, int m, int c)
+static inline int tex_aux_chr_to_buffer(unsigned char *b, int m, int c)
 {
     b[m++] = (unsigned char) c;
     return m;
 }
 
-inline static int tex_aux_uni_to_buffer(unsigned char *b, int m, int c)
+static inline int tex_aux_uni_to_buffer(unsigned char *b, int m, int c)
 {
     if (c <= 0x7F) {
         b[m++] = (unsigned char) c;
@@ -853,7 +853,7 @@ static int tex_aux_collect_cs_tokens(halfword *p, int *n)
 
 /* why do we use different methods here */
 
-inline static halfword tex_aux_cs_tokens_to_string(halfword h, halfword f)
+static inline halfword tex_aux_cs_tokens_to_string(halfword h, halfword f)
 {
     int m = f;
     halfword l = token_link(h);
@@ -932,7 +932,7 @@ int tex_is_valid_csname(void)
     return b;
 }
 
-inline static halfword tex_aux_get_cs_name(void)
+static inline halfword tex_aux_get_cs_name(void)
 {
     halfword h = tex_get_available_token(null); /* hm */
     halfword p = h;
@@ -963,7 +963,7 @@ inline static halfword tex_aux_get_cs_name(void)
     return cur_cs;
 }
 
-inline static void tex_aux_manufacture_csname(void)
+static inline void tex_aux_manufacture_csname(void)
 {
     halfword cs = tex_aux_get_cs_name();
     if (eq_type(cs) == undefined_cs_cmd) {
@@ -973,7 +973,7 @@ inline static void tex_aux_manufacture_csname(void)
     tex_back_input(cs + cs_token_flag);
 }
 
-inline static void tex_aux_manufacture_csname_use(void)
+static inline void tex_aux_manufacture_csname_use(void)
 {
     if (tex_is_valid_csname()) {
         tex_back_input(cur_cs + cs_token_flag);
@@ -982,7 +982,7 @@ inline static void tex_aux_manufacture_csname_use(void)
     }
 }
 
-inline static void tex_aux_manufacture_csname_future(void)
+static inline void tex_aux_manufacture_csname_future(void)
 {
     halfword t = tex_get_token();
     if (tex_is_valid_csname()) {
@@ -1002,7 +1002,7 @@ halfword tex_create_csname(void)
     return cs; // cs + cs_token_flag;
 }
 
-inline static void tex_aux_inject_last_tested_cs(void)
+static inline void tex_aux_inject_last_tested_cs(void)
 {
     if (lmt_scanner_state.last_cs_name != null_cs) {
         tex_back_input(lmt_scanner_state.last_cs_name + cs_token_flag);
@@ -1201,7 +1201,7 @@ int tex_get_parameter_index(int n)
 //     return cur_tok;
 // }
 
-inline static void tex_aux_macro_grab_left_right(halfword lefttoken, halfword righttoken, int match)
+static inline void tex_aux_macro_grab_left_right(halfword lefttoken, halfword righttoken, int match)
 {
     halfword tail = lmt_expand_state.match_token_head;
     int unbalance = 0;
@@ -1230,7 +1230,7 @@ inline static void tex_aux_macro_grab_left_right(halfword lefttoken, halfword ri
     }
 }
 
-inline static void tex_aux_macro_grab_upto_par(int match)
+static inline void tex_aux_macro_grab_upto_par(int match)
 {
     halfword tail = lmt_expand_state.match_token_head;
     int unbalance = 0;
@@ -1253,7 +1253,7 @@ inline static void tex_aux_macro_grab_upto_par(int match)
     }
 }
 
-inline static void tex_aux_macro_gobble_upto(halfword gobbletoken, bool gobblemore)
+static inline void tex_aux_macro_gobble_upto(halfword gobbletoken, bool gobblemore)
 {
     if (gobblemore) { 
         while (1) { 
