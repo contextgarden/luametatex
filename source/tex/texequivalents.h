@@ -385,6 +385,7 @@ typedef enum tok_codes {
 typedef enum specification_codes {
     par_shape_code,               /*tex specifies paragraph shape, internal register */
     par_passes_code,      
+    par_passes_exception_code,      
     inter_line_penalties_code,    /*tex additional penalties between lines */
     club_penalties_code,          /*tex penalties for creating club lines */
     widow_penalties_code,         /*tex penalties for creating widow lines */
@@ -1562,6 +1563,7 @@ typedef enum shaping_penalties_mode_bits {
 
 # define par_shape_par                   specification_parameter(par_shape_code)
 # define par_passes_par                  specification_parameter(par_passes_code)
+# define par_passes_exception_par        specification_parameter(par_passes_exception_code)
 # define inter_line_penalties_par        specification_parameter(inter_line_penalties_code)
 # define club_penalties_par              specification_parameter(club_penalties_code)
 # define widow_penalties_par             specification_parameter(widow_penalties_code)
@@ -1888,13 +1890,14 @@ extern halfword tex_explicit_disc_penalty  (halfword mode);
 
 # define update_tex_par_shape(v)               tex_eq_define(internal_specification_location(par_shape_code),               specification_reference_cmd, v)
 # define update_tex_par_passes(v)              tex_eq_define(internal_specification_location(par_passes_code),              specification_reference_cmd, v)
+# define update_tex_par_passes_exception(v)    tex_eq_define(internal_specification_location(par_passes_exception_code),    specification_reference_cmd, v)
 # define update_tex_inter_line_penalties(v)    tex_eq_define(internal_specification_location(inter_line_penalties_code),    specification_reference_cmd, v)
 # define update_tex_club_penalties(v)          tex_eq_define(internal_specification_location(club_penalties_code),          specification_reference_cmd, v)
 # define update_tex_widow_penalties(v)         tex_eq_define(internal_specification_location(widow_penalties_code),         specification_reference_cmd, v)
 # define update_tex_display_widow_penalties(v) tex_eq_define(internal_specification_location(display_widow_penalties_code), specification_reference_cmd, v)
 # define update_tex_broken_penalties(v)        tex_eq_define(internal_specification_location(broken_penalties_code),        specification_reference_cmd, v)
 # define update_tex_orphan_penalties(v)        tex_eq_define(internal_specification_location(orphan_penalties_code),        specification_reference_cmd, v)
-# define update_tex_fitness_demerits(v)        tex_eq_define(internal_specification_location(fitness_demerits_code),        specification_reference_cmd, v)
+# define update_tex_fitness_classes(v)         tex_eq_define(internal_specification_location(fitness_classes_code),         specification_reference_cmd, v)
 # define update_tex_adjacent_demerits(v)       tex_eq_define(internal_specification_location(adjacent_demerits_code),       specification_reference_cmd, v)
 
 # define update_tex_end_of_group(v)            tex_eq_define(internal_toks_location(end_of_group_code), internal_toks_reference_cmd, v)

@@ -803,17 +803,41 @@ static halfword tex_aux_scan_specification(quarterword code)
         case adjacent_demerits_code: 
             return tex_aux_scan_specification_adjacent_demerits();
         case par_passes_code: 
+        case par_passes_exception_code: 
             return tex_aux_scan_specification_par_passes();
         default: 
             return tex_aux_scan_specification_penalties(code);
     }
 }
 
+// void tex_aux_set_specification(int a, halfword target)
+// {
+//     quarterword code = (quarterword) internal_specification_number(target);
+//     halfword p = tex_aux_scan_specification(code);
+//     tex_define(a, target, specification_reference_cmd, p);
+//     if (is_frozen(a) && cur_mode == hmode) {
+//         tex_update_par_par(specification_reference_cmd, code);
+//     }
+// }
+
 void tex_aux_set_specification(int a, halfword target)
 {
     quarterword code = (quarterword) internal_specification_number(target);
-    halfword p = tex_aux_scan_specification(code);
-    tex_define(a, target, specification_reference_cmd, p);
+    halfword spec= null;
+    do {
+        tex_get_x_token();
+    } while (cur_cmd == spacer_cmd);
+    switch (cur_cmd) { 
+        case specificationspec_cmd: 
+            spec = eq_value(cur_cs); 
+            spec = spec ? tex_copy_node(spec) : null;
+            break;
+        default: 
+            tex_back_input(cur_tok);
+            spec = tex_aux_scan_specification(code);
+            break;
+    }
+    tex_define(a, target, specification_reference_cmd, spec);
     if (is_frozen(a) && cur_mode == hmode) {
         tex_update_par_par(specification_reference_cmd, code);
     }
@@ -883,7 +907,7 @@ halfword tex_aux_get_specification_value(halfword spec, halfword code)
         case fitness_classes_code:
             {
                 halfword index = tex_scan_integer(0, NULL);
-                return tex_get_specification_fitness_class(spec, index);
+                return tex_get_specification_fitness_class(spec, index); /* weird call */
             }
         case adjacent_demerits_code:
             {

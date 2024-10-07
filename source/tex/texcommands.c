@@ -672,6 +672,7 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "mathforwardpenalties",           specification_cmd,      math_forward_penalties_code,              internal_specification_base);
         tex_primitive(luatex_command, "orphanpenalties",                specification_cmd,      orphan_penalties_code,                    internal_specification_base);
         tex_primitive(luatex_command, "parpasses",                      specification_cmd,      par_passes_code,                          internal_specification_base);
+        tex_primitive(luatex_command, "parpassesexception",             specification_cmd,      par_passes_exception_code,                internal_specification_base);
         tex_primitive(tex_command,    "parshape",                       specification_cmd,      par_shape_code,                           internal_specification_base);
         tex_primitive(etex_command,   "widowpenalties",                 specification_cmd,      widow_penalties_code,                     internal_specification_base);
         tex_primitive(luatex_command, "brokenpenalties",                specification_cmd,      broken_penalties_code,                    internal_specification_base);

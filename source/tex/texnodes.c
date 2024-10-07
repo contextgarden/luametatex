@@ -4156,7 +4156,8 @@ halfword tex_get_par_par(halfword p, halfword what)
         case par_shaping_penalties_mode_code:  return set ? par_shaping_penalties_mode(p)  : shaping_penalties_mode_par;
         case par_shaping_penalty_code:         return set ? par_shaping_penalty(p)         : shaping_penalty_par;
         case par_emergency_extra_stretch_code: return set ? par_emergency_extra_stretch(p) : emergency_extra_stretch_par;
-        case par_par_passes_code:              return set ? par_par_passes(p)              : par_passes_par;
+     // case par_par_passes_code:              return set ? par_par_passes(p)              : par_passes_par;
+        case par_par_passes_code:              return set ? par_par_passes(p)              : (par_passes_exception_par ? par_passes_exception_par : par_passes_par);
         case par_line_break_checks_code:       return set ? par_line_break_checks(p)       : line_break_checks_par;
     }
     return null;
@@ -4731,7 +4732,8 @@ void tex_snapshot_par(halfword p, halfword what)
             par_emergency_extra_stretch(p) = unset ? null : emergency_extra_stretch_par; 
         }
         if (tex_par_to_be_set(what, par_par_passes_code))  { 
-            halfword v = unset ? null : par_passes_par; 
+         // halfword v = unset ? null : par_passes_par; 
+            halfword v = unset ? null : (par_passes_exception_par ? par_passes_exception_par : par_passes_par); 
             if (par_par_passes(p)) {
                 tex_flush_node(par_par_passes(p));
             }
@@ -4915,6 +4917,10 @@ void tex_dispose_specification_nodes(void)
     if (par_shape_par) { 
         tex_flush_node(par_shape_par); 
         par_shape_par = null; 
+    }
+    if (par_passes_exception_par) { 
+        tex_flush_node(par_passes_exception_par); 
+        par_passes_exception_par = null; 
     }
 }
 

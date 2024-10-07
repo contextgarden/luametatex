@@ -1991,8 +1991,8 @@ typedef enum noad_options {
 # define noad_option_carry_over_classes         (uint64_t) 0x0200000000000000 
 # define noad_option_use_callback               (uint64_t) 0x0400000000000000
 
-# define has_option(a,b)     (((a) & (b)) == (b))
-# define unset_option(a,b)   ((a) & ~(b))
+# define has_option(a,b)   (((a) & (b)) == (b))
+# define unset_option(a,b) ((a) & ~(b))
 
 static inline void tex_add_noad_option    (halfword a, uint64_t r) { noad_options(a) |= r; }
 static inline void tex_remove_noad_option (halfword a, uint64_t r) { noad_options(a) &= ~r; }
