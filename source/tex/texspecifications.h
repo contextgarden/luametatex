@@ -33,7 +33,7 @@ typedef enum specification_option_flags {
 
 // static inline halfword specification_n(halfword a, halfword n) { return specification_repeat(a) ? ((n - 1) % specification_count(a) + 1) : (n > specification_count(a) ? specification_count(a) : n); }
 
-# define par_passes_size 18
+# define par_passes_size 19
 
 # define par_passes_slot(n,m) ((n-1)*par_passes_size+m)
 
@@ -264,7 +264,8 @@ typedef enum passes_parameter_okay {
     /* */
     passes_mathpenaltyfactor_okay    = 0x04000000,
     /* */
-    passes_reserved_0_okay           = 0x08000000,
+    passes_looseness_okay            = 0x08000000,
+    /* */
     passes_reserved_1_okay           = 0x10000000,
     passes_reserved_2_okay           = 0x20000000,
     passes_reserved_3_okay           = 0x40000000,
@@ -344,6 +345,8 @@ static inline void     tex_set_passes_emergencyrightextra  (halfword a, halfword
 static inline void     tex_set_passes_emergencywidthextra  (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,16)).half1    = v; }
 static inline void     tex_set_passes_sffactor             (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,17)).half0    = v; }
 static inline void     tex_set_passes_sfstretchfactor      (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,17)).half1    = v; }
+static inline void     tex_set_passes_looseness            (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,18)).half0    = v; }
+static inline void     tex_set_passes_reserved             (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,18)).half1    = v; }
 
 static inline uint64_t tex_get_passes_okay                 (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 1)).long0;   }
 static inline halfword tex_get_passes_features             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 2)).quart00; }
@@ -379,6 +382,8 @@ static inline halfword tex_get_passes_emergencyrightextra  (halfword a, halfword
 static inline halfword tex_get_passes_emergencywidthextra  (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,16)).half1;   }
 static inline halfword tex_get_passes_sffactor             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,17)).half0;   }
 static inline halfword tex_get_passes_sfstretchfactor      (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,17)).half1;   }
+static inline halfword tex_get_passes_looseness            (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,18)).half0;   }
+static inline halfword tex_get_passes_reserved             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,18)).half1;   }
 
 extern        halfword tex_new_specification_node          (halfword n, quarterword s, halfword options);
 extern        void     tex_dispose_specification_nodes     (void);

@@ -2942,6 +2942,9 @@ void tex_normal_paragraph(int context)
         if (single_line_penalty_par) {
             update_tex_single_line_penalty(0);
         }
+        if (par_passes_exception_par) {
+            update_tex_par_passes_exception(null);
+        }
     }
 }
 

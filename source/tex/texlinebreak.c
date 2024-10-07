@@ -3504,6 +3504,13 @@ static int tex_aux_set_sub_pass_parameters(
         properties->math_penalty_factor = tex_get_passes_mathpenaltyfactor(passes, subpass);
     }
     /*tex 
+        Kind of neat: 
+    */
+    if (okay & passes_looseness_okay) { 
+        properties->looseness = tex_get_passes_looseness(passes, subpass);
+        tex_aux_set_looseness(properties);
+    }
+    /*tex 
         Kind of experimental: 
     */
     if (okay & passes_sffactor_okay) { 
@@ -3586,10 +3593,8 @@ static int tex_aux_set_sub_pass_parameters(
         tex_print_format("%s classes              %X\n", is_okay(passes_classes_okay),              tex_get_passes_classes(passes, subpass));
         tex_print_str("  --------------------------------\n");
         tex_print_format("%s tolerance            %i\n", is_okay(passes_tolerance_okay),            properties->tolerance);
-        tex_print_format("%s hyphenation          %i\n", is_okay(passes_hyphenation_okay),          lmt_linebreak_state.force_check_hyphenation);
-        if (properties->looseness) {
-            tex_print_format("  looseness             %i\n", properties->looseness);
-        }
+        tex_print_format("%s hyphenation          %s\n", is_okay(passes_hyphenation_okay),          lmt_linebreak_state.force_check_hyphenation ? "true": "false");
+        tex_print_format("%s looseness            %i\n", is_okay(passes_looseness_okay),            properties->looseness);
         tex_print_str("  --------------------------------\n");
         tex_print_format("%s adjdemerits          %i\n", is_okay(passes_adjdemerits_okay),          properties->adj_demerits);
         tex_print_format("%s adjacentdemerits     %i",   is_okay(passes_adjdemerits_okay),          tex_get_specification_count(properties->adjacent_demerits));
