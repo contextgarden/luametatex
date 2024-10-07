@@ -56,17 +56,35 @@
     nodes so that the par builder will work the same and doesn't need to be adapted, but when we're
     done we move the leftbound node to the beginning of the (last) line.
 
-    Todo: change some variable names to more meaningful ones so that the code is easier to
-    understand. (Remark for myself: the lua variant that i use for playing around occasionally is
-    not in sync with the code here!)
+    Remark for myself: the \LUA\ variant that I use(d) for playing around occasionally is no longer
+    in sync with the code here so it's abandoned.
 
     I played a bit with prerolling: make a copy, run the par builder, afterwards collect the
     result in a box that then can be consulted: wd, ht, dp, quality, hyphens, and especially
     shape fitting (which was the reason, because |\hangafter| assumes lines and esp with math a
-    line is somewhat unpredictable so we get bad fitting). In the end we decided that it was kind
-    of useless because of the unlikely usage scenario. But I might pick up on it. Of course it can
-    be done in \LUA\ but we don't want the associated performance hit (management overhead) and
-    dealing with (progressive) solutions oscillating is also an issue.
+    line is somewhat unpredictable so we get bad fitting). In the end I decided that it was kind
+    of useless because of the unlikely usage scenario. Of course it can be done in \LUA\ but we 
+    don't want the associated performance hit (management overhead) and dealing with (progressive)
+    solutions oscillating is also an issue. In the meantime we got par passes so prerolling no 
+    longer is on the agenda. 
+
+*/
+
+/*tex
+
+    A in-depth explanation abotu multiple par passes can be found in articles and wrapups by Mikael 
+    and Hans. Here is enough to know that as an alternative to the (upto) three passes that regular
+    \TEX\ has, we can have many more. When no criteria are set the first two passes are regular 
+    passes, otherwise we only have what are called \quote {specification} passes. 
+
+    Apart from more passes, we also provide ways to set up more than five badness (fit) classes and 
+    use different demerits per distance between classes. There is also support for exceptions, more 
+    controlled looseness, etc. Introspective callbacks can be used to get more insight in the way 
+    the ending does all this. 
+
+    Although default behavior is (of course) present, the code below has way more lines than the 
+    original but one should be able to recognize plenty of Knuthian code (and comments, as these 
+    still apply). 
 
 */
 
@@ -1333,7 +1351,10 @@ static void tex_aux_line_break_callback_stop(int callback_id, halfword checks)
 
 static void tex_aux_line_break_callback_collect(int callback_id, halfword checks)
 {
-    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "dd->", collect_line_break_context, checks);
+    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "dd->", 
+        collect_line_break_context, 
+        checks
+    );
 }
 
 static void tex_aux_line_break_callback_line(int callback_id, halfword checks, int line, halfword passive)
@@ -5010,6 +5031,13 @@ void tex_do_line_break(line_break_properties *properties)
                 overfull, underfull, verdict, classified
             );
         }
+    }
+    /*tex 
+        Here is a bonus warning because, after all, a user wants something to happen: 
+    */
+    if (properties->looseness && (! tracing_looseness_par) && (properties->looseness != lmt_linebreak_state.actual_looseness)) { 
+        tex_print_nlp();
+        tex_print_format("%l[looseness: line %i, requested %i, actual %i]\n", lmt_linebreak_state.best_line - 1, properties->looseness, lmt_linebreak_state.actual_looseness);
     }
     /*tex
         Break the paragraph at the chosen breakpoints. Once the best sequence of breakpoints has been 
