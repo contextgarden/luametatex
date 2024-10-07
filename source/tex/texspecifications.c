@@ -271,7 +271,7 @@ static halfword tex_aux_scan_specification_par_passes(void)
         }
         p = tex_new_specification_node(count, par_passes_code, options);
         while (n <= count) {
-            switch (tex_scan_character("abcdefhilmnoqrstuABCDEFHILMNOQRSTU", 0, 1, 0)) {
+            switch (tex_scan_character("acdefhilmnoqrstuACDEFHILMNOQRSTU", 0, 1, 0)) {
                 case 0:
                     goto DONE;
                 case 'a': case 'A':
@@ -334,16 +334,6 @@ static halfword tex_aux_scan_specification_par_passes(void)
                         NOTDONE1:
                         tex_aux_show_keyword_error("adjdemerits|adjacentdemerits|adjustspacing|adjustspacingstep|adjustspacingshrink|adjustspacingstretch");
                         goto DONE;
-                    }
-                    break;
-                case 'b': case 'B':
-                    if (tex_scan_mandate_keyword("badness", 1)) {
-                        /*tex 
-                            This one is currently silently ignored as it makes no sense 
-                            beause we have not enough information and because using 
-                            |demerits| is more acurate (but also a bit more difficult). 
-                        */
-                        tex_scan_integer(0, NULL);           
                     }
                     break;
                 case 'c': case 'C':
