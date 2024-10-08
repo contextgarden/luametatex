@@ -4211,6 +4211,8 @@ static int nodelib_direct_getparstate(lua_State *L)
                         lua_push_specification_at_key(L, orphanpenalties,          tex_get_par_par(p, par_orphan_penalties_code));
                         lua_push_specification_at_key(L, parpasses,                tex_get_par_par(p, par_par_passes_code));
                         lua_push_specification_at_key(L, linebreakchecks,          tex_get_par_par(p, par_line_break_checks_code));
+                        lua_push_specification_at_key(L, adjacentdemerits,         tex_get_par_par(p, par_adjacent_demerits_code));
+                        lua_push_specification_at_key(L, fitnessclasses,           tex_get_par_par(p, par_fitness_classes_code));
                     }
                     break;
                 }
