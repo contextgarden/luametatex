@@ -1521,7 +1521,7 @@ static halfword register_extensible(halfword fnt, halfword chr, int size, halfwo
     int callback_id = lmt_callback_defined(register_extensible_callback);
     if (callback_id > 0) {
         halfword boxed = null;
-        lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddddN->N", fnt, chr, size, att, result, &boxed);
+        lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "dddNN->N", fnt, chr, size, att, result, &boxed);
         if (boxed) {
             switch (node_type(boxed)) {
                 case hlist_node:

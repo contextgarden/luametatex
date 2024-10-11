@@ -5124,6 +5124,17 @@ static int texlib_getpenaltyoptionvalues(lua_State *L)
     return 1;
 }
 
+static int texlib_getuleaderlocationvalues(lua_State *L) 
+{
+    lua_createtable(L, 2, 3);
+    lua_set_string_by_index(L, uleader_filtered_hpack, "filtered_hpack");
+    lua_set_string_by_index(L, uleader_lua,            "lua");
+    lua_set_string_by_index(L, uleader_before_vpack,   "before_vpack");
+    lua_set_string_by_index(L, uleader_after_vpack,    "after_vpack");
+    lua_set_string_by_index(L, uleader_post_linebreak, "post_linebreak");
+    return 1;
+}
+
 static int texlib_getnoadoptionvalues(lua_State *L) 
 {
     lua_createtable(L, 2, 48);
@@ -6240,6 +6251,7 @@ static const struct luaL_Reg texlib_function_list[] = {
     { "getglueoptionvalues",          texlib_getglueoptionvalues          },
     { "getmathoptionvalues",          texlib_getmathoptionvalues          },
     { "getpenaltyoptionvalues",       texlib_getpenaltyoptionvalues       },
+    { "getuleaderlocationvalues",     texlib_getuleaderlocationvalues     },
     { "getnoadoptionvalues",          texlib_getnoadoptionvalues          },
     { "getdiscoptionvalues",          texlib_getdiscoptionvalues          },
     { "getruleoptionvalues",          texlib_getruleoptionvalues          },

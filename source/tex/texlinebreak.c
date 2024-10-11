@@ -899,6 +899,7 @@ static void tex_aux_clean_up_the_memory(void)
     q = lmt_linebreak_state.passive;
     while (q) {
         halfword p = node_next(q);
+     // printf("%i : %i\n",passive_serial(p),passive_ref_count(p));
      // tex_free_node(q, get_node_size(node_type(q))); // less overhead & testing
         tex_flush_node(q);
         q = p;
@@ -1372,13 +1373,13 @@ static void tex_aux_line_break_callback_line(int callback_id, halfword checks, i
     );
 }
 
-static void tex_aux_line_break_callback_delete(int callback_id, halfword checks, halfword active, halfword passive)
+static void tex_aux_line_break_callback_delete(int callback_id, halfword checks, halfword passive)
 {
-    (void) active;
-    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "dd->", 
+    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "dddd->", 
         delete_line_break_context, 
         checks,
-        passive_serial(passive)
+        passive_serial(passive),
+        passive_ref_count(passive)
     );
 }
 
@@ -1419,10 +1420,11 @@ static halfword tex_aux_line_break_callback_report(int callback_id, halfword che
 
 static void tex_aux_line_break_callback_list(int callback_id, halfword checks, halfword passive)
 {
-    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddd->", 
+    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "dddd->", 
         list_line_break_context, 
         checks,
-        passive_serial(passive)
+        passive_serial(passive),
+        passive_ref_count(passive)
     );
 }
 
@@ -1713,7 +1715,7 @@ static void tex_check_protrusion_shortfall(halfword breakpoint, halfword first, 
     //     /*tex Not now, we need to keep more track. */
     // } else {
         halfword other = null;
-        halfword left = active_break_node(breakpoint) ? passive_cur_break(active_break_node(breakpoint)) : first;
+        halfword left = active_break_node(breakpoint) ? passive_cur_break(active_break_node(breakpoint)) : first; /* nasty */
         if (current) {
             other = node_prev(current);
             if (node_next(other) != current) {
@@ -2282,6 +2284,7 @@ static scaled tex_aux_try_break(
                         passive_n_of_fitness_classes(passive) = tex_max_fitness(properties->fitness_classes);
                         passive_cur_break(passive) = cur_p;
                         passive_serial(passive) = ++lmt_linebreak_state.serial_number;
+                        passive_ref_count(passive) = 1;
                         passive_prev_break(passive) = prev_break;
                         passive_interline_penalty(passive) = lmt_linebreak_state.internal_interline_penalty;
                         passive_broken_penalty(passive) = lmt_linebreak_state.internal_broken_penalty;
@@ -2291,6 +2294,7 @@ static scaled tex_aux_try_break(
                         if (prev_break) {
                             passive_left_box(passive) = passive_last_left_box(prev_break);
                             passive_left_box_width(passive) = passive_last_left_box_width(prev_break);
+                            passive_ref_count(prev_break) += 1;
                         } else {
                             passive_left_box(passive) = lmt_linebreak_state.internal_left_box_init;
                             passive_left_box_width(passive) = lmt_linebreak_state.internal_left_box_width_init;
@@ -2736,11 +2740,25 @@ static scaled tex_aux_try_break(
             represents the length of material from |vlink (prev_r)| to~|cur_p|.
 
         */
-        node_next(previous) = node_next(current);
-        if (callback_id) {
-             tex_aux_line_break_callback_delete(callback_id, checks, current, active_break_node(current));
+        {
+            halfword passive = active_break_node(current);
+            node_next(previous) = node_next(current);
+            if (passive) { 
+                passive_ref_count(passive) -= 1;
+                if (callback_id) {
+                    /*tex Not that usefull, basically every passive is touched. */
+                    switch (node_type(current)) {
+                        case unhyphenated_node:
+                        case hyphenated_node:
+                            tex_aux_line_break_callback_delete(callback_id, checks, passive);
+                            break;
+                    //  case delta_node:
+                    //      break;
+                    }
+                }
+            }
+            tex_flush_node(current);
         }
-        tex_flush_node(current);
         if (previous == active_head) {
             /*tex
 
@@ -5877,7 +5895,7 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
         }
         /*tex Call the packaging subroutine, setting |just_box| to the justified box. */
         if (has_box_package_state(lmt_linebreak_state.just_box, package_u_leader_found) && ! has_box_package_state(lmt_linebreak_state.just_box, package_u_leader_delayed)) {
-            tex_flatten_leaders(lmt_linebreak_state.just_box, cur_group, 0, "post linebreak", 1);
+            tex_flatten_leaders(lmt_linebreak_state.just_box, cur_group, 0, uleader_post_linebreak, 1);
         }
         node_subtype(lmt_linebreak_state.just_box) = line_list;
         if (callback_id) {

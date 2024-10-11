@@ -838,8 +838,17 @@ extern void     tex_set_disc_field          (halfword target, halfword location,
 extern void     tex_check_disc_field        (halfword target);
 extern void     tex_set_discpart            (halfword d, halfword h, halfword t, halfword code);
 extern halfword tex_flatten_discretionaries (halfword head, int *count, int nest);
-extern int      tex_flatten_leaders         (halfword box, int grp, int just_pack, const char *where, int checkline);
 extern void     tex_soften_hyphens          (halfword head, int *found, int *replaced);
+
+typedef enum uleader_locations {
+    uleader_filtered_hpack,
+    uleader_lua,
+    uleader_before_vpack,
+    uleader_after_vpack,
+    uleader_post_linebreak,
+} uleader_locations;
+
+extern int      tex_flatten_leaders         (halfword box, int grp, int just_pack, int location, int checkline);
 extern halfword tex_harden_spaces           (halfword head, halfword tolerance, int *count);
 
 /*tex
@@ -2721,7 +2730,7 @@ static inline int  tex_par_to_be_set        (halfword state, halfword what) { re
 # define active_n_of_fitness_classes(a)    vlink(a,5)
 # define active_reserved(a)                vinfo(a,5)
 
-# define passive_node_size                 10 
+# define passive_node_size                 11 
 # define passive_fitness(a)                vinfo1(a,0)  
 # define passive_cur_break(a)              vlink(a,1)   /*tex in passive node, points to position of this breakpoint */
 # define passive_prev_break(a)             vinfo(a,1)   /*tex points to passive node that should precede this one */
@@ -2741,6 +2750,8 @@ static inline int  tex_par_to_be_set        (halfword state, halfword what) { re
 # define passive_par_node(a)               vinfo(a,8)   /*tex experiment */
 # define passive_badness(a)                vlink(a,9) 
 # define passive_n_of_fitness_classes(a)   vinfo(a,9)  
+# define passive_ref_count(a)              vlink(a,10)  
+# define passive_reserved(a)               vinfo(a,10)  
 
 # define delta_node_size                   6
 # define delta_field_total_glue(d)         vinfo(d,1)

@@ -1162,9 +1162,9 @@ static void tex_aux_fire_up(halfword c)
     halfword current, previous, lastinsert;
     /*tex Set the value of |output_penalty|. */
     if (node_type(lmt_page_builder_state.best_break) == penalty_node) {
-        int callback_id = lmt_callback_defined(show_loners_callback);
         update_tex_output_penalty(penalty_amount(lmt_page_builder_state.best_break));
-        if (callback_id || tracing_loners_par) { 
+        if (tracing_loners_par) { 
+            int callback_id = lmt_callback_defined(show_loners_callback);
             // this one should return the str 
             halfword n = tex_aux_get_last_penalty(lmt_page_builder_state.best_break);
             if (n) {

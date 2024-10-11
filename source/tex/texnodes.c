@@ -5218,7 +5218,7 @@ halfword tex_flatten_discretionaries(halfword head, int *count, int nest)
     return head;
 }
 
-int tex_flatten_leaders(halfword box, int grp, int just_pack, const char *where, int checkline)
+int tex_flatten_leaders(halfword box, int grp, int just_pack, int location, int checkline)
 {
     halfword head = box ? box_list(box) : null;
     if (head) {
@@ -5268,7 +5268,7 @@ int tex_flatten_leaders(halfword box, int grp, int just_pack, const char *where,
                         if (callback && ! just_pack) {
                             node_prev(leader) = null;
                             node_next(leader) = null;
-                            leader = lmt_uleader_callback(leader, grp, callback, box, where);
+                            leader = lmt_uleader_callback(leader, grp, callback, box, location);
                         }
                         tex_try_couple_nodes(leader, next);
                         if (current == head) {

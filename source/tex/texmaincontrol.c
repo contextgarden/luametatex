@@ -2906,6 +2906,7 @@ void tex_normal_paragraph(int context)
     lmt_main_control_state.last_par_context = context;
     lmt_paragraph_context_callback(context, &ignore);
     if (! ignore) {
+        /*tex Why only this subset, maybe we have to check some more now. */
         if (looseness_par) {
             update_tex_looseness(0);
         }
@@ -3189,8 +3190,9 @@ void tex_begin_paragraph(int doindent, int context)
     }
     tex_aux_insert_parindent(indented);
     if (tracing_paragraph_lists) {
-        tex_begin_diagnostic();
-        tex_print_format("[paragraph: start, context %i]", context);
+        tex_begin_diagnostic();       
+     // tex_print_format("[paragraph: start, context %i]", context);
+        tex_print_format("[paragraph: start, context %s]", lmt_interface.par_trigger_values[context].name);
         tex_show_box(node_next(cur_list.head));
         tex_end_diagnostic();
     }

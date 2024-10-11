@@ -9819,10 +9819,10 @@ static int nodelib_direct_flattenleaders(lua_State *L)
     if (n) {
         switch (node_type(n)) {
             case hlist_node:
-                count = tex_flatten_leaders(n, hbox_group, 0, "lua direct", 0);
+                count = tex_flatten_leaders(n, hbox_group, 0, uleader_lua, 0);
                 break;
             case vlist_node:
-                count = tex_flatten_leaders(n, vbox_group, 0, "lua direct", 0);
+                count = tex_flatten_leaders(n, vbox_group, 0, uleader_lua, 0);
                 break;
         }
     }
@@ -11490,7 +11490,7 @@ halfword lmt_uleader_callback(
     halfword    index, 
     int         context,
     halfword    box, 
-    const char *where
+    int         location
 )
 {
     if (head) {
@@ -11501,10 +11501,11 @@ halfword lmt_uleader_callback(
             if (lmt_callback_okay(L, callback_id, &top)) {
                 int i;
                 lmt_node_list_to_lua(L, head);
-                lua_pushinteger(L, context);
+             // lua_pushinteger(L, context);
+                lmt_push_group_code(L, context);
                 lua_pushinteger(L, index);
                 lmt_node_list_to_lua(L, box);
-                lua_pushstring(L, where);
+                lua_pushinteger(L, location); /* maybe also string */
                 i = lmt_callback_call(L, 5, 1, top);
                 if (i) {
                     lmt_callback_error(L, top, i);

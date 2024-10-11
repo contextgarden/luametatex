@@ -1962,7 +1962,7 @@ halfword tex_filtered_hpack(halfword p, halfword qt, scaled w, int m, int grp, h
     if (has_box_package_state(head, package_u_leader_found)) {
         if (head && normalize_line_mode_option(flatten_h_leaders_mode)) { 
             if (! is_box_package_state(state, package_u_leader_delayed)) {
-                tex_flatten_leaders(head, grp, just_pack, "filtered hpack", 0);
+                tex_flatten_leaders(head, grp, just_pack, uleader_filtered_hpack, 0);
             }
         }
     }
@@ -2807,7 +2807,7 @@ halfword tex_filtered_vpack(halfword p, scaled h, int m, scaled maxdepth, int gr
                     case hlist_node:
                     case vlist_node:
                         if (has_box_package_state(c, package_u_leader_found) && ! is_box_package_state(state, package_u_leader_delayed)) {
-                            tex_flatten_leaders(c, grp, just_pack, "before vpack", 0);
+                            tex_flatten_leaders(c, grp, just_pack, uleader_before_vpack, 0);
                         }
                         break;
                 }
@@ -2818,7 +2818,7 @@ halfword tex_filtered_vpack(halfword p, scaled h, int m, scaled maxdepth, int gr
     }
     result = tex_vpack(result, h, m, maxdepth, (singleword) checked_direction_value(direction), retain, excess);
     if (result && normalize_par_mode_option(flatten_v_leaders_mode) && ! is_box_package_state(state, package_u_leader_delayed)) {
-        tex_flatten_leaders(result, grp, just_pack, "after vpack", 0);
+        tex_flatten_leaders(result, grp, just_pack, uleader_after_vpack, 0);
     }
     if (! just_pack) {
         result = lmt_packed_vbox_filter_callback(result, grp);
