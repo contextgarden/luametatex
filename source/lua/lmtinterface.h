@@ -1469,7 +1469,6 @@ make_lua_key(L, endpoint);\
 make_lua_key(L, error);\
 make_lua_key(L, error_line);\
 /*          (L, explicit); */\
-make_lua_key(L, extensions);\
 make_lua_key(L, fig);\
 /*          (L, fill); */\
 make_lua_key(L, find_file);\
@@ -1504,9 +1503,11 @@ make_lua_key(L, path);\
 make_lua_key(L, pen);\
 make_lua_key(L, postscript);\
 make_lua_key(L, prescript);\
+make_lua_key(L, primary);\
 make_lua_key(L, print_line);\
 make_lua_key(L, random_seed);\
 /*          (L, reader); */\
+make_lua_key(L, restore);\
 make_lua_key(L, right_curl);\
 make_lua_key(L, right_tension);\
 make_lua_key(L, right_type);\
@@ -1520,6 +1521,8 @@ make_lua_key(L, run_script);\
 make_lua_key(L, run_warning);\
 make_lua_key(L, rx);\
 make_lua_key(L, ry);\
+make_lua_key(L, save);\
+make_lua_key(L, secondary);\
 make_lua_key(L, show_mode);\
 make_lua_key(L, stacking);\
 make_lua_key(L, start_bounds);\
@@ -1533,6 +1536,7 @@ make_lua_key(L, strings);\
 make_lua_key(L, sx);\
 make_lua_key(L, sy);\
 make_lua_key(L, symbols);\
+make_lua_key(L, tertiary);\
 /*          (L, text); */\
 make_lua_key(L, text_mode);\
 make_lua_key(L, tokens);\

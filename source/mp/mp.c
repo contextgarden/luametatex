@@ -3885,7 +3885,7 @@ static mp_symbol mp_frozen_primitive(MP mp, const char *ss, int c, int o)
 /*tex
 
 This routine returns |true| if the argument is an un-redefinable symbol because it is one of the
-error recovery tokens (as explained elsewhere, |frozen_inaccessible| actuall is redefinable).
+error recovery tokens (as explained elsewhere, |frozen_inaccessible| actually is redefinable).
 
 */
 
@@ -5226,7 +5226,7 @@ static void mp_save_internal(MP mp, int q)
         p->value = mp->internal[q];
         p->value.v.data.indep.serial = q;
         if (internal_run(q) == 1) {
-            mp->run_internal(mp, 1, q, internal_type(q), internal_name(q));
+            mp->run_internal(mp, mp_save_internal_code, q, internal_type(q), internal_name(q));
         }
         new_number_clone(p->value.v.data.n, mp->internal[q].v.data.n);
         mp->save_ptr = p;
@@ -5260,7 +5260,7 @@ static void mp_unsave_internal(MP mp)
     }
     free_number(mp->internal[q].v.data.n);
     if (internal_run(q) == 1) {
-        mp->run_internal(mp, 2, q, internal_type(q), internal_name(q));
+        mp->run_internal(mp, mp_restore_internal_code, q, internal_type(q), internal_name(q));
     }
     mp->internal[q] = saved;
 }
@@ -15297,176 +15297,166 @@ preceded by a space or at the beginning of a line.
 static void mp_get_t_next(MP mp)
 {
     mp_get_next(mp); 
-    if (cur_cmd <= mp_max_pre_command) { 
-        if ((mp->extensions == 1) && (cur_cmd == mp_btex_command)) {
-            /*tex Pass |btex ... etex| to script */
-            char *txt = NULL;
-            char *ptr = NULL;
-            int slin = line;
-            int size = 0;
-            int done = 0;
-            int mode = round_unscaled(internal_value(mp_texscriptmode_internal)) ; /* default: 1 */
-            int verb = cur_mod == mp_verbatim_code;
-            int first;
-            /*tex We had a (mandate) trailing space. */
-            if (loc <= limit && mp->char_class[mp->buffer[loc]] == mp_space_class) {
-                ++loc;
-            } else {
-                /*tex Maybe issue an error message and quit. */
-            }
-            /* We loop over lines. */
-            first = loc;
-            while (1) {
-                /*tex
-                    We don't need to check when we have less than 4 characters left.
-                */
-                if (loc < limit - 4) {
-                    if (mp->buffer[loc] == 'e') {
+    /*tex
+        What if we just assume that btex ... etex is defined usingf lua and scanners .. then this 
+        one gets inlined! 
+    */
+    if (cur_cmd == mp_btex_command) {
+        /*tex Pass |btex ... etex| to script */
+        char *txt = NULL;
+        char *ptr = NULL;
+        int slin = line;
+        int size = 0;
+        int done = 0;
+        int mode = round_unscaled(internal_value(mp_texscriptmode_internal)) ; /* default: 1 */
+        int verb = cur_mod == mp_verbatim_code;
+        int first;
+        /*tex We had a (mandate) trailing space. */
+        if (loc <= limit && mp->char_class[mp->buffer[loc]] == mp_space_class) {
+            ++loc;
+        } else {
+            /*tex Maybe issue an error message and quit. */
+        }
+        /* We loop over lines. */
+        first = loc;
+        while (1) {
+            /*tex
+                We don't need to check when we have less than 4 characters left.
+            */
+            if (loc < limit - 4) {
+                if (mp->buffer[loc] == 'e') {
+                    ++loc;
+                    if (mp->buffer[loc] == 't') {
                         ++loc;
-                        if (mp->buffer[loc] == 't') {
+                        if (mp->buffer[loc] == 'e') {
                             ++loc;
-                            if (mp->buffer[loc] == 'e') {
-                                ++loc;
-                                if (mp->buffer[loc] == 'x') {
-                                    /*tex Let's see if we have the right boundary. */
-                                    if (first == (loc - 3)) {
-                                        /*tex When we're at the start of a line no leading space is required. */
-                                        done = 1;
-                                    } else if (mp->char_class[mp->buffer[loc - 4]] == mp_space_class) {
-                                        /* When we're beyond the start of a line a leading space is required. */
-                                        done = 2;
-                                    }
-                                    if (done) {
-                                        if ((loc + 1) <= limit) {
-                                            int c = mp->char_class[mp->buffer[loc + 1]] ;
-                                            if (c != mp_letter_class) {
-                                                ++loc;
-                                                /*tex We're past the |x|. */
-                                                break;
-                                            } else {
-                                                /*tex this is no valid |etex|. */
-                                                done = 0;
-                                            }
-                                        } else {
-                                            /*tex When we're at the end of a line we're ok. */
+                            if (mp->buffer[loc] == 'x') {
+                                /*tex Let's see if we have the right boundary. */
+                                if (first == (loc - 3)) {
+                                    /*tex When we're at the start of a line no leading space is required. */
+                                    done = 1;
+                                } else if (mp->char_class[mp->buffer[loc - 4]] == mp_space_class) {
+                                    /* When we're beyond the start of a line a leading space is required. */
+                                    done = 2;
+                                }
+                                if (done) {
+                                    if ((loc + 1) <= limit) {
+                                        int c = mp->char_class[mp->buffer[loc + 1]] ;
+                                        if (c != mp_letter_class) {
                                             ++loc;
                                             /*tex We're past the |x|. */
                                             break;
+                                        } else {
+                                            /*tex this is no valid |etex|. */
+                                            done = 0;
                                         }
+                                    } else {
+                                        /*tex When we're at the end of a line we're ok. */
+                                        ++loc;
+                                        /*tex We're past the |x|. */
+                                        break;
                                     }
                                 }
                             }
                         }
                     }
                 }
-                /*tex No |etex| seen (yet). */
-                if (loc >= limit) {
-                    if (size) {
-                        txt = mp_memory_reallocate(txt, (size_t) (size + limit - first + 1));
-                    } else {
-                        txt = mp_memory_allocate((size_t) (limit - first + 1));
-                    }
-                    memcpy(txt + size, mp->buffer + first, limit - first);
-                    size += limit - first + 1;
-                    if (mode <= 0) {
-                        txt[size - 1] = ' ';
-                    } else if (verb) {
-                        /*tex Modes $\geq 1$ permit a newline in |verbatimtex|. */
-                        txt[size - 1] = '\n';
-                    } else if (mode >= 2) {
-                        /*tex Modes $\geq 2$ permit a newline in |btex|. */
-                        txt[size - 1] = '\n';
-                    } else {
-                        txt[size - 1] = ' ';
-                    }
-                    if (mp_move_to_next_line(mp)) {
-                        /*tex We abort the scanning. */
-                        goto FATAL_ERROR;
-                    }
-                    first = loc;
-                } else {
-                    ++loc;
-                }
             }
-            if (done) {
-                /* We're past the |x|. */
-                int l = loc - 5 ; // 4
-                int n = l - first + 1 ;
-                /* We're before the |etex|. */
-                if (done == 2) {
-                    /* we had ' etex' */
-                    l -= 1;
-                    n -= 1;
-                    /* we're before the ' etex' */
-                }
+            /*tex No |etex| seen (yet). */
+            if (loc >= limit) {
                 if (size) {
-                    txt = mp_memory_reallocate(txt, (size_t) (size + n + 1));
+                    txt = mp_memory_reallocate(txt, (size_t) (size + limit - first + 1));
                 } else {
-                    txt = mp_memory_allocate((size_t) (n + 1));
+                    txt = mp_memory_allocate((size_t) (limit - first + 1));
                 }
-                memcpy(txt + size, mp->buffer + first, n); /* 0 */
-                size += n;
-                if (verb && mode >= 3) {
-                    /*tex Don't strip |verbatimtex|. */
-                    txt[size] = '\0';
-                    ptr = txt;
-                } else if (mode >= 4) {
-                    /*tex Don't strip |btex|. */
-                    txt[size] = '\0';
-                    ptr = txt;
+                memcpy(txt + size, mp->buffer + first, limit - first);
+                size += limit - first + 1;
+                if (mode <= 0) {
+                    txt[size - 1] = ' ';
+                } else if (verb) {
+                    /*tex Modes $\geq 1$ permit a newline in |verbatimtex|. */
+                    txt[size - 1] = '\n';
+                } else if (mode >= 2) {
+                    /*tex Modes $\geq 2$ permit a newline in |btex|. */
+                    txt[size - 1] = '\n';
                 } else {
-                    /*tex Strip trailing whitespace, we have a |'\0'| so we are off by one. */
-                    while ((size > 1) && (mp->char_class[(unsigned char) txt[size-1]] == mp_space_class || txt[size-1] == '\n')) {
-                        --size;
-                    }
-                    /*tex Prune the string. */
-                    txt[size] = '\0';
-                    /*tex Strip leading whitespace. */
-                    ptr = txt;
-                    while ((size > 1) && (mp->char_class[(unsigned char) ptr[0]] == mp_space_class || ptr[0] == '\n')) {
-                        ++ptr;
-                        --size;
-                    }
+                    txt[size - 1] = ' ';
                 }
-                /*tex Action. */
-                mp_check_script_result(mp, mp->make_text(mp, ptr, size, verb));
-                mp_memory_free(txt);
-                /*tex Really needed. */
-                mp_get_next(mp);
-                return;
-            }
-            /*tex
-                We don't recover because in practice the graphic will be broken anyway and we're not
-                really interacting in mplib .. just fix the input.
-            */
-          FATAL_ERROR:
-            {
-                /*tex Line numbers are not always meaningfull so we can get a 0 reported. */
-                char msg[256];
-                if (slin > 0) {
-                    snprintf(msg, 256, "No matching 'etex' for '%stex'.", verb ? "verbatim" : "b");
-                } else {
-                    snprintf(msg, 256, "No matching 'etex' for '%stex' in line %d.", verb ? "verbatim" : "b",slin);
+                if (mp_move_to_next_line(mp)) {
+                    /*tex We abort the scanning. */
+                    goto FATAL_ERROR;
                 }
-                mp_error(
-                    mp, 
-                    msg, 
-                    "An 'etex' is missing at this input level, nothing gets done."
-                );
-                mp_memory_free(txt);
+                first = loc;
+            } else {
+                ++loc;
             }
-        } else {
-            /*tex
-                Complain about a misplaced |btex|.
-            */
-            {
-                mp_error(
-                    mp,
-                    "A 'btex/verbatimtex ... etex' definition needs an extension",
-                    "This file contains picture expressions for 'btex ... etex' blocks. Such files\n"
-                    "need an extension (plugin) that seems to be absent."
-                );
+        }
+        if (done) {
+            /* We're past the |x|. */
+            int l = loc - 5 ; // 4
+            int n = l - first + 1 ;
+            /* We're before the |etex|. */
+            if (done == 2) {
+                /* we had ' etex' */
+                l -= 1;
+                n -= 1;
+                /* we're before the ' etex' */
             }
+            if (size) {
+                txt = mp_memory_reallocate(txt, (size_t) (size + n + 1));
+            } else {
+                txt = mp_memory_allocate((size_t) (n + 1));
+            }
+            memcpy(txt + size, mp->buffer + first, n); /* 0 */
+            size += n;
+            if (verb && mode >= 3) {
+                /*tex Don't strip |verbatimtex|. */
+                txt[size] = '\0';
+                ptr = txt;
+            } else if (mode >= 4) {
+                /*tex Don't strip |btex|. */
+                txt[size] = '\0';
+                ptr = txt;
+            } else {
+                /*tex Strip trailing whitespace, we have a |'\0'| so we are off by one. */
+                while ((size > 1) && (mp->char_class[(unsigned char) txt[size-1]] == mp_space_class || txt[size-1] == '\n')) {
+                    --size;
+                }
+                /*tex Prune the string. */
+                txt[size] = '\0';
+                /*tex Strip leading whitespace. */
+                ptr = txt;
+                while ((size > 1) && (mp->char_class[(unsigned char) ptr[0]] == mp_space_class || ptr[0] == '\n')) {
+                    ++ptr;
+                    --size;
+                }
+            }
+            /*tex Action. */
+            mp_check_script_result(mp, mp->make_text(mp, ptr, size, verb));
+            mp_memory_free(txt);
+            /*tex Really needed. */
+            mp_get_next(mp);
+            return;
+        }
+        /*tex
+            We don't recover because in practice the graphic will be broken anyway and we're not
+            really interacting in mplib .. just fix the input.
+        */
+      FATAL_ERROR:
+        {
+            /*tex Line numbers are not always meaningfull so we can get a 0 reported. */
+            char msg[256];
+            if (slin > 0) {
+                snprintf(msg, 256, "No matching 'etex' for '%stex'.", verb ? "verbatim" : "b");
+            } else {
+                snprintf(msg, 256, "No matching 'etex' for '%stex' in line %d.", verb ? "verbatim" : "b",slin);
+            }
+            mp_error(
+                mp, 
+                msg, 
+                "An 'etex' is missing at this input level, nothing gets done."
+            );
+            mp_memory_free(txt);
         }
     }
 }
@@ -16153,74 +16143,70 @@ static void mp_expand(MP mp)
             /*tex
                 Put a script result string into the input buffer.
             */
-            if (mp->extensions) {
-                mp_get_x_next(mp);
-                mp_scan_primary(mp);
-                switch (mp->cur_exp.type) {
-                    case mp_string_type:
-                        {
-                            mp_back_input(mp);
-                            if (cur_exp_str->len > 0) {
-                               mp_check_script_result(mp, mp->run_script(mp, (const char*) cur_exp_str->str, cur_exp_str->len, 0));
-                            }
+            mp_get_x_next(mp);
+            mp_scan_primary(mp);
+            switch (mp->cur_exp.type) {
+                case mp_string_type:
+                    {
+                        mp_back_input(mp);
+                        if (cur_exp_str->len > 0) {
+                            mp_check_script_result(mp, mp->run_script(mp, (const char*) cur_exp_str->str, cur_exp_str->len, 0));
                         }
-                        break;
-                    case mp_numeric_type:
-                    case mp_known_type:
-                        {
-                            int n = 0 ;
-                            mp_back_input(mp);
-                            n = (int) number_to_scaled (cur_exp_value_number) / 65536;
-                            if (n > 0) {
-                                mp_check_script_result(mp, mp->run_script(mp, NULL, 0, n));
-                            }
+                    }
+                    break;
+                case mp_numeric_type:
+                case mp_known_type:
+                    {
+                        int n = 0 ;
+                        mp_back_input(mp);
+                        n = (int) number_to_scaled(cur_exp_value_number) / 65536;
+                        if (n > 0) {
+                            mp_check_script_result(mp, mp->run_script(mp, NULL, 0, n));
                         }
-                        break;
-                    default:
-                        {
-                            mp_value new_expr;
-                            memset(&new_expr, 0, sizeof(mp_value));
-                            new_number(new_expr.data.n);
-                            mp_display_error(mp, NULL);
-                            mp_back_error(
-                                mp,
-                                "Not a string",
-                                "I'm going to flush this expression, since runscript should be followed by a known\n"
-                                "string or number."
-                            );
-                            mp_get_x_next(mp);
-                            mp_flush_cur_exp(mp, new_expr);
-                        }
-                        break;
-                }
+                    }
+                    break;
+                default:
+                    {
+                        mp_value new_expr;
+                        memset(&new_expr, 0, sizeof(mp_value));
+                        new_number(new_expr.data.n);
+                        mp_display_error(mp, NULL);
+                        mp_back_error(
+                            mp,
+                            "Not a string",
+                            "I'm going to flush this expression, since runscript should be followed by a known\n"
+                            "string or number."
+                        );
+                        mp_get_x_next(mp);
+                        mp_flush_cur_exp(mp, new_expr);
+                    }
+                    break;
             }
             break;
         case mp_maketext_command:
             /*tex
                 Put a maketext result string into the input buffer.
             */
-            if (mp->extensions) {
-                mp_get_x_next(mp);
-                mp_scan_primary(mp);
-                if (mp->cur_exp.type == mp_string_type) {
-                    mp_back_input(mp);
-                    if (cur_exp_str->len > 0) {
-                        mp_check_script_result(mp, mp->make_text(mp, (const char*) cur_exp_str->str, cur_exp_str->len, 0));
-                    }
-                } else {
-                    mp_value new_expr;
-                    memset(&new_expr, 0, sizeof(mp_value));
-                    new_number(new_expr.data.n);
-                    mp_display_error(mp, NULL);
-                    mp_back_error(
-                        mp,
-                        "Not a string",
-                        "I'm going to flush this expression, since 'maketext' should be followed by a\n"
-                        "known string."
-                    );
-                    mp_get_x_next(mp);
-                    mp_flush_cur_exp(mp, new_expr);
+            mp_get_x_next(mp);
+            mp_scan_primary(mp);
+            if (mp->cur_exp.type == mp_string_type) {
+                mp_back_input(mp);
+                if (cur_exp_str->len > 0) {
+                    mp_check_script_result(mp, mp->make_text(mp, (const char*) cur_exp_str->str, cur_exp_str->len, 0));
                 }
+            } else {
+                mp_value new_expr;
+                memset(&new_expr, 0, sizeof(mp_value));
+                new_number(new_expr.data.n);
+                mp_display_error(mp, NULL);
+                mp_back_error(
+                    mp,
+                    "Not a string",
+                    "I'm going to flush this expression, since 'maketext' should be followed by a\n"
+                    "known string."
+                );
+                mp_get_x_next(mp);
+                mp_flush_cur_exp(mp, new_expr);
             }
             break;
         case mp_defined_macro_command:
@@ -23913,7 +23899,7 @@ void mp_do_assignment(MP mp)
                                 break;
                          // case mp_tracing_online_internal:
                          //     number_clone(internal_value(mp_get_sym_info(lhs)), cur_exp_value_number);
-                         //     mp->run_internal(mp, 3, mp->int_ptr, number_to_int(internal_value(mp_get_sym_info(lhs))), internal_name(mp_get_sym_info(lhs)));
+                         //     mp->run_internal(mp, mp_tracing_internal_code, mp->int_ptr, number_to_int(internal_value(mp_get_sym_info(lhs))), internal_name(mp_get_sym_info(lhs)));
                          //     break;
                             case mp_number_precision_internal:
                                 if (mp->cur_exp.type == mp_known_type
@@ -25080,7 +25066,7 @@ void mp_do_new_internal(MP mp)
         set_internal_type(mp->int_ptr, the_type);
         set_internal_run(mp->int_ptr, run_script);
         if (run_script) {
-           mp->run_internal(mp, 0, mp->int_ptr, the_type, internal_name(mp->int_ptr));
+           mp->run_internal(mp, mp_initialize_internal_code, mp->int_ptr, the_type, internal_name(mp->int_ptr));
         }
         mp_get_x_next(mp);
   } while (cur_cmd == mp_comma_command);
@@ -26710,138 +26696,134 @@ single tokens.
 
 void mp_scan_symbol_value(MP mp, int keep, char **s, int expand)
 {
-    if (mp->extensions) {
-        if (expand) {
-            mp_get_x_next(mp);
+    if (expand) {
+        mp_get_x_next(mp);
+    } else {
+        mp_get_next(mp);
+    }
+    if (keep) {
+        mp_back_input(mp);
+    }
+    if (cur_sym == NULL && (cur_sym_mod == 0 || cur_sym_mod == mp_normal_operation)) {
+        *s = NULL;
+    } else {
+        unsigned char *r = NULL;
+        mp_node p = mp_new_symbolic_node(mp);
+        mp_set_sym_sym(p, cur_sym);
+        p->name_type = cur_sym_mod;
+        if (p->type == mp_symbol_node_type) {
+            mp_symbol sr = mp_get_sym_sym(p);
+            mp_string rr = text(sr);
+            if (rr && rr->str) {
+                r = rr->str;
+            }
+        } else if (p->name_type == mp_token_operation) {
+            if (p->type == mp_string_type) {
+                r = mp_get_value_str(p)->str;
+            }
+        }
+        mp_free_symbolic_node(mp, p);
+        if (r) {
+            *s = (char *) mp_strdup((char *) r);
         } else {
-            mp_get_next(mp);
-        }
-        if (keep) {
-            mp_back_input(mp);
-        }
-        if (cur_sym == NULL && (cur_sym_mod == 0 || cur_sym_mod == mp_normal_operation)) {
             *s = NULL;
-        } else {
-            unsigned char *r = NULL;
-            mp_node p = mp_new_symbolic_node(mp);
-            mp_set_sym_sym(p, cur_sym);
-            p->name_type = cur_sym_mod;
-            if (p->type == mp_symbol_node_type) {
-                mp_symbol sr = mp_get_sym_sym(p);
-                mp_string rr = text(sr);
-                if (rr && rr->str) {
-                    r = rr->str;
-                }
-            } else if (p->name_type == mp_token_operation) {
-                if (p->type == mp_string_type) {
-                    r = mp_get_value_str(p)->str;
-                }
-            }
-            mp_free_symbolic_node(mp, p);
-            if (r) {
-                *s = (char *) mp_strdup((char *) r);
-            } else {
-                *s = NULL;
-            }
         }
     }
 }
 
 void mp_scan_property_value(MP mp, int keep, int *kind, char **str, int *property, int *detail)
 {
-    if (mp->extensions) {
-        mp_symbol_entry *entry;
-        mp_get_symbol(mp);
-        entry = cur_sym;
-        if (entry) {
-            mp_node node = entry->type == mp_tag_command ? entry->v.data.node : NULL;
-            *kind = entry->type;
-            *str = (char *) mp_strdup((char *) entry->text->str);
-            *property = entry->property;
-            if (node) {
-                *detail = node->type;
-            }
-            if (keep) {
-                mp_back_input(mp);
-            }
+    mp_symbol_entry *entry;
+    mp_get_symbol(mp);
+    entry = cur_sym;
+    if (entry) {
+        mp_node node = entry->type == mp_tag_command ? entry->v.data.node : NULL;
+        *kind = entry->type;
+        *str = (char *) mp_strdup((char *) entry->text->str);
+        *property = entry->property;
+        if (node) {
+            *detail = node->type;
+        }
+        if (keep) {
+            mp_back_input(mp);
         }
     }
 }
 
 void mp_scan_next_value(MP mp, int keep, int *token, int *mode, int *kind)
 {
-    if (mp->extensions) {
-        mp_get_next(mp);
-        if (keep) {
-            mp_back_input(mp);
-        }
-        *token = cur_cmd;
-        *mode = cur_mod;
-        *kind = mp->cur_exp.type;
+    mp_get_next(mp);
+    if (keep) {
+        mp_back_input(mp);
     }
+    *token = cur_cmd;
+    *mode = cur_mod;
+    *kind = mp->cur_exp.type;
 }
 
 void mp_scan_expr_value(MP mp, int keep, int *kind)
 {
-    if (mp->extensions) {
-        mp_get_next(mp);
-        mp_scan_primary(mp);
-        *kind = mp->cur_exp.type;
-        if (keep) {
-            mp_back_input(mp);
-            mp_back_expr(mp);
-        }
+    mp_get_next(mp);
+    mp_scan_primary(mp);
+    *kind = mp->cur_exp.type;
+    if (keep) {
+        mp_back_input(mp);
+        mp_back_expr(mp);
     }
 }
 
 void mp_scan_token_value(MP mp, int keep, int *token, int *mode, int *kind)
 {
-    if (mp->extensions) {
-        mp_get_x_next(mp);
-        if (keep) {
-            mp_back_input(mp);
-        }
-        *token = cur_cmd;
-        *mode = cur_mod;
-        *kind = mp->cur_exp.type;
+    mp_get_x_next(mp);
+    if (keep) {
+        mp_back_input(mp);
     }
+    *token = cur_cmd;
+    *mode = cur_mod;
+    *kind = mp->cur_exp.type;
 }
 
 int mp_skip_token_value(MP mp, int token)
 {
-    if (mp->extensions) {
-        mp_get_x_next(mp);
-        if (token == cur_cmd) {
-            return 1;
-        } else {
-            mp_back_input(mp);
-        }
+    mp_get_x_next(mp);
+    if (token == cur_cmd) {
+        return 1;
+    } else {
+        mp_back_input(mp);
+        return 0;
     }
-    return 0;
 }
 
 static void mp_scan_something(MP mp, int primary)
 {
     mp_get_x_next(mp);
     switch (primary) {
-        case 0:  mp_scan_expression(mp); break;
-        case 1:  mp_scan_primary(mp);    break;
-        case 2:  mp_scan_secondary(mp);  break;
-        case 3:  mp_scan_tertiary(mp);   break;
-        default: mp_scan_expression(mp); break;
+     // case mp_expression_scan_code: 
+     //     mp_scan_expression(mp); 
+     //     break;
+        case mp_primary_scan_code: 
+            mp_scan_primary(mp);    
+            break;
+        case mp_secondary_scan_code: 
+            mp_scan_secondary(mp);  
+            break;
+        case mp_tertiary_scan_code:
+            mp_scan_tertiary(mp);   
+            break;
+        default: 
+            mp_scan_expression(mp); 
+            break;
     }
 }
 
 void mp_scan_numeric_value(MP mp, int primary, double *d)
 {
-    if (mp->extensions) {
-        mp_scan_something(mp, primary);
-        if (mp->cur_exp.type != mp_known_type) {
-            mp_back_input(mp); /* hm */
-        } else {
-            mp_back_input(mp); /* hm */
-            *d = number_to_double(cur_exp_value_number);
-        }
+    mp_scan_something(mp, primary);
+    if (mp->cur_exp.type != mp_known_type) {
+        mp_back_input(mp); /* hm */
+    } else {
+        mp_back_input(mp); /* hm */
+        *d = number_to_double(cur_exp_value_number);
     }
 }
 
@@ -26852,114 +26834,100 @@ if (what->type == mp_known_type) { \
 
 void mp_scan_pair_value(MP mp, int primary, double *x, double *y)
 {
-    if (mp->extensions) {
-        mp_scan_something(mp, primary);
-        if (mp->cur_exp.type != mp_pair_type) {
-            mp_back_input(mp); /* hm */
-        } else {
-            mp_node p ;
-            mp_back_input(mp); /* hm */
-            p = mp_get_value_node(cur_exp_node);
-            mp_set_double_value(mp, x, mp_x_part(p));
-            mp_set_double_value(mp, y, mp_y_part(p));
-        }
+    mp_scan_something(mp, primary);
+    if (mp->cur_exp.type != mp_pair_type) {
+        mp_back_input(mp); /* hm */
+    } else {
+        mp_node p ;
+        mp_back_input(mp); /* hm */
+        p = mp_get_value_node(cur_exp_node);
+        mp_set_double_value(mp, x, mp_x_part(p));
+        mp_set_double_value(mp, y, mp_y_part(p));
     }
 }
 
 void mp_scan_color_value(MP mp, int primary, double *r, double *g, double *b)
 {
-    if (mp->extensions) {
-        mp_scan_something(mp, primary);
-        if (mp->cur_exp.type != mp_color_type) {
-            mp_back_input(mp); /* hm */
-        } else {
-            mp_node p ;
-            mp_back_input(mp); /* hm */
-            p = mp_get_value_node(cur_exp_node);
-            mp_set_double_value(mp, r, mp_red_part(p));
-            mp_set_double_value(mp, g, mp_green_part(p));
-            mp_set_double_value(mp, b, mp_blue_part(p));
-        }
+    mp_scan_something(mp, primary);
+    if (mp->cur_exp.type != mp_color_type) {
+        mp_back_input(mp); /* hm */
+    } else {
+        mp_node p ;
+        mp_back_input(mp); /* hm */
+        p = mp_get_value_node(cur_exp_node);
+        mp_set_double_value(mp, r, mp_red_part(p));
+        mp_set_double_value(mp, g, mp_green_part(p));
+        mp_set_double_value(mp, b, mp_blue_part(p));
     }
 }
 
 void mp_scan_cmykcolor_value(MP mp, int primary, double *c, double *m, double *y, double *k)
 {
-    if (mp->extensions) {
-        mp_scan_something(mp, primary);
-        if (mp->cur_exp.type != mp_cmykcolor_type) {
-            mp_back_input(mp); /* hm */
-        } else {
-            mp_node p ;
-            mp_back_input(mp); /* hm */
-            p = mp_get_value_node(cur_exp_node);
-            mp_set_double_value(mp, c, mp_cyan_part(p));
-            mp_set_double_value(mp, m, mp_magenta_part(p));
-            mp_set_double_value(mp, y, mp_yellow_part(p));
-            mp_set_double_value(mp, k, mp_black_part(p));
-        }
+    mp_scan_something(mp, primary);
+    if (mp->cur_exp.type != mp_cmykcolor_type) {
+        mp_back_input(mp); /* hm */
+    } else {
+        mp_node p ;
+        mp_back_input(mp); /* hm */
+        p = mp_get_value_node(cur_exp_node);
+        mp_set_double_value(mp, c, mp_cyan_part(p));
+        mp_set_double_value(mp, m, mp_magenta_part(p));
+        mp_set_double_value(mp, y, mp_yellow_part(p));
+        mp_set_double_value(mp, k, mp_black_part(p));
     }
 }
 
 void mp_scan_transform_value(MP mp, int primary, double *x, double *y, double *xx, double *xy, double *yx, double *yy)
 {
-    if (mp->extensions) {
-        mp_scan_something(mp, primary);
-        if (mp->cur_exp.type != mp_transform_type) {
-            mp_back_input(mp); /* hm */
-        } else {
-            mp_node p ;
-            mp_back_input(mp); /* hm */
-            p = mp_get_value_node(cur_exp_node);
-            mp_set_double_value(mp, x, mp_x_part(p));
-            mp_set_double_value(mp, y, mp_y_part(p));
-            mp_set_double_value(mp, xx, mp_xx_part(p));
-            mp_set_double_value(mp, xy, mp_xy_part(p));
-            mp_set_double_value(mp, yx, mp_yx_part(p));
-            mp_set_double_value(mp, yy, mp_yy_part(p));
-        }
+    mp_scan_something(mp, primary);
+    if (mp->cur_exp.type != mp_transform_type) {
+        mp_back_input(mp); /* hm */
+    } else {
+        mp_node p ;
+        mp_back_input(mp); /* hm */
+        p = mp_get_value_node(cur_exp_node);
+        mp_set_double_value(mp, x, mp_x_part(p));
+        mp_set_double_value(mp, y, mp_y_part(p));
+        mp_set_double_value(mp, xx, mp_xx_part(p));
+        mp_set_double_value(mp, xy, mp_xy_part(p));
+        mp_set_double_value(mp, yx, mp_yx_part(p));
+        mp_set_double_value(mp, yy, mp_yy_part(p));
     }
 }
 
 void mp_scan_path_value(MP mp, int primary, mp_knot *k)
 {
-    if (mp->extensions) {
-        mp_scan_something(mp, primary);
-        if (mp->cur_exp.type != mp_path_type && mp->cur_exp.type != mp_pen_type) {
-            mp_back_input(mp); /* hm */
-        } else {
-            mp_back_input(mp); /* hm */
-            *k = cur_exp_knot;
-        }
+    mp_scan_something(mp, primary);
+    if (mp->cur_exp.type != mp_path_type && mp->cur_exp.type != mp_pen_type) {
+        mp_back_input(mp); /* hm */
+    } else {
+        mp_back_input(mp); /* hm */
+        *k = cur_exp_knot;
     }
 }
 
 void mp_scan_boolean_value(MP mp, int primary, int *b)
 {
-    if (mp->extensions) {
-        mp_scan_something(mp, primary);
-        if (mp->cur_exp.type != mp_boolean_type) {
-            mp_back_input(mp); /* hm */
-        } else {
-            mp_back_input(mp); /* hm */
-            *b = cur_exp_value_boolean == mp_true_operation ? 1 : 0 ;
-        }
+    mp_scan_something(mp, primary);
+    if (mp->cur_exp.type != mp_boolean_type) {
+        mp_back_input(mp); /* hm */
+    } else {
+        mp_back_input(mp); /* hm */
+        *b = cur_exp_value_boolean == mp_true_operation ? 1 : 0 ;
     }
 }
 
 void mp_scan_string_value(MP mp, int primary, char **s, size_t *l)
 {
-    if (mp->extensions) {
-        mp_scan_something(mp, primary);
-        if (mp->cur_exp.type != mp_string_type) {
-            mp_back_input(mp); /* hm */
-            *s = NULL ;
-            *l = 0;
-        } else {
-            mp_back_input(mp); /* hm */
-            *s = (char *) cur_exp_str->str ;
-            *l = cur_exp_str->len;
-        }
+    mp_scan_something(mp, primary);
+    if (mp->cur_exp.type != mp_string_type) {
+        mp_back_input(mp); /* hm */
+        *s = NULL ;
+        *l = 0;
+    } else {
+        mp_back_input(mp); /* hm */
+        *s = (char *) cur_exp_str->str ;
+        *l = cur_exp_str->len;
     }
 }
 
@@ -29151,33 +29119,11 @@ MP mp_initialize (MP_options * opt)
     }
     mp->job_name        = mp_strdup(opt->job_name);
     mp->userdata        = opt->userdata;
-    mp->extensions      = opt->extensions;
-    /*tex set default function pointers */
-    mp->find_file       = mp_find_file;
-    mp->open_file       = mp_open_file;
-    mp->close_file      = mp_close_file;
-    mp->write_file      = mp_write_file;
-    mp->read_file       = mp_read_file;
-    mp->run_script      = mp_run_script;
-    mp->run_internal    = mp_run_internal;
-    mp->run_logger      = mp_run_logger;
-    mp->run_overload    = mp_run_overload;
-    mp->run_error       = mp_run_error;
-    mp->run_warning     = mp_run_warning;
-    mp->make_text       = mp_make_text;
-    mp->shipout_backend = mp_shipout_backend;
-    mp->find_file_id    = 0;
-    mp->run_script_id   = 0;
-    mp->run_logger_id   = 0;
-    mp->run_error_id    = 0;
-    mp->run_warning_id  = 0;
-    mp->run_overload_id = 0;
-    mp->make_text_id    = 0;
-    mp->open_file_id    = 0;
+    /* */
     mp->find_file       = opt->find_file       ? opt->find_file       : mp_find_file      ;
     mp->open_file       = opt->open_file       ? opt->open_file       : mp_open_file      ;
-    mp->read_file       = opt->read_file       ? opt->read_file       : mp_read_file      ;
     mp->close_file      = opt->close_file      ? opt->close_file      : mp_close_file     ;
+    mp->read_file       = opt->read_file       ? opt->read_file       : mp_read_file      ;
     mp->write_file      = opt->write_file      ? opt->write_file      : mp_write_file     ;
     mp->shipout_backend = opt->shipout_backend ? opt->shipout_backend : mp_shipout_backend;
     mp->run_script      = opt->run_script      ? opt->run_script      : mp_run_script     ;
@@ -29187,7 +29133,10 @@ MP mp_initialize (MP_options * opt)
     mp->run_error       = opt->run_error       ? opt->run_error       : mp_run_error      ;
     mp->run_warning     = opt->run_warning     ? opt->run_warning     : mp_run_warning    ;
     mp->make_text       = opt->make_text       ? opt->make_text       : mp_make_text      ;
+    /* */
     mp->find_file_id    = opt->find_file_id;
+    mp->open_file_id    = opt->open_file_id;
+    /* */
     mp->run_script_id   = opt->run_script_id;
     mp->run_internal_id = opt->run_internal_id;
     mp->run_logger_id   = opt->run_logger_id;
@@ -29195,7 +29144,7 @@ MP mp_initialize (MP_options * opt)
     mp->run_error_id    = opt->run_error_id;
     mp->run_warning_id  = opt->run_warning_id;
     mp->make_text_id    = opt->make_text_id;
-    mp->open_file_id    = opt->open_file_id;
+    /* */
     if (opt->banner && *(opt->banner)) {
         mp->banner = mp_strdup(opt->banner);
     } else {
