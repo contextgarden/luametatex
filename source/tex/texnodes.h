@@ -1363,9 +1363,12 @@ typedef enum glyph_option_codes {
     /*tex We permit user options. */
     glyph_option_user_first                = 0x00100000,
     glyph_option_user_last                 = 0x40000000,
-    /*tex So watch out: these are subsets! */
-    glyph_option_all                       = 0x000003FF,
-    glyph_option_valid                     = 0x4FFF7FFF,
+    /*tex These ranges can change! */
+    glyph_option_system                    = 0x0001FFFF,
+    glyph_option_user                      = 0x4FF00000, 
+    /*tex Keep this in sync with the above! */
+    glyph_option_valid                     = glyph_option_system 
+                                           | glyph_option_user,
 } glyph_option_codes;
 
 

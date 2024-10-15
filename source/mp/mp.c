@@ -3386,58 +3386,63 @@ static void mp_flush_node_list(MP mp, mp_node p)
     }
 }
 
+static const char *mp_type_string_names[] = { 
+    [mp_undefined_type]         = "undefined",
+    [mp_vacuous_type]           = "vacuous",
+    [mp_boolean_type]           = "boolean",
+    [mp_unknown_boolean_type]   = "unknown boolean",
+    [mp_string_type]            = "string",   
+    [mp_unknown_string_type]    = "unknown string",
+    [mp_pen_type]               = "pen",
+    [mp_unknown_pen_type]       = "unknown pen",  
+    [mp_nep_type]               = "pen",
+    [mp_unknown_nep_type]       = "unknown pen",
+    [mp_path_type]              = "path",
+    [mp_unknown_path_type]      = "unknown path",
+    [mp_picture_type]           = "picture",
+    [mp_unknown_picture_type]   = "unknown picture",
+    [mp_transform_type]         = "transform",
+    [mp_color_type]             = "color",
+    [mp_cmykcolor_type]         = "cmykcolor",
+    [mp_pair_type]              = "pair",
+    [mp_numeric_type]           = "numeric",
+    [mp_known_type]             = "known numeric",
+    [mp_dependent_type]         = "dependent",
+    [mp_proto_dependent_type]   = "proto-dependent",
+    [mp_independent_type]       = "independent",
+    [mp_token_list_type]        = "token list",
+    [mp_structured_type]        = "mp_structured",
+    [mp_unsuffixed_macro_type]  = "unsuffixed macro",
+    [mp_suffixed_macro_type]    = "suffixed macro",
+    [mp_symbol_node_type]       = "symbol node",
+    [mp_token_node_type]        = "token node",
+    [mp_value_node_type]        = "value node",
+    [mp_attribute_node_type]    = "attribute node",
+    [mp_subscript_node_type]    = "subscript node",
+    [mp_pair_node_type]         = "pair node",
+    [mp_transform_node_type]    = "transform node",   
+    [mp_color_node_type]        = "color node",
+    [mp_cmykcolor_node_type]    = "cmykcolor node",
+    [mp_fill_node_type]         = "fill node",
+    [mp_stroked_node_type]      = "stroked node",     
+    [mp_start_clip_node_type]   = "start clip node",
+    [mp_start_group_node_type]  = "start group node",
+    [mp_start_bounds_node_type] = "start bounds node",
+    [mp_stop_clip_node_type]    = "stop clip node",
+    [mp_stop_group_node_type]   = "stop group node",
+    [mp_stop_bounds_node_type]  = "stop bounds node",
+    [mp_dash_node_type]         = "dash node",
+    [mp_dep_node_type]          = "dependency node",
+    [mp_if_node_type]           = "if node",
+    [mp_edge_header_node_type]  = "edge header node",
+};
+
 static const char *mp_type_string(int t)
 {
-    switch (t) {
-        case mp_undefined_type         : return "undefined";        
-        case mp_vacuous_type           : return "vacuous";          
-        case mp_boolean_type           : return "boolean";          
-        case mp_unknown_boolean_type   : return "unknown boolean";  
-        case mp_string_type            : return "string";           
-        case mp_unknown_string_type    : return "unknown string";   
-        case mp_pen_type               : return "pen";              
-        case mp_unknown_pen_type       : return "unknown pen";      
-        case mp_nep_type               : return "pen";              
-        case mp_unknown_nep_type       : return "unknown pen";      
-        case mp_path_type              : return "path";             
-        case mp_unknown_path_type      : return "unknown path";     
-        case mp_picture_type           : return "picture";          
-        case mp_unknown_picture_type   : return "unknown picture";  
-        case mp_transform_type         : return "transform";        
-        case mp_color_type             : return "color";            
-        case mp_cmykcolor_type         : return "cmykcolor";        
-        case mp_pair_type              : return "pair";             
-        case mp_numeric_type           : return "numeric";          
-        case mp_known_type             : return "known numeric";    
-        case mp_dependent_type         : return "dependent";        
-        case mp_proto_dependent_type   : return "proto-dependent";  
-        case mp_independent_type       : return "independent";      
-        case mp_token_list_type        : return "token list";       
-        case mp_structured_type        : return "mp_structured";    
-        case mp_unsuffixed_macro_type  : return "unsuffixed macro"; 
-        case mp_suffixed_macro_type    : return "suffixed macro";   
-        case mp_symbol_node_type       : return "symbol node";      
-        case mp_token_node_type        : return "token node";       
-        case mp_value_node_type        : return "value node";       
-        case mp_attribute_node_type    : return "attribute node";   
-        case mp_subscript_node_type    : return "subscript node";   
-        case mp_pair_node_type         : return "pair node";        
-        case mp_transform_node_type    : return "transform node";   
-        case mp_color_node_type        : return "color node";       
-        case mp_cmykcolor_node_type    : return "cmykcolor node";   
-        case mp_fill_node_type         : return "fill node";        
-        case mp_stroked_node_type      : return "stroked node";     
-        case mp_start_clip_node_type   : return "start clip node";  
-        case mp_start_group_node_type  : return "start group node"; 
-        case mp_start_bounds_node_type : return "start bounds node";
-        case mp_stop_clip_node_type    : return "stop clip node";   
-        case mp_stop_group_node_type   : return "stop group node";  
-        case mp_stop_bounds_node_type  : return "stop bounds node"; 
-        case mp_dash_node_type         : return "dash node";        
-        case mp_dep_node_type          : return "dependency node";  
-        case mp_if_node_type           : return "if node";          
-        case mp_edge_header_node_type  : return "edge header node"; 
-        default                        : return "unknown node";
+    if (t >= mp_undefined_type && t <= mp_edge_header_node_type) {
+        return mp_type_string_names[t];
+    } else { 
+        return "unknown node";
     }
 }
 
@@ -3452,179 +3457,182 @@ static void mp_print_type(MP mp, int t)
 
 /* This will change: just an array when we define primitives. */
 
+static const char *mp_op_string_names[] = {
+    [mp_root_operation]             = "",
+    [mp_saved_root_operation]       = "",
+    [mp_structured_root_operation]  = "",
+    [mp_subscript_operation]        = "",
+    [mp_attribute_operation]        = "",
+    [mp_x_part_operation]           = "xpart",
+    [mp_y_part_operation]           = "ypart",
+    [mp_xx_part_operation]          = "xxpart",
+    [mp_xy_part_operation]          = "xypart",
+    [mp_yx_part_operation]          = "yxpart",
+    [mp_yy_part_operation]          = "yypart",
+    [mp_red_part_operation]         = "redpart",
+    [mp_green_part_operation]       = "greenpart",
+    [mp_blue_part_operation]        = "bluepart",
+    [mp_cyan_part_operation]        = "cyanpart",
+    [mp_magenta_part_operation]     = "magentapart",
+    [mp_yellow_part_operation]      = "yellowpart",
+    [mp_black_part_operation]       = "blackpart",
+    [mp_grey_part_operation]        = "greypart",
+    [mp_capsule_operation]          = "",
+    [mp_token_operation]            = "",
+    [mp_boolean_type_operation]     = "",
+    [mp_string_type_operation]      = "",
+    [mp_pen_type_operation]         = "pen",
+    [mp_nep_type_operation]         = "nep",
+    [mp_path_type_operation]        = "path",
+    [mp_picture_type_operation]     = "picture",
+    [mp_transform_type_operation]   = "transform",
+    [mp_color_type_operation]       = "color",
+    [mp_cmykcolor_type_operation]   = "cmykcolor",
+    [mp_pair_type_operation]        = "pair",
+    [mp_numeric_type_operation]     = "numeric",
+    [mp_normal_operation]           = "",
+    [mp_internal_operation]         = "",          
+    [mp_macro_operation]            = "",             
+    [mp_expr_operation]             = "",              
+    [mp_suffix_operation]           = "",            
+    [mp_text_operation]             = "",             
+    [mp_true_operation]             = "true",
+    [mp_false_operation]            = "false",
+    [mp_null_picture_operation]     = "nullpicture",
+    [mp_null_pen_operation]         = "nullpen",
+    [mp_read_string_operation]      = "readstring",
+    [mp_pen_circle_operation]       = "pencircle",
+    [mp_normal_deviate_operation]   = "normaldeviate",
+    [mp_read_from_operation]        = "readfrom",
+    [mp_close_from_operation]       = "closefrom",
+    [mp_odd_operation]              = "odd",
+    [mp_known_operation]            = "known",
+    [mp_unknown_operation]          = "unknown",
+    [mp_not_operation]              = "not",
+    [mp_decimal_operation]          = "decimal",
+    [mp_reverse_operation]          = "reverse",
+    [mp_uncycle_operation]          = "uncycle",
+    [mp_make_path_operation]        = "makepath",
+    [mp_make_pen_operation]         = "makepen",
+    [mp_make_nep_operation]         = "makenep",
+    [mp_convexed_operation]         = "convexed",
+    [mp_uncontrolled_operation]     = "uncontrolled",
+    [mp_oct_operation]              = "oct",
+    [mp_hex_operation]              = "hex",
+    [mp_ASCII_operation]            = "ASCII",
+    [mp_char_operation]             = "char",
+    [mp_length_operation]           = "length",
+    [mp_no_length_operation]        = "nolength",
+    [mp_turning_operation]          = "turningnumber",
+    [mp_color_model_operation]      = "colormodel",
+    [mp_path_part_operation]        = "pathpart",
+    [mp_pen_part_operation]         = "penpart",
+    [mp_dash_part_operation]        = "dashpart",
+    [mp_prescript_part_operation]   = "prescriptpart",
+    [mp_postscript_part_operation]  = "postscriptpart",
+    [mp_stacking_part_operation]    = "stackingpart",
+    [mp_sqrt_operation]             = "sqrt",
+    [mp_m_exp_operation]            = "mexp",
+    [mp_m_log_operation]            = "mlog",
+    [mp_sin_d_operation]            = "sind",
+    [mp_cos_d_operation]            = "cosd",
+    [mp_floor_operation]            = "floor",
+    [mp_uniform_deviate_operation]  = "uniformdeviate",
+    [mp_ll_corner_operation]        = "llcorner",
+    [mp_lr_corner_operation]        = "lrcorner",
+    [mp_ul_corner_operation]        = "ulcorner",
+    [mp_ur_corner_operation]        = "urcorner",
+    [mp_center_of_operation]        = "centerof",
+    [mp_center_of_mass_operation]   = "centerofmass",
+    [mp_corners_operation]          = "corners",
+    [mp_x_range_operation]          = "xrange",
+    [mp_y_range_operation]          = "yrange",
+    [mp_delta_point_operation]      = "deltapoint",
+    [mp_delta_precontrol_operation] = "deltaprecontrol",
+    [mp_delta_postcontrol_operation]= "deltapostcontrol",
+    [mp_delta_direction_operation]  = "deltadirection",
+    [mp_arc_length_operation]       = "arclength",
+    [mp_angle_operation]            = "angle",
+    [mp_cycle_operation]            = "cycle",
+    [mp_no_cycle_operation]         = "nocycle",
+    [mp_x_relative_operation]       = "xrelative",
+    [mp_y_relative_operation]       = "yrelative",
+    [mp_xy_relative_operation]      = "xyrelative",
+    [mp_x_absolute_operation]       = "xabsolute",
+    [mp_y_absolute_operation]       = "yabsolute",
+    [mp_xy_absolute_operation]      = "xyabsolute",
+    [mp_filled_operation]           = "filled",
+    [mp_stroked_operation]          = "stroked",
+    [mp_clipped_operation]          = "clipped",
+    [mp_grouped_operation]          = "grouped",
+    [mp_bounded_operation]          = "bounded",
+    [mp_plus_operation]             = "+",
+    [mp_minus_operation]            = "-",
+    [mp_times_operation]            = "*",
+    [mp_over_operation]             = "/",
+    [mp_power_operation]            = "^",
+    [mp_pythag_add_operation]       = "++",
+    [mp_pythag_sub_operation]       = "+-+",
+    [mp_or_operation]               = "or",
+    [mp_and_operation]              = "and",
+    [mp_less_than_operation]        = "<",
+    [mp_less_or_equal_operation]    = "<=",
+    [mp_greater_than_operation]     = ">",
+    [mp_greater_or_equal_operation] = ">=",
+    [mp_equal_operation]            = "=",
+    [mp_unequal_operation]          = "<>",
+    [mp_concat_operation]           = "&",
+    [mp_just_append_operation]      = "&&",
+    [mp_tolerant_concat_operation]  = "&&&",
+    [mp_tolerant_append_operation]  = "&&&&",
+    [mp_rotated_operation]          = "rotated",
+    [mp_slanted_operation]          = "slanted",
+    [mp_scaled_operation]           = "scaled",
+    [mp_shifted_operation]          = "shifted",
+    [mp_transformed_operation]      = "transformed",
+    [mp_x_scaled_operation]         = "xscaled",
+    [mp_y_scaled_operation]         = "yscaled",
+    [mp_z_scaled_operation]         = "zscaled",
+    [mp_xy_scaled_operation]        = "xyscaled",
+    [mp_uncycled_operation]         = "uncycled",
+    [mp_intertimes_operation]       = "intersectiontimes",
+    [mp_intertimes_list_operation]  = "intersectiontimeslist",
+    [mp_double_dot_operation]       = "..",
+    [mp_substring_operation]        = "substring",
+    [mp_subpath_operation]          = "subpath",
+    [mp_direction_time_operation]   = "directiontime",
+    [mp_point_operation]            = "point",
+    [mp_precontrol_operation]       = "precontrol",
+    [mp_postcontrol_operation]      = "postcontrol",
+    [mp_direction_operation]        = "direction",
+    [mp_path_point_operation]       = "pathpoint",
+    [mp_path_precontrol_operation]  = "pathprecontrol",
+    [mp_path_postcontrol_operation] = "pathpostcontrol",
+    [mp_path_direction_operation]   = "pathdirection",
+    [mp_path_state_operation]       = "pathstate",
+    [mp_path_index_operation]       = "pathindex",
+    [mp_path_lastindex_operation]   = "pathlastindex",
+    [mp_path_length_operation]      = "pathlength",
+    [mp_path_first_operation]       = "pathfirst",
+    [mp_path_last_operation]        = "pathlast",
+    [mp_pen_offset_operation]       = "penoffset",
+    [mp_arc_time_operation]         = "arctime",
+    [mp_arc_point_operation]        = "arcpoint",
+    [mp_arc_point_list_operation]   = "arcpointlist",
+    [mp_subarc_length_operation]    = "subarclength",
+    [mp_version_operation]          = "mpversion",
+    [mp_envelope_operation]         = "envelope",
+    [mp_boundingpath_operation]     = "boundingpath",
+};
+
 static const char *mp_op_string (int c)
 {
     if (c <= mp_numeric_type) {
         return mp_type_string(c);
+    } else if (c >= mp_root_operation && c <= mp_boundingpath_operation) {
+        return mp_op_string_names[c];
     } else {
-        switch (c) {
-         // case mp_root_operation             : return "";
-         // case mp_saved_root_operation       : return "";
-         // case mp_structured_root_operation  : return "";
-         // case mp_subscript_operation        : return "";
-         // case mp_attribute_operation        : return "";
-            case mp_x_part_operation           : return "xpart";
-            case mp_y_part_operation           : return "ypart";
-            case mp_xx_part_operation          : return "xxpart";
-            case mp_xy_part_operation          : return "xypart";
-            case mp_yx_part_operation          : return "yxpart";
-            case mp_yy_part_operation          : return "yypart";
-            case mp_red_part_operation         : return "redpart";
-            case mp_green_part_operation       : return "greenpart";
-            case mp_blue_part_operation        : return "bluepart";
-            case mp_cyan_part_operation        : return "cyanpart";
-            case mp_magenta_part_operation     : return "magentapart";
-            case mp_yellow_part_operation      : return "yellowpart";
-            case mp_black_part_operation       : return "blackpart";
-            case mp_grey_part_operation        : return "greypart";
-         // case mp_capsule_operation          : return "";
-         // case mp_token_operation            : return "";
-         // case mp_boolean_type_operation     : return "";
-         // case mp_string_type_operation      : return "";
-            case mp_pen_type_operation         : return "pen";
-            case mp_nep_type_operation         : return "nep";
-            case mp_path_type_operation        : return "path";
-            case mp_picture_type_operation     : return "picture";
-            case mp_transform_type_operation   : return "transform";
-            case mp_color_type_operation       : return "color";
-            case mp_cmykcolor_type_operation   : return "cmykcolor";
-            case mp_pair_type_operation        : return "pair";
-            case mp_numeric_type_operation     : return "numeric";
-         // case mp_normal_operation           : return "";
-         // case mp_internal_operation         : return "";          
-         // case mp_macro_operation            : return "";             
-         // case mp_expr_operation             : return "";              
-         // case mp_suffix_operation           : return "";            
-         // case mp_text_operation             : return "";             
-            case mp_true_operation             : return "true";
-            case mp_false_operation            : return "false";
-            case mp_null_picture_operation     : return "nullpicture";
-            case mp_null_pen_operation         : return "nullpen";
-            case mp_read_string_operation      : return "readstring";
-            case mp_pen_circle_operation       : return "pencircle";
-            case mp_normal_deviate_operation   : return "normaldeviate";
-            case mp_read_from_operation        : return "readfrom";
-            case mp_close_from_operation       : return "closefrom";
-            case mp_odd_operation              : return "odd";
-            case mp_known_operation            : return "known";
-            case mp_unknown_operation          : return "unknown";
-            case mp_not_operation              : return "not";
-            case mp_decimal_operation          : return "decimal";
-            case mp_reverse_operation          : return "reverse";
-            case mp_uncycle_operation          : return "uncycle";
-            case mp_make_path_operation        : return "makepath";
-            case mp_make_pen_operation         : return "makepen";
-            case mp_make_nep_operation         : return "makenep";
-            case mp_convexed_operation         : return "convexed";
-            case mp_uncontrolled_operation     : return "uncontrolled";
-            case mp_oct_operation              : return "oct";
-            case mp_hex_operation              : return "hex";
-            case mp_ASCII_operation            : return "ASCII";
-            case mp_char_operation             : return "char";
-            case mp_length_operation           : return "length";
-            case mp_no_length_operation        : return "nolength";
-            case mp_turning_operation          : return "turningnumber";
-            case mp_color_model_operation      : return "colormodel";
-            case mp_path_part_operation        : return "pathpart";
-            case mp_pen_part_operation         : return "penpart";
-            case mp_dash_part_operation        : return "dashpart";
-            case mp_prescript_part_operation   : return "prescriptpart";
-            case mp_postscript_part_operation  : return "postscriptpart";
-            case mp_stacking_part_operation    : return "stackingpart";
-            case mp_sqrt_operation             : return "sqrt";
-            case mp_m_exp_operation            : return "mexp";
-            case mp_m_log_operation            : return "mlog";
-            case mp_sin_d_operation            : return "sind";
-            case mp_cos_d_operation            : return "cosd";
-            case mp_floor_operation            : return "floor";
-            case mp_uniform_deviate_operation  : return "uniformdeviate";
-            case mp_ll_corner_operation        : return "llcorner";
-            case mp_lr_corner_operation        : return "lrcorner";
-            case mp_ul_corner_operation        : return "ulcorner";
-            case mp_ur_corner_operation        : return "urcorner";
-            case mp_center_of_operation        : return "centerof";
-            case mp_center_of_mass_operation   : return "centerofmass";
-            case mp_corners_operation          : return "corners";
-            case mp_x_range_operation          : return "xrange";
-            case mp_y_range_operation          : return "yrange";
-            case mp_delta_point_operation      : return "deltapoint";
-            case mp_delta_precontrol_operation : return "deltaprecontrol";
-            case mp_delta_postcontrol_operation: return "deltapostcontrol";
-            case mp_delta_direction_operation  : return "deltadirection";
-            case mp_arc_length_operation       : return "arclength";
-            case mp_angle_operation            : return "angle";
-            case mp_cycle_operation            : return "cycle";
-            case mp_no_cycle_operation         : return "nocycle";
-            case mp_x_relative_operation       : return "xrelative";
-            case mp_y_relative_operation       : return "yrelative";
-            case mp_xy_relative_operation      : return "xyrelative";
-            case mp_x_absolute_operation       : return "xabsolute";
-            case mp_y_absolute_operation       : return "yabsolute";
-            case mp_xy_absolute_operation      : return "xyabsolute";
-            case mp_filled_operation           : return "filled";
-            case mp_stroked_operation          : return "stroked";
-            case mp_clipped_operation          : return "clipped";
-            case mp_grouped_operation          : return "grouped";
-            case mp_bounded_operation          : return "bounded";
-            case mp_plus_operation             : return "+";
-            case mp_minus_operation            : return "-";
-            case mp_times_operation            : return "*";
-            case mp_over_operation             : return "/";
-            case mp_power_operation            : return "^";
-            case mp_pythag_add_operation       : return "++";
-            case mp_pythag_sub_operation       : return "+-+";
-            case mp_or_operation               : return "or";
-            case mp_and_operation              : return "and";
-            case mp_less_than_operation        : return "<";
-            case mp_less_or_equal_operation    : return "<=";
-            case mp_greater_than_operation     : return ">";
-            case mp_greater_or_equal_operation : return ">=";
-            case mp_equal_operation            : return "=";
-            case mp_unequal_operation          : return "<>";
-            case mp_concat_operation           : return "&";
-            case mp_just_append_operation      : return "&&";
-            case mp_tolerant_concat_operation  : return "&&&";
-            case mp_tolerant_append_operation  : return "&&&&";
-            case mp_rotated_operation          : return "rotated";
-            case mp_slanted_operation          : return "slanted";
-            case mp_scaled_operation           : return "scaled";
-            case mp_shifted_operation          : return "shifted";
-            case mp_transformed_operation      : return "transformed";
-            case mp_uncycled_operation         : return "uncycled";
-            case mp_x_scaled_operation         : return "xscaled";
-            case mp_y_scaled_operation         : return "yscaled";
-            case mp_z_scaled_operation         : return "zscaled";
-            case mp_xy_scaled_operation        : return "xyscaled";
-            case mp_intertimes_operation       : return "intersectiontimes";
-            case mp_intertimes_list_operation  : return "intersectiontimeslist";
-            case mp_double_dot_operation       : return "..";
-            case mp_substring_operation        : return "substring";
-            case mp_subpath_operation          : return "subpath";
-            case mp_direction_time_operation   : return "directiontime";
-            case mp_point_operation            : return "point";
-            case mp_precontrol_operation       : return "precontrol";
-            case mp_postcontrol_operation      : return "postcontrol";
-            case mp_direction_operation        : return "direction";
-            case mp_path_point_operation       : return "pathpoint";
-            case mp_path_precontrol_operation  : return "pathprecontrol";
-            case mp_path_postcontrol_operation : return "pathpostcontrol";
-            case mp_path_direction_operation   : return "pathdirection";
-            case mp_path_state_operation       : return "pathstate";
-            case mp_path_index_operation       : return "pathindex";
-            case mp_path_lastindex_operation   : return "pathlastindex";
-            case mp_path_length_operation      : return "pathlength";
-            case mp_path_first_operation       : return "pathfirst";
-            case mp_path_last_operation        : return "pathlast";
-            case mp_pen_offset_operation       : return "penoffset";
-            case mp_arc_time_operation         : return "arctime";
-            case mp_arc_point_operation        : return "arcpoint";
-            case mp_arc_point_list_operation   : return "arcpointlist";
-            case mp_subarc_length_operation    : return "subarclength";
-            case mp_version_operation          : return "mpversion";
-            case mp_envelope_operation         : return "envelope";
-            case mp_boundingpath_operation     : return "boundingpath";
-            default                            : return "unknown operation";
-        }
+        return "unknown operation";
     }
 }
 static void mp_print_op(MP mp, int c)
@@ -4588,26 +4596,37 @@ void mp_print_variable_name(MP mp, mp_node p)
 {
     mp_node q = NULL; /* a token list that will name the variable's suffix */
     mp_node r = NULL; /* temporary for token list creation */
-    while (p->name_type >= mp_x_part_operation) {
-        switch (p->name_type) {
-            case mp_x_part_operation      : mp_print_string(mp, "xpart ");         break;
-            case mp_y_part_operation      : mp_print_string(mp, "ypart ");         break;
-            case mp_xx_part_operation     : mp_print_string(mp, "xxpart ");        break;
-            case mp_xy_part_operation     : mp_print_string(mp, "xypart ");        break;
-            case mp_yx_part_operation     : mp_print_string(mp, "yxpart ");        break;
-            case mp_yy_part_operation     : mp_print_string(mp, "yypart ");        break;
-            case mp_red_part_operation    : mp_print_string(mp, "redpart ");       break;
-            case mp_green_part_operation  : mp_print_string(mp, "greenpart ");     break;
-            case mp_blue_part_operation   : mp_print_string(mp, "bluepart ");      break;
-            case mp_cyan_part_operation   : mp_print_string(mp, "cyanpart ");      break;
-            case mp_magenta_part_operation: mp_print_string(mp, "magentapart ");   break;
-            case mp_yellow_part_operation : mp_print_string(mp, "yellowpart ");    break;
-            case mp_black_part_operation  : mp_print_string(mp, "blackpart ");     break;
-            case mp_grey_part_operation   : mp_print_string(mp, "greypart ");      break;
-            case mp_capsule_operation     : mp_print_format(mp, "%%CAPSULE%P", p); return;
-            default                       :                                        break;
+ // while (p->name_type >= mp_x_part_operation) {
+ //     switch (p->name_type) {
+ //         case mp_x_part_operation      : mp_print_string(mp, "xpart ");         break;
+ //         case mp_y_part_operation      : mp_print_string(mp, "ypart ");         break;
+ //         case mp_xx_part_operation     : mp_print_string(mp, "xxpart ");        break;
+ //         case mp_xy_part_operation     : mp_print_string(mp, "xypart ");        break;
+ //         case mp_yx_part_operation     : mp_print_string(mp, "yxpart ");        break;
+ //         case mp_yy_part_operation     : mp_print_string(mp, "yypart ");        break;
+ //         case mp_red_part_operation    : mp_print_string(mp, "redpart ");       break;
+ //         case mp_green_part_operation  : mp_print_string(mp, "greenpart ");     break;
+ //         case mp_blue_part_operation   : mp_print_string(mp, "bluepart ");      break;
+ //         case mp_cyan_part_operation   : mp_print_string(mp, "cyanpart ");      break;
+ //         case mp_magenta_part_operation: mp_print_string(mp, "magentapart ");   break;
+ //         case mp_yellow_part_operation : mp_print_string(mp, "yellowpart ");    break;
+ //         case mp_black_part_operation  : mp_print_string(mp, "blackpart ");     break;
+ //         case mp_grey_part_operation   : mp_print_string(mp, "greypart ");      break;
+ //         case mp_capsule_operation     : mp_print_format(mp, "%%CAPSULE%P", p); return;
+ //         default                       :                                        break;
+ //     }
+ //     p = p->link;
+ // }
+    while (1) { 
+        if (p->name_type == mp_capsule_operation) { 
+            mp_print_format(mp, "%%CAPSULE%P", p); 
+            return;
+        } else if (p->name_type >= mp_x_part_operation && p->name_type <= mp_grey_part_operation) {
+            mp_print_format(mp, "%s ", mp_op_string_names[p->name_type]);
+            p = p->link;
+        } else { 
+            break;
         }
-        p = p->link;
     }
     while (p->name_type > mp_saved_root_operation) {
         /*tex
@@ -4631,7 +4650,7 @@ void mp_print_variable_name(MP mp, mp_node p)
         }
         mp_set_link(r, q);
         q = r;
-    FOUND:
+      FOUND:
         p = mp_get_parent((mp_value_node) p);
     }
     /*tex
@@ -13955,6 +13974,10 @@ the |get_next| procedure is not recursive.
 
 */
 
+/*tex 
+    Maybe do as with \TEX: collect them in some data structure. 
+*/
+
 const char *mp_cmd_mod_string(MP mp, int c, int m)
 {
     switch (c) {
@@ -14102,7 +14125,7 @@ const char *mp_cmd_mod_string(MP mp, int c, int m)
                 case mp_nonstop_mode   : return "nonstopmode";
                 case mp_scroll_mode    : return "scrollmode";
                 case mp_error_stop_mode: return "errorstopmode";
-                default                : return "silentmode";
+                case mp_silent_mode    : return "silentmode";
             }
             break;
         case mp_protection_command:

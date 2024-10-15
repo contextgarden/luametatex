@@ -761,7 +761,7 @@ static int lmt_characters_from_lua(lua_State *L, int f)
     return 1;
 }
 
-static int lmt_quality_from_lua(lua_State *L, int f)
+static void lmt_quality_from_lua(lua_State *L, int f)
 {
     lua_push_key(characters);
     if (lua_rawget(L, -2) == LUA_TTABLE) {
@@ -800,7 +800,6 @@ static int lmt_quality_from_lua(lua_State *L, int f)
         }
         lua_pop(L, 1);
     }
-    return 1;
 }
 
 /*tex
