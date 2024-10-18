@@ -231,7 +231,7 @@ static void nodelib_push_attribute_data(lua_State *L, halfword n)
 
 /*tex maybe: Floyd's cycle finding: */
 
-static int nodelib_direct_is_loop(lua_State *L)
+static int nodelib_direct_isloop(lua_State *L)
 {
     halfword head = nodelib_valid_direct_from_index(L, 1);
     if (head) {
@@ -4525,7 +4525,7 @@ static int nodelib_direct_remove(lua_State *L)
     return 2;
 }
 
-static int nodelib_direct_remove_from_list(lua_State *L)
+static int nodelib_direct_removefromlist(lua_State *L)
 {
     halfword head = nodelib_valid_direct_from_index(L, 1);
     int count = 0;
@@ -8729,7 +8729,7 @@ static inline void nodelib_aux_protect_node_none(halfword n)
     }
 }
 
-static int nodelib_direct_protectglyphs_none(lua_State *L)
+static int nodelib_direct_protectglyphsnone(lua_State *L)
 {
     halfword head = nodelib_valid_direct_from_index(L, 1);
     halfword tail = nodelib_valid_direct_from_index(L, 2);
@@ -10671,7 +10671,7 @@ static const struct luaL_Reg nodelib_direct_function_list[] = {
     { "newcontinuationatom",     nodelib_direct_newcontinuationatom    },
     { "protectglyph",            nodelib_direct_protectglyph           },
     { "protectglyphs",           nodelib_direct_protectglyphs          },
-    { "protectglyphsnone",       nodelib_direct_protectglyphs_none     },
+    { "protectglyphsnone",       nodelib_direct_protectglyphsnone      },
     { "protrusionskippable",     nodelib_direct_protrusionskipable     },
     { "rangedimensions",         nodelib_direct_rangedimensions        }, /* maybe get... */
     { "getglyphdimensions",      nodelib_direct_getglyphdimensions     },
@@ -10681,7 +10681,7 @@ static const struct luaL_Reg nodelib_direct_function_list[] = {
     { "setruledimensions",       nodelib_direct_setruledimensions      },
     { "patchattributes",         nodelib_direct_patchattributes        },
     { "remove",                  nodelib_direct_remove                 },
-    { "removefromlist",          nodelib_direct_remove_from_list       },
+    { "removefromlist",          nodelib_direct_removefromlist         },
     { "repack",                  nodelib_direct_repack                 },
     { "freeze",                  nodelib_direct_freeze                 },
     { "setattribute",            nodelib_direct_setattribute           },
@@ -10791,7 +10791,7 @@ static const struct luaL_Reg nodelib_direct_function_list[] = {
     { "show",                    nodelib_direct_show                   },
     { "serialized",              nodelib_direct_serialized             },
     /* maybe */
-    { "isloop",                  nodelib_direct_is_loop                },  
+    { "isloop",                  nodelib_direct_isloop                 },  
     /* dual node and direct */
     { "type",                    nodelib_hybrid_type                   },
     { "types",                   nodelib_shared_types                  },

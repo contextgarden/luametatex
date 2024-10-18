@@ -771,6 +771,7 @@ make_lua_key(L, height);\
 make_lua_key(L, hextensible);\
 make_lua_key(L, hextensiblevariant);\
 make_lua_key(L, hlist);\
+make_lua_key(L, hfactor);\
 make_lua_key(L, hmodepar);\
 make_lua_key(L, hmove);\
 make_lua_key(L, hoffset);\
@@ -976,6 +977,7 @@ make_lua_key(L, mutable);\
 make_lua_key(L, name);\
 make_lua_key(L, nepalty);\
 make_lua_key(L, nestedlist);\
+make_lua_key(L, nestingfactor);\
 make_lua_key(L, new);\
 make_lua_key(L, next);\
 make_lua_key(L, nil);\
@@ -1421,6 +1423,7 @@ make_lua_key(L, vertical);\
 make_lua_key(L, verticalmathkern);\
 make_lua_key(L, vextensible);\
 make_lua_key(L, vextensiblevariant);\
+make_lua_key(L, vfactor);\
 make_lua_key(L, virtual);\
 make_lua_key(L, vlist);\
 make_lua_key(L, vmode);\
