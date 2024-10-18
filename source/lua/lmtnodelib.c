@@ -5398,7 +5398,6 @@ static int nodelib_shared_types(lua_State *L)
 
 static int nodelib_shared_fields(lua_State *L)
 {
-    int offset = 2;
     int t = nodelib_aux_get_valid_node_type_id(L, 1);
     int f = lua_toboolean(L, 2);
     value_info *fields = lmt_interface.node_data[t].fields;
@@ -5414,7 +5413,6 @@ static int nodelib_shared_fields(lua_State *L)
             lua_push_key(subtype);
             lua_push_key(integer);
             lua_rawset(L, -3);
-            offset++;
         }
         if (tex_nodetype_has_prev(t)) {
             lua_push_key(prev);
@@ -5431,24 +5429,24 @@ static int nodelib_shared_fields(lua_State *L)
             }
         }
     } else {
-        lua_push_key(next);
-        lua_rawseti(L, -2, 0);
+        int offset = 0;
         lua_push_key(id);
-        lua_rawseti(L, -2, 1);
+        lua_rawseti(L, -2, offset++);
         if (tex_nodetype_has_subtype(t)) {
             lua_push_key(subtype);
-            lua_rawseti(L, -2, 2);
-            offset++;
+            lua_rawseti(L, -2, offset++);
         }
+        lua_push_key(next);
+        lua_rawseti(L, -2, offset++);
         if (tex_nodetype_has_prev(t)) {
             lua_push_key(prev);
-            lua_rawseti(L, -2, -1);
+            lua_rawseti(L, -2, offset++);
         }
         if (fields) {
             for (lua_Integer i = 0; fields[i].lua != 0; i++) {
              // lua_push_key_by_index(L, fields[i].lua);
                 lua_rawgeti(L, LUA_REGISTRYINDEX, fields[i].lua);
-                lua_rawseti(L, -2, i + offset);
+                lua_rawseti(L, -2, offset++);
             }
         }
     }
@@ -9145,7 +9143,7 @@ static int nodelib_direct_check_char(lua_State* L, halfword n)
                         break;
                     }
                 /* case 7: */
-                    /* (node,font,data,scale,scale,xscale,yscale)*/
+                    /* (node,font,data,state,scale,xscale,yscale)*/
             }
         }
     }

@@ -427,19 +427,19 @@ static int pdfelib_aux_pushreference(lua_State *L, ppref *reference)
 
     The next function checks for the type and then pushes the matching data on the stack.
 
-    \starttabulate[|c|l|l|l|]
-        \BC type \BC meaning \BC value \BC detail \NC \NR
-        \NC \type {0} \NC none \NC nil \NC \NC \NR
-        \NC \type {1} \NC null \NC nil \NC \NC \NR
-        \NC \type {2} \NC boolean \NC boolean \NC \NC \NR
-        \NC \type {3} \NC boolean \NC integer \NC \NC \NR
-        \NC \type {4} \NC number \NC float \NC \NC \NR
-        \NC \type {5} \NC name \NC string \NC \NC \NR
-        \NC \type {6} \NC string \NC string \NC type \NC \NR
-        \NC \type {7} \NC array \NC arrayobject \NC size \NC \NR
-        \NC \type {8} \NC dictionary \NC dictionaryobject \NC size \NC \NR
-        \NC \type {9} \NC stream \NC streamobject \NC dictionary size \NC \NR
-        \NC \type {10} \NC reference \NC integer \NC \NC \NR
+    \starttabulate[|rT|l|l|l|]
+        \BC type \BC meaning    \BC value            \BC detail          \NC \NR
+        \NC  0   \NC none       \NC nil              \NC                 \NC \NR
+        \NC  1   \NC null       \NC nil              \NC                 \NC \NR
+        \NC  2   \NC boolean    \NC boolean          \NC                 \NC \NR
+        \NC  3   \NC integer    \NC integer          \NC                 \NC \NR
+        \NC  4   \NC number     \NC float            \NC                 \NC \NR
+        \NC  5   \NC name       \NC string           \NC                 \NC \NR
+        \NC  6   \NC string     \NC string           \NC type            \NC \NR
+        \NC  7   \NC array      \NC arrayobject      \NC size            \NC \NR
+        \NC  8   \NC dictionary \NC dictionaryobject \NC size            \NC \NR
+        \NC  9   \NC stream     \NC streamobject     \NC dictionary size \NC \NR
+        \NC 10   \NC reference  \NC integer          \NC                 \NC \NR
         \LL
     \stoptabulate
 
@@ -1802,6 +1802,41 @@ static int pdfelib_getencodingvalues(lua_State *L)
     return 1;
 }
 
+static int pdfelib_getstatusvalues(lua_State *L)
+{
+    lua_createtable(L, 1, 3);
+    lua_set_string_by_index(L, PPCRYPT_PASS, "is protected");
+    lua_set_string_by_index(L, PPCRYPT_FAIL, "failed to open");
+    lua_set_string_by_index(L, PPCRYPT_NONE, "not encrypted");
+    lua_set_string_by_index(L, PPCRYPT_DONE, "is decrypted"); 
+    return 1;
+}
+
+static int pdfelib_getfieldtypes(lua_State *L)
+{
+    lua_createtable(L, 10, 1);
+    lua_set_string_by_index(L, PPNONE,   "none");
+    lua_set_string_by_index(L, PPNULL,   "null");
+    lua_set_string_by_index(L, PPBOOL,   "boolean");
+    lua_set_string_by_index(L, PPINT,    "integer");
+    lua_set_string_by_index(L, PPNUM,    "number");
+    lua_set_string_by_index(L, PPNAME,   "name");
+    lua_set_string_by_index(L, PPSTRING, "string");
+    lua_set_string_by_index(L, PPARRAY,  "array");
+    lua_set_string_by_index(L, PPDICT,   "dictionary");
+    lua_set_string_by_index(L, PPSTREAM, "stream");
+    lua_set_string_by_index(L, PPREF,    "reference");
+    return 1;
+}
+
+// PPDOC_ALLOW_PRINT
+// PPDOC_ALLOW_MODIFY
+// PPDOC_ALLOW_COPY
+// PPDOC_ALLOW_ANNOTS
+// PPDOC_ALLOW_EXTRACT
+// PPDOC_ALLOW_ASSEMBLY
+// # define PPDOC_ALLOW_PRINT_HIRES
+
 static const struct luaL_Reg pdfelib_function_list[] = {
     /* management */
     { "type",               pdfelib_type              },
@@ -1811,6 +1846,8 @@ static const struct luaL_Reg pdfelib_function_list[] = {
     { "close",              pdfelib_close             },
     { "unencrypt",          pdfelib_unencrypt         },
     { "getencodingvalues",  pdfelib_getencodingvalues },
+    { "getstatusvalues",    pdfelib_getstatusvalues   },
+    { "getfieldtypes",      pdfelib_getfieldtypes     },
     /* statistics */
     { "getversion",         pdfelib_getversion        },
     { "getstatus",          pdfelib_getstatus         },

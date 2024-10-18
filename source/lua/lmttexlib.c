@@ -5811,6 +5811,15 @@ static int texlib_getspecificationoptionvalues(lua_State *L)
     return 1;
 }
 
+static int texlib_getglyphprotectionvalues(lua_State *L)
+{
+    lua_createtable(L, 2, 1);
+    lua_set_string_by_index(L, glyph_unprotected_code,    "unset");
+    lua_set_string_by_index(L, glyph_protected_text_code, "text");
+    lua_set_string_by_index(L, glyph_protected_math_code, "math");
+    return 1;
+}
+
 static int texlib_getdiscpartvalues(lua_State *L)
 {
     lua_createtable(L, 4, 1);
@@ -5884,6 +5893,20 @@ static int texlib_getprepoststatevalues(lua_State *L)
     lua_set_string_by_index(L, has_post_adjust,   "postadjust");     
     lua_set_string_by_index(L, has_pre_migrated,  "premigrated");
     lua_set_string_by_index(L, has_post_migrated, "postmigrated");    
+    return 1;
+}
+
+static int texlib_getadjustoptionvalues(lua_State *L)
+{
+    lua_createtable(L, 2, 6);
+    lua_set_string_by_index(L, adjust_option_none,         "none");
+    lua_set_string_by_index(L, adjust_option_before,       "before");
+    lua_set_string_by_index(L, adjust_option_baseline,     "baseline");
+    lua_set_string_by_index(L, adjust_option_depth_before, "depthbefore");
+    lua_set_string_by_index(L, adjust_option_depth_after,  "depthafter");
+    lua_set_string_by_index(L, adjust_option_depth_check,  "depthcheck");
+    lua_set_string_by_index(L, adjust_option_depth_last,   "depthlast");
+    lua_set_string_by_index(L, adjust_option_except,       "except");
     return 1;
 }
 
@@ -6260,6 +6283,7 @@ static const struct luaL_Reg texlib_function_list[] = {
     { "getlistsignvalues",            texlib_getlistsignvalues            },
     { "getlistgeometryvalues",        texlib_getlistgeometryvalues        },
     { "getmathgluevalues",            texlib_getmathgluevalues            },
+    { "getglyphprotectionvalues",     texlib_getglyphprotectionvalues     },
     { "getdiscpartvalues",            texlib_getdiscpartvalues            },
     { "getglyphdiscvalues",           texlib_getglyphdiscvalues           },
     { "getspecificationoptionvalues", texlib_getspecificationoptionvalues },
@@ -6271,6 +6295,7 @@ static const struct luaL_Reg texlib_function_list[] = {
     { "getmathcontrolvalues",         texlib_getmathcontrolvalues         },
     { "gettextcontrolvalues",         texlib_gettextcontrolvalues         },
     { "getprepoststatevalues",        texlib_getprepoststatevalues        },
+    { "getadjustoptionvalues",        texlib_getadjustoptionvalues        },
     { "getpacktypevalues",            texlib_getpacktypevalues            },
     { "getgroupvalues",               texlib_getgroupvalues               },
     { "getparcontextvalues",          texlib_getparcontextvalues          },
