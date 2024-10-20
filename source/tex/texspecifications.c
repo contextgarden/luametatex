@@ -254,6 +254,79 @@ static halfword tex_aux_scan_par_specification(halfword code, halfword (*scan)(v
     }
 }
 
+static halfword tex_aux_scan_specification_penalties(quarterword code)
+{
+    halfword p = null;
+    halfword count = tex_scan_integer(1, NULL);
+    int pairs = 0;
+    switch (code) { 
+        case broken_penalties_code: 
+            if (count > 1) {
+                tex_handle_error(
+                    normal_error_type,
+                    "count has to be 1 for \\brokenpenalties",
+                    NULL
+                );
+                count = 1;
+            }
+        case club_penalties_code: 
+        case widow_penalties_code: 
+        case display_widow_penalties_code: 
+            pairs = 1;
+     /* case inter_line_penalties_code: */
+     /* case orphan_penalties_code: */
+     /* case math_forward_penalties_code: */
+     /* case math_backward_penalties_code: */
+    }
+    if (count != 0) { 
+     // halfword options = tex_scan_partial_keyword("options") ? tex_scan_integer(0, NULL) : 0;
+        halfword options = tex_aux_scan_specification_options(code);
+        int pair = pairs ? specification_option_double(options) : 0;
+        if (count == 1 || count == -1) {
+            halfword nepalty = pair ? tex_scan_integer(0, NULL) : 0;
+            halfword penalty = tex_scan_integer(0, NULL);
+            if (penalty || nepalty) {
+                if (count == -1) { 
+                    options |= specification_option_final;
+                    count = 1; 
+                }
+                p = tex_new_specification_node(0, code, options);
+                specification_count(p) = count;
+                tex_set_specification_nepalty(p, 0, nepalty); 
+                tex_set_specification_penalty(p, 0, penalty);
+            }
+        } else if (count > 0) {
+            int final = specification_option_final(options);
+            p = tex_new_specification_node(final ? count + 1 : count, code, options);
+            for (int n = 1; n <= count; n++) {
+                if (pair) {
+                    tex_set_specification_nepalty(p, n, tex_scan_integer(0, NULL)); 
+                }
+                tex_set_specification_penalty(p, n, tex_scan_integer(0, NULL)); 
+            }
+            if (final) { 
+                if (pair) {
+                    tex_set_specification_nepalty(p, count + 1, 0); 
+                }
+                tex_set_specification_penalty(p, count + 1, 0);
+            }
+        }
+        if (p && ! pair) { 
+            tex_remove_specification_option(p, specification_option_double);
+        }
+    }
+    return p;
+}
+static halfword tex_aux_scan_specification_orphan_penalties(void)
+{
+    return tex_aux_scan_specification_penalties(orphan_penalties_code);
+}
+
+static halfword tex_aux_scan_specification_orphan_line_factors(void)
+{
+    return tex_aux_scan_specification_penalties(orphan_line_factors_code);
+}
+
 static halfword tex_aux_scan_specification_par_passes(void)
 {
     halfword p = null;
@@ -600,9 +673,37 @@ static halfword tex_aux_scan_specification_par_passes(void)
                     }
                     break;
                 case 'o': case 'O':
-                    if (tex_scan_mandate_keyword("orphanpenalty", 1)) {
-                        tex_set_passes_orphanpenalty(p, n, tex_scan_integer(0, NULL));
-                        tex_set_passes_okay(p, n, passes_orphanpenalty_okay);
+                    if (tex_scan_mandate_keyword("orphan", 1)) {
+                        switch (tex_scan_character("plPL", 0, 0, 0)) {
+                            case 'p': case 'P':
+                                if (tex_scan_mandate_keyword("orphanpenalt", 7)) {
+                                    switch (tex_scan_character("iyIY", 0, 0, 0)) {
+                                        case 'i': case 'I':
+                                            if (tex_scan_mandate_keyword("orphanpenalties", 13)) {
+                                                tex_set_passes_orphanpenalties(p, n, tex_aux_scan_par_specification(orphan_penalties_code, tex_aux_scan_specification_orphan_penalties));
+                                                tex_set_passes_okay(p, n, passes_orphanpenalties_okay);
+                                            }
+                                            break;
+                                        case 'y': case 'Y':
+                                            tex_set_passes_orphanpenalty(p, n, tex_scan_integer(0, NULL));
+                                            tex_set_passes_okay(p, n, passes_orphanpenalty_okay);
+                                            break;
+                                        default:
+                                            tex_aux_show_keyword_error("orphanpenalty|orphanpenalties");
+                                            goto DONE;
+                                    }
+                                }
+                                break;
+                            case 'l': case 'L':
+                                if (tex_scan_mandate_keyword("orphanlinefactors", 7)) {
+                                    tex_set_passes_orphanlinefactors(p, n, tex_aux_scan_par_specification(orphan_line_factors_code, tex_aux_scan_specification_orphan_line_factors));
+                                    tex_set_passes_okay(p, n, passes_orphanlinefactors_okay);
+                                }
+                                break;
+                            default:
+                                tex_aux_show_keyword_error("orphanpenalty|orphanpenalties|orphanlinefactors");
+                                goto DONE;
+                        }
                     }
                     break;
                 case 'q': case 'Q':
@@ -715,70 +816,6 @@ static halfword tex_aux_scan_specification_par_passes(void)
                 /*tex We always want a result. */
                 passes_first_final(p) = quit == 1 ? 1 : quit - 1;
             }
-        }
-    }
-    return p;
-}
-
-static halfword tex_aux_scan_specification_penalties(quarterword code)
-{
-    halfword p = null;
-    halfword count = tex_scan_integer(1, NULL);
-    int pairs = 0;
-    switch (code) { 
-        case broken_penalties_code: 
-            if (count > 1) {
-                tex_handle_error(
-                    normal_error_type,
-                    "count has to be 1 for \\brokenpenalties",
-                    NULL
-                );
-                count = 1;
-            }
-        case club_penalties_code: 
-        case widow_penalties_code: 
-        case display_widow_penalties_code: 
-            pairs = 1;
-     /* case inter_line_penalties_code: */
-     /* case orphan_penalties_code: */
-     /* case math_forward_penalties_code: */
-     /* case math_backward_penalties_code: */
-    }
-    if (count != 0) { 
-     // halfword options = tex_scan_partial_keyword("options") ? tex_scan_integer(0, NULL) : 0;
-        halfword options = tex_aux_scan_specification_options(code);
-        int pair = pairs ? specification_option_double(options) : 0;
-        if (count == 1 || count == -1) {
-            halfword nepalty = pair ? tex_scan_integer(0, NULL) : 0;
-            halfword penalty = tex_scan_integer(0, NULL);
-            if (penalty || nepalty) {
-                if (count == -1) { 
-                    options |= specification_option_final;
-                    count = 1; 
-                }
-                p = tex_new_specification_node(0, code, options);
-                specification_count(p) = count;
-                tex_set_specification_nepalty(p, 0, nepalty); 
-                tex_set_specification_penalty(p, 0, penalty);
-            }
-        } else if (count > 0) {
-            int final = specification_option_final(options);
-            p = tex_new_specification_node(final ? count + 1 : count, code, options);
-            for (int n = 1; n <= count; n++) {
-                if (pair) {
-                    tex_set_specification_nepalty(p, n, tex_scan_integer(0, NULL)); 
-                }
-                tex_set_specification_penalty(p, n, tex_scan_integer(0, NULL)); 
-            }
-            if (final) { 
-                if (pair) {
-                    tex_set_specification_nepalty(p, count + 1, 0); 
-                }
-                tex_set_specification_penalty(p, count + 1, 0);
-            }
-        }
-        if (p && ! pair) { 
-            tex_remove_specification_option(p, specification_option_double);
         }
     }
     return p;

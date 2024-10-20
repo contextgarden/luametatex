@@ -147,6 +147,9 @@ typedef enum node_types {
     passive_node,
 } node_types;
 
+# define first_nodetype hlist_node
+# define last_nodetype  passive_node
+
  /*tex The largest node is now |par_node| which need 32 slots. */
 
 # define max_chain_size       40
@@ -2455,6 +2458,7 @@ typedef enum par_codes {                   /* extrahyphenpenalty : in parpass   
     par_orphan_penalties_code,
     par_fitness_classes_code,              /* parpass */
     par_adjacent_demerits_code,            /* parpass */
+    par_orphan_line_factors_code,          /* parpass */
     par_baseline_skip_code,
     par_line_skip_code,
     par_line_skip_limit_code,
@@ -2552,6 +2556,7 @@ static int par_category_to_codes[] = {
     par_orphan_penalty_category,      // par_orphan_penalties_code
     par_fitness_classes_category,     // par_fitness_classes_code
     par_demerits_category,            // par_adjacent_demerits_code
+    par_orphan_penalty_category,      
     par_line_category,                // par_baseline_skip_code
     par_line_category,                // par_line_skip_code
     par_line_category,                // par_line_skip_limit_code
@@ -2638,7 +2643,7 @@ static int par_category_to_codes[] = {
 # define par_ex_hyphen_penalty(a)        vlink(a,33)
 # define par_left_twin_demerits(a)       vinfo(a,33)
 # define par_right_twin_demerits(a)      vlink(a,34)
-# define par_yet_unused(a)               vinfo(a,34)
+# define par_orphan_line_factors(a)      vinfo(a,34)
 
 /*
     At some point we will have this (array with double values), depends on the outcome of an  

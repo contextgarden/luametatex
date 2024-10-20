@@ -824,6 +824,7 @@ typedef struct line_break_properties {
     halfword right_twin_demerits;
     halfword fitness_classes;
     halfword adjacent_demerits;
+    halfword orphan_line_factors;
     halfword broken_penalty;
     halfword broken_penalties;
     halfword baseline_skip;

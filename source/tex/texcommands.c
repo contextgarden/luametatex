@@ -678,6 +678,7 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "brokenpenalties",                specification_cmd,      broken_penalties_code,                    internal_specification_base);
         tex_primitive(luatex_command, "fitnessclasses",                 specification_cmd,      fitness_classes_code,                     internal_specification_base);
         tex_primitive(luatex_command, "adjacentdemerits",               specification_cmd,      adjacent_demerits_code,                   internal_specification_base);
+        tex_primitive(luatex_command, "orphanlinefactors",              specification_cmd,      orphan_line_factors_code,                 internal_specification_base);
 
         tex_primitive(etex_command,   "detokenize",                     the_cmd,                detokenize_code,                          0); /* maybe convert_cmd */
         tex_primitive(luatex_command, "expandeddetokenize",             the_cmd,                expanded_detokenize_code,                 0); /* maybe convert_cmd */

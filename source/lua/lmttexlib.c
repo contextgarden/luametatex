@@ -4005,6 +4005,7 @@ static int texlib_linebreak(lua_State *L)
         get_penalties_par(properties.orphan_penalties,             orphanpenalties,           tex_get_par_par(par, par_orphan_penalties_code), orphan_penalties_code);
         get_demerits_par (properties.fitness_classes,              fitnessclasses,            tex_get_par_par(par, par_fitness_classes_code), fitness_classes_code);
         get_demerits_par (properties.adjacent_demerits,            adjacentdemerits,          tex_get_par_par(par, par_adjacent_demerits_code), adjacent_demerits_code);
+        get_demerits_par (properties.orphan_line_factors,          orphanlinefactors,         tex_get_par_par(par, par_orphan_line_factors_code), orphan_line_factors_code);
         get_penalties_par(properties.par_passes,                   parpasses,                 line_break_passes_par > 0 ? tex_get_par_par(par, par_par_passes_code) : null, par_passes_code);
         get_integer_par  (properties.line_break_checks,            linebreakchecks,           tex_get_par_par(par, par_line_break_checks_code));
         get_integer_par  (properties.line_break_optional,          linebreakoptional,         line_break_optional_par); /* hm */
@@ -4079,6 +4080,7 @@ static int texlib_linebreak(lua_State *L)
         if (properties.orphan_penalties        != tex_get_par_par(par, par_orphan_penalties_code))        { tex_flush_node(properties.orphan_penalties); }
         if (properties.fitness_classes         != tex_get_par_par(par, par_fitness_classes_code))         { tex_flush_node(properties.fitness_classes); }
         if (properties.adjacent_demerits       != tex_get_par_par(par, par_adjacent_demerits_code))       { tex_flush_node(properties.adjacent_demerits); }
+        if (properties.orphan_line_factors     != tex_get_par_par(par, par_orphan_line_factors_code))     { tex_flush_node(properties.orphan_line_factors); }
         return 2;
     } else { 
         tex_formatted_warning("linebreak", "[ par ... ] expected");

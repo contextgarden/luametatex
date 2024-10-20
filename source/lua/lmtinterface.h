@@ -1012,6 +1012,7 @@ make_lua_key(L, options);\
 make_lua_key(L, ordinary);\
 make_lua_key(L, orientation);\
 make_lua_key(L, original);\
+make_lua_key(L, orphanlinefactors);\
 make_lua_key(L, orphanpenalties);\
 make_lua_key(L, orphanpenalty);\
 make_lua_key(L, other_char);\

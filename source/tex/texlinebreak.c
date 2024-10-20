@@ -149,6 +149,7 @@ linebreak_state_info lmt_linebreak_state = {
     .n_of_right_twins             = 0,
     .n_of_double_twins            = 0,
     .internal_par_node            = null,
+    .current_line_number          = 0,
 };
 
 /*tex
@@ -372,9 +373,10 @@ void tex_line_break(int group_context, int par_context, int display_math)
                     .single_line_penalty     = tex_get_par_par(par, par_single_line_penalty_code),
                     .hyphen_penalty          = tex_get_par_par(par, par_hyphen_penalty_code),
                     .ex_hyphen_penalty       = tex_get_par_par(par, par_ex_hyphen_penalty_code),
-                    .orphan_penalties        = tex_get_par_par(par, par_orphan_penalties_code),
                     .fitness_classes         = tex_get_par_par(par, par_fitness_classes_code),
                     .adjacent_demerits       = tex_get_par_par(par, par_adjacent_demerits_code),
+                    .orphan_line_factors     = tex_get_par_par(par, par_orphan_line_factors_code),
+                    .orphan_penalties        = tex_get_par_par(par, par_orphan_penalties_code),
                     .broken_penalty          = tex_get_par_par(par, par_broken_penalty_code),
                     .baseline_skip           = tex_get_par_par(par, par_baseline_skip_code),
                     .line_skip               = tex_get_par_par(par, par_line_skip_code),
@@ -2186,6 +2188,7 @@ static scaled tex_aux_try_break(
             that |r = active| and |line_number (active) > old_l|.
 
         */
+lmt_linebreak_state.current_line_number = line; /* we could just use this variable */
         line = active_line_number(current);
         if (line > old_line) {
             /*tex Now we are no longer in the inner loop (well ...). */
@@ -3524,6 +3527,12 @@ static int tex_aux_set_sub_pass_parameters(
             properties->adjacent_demerits = tex_get_passes_adjacentdemerits(passes, subpass);
             tex_aux_set_adjacent_demerits(properties);
         }
+        if (okay & passes_orphanlinefactors_okay) { 
+            properties->orphan_line_factors = tex_get_passes_orphanlinefactors(passes, subpass);
+        }
+        if (okay & passes_orphanpenalties_okay) { 
+            properties->orphan_penalties = tex_get_passes_orphanpenalties(passes, subpass);
+        }
         if (okay & passes_fitnessclasses_okay) { /* currenty also syncs with adj */
             if (tex_get_passes_fitnessclasses(passes, subpass)) { /* for now */
                 properties->fitness_classes = tex_get_passes_fitnessclasses(passes, subpass);
@@ -3600,7 +3609,7 @@ static int tex_aux_set_sub_pass_parameters(
     */
     tex_aux_remove_special_penalties(properties);
     /* todo : set plural in par pass */
-    if (okay & passes_orphanpenalty_okay) { 
+    if ((okay & passes_orphanpenalty_okay) || (okay & passes_orphanpenalties_okay)) { 
         tex_aux_set_orphan_penalties(properties, 1);
     }
     if (okay & passes_toddlerpenalty_okay) { 
@@ -3666,7 +3675,6 @@ static int tex_aux_set_sub_pass_parameters(
             }
             tex_print_str(" ]");
         }
-        tex_print_str("\n");
         tex_print_str("  --------------------------------\n");
         tex_print_format("%s emergencyoriginal    %p\n", is_okay(passes_emergencystretch_okay),     properties->emergency_original);
         tex_print_format("%s emergencystretch     %p\n", is_okay(passes_emergencystretch_okay),     properties->emergency_stretch);
@@ -3691,8 +3699,32 @@ static int tex_aux_set_sub_pass_parameters(
         tex_print_str("  --------------------------------\n");
         tex_print_format("%s linepenalty          %i\n", is_okay(passes_linepenalty_okay),          properties->line_penalty);
         tex_print_format("%s extrahyphenpenalty   %i\n", is_okay(passes_extrahyphenpenalty_okay),   properties->extra_hyphen_penalty);
-        tex_print_format("%s orphanpenalty        %i\n", is_okay(passes_orphanpenalty_okay),        properties->orphan_penalty);
         tex_print_format("%s toddlerpenalty       %i\n", is_okay(passes_toddlerpenalty_okay),       properties->toddler_penalty);
+        tex_print_str("  --------------------------------\n");
+        if (tex_get_specification_count(properties->orphan_penalties) > 0) {
+            tex_print_format("%s orphanpenalties      %i", is_okay(passes_orphanpenalties_okay),    tex_get_specification_count(properties->orphan_penalties));
+            tex_print_str(" [");
+            for (halfword c = 1; c <= tex_get_specification_count(properties->orphan_penalties); c++) { 
+                tex_print_format(" %i", 
+                    tex_get_specification_penalty(properties->orphan_penalties, c)
+                );
+            }
+            tex_print_str(" ]");
+            tex_print_str("\n");
+        } else { 
+            tex_print_format("%s orphanpenalty        %i\n", is_okay(passes_orphanpenalty_okay),        properties->orphan_penalty);
+        }
+        tex_print_format("%s orphanlinefactors    %i",   is_okay(passes_orphanlinefactors_okay),    tex_get_specification_count(properties->orphan_line_factors));
+        if (tex_get_specification_count(properties->orphan_line_factors) > 0) {
+            tex_print_str(" [");
+            for (halfword c = 1; c <= tex_get_specification_count(properties->orphan_line_factors); c++) { 
+                tex_print_format(" %i", 
+                    tex_get_specification_penalty(properties->orphan_line_factors, c)
+                );
+            }
+            tex_print_str(" ]");
+        }
+        tex_print_str("\n");
         tex_print_str("  --------------------------------\n");
         tex_print_format("%s linebreakchecks      %i\n", is_okay(passes_linebreakchecks_okay),      properties->line_break_checks);
         tex_print_format("%s linebreakoptional    %i\n", is_okay(passes_linebreakoptional_okay),    properties->line_break_optional);
@@ -4260,6 +4292,15 @@ static inline halfword tex_aux_break_list(const line_break_properties *propertie
                             }
                             break;
                     } 
+                    if (properties->orphan_line_factors && node_subtype(current) == orphan_penalty_subtype) { 
+                        if (lmt_linebreak_state.current_line_number == max_halfword) { 
+                              /*tex This is kind of weird. */
+                        } else {
+                            int factor = tex_get_specification_penalty(properties->orphan_line_factors, lmt_linebreak_state.current_line_number);
+                            /* todo tracing */
+                            penalty = tex_xn_over_d(penalty, factor, scaling_factor);
+                        } 
+                    } 
                     tex_aux_try_break(properties, penalty, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                     break;
                 }
@@ -4267,7 +4308,7 @@ static inline halfword tex_aux_break_list(const line_break_properties *propertie
                 {
                     /*tex
                         There used to a ! is_char_node(node_next(cur_p)) test here but I'm
-                        not sure whay that is.
+                        not sure what that is.
                     */
                     switch (node_subtype(current)) {
                         case begin_inline_math:
@@ -4400,6 +4441,7 @@ static void tex_aux_report_fitness_classes(const line_break_properties *properti
     }
     tex_end_diagnostic();
 }
+
 static void tex_aux_report_adjacent_demerits(const line_break_properties *properties, int pass, int subpass)
 {
     tex_begin_diagnostic();
@@ -4413,6 +4455,17 @@ static void tex_aux_report_adjacent_demerits(const line_break_properties *proper
     tex_end_diagnostic();
 }
 
+static void tex_aux_report_orphan_line_factors(const line_break_properties *properties, int pass, int subpass)
+{
+    tex_begin_diagnostic();
+    tex_print_format("[linebreak: orphanlinefactors, pass %i, subpass %i]\n", pass, subpass);
+    for (halfword c = 1; c <= tex_get_specification_count(properties->orphan_line_factors); c++) { 
+        tex_print_format("%l  %i : %i\n", c,
+            tex_get_specification_penalty(properties->orphan_line_factors, c)
+        );
+    }
+    tex_end_diagnostic();
+}
 
 static void tex_aux_fix_prev_graf(void)
 {
@@ -4872,6 +4925,10 @@ void tex_do_line_break(line_break_properties *properties)
         {
             halfword line = 1;
             scaled line_width;
+
+lmt_linebreak_state.current_line_number = line; /* we could just use this variable */
+
+
             if (line > lmt_linebreak_state.easy_line) {
                 line_width = lmt_linebreak_state.second_width;
             } else if (line > lmt_linebreak_state.last_special_line) {

@@ -33,7 +33,7 @@ typedef enum specification_option_flags {
 
 // static inline halfword specification_n(halfword a, halfword n) { return specification_repeat(a) ? ((n - 1) % specification_count(a) + 1) : (n > specification_count(a) ? specification_count(a) : n); }
 
-# define par_passes_size 19
+# define par_passes_size 20
 
 # define par_passes_slot(n,m) ((n-1)*par_passes_size+m)
 
@@ -254,22 +254,22 @@ typedef enum passes_parameter_okay {
     passes_finalhyphendemerits_okay  = 0x00040000,
     passes_adjdemerits_okay          = 0x00080000, /*tex common */
     passes_adjacentdemerits_okay     = 0x00080000, /*tex common */
-    passes_fitnessclasses_okay       = 0x00100000,
-    passes_linebreakchecks_okay      = 0x00200000,
-    passes_linebreakoptional_okay    = 0x00400000,
-    passes_sffactor_okay             = 0x00800000, 
-    passes_sfstretchfactor_okay      = 0x01000000, 
+    passes_orphanpenalties_okay      = 0x00100000,
+    passes_orphanlinefactors_okay    = 0x00200000,
+    passes_fitnessclasses_okay       = 0x00400000,
+    passes_linebreakchecks_okay      = 0x00800000,
+    passes_linebreakoptional_okay    = 0x01000000,
+    passes_sffactor_okay             = 0x02000000, 
+    passes_sfstretchfactor_okay      = 0x04000000, 
     /* */
-    passes_callback_okay             = 0x02000000,
+    passes_callback_okay             = 0x08000000,
     /* */
-    passes_mathpenaltyfactor_okay    = 0x04000000,
+    passes_mathpenaltyfactor_okay    = 0x10000000,
     /* */
-    passes_looseness_okay            = 0x08000000,
+    passes_looseness_okay            = 0x20000000,
     /* */
-    passes_reserved_1_okay           = 0x10000000,
-    passes_reserved_2_okay           = 0x20000000,
-    passes_reserved_3_okay           = 0x40000000,
-    passes_reserved_4_okay           = 0x80000000,
+    passes_reserved_1_okay           = 0x40000000,
+    passes_reserved_2_okay           = 0x80000000,
     /*tex Watch out: the following options exceed halfword: |noad_options| are |long long|. */
 } passes_parameters_okay;
 
@@ -305,6 +305,8 @@ static const uint64_t passes_additional_okay =
   | passes_finalhyphendemerits_okay
   | passes_adjdemerits_okay
   | passes_adjacentdemerits_okay
+  | passes_orphanpenalties_okay
+  | passes_orphanlinefactors_okay
   | passes_fitnessclasses_okay
   | passes_linebreakchecks_okay
   | passes_linebreakoptional_okay
@@ -346,7 +348,8 @@ static inline void     tex_set_passes_emergencywidthextra  (halfword a, halfword
 static inline void     tex_set_passes_sffactor             (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,17)).half0    = v; }
 static inline void     tex_set_passes_sfstretchfactor      (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,17)).half1    = v; }
 static inline void     tex_set_passes_looseness            (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,18)).half0    = v; }
-static inline void     tex_set_passes_reserved             (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,18)).half1    = v; }
+static inline void     tex_set_passes_orphanlinefactors    (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,18)).half1    = v; }
+static inline void     tex_set_passes_orphanpenalties      (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,19)).half0    = v; }
 
 static inline uint64_t tex_get_passes_okay                 (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 1)).long0;   }
 static inline halfword tex_get_passes_features             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 2)).quart00; }
@@ -383,7 +386,8 @@ static inline halfword tex_get_passes_emergencywidthextra  (halfword a, halfword
 static inline halfword tex_get_passes_sffactor             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,17)).half0;   }
 static inline halfword tex_get_passes_sfstretchfactor      (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,17)).half1;   }
 static inline halfword tex_get_passes_looseness            (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,18)).half0;   }
-static inline halfword tex_get_passes_reserved             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,18)).half1;   }
+static inline halfword tex_get_passes_orphanlinefactors    (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,18)).half1;   }
+static inline halfword tex_get_passes_orphanpenalties      (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,19)).half0;   }
 
 extern        halfword tex_new_specification_node          (halfword n, quarterword s, halfword options);
 extern        void     tex_dispose_specification_nodes     (void);

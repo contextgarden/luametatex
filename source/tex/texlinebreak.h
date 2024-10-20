@@ -146,6 +146,7 @@ typedef struct linebreak_state_info {
     halfword     emergency_right_skip;
     int          artificial_encountered; 
     halfword     inject_after_par;
+    int          current_line_number; 
 } linebreak_state_info;
 
 extern linebreak_state_info lmt_linebreak_state;
