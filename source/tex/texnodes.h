@@ -442,7 +442,7 @@ typedef enum attribute_subtypes {
 # define penalty_amount(a)   vlink(a,2)
 # define penalty_options(a)  vinfo(a,2)
 # define penalty_tnuoma(a)   vlink(a,3)
-# define penalty_reserved(a) vinfo(a,3)
+# define penalty_used(a)     vinfo(a,3) /* used internally */
 
 static inline void tex_add_penalty_option    (halfword a, halfword r) { penalty_options(a) |= r; }
 static inline void tex_remove_penalty_option (halfword a, halfword r) { penalty_options(a) &= ~r; }
@@ -462,6 +462,7 @@ typedef enum penalty_option_codes {
     penalty_option_shaping       = 0x0200,
     penalty_option_double        = 0x0400,
     penalty_option_double_used   = 0x0800,
+    penalty_option_factor_used   = 0x1000,
 } penalty_option_codes; 
 
 typedef enum penalty_subtypes {

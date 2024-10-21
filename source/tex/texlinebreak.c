@@ -150,6 +150,8 @@ linebreak_state_info lmt_linebreak_state = {
     .n_of_double_twins            = 0,
     .internal_par_node            = null,
     .current_line_number          = 0,
+    .has_orphans                  = 0,
+    .has_toddlers                 = 0,   
 };
 
 /*tex
@@ -2188,7 +2190,7 @@ static scaled tex_aux_try_break(
             that |r = active| and |line_number (active) > old_l|.
 
         */
-lmt_linebreak_state.current_line_number = line; /* we could just use this variable */
+        lmt_linebreak_state.current_line_number = line; /* we could just use this variable */
         line = active_line_number(current);
         if (line > old_line) {
             /*tex Now we are no longer in the inner loop (well ...). */
@@ -2796,34 +2798,46 @@ lmt_linebreak_state.current_line_number = line; /* we could just use this variab
     return shortfall;
 }
 
-static halfword tex_aux_inject_orphan_penalty(halfword current, halfword amount, int orphaned)
+
+
+static halfword tex_aux_inject_orphan_penalty(const line_break_properties *properties, halfword current, halfword amount, int orphaned)
 {
     halfword prev = node_prev(current);
     if (prev && node_type(prev) != penalty_node) {
         halfword penalty = tex_new_penalty_node(amount, orphan_penalty_subtype);
         tex_couple_nodes(prev, penalty);
         tex_couple_nodes(penalty, current);
-printf("orphan %i\n",amount);
+        if (properties->tracing_paragraphs > 1) {
+            tex_begin_diagnostic();
+            tex_print_format("[linebreak: adding orphanpenalty %i]\n",amount);
+            tex_end_diagnostic();
+        }
         if (orphaned) {
             tex_add_penalty_option(penalty, penalty_option_orphaned);
         }
+        lmt_linebreak_state.has_orphans = 1;
         return prev;
     } else {
         return current;
     }
 }
 
-static halfword tex_aux_inject_toddler_penalty(halfword current, halfword amount, int toddlered)
+static halfword tex_aux_inject_toddler_penalty(const line_break_properties *properties, halfword current, halfword amount, int toddlered)
 {
     halfword prev = node_prev(current);
     if (prev && node_type(prev) != penalty_node) {
         halfword penalty = tex_new_penalty_node(amount, toddler_penalty_subtype);
         tex_couple_nodes(prev, penalty);
         tex_couple_nodes(penalty, current);
-printf("toddler %i\n",amount);
+        if (properties->tracing_paragraphs > 1) {
+            tex_begin_diagnostic();
+            tex_print_format("[linebreak: adding toddlerpenalty %i]\n",amount);
+            tex_end_diagnostic();
+        }
         if (toddlered) {
             tex_add_penalty_option(penalty, penalty_option_toddlered);
         }
+        lmt_linebreak_state.has_toddlers = 1;
         return prev;
     } else {
         return current;
@@ -3008,7 +3022,7 @@ static void tex_aux_quality_callback(
     also skip a penalty in the list.
 */
 
-static void tex_aux_remove_special_penalties(const line_break_properties *properties)
+static void tex_aux_remove_special_penalties(line_break_properties *properties)
 {
     halfword current = node_prev(properties->parfill_right_skip);
     while (current) {
@@ -3059,12 +3073,14 @@ static void tex_aux_remove_special_penalties(const line_break_properties *proper
         }
         current = prev;
     }
+    lmt_linebreak_state.has_orphans = 0;
+    lmt_linebreak_state.has_toddlers = 0;
 }
 
 static void tex_aux_apply_special_penalties(const line_break_properties *properties, halfword current, int state)
 {
     if (paragraph_has_math(state)) { 
-        halfword factor = properties->math_penalty_factor;
+        halfword factor = properties->math_penalty_factor; /* maybe also use penalty_used for this one but no room in math_node */
         if (factor) {
             while (current) {
                 switch (node_type(current)) {
@@ -3074,6 +3090,12 @@ static void tex_aux_apply_special_penalties(const line_break_properties *propert
                             case math_post_penalty_subtype: 
                                 if (penalty_amount(current)) { 
                                     penalty_amount(current) = tex_xn_over_d(penalty_amount(current), factor, scaling_factor);
+                                }
+                                break;
+                            case orphan_penalty_subtype:
+                            case toddler_penalty_subtype:
+                                if (tex_has_penalty_option(current, penalty_option_factor_used)) {
+                                    penalty_amount(current) = penalty_used(current);
                                 }
                                 break;
                         }
@@ -3086,6 +3108,20 @@ static void tex_aux_apply_special_penalties(const line_break_properties *propert
                 }
                 current = node_next(current);
             }
+        }
+    } else if (lmt_linebreak_state.has_toddlers || lmt_linebreak_state.has_orphans) { 
+        while (current) {
+            if (node_type(current) == penalty_node) {
+                switch (node_subtype(current)) { 
+                    case orphan_penalty_subtype:
+                    case toddler_penalty_subtype:
+                        if (tex_has_penalty_option(current, penalty_option_factor_used)) {
+                            penalty_amount(current) = penalty_used(current);
+                        }
+                        break;
+                }
+            }
+            current = node_next(current);
         }
     }
 }
@@ -3130,7 +3166,7 @@ static void tex_aux_set_toddler_penalties(const line_break_properties *propertie
                                 halfword nxt = node_next(current);
                                 if (nxt && node_type(nxt) == glyph_node && glyph_node_is_text(nxt) && tex_has_glyph_option(nxt, glyph_option_check_toddler)) {
                                      /* we have a glue + one glyph + glue + glyph */
-                                    current = tex_aux_inject_toddler_penalty(current, properties->toddler_penalty, toddlered);
+                                    current = tex_aux_inject_toddler_penalty(properties, current, properties->toddler_penalty, toddlered);
                                 }
                             } else { 
                                 count = 0;
@@ -3153,6 +3189,27 @@ count = -1;
             }
             current = node_next(current);
         }
+    }
+}
+
+static void tex_aux_check_competing_penalties(const line_break_properties *properties, halfword current, halfword penalty, int orphaned)
+{
+    if (penalty > penalty_amount(current)) { 
+        if (properties->tracing_paragraphs > 1) {
+            tex_begin_diagnostic();
+            tex_print_format("[linebreak: orphanpenalty %i wins over toddlerpenalty %i]\n", penalty, penalty_amount(current));
+            tex_end_diagnostic();
+        }
+        penalty_amount(current) = penalty;
+    } else {                             
+        if (properties->tracing_paragraphs > 1) {
+            tex_begin_diagnostic();
+            tex_print_format("[linebreak: toddlerpenalty %i wins over orphanpenalty %i]\n", penalty_amount(current), penalty);
+            tex_end_diagnostic();
+        }
+    }
+    if (orphaned && tex_has_penalty_option(current, penalty_option_toddlered)) {
+        tex_add_penalty_option(current, penalty_option_orphaned);
     }
 }
 
@@ -3193,7 +3250,7 @@ static void tex_aux_set_orphan_penalties(const line_break_properties *properties
                                         if (skip) {
                                             skip = 0;
                                         } else {
-                                            current = tex_aux_inject_orphan_penalty(current, tex_get_specification_penalty(properties->orphan_penalties, ++i), 0);
+                                            current = tex_aux_inject_orphan_penalty(properties, current, tex_get_specification_penalty(properties->orphan_penalties, ++i), 0);
                                         }
                                         if (i == n) {
                                             return;
@@ -3205,8 +3262,8 @@ static void tex_aux_set_orphan_penalties(const line_break_properties *properties
                             case math_node:
                                 current = tex_aux_backtrack_over_math(current);
                                 if (tex_aux_short_math(current)) {
-                                    halfword p = tex_get_specification_penalty(properties->orphan_penalties, ++i);
-                                    tex_aux_adapt_short_math_penalty(current, short_inline_orphan_penalty_par, p, 0);
+                                    halfword penalty = tex_get_specification_penalty(properties->orphan_penalties, ++i);
+                                    tex_aux_adapt_short_math_penalty(current, short_inline_orphan_penalty_par, penalty, 0);
                                     if (i == n) {
                                         return;
                                     } else {
@@ -3227,16 +3284,8 @@ static void tex_aux_set_orphan_penalties(const line_break_properties *properties
                                 break;
                             case penalty_node:
                                 if (node_subtype(current) == toddler_penalty_subtype) {
-                                    halfword p = tex_get_specification_penalty(properties->orphan_penalties, ++i);
-                                    if (p > penalty_amount(current)) { 
-printf("orphan %i wins over toddler %i\n",p,penalty_amount(current));
-                                        penalty_amount(current) = p;
-                                    } else { 
-printf("keep toddler %i\n",penalty_amount(current));
-                                    }
-if (tex_has_penalty_option(current, penalty_option_toddlered)) {
-    tex_add_penalty_option(current, penalty_option_orphaned);
-}
+                                    halfword penalty = tex_get_specification_penalty(properties->orphan_penalties, ++i);
+                                    tex_aux_check_competing_penalties(properties, current, penalty, orphaned);
                                 }
                                 break;
                             default:
@@ -3261,7 +3310,7 @@ if (tex_has_penalty_option(current, penalty_option_toddlered)) {
                                 case space_skip_glue:
                                 case xspace_skip_glue:
                                 case zero_space_skip_glue:
-                                    tex_aux_inject_orphan_penalty(current, properties->orphan_penalty, orphaned);
+                                    tex_aux_inject_orphan_penalty(properties, current, properties->orphan_penalty, orphaned);
                                     return;
                                 default:
                                     /* maybe we should always quit here */
@@ -3269,17 +3318,13 @@ if (tex_has_penalty_option(current, penalty_option_toddlered)) {
                             }
                             break;
                         case penalty_node:
-if (node_subtype(current) == toddler_penalty_subtype) {
-    halfword p = properties->orphan_penalty;
-    if (p > penalty_amount(current)) { 
-printf("orphan %i wins over toddler %i\n",p,penalty_amount(current));
-        penalty_amount(current) = p;
-    }
-} else {
-                            if (node_subtype(current) == orphan_penalty_subtype) {
-                                return;
+                            switch (node_subtype(current)) {
+                                case toddler_penalty_subtype:
+                                    tex_aux_check_competing_penalties(properties, current, properties->orphan_penalty, orphaned);
+                                    break;
+                                case orphan_penalty_subtype:
+                                    return;
                             }
-}
                             break;
                         case math_node:
                             current = tex_aux_backtrack_over_math(current);
@@ -4326,7 +4371,9 @@ static inline halfword tex_aux_break_list(const line_break_properties *propertie
                             /* todo tracing */
                             penalty = tex_xn_over_d(penalty, factor, scaling_factor);
                         } 
-                    } 
+                    }
+                    tex_add_penalty_option(current, penalty_option_factor_used);
+                    penalty_used(current) = penalty; 
                     tex_aux_try_break(properties, penalty, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                     break;
                 }
@@ -4476,18 +4523,6 @@ static void tex_aux_report_adjacent_demerits(const line_break_properties *proper
         tex_print_format("%l  %i : %i %i\n", c,
             tex_get_specification_adjacent_u(properties->adjacent_demerits, c),
             tex_get_specification_adjacent_d(properties->adjacent_demerits, c)
-        );
-    }
-    tex_end_diagnostic();
-}
-
-static void tex_aux_report_orphan_line_factors(const line_break_properties *properties, int pass, int subpass)
-{
-    tex_begin_diagnostic();
-    tex_print_format("[linebreak: orphanlinefactors, pass %i, subpass %i]\n", pass, subpass);
-    for (halfword c = 1; c <= tex_get_specification_count(properties->orphan_line_factors); c++) { 
-        tex_print_format("%l  %i : %i\n", c,
-            tex_get_specification_penalty(properties->orphan_line_factors, c)
         );
     }
     tex_end_diagnostic();
@@ -4776,6 +4811,8 @@ void tex_do_line_break(line_break_properties *properties)
     lmt_linebreak_state.emergency_left_extra = 0;
     lmt_linebreak_state.emergency_right_amount = 0;
     lmt_linebreak_state.emergency_right_extra = 0;
+    lmt_linebreak_state.has_orphans = 0;
+    lmt_linebreak_state.has_toddlers = 0;
     for (int i = 0; i < max_n_of_fitness_values; i++) {
         lmt_linebreak_state.minimal_demerits[i] = awful_bad;
     }

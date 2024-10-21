@@ -5123,6 +5123,7 @@ static int texlib_getpenaltyoptionvalues(lua_State *L)
     lua_set_string_by_index(L, penalty_option_shaping,       "shaping");
     lua_set_string_by_index(L, penalty_option_double,        "double");
     lua_set_string_by_index(L, penalty_option_double_used,   "doubleused");
+    lua_set_string_by_index(L, penalty_option_factor_used,   "factorused");
     return 1;
 }
 
