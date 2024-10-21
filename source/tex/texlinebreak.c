@@ -2798,15 +2798,16 @@ lmt_linebreak_state.current_line_number = line; /* we could just use this variab
 
 static halfword tex_aux_inject_orphan_penalty(halfword current, halfword amount, int orphaned)
 {
-    halfword previous = node_prev(current);
-    if (previous && node_type(previous) != penalty_node) {
+    halfword prev = node_prev(current);
+    if (prev && node_type(prev) != penalty_node) {
         halfword penalty = tex_new_penalty_node(amount, orphan_penalty_subtype);
-        tex_couple_nodes(previous, penalty);
+        tex_couple_nodes(prev, penalty);
         tex_couple_nodes(penalty, current);
+printf("orphan %i\n",amount);
         if (orphaned) {
             tex_add_penalty_option(penalty, penalty_option_orphaned);
         }
-        return previous;
+        return prev;
     } else {
         return current;
     }
@@ -2814,15 +2815,16 @@ static halfword tex_aux_inject_orphan_penalty(halfword current, halfword amount,
 
 static halfword tex_aux_inject_toddler_penalty(halfword current, halfword amount, int toddlered)
 {
-    halfword previous = node_prev(current);
-    if (previous && node_type(previous) != penalty_node) {
+    halfword prev = node_prev(current);
+    if (prev && node_type(prev) != penalty_node) {
         halfword penalty = tex_new_penalty_node(amount, toddler_penalty_subtype);
-        tex_couple_nodes(previous, penalty);
+        tex_couple_nodes(prev, penalty);
         tex_couple_nodes(penalty, current);
+printf("toddler %i\n",amount);
         if (toddlered) {
             tex_add_penalty_option(penalty, penalty_option_toddlered);
         }
-        return previous;
+        return prev;
     } else {
         return current;
     }
@@ -3136,6 +3138,7 @@ static void tex_aux_set_toddler_penalties(const line_break_properties *propertie
                             break;
                         default: 
                             --count; 
+count = -1; 
                             break;
                     }
                     break;
@@ -3146,6 +3149,7 @@ static void tex_aux_set_toddler_penalties(const line_break_properties *propertie
                     break;
                 default:
                     --count; 
+count = -1; 
             }
             current = node_next(current);
         }
@@ -3221,6 +3225,20 @@ static void tex_aux_set_orphan_penalties(const line_break_properties *properties
                                     }
                                 }
                                 break;
+                            case penalty_node:
+                                if (node_subtype(current) == toddler_penalty_subtype) {
+                                    halfword p = tex_get_specification_penalty(properties->orphan_penalties, ++i);
+                                    if (p > penalty_amount(current)) { 
+printf("orphan %i wins over toddler %i\n",p,penalty_amount(current));
+                                        penalty_amount(current) = p;
+                                    } else { 
+printf("keep toddler %i\n",penalty_amount(current));
+                                    }
+if (tex_has_penalty_option(current, penalty_option_toddlered)) {
+    tex_add_penalty_option(current, penalty_option_orphaned);
+}
+                                }
+                                break;
                             default:
                                 skip = 0;
                                 break;
@@ -3251,9 +3269,17 @@ static void tex_aux_set_orphan_penalties(const line_break_properties *properties
                             }
                             break;
                         case penalty_node:
+if (node_subtype(current) == toddler_penalty_subtype) {
+    halfword p = properties->orphan_penalty;
+    if (p > penalty_amount(current)) { 
+printf("orphan %i wins over toddler %i\n",p,penalty_amount(current));
+        penalty_amount(current) = p;
+    }
+} else {
                             if (node_subtype(current) == orphan_penalty_subtype) {
                                 return;
                             }
+}
                             break;
                         case math_node:
                             current = tex_aux_backtrack_over_math(current);
@@ -3609,11 +3635,11 @@ static int tex_aux_set_sub_pass_parameters(
     */
     tex_aux_remove_special_penalties(properties);
     /* todo : set plural in par pass */
-    if ((okay & passes_orphanpenalty_okay) || (okay & passes_orphanpenalties_okay)) { 
-        tex_aux_set_orphan_penalties(properties, 1);
-    }
     if (okay & passes_toddlerpenalty_okay) { 
         tex_aux_set_toddler_penalties(properties, 1);
+    }
+    if ((okay & passes_orphanpenalty_okay) || (okay & passes_orphanpenalties_okay)) { 
+        tex_aux_set_orphan_penalties(properties, 1);
     }
     /* */
     if (details) {
@@ -3636,16 +3662,16 @@ static int tex_aux_set_sub_pass_parameters(
             if (features & passes_unless_math)          { tex_print_format("  unless math          true\n"); }
         }
         tex_print_str("  --------------------------------\n");
-        tex_print_format("%s threshold            %p\n", is_okay(passes_threshold_okay),            tex_get_passes_threshold(passes, subpass));
-        tex_print_format("%s demerits             %i\n", is_okay(passes_demerits_okay),             tex_get_passes_demerits(passes, subpass));
-        tex_print_format("%s classes              %X\n", is_okay(passes_classes_okay),              tex_get_passes_classes(passes, subpass));
+        tex_print_format("%s threshold            %p\n", is_okay(passes_threshold_okay), tex_get_passes_threshold(passes, subpass));
+        tex_print_format("%s demerits             %i\n", is_okay(passes_demerits_okay), tex_get_passes_demerits(passes, subpass));
+        tex_print_format("%s classes              %X\n", is_okay(passes_classes_okay), tex_get_passes_classes(passes, subpass));
         tex_print_str("  --------------------------------\n");
-        tex_print_format("%s tolerance            %i\n", is_okay(passes_tolerance_okay),            properties->tolerance);
-        tex_print_format("%s hyphenation          %s\n", is_okay(passes_hyphenation_okay),          lmt_linebreak_state.force_check_hyphenation ? "true": "false");
-        tex_print_format("%s looseness            %i\n", is_okay(passes_looseness_okay),            properties->looseness);
+        tex_print_format("%s tolerance            %i\n", is_okay(passes_tolerance_okay), properties->tolerance);
+        tex_print_format("%s hyphenation          %s\n", is_okay(passes_hyphenation_okay), lmt_linebreak_state.force_check_hyphenation ? "true": "false");
+        tex_print_format("%s looseness            %i\n", is_okay(passes_looseness_okay), properties->looseness);
         tex_print_str("  --------------------------------\n");
-        tex_print_format("%s adjdemerits          %i\n", is_okay(passes_adjdemerits_okay),          properties->adj_demerits);
-        tex_print_format("%s adjacentdemerits     %i",   is_okay(passes_adjdemerits_okay),          tex_get_specification_count(properties->adjacent_demerits));
+        tex_print_format("%s adjdemerits          %i\n", is_okay(passes_adjdemerits_okay), properties->adj_demerits);
+        tex_print_format("%s adjacentdemerits     %i",   is_okay(passes_adjdemerits_okay), tex_get_specification_count(properties->adjacent_demerits));
         if (tex_get_specification_count(properties->adjacent_demerits) > 0) {
             if (specification_size(properties->adjacent_demerits)) {
                 for (halfword c = 1; c <= tex_get_specification_count(properties->adjacent_demerits); c++) { 
@@ -3665,7 +3691,7 @@ static int tex_aux_set_sub_pass_parameters(
             );
         }
         tex_print_str("\n");
-        tex_print_format("%s fitnessclasses       %i",   is_okay(passes_fitnessclasses_okay),       tex_get_specification_count(properties->fitness_classes));
+        tex_print_format("%s fitnessclasses       %i",   is_okay(passes_fitnessclasses_okay), tex_get_specification_count(properties->fitness_classes));
         if (tex_get_specification_count(properties->fitness_classes) > 0) {
             tex_print_str(" [");
             for (halfword c = 1; c <= tex_get_specification_count(properties->fitness_classes); c++) { 
@@ -3676,33 +3702,33 @@ static int tex_aux_set_sub_pass_parameters(
             tex_print_str(" ]");
         }
         tex_print_str("  --------------------------------\n");
-        tex_print_format("%s emergencyoriginal    %p\n", is_okay(passes_emergencystretch_okay),     properties->emergency_original);
-        tex_print_format("%s emergencystretch     %p\n", is_okay(passes_emergencystretch_okay),     properties->emergency_stretch);
-        tex_print_format("%s emergencyfactor      %i\n", is_okay(passes_emergencyfactor_okay),      tex_get_passes_emergencyfactor(passes, subpass));
-        tex_print_format("%s emergencypercentage  %i\n", is_okay(passes_emergencypercentage_okay),  lmt_linebreak_state.emergency_percentage);
-        tex_print_format("%s emergencyleftextra   %i\n", is_okay(passes_emergencyleftextra_okay),   lmt_linebreak_state.emergency_left_extra);
-        tex_print_format("%s emergencyrightextra  %i\n", is_okay(passes_emergencyrightextra_okay),  lmt_linebreak_state.emergency_right_extra);
+        tex_print_format("%s emergencyoriginal    %p\n", is_okay(passes_emergencystretch_okay), properties->emergency_original);
+        tex_print_format("%s emergencystretch     %p\n", is_okay(passes_emergencystretch_okay), properties->emergency_stretch);
+        tex_print_format("%s emergencyfactor      %i\n", is_okay(passes_emergencyfactor_okay), tex_get_passes_emergencyfactor(passes, subpass));
+        tex_print_format("%s emergencypercentage  %i\n", is_okay(passes_emergencypercentage_okay), lmt_linebreak_state.emergency_percentage);
+        tex_print_format("%s emergencyleftextra   %i\n", is_okay(passes_emergencyleftextra_okay), lmt_linebreak_state.emergency_left_extra);
+        tex_print_format("%s emergencyrightextra  %i\n", is_okay(passes_emergencyrightextra_okay), lmt_linebreak_state.emergency_right_extra);
         tex_print_str("  --------------------------------\n");
         tex_print_format("%s mathpenaltyfactor    %i\n", is_okay(passes_mathpenaltyfactor_okay),    properties->math_penalty_factor);
         tex_print_str("  --------------------------------\n");
-        tex_print_format("%s sffactor             %i\n", is_okay(passes_sffactor_okay),             properties->sf_factor);
-        tex_print_format("%s sfstretchfactor      %i\n", is_okay(passes_sfstretchfactor_okay),      properties->sf_stretch_factor);
+        tex_print_format("%s sffactor             %i\n", is_okay(passes_sffactor_okay), properties->sf_factor);
+        tex_print_format("%s sfstretchfactor      %i\n", is_okay(passes_sfstretchfactor_okay), properties->sf_stretch_factor);
         tex_print_str("  --------------------------------\n");
-        tex_print_format("%s adjustspacingstep    %i\n", is_okay(passes_adjustspacingstep_okay),    properties->adjust_spacing_step);
-        tex_print_format("%s adjustspacingshrink  %i\n", is_okay(passes_adjustspacingshrink_okay),  properties->adjust_spacing_shrink);
+        tex_print_format("%s adjustspacingstep    %i\n", is_okay(passes_adjustspacingstep_okay), properties->adjust_spacing_step);
+        tex_print_format("%s adjustspacingshrink  %i\n", is_okay(passes_adjustspacingshrink_okay), properties->adjust_spacing_shrink);
         tex_print_format("%s adjustspacingstretch %i\n", is_okay(passes_adjustspacingstretch_okay), properties->adjust_spacing_stretch);
         tex_print_str("  --------------------------------\n");
         tex_print_format("%s doublehyphendemerits %i\n", is_okay(passes_doublehyphendemerits_okay), properties->double_hyphen_demerits);
-        tex_print_format("%s finalhyphendemerits  %i\n", is_okay(passes_finalhyphendemerits_okay),  properties->final_hyphen_demerits);
-        tex_print_format("%s lefttwindemerits     %i\n", is_okay(passes_lefttwindemerits_okay),     properties->left_twin_demerits);
-        tex_print_format("%s righttwindemerits    %i\n", is_okay(passes_righttwindemerits_okay),    properties->right_twin_demerits);
+        tex_print_format("%s finalhyphendemerits  %i\n", is_okay(passes_finalhyphendemerits_okay), properties->final_hyphen_demerits);
+        tex_print_format("%s lefttwindemerits     %i\n", is_okay(passes_lefttwindemerits_okay), properties->left_twin_demerits);
+        tex_print_format("%s righttwindemerits    %i\n", is_okay(passes_righttwindemerits_okay), properties->right_twin_demerits);
         tex_print_str("  --------------------------------\n");
-        tex_print_format("%s linepenalty          %i\n", is_okay(passes_linepenalty_okay),          properties->line_penalty);
-        tex_print_format("%s extrahyphenpenalty   %i\n", is_okay(passes_extrahyphenpenalty_okay),   properties->extra_hyphen_penalty);
-        tex_print_format("%s toddlerpenalty       %i\n", is_okay(passes_toddlerpenalty_okay),       properties->toddler_penalty);
+        tex_print_format("%s linepenalty          %i\n", is_okay(passes_linepenalty_okay), properties->line_penalty);
+        tex_print_format("%s extrahyphenpenalty   %i\n", is_okay(passes_extrahyphenpenalty_okay),properties->extra_hyphen_penalty);
+        tex_print_format("%s toddlerpenalty       %i\n", is_okay(passes_toddlerpenalty_okay), properties->toddler_penalty);
         tex_print_str("  --------------------------------\n");
         if (tex_get_specification_count(properties->orphan_penalties) > 0) {
-            tex_print_format("%s orphanpenalties      %i", is_okay(passes_orphanpenalties_okay),    tex_get_specification_count(properties->orphan_penalties));
+            tex_print_format("%s orphanpenalties      %i", is_okay(passes_orphanpenalties_okay), tex_get_specification_count(properties->orphan_penalties));
             tex_print_str(" [");
             for (halfword c = 1; c <= tex_get_specification_count(properties->orphan_penalties); c++) { 
                 tex_print_format(" %i", 
@@ -3712,9 +3738,9 @@ static int tex_aux_set_sub_pass_parameters(
             tex_print_str(" ]");
             tex_print_str("\n");
         } else { 
-            tex_print_format("%s orphanpenalty        %i\n", is_okay(passes_orphanpenalty_okay),        properties->orphan_penalty);
+            tex_print_format("%s orphanpenalty        %i\n", is_okay(passes_orphanpenalty_okay), properties->orphan_penalty);
         }
-        tex_print_format("%s orphanlinefactors    %i",   is_okay(passes_orphanlinefactors_okay),    tex_get_specification_count(properties->orphan_line_factors));
+        tex_print_format("%s orphanlinefactors    %i",   is_okay(passes_orphanlinefactors_okay), tex_get_specification_count(properties->orphan_line_factors));
         if (tex_get_specification_count(properties->orphan_line_factors) > 0) {
             tex_print_str(" [");
             for (halfword c = 1; c <= tex_get_specification_count(properties->orphan_line_factors); c++) { 
@@ -3726,8 +3752,8 @@ static int tex_aux_set_sub_pass_parameters(
         }
         tex_print_str("\n");
         tex_print_str("  --------------------------------\n");
-        tex_print_format("%s linebreakchecks      %i\n", is_okay(passes_linebreakchecks_okay),      properties->line_break_checks);
-        tex_print_format("%s linebreakoptional    %i\n", is_okay(passes_linebreakoptional_okay),    properties->line_break_optional);
+        tex_print_format("%s linebreakchecks      %i\n", is_okay(passes_linebreakchecks_okay), properties->line_break_checks);
+        tex_print_format("%s linebreakoptional    %i\n", is_okay(passes_linebreakoptional_okay), properties->line_break_optional);
         tex_print_str("  --------------------------------\n");
         tex_end_diagnostic();
     }
@@ -4771,8 +4797,8 @@ void tex_do_line_break(line_break_properties *properties)
     /* */
     tex_aux_set_adjacent_demerits(properties);
     tex_aux_set_adjust_spacing(properties);
-    tex_aux_set_orphan_penalties(properties, 0);
     tex_aux_set_toddler_penalties(properties, 0);
+    tex_aux_set_orphan_penalties(properties, 0);
     tex_aux_set_indentation(properties);
     tex_aux_set_looseness(properties);
     tex_aux_set_both_skips(properties);
