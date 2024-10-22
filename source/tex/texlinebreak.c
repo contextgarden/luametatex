@@ -3167,41 +3167,57 @@ static void tex_aux_apply_special_factors(const line_break_properties *propertie
 static void tex_aux_fix_toddler_penalties(const line_break_properties *properties, halfword duplex, halfword head, halfword tail, int trace)
 {
     halfword done = 1;
-    halfword flip = 0; 
     tail = node_prev(tail);
     while (tail) {
-        halfword prev = node_prev(tail);
-        if (node_type(tail) == penalty_node && node_subtype(tail) == toddler_penalty_subtype) {
-             halfword tnuoma = penalty_tnuoma(tail);
-             halfword amount = penalty_amount(tail);
+        if (node_type(tail) == glyph_node && tex_has_glyph_option(tail, glyph_option_is_toddler)) {
+            /* duplex  : prevpenalty glyph nextpenalty */
+            /* simplex :             glyph nextpenalty */
+            halfword prev = null;
+            halfword next = null;
+            halfword left = null;
+            halfword right = null;
             if (duplex) { 
-                if (flip) { 
-                    tnuoma = tex_get_specification_nepalty(properties->toddler_penalties, ++done);
-                } else { 
-                    amount = tex_get_specification_penalty(properties->toddler_penalties, ++done);
+                prev = node_prev(tail);
+                next = node_next(tail);
+                left = tex_get_specification_penalty(properties->toddler_penalties, ++done);
+                right = tex_get_specification_nepalty(properties->toddler_penalties, done);
+                penalty_amount(prev) = left;
+                penalty_amount(next) = right;
+                if (trace) {
+                    tex_begin_diagnostic();
+                    tex_print_format("[linebreak: toddler penalties %i %i fixed]\n", left, right);
+                    tex_end_diagnostic();
                 }
-                flip = ! flip;
             } else { 
-                amount = tex_get_specification_penalty(properties->toddler_penalties, ++done);
+                next = node_next(tail);
+                right = tex_get_specification_penalty(properties->toddler_penalties, ++done);
+                penalty_amount(next) = right;
+                if (trace) {
+                    tex_begin_diagnostic();
+                    tex_print_format("[linebreak: toddler penalty %i fixed]\n", right);
+                    tex_end_diagnostic();
+                }
             }
-            penalty_amount(tail) = amount;
-            penalty_tnuoma(tail) = tnuoma;
-            if (trace) {
-                tex_begin_diagnostic();
-                tex_print_format("[linebreak: toddlers penalties %i and %i fixed]\n", amount, tnuoma);
-                tex_end_diagnostic();
+            /* helper */
+            if (prev && ! left) {
+                halfword p = node_prev(prev);
+                halfword n = node_next(prev);
+                node_next(p) = n;
+                node_prev(n) = p;
+                tex_flush_node(prev);
             }
-            if (! amount && ! tnuoma) {
-                halfword next = node_next(tail);
-                node_next(prev) = next;
-                node_prev(next) = prev;
-                tex_flush_node(tail);
+            if (next && ! right) {
+                halfword p = node_prev(next);
+                halfword n = node_next(next);
+                node_next(p) = n;
+                node_prev(n) = p;
+                tex_flush_node(next);
             }
         }
         if (tail == head) { 
             break;
         } else {
-            tail = prev; 
+            tail = node_prev(tail); 
         }
     }
 }
@@ -3267,20 +3283,19 @@ static void tex_aux_set_toddler_penalties(const line_break_properties *propertie
             while (current) {
                 if (node_type(current) == glyph_node) { 
                     if (tex_has_glyph_option(current, glyph_option_is_toddler)) {   
-                        halfword penalty = null;
                         halfword amount = 0; 
                         halfword tnuoma = 0; 
                         if (duplex) { 
-                            amount = tex_get_specification_penalty(properties->toddler_penalties, 1);
-                            tnuoma = tex_get_specification_nepalty(properties->toddler_penalties, 1);
+                            amount = tex_get_specification_nepalty(properties->toddler_penalties, 1);
+                            tnuoma = tex_get_specification_penalty(properties->toddler_penalties, 1);
                         } else { 
                             amount = tex_get_specification_penalty(properties->toddler_penalties, 1);
                         }
-                        penalty = tex_aux_inject_toddler_penalty(properties, current, amount, tnuoma, toddlered, duplex);
+                        tex_aux_inject_toddler_penalty(properties, current, amount, tnuoma, toddlered, duplex);
                         if (! count) { 
-                            head = penalty; 
+                            head = current; 
                         }
-                        tail = penalty;
+                        tail = current;
                         count++;
                     } else if (count > 1) { 
                         tex_aux_fix_toddler_penalties(properties, duplex, head, tail, trace);
