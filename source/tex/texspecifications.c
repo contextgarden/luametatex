@@ -272,6 +272,7 @@ static halfword tex_aux_scan_specification_penalties(quarterword code)
         case club_penalties_code: 
         case widow_penalties_code: 
         case display_widow_penalties_code: 
+        case toddler_penalties_code: 
             pairs = 1;
      /* case inter_line_penalties_code: */
      /* case orphan_penalties_code: */
@@ -283,8 +284,8 @@ static halfword tex_aux_scan_specification_penalties(quarterword code)
         halfword options = tex_aux_scan_specification_options(code);
         int pair = pairs ? specification_option_double(options) : 0;
         if (count == 1 || count == -1) {
-            halfword nepalty = pair ? tex_scan_integer(0, NULL) : 0;
-            halfword penalty = tex_scan_integer(0, NULL);
+            halfword nepalty = pair ? tex_scan_integer(1, NULL) : 0;
+            halfword penalty = tex_scan_integer(pair ? 0 : 1, NULL);
             if (penalty || nepalty) {
                 if (count == -1) { 
                     options |= specification_option_final;
@@ -317,9 +318,15 @@ static halfword tex_aux_scan_specification_penalties(quarterword code)
     }
     return p;
 }
+
 static halfword tex_aux_scan_specification_orphan_penalties(void)
 {
     return tex_aux_scan_specification_penalties(orphan_penalties_code);
+}
+
+static halfword tex_aux_scan_specification_toddler_penalties(void)
+{
+    return tex_aux_scan_specification_penalties(toddler_penalties_code);
 }
 
 static halfword tex_aux_scan_specification_orphan_line_factors(void)
@@ -760,10 +767,11 @@ static halfword tex_aux_scan_specification_par_passes(void)
                         case 'o': case 'O':
                             switch (tex_scan_character("dlDL", 0, 0, 0)) {
                                 case 'd': case 'D':
-                                    if (tex_scan_mandate_keyword("toddlerpenalty", 3)) {
-                                        tex_set_passes_toddlerpenalty(p, n, tex_scan_integer(0, NULL));
-                                        tex_set_passes_okay(p, n, passes_toddlerpenalty_okay);
+                                    if (tex_scan_mandate_keyword("toddlerpenalties", 3)) {
+                                        tex_set_passes_toddlerpenalties(p, n, tex_aux_scan_par_specification(toddler_penalties_code, tex_aux_scan_specification_toddler_penalties));
+                                        tex_set_passes_okay(p, n, passes_toddlerpenalties_okay);
                                     }
+
                                     break;
                                 case 'l': case 'L':
                                     if (tex_scan_mandate_keyword("tolerance", 3)) {
@@ -777,7 +785,7 @@ static halfword tex_aux_scan_specification_par_passes(void)
                             break;
                         default:
                             NOTDONE3:
-                            tex_aux_show_keyword_error("threshold|tolerance|toddlerpenalty");
+                            tex_aux_show_keyword_error("threshold|tolerance|toddlerpenalties");
                             goto DONE;
                     }
                     break;

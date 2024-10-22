@@ -98,7 +98,7 @@ static inline halfword tex_get_specification_nepalty(halfword a, halfword n)
         }
     }
     if (specification_pointer(a)) {
-        return specification_index(a,specification_n(a,n)).half0; 
+        return specification_index(a,specification_n(a,n)).half1; 
     } else if (n == 1) {
         return specification_anything_2(a);
     } else { 
@@ -245,7 +245,7 @@ typedef enum passes_parameter_okay {
     passes_adjustspacing_okay        = 0x00000400,
     /* */
     passes_linepenalty_okay          = 0x00000800,
-    passes_toddlerpenalty_okay       = 0x00001000,
+    passes_toddlerpenalties_okay     = 0x00001000,
     passes_orphanpenalty_okay        = 0x00002000,
     passes_lefttwindemerits_okay     = 0x00004000,
     passes_righttwindemerits_okay    = 0x00008000,
@@ -296,7 +296,7 @@ static const uint64_t passes_expansion_okay =
 
 static const uint64_t passes_additional_okay = 
     passes_linepenalty_okay
-  | passes_toddlerpenalty_okay
+  | passes_toddlerpenalties_okay
   | passes_orphanpenalty_okay
   | passes_lefttwindemerits_okay
   | passes_righttwindemerits_okay
@@ -337,7 +337,7 @@ static inline void     tex_set_passes_callback             (halfword a, halfword
 static inline void     tex_set_passes_orphanpenalty        (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,11)).half1    = v; }
 static inline void     tex_set_passes_fitnessclasses       (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,12)).half0    = v; }
 static inline void     tex_set_passes_adjacentdemerits     (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,12)).half1    = v; }
-static inline void     tex_set_passes_toddlerpenalty       (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,13)).half0    = v; }
+static inline void     tex_set_passes_toddlerpenalties     (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,13)).half0    = v; }
 static inline void     tex_set_passes_linebreakchecks      (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,13)).half1    = v; }
 static inline void     tex_set_passes_lefttwindemerits     (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,14)).half0    = v; }
 static inline void     tex_set_passes_righttwindemerits    (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,14)).half1    = v; }
@@ -375,7 +375,7 @@ static inline halfword tex_get_passes_callback             (halfword a, halfword
 static inline halfword tex_get_passes_orphanpenalty        (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,11)).half1;   }
 static inline halfword tex_get_passes_fitnessclasses       (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,12)).half0;   }
 static inline halfword tex_get_passes_adjacentdemerits     (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,12)).half1;   }
-static inline halfword tex_get_passes_toddlerpenalty       (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,13)).half0;   }
+static inline halfword tex_get_passes_toddlerpenalties     (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,13)).half0;   }
 static inline halfword tex_get_passes_linebreakchecks      (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,13)).half1;   }
 static inline halfword tex_get_passes_lefttwindemerits     (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,14)).half0;   }
 static inline halfword tex_get_passes_righttwindemerits    (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,14)).half1;   }

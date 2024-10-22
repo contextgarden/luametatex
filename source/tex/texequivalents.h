@@ -392,6 +392,7 @@ typedef enum specification_codes {
     display_widow_penalties_code, /*tex ditto, just before a display */
     broken_penalties_code,
     orphan_penalties_code,
+    toddler_penalties_code,
     fitness_classes_code,
     adjacent_demerits_code,
     orphan_line_factors_code,
@@ -560,6 +561,8 @@ typedef enum int_codes {
     tracing_lists_code,   
     tracing_passes_code,   
     tracing_fitness_code,   
+    tracing_toddlers_code,   
+    tracing_orphans_code,   
     tracing_loners_code,                /*tex show widow and club penalties calculations */
  // uc_hyph_code,                       /*tex hyphenate words beginning with a capital letter */
     output_penalty_code,                /*tex penalty found at current page break */
@@ -658,7 +661,6 @@ typedef enum int_codes {
     shaping_penalties_mode_code,
     shaping_penalty_code,
     orphan_penalty_code,
-    toddler_penalty_code, /*tex aka single_char_penalty */
     single_line_penalty_code,
     left_twin_demerits_code,
     right_twin_demerits_code,
@@ -1571,6 +1573,7 @@ typedef enum shaping_penalties_mode_bits {
 # define display_widow_penalties_par     specification_parameter(display_widow_penalties_code)
 # define broken_penalties_par            specification_parameter(broken_penalties_code)
 # define orphan_penalties_par            specification_parameter(orphan_penalties_code)
+# define toddler_penalties_par           specification_parameter(toddler_penalties_code)
 # define fitness_classes_par             specification_parameter(fitness_classes_code)
 # define adjacent_demerits_par           specification_parameter(adjacent_demerits_code)
 # define orphan_line_factors_par         specification_parameter(orphan_line_factors_code)
@@ -1628,6 +1631,8 @@ typedef enum shaping_penalties_mode_bits {
 # define tracing_lists_par               integer_parameter(tracing_lists_code)
 # define tracing_passes_par              integer_parameter(tracing_passes_code)
 # define tracing_fitness_par             integer_parameter(tracing_fitness_code)
+# define tracing_toddlers_par            integer_parameter(tracing_toddlers_code)
+# define tracing_orphans_par             integer_parameter(tracing_orphans_code)
 # define tracing_loners_par              integer_parameter(tracing_loners_code)
 
 /*tex 
@@ -1899,6 +1904,7 @@ extern halfword tex_explicit_disc_penalty  (halfword mode);
 # define update_tex_display_widow_penalties(v)  tex_eq_define(internal_specification_location(display_widow_penalties_code), specification_reference_cmd, v)
 # define update_tex_broken_penalties(v)         tex_eq_define(internal_specification_location(broken_penalties_code),        specification_reference_cmd, v)
 # define update_tex_orphan_penalties(v)         tex_eq_define(internal_specification_location(orphan_penalties_code),        specification_reference_cmd, v)
+# define update_tex_toddler_penalties(v)        tex_eq_define(internal_specification_location(toddler_penalties_code),       specification_reference_cmd, v)
 # define update_tex_fitness_classes(v)          tex_eq_define(internal_specification_location(fitness_classes_code),         specification_reference_cmd, v)
 # define update_tex_adjacent_demerits(v)        tex_eq_define(internal_specification_location(adjacent_demerits_code),       specification_reference_cmd, v)
 # define update_tex_orphan_line_factors_code(v) tex_eq_define(internal_specification_location(orphan_line_factors_code),     specification_reference_cmd, v)

@@ -209,6 +209,7 @@ void tex_line_break_prepare(
             tex_flush_node(*tail);
             *tail = prev;
         }
+        tex_add_penalty_option(*final_line_penalty, penalty_option_end_of_par);
         tex_attach_attribute_list_copy(*final_line_penalty, par);
         tex_attach_attribute_list_copy(*parfill_left_skip_glue, par);
         tex_attach_attribute_list_copy(*parfill_right_skip_glue, par);
@@ -334,6 +335,8 @@ void tex_line_break(int group_context, int par_context, int display_math)
                     .tracing_paragraphs      = tracing_paragraphs_par,
                     .tracing_fitness         = tracing_fitness_par,
                     .tracing_passes          = tracing_passes_par,
+                    .tracing_toddlers        = tracing_toddlers_par,
+                    .tracing_orphans         = tracing_orphans_par,
                     .paragraph_dir           = par_dir(par),
                     .parfill_left_skip       = parfill_left_skip_glue,
                     .parfill_right_skip      = parfill_right_skip_glue,
@@ -369,7 +372,7 @@ void tex_line_break(int group_context, int par_context, int display_math)
                     .display_widow_penalties = tex_get_par_par(par, par_display_widow_penalties_code),
                     .broken_penalties        = tex_get_par_par(par, par_broken_penalties_code),
                     .orphan_penalty          = tex_get_par_par(par, par_orphan_penalty_code),
-                    .toddler_penalty         = tex_get_par_par(par, par_toddler_penalty_code),
+                    .toddler_penalties       = tex_get_par_par(par, par_toddler_penalties_code),
                     .left_twin_demerits      = tex_get_par_par(par, par_left_twin_demerits_code),
                     .right_twin_demerits     = tex_get_par_par(par, par_right_twin_demerits_code),
                     .single_line_penalty     = tex_get_par_par(par, par_single_line_penalty_code),
@@ -2807,9 +2810,9 @@ static halfword tex_aux_inject_orphan_penalty(const line_break_properties *prope
         halfword penalty = tex_new_penalty_node(amount, orphan_penalty_subtype);
         tex_couple_nodes(prev, penalty);
         tex_couple_nodes(penalty, current);
-        if (properties->tracing_paragraphs > 1) {
+        if (properties->tracing_paragraphs > 1 || properties->tracing_orphans) {
             tex_begin_diagnostic();
-            tex_print_format("[linebreak: adding orphanpenalty %i]\n",amount);
+            tex_print_format("[linebreak: adding orphanpenalty %i]\n", amount);
             tex_end_diagnostic();
         }
         if (orphaned) {
@@ -2822,26 +2825,38 @@ static halfword tex_aux_inject_orphan_penalty(const line_break_properties *prope
     }
 }
 
-static halfword tex_aux_inject_toddler_penalty(const line_break_properties *properties, halfword current, halfword amount, int toddlered)
+static halfword tex_aux_inject_toddler_penalty(const line_break_properties *properties, halfword current, halfword amount, halfword tnuoma, int toddlered, int duplex)
 {
+    halfword next = node_next(current);
     halfword prev = node_prev(current);
-    if (prev && node_type(prev) != penalty_node) {
-        halfword penalty = tex_new_penalty_node(amount, toddler_penalty_subtype);
-        tex_couple_nodes(prev, penalty);
-        tex_couple_nodes(penalty, current);
-        if (properties->tracing_paragraphs > 1) {
-            tex_begin_diagnostic();
-            tex_print_format("[linebreak: adding toddlerpenalty %i]\n",amount);
-            tex_end_diagnostic();
+    halfword penalty = 0;
+    halfword nepalty = 0;
+    if (duplex) { 
+        penalty = tex_new_penalty_node(amount, toddler_penalty_subtype);
+        nepalty = tex_new_penalty_node(tnuoma, toddler_penalty_subtype);
+        tex_couple_nodes(prev, nepalty);
+        tex_couple_nodes(nepalty, current);
+        tex_couple_nodes(current, penalty);
+        tex_couple_nodes(penalty, next);
+        if (toddlered) {
+            tex_add_penalty_option(penalty, penalty_option_toddlered);
+            tex_add_penalty_option(nepalty, penalty_option_toddlered);
         }
+    } else { 
+        penalty = tex_new_penalty_node(amount, toddler_penalty_subtype);
+        tex_couple_nodes(penalty, next);
+        tex_couple_nodes(current, penalty);
         if (toddlered) {
             tex_add_penalty_option(penalty, penalty_option_toddlered);
         }
-        lmt_linebreak_state.has_toddlers = 1;
-        return prev;
-    } else {
-        return current;
     }
+    if (properties->tracing_paragraphs > 1 || properties->tracing_toddlers) {
+        tex_begin_diagnostic();
+        tex_print_format("[linebreak: adding toddlerpenalty %i %i]\n", tnuoma, amount);
+        tex_end_diagnostic();
+    }
+    lmt_linebreak_state.has_toddlers = 1;
+    return penalty;
 }
 
 static inline int tex_aux_valid_glue_break(halfword p)
@@ -3149,11 +3164,57 @@ static void tex_aux_apply_special_factors(const line_break_properties *propertie
     twins but this is also a bit of a demo of how to do this. 
 */
 
+static void tex_aux_fix_toddler_penalties(const line_break_properties *properties, halfword duplex, halfword head, halfword tail, int trace)
+{
+    halfword done = 1;
+    halfword flip = 0; 
+    tail = node_prev(tail);
+    while (tail) {
+        halfword prev = node_prev(tail);
+        if (node_type(tail) == penalty_node && node_subtype(tail) == toddler_penalty_subtype) {
+             halfword tnuoma = penalty_tnuoma(tail);
+             halfword amount = penalty_amount(tail);
+            if (duplex) { 
+                if (flip) { 
+                    tnuoma = tex_get_specification_nepalty(properties->toddler_penalties, ++done);
+                } else { 
+                    amount = tex_get_specification_penalty(properties->toddler_penalties, ++done);
+                }
+                flip = ! flip;
+            } else { 
+                amount = tex_get_specification_penalty(properties->toddler_penalties, ++done);
+            }
+            penalty_amount(tail) = amount;
+            penalty_tnuoma(tail) = tnuoma;
+            if (trace) {
+                tex_begin_diagnostic();
+                tex_print_format("[linebreak: toddlers penalties %i and %i fixed]\n", amount, tnuoma);
+                tex_end_diagnostic();
+            }
+            if (! amount && ! tnuoma) {
+                halfword next = node_next(tail);
+                node_next(prev) = next;
+                node_prev(next) = prev;
+                tex_flush_node(tail);
+            }
+        }
+        if (tail == head) { 
+            break;
+        } else {
+            tail = prev; 
+        }
+    }
+}
+
 static void tex_aux_set_toddler_penalties(const line_break_properties *properties, int toddlered)
 {
-    if (properties->toddler_penalty) {
+    if (properties->toddler_penalties) {
+        /* mark toddlers */
         halfword current = node_next(properties->parinit_left_skip);
-        int count = -1;
+        halfword count = 0;
+        halfword done = 0;
+        halfword glyph = null;
+        int found = 0;
         while (current) {
             switch (node_type(current)) {
                 case glue_node:
@@ -3161,33 +3222,85 @@ static void tex_aux_set_toddler_penalties(const line_break_properties *propertie
                         case space_skip_glue:
                         case xspace_skip_glue:
                         case zero_space_skip_glue:
-                            if (count == 1) {
-                                /* we have a glue + one glyph + glue */
-                                halfword nxt = node_next(current);
-                                if (nxt && node_type(nxt) == glyph_node && glyph_node_is_text(nxt) && tex_has_glyph_option(nxt, glyph_option_check_toddler)) {
-                                     /* we have a glue + one glyph + glue + glyph */
-                                    current = tex_aux_inject_toddler_penalty(properties, current, properties->toddler_penalty, toddlered);
-                                }
-                            } else { 
-                                count = 0;
-                            }
-                            break;
-                        default: 
-                            --count; 
-count = -1; 
+             //         case par_fill_right_skip_glue:
+                            if (done && count == 1) {
+                                tex_add_glyph_option(glyph, glyph_option_is_toddler);
+                                found += 1;
+                            } 
+                            done = 1;
                             break;
                     }
+                    count = 0;
                     break;
+             // case penalty_node: 
+             //     if (count == 1 && tex_has_penalty_option(current, penalty_option_end_of_par)) { 
+             //         tex_add_glyph_option(glyph, glyph_option_is_toddler);
+             //         found += 1;
+             //     } 
+             //     count = 0;
+             //     break;
                 case glyph_node:
-                    if (count >= 0 && glyph_node_is_text(current) && tex_has_glyph_option(current, glyph_option_check_toddler)) { 
-                        ++count;
+                    glyph = current;
+                    if (glyph_node_is_text(current) && tex_has_glyph_option(current, glyph_option_check_toddler)) { 
+                        count += 1; 
                     }
                     break;
                 default:
-                    --count; 
-count = -1; 
+                    count = 0;
+                    break;
             }
             current = node_next(current);
+        }
+        if (found) {
+            halfword current = node_next(properties->parinit_left_skip);
+            halfword head = null;
+            halfword tail = null;
+            halfword count = 0;
+            halfword multiples = 0;
+            halfword duplex = tex_has_specification_option(properties->toddler_penalties, specification_option_double);
+            int trace = properties->tracing_paragraphs > 1 || properties->tracing_toddlers;
+            if (trace) {
+                tex_begin_diagnostic();
+                tex_print_format("[linebreak: %i toddlers found]\n", found);
+                tex_end_diagnostic();
+            }
+            while (current) {
+                if (node_type(current) == glyph_node) { 
+                    if (tex_has_glyph_option(current, glyph_option_is_toddler)) {   
+                        halfword penalty = null;
+                        halfword amount = 0; 
+                        halfword tnuoma = 0; 
+                        if (duplex) { 
+                            amount = tex_get_specification_penalty(properties->toddler_penalties, 1);
+                            tnuoma = tex_get_specification_nepalty(properties->toddler_penalties, 1);
+                        } else { 
+                            amount = tex_get_specification_penalty(properties->toddler_penalties, 1);
+                        }
+                        penalty = tex_aux_inject_toddler_penalty(properties, current, amount, tnuoma, toddlered, duplex);
+                        if (! count) { 
+                            head = penalty; 
+                        }
+                        tail = penalty;
+                        count++;
+                    } else if (count > 1) { 
+                        tex_aux_fix_toddler_penalties(properties, duplex, head, tail, trace);
+                        multiples++;
+                        count = 0;
+                    } else {
+                        count = 0;
+                    }
+                }
+                current = node_next(current);
+            }
+            if (count > 1) { 
+                tex_aux_fix_toddler_penalties(properties, duplex, head, tail, trace);
+                multiples++;
+            }
+            if (trace) {
+                tex_begin_diagnostic();
+                tex_print_format("[linebreak: %i multiple toddlers found]\n", multiples);
+                tex_end_diagnostic();
+            }
         }
     }
 }
@@ -3195,14 +3308,14 @@ count = -1;
 static void tex_aux_check_competing_penalties(const line_break_properties *properties, halfword current, halfword penalty, int orphaned)
 {
     if (penalty > penalty_amount(current)) { 
-        if (properties->tracing_paragraphs > 1) {
+        if (properties->tracing_paragraphs > 1 || properties->tracing_orphans) {
             tex_begin_diagnostic();
             tex_print_format("[linebreak: orphanpenalty %i wins over toddlerpenalty %i]\n", penalty, penalty_amount(current));
             tex_end_diagnostic();
         }
         penalty_amount(current) = penalty;
     } else {                             
-        if (properties->tracing_paragraphs > 1) {
+        if (properties->tracing_paragraphs > 1 || properties->tracing_toddlers) {
             tex_begin_diagnostic();
             tex_print_format("[linebreak: toddlerpenalty %i wins over orphanpenalty %i]\n", penalty_amount(current), penalty);
             tex_end_diagnostic();
@@ -3575,9 +3688,6 @@ static int tex_aux_set_sub_pass_parameters(
         if (okay & passes_orphanpenalty_okay) { 
             properties->orphan_penalty = tex_get_passes_orphanpenalty(passes, subpass);
         }
-        if (okay & passes_toddlerpenalty_okay) { 
-            properties->toddler_penalty = tex_get_passes_toddlerpenalty(passes, subpass);
-        }
         if (okay & passes_lefttwindemerits_okay) { 
             properties->left_twin_demerits = tex_get_passes_lefttwindemerits(passes, subpass);
         }
@@ -3603,6 +3713,9 @@ static int tex_aux_set_sub_pass_parameters(
         }
         if (okay & passes_orphanpenalties_okay) { 
             properties->orphan_penalties = tex_get_passes_orphanpenalties(passes, subpass);
+        }
+        if (okay & passes_toddlerpenalties_okay) { 
+            properties->toddler_penalties = tex_get_passes_toddlerpenalties(passes, subpass);
         }
         if (okay & passes_fitnessclasses_okay) { /* currenty also syncs with adj */
             if (tex_get_passes_fitnessclasses(passes, subpass)) { /* for now */
@@ -3680,7 +3793,7 @@ static int tex_aux_set_sub_pass_parameters(
     */
     tex_aux_remove_special_penalties(properties);
     /* todo : set plural in par pass */
-    if (okay & passes_toddlerpenalty_okay) { 
+    if (okay & passes_toddlerpenalties_okay) { 
         tex_aux_set_toddler_penalties(properties, 1);
     }
     if ((okay & passes_orphanpenalty_okay) || (okay & passes_orphanpenalties_okay)) { 
@@ -3770,7 +3883,18 @@ static int tex_aux_set_sub_pass_parameters(
         tex_print_str("  --------------------------------\n");
         tex_print_format("%s linepenalty          %i\n", is_okay(passes_linepenalty_okay), properties->line_penalty);
         tex_print_format("%s extrahyphenpenalty   %i\n", is_okay(passes_extrahyphenpenalty_okay),properties->extra_hyphen_penalty);
-        tex_print_format("%s toddlerpenalty       %i\n", is_okay(passes_toddlerpenalty_okay), properties->toddler_penalty);
+        tex_print_str("  --------------------------------\n");
+        if (tex_get_specification_count(properties->toddler_penalties) > 0) {
+            tex_print_format("%s toddlerpenalties     %i", is_okay(passes_toddlerpenalties_okay), tex_get_specification_count(properties->toddler_penalties));
+            tex_print_str(" [");
+            for (halfword c = 1; c <= tex_get_specification_count(properties->toddler_penalties); c++) { 
+                tex_print_format(" %i", 
+                    tex_get_specification_penalty(properties->toddler_penalties, c)
+                );
+            }
+            tex_print_str(" ]");
+            tex_print_str("\n");
+        }
         tex_print_str("  --------------------------------\n");
         if (tex_get_specification_count(properties->orphan_penalties) > 0) {
             tex_print_format("%s orphanpenalties      %i", is_okay(passes_orphanpenalties_okay), tex_get_specification_count(properties->orphan_penalties));

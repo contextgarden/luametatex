@@ -463,6 +463,7 @@ typedef enum penalty_option_codes {
     penalty_option_double        = 0x0400,
     penalty_option_double_used   = 0x0800,
     penalty_option_factor_used   = 0x1000,
+    penalty_option_end_of_par    = 0x2000,
 } penalty_option_codes; 
 
 typedef enum penalty_subtypes {
@@ -1364,6 +1365,7 @@ typedef enum glyph_option_codes {
     /* */
     glyph_option_check_toddler             = 0x00008000,
     glyph_option_check_twin                = 0x00010000,
+    glyph_option_is_toddler                = 0x00020000,
     /*tex We permit user options. */
     glyph_option_user_first                = 0x00100000,
     glyph_option_user_last                 = 0x40000000,
@@ -2442,7 +2444,6 @@ typedef enum par_codes {                   /* extrahyphenpenalty : in parpass   
     par_widow_penalty_code,
     par_display_widow_penalty_code,
     par_orphan_penalty_code,               /* parpass */ 
-    par_toddler_penalty_code,              /* parpass */
     par_left_twin_demerits_code,           /* parpass */
     par_right_twin_demerits_code,          /* parpass */
     par_broken_penalty_code,
@@ -2457,6 +2458,7 @@ typedef enum par_codes {                   /* extrahyphenpenalty : in parpass   
     par_display_widow_penalties_code,
     par_broken_penalties_code,
     par_orphan_penalties_code,
+    par_toddler_penalties_code,
     par_fitness_classes_code,              /* parpass */
     par_adjacent_demerits_code,            /* parpass */
     par_orphan_line_factors_code,          /* parpass */
@@ -2540,7 +2542,7 @@ static int par_category_to_codes[] = {
     par_widow_penalty_category,       // par_widow_penalty_code
     par_display_penalty_category,     // par_display_widow_penalty_code
     par_orphan_penalty_category,      // par_orphan_penalty_code
-    par_toddler_penalty_category,     // par_toddler_penalty_code
+    par_toddler_penalty_category,     // par_toddler_penalties_code
     par_twin_demerits_category,       // par_left_twin_demerits_code
     par_twin_demerits_category,       // par_right_twin_demerits_code
     par_broken_penalty_category,      // par_broken_penalty_code
@@ -2610,7 +2612,7 @@ static int par_category_to_codes[] = {
 # define par_widow_penalty(a)            vlink(a,16)
 # define par_display_widow_penalty(a)    vinfo(a,16)
 # define par_orphan_penalty(a)           vlink(a,17)
-# define par_toddler_penalty(a)          vinfo(a,17)
+# define par_toddler_penalties(a)        vinfo(a,17)
 # define par_broken_penalty(a)           vlink(a,18)
 # define par_adj_demerits(a)             vinfo(a,18)
 # define par_double_hyphen_demerits(a)   vlink(a,19)

@@ -781,6 +781,8 @@ typedef struct line_break_properties {
     halfword par_context;
     halfword tracing_paragraphs;
     halfword tracing_fitness;
+    halfword tracing_toddlers;
+    halfword tracing_orphans;
     halfword tracing_passes;
     halfword paragraph_dir;
     halfword parfill_left_skip;
@@ -819,7 +821,7 @@ typedef struct line_break_properties {
     halfword display_widow_penalties;
     halfword orphan_penalty;
     halfword orphan_penalties;
-    halfword toddler_penalty;
+    halfword toddler_penalties;
     halfword left_twin_demerits;
     halfword right_twin_demerits;
     halfword fitness_classes;

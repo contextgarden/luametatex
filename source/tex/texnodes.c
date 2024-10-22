@@ -638,7 +638,7 @@ void lmt_nodelib_initialize(void) {
     set_value_entry_val(lmt_node_fields_par, 29, integer_field,    widowpenalty);
     set_value_entry_val(lmt_node_fields_par, 30, integer_field,    displaywidowpenalty);
     set_value_entry_val(lmt_node_fields_par, 31, integer_field,    orphanpenalty);
-    set_value_entry_val(lmt_node_fields_par, 32, integer_field,    toddlerpenalty);
+    set_value_entry_val(lmt_node_fields_par, 32, node_field,       toddlerpenalties);
     set_value_entry_val(lmt_node_fields_par, 33, integer_field,    brokenpenalty);
     set_value_entry_val(lmt_node_fields_par, 34, integer_field,    adjdemerits);
     set_value_entry_val(lmt_node_fields_par, 35, integer_field,    doublehyphendemerits);
@@ -3097,7 +3097,7 @@ void tex_show_node_list(halfword p, int threshold, int max)
                             if (tex_par_state_is_set(p, par_widow_penalty_code)           ) { v = par_widow_penalty(p)           ; if (v)                     { tex_print_str(", widowpenalty ");            tex_print_int      (v);          } }
                             if (tex_par_state_is_set(p, par_display_widow_penalty_code)   ) { v = par_display_widow_penalty(p)   ; if (v)                     { tex_print_str(", displaywidowpenalty ");     tex_print_int      (v);          } }
                             if (tex_par_state_is_set(p, par_orphan_penalty_code)          ) { v = par_orphan_penalty(p)          ; if (v)                     { tex_print_str(", orphanpenalty ");           tex_print_int      (v);          } }
-                            if (tex_par_state_is_set(p, par_toddler_penalty_code)         ) { v = par_toddler_penalty(p)         ; if (v)                     { tex_print_str(", toddlerpenalty ");          tex_print_int      (v);          } }
+                            if (tex_par_state_is_set(p, par_toddler_penalties_code)       ) { v = par_toddler_penalties(p)       ; if (v)                     { tex_print_str(", toddlerpenalties ");        } }
                             if (tex_par_state_is_set(p, left_twin_demerits_code)          ) { v = par_left_twin_demerits(p)      ; if (v)                     { tex_print_str(", lefttwindemerits ");        tex_print_int      (v);          } }
                             if (tex_par_state_is_set(p, right_twin_demerits_code)         ) { v = par_right_twin_demerits(p)     ; if (v)                     { tex_print_str(", righttwindemerits ");       tex_print_int      (v);          } }
                             if (tex_par_state_is_set(p, par_single_line_penalty_code)     ) { v = par_single_line_penalty(p)     ; if (v)                     { tex_print_str(", singlelinepenalty ");       tex_print_int      (v);          } }                                      
@@ -4123,7 +4123,6 @@ static halfword tex_aux_internal_to_par_code(halfword cmd, halfword index) {
                 case widow_penalty_code          : return par_widow_penalty_code;
                 case display_widow_penalty_code  : return par_display_widow_penalty_code;
                 case orphan_penalty_code         : return par_orphan_penalty_code;
-                case toddler_penalty_code        : return par_toddler_penalty_code;
                 case left_twin_demerits_code     : return par_left_twin_demerits_code;
                 case right_twin_demerits_code    : return par_right_twin_demerits_code;
                 case single_line_penalty_code    : return par_single_line_penalty_code;
@@ -4169,6 +4168,7 @@ static halfword tex_aux_internal_to_par_code(halfword cmd, halfword index) {
                 case widow_penalties_code        : return par_widow_penalties_code;
                 case display_widow_penalties_code: return par_display_widow_penalties_code;
                 case orphan_penalties_code       : return par_orphan_penalties_code;
+                case toddler_penalties_code      : return par_toddler_penalties_code;
                 case fitness_classes_code        : return par_fitness_classes_code;
                 case adjacent_demerits_code      : return par_adjacent_demerits_code;
                 case orphan_line_factors_code    : return par_orphan_line_factors_code;
@@ -4225,7 +4225,7 @@ halfword tex_get_par_par(halfword p, halfword what)
         case par_widow_penalty_code:           return set ? par_widow_penalty(p)           : widow_penalty_par;
         case par_display_widow_penalty_code:   return set ? par_display_widow_penalty(p)   : display_widow_penalty_par;
         case par_orphan_penalty_code:          return set ? par_orphan_penalty(p)          : orphan_penalty_par;
-        case par_toddler_penalty_code:         return set ? par_toddler_penalty(p)         : toddler_penalty_par;
+        case par_toddler_penalties_code:       return set ? par_toddler_penalties(p)       : toddler_penalties_par;
         case par_left_twin_demerits_code:      return set ? par_left_twin_demerits(p)      : left_twin_demerits_par;
         case par_right_twin_demerits_code:     return set ? par_right_twin_demerits(p)     : right_twin_demerits_par;
         case par_single_line_penalty_code:     return set ? par_single_line_penalty(p)     : single_line_penalty_par;
@@ -4369,9 +4369,6 @@ void tex_set_par_par(halfword p, halfword what, halfword v, int force)
             case par_orphan_penalty_code:
                 par_orphan_penalty(p) = v;
                 break;
-            case par_toddler_penalty_code:
-                par_toddler_penalty(p) = v;
-                break;
             case par_left_twin_demerits_code:
                 par_left_twin_demerits(p) = v;
                 break;
@@ -4431,6 +4428,12 @@ void tex_set_par_par(halfword p, halfword what, halfword v, int force)
                     tex_flush_node(par_orphan_penalties(p));
                 }
                 par_orphan_penalties(p) = v ? tex_copy_node(v) : null;
+                break;
+            case par_toddler_penalties_code:
+                if (par_toddler_penalties(p)) {
+                    tex_flush_node(par_toddler_penalties(p));
+                }
+                par_toddler_penalties(p) = v ? tex_copy_node(v) : null;
                 break;
             case par_fitness_classes_code:
                 if (par_fitness_classes(p)) {
@@ -4700,9 +4703,6 @@ void tex_snapshot_par(halfword p, halfword what)
         if (tex_par_to_be_set(what, par_orphan_penalty_code)) { 
             par_orphan_penalty(p) = unset ? null : orphan_penalty_par; 
         }
-        if (tex_par_to_be_set(what, par_toddler_penalty_code)) { 
-            par_toddler_penalty(p) = unset ? null : toddler_penalty_par; 
-        }
         if (tex_par_to_be_set(what, par_left_twin_demerits_code)) { 
             par_left_twin_demerits(p) = unset ? null : left_twin_demerits_par; 
         }
@@ -4778,6 +4778,13 @@ void tex_snapshot_par(halfword p, halfword what)
                 tex_flush_node(par_orphan_penalties(p));
             }
             par_orphan_penalties(p) = v ? tex_copy_node(v) : null;
+        }
+        if (tex_par_to_be_set(what, par_toddler_penalties_code)) { 
+            halfword v = unset ? null : toddler_penalties_par; 
+            if (par_toddler_penalties(p)) {
+                tex_flush_node(par_toddler_penalties(p));
+            }
+            par_toddler_penalties(p) = v ? tex_copy_node(v) : null;
         }
         if (tex_par_to_be_set(what, par_fitness_classes_code)) { 
             halfword v = unset ? null : fitness_classes_par; 

@@ -1355,6 +1355,7 @@ make_lua_key(L, thickmuskip);\
 make_lua_key(L, thickness);\
 make_lua_key(L, thinmuskip);\
 make_lua_key(L, toddlerpenalty);\
+make_lua_key(L, toddlerpenalties);\
 make_lua_key(L, tok);\
 make_lua_key(L, token);\
 make_lua_key(L, tokenlist);\

@@ -4197,6 +4197,7 @@ int lmt_push_specification(lua_State *L, halfword ptr, int onlycount)
             case widow_penalties_code:
             case display_widow_penalties_code:
             case orphan_penalties_code:
+            case toddler_penalties_code:
             case orphan_line_factors_code:
             case math_forward_penalties_code:
             case math_backward_penalties_code:

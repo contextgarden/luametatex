@@ -3979,7 +3979,7 @@ static int texlib_linebreak(lua_State *L)
         get_integer_par  (properties.widow_penalty,                widowpenalty,              tex_get_par_par(par, par_widow_penalty_code));
         get_integer_par  (properties.display_widow_penalty,        displaywidowpenalty,       tex_get_par_par(par, par_display_widow_penalty_code));
         get_integer_par  (properties.orphan_penalty,               orphanpenalty,             tex_get_par_par(par, par_orphan_penalty_code));
-        get_integer_par  (properties.toddler_penalty,              toddlerpenalty,            tex_get_par_par(par, par_toddler_penalty_code));
+        get_integer_par  (properties.toddler_penalties,            toddlerpenalties,          tex_get_par_par(par, par_toddler_penalties_code));
         get_integer_par  (properties.left_twin_demerits,           lefttwindemerits,          tex_get_par_par(par, par_left_twin_demerits_code));
         get_integer_par  (properties.right_twin_demerits,          righttwindemerits,         tex_get_par_par(par, par_right_twin_demerits_code));
         get_integer_par  (properties.single_line_penalty,          singlelinepenalty,         tex_get_par_par(par, par_single_line_penalty_code));
@@ -5079,6 +5079,7 @@ static int texlib_getglyphoptionvalues(lua_State *L)
     lua_set_string_by_index(L, glyph_option_space_factor_overload,     "spacefactoroverload");
     lua_set_string_by_index(L, glyph_option_check_toddler,             "checktoddler");
     lua_set_string_by_index(L, glyph_option_check_twin,                "checktwin");
+    lua_set_string_by_index(L, glyph_option_is_toddler,                "istoddler");
     lua_set_string_by_index(L, glyph_option_user_first,                "userfirst");
     lua_set_string_by_index(L, glyph_option_user_last,                 "userlast");
     return 1;
@@ -5109,7 +5110,7 @@ static int texlib_getmathoptionvalues(lua_State *L)
 
 static int texlib_getpenaltyoptionvalues(lua_State *L)
 {
-    lua_createtable(L, 2, 11);
+    lua_createtable(L, 2, 13);
     lua_set_string_by_index(L, penalty_option_normal,        "normal");
     lua_set_string_by_index(L, penalty_option_math_forward,  "mathforward");
     lua_set_string_by_index(L, penalty_option_math_backward, "mathbackward");
@@ -5124,6 +5125,7 @@ static int texlib_getpenaltyoptionvalues(lua_State *L)
     lua_set_string_by_index(L, penalty_option_double,        "double");
     lua_set_string_by_index(L, penalty_option_double_used,   "doubleused");
     lua_set_string_by_index(L, penalty_option_factor_used,   "factorused");
+    lua_set_string_by_index(L, penalty_option_end_of_par,    "endofpar");
     return 1;
 }
 
