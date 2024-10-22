@@ -4479,7 +4479,6 @@ static int nodelib_direct_getparstate(lua_State *L)
                         lua_push_integer_at_key(L, clubpenalty,                    tex_get_par_par(p, par_club_penalty_code));
                         lua_push_integer_at_key(L, widowpenalty,                   tex_get_par_par(p, par_widow_penalty_code));
                         lua_push_integer_at_key(L, displaywidowpenalty,            tex_get_par_par(p, par_display_widow_penalty_code));
-                        lua_push_integer_at_key(L, orphanpenalty,                  tex_get_par_par(p, par_orphan_penalty_code));
                         lua_push_integer_at_key(L, lefttwindemerits,               tex_get_par_par(p, par_left_twin_demerits_code));
                         lua_push_integer_at_key(L, righttwindemerits,              tex_get_par_par(p, par_right_twin_demerits_code));
                         lua_push_integer_at_key(L, singlelinepenalty,              tex_get_par_par(p, par_single_line_penalty_code));

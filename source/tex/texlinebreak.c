@@ -371,7 +371,6 @@ void tex_line_break(int group_context, int par_context, int display_math)
                     .display_widow_penalty   = tex_get_par_par(par, par_display_widow_penalty_code),
                     .display_widow_penalties = tex_get_par_par(par, par_display_widow_penalties_code),
                     .broken_penalties        = tex_get_par_par(par, par_broken_penalties_code),
-                    .orphan_penalty          = tex_get_par_par(par, par_orphan_penalty_code),
                     .toddler_penalties       = tex_get_par_par(par, par_toddler_penalties_code),
                     .left_twin_demerits      = tex_get_par_par(par, par_left_twin_demerits_code),
                     .right_twin_demerits     = tex_get_par_par(par, par_right_twin_demerits_code),
@@ -3343,7 +3342,7 @@ static void tex_aux_check_competing_penalties(const line_break_properties *prope
 
 static void tex_aux_set_orphan_penalties(const line_break_properties *properties, int orphaned)
 {
-    if (properties->orphan_penalties || properties->orphan_penalty || short_inline_orphan_penalty_par) {
+    if (properties->orphan_penalties || short_inline_orphan_penalty_par) {
         halfword current = node_prev(properties->parfill_right_skip);
         if (current) {
             /*tex Skip over trailing glue and penalties. */
@@ -3422,58 +3421,6 @@ static void tex_aux_set_orphan_penalties(const line_break_properties *properties
                         }
                         current = node_prev(current);
                     }
-                }
-            } else if (properties->orphan_penalty) {
-                /*tex
-                    We inject a penalty before the space but we need to intercept the math penalty
-                    that actually is set on the math mode.  If no math orphan penalty is set of when
-                    we have wider math then we assume it's okay. We don't want interference in math
-                    penalties.
-
-                */
-                while (current) {
-                    switch (node_type(current)) {
-                        case glue_node:
-                            switch (node_subtype(current)) {
-                                case space_skip_glue:
-                                case xspace_skip_glue:
-                                case zero_space_skip_glue:
-                                    tex_aux_inject_orphan_penalty(properties, current, properties->orphan_penalty, orphaned);
-                                    return;
-                                default:
-                                    /* maybe we should always quit here */
-                                    break;
-                            }
-                            break;
-                        case penalty_node:
-                            switch (node_subtype(current)) {
-                                case toddler_penalty_subtype:
-                                    tex_aux_check_competing_penalties(properties, current, properties->orphan_penalty, orphaned);
-                                    break;
-                                case orphan_penalty_subtype:
-                                    return;
-                            }
-                            break;
-                        case math_node:
-                            current = tex_aux_backtrack_over_math(current);
-                            if (tex_aux_short_math(current)) {
-                                tex_aux_adapt_short_math_penalty(current, short_inline_orphan_penalty_par, properties->orphan_penalty, orphaned);
-                            }
-                            return;
-                        case disc_node:
-                            /*
-                                This is (or has been) actually an old \CONTEXT\ feature doen in \LUA,
-                                so what should we do here: set the penalty and quit or maybe run till we
-                                hit a non glyph, disc or font kern? Hyphens already get penalties. So,
-                                we do nothong.
-                            */
-                            disc_orphaned(current) = properties->orphan_penalty;
-                            if (orphaned) {
-                                tex_add_disc_option(current, disc_option_orphaned);
-                            }
-                            break;
-                    }
-                    current = node_prev(current);
                 }
             } else if (short_inline_orphan_penalty_par) {
                 /*tex
@@ -3700,9 +3647,6 @@ static int tex_aux_set_sub_pass_parameters(
         if (okay & passes_linepenalty_okay) { 
             properties->line_penalty = tex_get_passes_linepenalty(passes, subpass);
         }
-        if (okay & passes_orphanpenalty_okay) { 
-            properties->orphan_penalty = tex_get_passes_orphanpenalty(passes, subpass);
-        }
         if (okay & passes_lefttwindemerits_okay) { 
             properties->left_twin_demerits = tex_get_passes_lefttwindemerits(passes, subpass);
         }
@@ -3899,8 +3843,8 @@ static int tex_aux_set_sub_pass_parameters(
         tex_print_format("%s linepenalty          %i\n", is_okay(passes_linepenalty_okay), properties->line_penalty);
         tex_print_format("%s extrahyphenpenalty   %i\n", is_okay(passes_extrahyphenpenalty_okay),properties->extra_hyphen_penalty);
         tex_print_str("  --------------------------------\n");
+        tex_print_format("%s toddlerpenalties     %i", is_okay(passes_toddlerpenalties_okay), tex_get_specification_count(properties->toddler_penalties));
         if (tex_get_specification_count(properties->toddler_penalties) > 0) {
-            tex_print_format("%s toddlerpenalties     %i", is_okay(passes_toddlerpenalties_okay), tex_get_specification_count(properties->toddler_penalties));
             tex_print_str(" [");
             for (halfword c = 1; c <= tex_get_specification_count(properties->toddler_penalties); c++) { 
                 tex_print_format(" %i", 
@@ -3908,11 +3852,11 @@ static int tex_aux_set_sub_pass_parameters(
                 );
             }
             tex_print_str(" ]");
-            tex_print_str("\n");
         }
+        tex_print_str("\n");
         tex_print_str("  --------------------------------\n");
+        tex_print_format("%s orphanpenalties      %i", is_okay(passes_orphanpenalties_okay), tex_get_specification_count(properties->orphan_penalties));
         if (tex_get_specification_count(properties->orphan_penalties) > 0) {
-            tex_print_format("%s orphanpenalties      %i", is_okay(passes_orphanpenalties_okay), tex_get_specification_count(properties->orphan_penalties));
             tex_print_str(" [");
             for (halfword c = 1; c <= tex_get_specification_count(properties->orphan_penalties); c++) { 
                 tex_print_format(" %i", 
@@ -3920,10 +3864,8 @@ static int tex_aux_set_sub_pass_parameters(
                 );
             }
             tex_print_str(" ]");
-            tex_print_str("\n");
-        } else { 
-            tex_print_format("%s orphanpenalty        %i\n", is_okay(passes_orphanpenalty_okay), properties->orphan_penalty);
         }
+        tex_print_str("\n");
         tex_print_format("%s orphanlinefactors    %i",   is_okay(passes_orphanlinefactors_okay), tex_get_specification_count(properties->orphan_line_factors));
         if (tex_get_specification_count(properties->orphan_line_factors) > 0) {
             tex_print_str(" [");

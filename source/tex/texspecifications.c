@@ -683,22 +683,9 @@ static halfword tex_aux_scan_specification_par_passes(void)
                     if (tex_scan_mandate_keyword("orphan", 1)) {
                         switch (tex_scan_character("plPL", 0, 0, 0)) {
                             case 'p': case 'P':
-                                if (tex_scan_mandate_keyword("orphanpenalt", 7)) {
-                                    switch (tex_scan_character("iyIY", 0, 0, 0)) {
-                                        case 'i': case 'I':
-                                            if (tex_scan_mandate_keyword("orphanpenalties", 13)) {
-                                                tex_set_passes_orphanpenalties(p, n, tex_aux_scan_par_specification(orphan_penalties_code, tex_aux_scan_specification_orphan_penalties));
-                                                tex_set_passes_okay(p, n, passes_orphanpenalties_okay);
-                                            }
-                                            break;
-                                        case 'y': case 'Y':
-                                            tex_set_passes_orphanpenalty(p, n, tex_scan_integer(0, NULL));
-                                            tex_set_passes_okay(p, n, passes_orphanpenalty_okay);
-                                            break;
-                                        default:
-                                            tex_aux_show_keyword_error("orphanpenalty|orphanpenalties");
-                                            goto DONE;
-                                    }
+                                if (tex_scan_mandate_keyword("orphanpenalties", 7)) {
+                                    tex_set_passes_orphanpenalties(p, n, tex_aux_scan_par_specification(orphan_penalties_code, tex_aux_scan_specification_orphan_penalties));
+                                    tex_set_passes_okay(p, n, passes_orphanpenalties_okay);
                                 }
                                 break;
                             case 'l': case 'L':

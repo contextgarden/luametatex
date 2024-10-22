@@ -819,7 +819,6 @@ typedef struct line_break_properties {
     halfword widow_penalties;
     halfword display_widow_penalty;
     halfword display_widow_penalties;
-    halfword orphan_penalty;
     halfword orphan_penalties;
     halfword toddler_penalties;
     halfword left_twin_demerits;

@@ -830,10 +830,10 @@ static void tex_aux_contribute_glue(halfword current)
 static inline halfword tex_aux_used_penalty(halfword p)
 {
     if (double_penalty_mode_par && tex_has_penalty_option(p, penalty_option_double)) { 
-        tex_add_penalty_option(p, penalty_option_double);
+        tex_add_penalty_option(p, penalty_option_double_used);
         return penalty_tnuoma(p);
     } else { 
-        tex_remove_penalty_option(p, penalty_option_double);
+        tex_remove_penalty_option(p, penalty_option_double_used);
         return penalty_amount(p);
     }
 }

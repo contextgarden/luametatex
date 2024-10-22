@@ -2443,7 +2443,6 @@ typedef enum par_codes {                   /* extrahyphenpenalty : in parpass   
     par_club_penalty_code,
     par_widow_penalty_code,
     par_display_widow_penalty_code,
-    par_orphan_penalty_code,               /* parpass */ 
     par_left_twin_demerits_code,           /* parpass */
     par_right_twin_demerits_code,          /* parpass */
     par_broken_penalty_code,

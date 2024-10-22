@@ -382,7 +382,6 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "normalizelinemode",              internal_integer_cmd,   normalize_line_mode_code,                 internal_integer_base);
         tex_primitive(luatex_command, "normalizeparmode",               internal_integer_cmd,   normalize_par_mode_code,                  internal_integer_base);
         tex_primitive(luatex_command, "nospaces",                       internal_integer_cmd,   no_spaces_code,                           internal_integer_base);
-        tex_primitive(luatex_command, "orphanpenalty",                  internal_integer_cmd,   orphan_penalty_code,                      internal_integer_base);
         tex_primitive(luatex_command, "outputbox",                      internal_integer_cmd,   output_box_code,                          internal_integer_base);
         tex_primitive(tex_command,    "outputpenalty",                  internal_integer_cmd,   output_penalty_code,                      internal_integer_base);
         tex_primitive(luatex_command, "overloadmode",                   internal_integer_cmd,   overload_mode_code,                       internal_integer_base);

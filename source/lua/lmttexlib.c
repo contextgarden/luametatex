@@ -3978,7 +3978,6 @@ static int texlib_linebreak(lua_State *L)
         get_integer_par  (properties.club_penalty,                 clubpenalty,               tex_get_par_par(par, par_club_penalty_code));
         get_integer_par  (properties.widow_penalty,                widowpenalty,              tex_get_par_par(par, par_widow_penalty_code));
         get_integer_par  (properties.display_widow_penalty,        displaywidowpenalty,       tex_get_par_par(par, par_display_widow_penalty_code));
-        get_integer_par  (properties.orphan_penalty,               orphanpenalty,             tex_get_par_par(par, par_orphan_penalty_code));
         get_integer_par  (properties.toddler_penalties,            toddlerpenalties,          tex_get_par_par(par, par_toddler_penalties_code));
         get_integer_par  (properties.left_twin_demerits,           lefttwindemerits,          tex_get_par_par(par, par_left_twin_demerits_code));
         get_integer_par  (properties.right_twin_demerits,          righttwindemerits,         tex_get_par_par(par, par_right_twin_demerits_code));

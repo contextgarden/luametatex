@@ -660,7 +660,6 @@ typedef enum int_codes {
     auto_paragraph_mode_code,
     shaping_penalties_mode_code,
     shaping_penalty_code,
-    orphan_penalty_code,
     single_line_penalty_code,
     left_twin_demerits_code,
     right_twin_demerits_code,
@@ -1400,8 +1399,6 @@ extern void tex_word_define        (int g, halfword p, halfword w);
 # define club_penalty_par                 integer_parameter(club_penalty_code)
 # define widow_penalty_par                integer_parameter(widow_penalty_code)
 # define display_widow_penalty_par        integer_parameter(display_widow_penalty_code)
-# define orphan_penalty_par               integer_parameter(orphan_penalty_code)
-# define toddler_penalty_par              integer_parameter(toddler_penalty_code)
 # define single_line_penalty_par          integer_parameter(single_line_penalty_code)
 # define left_twin_demerits_par           integer_parameter(left_twin_demerits_code)
 # define right_twin_demerits_par          integer_parameter(right_twin_demerits_code)

@@ -604,7 +604,7 @@ void lmt_nodelib_initialize(void) {
     set_value_entry_val(lmt_node_fields_list, 28, integer_field,   exdepth);    
     set_value_entry_val(lmt_node_fields_list, 29, integer_field,   total);    
 
-    lmt_node_fields_par = lmt_aux_allocate_value_info(66);
+    lmt_node_fields_par = lmt_aux_allocate_value_info(65);
 
     set_value_entry_val(lmt_node_fields_par,  0, attribute_field,  attr);
     set_value_entry_val(lmt_node_fields_par,  1, integer_field,    dir);
@@ -637,41 +637,40 @@ void lmt_nodelib_initialize(void) {
     set_value_entry_val(lmt_node_fields_par, 28, integer_field,    clubpenalty);
     set_value_entry_val(lmt_node_fields_par, 29, integer_field,    widowpenalty);
     set_value_entry_val(lmt_node_fields_par, 30, integer_field,    displaywidowpenalty);
-    set_value_entry_val(lmt_node_fields_par, 31, integer_field,    orphanpenalty);
-    set_value_entry_val(lmt_node_fields_par, 32, node_field,       toddlerpenalties);
-    set_value_entry_val(lmt_node_fields_par, 33, integer_field,    brokenpenalty);
-    set_value_entry_val(lmt_node_fields_par, 34, integer_field,    adjdemerits);
-    set_value_entry_val(lmt_node_fields_par, 35, integer_field,    doublehyphendemerits);
-    set_value_entry_val(lmt_node_fields_par, 36, integer_field,    finalhyphendemerits);
-    set_value_entry_val(lmt_node_fields_par, 37, node_field,       parshape);
-    set_value_entry_val(lmt_node_fields_par, 38, node_field,       interlinepenalties);
-    set_value_entry_val(lmt_node_fields_par, 39, node_field,       clubpenalties);
-    set_value_entry_val(lmt_node_fields_par, 40, node_field,       widowpenalties);
-    set_value_entry_val(lmt_node_fields_par, 41, node_field,       displaywidowpenalties);
-    set_value_entry_val(lmt_node_fields_par, 42, node_field,       brokenpenalties);
-    set_value_entry_val(lmt_node_fields_par, 43, node_field,       orphanpenalties);
-    set_value_entry_val(lmt_node_fields_par, 44, integer_field,    singlelinepenalty);
-    set_value_entry_val(lmt_node_fields_par, 45, glue_field,       baselineskip);
-    set_value_entry_val(lmt_node_fields_par, 46, glue_field,       lineskip);
-    set_value_entry_val(lmt_node_fields_par, 47, dimension_field,  lineskiplimit);
-    set_value_entry_val(lmt_node_fields_par, 48, integer_field,    adjustspacingstep);
-    set_value_entry_val(lmt_node_fields_par, 49, integer_field,    adjustspacingshrink);
-    set_value_entry_val(lmt_node_fields_par, 50, integer_field,    adjustspacingstretch);
-    set_value_entry_val(lmt_node_fields_par, 51, token_list_field, endpartokens);
-    set_value_entry_val(lmt_node_fields_par, 52, integer_field,    hyphenationmode);
-    set_value_entry_val(lmt_node_fields_par, 53, integer_field,    shapingpenaltiesmode);
-    set_value_entry_val(lmt_node_fields_par, 54, integer_field,    shapingpenalty);
-    set_value_entry_val(lmt_node_fields_par, 55, glue_field,       parinitleftskip);
-    set_value_entry_val(lmt_node_fields_par, 56, glue_field,       parinitrightskip);
-    set_value_entry_val(lmt_node_fields_par, 57, glue_field,       emergencyleftskip);
-    set_value_entry_val(lmt_node_fields_par, 58, glue_field,       emergencyrightskip);
-    set_value_entry_val(lmt_node_fields_par, 59, dimension_field,  emergencyextrastretch);
-    set_value_entry_val(lmt_node_fields_par, 60, node_field,       fitnessclasses);
-    set_value_entry_val(lmt_node_fields_par, 61, node_field,       adjacentdemerits);
-    set_value_entry_val(lmt_node_fields_par, 62, integer_field,    hyphenpenalty);
-    set_value_entry_val(lmt_node_fields_par, 63, integer_field,    exhyphenpenalty);
-    set_value_entry_val(lmt_node_fields_par, 64, integer_field,    lefttwindemerits);
-    set_value_entry_val(lmt_node_fields_par, 65, integer_field,    righttwindemerits);
+    set_value_entry_val(lmt_node_fields_par, 31, node_field,       toddlerpenalties);
+    set_value_entry_val(lmt_node_fields_par, 32, integer_field,    brokenpenalty);
+    set_value_entry_val(lmt_node_fields_par, 33, integer_field,    adjdemerits);
+    set_value_entry_val(lmt_node_fields_par, 34, integer_field,    doublehyphendemerits);
+    set_value_entry_val(lmt_node_fields_par, 35, integer_field,    finalhyphendemerits);
+    set_value_entry_val(lmt_node_fields_par, 36, node_field,       parshape);
+    set_value_entry_val(lmt_node_fields_par, 37, node_field,       interlinepenalties);
+    set_value_entry_val(lmt_node_fields_par, 38, node_field,       clubpenalties);
+    set_value_entry_val(lmt_node_fields_par, 39, node_field,       widowpenalties);
+    set_value_entry_val(lmt_node_fields_par, 40, node_field,       displaywidowpenalties);
+    set_value_entry_val(lmt_node_fields_par, 41, node_field,       brokenpenalties);
+    set_value_entry_val(lmt_node_fields_par, 42, node_field,       orphanpenalties);
+    set_value_entry_val(lmt_node_fields_par, 43, integer_field,    singlelinepenalty);
+    set_value_entry_val(lmt_node_fields_par, 44, glue_field,       baselineskip);
+    set_value_entry_val(lmt_node_fields_par, 45, glue_field,       lineskip);
+    set_value_entry_val(lmt_node_fields_par, 46, dimension_field,  lineskiplimit);
+    set_value_entry_val(lmt_node_fields_par, 47, integer_field,    adjustspacingstep);
+    set_value_entry_val(lmt_node_fields_par, 48, integer_field,    adjustspacingshrink);
+    set_value_entry_val(lmt_node_fields_par, 49, integer_field,    adjustspacingstretch);
+    set_value_entry_val(lmt_node_fields_par, 50, token_list_field, endpartokens);
+    set_value_entry_val(lmt_node_fields_par, 51, integer_field,    hyphenationmode);
+    set_value_entry_val(lmt_node_fields_par, 52, integer_field,    shapingpenaltiesmode);
+    set_value_entry_val(lmt_node_fields_par, 53, integer_field,    shapingpenalty);
+    set_value_entry_val(lmt_node_fields_par, 54, glue_field,       parinitleftskip);
+    set_value_entry_val(lmt_node_fields_par, 55, glue_field,       parinitrightskip);
+    set_value_entry_val(lmt_node_fields_par, 56, glue_field,       emergencyleftskip);
+    set_value_entry_val(lmt_node_fields_par, 57, glue_field,       emergencyrightskip);
+    set_value_entry_val(lmt_node_fields_par, 58, dimension_field,  emergencyextrastretch);
+    set_value_entry_val(lmt_node_fields_par, 59, node_field,       fitnessclasses);
+    set_value_entry_val(lmt_node_fields_par, 60, node_field,       adjacentdemerits);
+    set_value_entry_val(lmt_node_fields_par, 61, integer_field,    hyphenpenalty);
+    set_value_entry_val(lmt_node_fields_par, 62, integer_field,    exhyphenpenalty);
+    set_value_entry_val(lmt_node_fields_par, 63, integer_field,    lefttwindemerits);
+    set_value_entry_val(lmt_node_fields_par, 64, integer_field,    righttwindemerits);
 
     lmt_node_fields_mark = lmt_aux_allocate_value_info(3);
 
@@ -3096,7 +3095,6 @@ void tex_show_node_list(halfword p, int threshold, int max)
                             if (tex_par_state_is_set(p, par_club_penalty_code)            ) { v = par_club_penalty(p)            ; if (v)                     { tex_print_str(", clubpenalty ");             tex_print_int      (v);          } }
                             if (tex_par_state_is_set(p, par_widow_penalty_code)           ) { v = par_widow_penalty(p)           ; if (v)                     { tex_print_str(", widowpenalty ");            tex_print_int      (v);          } }
                             if (tex_par_state_is_set(p, par_display_widow_penalty_code)   ) { v = par_display_widow_penalty(p)   ; if (v)                     { tex_print_str(", displaywidowpenalty ");     tex_print_int      (v);          } }
-                            if (tex_par_state_is_set(p, par_orphan_penalty_code)          ) { v = par_orphan_penalty(p)          ; if (v)                     { tex_print_str(", orphanpenalty ");           tex_print_int      (v);          } }
                             if (tex_par_state_is_set(p, par_toddler_penalties_code)       ) { v = par_toddler_penalties(p)       ; if (v)                     { tex_print_str(", toddlerpenalties ");        } }
                             if (tex_par_state_is_set(p, left_twin_demerits_code)          ) { v = par_left_twin_demerits(p)      ; if (v)                     { tex_print_str(", lefttwindemerits ");        tex_print_int      (v);          } }
                             if (tex_par_state_is_set(p, right_twin_demerits_code)         ) { v = par_right_twin_demerits(p)     ; if (v)                     { tex_print_str(", righttwindemerits ");       tex_print_int      (v);          } }
@@ -4122,7 +4120,6 @@ static halfword tex_aux_internal_to_par_code(halfword cmd, halfword index) {
                 case club_penalty_code           : return par_club_penalty_code;
                 case widow_penalty_code          : return par_widow_penalty_code;
                 case display_widow_penalty_code  : return par_display_widow_penalty_code;
-                case orphan_penalty_code         : return par_orphan_penalty_code;
                 case left_twin_demerits_code     : return par_left_twin_demerits_code;
                 case right_twin_demerits_code    : return par_right_twin_demerits_code;
                 case single_line_penalty_code    : return par_single_line_penalty_code;
@@ -4224,7 +4221,6 @@ halfword tex_get_par_par(halfword p, halfword what)
         case par_club_penalty_code:            return set ? par_club_penalty(p)            : club_penalty_par;
         case par_widow_penalty_code:           return set ? par_widow_penalty(p)           : widow_penalty_par;
         case par_display_widow_penalty_code:   return set ? par_display_widow_penalty(p)   : display_widow_penalty_par;
-        case par_orphan_penalty_code:          return set ? par_orphan_penalty(p)          : orphan_penalty_par;
         case par_toddler_penalties_code:       return set ? par_toddler_penalties(p)       : toddler_penalties_par;
         case par_left_twin_demerits_code:      return set ? par_left_twin_demerits(p)      : left_twin_demerits_par;
         case par_right_twin_demerits_code:     return set ? par_right_twin_demerits(p)     : right_twin_demerits_par;
@@ -4365,9 +4361,6 @@ void tex_set_par_par(halfword p, halfword what, halfword v, int force)
                 break;
             case par_display_widow_penalty_code:
                 par_display_widow_penalty(p) = v;
-                break;
-            case par_orphan_penalty_code:
-                par_orphan_penalty(p) = v;
                 break;
             case par_left_twin_demerits_code:
                 par_left_twin_demerits(p) = v;
@@ -4547,7 +4540,6 @@ void tex_set_par_par(halfword p, halfword what, halfword v, int force)
             if (tex_par_to_be_set(what, par_club_penalty_code))            { tex_set_par_par(p, par_club_penalty_code,            unset ? null : club_penalty_par,            1); }
             if (tex_par_to_be_set(what, par_widow_penalty_code))           { tex_set_par_par(p, par_widow_penalty_code,           unset ? null : widow_penalty_par,           1); }
             if (tex_par_to_be_set(what, par_display_widow_penalty_code))   { tex_set_par_par(p, par_display_widow_penalty_code,   unset ? null : display_widow_penalty_par,   1); }
-            if (tex_par_to_be_set(what, par_orphan_penalty_code))          { tex_set_par_par(p, par_orphan_penalty_code,          unset ? null : orphan_penalty_par,          1); }
             if (tex_par_to_be_set(what, par_broken_penalty_code))          { tex_set_par_par(p, par_broken_penalty_code,          unset ? null : broken_penalty_par,          1); }
             if (tex_par_to_be_set(what, par_adj_demerits_code))            { tex_set_par_par(p, par_adj_demerits_code,            unset ? null : adj_demerits_par,            1); }
             if (tex_par_to_be_set(what, par_double_hyphen_demerits_code))  { tex_set_par_par(p, par_double_hyphen_demerits_code,  unset ? null : double_hyphen_demerits_par,  1); }
@@ -4558,6 +4550,7 @@ void tex_set_par_par(halfword p, halfword what, halfword v, int force)
             if (tex_par_to_be_set(what, par_widow_penalties_code))         { tex_set_par_par(p, par_widow_penalties_code,         unset ? null : widow_penalties_par,         1); }
             if (tex_par_to_be_set(what, par_display_widow_penalties_code)) { tex_set_par_par(p, par_display_widow_penalties_code, unset ? null : display_widow_penalties_par, 1); }
             if (tex_par_to_be_set(what, par_orphan_penalties_code))        { tex_set_par_par(p, par_orphan_penalties_code,        unset ? null : orphan_penalties_par,        1); }
+            if (tex_par_to_be_set(what, par_toddler_penalties_code))       { tex_set_par_par(p, par_toddler_penalties_code,       unset ? null : toddler_penalties_par,       1); }
             if (tex_par_to_be_set(what, par_fitness_demerits_code))        { tex_set_par_par(p, par_fitness_demerits_code,        unset ? null : fitness_demerits_par,        1); }
             if (tex_par_to_be_set(what, par_baseline_skip_code))           { tex_set_par_par(p, par_baseline_skip_code,           unset ? null : baseline_skip_par,           1); }
             if (tex_par_to_be_set(what, par_line_skip_code))               { tex_set_par_par(p, par_line_skip_code,               unset ? null : line_skip_par,               1); }
@@ -4699,9 +4692,6 @@ void tex_snapshot_par(halfword p, halfword what)
         }
         if (tex_par_to_be_set(what, par_display_widow_penalty_code)) { 
             par_display_widow_penalty(p) = unset ? null : display_widow_penalty_par; 
-        }
-        if (tex_par_to_be_set(what, par_orphan_penalty_code)) { 
-            par_orphan_penalty(p) = unset ? null : orphan_penalty_par; 
         }
         if (tex_par_to_be_set(what, par_left_twin_demerits_code)) { 
             par_left_twin_demerits(p) = unset ? null : left_twin_demerits_par; 
