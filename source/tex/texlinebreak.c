@@ -2828,11 +2828,17 @@ static halfword tex_aux_inject_toddler_penalty(const line_break_properties *prop
 {
     halfword next = node_next(current);
     halfword prev = node_prev(current);
-    halfword penalty = 0;
-    halfword nepalty = 0;
+    halfword penalty = null;
+    halfword nepalty = null;
     if (duplex) { 
         penalty = tex_new_penalty_node(amount, toddler_penalty_subtype);
         nepalty = tex_new_penalty_node(tnuoma, toddler_penalty_subtype);
+// if (node_type(prev) == penalty_node && penalty_amount(prev) > tnuoma) {
+//     penalty_amount(nepalty) = penalty_amount(prev);
+// } 
+// if (node_type(next) == penalty_node && penalty_amount(next) > amount) {
+//     penalty_amount(penalty) = penalty_amount(next);
+// } 
         tex_couple_nodes(prev, nepalty);
         tex_couple_nodes(nepalty, current);
         tex_couple_nodes(current, penalty);
@@ -2843,6 +2849,9 @@ static halfword tex_aux_inject_toddler_penalty(const line_break_properties *prop
         }
     } else { 
         penalty = tex_new_penalty_node(amount, toddler_penalty_subtype);
+// if (node_type(next) == penalty_node && penalty_amount(next) > amount) {
+//     penalty_amount(penalty) = penalty_amount(next);
+// } 
         tex_couple_nodes(penalty, next);
         tex_couple_nodes(current, penalty);
         if (toddlered) {
@@ -3199,17 +3208,19 @@ static void tex_aux_fix_toddler_penalties(const line_break_properties *propertie
             }
             /* helper */
             if (prev && ! left) {
-                halfword p = node_prev(prev);
-                halfword n = node_next(prev);
-                node_next(p) = n;
-                node_prev(n) = p;
+             // halfword p = node_prev(prev);
+             // halfword n = node_next(prev);
+             // node_next(p) = n;
+             // node_prev(n) = p;
+                tex_couple_nodes(node_prev(prev),node_next(prev));
                 tex_flush_node(prev);
             }
             if (next && ! right) {
-                halfword p = node_prev(next);
-                halfword n = node_next(next);
-                node_next(p) = n;
-                node_prev(n) = p;
+             // halfword p = node_prev(next);
+             // halfword n = node_next(next);
+             // node_next(p) = n;
+             // node_prev(n) = p;
+                tex_couple_nodes(node_prev(next),node_next(next));
                 tex_flush_node(next);
             }
         }
@@ -3218,6 +3229,44 @@ static void tex_aux_fix_toddler_penalties(const line_break_properties *propertie
         } else {
             tail = node_prev(tail); 
         }
+    }
+}
+
+/* we already have these somewhere */
+
+static inline int tex_aux_prev_penalty_found(halfword current)
+{
+    halfword prev = node_prev(current);
+    if (prev) { 
+        switch (node_type(prev)) { 
+            case glue_node: 
+                prev = node_prev(prev);
+                return prev && node_type(prev) == penalty_node;
+            case penalty_node:
+                return 1;
+            default: 
+                return 0;
+        }
+    } else {
+        return 0;
+    }
+}
+
+static inline int tex_aux_next_penalty_found(halfword current)
+{
+    halfword next = node_next(current);
+    if (next) { 
+        switch (node_type(next)) { 
+            case glue_node: 
+                next = node_prev(next);
+                return next && node_type(next) == penalty_node;
+            case penalty_node:
+                return 1;
+            default: 
+                return 0;
+        }
+    } else {
+        return 0;
     }
 }
 
@@ -3272,6 +3321,7 @@ static void tex_aux_set_toddler_penalties(const line_break_properties *propertie
             halfword tail = null;
             halfword count = 0;
             halfword multiples = 0;
+            halfword mathlevel = 0;
             halfword duplex = tex_has_specification_option(properties->toddler_penalties, specification_option_double);
             int trace = properties->tracing_paragraphs > 1 || properties->tracing_toddlers;
             if (trace) {
@@ -3280,29 +3330,46 @@ static void tex_aux_set_toddler_penalties(const line_break_properties *propertie
                 tex_end_diagnostic();
             }
             while (current) {
-                if (node_type(current) == glyph_node) { 
-                    if (tex_has_glyph_option(current, glyph_option_is_toddler)) {   
-                        halfword amount = 0; 
-                        halfword tnuoma = 0; 
-                        if (duplex) { 
-                            amount = tex_get_specification_nepalty(properties->toddler_penalties, 1);
-                            tnuoma = tex_get_specification_penalty(properties->toddler_penalties, 1);
-                        } else { 
-                            amount = tex_get_specification_penalty(properties->toddler_penalties, 1);
+                switch (node_type(current)) { 
+                    case glyph_node:
+                        if (! mathlevel && tex_has_glyph_option(current, glyph_option_is_toddler)) {   
+                            if (tex_aux_prev_penalty_found(current) || tex_aux_next_penalty_found(current)) {
+                                count = 0;
+                            } else {
+                                halfword amount = 0; 
+                                halfword tnuoma = 0; 
+                                if (duplex) { 
+                                    amount = tex_get_specification_nepalty(properties->toddler_penalties, 1);
+                                    tnuoma = tex_get_specification_penalty(properties->toddler_penalties, 1);
+                                } else { 
+                                    amount = tex_get_specification_penalty(properties->toddler_penalties, 1);
+                                }
+                                tex_aux_inject_toddler_penalty(properties, current, amount, tnuoma, toddlered, duplex);
+                                if (! count) { 
+                                    head = current; 
+                                }
+                                tail = current;
+                                count++;
+                            }
+                        } else if (count > 1) { 
+                            tex_aux_fix_toddler_penalties(properties, duplex, head, tail, trace);
+                            multiples++;
+                            count = 0;
+                        } else {
+                            count = 0;
                         }
-                        tex_aux_inject_toddler_penalty(properties, current, amount, tnuoma, toddlered, duplex);
-                        if (! count) { 
-                            head = current; 
+                        break;
+                    case math_node: 
+                        switch (node_subtype(current)) { 
+                            case begin_inline_math:
+                                ++mathlevel;
+                                break;
+                            case end_inline_math:
+                                --mathlevel;
+                                break;
                         }
-                        tail = current;
-                        count++;
-                    } else if (count > 1) { 
-                        tex_aux_fix_toddler_penalties(properties, duplex, head, tail, trace);
-                        multiples++;
                         count = 0;
-                    } else {
-                        count = 0;
-                    }
+                        break;
                 }
                 current = node_next(current);
             }
@@ -3357,70 +3424,68 @@ static void tex_aux_set_orphan_penalties(const line_break_properties *properties
                 }
             }
           INJECT:
-            if (properties->orphan_penalties) {
+            int n = properties->orphan_penalties ? specification_count(properties->orphan_penalties) : 0;
+            if (n) {
                 /*tex
                     Inject specified penalties before spaces. When we see a math node with a penalty
                     set then we take the max and jump over a (preceding) skip. Maybe at some point
                     the |short_inline_orphan_penalty_par| value will also move into the par state.
                 */
-                int n = specification_count(properties->orphan_penalties);
-                if (n > 0) {
-                    int skip = 0;
-                    halfword i = 0;
-                    while (current) {
-                        switch (node_type(current)) {
-                            case glue_node:
-                                switch (node_subtype(current)) {
-                                    case space_skip_glue:
-                                    case xspace_skip_glue:
-                                    case zero_space_skip_glue:
-                                        if (skip) {
-                                            skip = 0;
-                                        } else {
-                                            current = tex_aux_inject_orphan_penalty(properties, current, tex_get_specification_penalty(properties->orphan_penalties, ++i), 0);
-                                        }
-                                        if (i == n) {
-                                            return;
-                                        } else {
-                                            break;
-                                        }
-                                }
-                                break;
-                            case math_node:
-                                current = tex_aux_backtrack_over_math(current);
-                                if (tex_aux_short_math(current)) {
-                                    halfword penalty = tex_get_specification_penalty(properties->orphan_penalties, ++i);
-                                    tex_aux_adapt_short_math_penalty(current, short_inline_orphan_penalty_par, penalty, 0);
+                int skip = 0;
+                halfword i = 0;
+                while (current) {
+                    switch (node_type(current)) {
+                        case glue_node:
+                            switch (node_subtype(current)) {
+                                case space_skip_glue:
+                                case xspace_skip_glue:
+                                case zero_space_skip_glue:
+                                    if (skip) {
+                                        skip = 0;
+                                    } else {
+                                        current = tex_aux_inject_orphan_penalty(properties, current, tex_get_specification_penalty(properties->orphan_penalties, ++i), 0);
+                                    }
                                     if (i == n) {
                                         return;
                                     } else {
-                                        skip = 1;
+                                        break;
                                     }
-                                } else {
+                            }
+                            break;
+                        case math_node:
+                            current = tex_aux_backtrack_over_math(current);
+                            if (tex_aux_short_math(current)) {
+                                halfword penalty = tex_get_specification_penalty(properties->orphan_penalties, ++i);
+                                tex_aux_adapt_short_math_penalty(current, short_inline_orphan_penalty_par, penalty, 0);
+                                if (i == n) {
                                     return;
+                                } else {
+                                    skip = 1;
                                 }
-                                break;
-                            case disc_node:
-                                skip = 0;
-                                if (i < n) {
-                                    disc_orphaned(current) = tex_get_specification_penalty(properties->orphan_penalties, i + 1);
-                                    if (orphaned) {
-                                        tex_add_disc_option(current, disc_option_orphaned);
-                                    }
+                            } else {
+                                return;
+                            }
+                            break;
+                        case disc_node:
+                            skip = 0;
+                            if (i < n) {
+                                disc_orphaned(current) = tex_get_specification_penalty(properties->orphan_penalties, i + 1);
+                                if (orphaned) {
+                                    tex_add_disc_option(current, disc_option_orphaned);
                                 }
-                                break;
-                            case penalty_node:
-                                if (node_subtype(current) == toddler_penalty_subtype) {
-                                    halfword penalty = tex_get_specification_penalty(properties->orphan_penalties, ++i);
-                                    tex_aux_check_competing_penalties(properties, current, penalty, orphaned);
-                                }
-                                break;
-                            default:
-                                skip = 0;
-                                break;
-                        }
-                        current = node_prev(current);
+                            }
+                            break;
+                        case penalty_node:
+                            if (node_subtype(current) == toddler_penalty_subtype) {
+                                halfword penalty = tex_get_specification_penalty(properties->orphan_penalties, ++i);
+                                tex_aux_check_competing_penalties(properties, current, penalty, orphaned);
+                            }
+                            break;
+                        default:
+                            skip = 0;
+                            break;
                     }
+                    current = node_prev(current);
                 }
             } else if (short_inline_orphan_penalty_par) {
                 /*tex
@@ -3752,11 +3817,11 @@ static int tex_aux_set_sub_pass_parameters(
     */
     tex_aux_remove_special_penalties(properties);
     /* todo : set plural in par pass */
-    if (okay & passes_toddlerpenalties_okay) { 
-        tex_aux_set_toddler_penalties(properties, 1);
-    }
     if ((okay & passes_orphanpenalty_okay) || (okay & passes_orphanpenalties_okay)) { 
         tex_aux_set_orphan_penalties(properties, 1);
+    }
+    if (okay & passes_toddlerpenalties_okay) { 
+        tex_aux_set_toddler_penalties(properties, 1);
     }
     /* */
     if (details) {
@@ -4915,8 +4980,8 @@ void tex_do_line_break(line_break_properties *properties)
     /* */
     tex_aux_set_adjacent_demerits(properties);
     tex_aux_set_adjust_spacing(properties);
-    tex_aux_set_toddler_penalties(properties, 0);
     tex_aux_set_orphan_penalties(properties, 0);
+    tex_aux_set_toddler_penalties(properties, 0);
     tex_aux_set_indentation(properties);
     tex_aux_set_looseness(properties);
     tex_aux_set_both_skips(properties);
