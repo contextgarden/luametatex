@@ -2830,28 +2830,25 @@ static halfword tex_aux_inject_toddler_penalty(const line_break_properties *prop
     halfword prev = node_prev(current);
     halfword penalty = null;
     halfword nepalty = null;
+    /* what if we already have a penalty there, we need to take the max */
     if (duplex) { 
         penalty = tex_new_penalty_node(amount, toddler_penalty_subtype);
         nepalty = tex_new_penalty_node(tnuoma, toddler_penalty_subtype);
-// if (node_type(prev) == penalty_node && penalty_amount(prev) > tnuoma) {
-//     penalty_amount(nepalty) = penalty_amount(prev);
-// } 
-// if (node_type(next) == penalty_node && penalty_amount(next) > amount) {
-//     penalty_amount(penalty) = penalty_amount(next);
-// } 
-        tex_couple_nodes(prev, nepalty);
-        tex_couple_nodes(nepalty, current);
         tex_couple_nodes(current, penalty);
         tex_couple_nodes(penalty, next);
+        if (node_type(prev) == glue_node && node_prev(prev)) { 
+            tex_couple_nodes(node_prev(prev), nepalty);
+            tex_couple_nodes(nepalty, prev);
+        } else { 
+            tex_couple_nodes(prev, nepalty);
+            tex_couple_nodes(nepalty, current);
+        }
         if (toddlered) {
             tex_add_penalty_option(penalty, penalty_option_toddlered);
             tex_add_penalty_option(nepalty, penalty_option_toddlered);
         }
     } else { 
         penalty = tex_new_penalty_node(amount, toddler_penalty_subtype);
-// if (node_type(next) == penalty_node && penalty_amount(next) > amount) {
-//     penalty_amount(penalty) = penalty_amount(next);
-// } 
         tex_couple_nodes(penalty, next);
         tex_couple_nodes(current, penalty);
         if (toddlered) {
@@ -3208,18 +3205,10 @@ static void tex_aux_fix_toddler_penalties(const line_break_properties *propertie
             }
             /* helper */
             if (prev && ! left) {
-             // halfword p = node_prev(prev);
-             // halfword n = node_next(prev);
-             // node_next(p) = n;
-             // node_prev(n) = p;
                 tex_couple_nodes(node_prev(prev),node_next(prev));
                 tex_flush_node(prev);
             }
             if (next && ! right) {
-             // halfword p = node_prev(next);
-             // halfword n = node_next(next);
-             // node_next(p) = n;
-             // node_prev(n) = p;
                 tex_couple_nodes(node_prev(next),node_next(next));
                 tex_flush_node(next);
             }
@@ -3273,49 +3262,53 @@ static inline int tex_aux_next_penalty_found(halfword current)
 static void tex_aux_set_toddler_penalties(const line_break_properties *properties, int toddlered)
 {
     if (properties->toddler_penalties) {
-        /* mark toddlers */
-        halfword current = node_next(properties->parinit_left_skip);
-        halfword count = 0;
-        halfword done = 0;
-        halfword glyph = null;
-        int found = 0;
-        while (current) {
-            switch (node_type(current)) {
-                case glue_node:
-                    switch (node_subtype(current)) { 
-                        case space_skip_glue:
-                        case xspace_skip_glue:
-                        case zero_space_skip_glue:
-             //         case par_fill_right_skip_glue:
-                            if (done && count == 1) {
-                                tex_add_glyph_option(glyph, glyph_option_is_toddler);
-                                found += 1;
-                            } 
-                            done = 1;
-                            break;
-                    }
-                    count = 0;
-                    break;
-             // case penalty_node: 
-             //     if (count == 1 && tex_has_penalty_option(current, penalty_option_end_of_par)) { 
-             //         tex_add_glyph_option(glyph, glyph_option_is_toddler);
-             //         found += 1;
-             //     } 
-             //     count = 0;
-             //     break;
-                case glyph_node:
-                    glyph = current;
-                    if (glyph_node_is_text(current) && tex_has_glyph_option(current, glyph_option_check_toddler)) { 
-                        count += 1; 
-                    }
-                    break;
-                default:
-                    count = 0;
-                    break;
+     // int found = 0;
+        int found = lmt_linebreak_state.has_toddlers;
+        if (found == 0) {
+            /* mark toddlers */
+            halfword current = node_next(properties->parinit_left_skip);
+            halfword count = 0;
+            halfword done = 0;
+            halfword glyph = null;
+            while (current) {
+                switch (node_type(current)) {
+                    case glue_node:
+                        switch (node_subtype(current)) { 
+                            case space_skip_glue:
+                            case xspace_skip_glue:
+                            case zero_space_skip_glue:
+                 //         case par_fill_right_skip_glue:
+                                if (glyph && done && count == 1) {
+                                    tex_add_glyph_option(glyph, glyph_option_is_toddler);
+                                    found += 1;
+                                } 
+                                done = 1;
+                                break;
+                        }
+                        count = 0;
+                        break;
+                 // case penalty_node: 
+                 //     if (count == 1 && tex_has_penalty_option(current, penalty_option_end_of_par)) { 
+                 //         tex_add_glyph_option(glyph, glyph_option_is_toddler);
+                 //         found += 1;
+                 //     } 
+                 //     count = 0;
+                 //     break;
+                    case glyph_node:
+                        glyph = current;
+                        if (glyph_node_is_text(current) && tex_has_glyph_option(current, glyph_option_check_toddler)) { 
+                            count += 1; 
+                        }
+                        break;
+                    default:
+                        count = 0;
+                        break;
+                }
+                current = node_next(current);
             }
-            current = node_next(current);
+            lmt_linebreak_state.has_toddlers = found ? 1 : -1;
         }
-        if (found) {
+        if (found > 0) {
             halfword current = node_next(properties->parinit_left_skip);
             halfword head = null;
             halfword tail = null;
@@ -3334,6 +3327,11 @@ static void tex_aux_set_toddler_penalties(const line_break_properties *propertie
                     case glyph_node:
                         if (! mathlevel && tex_has_glyph_option(current, glyph_option_is_toddler)) {   
                             if (tex_aux_prev_penalty_found(current) || tex_aux_next_penalty_found(current)) {
+                                /*tex 
+                                    We need to avoid interference with e.g. math penalties, so 
+                                    have to quit when we run into some bounding penalty, which can
+                                    be separated by some glue. 
+                                */
                                 count = 0;
                             } else {
                                 halfword amount = 0; 
@@ -4322,7 +4320,7 @@ static inline halfword tex_aux_break_list(const line_break_properties *propertie
                 /*tex
 
                     If node |cur_p| is a legal breakpoint, call |try_break|; then update the
-                    active widths by including the glue in |glue_ptr(cur_p)|.
+                    active widths by including the glue in |glue_ptr (cur_p)|.
 
                     When node |cur_p| is a glue node, we look at the previous to see whether
                     or not a breakpoint is legal at |cur_p|, as explained above.

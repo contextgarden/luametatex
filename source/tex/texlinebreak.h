@@ -148,7 +148,7 @@ typedef struct linebreak_state_info {
     halfword     inject_after_par;
     int          current_line_number; 
     int          has_orphans;
-    int          has_toddlers;
+    int          has_toddlers; /* < 0: not found, == 0: tobechecked, > 0: #found */
 } linebreak_state_info;
 
 extern linebreak_state_info lmt_linebreak_state;
