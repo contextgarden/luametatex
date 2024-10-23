@@ -3293,7 +3293,6 @@ static inline int tex_aux_next_penalty_found(halfword current)
 static void tex_aux_set_toddler_penalties(const line_break_properties *properties, int toddlered)
 {
     if (properties->toddler_penalties) {
-     // int found = 0;
         int found = lmt_linebreak_state.has_toddlers;
         if (found == 0) {
             /* mark toddlers */
@@ -3317,8 +3316,11 @@ static void tex_aux_set_toddler_penalties(const line_break_properties *propertie
                                     done = 1;
                                     break;
                             }
+                            count = 0;
+                        } else { 
+                            /*tex Not needed but shows the issue. */
+                            count += 2;
                         }
-                        count = 0;
                         break;
                     case glyph_node:
                         if (! mathlevel) { 
@@ -3327,7 +3329,8 @@ static void tex_aux_set_toddler_penalties(const line_break_properties *propertie
                                 ++count; 
                             }
                         } else { 
-                            count = 0; /* */
+                            /*tex Not needed but shows the issue. */
+                            count += 2;
                         }
                         break;
                     case math_node: 
@@ -3340,10 +3343,12 @@ static void tex_aux_set_toddler_penalties(const line_break_properties *propertie
                                 --mathlevel;
                                 break;
                         }
-                        ++count;
+                        /*tex Bump more so that we have word e.g. $x$, and the comma is no toddler. */
+                        count += 2;
                         break;
                     default:
-                        ++count; 
+                        /* tex We have to make sure that we don't end up with one glyph bound to something. */
+                        count += 2;
                         break;
                 }
                 current = node_next(current);
@@ -3356,7 +3361,6 @@ static void tex_aux_set_toddler_penalties(const line_break_properties *propertie
             halfword tail = null;
             halfword count = 0;
             halfword multiples = 0;
-            halfword mathlevel = 0;
             halfword duplex = tex_has_specification_option(properties->toddler_penalties, specification_option_double);
             int trace = properties->tracing_paragraphs > 1 || properties->tracing_toddlers;
             if (trace) {
@@ -3365,52 +3369,38 @@ static void tex_aux_set_toddler_penalties(const line_break_properties *propertie
                 tex_end_diagnostic();
             }
             while (current) {
-                switch (node_type(current)) { 
-                    case glyph_node:
-                        if (! mathlevel && tex_has_glyph_option(current, glyph_option_is_toddler)) {   
-                            if (tex_aux_prev_penalty_found(current) || tex_aux_next_penalty_found(current)) {
-                                /*tex 
-                                    We need to avoid interference with e.g. math penalties, so 
-                                    have to quit when we run into some bounding penalty, which can
-                                    be separated by some glue. 
-                                */
-                                count = 0;
-                            } else {
-                                halfword amount = 0; 
-                                halfword tnuoma = 0; 
-                                if (duplex) { 
-                                    amount = tex_get_specification_nepalty(properties->toddler_penalties, 1);
-                                    tnuoma = tex_get_specification_penalty(properties->toddler_penalties, 1);
-                                } else { 
-                                    amount = tex_get_specification_penalty(properties->toddler_penalties, 1);
-                                }
-                                tex_aux_inject_toddler_penalty(properties, current, amount, tnuoma, toddlered, duplex);
-                                if (! count) { 
-                                    head = current; 
-                                }
-                                tail = current;
-                                count++;
-                            }
-                        } else if (count > 1) { 
-                            tex_aux_fix_toddler_penalties(properties, duplex, head, tail, trace, count);
-                            multiples++;
+                if (node_type(current) == glyph_node) {
+                    if (tex_has_glyph_option(current, glyph_option_is_toddler)) {   
+                        if (tex_aux_prev_penalty_found(current) || tex_aux_next_penalty_found(current)) {
+                            /*tex 
+                                We need to avoid interference with e.g. math penalties, so 
+                                have to quit when we run into some bounding penalty, which can
+                                be separated by some glue. 
+                            */
                             count = 0;
                         } else {
-                            count = 0;
+                            halfword amount = 0; 
+                            halfword tnuoma = 0; 
+                            if (duplex) { 
+                                amount = tex_get_specification_nepalty(properties->toddler_penalties, 1);
+                                tnuoma = tex_get_specification_penalty(properties->toddler_penalties, 1);
+                            } else { 
+                                amount = tex_get_specification_penalty(properties->toddler_penalties, 1);
+                            }
+                            tex_aux_inject_toddler_penalty(properties, current, amount, tnuoma, toddlered, duplex);
+                            if (! count) { 
+                                head = current; 
+                            }
+                            tail = current;
+                            count++;
                         }
-                        break;
-                    case math_node: 
-                        /* todo use skip over math helper */
-                        switch (node_subtype(current)) { 
-                            case begin_inline_math:
-                                ++mathlevel;
-                                break;
-                            case end_inline_math:
-                                --mathlevel;
-                                break;
-                        }
+                    } else if (count > 1) { 
+                        tex_aux_fix_toddler_penalties(properties, duplex, head, tail, trace, count);
+                        multiples++;
                         count = 0;
-                        break;
+                    } else {
+                        count = 0;
+                    }
                 }
                 current = node_next(current);
             }

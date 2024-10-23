@@ -4707,6 +4707,28 @@ static int texlib_chardef(lua_State *L)
     return 0;
 }
 
+// static int tokenlib_set_char(lua_State *L) /* also in texlib */
+// {
+//     int top = lua_gettop(L);
+//     if (top >= 2) {
+//         size_t lname = 0;
+//         const char *name = lua_tolstring(L, 1, &lname);
+//         if (name) {
+//             int value = lmt_tointeger(L, 2);
+//             if (value >= 0 && value <= max_character_code) {
+//                 int flags = 0;
+//                 int cs = tex_string_locate(name, lname, 1);
+//                 if (top > 2) {
+//                     lmt_check_for_flags(L, 3, &flags, 1, 0);
+//                 }
+//                 tex_define(flags, cs, char_given_cmd, value);
+//             }
+//         }
+//     }
+//     return 0;
+// }
+
+
 /* todo: same range checks as in texlib_setmathcode */
 
 static int texlib_mathchardef(lua_State *L)

@@ -627,24 +627,24 @@ static void tokenlib_aux_push_token(lua_State *L, int tok)
     lua_setmetatable(L, -2);
 }
 
-static int tokenlib_getcommandid(lua_State *L)
-{
-    int id = -1;
-    switch (lua_type(L, 1)) {
-        case LUA_TSTRING:
-            id = tokenlib_aux_get_command_id(lua_tostring(L, 1));
-            break;
-        case LUA_TNUMBER:
-            id = lmt_tointeger(L, 1);
-            break;
-    }
-    if (id >= 0 && id < number_glue_pars) {
-        lua_pushinteger(L, id);
-    } else {
-        lua_pushnil(L);
-    }
-    return 1;
-}
+// static int tokenlib_getcommandid(lua_State *L)
+// {
+//     int id = -1;
+//     switch (lua_type(L, 1)) {
+//         case LUA_TSTRING:
+//             id = tokenlib_aux_get_command_id(lua_tostring(L, 1));
+//             break;
+//         case LUA_TNUMBER:
+//             id = lmt_tointeger(L, 1);
+//             break;
+//     }
+//     if (id >= 0 && id < number_glue_pars) {
+//         lua_pushinteger(L, id);
+//     } else {
+//         lua_pushnil(L);
+//     }
+//     return 1;
+// }
 
 static int tokenlib_scan_next(lua_State *L)
 {
@@ -2542,7 +2542,7 @@ static int tokenlib_get_cmdchrcs(lua_State* L)
 static int tokenlib_scan_cmdchr(lua_State *L)
 {
     int cmd, chr;
-    halfword tok = tex_get_token();
+    halfword tok = lua_toboolean(L, 1) ? tex_get_x_token() : tex_get_token();
     if (tok >= cs_token_flag) {
         tok -= cs_token_flag;
         cmd = eq_type(tok);
@@ -2572,7 +2572,6 @@ static int tokenlib_scan_cmdchr_expanded(lua_State *L)
     lua_pushinteger(L, tokenlib_aux_to_valid_index(cmd, chr));
     return 2;
 }
-
 
 static int tokenlib_get_cstoken(lua_State* L)
 {
@@ -3643,28 +3642,28 @@ static int tokenlib_expand_macro(lua_State *L)
     return 0;
 }
 
-/* a weird place, should be in tex */
+/* Use |tex.chardef| instead of: */
 
-static int tokenlib_set_char(lua_State *L) /* also in texlib */
-{
-    int top = lua_gettop(L);
-    if (top >= 2) {
-        size_t lname = 0;
-        const char *name = lua_tolstring(L, 1, &lname);
-        if (name) {
-            int value = lmt_tointeger(L, 2);
-            if (value >= 0 && value <= max_character_code) {
-                int flags = 0;
-                int cs = tex_string_locate(name, lname, 1);
-                if (top > 2) {
-                    lmt_check_for_flags(L, 3, &flags, 1, 0);
-                }
-                tex_define(flags, cs, char_given_cmd, value);
-            }
-        }
-    }
-    return 0;
-}
+// static int tokenlib_set_char(lua_State *L) /* also in texlib */
+// {
+//     int top = lua_gettop(L);
+//     if (top >= 2) {
+//         size_t lname = 0;
+//         const char *name = lua_tolstring(L, 1, &lname);
+//         if (name) {
+//             int value = lmt_tointeger(L, 2);
+//             if (value >= 0 && value <= max_character_code) {
+//                 int flags = 0;
+//                 int cs = tex_string_locate(name, lname, 1);
+//                 if (top > 2) {
+//                     lmt_check_for_flags(L, 3, &flags, 1, 0);
+//                 }
+//                 tex_define(flags, cs, char_given_cmd, value);
+//             }
+//         }
+//     }
+//     return 0;
+// }
 
 /* a weird place, these should be in tex */
 
@@ -3874,7 +3873,7 @@ static const struct luaL_Reg tokenlib_function_list[] = {
     { "setmacro",              tokenlib_set_macro               },
     { "undefinemacro",         tokenlib_undefine_macro          },
     { "expandmacro",           tokenlib_expand_macro            },
-    { "setchar",               tokenlib_set_char                },
+ // { "setchar",               tokenlib_set_char                },
     { "setlua",                tokenlib_set_lua                 },
     { "setinteger",            tokenlib_set_integer             }, /* can go ... also in texlib */
     { "getinteger",            tokenlib_get_integer             }, /* can go ... also in texlib */
@@ -3882,7 +3881,7 @@ static const struct luaL_Reg tokenlib_function_list[] = {
     { "getdimension",          tokenlib_get_dimension           }, /* can go ... also in texlib */
     /* gobblers */                                              
     { "gobbleinteger",         tokenlib_gobble_integer          },
-    { "gobbledimen",           tokenlib_gobble_dimension        },
+    { "gobbledimension",       tokenlib_gobble_dimension        },
     { "gobble",                tokenlib_gobble_until            },
     { "grab",                  tokenlib_grab_until              },
     /* macros */                                                
@@ -3896,7 +3895,7 @@ static const struct luaL_Reg tokenlib_function_list[] = {
     /* interface */                                             
     { "getfunctionvalues",     tokenlib_getfunctionvalues       },
     { "getcommandvalues",      tokenlib_getcommandvalues        },
-    { "getcommandid",          tokenlib_getcommandid            },
+ // { "getcommandid",          tokenlib_getcommandid            },
     { "getprimitives",         tokenlib_getprimitives           },
     /* done */                                                  
     { NULL,                    NULL                             },
