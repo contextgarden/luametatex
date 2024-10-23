@@ -3169,21 +3169,23 @@ static void tex_aux_apply_special_factors(const line_break_properties *propertie
     twins but this is also a bit of a demo of how to do this. 
 */
 
-static void tex_aux_fix_toddler_penalties(const line_break_properties *properties, halfword duplex, halfword head, halfword tail, int trace)
+static void tex_aux_fix_toddler_penalties(const line_break_properties *properties, halfword duplex, halfword head, halfword tail, int trace, int count)
 {
     halfword done = 1;
-    tail = node_prev(tail);
+    halfword start = tail;     
+    tail = node_prev(start);
     while (tail) {
         if (node_type(tail) == glyph_node && tex_has_glyph_option(tail, glyph_option_is_toddler)) {
-            /* duplex  : prevpenalty glyph nextpenalty */
-            /* simplex :             glyph nextpenalty */
-            halfword prev = null;
-            halfword next = null;
+            halfword prev = 0;
+            halfword next = 0;
             halfword left = null;
             halfword right = null;
             if (duplex) { 
                 prev = node_prev(tail);
                 next = node_next(tail);
+                if (node_type(prev) == glue_node && node_prev(prev)) { 
+                    prev = node_prev(prev);
+                }
                 left = tex_get_specification_penalty(properties->toddler_penalties, ++done);
                 right = tex_get_specification_nepalty(properties->toddler_penalties, done);
                 penalty_amount(prev) = left;
@@ -3203,20 +3205,44 @@ static void tex_aux_fix_toddler_penalties(const line_break_properties *propertie
                     tex_end_diagnostic();
                 }
             }
-            /* helper */
-            if (prev && ! left) {
-                tex_couple_nodes(node_prev(prev),node_next(prev));
-                tex_flush_node(prev);
-            }
-            if (next && ! right) {
-                tex_couple_nodes(node_prev(next),node_next(next));
-                tex_flush_node(next);
-            }
         }
         if (tail == head) { 
             break;
         } else {
             tail = node_prev(tail); 
+        }
+    }
+    if (duplex) { 
+        tail = start;     
+        while (tail) {
+            if (node_type(tail) == glyph_node && tex_has_glyph_option(tail, glyph_option_is_toddler)) {
+                halfword left = 0;
+                halfword right = 0;
+                halfword prev = node_prev(tail);
+                halfword next = node_next(tail);
+                if (node_type(prev) == glue_node && node_prev(prev)) { 
+                    prev = node_prev(prev);
+                }
+                left = penalty_amount(prev);
+                right = penalty_amount(next);
+                if (--count > 0) {
+                    left = 0;
+                    penalty_amount(prev) = 0;
+                }
+                if (prev && ! left) {
+                    tex_couple_nodes(node_prev(prev), node_next(prev));
+                    tex_flush_node(prev);
+                }
+                if (next && ! right) {
+                    tex_couple_nodes(node_prev(next), node_next(next));
+                    tex_flush_node(next);
+                }
+            }
+            if (tail == head) { 
+                break;
+            } else {
+                tail = node_prev(tail); 
+            }
         }
     }
 }
@@ -3230,9 +3256,9 @@ static inline int tex_aux_prev_penalty_found(halfword current)
         switch (node_type(prev)) { 
             case glue_node: 
                 prev = node_prev(prev);
-                return prev && node_type(prev) == penalty_node;
+                return prev && node_type(prev) == penalty_node && node_subtype(prev) != toddler_penalty_subtype;
             case penalty_node:
-                return 1;
+                return node_subtype(prev) != toddler_penalty_subtype;
             default: 
                 return 0;
         }
@@ -3248,9 +3274,9 @@ static inline int tex_aux_next_penalty_found(halfword current)
         switch (node_type(next)) { 
             case glue_node: 
                 next = node_prev(next);
-                return next && node_type(next) == penalty_node;
+                return next && node_type(next) == penalty_node && node_subtype(next) != toddler_penalty_subtype;
             case penalty_node:
-                return 1;
+                return node_subtype(next) != toddler_penalty_subtype;
             default: 
                 return 0;
         }
@@ -3350,7 +3376,7 @@ static void tex_aux_set_toddler_penalties(const line_break_properties *propertie
                                 count++;
                             }
                         } else if (count > 1) { 
-                            tex_aux_fix_toddler_penalties(properties, duplex, head, tail, trace);
+                            tex_aux_fix_toddler_penalties(properties, duplex, head, tail, trace, count);
                             multiples++;
                             count = 0;
                         } else {
@@ -3372,7 +3398,7 @@ static void tex_aux_set_toddler_penalties(const line_break_properties *propertie
                 current = node_next(current);
             }
             if (count > 1) { 
-                tex_aux_fix_toddler_penalties(properties, duplex, head, tail, trace);
+                tex_aux_fix_toddler_penalties(properties, duplex, head, tail, trace, count);
                 multiples++;
             }
             if (trace) {

@@ -998,6 +998,8 @@ static inline void tokenlib_aux_add_utf_char_to_buffer(luaL_Buffer *b, halfword 
     so we use |SCANDECIMAL| instead.
 */
 
+/* maybe optional equal */
+
 static int tokenlib_scan_float_indeed(lua_State *L, int exponent, int hexadecimal)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
@@ -1687,13 +1689,14 @@ static int tokenlib_scan_integer_argument(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     int wrapped = 0;
+    int eq = lua_toboolean(L, 1);
     tokenlib_aux_goto_first_candidate();
     if (cur_cmd != left_brace_cmd) {
         tex_back_input(cur_tok);
     } else {
         wrapped = 1;
     }
-    lua_pushinteger(L, (int) tex_scan_integer(0, NULL));
+    lua_pushinteger(L, (int) tex_scan_integer(wrapped ? 0 : eq, NULL));
     if (wrapped) {
         tokenlib_aux_goto_first_candidate();
         if (cur_cmd != right_brace_cmd) {
@@ -1718,7 +1721,7 @@ static int tokenlib_scan_dimension_argument(lua_State *L)
     } else {
         wrapped = 1;
     }
-    lua_pushinteger(L, tex_scan_dimension(mu, inf, 0, eq, &order));
+    lua_pushinteger(L, tex_scan_dimension(mu, inf, 0, wrapped ? 0 : eq, &order));
     if (wrapped) {
         tokenlib_aux_goto_first_candidate();
         if (cur_cmd != right_brace_cmd) {
