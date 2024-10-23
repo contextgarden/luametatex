@@ -3310,7 +3310,6 @@ static void tex_aux_set_toddler_penalties(const line_break_properties *propertie
                                 case space_skip_glue:
                                 case xspace_skip_glue:
                                 case zero_space_skip_glue:
-                     //         case par_fill_right_skip_glue:
                                     if (glyph && done && count == 1) {
                                         tex_add_glyph_option(glyph, glyph_option_is_toddler);
                                         found += 1;
@@ -3321,21 +3320,14 @@ static void tex_aux_set_toddler_penalties(const line_break_properties *propertie
                         }
                         count = 0;
                         break;
-                 // case penalty_node: 
-                 //     if (count == 1 && tex_has_penalty_option(current, penalty_option_end_of_par)) { 
-                 //         tex_add_glyph_option(glyph, glyph_option_is_toddler);
-                 //         found += 1;
-                 //     } 
-                 //     count = 0;
-                 //     break;
                     case glyph_node:
                         if (! mathlevel) { 
                             glyph = current;
                             if (glyph_node_is_text(current) && tex_has_glyph_option(current, glyph_option_check_toddler)) { 
-                                count += 1; 
+                                ++count; 
                             }
                         } else { 
-                            count = 0;
+                            count = 0; /* */
                         }
                         break;
                     case math_node: 
@@ -3348,10 +3340,10 @@ static void tex_aux_set_toddler_penalties(const line_break_properties *propertie
                                 --mathlevel;
                                 break;
                         }
-                        count = 0;
+                        ++count;
                         break;
                     default:
-                        count = 0;
+                        ++count; 
                         break;
                 }
                 current = node_next(current);
@@ -3408,6 +3400,7 @@ static void tex_aux_set_toddler_penalties(const line_break_properties *propertie
                         }
                         break;
                     case math_node: 
+                        /* todo use skip over math helper */
                         switch (node_subtype(current)) { 
                             case begin_inline_math:
                                 ++mathlevel;
