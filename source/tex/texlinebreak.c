@@ -3301,20 +3301,23 @@ static void tex_aux_set_toddler_penalties(const line_break_properties *propertie
             halfword count = 0;
             halfword done = 0;
             halfword glyph = null;
+            halfword mathlevel = 0;
             while (current) {
                 switch (node_type(current)) {
                     case glue_node:
-                        switch (node_subtype(current)) { 
-                            case space_skip_glue:
-                            case xspace_skip_glue:
-                            case zero_space_skip_glue:
-                 //         case par_fill_right_skip_glue:
-                                if (glyph && done && count == 1) {
-                                    tex_add_glyph_option(glyph, glyph_option_is_toddler);
-                                    found += 1;
-                                } 
-                                done = 1;
-                                break;
+                        if (! mathlevel) { 
+                            switch (node_subtype(current)) { 
+                                case space_skip_glue:
+                                case xspace_skip_glue:
+                                case zero_space_skip_glue:
+                     //         case par_fill_right_skip_glue:
+                                    if (glyph && done && count == 1) {
+                                        tex_add_glyph_option(glyph, glyph_option_is_toddler);
+                                        found += 1;
+                                    } 
+                                    done = 1;
+                                    break;
+                            }
                         }
                         count = 0;
                         break;
@@ -3326,10 +3329,26 @@ static void tex_aux_set_toddler_penalties(const line_break_properties *propertie
                  //     count = 0;
                  //     break;
                     case glyph_node:
-                        glyph = current;
-                        if (glyph_node_is_text(current) && tex_has_glyph_option(current, glyph_option_check_toddler)) { 
-                            count += 1; 
+                        if (! mathlevel) { 
+                            glyph = current;
+                            if (glyph_node_is_text(current) && tex_has_glyph_option(current, glyph_option_check_toddler)) { 
+                                count += 1; 
+                            }
+                        } else { 
+                            count = 0;
                         }
+                        break;
+                    case math_node: 
+                        /* todo use skip over math helper */
+                        switch (node_subtype(current)) { 
+                            case begin_inline_math:
+                                ++mathlevel;
+                                break;
+                            case end_inline_math:
+                                --mathlevel;
+                                break;
+                        }
+                        count = 0;
                         break;
                     default:
                         count = 0;
