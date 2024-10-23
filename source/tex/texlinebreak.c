@@ -3212,37 +3212,42 @@ static void tex_aux_fix_toddler_penalties(const line_break_properties *propertie
             tail = node_prev(tail); 
         }
     }
-    if (duplex) { 
-        tail = start;     
-        while (tail) {
-            if (node_type(tail) == glyph_node && tex_has_glyph_option(tail, glyph_option_is_toddler)) {
-                halfword left = 0;
-                halfword right = 0;
-                halfword prev = node_prev(tail);
-                halfword next = node_next(tail);
-                if (node_type(prev) == glue_node && node_prev(prev)) { 
-                    prev = node_prev(prev);
-                }
-                left = penalty_amount(prev);
-                right = penalty_amount(next);
-                if (--count > 0) {
-                    left = 0;
-                    penalty_amount(prev) = 0;
-                }
-                if (prev && ! left) {
-                    tex_couple_nodes(node_prev(prev), node_next(prev));
-                    tex_flush_node(prev);
-                }
-                if (next && ! right) {
+    /* plenty of safeguards here */
+    tail = start;     
+    while (tail) {
+        if (node_type(tail) == glyph_node && tex_has_glyph_option(tail, glyph_option_is_toddler)) {
+            halfword next = node_next(tail);
+            if (next && node_type(next) == penalty_node) {
+                if (! penalty_amount(next)) {
                     tex_couple_nodes(node_prev(next), node_next(next));
                     tex_flush_node(next);
                 }
             }
-            if (tail == head) { 
-                break;
-            } else {
-                tail = node_prev(tail); 
+            if (duplex) {
+                halfword prev = node_prev(tail);
+                if (prev) {
+                    halfword left = 0;
+                    if (node_type(prev) == glue_node && node_prev(prev)) { 
+                        prev = node_prev(prev);
+                    }
+                    if (prev && node_type(prev) == penalty_node) {
+                        if (--count > 0) {
+                            penalty_amount(prev) = 0;
+                        } else { 
+                            left = penalty_amount(prev);
+                        }
+                        if (! left) {
+                            tex_couple_nodes(node_prev(prev), node_next(prev));
+                            tex_flush_node(prev);
+                        }
+                    }
+                }
             }
+        }
+        if (tail == head) { 
+            break;
+        } else {
+            tail = node_prev(tail); 
         }
     }
 }
