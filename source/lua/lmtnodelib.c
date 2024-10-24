@@ -7586,7 +7586,7 @@ static int nodelib_common_getfield(lua_State *L, int direct, halfword n)
                             } else if (lua_key_eq(s, index)) {
                                 lua_pushinteger(L, box_index(n));
                             } else if (lua_key_eq(s, except)) {
-                                lua_pushinteger(L, box_except(n));
+                                nodelib_push_direct_or_node(L, direct, box_except(n));
                             } else {
                                 goto CANTGET;
                             }
@@ -8300,7 +8300,7 @@ static int nodelib_common_setfield(lua_State *L, int direct, halfword n)
                             } else if (lua_key_eq(s, index)) {
                                 box_index(n) = lmt_tohalfword(L, 3);
                             } else if (lua_key_eq(s, except)) {
-                                box_except(n) = lmt_tohalfword(L, 3);;
+                                box_except(n) = nodelib_direct_or_node_from_index(L, direct, 3);;
                             } else {
                                 goto CANTSET;
                             }

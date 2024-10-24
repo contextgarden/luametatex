@@ -3607,6 +3607,7 @@ char *tex_tokenlist_to_tstring(int pp, int inhibit_par, int *siz, int skippreamb
                             case right_brace_cmd:
                             case math_shift_cmd:
                             case alignment_tab_cmd:
+                            case end_line_cmd:
                             case superscript_cmd:
                             case subscript_cmd:
                             case spacer_cmd:

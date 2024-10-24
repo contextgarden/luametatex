@@ -646,7 +646,7 @@ static void tokenlib_aux_push_token(lua_State *L, int tok)
 //     return 1;
 // }
 
-static int tokenlib_scan_next(lua_State *L)
+static int tokenlib_scannext(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     halfword tok = tex_get_token();
@@ -655,7 +655,7 @@ static int tokenlib_scan_next(lua_State *L)
     return 1;
 }
 
-static int tokenlib_scan_next_expanded(lua_State *L)
+static int tokenlib_scannextexpanded(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     halfword tok = tex_get_x_token();
@@ -664,7 +664,7 @@ static int tokenlib_scan_next_expanded(lua_State *L)
     return 1;
 }
 
-static int tokenlib_skip_next(lua_State *L)
+static int tokenlib_skipnext(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     (void) L;
@@ -673,7 +673,7 @@ static int tokenlib_skip_next(lua_State *L)
     return 0;
 }
 
-static int tokenlib_skip_next_expanded(lua_State *L)
+static int tokenlib_skipnextexpanded(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     (void) L;
@@ -809,7 +809,7 @@ static void tokenlib_aux_to_token(lua_State *L, int i, int m, int *head, int *ta
     }
 }
 
-static inline int tokenlib_put_next(lua_State *L)
+static inline int tokenlib_putnext(lua_State *L)
 {
     int top = lua_gettop(L);
     if (top > 0) {
@@ -828,7 +828,7 @@ static inline int tokenlib_put_next(lua_State *L)
     return 0;
 }
 
-static inline int tokenlib_put_back(lua_State *L)
+static inline int tokenlib_putback(lua_State *L)
 {
     lua_token *t = tokenlib_aux_check_istoken(L, 1);
     if (t) {
@@ -837,7 +837,7 @@ static inline int tokenlib_put_back(lua_State *L)
     return 0;
 }
 
-static int tokenlib_scan_keyword(lua_State *L)
+static int tokenlib_scankeyword(lua_State *L)
 {
     const char *s = lua_tostring(L, 1);
     int v = 0;
@@ -850,7 +850,7 @@ static int tokenlib_scan_keyword(lua_State *L)
     return 1;
 }
 
-static int tokenlib_scan_keyword_cs(lua_State *L)
+static int tokenlib_scankeywordcs(lua_State *L)
 {
     const char *s = lua_tostring(L, 1);
     int v = 0;
@@ -863,7 +863,7 @@ static int tokenlib_scan_keyword_cs(lua_State *L)
     return 1;
 }
 
-static int tokenlib_scan_csname(lua_State *L)
+static int tokenlib_scancsname(lua_State *L)
 {
     int t;
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
@@ -899,7 +899,7 @@ static int tokenlib_scan_csname(lua_State *L)
     return 1;
 }
 
-static int tokenlib_scan_cstoken(lua_State *L)
+static int tokenlib_scancstoken(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     if (lua_toboolean(L, 1)) {
@@ -923,7 +923,7 @@ static int tokenlib_scan_cstoken(lua_State *L)
     return 1;
 }
 
-static int tokenlib_scan_integer(lua_State *L)
+static int tokenlib_scaninteger(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     int eq = lua_toboolean(L, 1);
@@ -933,7 +933,7 @@ static int tokenlib_scan_integer(lua_State *L)
     return 1;
 }
 
-static int tokenlib_scan_cardinal(lua_State *L)
+static int tokenlib_scancardinal(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     int eq = lua_toboolean(L, 1);
@@ -944,7 +944,7 @@ static int tokenlib_scan_cardinal(lua_State *L)
     return 1;
 }
 
-static int tokenlib_gobble_integer(lua_State *L)
+static int tokenlib_gobbleinteger(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     int eq = lua_toboolean(L, 1);
@@ -1271,32 +1271,32 @@ static int tokenlib_scan_integer_indeed(lua_State *L, int cardinal)
     return 1;
 }
 
-static int tokenlib_scan_float(lua_State *L)
+static int tokenlib_scanfloat(lua_State *L)
 {
     return tokenlib_scan_float_indeed(L, 1, 0);
 }
 
-static int tokenlib_scan_real(lua_State *L)
+static int tokenlib_scanreal(lua_State *L)
 {
     return tokenlib_scan_float_indeed(L, 0, 0);
 }
 
-static int tokenlib_scan_luanumber(lua_State* L)
+static int tokenlib_scanluanumber(lua_State* L)
 {
     return tokenlib_scan_float_indeed(L, 1, 1);
 }
 
-static int tokenlib_scan_luainteger(lua_State* L)
+static int tokenlib_scanluainteger(lua_State* L)
 {
     return tokenlib_scan_integer_indeed(L, 0);
 }
 
-static int tokenlib_scan_luacardinal(lua_State* L)
+static int tokenlib_scanluacardinal(lua_State* L)
 {
     return tokenlib_scan_integer_indeed(L, 1);
 }
 
-static int tokenlib_scan_scale(lua_State *L)
+static int tokenlib_scanscale(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     int eq = lua_toboolean(L, 1);
@@ -1306,7 +1306,7 @@ static int tokenlib_scan_scale(lua_State *L)
     return 1;
 }
 
-static int tokenlib_scan_dimension(lua_State *L)
+static int tokenlib_scandimension(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     int inf = lua_toboolean(L, 1);
@@ -1324,7 +1324,7 @@ static int tokenlib_scan_dimension(lua_State *L)
     }
 }
 
-static int tokenlib_scan_posit(lua_State *L)
+static int tokenlib_scanposit(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     int eq = lua_toboolean(L, 1);
@@ -1339,7 +1339,7 @@ static int tokenlib_scan_posit(lua_State *L)
     return 1;
 }
 
-static int tokenlib_gobble_dimension(lua_State *L)
+static int tokenlib_gobbledimension(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     int inf = lua_toboolean(L, 1);
@@ -1355,7 +1355,7 @@ static int tokenlib_gobble_dimension(lua_State *L)
     return 1;
 }
 
-static int tokenlib_scan_skip(lua_State *L)
+static int tokenlib_scanskip(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     int mu = lua_toboolean(L, 1) ? muglue_val_level : glue_val_level;
@@ -1366,7 +1366,7 @@ static int tokenlib_scan_skip(lua_State *L)
     return 1;
 }
 
-static int tokenlib_scan_glue(lua_State *L)
+static int tokenlib_scanglue(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     int mu = lua_toboolean(L, 1) ? muglue_val_level : glue_val_level;
@@ -1439,7 +1439,7 @@ void lmt_token_register_to_lua(lua_State *L, halfword h, int originals)
     }
 }
 
-static int tokenlib_scan_toks(lua_State *L)
+static int tokenlib_scantoks(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     int macro = lua_toboolean(L, 1);
@@ -1460,7 +1460,7 @@ static int tokenlib_scan_toks(lua_State *L)
     return 1;
 }
 
-static int tokenlib_scan_tokenlist(lua_State *L)
+static int tokenlib_scantokenlist(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     int macro = lua_toboolean(L, 1);
@@ -1478,7 +1478,7 @@ static int tokenlib_scan_tokenlist(lua_State *L)
     return 1;
 }
 
-static int tokenlib_scan_detokened(lua_State *L)
+static int tokenlib_scandetokened(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     int expand = lua_toboolean(L, 1);
@@ -1529,7 +1529,7 @@ static int tokenlib_scan_detokened(lua_State *L)
 
 /* todo: other call_cmd */
 
-static int tokenlib_scan_tokenstring(lua_State *L) /* noexpand noexpandconstant noexpandparameters */
+static int tokenlib_scantokenstring(lua_State *L) /* noexpand noexpandconstant noexpandparameters */
 {
     /*tex is saving really needed here? */
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
@@ -1542,7 +1542,7 @@ static int tokenlib_scan_tokenstring(lua_State *L) /* noexpand noexpandconstant 
     return 1;
 }
 
-static int tokenlib_scan_string(lua_State *L)
+static int tokenlib_scanstring(lua_State *L)
 {
     /*tex can be simplified, no need for intermediate list */
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
@@ -1596,7 +1596,7 @@ static int tokenlib_scan_string(lua_State *L)
     return 1;
 }
 
-static int tokenlib_scan_argument(lua_State *L)
+static int tokenlib_scanargument(lua_State *L)
 {
     /*tex can be simplified, no need for intermediate list */
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
@@ -1685,7 +1685,7 @@ static void show_right_brace_error(void)
     );
 }
 
-static int tokenlib_scan_integer_argument(lua_State *L)
+static int tokenlib_scanintegerargument(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     int wrapped = 0;
@@ -1707,7 +1707,7 @@ static int tokenlib_scan_integer_argument(lua_State *L)
     return 1;
 }
 
-static int tokenlib_scan_dimension_argument(lua_State *L)
+static int tokenlib_scandimensionargument(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     int wrapped = 0;
@@ -1737,7 +1737,7 @@ static int tokenlib_scan_dimension_argument(lua_State *L)
     }
 }
 
-static int tokenlib_scan_delimited(lua_State *L)
+static int tokenlib_scandelimited(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     halfword left = lua_type(L, 1) == LUA_TNUMBER ? lmt_tohalfword(L, 1) : 0;
@@ -1985,7 +1985,7 @@ static int tokenlib_grab_until(lua_State *L)
     return 1;
 }
 
-static int tokenlib_scan_word(lua_State *L)
+static int tokenlib_scanword(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     tokenlib_aux_goto_first_candidate_x();
@@ -2011,7 +2011,7 @@ static int tokenlib_scan_word(lua_State *L)
     return 1;
 }
 
-static int tokenlib_scan_letters(lua_State *L)
+static int tokenlib_scanletters(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     tokenlib_aux_goto_first_candidate_x();
@@ -2037,7 +2037,7 @@ static int tokenlib_scan_letters(lua_State *L)
     return 1;
 }
 
-static int tokenlib_scan_char(lua_State *L)
+static int tokenlib_scanchar(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     tokenlib_aux_goto_first_candidate(); /* no expansion */ /* optional expansion ? */ /* gobbles spaces */
@@ -2075,7 +2075,7 @@ static const char *token_cmd_to_string[15] = {
     "%"   /* 14 comment_cmd       */
 };
 
-static int tokenlib_scan_next_char(lua_State *L)
+static int tokenlib_scannextchar(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     tex_get_token();
@@ -2112,7 +2112,7 @@ static int tokenlib_scan_next_char(lua_State *L)
     return 1;
 }
 
-static int tokenlib_is_next_char(lua_State *L)
+static int tokenlib_isnextchar(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     tokenlib_aux_goto_first_candidate(); /* no expansion */ /* optional expansion ? */ /* gobbles spaces */
@@ -2127,7 +2127,7 @@ static int tokenlib_is_next_char(lua_State *L)
     return 1;
 }
 
-static int tokenlib_peek_next(lua_State *L)
+static int tokenlib_peeknext(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     if (lua_toboolean(L, 1)) {
@@ -2142,7 +2142,7 @@ static int tokenlib_peek_next(lua_State *L)
     return 1;
 }
 
-static int tokenlib_peek_next_expanded(lua_State *L)
+static int tokenlib_peeknextexpanded(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     if (lua_toboolean(L, 1)) {
@@ -2157,7 +2157,7 @@ static int tokenlib_peek_next_expanded(lua_State *L)
     return 1;
 }
 
-static int tokenlib_peek_next_char(lua_State *L)
+static int tokenlib_peeknextchar(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     tokenlib_aux_goto_first_candidate(); /* no expansion */ /* optional expansion ? */ /* gobbles spaces */
@@ -2179,7 +2179,7 @@ static int tokenlib_peek_next_char(lua_State *L)
 
 */
 
-static int tokenlib_scan_key(lua_State *L)
+static int tokenlib_scankey(lua_State *L)
 {
     int c1 = lmt_optinteger(L, 1, '\0');
     int c2 = lmt_optinteger(L, 2, '\0');
@@ -2213,7 +2213,7 @@ static int tokenlib_scan_key(lua_State *L)
 /* todo: other call_cmd */
 /* todo: non expandable option */
 
-static int tokenlib_scan_value(lua_State *L)
+static int tokenlib_scanvalue(lua_State *L)
 {
     /*tex can be simplified, no need for intermediate list */
     int c1 = lmt_optinteger(L, 1, '\0');
@@ -2368,7 +2368,7 @@ static int tokenlib_future_expand(lua_State *L)
  // return 0;
 }
 
-static int tokenlib_scan_code(lua_State *L)
+static int tokenlib_scancode(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     tex_get_x_token();
@@ -2388,7 +2388,7 @@ static int tokenlib_scan_code(lua_State *L)
     return 1;
 }
 
-static int tokenlib_scan_token_code(lua_State *L)
+static int tokenlib_scantokencode(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     halfword t = tex_get_token();
@@ -2408,7 +2408,7 @@ static int tokenlib_scan_token_code(lua_State *L)
     return 1;
 }
 
-static int tokenlib_is_token(lua_State *L)
+static int tokenlib_istoken(lua_State *L)
 {
     lua_pushboolean(L, tokenlib_aux_maybe_istoken(L, 1) ? 1 : 0);
     return 1;
@@ -2422,7 +2422,7 @@ static int tokenlib_expand(lua_State *L)
     return 0;
 }
 
-static int tokenlib_is_defined(lua_State *L)
+static int tokenlib_isdefined(lua_State *L)
 {
     int b = 0;
     if (lua_type(L, 1) == LUA_TSTRING) {
@@ -2519,7 +2519,7 @@ static int tokenlib_new(lua_State *L)
     be combined so that we do proper checking.
 */
 
-static int tokenlib_get_cmdchrcs(lua_State* L)
+static int tokenlib_getcmdchrcs(lua_State* L)
 {
     size_t l;
     const char *s = lua_tolstring(L, 1, &l);
@@ -2539,7 +2539,7 @@ static int tokenlib_get_cmdchrcs(lua_State* L)
     return 0;
 }
 
-static int tokenlib_scan_cmdchr(lua_State *L)
+static int tokenlib_scancmdchr(lua_State *L)
 {
     int cmd, chr;
     halfword tok = lua_toboolean(L, 1) ? tex_get_x_token() : tex_get_token();
@@ -2556,7 +2556,7 @@ static int tokenlib_scan_cmdchr(lua_State *L)
     return 2;
 }
 
-static int tokenlib_scan_cmdchr_expanded(lua_State *L)
+static int tokenlib_scancmdchrexpanded(lua_State *L)
 {
     int cmd, chr;
     halfword tok = tex_get_x_token();
@@ -2573,7 +2573,7 @@ static int tokenlib_scan_cmdchr_expanded(lua_State *L)
     return 2;
 }
 
-static int tokenlib_get_cstoken(lua_State* L)
+static int tokenlib_getcstoken(lua_State* L)
 {
     size_t l;
     const char *s = lua_tolstring(L, 1, &l);
@@ -2635,7 +2635,7 @@ static int tokenlib_free(lua_State *L)
 
 /*tex fast accessors */
 
-static inline int tokenlib_get_command(lua_State *L)
+static inline int tokenlib_getcommand(lua_State *L)
 {
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
     halfword t = token_info(n->token);
@@ -2643,7 +2643,7 @@ static inline int tokenlib_get_command(lua_State *L)
     return 1;
 }
 
-static inline int tokenlib_get_index(lua_State *L)
+static inline int tokenlib_getindex(lua_State *L)
 {
     int cmd, chr;
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
@@ -2660,7 +2660,7 @@ static inline int tokenlib_get_index(lua_State *L)
     return 1;
 }
 
-static inline int tokenlib_get_range(lua_State *L)
+static inline int tokenlib_getrange(lua_State *L)
 {
     int cmd;
     if (lua_type(L, 1) == LUA_TNUMBER) {
@@ -2700,7 +2700,7 @@ static inline int tokenlib_get_range(lua_State *L)
     }
 }
 
-static inline int tokenlib_get_cmdname(lua_State *L)
+static inline int tokenlib_getcmdname(lua_State *L)
 {
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
     halfword tok = token_info(n->token);
@@ -2718,7 +2718,7 @@ void lmt_push_cmd_name(lua_State *L, int cmd)
     }
 }
 
-static inline int tokenlib_get_csname(lua_State *L)
+static inline int tokenlib_getcsname(lua_State *L)
 {
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
     halfword tok = token_info(n->token);
@@ -2741,14 +2741,14 @@ static inline int tokenlib_get_csname(lua_State *L)
     return 1;
 }
 
-static inline int tokenlib_get_id(lua_State *L)
+static inline int tokenlib_getid(lua_State *L)
 {
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
     lua_pushinteger(L, n->token);
     return 1;
 }
 
-static inline int tokenlib_get_tok(lua_State *L)
+static inline int tokenlib_gettok(lua_State *L)
 {
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
     halfword tok = token_info(n->token);
@@ -2756,7 +2756,7 @@ static inline int tokenlib_get_tok(lua_State *L)
     return 1;
 }
 
-static inline int tokenlib_get_active(lua_State *L)
+static inline int tokenlib_getactive(lua_State *L)
 {
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
     halfword tok = token_info(n->token);
@@ -2775,7 +2775,7 @@ static inline int tokenlib_get_active(lua_State *L)
     return 1;
 }
 
-static inline int tokenlib_get_expandable(lua_State *L)
+static inline int tokenlib_getexpandable(lua_State *L)
 {
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
     halfword tok = token_info(n->token);
@@ -2784,7 +2784,7 @@ static inline int tokenlib_get_expandable(lua_State *L)
     return 1;
 }
 
-static inline int tokenlib_get_protected(lua_State *L)
+static inline int tokenlib_getprotected(lua_State *L)
 {
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
     halfword tok = token_info(n->token);
@@ -2793,7 +2793,7 @@ static inline int tokenlib_get_protected(lua_State *L)
     return 1;
 }
 
-static inline int tokenlib_get_semiprotected(lua_State *L)
+static inline int tokenlib_getsemiprotected(lua_State *L)
 {
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
     halfword tok = token_info(n->token);
@@ -2801,7 +2801,7 @@ static inline int tokenlib_get_semiprotected(lua_State *L)
     lua_pushboolean(L, is_semi_protected_cmd(cmd));
     return 1;
 }
-static inline int tokenlib_get_tolerant(lua_State *L)
+static inline int tokenlib_gettolerant(lua_State *L)
 {
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
     halfword tok = token_info(n->token);
@@ -2810,7 +2810,7 @@ static inline int tokenlib_get_tolerant(lua_State *L)
     return 1;
 }
 
-static inline int tokenlib_get_noaligned(lua_State *L)
+static inline int tokenlib_getnoaligned(lua_State *L)
 {
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
     halfword tok = token_info(n->token);
@@ -2818,7 +2818,7 @@ static inline int tokenlib_get_noaligned(lua_State *L)
     return 1;
 }
 
-static inline int tokenlib_get_primitive(lua_State *L)
+static inline int tokenlib_getprimitive(lua_State *L)
 {
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
     halfword tok = token_info(n->token);
@@ -2826,7 +2826,7 @@ static inline int tokenlib_get_primitive(lua_State *L)
     return 1;
 }
 
-static inline int tokenlib_get_permanent(lua_State *L)
+static inline int tokenlib_getpermanent(lua_State *L)
 {
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
     halfword tok = token_info(n->token);
@@ -2834,7 +2834,7 @@ static inline int tokenlib_get_permanent(lua_State *L)
     return 1;
 }
 
-static inline int tokenlib_get_immutable(lua_State *L)
+static inline int tokenlib_getimmutable(lua_State *L)
 {
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
     halfword tok = token_info(n->token);
@@ -2842,7 +2842,7 @@ static inline int tokenlib_get_immutable(lua_State *L)
     return 1;
 }
 
-static inline int tokenlib_get_mutable(lua_State *L)
+static inline int tokenlib_getmutable(lua_State *L)
 {
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
     halfword tok = token_info(n->token);
@@ -2850,7 +2850,7 @@ static inline int tokenlib_get_mutable(lua_State *L)
     return 1;
 }
 
-static inline int tokenlib_get_frozen(lua_State *L)
+static inline int tokenlib_getfrozen(lua_State *L)
 {
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
     halfword tok = token_info(n->token);
@@ -2858,7 +2858,7 @@ static inline int tokenlib_get_frozen(lua_State *L)
     return 1;
 }
 
-static inline int tokenlib_get_instance(lua_State *L)
+static inline int tokenlib_getinstance(lua_State *L)
 {
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
     halfword tok = token_info(n->token);
@@ -2867,7 +2867,7 @@ static inline int tokenlib_get_instance(lua_State *L)
 }
 
 
-static inline int tokenlib_get_untraced(lua_State *L)
+static inline int tokenlib_getuntraced(lua_State *L)
 {
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
     halfword tok = token_info(n->token);
@@ -2876,7 +2876,7 @@ static inline int tokenlib_get_untraced(lua_State *L)
 }
 
 
-static inline int tokenlib_get_flags(lua_State *L)
+static inline int tokenlib_getflags(lua_State *L)
 {
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
     halfword tok = token_info(n->token);
@@ -2884,7 +2884,7 @@ static inline int tokenlib_get_flags(lua_State *L)
     return 1;
 }
 
-static inline int tokenlib_get_parameters(lua_State *L)
+static inline int tokenlib_getparameters(lua_State *L)
 {
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
     halfword tok = token_info(n->token);
@@ -2899,7 +2899,7 @@ static inline int tokenlib_get_parameters(lua_State *L)
     return 0;
 }
 
-static inline int tokenlib_get_constant(lua_State *L)
+static inline int tokenlib_getconstant(lua_State *L)
 {
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
     halfword tok = token_info(n->token);
@@ -2911,56 +2911,56 @@ static int tokenlib_getfield(lua_State *L)
 {
     const char *s = lua_tostring(L, 2);
     if (lua_key_eq(s, command)) {
-        return tokenlib_get_command(L);
+        return tokenlib_getcommand(L);
     } else if (lua_key_eq(s, index)) {
-        return tokenlib_get_index(L);
+        return tokenlib_getindex(L);
     } else if (lua_key_eq(s, cmdname)) {
-        return tokenlib_get_cmdname(L);
+        return tokenlib_getcmdname(L);
     } else if (lua_key_eq(s, csname)) {
-        return tokenlib_get_csname(L);
+        return tokenlib_getcsname(L);
     } else if (lua_key_eq(s, id)) {
-        return tokenlib_get_id(L);
+        return tokenlib_getid(L);
     } else if (lua_key_eq(s, tok)) {
-        return tokenlib_get_tok(L);
+        return tokenlib_gettok(L);
     } else if (lua_key_eq(s, active)) {
-        return tokenlib_get_active(L);
+        return tokenlib_getactive(L);
     } else if (lua_key_eq(s, expandable)) {
-        return tokenlib_get_expandable(L);
+        return tokenlib_getexpandable(L);
     } else if (lua_key_eq(s, protected)) {
-        return tokenlib_get_protected(L);
+        return tokenlib_getprotected(L);
     } else if (lua_key_eq(s, semiprotected)) {
-        return tokenlib_get_semiprotected(L);
+        return tokenlib_getsemiprotected(L);
     } else if (lua_key_eq(s, frozen)) {
-        return tokenlib_get_frozen(L);
+        return tokenlib_getfrozen(L);
     } else if (lua_key_eq(s, tolerant)) {
-        return tokenlib_get_tolerant(L);
+        return tokenlib_gettolerant(L);
     } else if (lua_key_eq(s, noaligned)) {
-        return tokenlib_get_noaligned(L);
+        return tokenlib_getnoaligned(L);
     } else if (lua_key_eq(s, permanent)) {
-        return tokenlib_get_permanent(L);
+        return tokenlib_getpermanent(L);
     } else if (lua_key_eq(s, immutable)) {
-        return tokenlib_get_immutable(L);
+        return tokenlib_getimmutable(L);
     } else if (lua_key_eq(s, mutable)) {
-        return tokenlib_get_mutable(L);
+        return tokenlib_getmutable(L);
     } else if (lua_key_eq(s, primitive)) {
-        return tokenlib_get_primitive(L);
+        return tokenlib_getprimitive(L);
     } else if (lua_key_eq(s, instance)) {
-        return tokenlib_get_instance(L);
+        return tokenlib_getinstance(L);
     } else if (lua_key_eq(s, untraced)) {
-        return tokenlib_get_untraced(L);
+        return tokenlib_getuntraced(L);
     } else if (lua_key_eq(s, flags)) {
-        return tokenlib_get_flags(L);
+        return tokenlib_getflags(L);
     } else if (lua_key_eq(s, parameters)) {
-        return tokenlib_get_parameters(L);
+        return tokenlib_getparameters(L);
     } else if (lua_key_eq(s, constant)) {
-        return tokenlib_get_constant(L);
+        return tokenlib_getconstant(L);
     } else {
         lua_pushnil(L);
     }
     return 1;
 }
 
-static int tokenlib_get_fields(lua_State *L)
+static int tokenlib_getfields(lua_State *L)
 {
     halfword cmd = null;
     halfword chr = null;
@@ -3209,7 +3209,7 @@ static int tokenlib_scan_box(lua_State *L)
 
 /* TODO: check for a quick way to set a macro to empty (HH) */
 
-static int tokenlib_get_meaning(lua_State *L)
+static int tokenlib_getmeaning(lua_State *L)
 {
     if (lua_type(L, 1) == LUA_TSTRING) {
         size_t lname = 0;
@@ -3285,7 +3285,7 @@ static halfword tokenlib_aux_expand_macros_in_tokenlist(halfword p)
 
 /* token.getmacro(t[,true][,true] : [also preamble] [only preamble] */
 
-static int tokenlib_get_macro(lua_State *L)
+static int tokenlib_getmacro(lua_State *L)
 {
     if (lua_type(L, 1) == LUA_TSTRING) {
         size_t lname = 0;
@@ -3316,7 +3316,7 @@ static int tokenlib_get_macro(lua_State *L)
 // specification_reference_cmd
 // box_reference_cmd
 
-static int tokenlib_push_macro(lua_State *L) // todo: just store cmd and flag together
+static int tokenlib_pushmacro(lua_State *L) // todo: just store cmd and flag together
 {
     /*tex
         We need to check for a valid hit, but what is best here, for instance using |(cmd >= call_cmd)|
@@ -3357,7 +3357,7 @@ static int tokenlib_push_macro(lua_State *L) // todo: just store cmd and flag to
     }
 }
 
-static int tokenlib_pop_macro(lua_State *L)
+static int tokenlib_popmacro(lua_State *L)
 {
     lua_token_package *p = tokenlib_aux_check_ispackage(L, 1);
     if (p) {
@@ -3378,7 +3378,7 @@ char *lmt_get_expansion(halfword head, int *len)
     return str;
 }
 
-static int tokenlib_get_expansion(lua_State* L)
+static int tokenlib_getexpansion(lua_State* L)
 {
     const char *str;
     size_t len;
@@ -3406,7 +3406,7 @@ static int tokenlib_get_expansion(lua_State* L)
     return 1;
 }
 
-static int tokenlib_save_lua(lua_State *L)
+static int tokenlib_savelua(lua_State *L)
 {
     halfword f = lmt_tohalfword(L, 1);
     if (lua_toboolean(L, 2) && cur_level > 0) {
@@ -3431,7 +3431,7 @@ static int tokenlib_save_lua(lua_State *L)
     return 0;
 }
 
-static int tokenlib_set_lua(lua_State *L)
+static int tokenlib_setlua(lua_State *L)
 {
     int top = lua_gettop(L);
     if (top >= 2) {
@@ -3464,13 +3464,13 @@ static int tokenlib_set_lua(lua_State *L)
 
 /* [catcodes,]name,data[,global,frozen,protected]* */
 
-static int tokenlib_locate_macro(lua_State *L)
+static int tokenlib_locatemacro(lua_State *L)
 {
     lua_push_integer(L, tex_id_locate_steps(lua_tostring(L, 1)));
     return 1; 
 }
 
-static int tokenlib_undefine_macro(lua_State *L) /* todo: protected */
+static int tokenlib_undefinemacro(lua_State *L) /* todo: protected */
 {
     size_t lname = 0;
     const char *name = lua_tolstring(L, 1, &lname);
@@ -3483,7 +3483,7 @@ static int tokenlib_undefine_macro(lua_State *L) /* todo: protected */
     return 0;
 }
 
-static int tokenlib_set_macro(lua_State *L) /* todo: protected */
+static int tokenlib_setmacro(lua_State *L) /* todo: protected */
 {
     int top = lua_gettop(L);
     if (top > 0) {
@@ -3617,7 +3617,7 @@ halfword lmt_macro_to_tok(lua_State *L, int slot, halfword *tail)
     }
 }
 
-static int tokenlib_expand_macro(lua_State *L)
+static int tokenlib_expandmacro(lua_State *L)
 {
     halfword tail = null;
     halfword tok = lmt_macro_to_tok(L, 1, &tail);
@@ -3644,7 +3644,7 @@ static int tokenlib_expand_macro(lua_State *L)
 
 /* Use |tex.chardef| instead of: */
 
-// static int tokenlib_set_char(lua_State *L) /* also in texlib */
+// static int tokenlib_setchar(lua_State *L) /* also in texlib */
 // {
 //     int top = lua_gettop(L);
 //     if (top >= 2) {
@@ -3705,12 +3705,12 @@ static int tokenlib_get_constant_value(lua_State *L, halfword cmd)
     return 1;
 }
 
-static int tokenlib_set_integer(lua_State *L)
+static int tokenlib_setinteger(lua_State *L)
 {
     return tokenlib_set_constant_value(L, integer_cmd, min_integer, max_integer);
 }
 
-static int tokenlib_set_dimension(lua_State *L)
+static int tokenlib_setdimension(lua_State *L)
 {
     return tokenlib_set_constant_value(L, dimension_cmd, min_dimension, max_dimension);
 }
@@ -3720,12 +3720,12 @@ static int tokenlib_set_dimension(lua_State *L)
 //     return tokenlib_set_constant_value(L, gluespec_cmd, min_dimension, max_dimension);
 // }
 
-static int tokenlib_get_integer(lua_State *L)
+static int tokenlib_getinteger(lua_State *L)
 {
     return tokenlib_get_constant_value(L, integer_cmd);
 }
 
-static int tokenlib_get_dimension(lua_State *L)
+static int tokenlib_getdimension(lua_State *L)
 {
     return tokenlib_get_constant_value(L, dimension_cmd);
 }
@@ -3777,128 +3777,128 @@ static int tokenlib_getfunctionvalues(lua_State *L)
 }
 
 static const struct luaL_Reg tokenlib_function_list[] = {
-    { "type",                  tokenlib_type                    },
-    { "create",                tokenlib_create                  },
-    { "new",                   tokenlib_new                     },
-    /* */                                                       
-    { "istoken",               tokenlib_is_token                },
-    { "isdefined",             tokenlib_is_defined              },
-    /* getters */                                               
-    { "scannext",              tokenlib_scan_next               },
-    { "scannextexpanded",      tokenlib_scan_next_expanded      },
-    { "scannextchar",          tokenlib_scan_next_char          },
-    /* skippers */                                              
-    { "skipnext",              tokenlib_skip_next               },
-    { "skipnextexpanded",      tokenlib_skip_next_expanded      },
-    /* peekers */                                               
-    { "peeknext",              tokenlib_peek_next               },
-    { "peeknextexpanded",      tokenlib_peek_next_expanded      },
-    { "peeknextchar",          tokenlib_peek_next_char          },
-    /* scanners */                                              
-    { "scancmdchr",            tokenlib_scan_cmdchr             },
-    { "scancmdchrexpanded",    tokenlib_scan_cmdchr_expanded    },
-    { "scankeyword",           tokenlib_scan_keyword            },
-    { "scankeywordcs",         tokenlib_scan_keyword_cs         },
-    { "scanint",               tokenlib_scan_integer            }, /* obsolete */
-    { "scaninteger",           tokenlib_scan_integer            },
-    { "scanintegerargument",   tokenlib_scan_integer_argument   },
-    { "scandimensionargument", tokenlib_scan_dimension_argument },
-    { "scandimenargument",     tokenlib_scan_dimension_argument }, /* obsolete */
-    { "scancardinal",          tokenlib_scan_cardinal           },
-    { "scanfloat",             tokenlib_scan_float              },
-    { "scanreal",              tokenlib_scan_real               },
-    { "scanluanumber",         tokenlib_scan_luanumber          },
-    { "scanluainteger",        tokenlib_scan_luainteger         },
-    { "scanluacardinal",       tokenlib_scan_luacardinal        },
-    { "scanscale",             tokenlib_scan_scale              },
-    { "scandimen",             tokenlib_scan_dimension          }, /* obsolete */
-    { "scandimension",         tokenlib_scan_dimension          },
-    { "scanposit",             tokenlib_scan_posit              },
-    { "scanskip",              tokenlib_scan_skip               },
-    { "scanglue",              tokenlib_scan_glue               },
-    { "scantoks",              tokenlib_scan_toks               },
-    { "scantokenlist",         tokenlib_scan_tokenlist          },
-    { "scancode",              tokenlib_scan_code               },
-    { "scantokencode",         tokenlib_scan_token_code         }, /* doesn't expand */
-    { "scanstring",            tokenlib_scan_string             },
-    { "scantokenstring",       tokenlib_scan_tokenstring        },
-    { "scanargument",          tokenlib_scan_argument           },
-    { "scandelimited",         tokenlib_scan_delimited          },
-    { "scanword",              tokenlib_scan_word               },
-    { "scanletters",           tokenlib_scan_letters            },
-    { "scankey",               tokenlib_scan_key                },
-    { "scanvalue",             tokenlib_scan_value              },
-    { "scanchar",              tokenlib_scan_char               },
-    { "scancsname",            tokenlib_scan_csname             },
-    { "scancstoken",           tokenlib_scan_cstoken            }, /* returns a number, not an token userdata */
-    { "scantoken",             tokenlib_scan_token              }, /* expands next token if needed */
-    { "scanbox",               tokenlib_scan_box                },
-    { "scandetokened",         tokenlib_scan_detokened          }, 
-    { "isnextchar",            tokenlib_is_next_char            },
-    /* writers */                                                
-    { "putnext",               tokenlib_put_next                },
-    { "putback",               tokenlib_put_back                },
-    { "expand",                tokenlib_expand                  },
-    /* getters */                                               
-    { "getcommand",            tokenlib_get_command             },
-    { "getindex",              tokenlib_get_index               },
-    { "getrange",              tokenlib_get_range               },
- /* { "get_mode",              tokenlib_get_mode                }, */ /* obsolete */
-    { "getcmdname",            tokenlib_get_cmdname             },
-    { "getcsname",             tokenlib_get_csname              },
-    { "getid",                 tokenlib_get_id                  },
-    { "gettok",                tokenlib_get_tok                 }, /* obsolete */
-    { "getactive",             tokenlib_get_active              },
-   /* these are not really needs as we can check flags   */   /* maybe obsolete */
-    { "getexpandable",         tokenlib_get_expandable          },
-    { "getprotected",          tokenlib_get_protected           },
-    { "getfrozen",             tokenlib_get_frozen              },
-    { "gettolerant",           tokenlib_get_tolerant            },
-    { "getnoaligned",          tokenlib_get_noaligned           },
-    { "getprimitive",          tokenlib_get_primitive           },
-    { "getpermanent",          tokenlib_get_permanent           },
-    { "getimmutable",          tokenlib_get_immutable           },
-    { "getinstance",           tokenlib_get_instance            },
-    /* */                                                     
-    { "getflags",              tokenlib_get_flags               },
-    { "getparameters",         tokenlib_get_parameters          },
-    { "getconstant",           tokenlib_get_constant            },
-    { "getmacro",              tokenlib_get_macro               },
-    { "getmeaning",            tokenlib_get_meaning             },
-    { "getcmdchrcs",           tokenlib_get_cmdchrcs            },
-    { "getcstoken",            tokenlib_get_cstoken             },
-    { "getfields",             tokenlib_get_fields              },
-    /* setters */                                               
-    { "locatemacro",           tokenlib_locate_macro            },
-    { "setmacro",              tokenlib_set_macro               },
-    { "undefinemacro",         tokenlib_undefine_macro          },
-    { "expandmacro",           tokenlib_expand_macro            },
- // { "setchar",               tokenlib_set_char                },
-    { "setlua",                tokenlib_set_lua                 },
-    { "setinteger",            tokenlib_set_integer             }, /* can go ... also in texlib */
-    { "getinteger",            tokenlib_get_integer             }, /* can go ... also in texlib */
-    { "setdimension",          tokenlib_set_dimension           }, /* can go ... also in texlib */
-    { "getdimension",          tokenlib_get_dimension           }, /* can go ... also in texlib */
-    /* gobblers */                                              
-    { "gobbleinteger",         tokenlib_gobble_integer          },
-    { "gobbledimension",       tokenlib_gobble_dimension        },
-    { "gobble",                tokenlib_gobble_until            },
-    { "grab",                  tokenlib_grab_until              },
-    /* macros */                                                
-    { "futureexpand",          tokenlib_future_expand           },
-    { "pushmacro",             tokenlib_push_macro              },
-    { "popmacro",              tokenlib_pop_macro               },
-    /* whatever */                                              
-    { "savelua",               tokenlib_save_lua                },
-    { "serialize",             tokenlib_serialize               },
-    { "getexpansion",          tokenlib_get_expansion           },
-    /* interface */                                             
-    { "getfunctionvalues",     tokenlib_getfunctionvalues       },
-    { "getcommandvalues",      tokenlib_getcommandvalues        },
- // { "getcommandid",          tokenlib_getcommandid            },
-    { "getprimitives",         tokenlib_getprimitives           },
-    /* done */                                                  
-    { NULL,                    NULL                             },
+    { "type",                  tokenlib_type                  },
+    { "create",                tokenlib_create                },
+    { "new",                   tokenlib_new                   },
+    /* */
+    { "istoken",               tokenlib_istoken               },
+    { "isdefined",             tokenlib_isdefined             },
+    /* */
+    { "scannext",              tokenlib_scannext              },
+    { "scannextexpanded",      tokenlib_scannextexpanded      },
+    { "scannextchar",          tokenlib_scannextchar          },
+    /* */
+    { "skipnext",              tokenlib_skipnext              },
+    { "skipnextexpanded",      tokenlib_skipnextexpanded      },
+    /* */
+    { "peeknext",              tokenlib_peeknext              },
+    { "peeknextexpanded",      tokenlib_peeknextexpanded      },
+    { "peeknextchar",          tokenlib_peeknextchar          },
+    /* */
+    { "scancmdchr",            tokenlib_scancmdchr            },
+    { "scancmdchrexpanded",    tokenlib_scancmdchrexpanded    },
+    { "scankeyword",           tokenlib_scankeyword           },
+    { "scankeywordcs",         tokenlib_scankeywordcs         },
+    { "scanint",               tokenlib_scaninteger           }, /* obsolete */
+    { "scaninteger",           tokenlib_scaninteger           },
+    { "scanintegerargument",   tokenlib_scanintegerargument   },
+    { "scandimensionargument", tokenlib_scandimensionargument },
+    { "scandimenargument",     tokenlib_scandimensionargument }, /* obsolete */
+    { "scancardinal",          tokenlib_scancardinal          },
+    { "scanfloat",             tokenlib_scanfloat             },
+    { "scanreal",              tokenlib_scanreal              },
+    { "scanluanumber",         tokenlib_scanluanumber         },
+    { "scanluainteger",        tokenlib_scanluainteger        },
+    { "scanluacardinal",       tokenlib_scanluacardinal       },
+    { "scanscale",             tokenlib_scanscale             },
+    { "scandimen",             tokenlib_scandimension         }, /* obsolete */
+    { "scandimension",         tokenlib_scandimension         },
+    { "scanposit",             tokenlib_scanposit             },
+    { "scanskip",              tokenlib_scanskip              },
+    { "scanglue",              tokenlib_scanglue              },
+    { "scantoks",              tokenlib_scantoks              },
+    { "scantokenlist",         tokenlib_scantokenlist         },
+    { "scancode",              tokenlib_scancode              },
+    { "scantokencode",         tokenlib_scantokencode         }, /* doesn't expand */
+    { "scanstring",            tokenlib_scanstring            },
+    { "scantokenstring",       tokenlib_scantokenstring       },
+    { "scanargument",          tokenlib_scanargument          },
+    { "scandelimited",         tokenlib_scandelimited         },
+    { "scanword",              tokenlib_scanword              },
+    { "scanletters",           tokenlib_scanletters           },
+    { "scankey",               tokenlib_scankey               },
+    { "scanvalue",             tokenlib_scanvalue             },
+    { "scanchar",              tokenlib_scanchar              },
+    { "scancsname",            tokenlib_scancsname            },
+    { "scancstoken",           tokenlib_scancstoken           }, /* returns a number, not an token userdata */
+    { "scantoken",             tokenlib_scan_token            }, /* expands next token if needed */
+    { "scanbox",               tokenlib_scan_box              },
+    { "scandetokened",         tokenlib_scandetokened         }, 
+    { "isnextchar",            tokenlib_isnextchar            },
+    /* */
+    { "putnext",               tokenlib_putnext               },
+    { "putback",               tokenlib_putback               },
+    { "expand",                tokenlib_expand                },
+    /* */
+    { "getcommand",            tokenlib_getcommand            },
+    { "getindex",              tokenlib_getindex              },
+    { "getrange",              tokenlib_getrange              },
+ /* { "get_mode",              tokenlib_getmode               }, */ /* obsolete */
+    { "getcmdname",            tokenlib_getcmdname            },
+    { "getcsname",             tokenlib_getcsname             },
+    { "getid",                 tokenlib_getid                 },
+    { "gettok",                tokenlib_gettok                }, /* obsolete */
+    { "getactive",             tokenlib_getactive             },
+   /* these are not really needs as we can check flags   */      /* maybe obsolete */
+    { "getexpandable",         tokenlib_getexpandable         },
+    { "getprotected",          tokenlib_getprotected          },
+    { "getfrozen",             tokenlib_getfrozen             },
+    { "gettolerant",           tokenlib_gettolerant           },
+    { "getnoaligned",          tokenlib_getnoaligned          },
+    { "getprimitive",          tokenlib_getprimitive          },
+    { "getpermanent",          tokenlib_getpermanent          },
+    { "getimmutable",          tokenlib_getimmutable          },
+    { "getinstance",           tokenlib_getinstance           },
+    /* */
+    { "getflags",              tokenlib_getflags              },
+    { "getparameters",         tokenlib_getparameters         },
+    { "getconstant",           tokenlib_getconstant           },
+    { "getmacro",              tokenlib_getmacro              },
+    { "getmeaning",            tokenlib_getmeaning            },
+    { "getcmdchrcs",           tokenlib_getcmdchrcs           },
+    { "getcstoken",            tokenlib_getcstoken            },
+    { "getfields",             tokenlib_getfields             },
+    /* */
+    { "locatemacro",           tokenlib_locatemacro           },
+    { "setmacro",              tokenlib_setmacro              },
+    { "undefinemacro",         tokenlib_undefinemacro         },
+    { "expandmacro",           tokenlib_expandmacro           },
+ // { "setchar",               tokenlib_setchar               },
+    { "setlua",                tokenlib_setlua                },
+    { "setinteger",            tokenlib_setinteger            }, /* can go ... also in texlib */
+    { "getinteger",            tokenlib_getinteger            }, /* can go ... also in texlib */
+    { "setdimension",          tokenlib_setdimension          }, /* can go ... also in texlib */
+    { "getdimension",          tokenlib_getdimension          }, /* can go ... also in texlib */
+    /* */
+    { "gobbleinteger",         tokenlib_gobbleinteger         },
+    { "gobbledimension",       tokenlib_gobbledimension       },
+    { "gobble",                tokenlib_gobble_until          },
+    { "grab",                  tokenlib_grab_until            },
+    /* */
+    { "futureexpand",          tokenlib_future_expand         },
+    { "pushmacro",             tokenlib_pushmacro             },
+    { "popmacro",              tokenlib_popmacro              },
+    /* */
+    { "savelua",               tokenlib_savelua               },
+    { "serialize",             tokenlib_serialize             },
+    { "getexpansion",          tokenlib_getexpansion          },
+    /* */
+    { "getfunctionvalues",     tokenlib_getfunctionvalues     },
+    { "getcommandvalues",      tokenlib_getcommandvalues      },
+ // { "getcommandid",          tokenlib_getcommandid          },
+    { "getprimitives",         tokenlib_getprimitives         },
+    /* */
+    { NULL,                    NULL                           },
 };
 
 static const struct luaL_Reg tokenlib_instance_metatable[] = {

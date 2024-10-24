@@ -678,31 +678,30 @@ static int texlib_tprint(lua_State *L)
     for (int i = 1; i <= n; i++) {
         int cattable = default_catcode_table_preset;
         int startstrings = 1;
-        if (lua_type(L, i) != LUA_TTABLE) {
-            luaL_error(L, "no string to print");
-        }
-        lua_pushvalue(L, i); /* the table */
-        lua_pushinteger(L, 1);
-        lua_gettable(L, -2);
-        if (lua_type(L, -1) == LUA_TNUMBER) {
-            cattable = lmt_tointeger(L, -1);
-            startstrings = 2;
-            if (cattable != default_catcode_table_preset && cattable != no_catcode_table_preset && ! tex_valid_catcode_table(cattable)) {
-                cattable = default_catcode_table_preset;
+        if (lua_type(L, i) == LUA_TTABLE) {
+            lua_pushvalue(L, i); /* the table */
+            lua_rawgeti(L, -2, 1);
+            if (lua_type(L, -1) == LUA_TNUMBER) {
+                cattable = lmt_tointeger(L, -1);
+                startstrings = 2;
+                if (cattable != default_catcode_table_preset && cattable != no_catcode_table_preset && ! tex_valid_catcode_table(cattable)) {
+                    cattable = default_catcode_table_preset;
+                }
             }
-        }
-        lua_pop(L, 1);
-        for (int j = startstrings; ; j++) {
-            lua_pushinteger(L, j);
-            lua_gettable(L, -2);
-            if (texlib_aux_store(L, -1, partial_line_mode, cattable, j > startstrings)) {
-                lua_pop(L, 1);
-            } else {
-                lua_pop(L, 1);
-                break;
+            lua_pop(L, 1);
+            for (int j = startstrings; ; j++) {
+                lua_rawgeti(L, -2, j);
+                if (texlib_aux_store(L, -1, partial_line_mode, cattable, j > startstrings)) {
+                    lua_pop(L, 1);
+                } else {
+                    lua_pop(L, 1);
+                    break;
+                }
             }
+            lua_pop(L, 1); /* the table */
+        } else { 
+            /*tex We silently ignore other types. */
         }
-        lua_pop(L, 1); /* the table */
     }
     return 0;
 }
@@ -1281,7 +1280,7 @@ static inline int texlib_aux_valid_register_index(lua_State *L, int slot, int cm
     }
 }
 
-static int texlib_get_register_index(lua_State *L)
+static int texlib_getregisterindex(lua_State *L)
 {
     size_t len;
     const char *str = lua_tolstring(L, 1, &len);
@@ -6158,7 +6157,7 @@ static const struct luaL_Reg texlib_function_list[] = {
     { "error",                        texlib_error                        },
     { "set",                          texlib_set                          },
     { "get",                          texlib_get                          },
-    { "getregisterindex",             texlib_get_register_index           },
+    { "getregisterindex",             texlib_getregisterindex             },
     { "isdimen",                      texlib_isdimen                      },
     { "setdimen",                     texlib_setdimen                     },
     { "getdimen",                     texlib_getdimen                     },
