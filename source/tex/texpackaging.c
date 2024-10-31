@@ -105,7 +105,7 @@ typedef enum saved_box_options {
     saved_box_mathtext_option  = 0x08,
 } saved_box_options;
 
-inline static void saved_box_initialize(void)
+static inline void saved_box_initialize(void)
 {
     saved_type(0) = saved_record_0;
     saved_type(1) = saved_record_1;
@@ -591,12 +591,19 @@ packaging_state_info lmt_packaging_state = {
 
 */
 
+static inline int tex_has_glyph_expansion(halfword a) 
+{ 
+    return 
+        ! ((glyph_options(a) & glyph_option_no_expansion) == glyph_option_no_expansion) 
+        && has_font_text_control(glyph_font(a), text_control_expansion);
+}
+
 scaled tex_char_stretch(halfword p) /* todo: move this to texfont.c and make it more efficient */
 {
-    if (! tex_has_glyph_option(p, glyph_option_no_expansion)) {
-        halfword f = glyph_font(p);
-        halfword m = font_max_stretch(f);
+    if (tex_has_glyph_expansion(p)) {
+        halfword m = lmt_font_state.adjust_stretch;
         if (m > 0) {
+            halfword f = glyph_font(p);
             halfword c = glyph_character(p);
             scaled e = tex_char_ef_from_font(f, c);
             if (e > 0) {
@@ -612,10 +619,10 @@ scaled tex_char_stretch(halfword p) /* todo: move this to texfont.c and make it 
 
 scaled tex_char_shrink(halfword p) /* todo: move this to texfont.c and make it more efficient */
 {
-    if (! tex_has_glyph_option(p, glyph_option_no_expansion)) {
-        halfword f = glyph_font(p);
-        halfword m = font_max_shrink(f);
+    if (tex_has_glyph_expansion(p)) {
+        halfword m = lmt_font_state.adjust_shrink;
         if (m > 0) {
+            halfword f = glyph_font(p);
             halfword c = glyph_character(p);
             scaled e = tex_char_cf_from_font(f, c);
             if (e > 0) {
@@ -634,8 +641,8 @@ scaled tex_kern_stretch(halfword p)
     scaled w = kern_amount(p);
     if (w)  {
         halfword l = lmt_packaging_state.previous_char_ptr;
-        if (l && node_type(l) == glyph_node && ! tex_has_glyph_option(l, glyph_option_no_expansion)) {
-            scaled m = font_max_stretch(glyph_font(l));
+        if (l && node_type(l) == glyph_node && tex_has_glyph_expansion(l)) {
+            scaled m = lmt_font_state.adjust_stretch;
             if (m > 0) {
                 scaled e = tex_char_ef_from_font(glyph_font(l), glyph_character(l));
                 if (e > 0) {
@@ -655,8 +662,8 @@ scaled tex_kern_shrink(halfword p)
     scaled w = kern_amount(p) ;
     if (w)  {
         halfword l = lmt_packaging_state.previous_char_ptr;
-        if (l && node_type(l) == glyph_node && ! tex_has_glyph_option(l, glyph_option_no_expansion)) {
-            halfword m = font_max_shrink(glyph_font(l));
+        if (l && node_type(l) == glyph_node && tex_has_glyph_expansion(l)) {
+            halfword m = lmt_font_state.adjust_shrink;
             if (m > 0) {
                 scaled e = tex_char_cf_from_font(glyph_font(l), glyph_character(l));
                 if (e > 0) {
@@ -682,25 +689,23 @@ static void tex_aux_set_kern_expansion(halfword p, halfword ratio)
 {
     if (kern_amount(p))  {
         halfword glyph = lmt_packaging_state.previous_char_ptr;
-        if (glyph && node_type(glyph) == glyph_node && ! tex_has_glyph_option(glyph, glyph_option_no_expansion)) {
+        if (glyph && node_type(glyph) == glyph_node && tex_has_glyph_expansion(glyph)) {
             halfword fnt = glyph_font(glyph);
             halfword chr = glyph_character(glyph);
             if (ratio > 0) {
                 scaled expansion = tex_char_ef_from_font(fnt, chr);
                 if (expansion > 0) { 
-                    halfword stretch = font_max_stretch(fnt);
+                    halfword stretch = lmt_font_state.adjust_stretch;
                     if (stretch > 0) {
-                        expansion = tex_ext_xn_over_d(ratio * expansion, stretch, scaling_factor_squared);
-                        kern_expansion(p) = tex_fix_expand_value(fnt, expansion) * scaling_factor;
+                        kern_expansion(p) = tex_ext_xn_over_d(ratio * expansion, stretch, scaling_factor);
                     }
                 }
             } else if (ratio < 0) {
                 scaled compression = tex_char_cf_from_font(fnt, chr);
                 if (compression > 0) { 
-                    halfword shrink = font_max_shrink(fnt);
+                    halfword shrink = lmt_font_state.adjust_shrink;
                     if (shrink > 0) {
-                        compression = tex_ext_xn_over_d(ratio * compression, shrink, scaling_factor_squared);
-                        kern_expansion(p) = tex_fix_expand_value(fnt, compression) * scaling_factor;
+                        kern_expansion(p) = tex_ext_xn_over_d(ratio * compression, shrink, scaling_factor);
                     }
                 }
             } else { 
@@ -714,16 +719,15 @@ static void tex_aux_set_glyph_expansion(halfword p, int ratio)
 {
     switch (node_type(p)) {
         case glyph_node:
-            if (! tex_has_glyph_option(p, glyph_option_no_expansion)) {
+            if (tex_has_glyph_expansion(p)) {
                 if (ratio > 0) {
                     halfword fnt = glyph_font(p);
                     halfword chr = glyph_character(p);
                     scaled expansion = tex_char_ef_from_font(fnt, chr);
                     if (expansion > 0) { 
-                        halfword stretch = font_max_stretch(fnt);
+                        halfword stretch = lmt_font_state.adjust_stretch;
                         if (stretch > 0) {
-                            expansion = tex_ext_xn_over_d(ratio * expansion, stretch, scaling_factor_squared);
-                            glyph_expansion(p) = tex_fix_expand_value(fnt, expansion) * scaling_factor;
+                            glyph_expansion(p) = tex_ext_xn_over_d(ratio * expansion, stretch, scaling_factor);
                         }
                     }
                 } else if (ratio < 0) {
@@ -731,10 +735,9 @@ static void tex_aux_set_glyph_expansion(halfword p, int ratio)
                     halfword chr = glyph_character(p);
                     scaled compression = tex_char_cf_from_font(fnt, chr);
                     if (compression > 0) { 
-                        halfword shrink = font_max_shrink(fnt);
+                        halfword shrink = lmt_font_state.adjust_shrink;
                         if (shrink > 0) {
-                            compression = tex_ext_xn_over_d(ratio * compression, shrink, scaling_factor_squared);
-                            glyph_expansion(p) = tex_fix_expand_value(fnt, compression) * scaling_factor;
+                            glyph_expansion(p) = tex_ext_xn_over_d(ratio * compression, shrink, scaling_factor);
                         }
                     }
                 }
@@ -886,7 +889,7 @@ int tex_ignore_math_skip(halfword p)
 
 # define fix_int(val,min,max) (val < min ? min : (val > max ? max : val))
 
-inline static halfword tex_aux_used_order(halfword *total)
+static inline halfword tex_aux_used_order(halfword *total)
 {
     if (total[filll_glue_order]) {
         return filll_glue_order;
@@ -931,7 +934,7 @@ inline static halfword tex_aux_used_order(halfword *total)
     module (tracing and such). It's a bit fyzzy code anyway. 
 */
 
-inline static void tex_aux_promote_pre_migrated(halfword r, halfword p)
+static inline void tex_aux_promote_pre_migrated(halfword r, halfword p)
 {
     halfword pa = box_pre_adjusted(p);
     halfword pm = box_pre_migrated(p);
@@ -961,7 +964,7 @@ inline static void tex_aux_promote_pre_migrated(halfword r, halfword p)
     }
 }
 
-inline static void tex_aux_promote_post_migrated(halfword r, halfword p)
+static inline void tex_aux_promote_post_migrated(halfword r, halfword p)
 {
     halfword pa = box_post_adjusted(p);
     halfword pm = box_post_migrated(p);
@@ -995,7 +998,7 @@ inline static void tex_aux_promote_post_migrated(halfword r, halfword p)
     }
 }
 
-inline static halfword tex_aux_post_migrate(halfword r, halfword p)
+static inline halfword tex_aux_post_migrate(halfword r, halfword p)
 {
     halfword n = p;
     halfword nn = node_next(p);
@@ -1018,7 +1021,7 @@ inline static halfword tex_aux_post_migrate(halfword r, halfword p)
     return p;
 }
 
-inline static halfword tex_aux_normal_migrate(halfword r, halfword p)
+static inline halfword tex_aux_normal_migrate(halfword r, halfword p)
 {
     halfword n = p;
     halfword nn = node_next(p);
@@ -1936,7 +1939,6 @@ halfword tex_filtered_hpack(halfword p, halfword qt, scaled w, int m, int grp, h
 {
     halfword head;
     singleword direction = (singleword) checked_direction_value(d);
-//    (void) state; /*tex Why do we pass it? Probably a left-over from an experiment. */
     if (just_pack) {
         head = node_next(p);
     } else if (node_type(p) == temp_node && ! node_next(p)) {
@@ -1960,7 +1962,7 @@ halfword tex_filtered_hpack(halfword p, halfword qt, scaled w, int m, int grp, h
     if (has_box_package_state(head, package_u_leader_found)) {
         if (head && normalize_line_mode_option(flatten_h_leaders_mode)) { 
             if (! is_box_package_state(state, package_u_leader_delayed)) {
-                tex_flatten_leaders(head, grp, just_pack, "filtered hpack", 0);
+                tex_flatten_leaders(head, grp, just_pack, uleader_filtered_hpack, 0);
             }
         }
     }
@@ -2805,7 +2807,7 @@ halfword tex_filtered_vpack(halfword p, scaled h, int m, scaled maxdepth, int gr
                     case hlist_node:
                     case vlist_node:
                         if (has_box_package_state(c, package_u_leader_found) && ! is_box_package_state(state, package_u_leader_delayed)) {
-                            tex_flatten_leaders(c, grp, just_pack, "before vpack", 0);
+                            tex_flatten_leaders(c, grp, just_pack, uleader_before_vpack, 0);
                         }
                         break;
                 }
@@ -2816,7 +2818,7 @@ halfword tex_filtered_vpack(halfword p, scaled h, int m, scaled maxdepth, int gr
     }
     result = tex_vpack(result, h, m, maxdepth, (singleword) checked_direction_value(direction), retain, excess);
     if (result && normalize_par_mode_option(flatten_v_leaders_mode) && ! is_box_package_state(state, package_u_leader_delayed)) {
-        tex_flatten_leaders(result, grp, just_pack, "after vpack", 0);
+        tex_flatten_leaders(result, grp, just_pack, uleader_after_vpack, 0);
     }
     if (! just_pack) {
         result = lmt_packed_vbox_filter_callback(result, grp);

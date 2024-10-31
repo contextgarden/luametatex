@@ -74,7 +74,7 @@ error_state_info lmt_error_state = {
     really needed but there are seldom errors anyway so we can neglect this duplication of data.
 */
 
-inline static void tex_aux_update_help_text(const char* str)
+static inline void tex_aux_update_help_text(const char* str)
 {
     if (lmt_error_state.help_text) {
         lmt_memory_free(lmt_error_state.help_text);
@@ -610,13 +610,13 @@ void tex_handle_error_message_only(
 
 */
 
-extern void tex_handle_error(error_types type, const char *format, ...)
+extern void tex_handle_error(error_types type, const char *fmt, ...)
 {
     const char *str = NULL;
     va_list args;
-    va_start(args, format); /* hm, weird, no number */
+    va_start(args, fmt); /* hm, weird, no number */
     tex_aux_start_error();
-    str = tex_print_format_args(format, args);
+    str = tex_print_format_args(fmt, args);
     tex_aux_update_help_text(str);
     tex_aux_do_handle_error_type(type);
     va_end(args);

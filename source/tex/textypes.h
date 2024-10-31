@@ -184,6 +184,7 @@ extern halfword tex_badness(
 # define decent_criterion                          12 
 # define tight_criterion                           12 /* same as |decent_criterion| */
 # define max_calculated_badness                  8189
+# define emergency_adj_demerits                 10000
 
 # define default_rule                           26214 /*tex 0.4pt */
 # define ignore_depth                       -65536000 /*tex The magic dimension value to mean \quote {ignore me}: -1000pt */
@@ -280,7 +281,7 @@ extern halfword tex_badness(
 # else
 
     # define max_toks_register_index      0x1FFF //  8K
-    # define max_box_register_index       0x7FFF // 32K
+    # define max_box_register_index       0x7FFF // 32K /* less of we use a lua stack */
     # define max_integer_register_index   0x1FFF //  8k
     # define max_dimension_register_index 0x1FFF //  8k  
     # define max_posit_register_index     0x1FFF //  8k 
@@ -318,12 +319,14 @@ extern halfword tex_badness(
 # define max_newline_character                  127 /*tex This is an old constraint but there is no reason to change it. */
 # define max_endline_character                  127 /*tex To keep it simple we stick to the maximum single UTF character. */
 # define max_box_axis                           255
-# define max_size_of_word                      1024 /*tex More than enough (esp. since this can end up on the stack. */
+# define max_size_of_word                      1000 /*tex More than enough (esp. since this can end up on the stack. Includes {}{}{} exception stuff. */
 # define min_limited_scale                        0 /*tex Zero is a signal too. */
 # define max_limited_scale                     1000
 # define min_math_style_scale                     0 /*tex Zero is a signal too. */
 # define max_math_style_scale                  2000
 # define max_parameter_index                     15
+
+# define max_size_of_word_buffer (4 * max_size_of_word + 2 + 1 + 2) /* utf + two_periods + sentinal_zero + some_slack */
 
 # define max_mark_index          (max_n_of_marks         - 1)
 # define max_insert_index        (max_n_of_inserts       - 1)
@@ -344,6 +347,17 @@ extern halfword tex_badness(
 
 # define default_space_factor 1000
 # define special_space_factor  999
+
+/*tex 
+    We started out with 32 but it makes no sense to initialize that many every time we need to do
+    that. In \CONTEXT\ we have a granular setup with nine values. The maximum practical value is 
+    actually 99 and one needs step sizes that are reasonable. 
+*/
+
+# define default_fitness              0
+# define min_n_of_fitness_values      5
+# define max_n_of_fitness_values     15 
+# define all_fitness_values        0xFF
 
 /*tex
 
@@ -438,6 +452,7 @@ extern halfword tex_badness(
 //     quarterword   Q[4];  /* 4 * 16 bit */
 //     unsigned char C[8];  /* 8 *  8 bit */
 //     glueratio     GLUE;  /* 1 * 64 bit */
+//     short         X;
 //     long long     L;
 //     double        D;
 //     void          *P;    /* 1 * 64 bit or 32 bit */
@@ -445,6 +460,7 @@ extern halfword tex_badness(
 
 typedef union memorysplit {
     quarterword  Q;
+    short        X;
     singleword   S[2];
 } memorysplit;
 
@@ -502,6 +518,11 @@ typedef union tokenword {
 # define quart01  A[0].X[1].Q
 # define quart10  A[1].X[0].Q
 # define quart11  A[1].X[1].Q
+
+# define short00  A[0].X[0].X
+# define short01  A[0].X[1].X
+# define short10  A[1].X[0].X
+# define short11  A[1].X[1].X
 
 // # define single00 A[0].S[0]
 // # define single01 A[0].S[1]
@@ -761,6 +782,8 @@ typedef struct line_break_properties {
     halfword par_context;
     halfword tracing_paragraphs;
     halfword tracing_fitness;
+    halfword tracing_toddlers;
+    halfword tracing_orphans;
     halfword tracing_passes;
     halfword paragraph_dir;
     halfword parfill_left_skip;
@@ -772,11 +795,13 @@ typedef struct line_break_properties {
     halfword pretolerance;
     halfword tolerance;
     halfword emergency_stretch;
+    halfword emergency_original; 
     halfword emergency_extra_stretch;
     halfword looseness;
     halfword adjust_spacing;
     halfword protrude_chars;
     halfword adj_demerits;
+    halfword max_adj_demerits;
     halfword line_penalty;
     halfword last_line_fit;
     halfword double_hyphen_demerits;
@@ -795,12 +820,13 @@ typedef struct line_break_properties {
     halfword widow_penalties;
     halfword display_widow_penalty;
     halfword display_widow_penalties;
-    halfword orphan_penalty;
     halfword orphan_penalties;
-    halfword toddler_penalty;
+    halfword toddler_penalties;
     halfword left_twin_demerits;
     halfword right_twin_demerits;
-    halfword fitness_demerits;
+    halfword fitness_classes;
+    halfword adjacent_demerits;
+    halfword orphan_line_factors;
     halfword broken_penalty;
     halfword broken_penalties;
     halfword baseline_skip;
@@ -816,12 +842,13 @@ typedef struct line_break_properties {
     halfword line_break_checks;
     halfword extra_hyphen_penalty; 
     halfword line_break_optional;
-    halfword optional_found;
-    halfword math_found;
     halfword single_line_penalty;
     halfword hyphen_penalty;
     halfword ex_hyphen_penalty;
-    halfword padding; 
+    /*tex Only in par passes (for now). */
+    halfword math_penalty_factor;
+    halfword sf_factor;
+    halfword sf_stretch_factor;
 } line_break_properties;
 
 typedef enum sparse_identifiers {

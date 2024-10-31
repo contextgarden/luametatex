@@ -116,6 +116,7 @@ extern int lmt_par_pass_callback(
     halfword               head,
     line_break_properties *properties, 
     halfword               identifier, 
+    halfword               subpass, 
     halfword               callback, 
     halfword               features, 
     scaled                 overfull, 
@@ -138,7 +139,7 @@ extern halfword lmt_uleader_callback(
     halfword    index, 
     int         context,
     halfword    box,
-    const char *where
+    int         location
 );
 
 extern scaled lmt_italic_correction_callback(

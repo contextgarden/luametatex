@@ -4,6 +4,18 @@
 
 # include "luametatex.h"
 
+/*tex 
+
+Traditional \TEX\ only has |\vadjust| that injects its content after the line that it's embedded 
+in. The \PDFTEX\ engine added a |pre| keyword so that we can also inject before a line. Here we
+extend the functionality again. First of all we migrate the pre and post material to the outer 
+vertical level. This goes via dedicated fields in the list nodes. We also have more keywords 
+that control depth before and after the line so that we can get more consistent spacing. Appending 
+and prepending can be controlled too. There is of course more overhead than in traditional \TEX, 
+but it can normally be neglected because |\vadjust| is not used that often. 
+
+*/
+
 typedef struct adjust_properties {
     halfword options;
     halfword code;
@@ -27,7 +39,7 @@ typedef enum saved_adjust_entries {
     saved_adjust_n_of_records       = 3,
 } saved_adjust_entries;
 
-inline static void saved_adjust_initialize(void)
+static inline void saved_adjust_initialize(void)
 {
     saved_type(0) = saved_record_0;
     saved_type(1) = saved_record_1;

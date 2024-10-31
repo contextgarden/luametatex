@@ -38,11 +38,13 @@ static int statslib_linebreakstate(lua_State *L)
     lua_createtable(L, n_of_par_context_codes, 0);
     for (int i = 0; i < n_of_par_context_codes; i++) {
         lua_push_key_by_index(lmt_interface.par_context_values[i].lua);
-        lua_createtable(L, 0, 6);
-        lua_set_integer_by_key(L, "first",  lmt_linebreak_state.passes[i].n_of_first_passes);
-        lua_set_integer_by_key(L, "second", lmt_linebreak_state.passes[i].n_of_second_passes);
-        lua_set_integer_by_key(L, "third",  lmt_linebreak_state.passes[i].n_of_third_passes);
-        lua_set_integer_by_key(L, "sub",    lmt_linebreak_state.passes[i].n_of_sub_passes);
+        lua_createtable(L, 0, 5);
+        lua_set_integer_by_key(L, "calls",         lmt_linebreak_state.passes[i].n_of_break_calls);
+        lua_set_integer_by_key(L, "first",         lmt_linebreak_state.passes[i].n_of_first_passes);
+        lua_set_integer_by_key(L, "second",        lmt_linebreak_state.passes[i].n_of_second_passes);
+        lua_set_integer_by_key(L, "final",         lmt_linebreak_state.passes[i].n_of_final_passes);
+        lua_set_integer_by_key(L, "specification", lmt_linebreak_state.passes[i].n_of_specification_passes);
+        lua_set_integer_by_key(L, "sub",           lmt_linebreak_state.passes[i].n_of_sub_passes);
         lua_rawset(L, -3);
     }
     lua_set_integer_by_key(L, "lefttwins",   lmt_linebreak_state.n_of_left_twins);
@@ -418,6 +420,10 @@ static int statslib_getconstants(lua_State *L)
 
     lua_set_integer_by_key(L, "default_character_control",      default_character_control); 
 
+    lua_set_integer_by_key(L, "min_n_of_fitness_values",        min_n_of_fitness_values);
+    lua_set_integer_by_key(L, "max_n_of_fitness_values",        max_n_of_fitness_values);
+    lua_set_integer_by_key(L, "all_fitness_values",             all_fitness_values);
+
     return 1;
 }
 
@@ -462,6 +468,7 @@ static struct statistic_entry statslib_entries[] = {
     { .name = "lua_version_minor",   .value = (void *) &lmt_version_state.luaversionminor,   .type = 'g' },
     { .name = "lua_version_release", .value = (void *) &lmt_version_state.luaversionrelease, .type = 'g' },
     { .name = "lua_version",         .value = (void *) &lmt_version_state.luaversion,        .type = 'd' },
+    { .name = "lua_format",          .value = (void *) &lmt_version_state.luaformat,         .type = 'g' },
 
     /*tex We keep these as direct accessible keys: */
 
@@ -497,6 +504,12 @@ static struct statistic_entry statslib_entries_only[] = {
     { .name = "development_id",     .value = (void *) &lmt_version_state.developmentid, .type = 'g' },
     { .name = "format_id",          .value = (void *) &lmt_version_state.formatid,      .type = 'g' },
     { .name = "used_compiler",      .value = (void *) &lmt_version_state.compiler,      .type = 'c' },
+
+    { .name = "lua_version_major",   .value = (void *) &lmt_version_state.luaversionmajor,   .type = 'g' },
+    { .name = "lua_version_minor",   .value = (void *) &lmt_version_state.luaversionminor,   .type = 'g' },
+    { .name = "lua_version_release", .value = (void *) &lmt_version_state.luaversionrelease, .type = 'g' },
+    { .name = "lua_version",         .value = (void *) &lmt_version_state.luaversion,        .type = 'd' },
+    { .name = "lua_format",          .value = (void *) &lmt_version_state.luaformat,         .type = 'g' },
 
     { .name = NULL,                 .value = NULL,                                      .type = 0   },
 };

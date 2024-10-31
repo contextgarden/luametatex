@@ -303,7 +303,7 @@ static int pdfelib_reference_tostring(lua_State *L) {
 
 */
 
-inline static void pdfe_push_dictionary(lua_State *L, ppdict *dictionary)
+static inline void pdfe_push_dictionary(lua_State *L, ppdict *dictionary)
 {
     pdfe_dictionary *d = (pdfe_dictionary *) lua_newuserdatauv(L, sizeof(pdfe_dictionary), 0);
  // luaL_getmetatable(L, PDFE_METATABLE_DICTIONARY);
@@ -333,7 +333,7 @@ static int pdfelib_aux_pushdictionaryonly(lua_State *L, ppdict *dictionary)
     }
 }
 
-inline static void pdfe_push_array(lua_State *L, pparray *array)
+static inline void pdfe_push_array(lua_State *L, pparray *array)
 {
     pdfe_array *a = (pdfe_array *) lua_newuserdatauv(L, sizeof(pdfe_array), 0);
  // luaL_getmetatable(L, PDFE_METATABLE_ARRAY);
@@ -363,7 +363,7 @@ static int pdfelib_aux_pusharrayonly(lua_State *L, pparray *array)
     }
 }
 
-inline static void pdfe_push_stream(lua_State *L, ppstream *stream)
+static inline void pdfe_push_stream(lua_State *L, ppstream *stream)
 {
     pdfe_stream *s = (pdfe_stream *) lua_newuserdatauv(L, sizeof(pdfe_stream), 0);
  // luaL_getmetatable(L, PDFE_METATABLE_STREAM);
@@ -402,7 +402,7 @@ static int pdfelib_aux_pushstreamonly(lua_State *L, ppstream *stream)
     }
 }
 
-inline static void pdfe_push_reference(lua_State *L, ppref *reference)
+static inline void pdfe_push_reference(lua_State *L, ppref *reference)
 {
     pdfe_reference *r = (pdfe_reference *) lua_newuserdatauv(L, sizeof(pdfe_reference), 0);
  // luaL_getmetatable(L, PDFE_METATABLE_REFERENCE);
@@ -427,19 +427,19 @@ static int pdfelib_aux_pushreference(lua_State *L, ppref *reference)
 
     The next function checks for the type and then pushes the matching data on the stack.
 
-    \starttabulate[|c|l|l|l|]
-        \BC type \BC meaning \BC value \BC detail \NC \NR
-        \NC \type {0} \NC none \NC nil \NC \NC \NR
-        \NC \type {1} \NC null \NC nil \NC \NC \NR
-        \NC \type {2} \NC boolean \NC boolean \NC \NC \NR
-        \NC \type {3} \NC boolean \NC integer \NC \NC \NR
-        \NC \type {4} \NC number \NC float \NC \NC \NR
-        \NC \type {5} \NC name \NC string \NC \NC \NR
-        \NC \type {6} \NC string \NC string \NC type \NC \NR
-        \NC \type {7} \NC array \NC arrayobject \NC size \NC \NR
-        \NC \type {8} \NC dictionary \NC dictionaryobject \NC size \NC \NR
-        \NC \type {9} \NC stream \NC streamobject \NC dictionary size \NC \NR
-        \NC \type {10} \NC reference \NC integer \NC \NC \NR
+    \starttabulate[|rT|l|l|l|]
+        \BC type \BC meaning    \BC value            \BC detail          \NC \NR
+        \NC  0   \NC none       \NC nil              \NC                 \NC \NR
+        \NC  1   \NC null       \NC nil              \NC                 \NC \NR
+        \NC  2   \NC boolean    \NC boolean          \NC                 \NC \NR
+        \NC  3   \NC integer    \NC integer          \NC                 \NC \NR
+        \NC  4   \NC number     \NC float            \NC                 \NC \NR
+        \NC  5   \NC name       \NC string           \NC                 \NC \NR
+        \NC  6   \NC string     \NC string           \NC type            \NC \NR
+        \NC  7   \NC array      \NC arrayobject      \NC size            \NC \NR
+        \NC  8   \NC dictionary \NC dictionaryobject \NC size            \NC \NR
+        \NC  9   \NC stream     \NC streamobject     \NC dictionary size \NC \NR
+        \NC 10   \NC reference  \NC integer          \NC                 \NC \NR
         \LL
     \stoptabulate
 
@@ -470,9 +470,14 @@ static int pdfelib_aux_pushvalue(lua_State *L, ppobj *object)
                 return 1;
             }
         case PPSTRING:
-            lua_pushlstring(L, ppstring_data(object->string), ppstring_size(object->string));
-            lua_pushboolean(L, ppstring_hex(object->string));
-            return 2;
+             // lua_pushlstring(L, ppstring_data(object->string), ppstring_size(object->string));
+             // lua_pushboolean(L, ppstring_hex(object->string));
+            {        
+                ppstring *s = ppstring_decoded(object->string);
+                lua_pushlstring(L, ppstring_data(s), ppstring_size(s));
+                lua_pushinteger(L, (s)->flags);
+                return 2;
+            }
         case PPARRAY:
             return pdfelib_aux_pusharray(L, object->array);
         case PPDICT:
@@ -525,6 +530,17 @@ static int pdfelib_getinfo(lua_State *L)
     } else {
         return 0;
     }
+}
+
+static int pdfelib_getpermissions(lua_State *L)
+{
+    pdfe_document *p = pdfelib_aux_check_isdocument(L, 1, get_info_error);
+    if (p) {
+        lua_pushinteger(L, ppdoc_permissions(p->document));
+    } else {
+        lua_pushnil(L);
+    }
+    return 1;
 }
 
 /*tex
@@ -1493,7 +1509,7 @@ static int pdfelib_getstring(lua_State *L)
         okay = pdfelib_get_value_direct(L, (void *) &value, (void *) &ppdict_rget_string, (void *) &pparray_rget_string);
         if (okay && value) {
             if (how == 1) {
-                value = ppstring_decoded(value);
+                value = ppstring_decoded(value); /* we probably always need that */
             }
             /*tex This used to return one value but we made it \LUATEX\ compatible. */
             lua_pushlstring(L, ppstring_data(value), ppstring_size(value));
@@ -1772,6 +1788,55 @@ static int pdfelib_stream_size(lua_State *L)
 
 */
 
+static int pdfelib_getencodingvalues(lua_State *L)
+{
+    lua_createtable(L, 2, 6);
+    lua_set_string_by_index(L, PPSTRING_PLAIN,    "plain"  );    /*  0 */
+    lua_set_string_by_index(L, PPSTRING_ENCODED,  "encoded");    /*  1 */ 
+    lua_set_string_by_index(L, PPSTRING_DECODED,  "decoded");    /*  2  */
+ /* lua_set_string_by_index(L, PPSTRING_EXEC,     "exec"   ); */ /*  4 */
+    lua_set_string_by_index(L, PPSTRING_BASE16,   "base16" );    /*  8 */
+    lua_set_string_by_index(L, PPSTRING_BASE85,   "base85" );    /* 16 */
+    lua_set_string_by_index(L, PPSTRING_UTF16BE,  "utf16be");    /* 32 */
+    lua_set_string_by_index(L, PPSTRING_UTF16LE,  "utf16le");    /* 64 */
+    return 1;
+}
+
+static int pdfelib_getstatusvalues(lua_State *L)
+{
+    lua_createtable(L, 1, 3);
+    lua_set_string_by_index(L, PPCRYPT_PASS, "is protected");
+    lua_set_string_by_index(L, PPCRYPT_FAIL, "failed to open");
+    lua_set_string_by_index(L, PPCRYPT_NONE, "not encrypted");
+    lua_set_string_by_index(L, PPCRYPT_DONE, "is decrypted"); 
+    return 1;
+}
+
+static int pdfelib_getfieldtypes(lua_State *L)
+{
+    lua_createtable(L, 10, 1);
+    lua_set_string_by_index(L, PPNONE,   "none");
+    lua_set_string_by_index(L, PPNULL,   "null");
+    lua_set_string_by_index(L, PPBOOL,   "boolean");
+    lua_set_string_by_index(L, PPINT,    "integer");
+    lua_set_string_by_index(L, PPNUM,    "number");
+    lua_set_string_by_index(L, PPNAME,   "name");
+    lua_set_string_by_index(L, PPSTRING, "string");
+    lua_set_string_by_index(L, PPARRAY,  "array");
+    lua_set_string_by_index(L, PPDICT,   "dictionary");
+    lua_set_string_by_index(L, PPSTREAM, "stream");
+    lua_set_string_by_index(L, PPREF,    "reference");
+    return 1;
+}
+
+// PPDOC_ALLOW_PRINT
+// PPDOC_ALLOW_MODIFY
+// PPDOC_ALLOW_COPY
+// PPDOC_ALLOW_ANNOTS
+// PPDOC_ALLOW_EXTRACT
+// PPDOC_ALLOW_ASSEMBLY
+// # define PPDOC_ALLOW_PRINT_HIRES
+
 static const struct luaL_Reg pdfelib_function_list[] = {
     /* management */
     { "type",               pdfelib_type              },
@@ -1780,6 +1845,9 @@ static const struct luaL_Reg pdfelib_function_list[] = {
     { "new",                pdfelib_new               },
     { "close",              pdfelib_close             },
     { "unencrypt",          pdfelib_unencrypt         },
+    { "getencodingvalues",  pdfelib_getencodingvalues },
+    { "getstatusvalues",    pdfelib_getstatusvalues   },
+    { "getfieldtypes",      pdfelib_getfieldtypes     },
     /* statistics */
     { "getversion",         pdfelib_getversion        },
     { "getstatus",          pdfelib_getstatus         },
@@ -1791,6 +1859,7 @@ static const struct luaL_Reg pdfelib_function_list[] = {
     { "getcatalog",         pdfelib_getcatalog        },
     { "gettrailer",         pdfelib_gettrailer        },
     { "getinfo",            pdfelib_getinfo           },
+    { "getpermissions",     pdfelib_getpermissions    },
     { "getpage",            pdfelib_getpage           },
     { "getpages",           pdfelib_getpages          },
     { "getbox",             pdfelib_getbox            },
