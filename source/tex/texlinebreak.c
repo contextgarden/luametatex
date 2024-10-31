@@ -3443,6 +3443,7 @@ static void tex_aux_set_orphan_penalties(const line_break_properties *properties
     if (properties->orphan_penalties || short_inline_orphan_penalty_par) {
         halfword current = node_prev(properties->parfill_right_skip);
         if (current) {
+            int n = properties->orphan_penalties ? specification_count(properties->orphan_penalties) : 0;
             /*tex Skip over trailing glue and penalties. */
             while (current) {
                 switch (node_type(current)) {
@@ -3455,7 +3456,6 @@ static void tex_aux_set_orphan_penalties(const line_break_properties *properties
                 }
             }
           INJECT:
-            int n = properties->orphan_penalties ? specification_count(properties->orphan_penalties) : 0;
             if (n) {
                 /*tex
                     Inject specified penalties before spaces. When we see a math node with a penalty
