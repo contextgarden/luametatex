@@ -1585,6 +1585,14 @@ static void tex_aux_set_cur_val_by_box_property_cmd(halfword chr)
             cur_val = node_type(b) == hlist_node ? box_width(b) : box_total(b);
             cur_val_level = dimension_val_level;
             break;
+        case box_migrate_code:
+            cur_val = 0;
+            if (node_type(b) == hlist_node) {
+                if (box_pre_migrated(b))  { cur_val |= auto_migrate_pre;  }
+                if (box_post_migrated(b)) { cur_val |= auto_migrate_post; }
+            }
+            cur_val_level = integer_val_level;
+            break;
         case box_limitate_code:
             /* todo: return the delta */
             cur_val = node_type(b) == hlist_node ? box_width(b) : box_total(b);

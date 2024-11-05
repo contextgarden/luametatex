@@ -10504,67 +10504,6 @@ static int nodelib_direct_exchange(lua_State *L)
 
 /*tex experiment */
 
-static inline halfword nodelib_aux_migrate_decouple(halfword head, halfword current, halfword next, halfword *first, halfword *last)
-{
-    halfword prev = node_prev(current);
-    tex_uncouple_node(current);
-    if (current == head) {
-        node_prev(next) = null;
-        head = next;
-    } else {
-        tex_try_couple_nodes(prev, next);
-    }
-    if (*first) {
-        tex_couple_nodes(*last, current);
-    } else {
-        *first = current;
-    }
-    *last = current;
-    return head;
-}
-
-static halfword lmt_direct_migrate_locate(halfword head, halfword *first, halfword *last, int inserts, int marks)
-{
-    halfword current = head;
-    while (current) {
-        halfword next = node_next(current);
-        switch (node_type(current)) {
-            case vlist_node:
-            case hlist_node:
-                {
-                    halfword list = box_list(current);
-                    if (list) {
-                        box_list(current) = lmt_direct_migrate_locate(list, first, last, inserts, marks);
-                    }
-                    break;
-                }
-            case insert_node:
-                {
-                    if (inserts) {
-                        halfword list;
-                        head = nodelib_aux_migrate_decouple(head, current, next, first, last);
-                        list = insert_list(current);
-                        if (list) {
-                            insert_list(current) = lmt_direct_migrate_locate(list, first, last, inserts, marks);
-                        }
-                    }
-                    break;
-                }
-            case mark_node:
-                {
-                    if (marks) {
-                        head = nodelib_aux_migrate_decouple(head, current, next, first, last);
-                    }
-                    break;
-                }
-            default:
-                break;
-        }
-        current = next;
-    }
-    return head;
-}
-
 # define migrate_usage (hlist_usage | vlist_usage | insert_usage)
 
 static int nodelib_direct_migrate(lua_State *L)
@@ -10575,29 +10514,7 @@ static int nodelib_direct_migrate(lua_State *L)
         int marks = lua_type(L, 2) == LUA_TBOOLEAN ? lua_toboolean(L, 3) : 1;
         halfword first = null;
         halfword last = null;
-        halfword current = head;
-        while (current) {
-            switch (node_type(current)) {
-                case hlist_node:
-                case vlist_node:
-                    {
-                        halfword list = box_list(current);
-                        if (list) {
-                            box_list(current) = lmt_direct_migrate_locate(list, &first, &last, inserts, marks);
-                        }
-                        break;
-                    }
-                 case insert_node:
-                     if (inserts) {
-                         halfword list = insert_list(current);
-                         if (list) {
-                             insert_list(current) = lmt_direct_migrate_locate(list, &first, &last, inserts, marks);
-                         }
-                         break;
-                     }
-            }
-            current = node_next(current);
-        }
+        tex_migrate(head, &first, &last, inserts, marks);
         nodelib_push_direct_or_nil(L, head);
         nodelib_push_direct_or_nil(L, first);
         nodelib_push_direct_or_nil(L, last);

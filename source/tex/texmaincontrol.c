@@ -4613,6 +4613,20 @@ static void tex_aux_set_box_property(void)
                 }
             }
             break;
+        case box_migrate_code:
+            {
+                halfword what = tex_scan_integer(1, NULL);
+                if (b) {
+                    /* maybe check for post */
+                    halfword first = null; 
+                    halfword last = null; 
+                    tex_migrate(b, &first, &last, what & auto_migrate_insert, what & auto_migrate_mark);
+                    if (first) { 
+                        box_post_migrated(b) = first;
+                    }
+                }
+            }
+            break;
         case box_limitate_code:
             {
                 halfword recurse = tex_scan_integer(1, NULL);

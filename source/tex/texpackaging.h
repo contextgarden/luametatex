@@ -138,6 +138,8 @@ extern halfword  tex_vpack                 (halfword p, scaled h, int m, scaled 
 extern void      tex_repack                (halfword p, scaled w, int m);
 extern void      tex_limit                 (halfword p);
 extern void      tex_freeze                (halfword p, int recurse, int limitate, halfword factor);
+extern void      tex_migrate               (halfword head, halfword *first, halfword *last, int inserts, int marks);
+
 extern scaled    tex_stretch               (halfword p);
 extern scaled    tex_shrink                (halfword p);
                                            

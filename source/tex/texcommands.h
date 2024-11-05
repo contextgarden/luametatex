@@ -685,6 +685,7 @@ typedef enum box_property_codes {
     box_adapt_code,
     box_repack_code,
     box_freeze_code,
+    box_migrate_code,
     box_limitate_code,
     box_finalize_code,
     box_limit_code,

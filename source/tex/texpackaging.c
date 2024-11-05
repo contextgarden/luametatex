@@ -1242,6 +1242,96 @@ void tex_freeze(halfword p, int recurse, int limitate, halfword factor)
     }
 }
 
+static inline halfword tex_aux_migrate_decouple(halfword head, halfword current, halfword next, halfword *first, halfword *last)
+{
+    halfword prev = node_prev(current);
+    tex_uncouple_node(current);
+    if (current == head) {
+        node_prev(next) = null;
+        head = next;
+    } else {
+        tex_try_couple_nodes(prev, next);
+    }
+    if (*first) {
+        tex_couple_nodes(*last, current);
+    } else {
+        *first = current;
+    }
+    *last = current;
+    return head;
+}
+
+static halfword tex_aux_migrate_locate(halfword head, halfword *first, halfword *last, int inserts, int marks)
+{
+    halfword current = head;
+    while (current) {
+        halfword next = node_next(current);
+        switch (node_type(current)) {
+            case vlist_node:
+            case hlist_node:
+                {
+                    halfword list = box_list(current);
+                    if (list) {
+                        box_list(current) = tex_aux_migrate_locate(list, first, last, inserts, marks);
+                    }
+                    break;
+                }
+            case insert_node:
+                {
+                    if (inserts) {
+                        halfword list;
+                        head = tex_aux_migrate_decouple(head, current, next, first, last);
+                        list = insert_list(current);
+                        if (list) {
+                            insert_list(current) = tex_aux_migrate_locate(list, first, last, inserts, marks);
+                        }
+                    }
+                    break;
+                }
+            case mark_node:
+                {
+                    if (marks) {
+                        head = tex_aux_migrate_decouple(head, current, next, first, last);
+                    }
+                    break;
+                }
+            default:
+                break;
+        }
+        current = next;
+    }
+    return head;
+}
+
+void tex_migrate(halfword head, halfword *first, halfword *last, int inserts, int marks)
+{
+    if (head) {
+        halfword current = head;
+        while (current) {
+            switch (node_type(current)) {
+                case hlist_node:
+                case vlist_node:
+                    {
+                        halfword list = box_list(current);
+                        if (list) {
+                            box_list(current) = tex_aux_migrate_locate(list, first, last, inserts, marks);
+                        }
+                        break;
+                    }
+                 case insert_node:
+                     if (inserts) {
+                         halfword list = insert_list(current);
+                         if (list) {
+                            insert_list(current) = tex_aux_migrate_locate(list, first, last, inserts, marks);
+                         }
+                         break;
+                     }
+            }
+            current = node_next(current);
+        }
+    }
+}
+
 void tex_limit(halfword p) 
 {
     /* 
