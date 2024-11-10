@@ -543,6 +543,8 @@ typedef enum some_item_codes {
     input_line_no_code,         /*tex |\inputlineno| */
     badness_code,               /*tex |\badness| */
     overshoot_code,             /*tex |\overshoot| */
+    luatex_major_version_code,  /*tex |\luatexversion| */
+    luatex_minor_version_code,  /*tex |\luatexrevision| */
     luatex_version_code,        /*tex |\luatexversion| */
     luatex_revision_code,       /*tex |\luatexrevision| */
     current_group_level_code,   /*tex |\currentgrouplevel| */

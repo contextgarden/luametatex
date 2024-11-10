@@ -42,6 +42,7 @@ typedef enum box_codes {
     local_middle_box_box_code,
     page_discards_code,
     split_discards_code,
+    copy_split_discards_code,
 } box_codes;
 
 // typedef enum saved_full_spec_items {
@@ -149,7 +150,7 @@ extern void      tex_run_unpackage         (void);
 extern void      tex_append_to_vlist       (halfword b, int location, const line_break_properties *properties);
                                            
 extern halfword  tex_prune_page_top        (halfword p, int s);
-extern halfword  tex_vert_break            (halfword p, scaled h, scaled d);
+extern halfword  tex_vert_break            (halfword p, scaled h, scaled d, int callback);
 extern halfword  tex_vsplit                (halfword n, scaled h, int m);
                                            
 extern void      tex_finish_vcenter_group  (void);

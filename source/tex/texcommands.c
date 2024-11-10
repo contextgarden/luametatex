@@ -299,7 +299,7 @@ void tex_initialize_commands(void)
         tex_primitive(tex_command,    "errorcontextlines",              internal_integer_cmd,   error_context_lines_code,                 internal_integer_base);
         tex_primitive(tex_command,    "escapechar",                     internal_integer_cmd,   escape_char_code,                         internal_integer_base);
         tex_primitive(luatex_command, "spacechar",                      internal_integer_cmd,   space_char_code,                          internal_integer_base);
-     // tex_primitive(luatex_command, "etexexprmode",                   internal_integer_cmd,   etex_expr_mode_code,                      internal_integer_base); /* prevents bashing */
+        tex_primitive(luatex_command, "etexexprmode",                   internal_integer_cmd,   etex_expr_mode_code,                      internal_integer_base); /* Some want this. */
         tex_primitive(luatex_command, "eufactor",                       internal_integer_cmd,   eu_factor_code,                           internal_integer_base);
         tex_primitive(luatex_command, "exceptionpenalty",               internal_integer_cmd,   exception_penalty_code,                   internal_integer_base);
         tex_primitive(tex_command,    "exhyphenchar",                   internal_integer_cmd,   ex_hyphen_char_code,                      internal_integer_base);
@@ -464,6 +464,7 @@ void tex_initialize_commands(void)
         tex_primitive(tex_command,    "uchyph",                         internal_integer_cmd,   uc_hyph_code,                             internal_integer_base); /* obsolete, not needed */
         tex_primitive(luatex_command, "variablefam",                    internal_integer_cmd,   variable_family_code,                     internal_integer_base); /* obsolete, not used */
         tex_primitive(tex_command,    "vbadness",                       internal_integer_cmd,   vbadness_code,                            internal_integer_base);
+        tex_primitive(luatex_command, "vsplitchecks",                   internal_integer_cmd,   vsplit_checks_code,                       internal_integer_base);
         tex_primitive(tex_command,    "widowpenalty",                   internal_integer_cmd,   widow_penalty_code,                       internal_integer_base);
         tex_primitive(tex_command,    "year",                           internal_integer_cmd,   year_code,                                internal_integer_base);
 
@@ -864,6 +865,8 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "lastrightclass",                 some_item_cmd,          last_right_class_code,                    0);
         tex_primitive(tex_command,    "lastskip",                       some_item_cmd,          lastskip_code,                            0);
         tex_primitive(luatex_command, "leftmarginkern",                 some_item_cmd,          left_margin_kern_code,                    0);
+        tex_primitive(luatex_command, "luatexmajorversion",             some_item_cmd,          luatex_major_version_code,                0);
+        tex_primitive(luatex_command, "luatexminorversion",             some_item_cmd,          luatex_minor_version_code,                0);
         tex_primitive(luatex_command, "luatexrevision",                 some_item_cmd,          luatex_revision_code,                     0);
         tex_primitive(luatex_command, "luatexversion",                  some_item_cmd,          luatex_version_code,                      0);
      /* tex_primitive(luatex_command, "luavaluefunction",               some_item_cmd,          lua_value_function_code,                  0); */
@@ -1359,6 +1362,7 @@ void tex_initialize_commands(void)
 
         tex_primitive(etex_command,   "pagediscards",                   un_vbox_cmd,            page_discards_code,                              0);
         tex_primitive(etex_command,   "splitdiscards",                  un_vbox_cmd,            split_discards_code,                             0);
+        tex_primitive(luatex_command, "copysplitdiscards",              un_vbox_cmd,            copy_split_discards_code,                        0);
 
         tex_primitive(luatex_command, "insertunbox",                    un_vbox_cmd,            insert_box_code,                                 0);
         tex_primitive(luatex_command, "insertuncopy",                   un_vbox_cmd,            insert_copy_code,                                0);

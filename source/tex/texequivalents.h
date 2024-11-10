@@ -669,7 +669,8 @@ typedef enum int_codes {
     line_break_passes_code,
     line_break_optional_code,
     line_break_checks_code,
- // etex_expr_mode_code,
+    vsplit_checks_code,
+    etex_expr_mode_code,
     /*
         This one was added as experiment to \LUATEX\ (answer to a forwarded question) but as it
         didn't get tested it will go away. \CONTEXT\ doesn't need it and we don't need to be
@@ -1456,13 +1457,14 @@ extern void tex_word_define        (int g, halfword p, halfword w);
 # define local_middle_box_par             box_parameter(local_middle_box_code)
 
 # define line_break_checks_par            integer_parameter(line_break_checks_code)
+# define vsplit_checks_par                integer_parameter(vsplit_checks_code)
 
 # define end_line_char_par                integer_parameter(end_line_char_code)
 # define new_line_char_par                integer_parameter(new_line_char_code)
 # define escape_char_par                  integer_parameter(escape_char_code)
 # define space_char_par                   integer_parameter(space_char_code)
 
-//define etex_expr_mode_par               integer_parameter(etex_expr_mode_code)
+# define etex_expr_mode_par               integer_parameter(etex_expr_mode_code)
 
 # define end_line_char_inactive           ((end_line_char_par < 0) || (end_line_char_par > max_endline_character))
 

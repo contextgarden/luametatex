@@ -357,6 +357,7 @@ typedef struct lmt_interface_info {
     value_info    *alignment_context_values;
     value_info    *line_break_context_values;
     value_info    *build_context_values;
+    value_info    *vsplit_context_values;
     value_info    *par_trigger_values;
     value_info    *par_mode_values;
     value_info    *math_style_name_values;
@@ -581,6 +582,7 @@ make_lua_key(L, connectoroverlapmin);\
 make_lua_key(L, constant);\
 make_lua_key(L, constant_call);\
 make_lua_key(L, container);\
+make_lua_key(L, continue);\
 make_lua_key(L, contributehead);\
 make_lua_key(L, control);\
 make_lua_key(L, convert);\
@@ -1128,6 +1130,7 @@ make_lua_key(L, protrusion);\
 make_lua_key(L, ptr);\
 make_lua_key(L, punctuation);\
 make_lua_key(L, quad);\
+make_lua_key(L, quit);\
 make_lua_key(L, radical);\
 make_lua_key(L, radicaldegreeafter);\
 make_lua_key(L, radicaldegreebefore);\

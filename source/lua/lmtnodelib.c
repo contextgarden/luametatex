@@ -5455,7 +5455,7 @@ static int nodelib_direct_verticalbreak(lua_State *L)
     if (n) {
         scaled ht = lmt_roundnumber(L, 2);
         scaled dp = lmt_roundnumber(L, 3);
-        n = tex_vert_break(n, ht, dp);
+        n = tex_vert_break(n, ht, dp, 1);
     }
     lua_pushinteger(L, n);
     return 1;

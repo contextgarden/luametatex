@@ -972,6 +972,14 @@ typedef enum tex_build_context_codes {
     wrapup_show_build_context,
 } tex_build_context_codes;
 
+typedef enum tex_vsplit_context_codes {
+    initialize_show_vsplit_context,
+    continue_show_vsplit_context,
+    check_show_vsplit_context,
+    quit_show_vsplit_context,
+    wrapup_show_vsplit_context,
+} tex_vsplit_context_codes;
+
 typedef enum tex_page_context_codes {
     box_page_context,
     end_page_context,
