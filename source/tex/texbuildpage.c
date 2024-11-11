@@ -537,7 +537,7 @@ static void tex_aux_append_insert(halfword current)
             if (height > limit - box_height(location)) {
                 height = limit - box_height(location);
             }
-            breaknode = tex_vert_break(insert_list(current), height, insert_max_depth(current), 0);
+            breaknode = tex_vert_break(insert_list(current), height, insert_max_depth(current), 0, 0);
             box_height(location) += lmt_packaging_state.best_height_plus_depth;
             penalty = breaknode ? (node_type(breaknode) == penalty_node ? penalty_amount(breaknode) : 0) : eject_penalty;
             if (tracing_pages_par > 0) {

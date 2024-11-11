@@ -1235,6 +1235,22 @@ static void tex_aux_set_cur_val_by_page_property_cmd(int code)
             cur_val = tex_get_insert_width(tex_scan_integer(0, NULL));
             cur_val_level = dimension_val_level;
             break;
+        case split_last_depth_code:  
+            cur_val = lmt_packaging_state.split_last_depth;
+            cur_val_level = dimension_val_level;
+            break;
+        case split_last_height_code: 
+            cur_val = lmt_packaging_state.split_last_height;
+            cur_val_level = dimension_val_level;
+            break;
+        case split_last_shrink_code: 
+            cur_val = lmt_packaging_state.split_last_shrink;
+            cur_val_level = dimension_val_level;
+            break;
+        case split_last_stretch_code:
+            cur_val = lmt_packaging_state.split_last_stretch;
+            cur_val_level = dimension_val_level;
+            break;
         default:
             tex_confusion("page property");
             break;

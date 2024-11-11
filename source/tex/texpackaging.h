@@ -89,7 +89,7 @@ typedef struct packaging_state_info {
     scaled   last_overshoot;
     halfword post_adjust_tail;       /*tex tail of adjustment list */
     halfword pre_adjust_tail;
-    halfword post_migrate_tail;       /*tex tail of adjustment list */
+    halfword post_migrate_tail;      /*tex tail of adjustment list */
     halfword pre_migrate_tail;
     halfword last_leftmost_char;
     halfword last_rightmost_char;
@@ -100,6 +100,10 @@ typedef struct packaging_state_info {
     halfword page_discards_tail;
     halfword page_discards_head;
     halfword split_discards_head;
+    scaled   split_last_height;
+    scaled   split_last_depth;
+    scaled   split_last_stretch;
+    scaled   split_last_shrink;
     halfword except;
 } packaging_state_info;
 
@@ -150,7 +154,7 @@ extern void      tex_run_unpackage         (void);
 extern void      tex_append_to_vlist       (halfword b, int location, const line_break_properties *properties);
                                            
 extern halfword  tex_prune_page_top        (halfword p, int s);
-extern halfword  tex_vert_break            (halfword p, scaled h, scaled d, int callback);
+extern halfword  tex_vert_break            (halfword p, scaled height, scaled depth, int callback, scaled extra);
 extern halfword  tex_vsplit                (halfword n, scaled h, int m);
                                            
 extern void      tex_finish_vcenter_group  (void);

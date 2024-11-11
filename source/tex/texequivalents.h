@@ -445,6 +445,11 @@ typedef enum page_property_codes {
     page_last_fillstretch_code,
     page_last_filllstretch_code,
     page_last_shrink_code,
+    /* these are hosted here */
+    split_last_depth_code,  
+    split_last_height_code, 
+    split_last_shrink_code, 
+    split_last_stretch_code,
 } page_property_codes;
 
 # define first_page_property_code page_goal_code
@@ -750,6 +755,7 @@ typedef enum dimension_codes {
     page_extra_goal_code,
     ignore_depth_criterion_code,
     short_inline_math_threshold_code,
+    split_extra_height_code,
     /*tex total number of dimension parameters */
     number_dimension_pars,
 } dimension_codes;
@@ -1419,6 +1425,7 @@ extern void tex_word_define        (int g, halfword p, halfword w);
 # define max_depth_par                    dimension_parameter(max_depth_code)
 # define box_max_depth_par                dimension_parameter(box_max_depth_code)
 # define split_max_depth_par              dimension_parameter(split_max_depth_code)
+# define split_extra_height_par           dimension_parameter(split_extra_height_code)
 # define overfull_rule_par                dimension_parameter(overfull_rule_code)
 # define box_max_depth_par                dimension_parameter(box_max_depth_code)
 # define ignore_depth_criterion_par       dimension_parameter(ignore_depth_criterion_code)

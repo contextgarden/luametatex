@@ -495,6 +495,7 @@ void tex_initialize_commands(void)
         tex_primitive(tex_command,    "scriptspace",                    internal_dimension_cmd, script_space_code,                        internal_dimension_base);
         tex_primitive(luatex_command, "shortinlinemaththreshold",       internal_dimension_cmd, short_inline_math_threshold_code,         internal_dimension_base);
         tex_primitive(tex_command,    "splitmaxdepth",                  internal_dimension_cmd, split_max_depth_code,                     internal_dimension_base);
+        tex_primitive(luatex_command, "splitextraheight",               internal_dimension_cmd, split_extra_height_code,                  internal_dimension_base);
         tex_primitive(luatex_command, "tabsize",                        internal_dimension_cmd, tab_size_code,                            internal_dimension_base);
         tex_primitive(tex_command,    "vfuzz",                          internal_dimension_cmd, vfuzz_code,                               internal_dimension_base);
      /* tex_primitive(tex_command,    "voffset",                        internal_dimension_cmd, v_offset_code,                            internal_dimension_base); */ /* backend */
@@ -769,6 +770,11 @@ void tex_initialize_commands(void)
         tex_primitive(tex_command,    "pagestretch",                    page_property_cmd,      page_stretch_code,                        0);
         tex_primitive(tex_command,    "pagetotal",                      page_property_cmd,      page_total_code,                          0);
         tex_primitive(luatex_command, "pagevsize",                      page_property_cmd,      page_vsize_code,                          0);
+
+        tex_primitive(luatex_command, "splitlastdepth",                 page_property_cmd,      split_last_depth_code,                    0);
+        tex_primitive(luatex_command, "splitlastheight",                page_property_cmd,      split_last_height_code,                   0);
+        tex_primitive(luatex_command, "splitlastshrink",                page_property_cmd,      split_last_shrink_code,                   0);
+        tex_primitive(luatex_command, "splitlaststretch",               page_property_cmd,      split_last_stretch_code,                  0);
 
         tex_primitive(luatex_command, "boxadapt",                       box_property_cmd,       box_adapt_code,                           0);
         tex_primitive(luatex_command, "boxanchor",                      box_property_cmd,       box_anchor_code,                          0);

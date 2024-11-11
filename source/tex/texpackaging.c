@@ -552,6 +552,10 @@ packaging_state_info lmt_packaging_state = {
     .page_discards_tail     = null,
     .page_discards_head     = null,
     .split_discards_head    = null,
+    .split_last_height      = 0,
+    .split_last_depth       = 0,
+    .split_last_stretch     = 0,
+    .split_last_shrink      = 0,
 };
 
 /*tex
@@ -3581,14 +3585,15 @@ static halfword tex_aux_vert_costs(halfword badness, halfword penalty)
     }
 }
 
-static void tex_aux_vsplit_callback_initialize(int callback_id, halfword checks, halfword current, scaled height, scaled depth)
+static void tex_aux_vsplit_callback_initialize(int callback_id, halfword checks, halfword current, scaled height, scaled depth, scaled extra)
 {
-    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddNdd->",
+    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddNddd->",
         initialize_show_vsplit_context,
         checks,
         current,
         height,
-        depth
+        depth,
+        extra
     );
 }
 
@@ -3637,15 +3642,18 @@ static void tex_aux_vsplit_callback_quit(int callback_id, halfword checks, halfw
 
 static void tex_aux_vsplit_callback_wrapup(int callback_id, halfword checks, halfword best)
 {
-    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddd->",
+    lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddddddd->",
         wrapup_show_vsplit_context,
         checks,
-        best
+        best,
+        lmt_packaging_state.split_last_height,
+        lmt_packaging_state.split_last_depth,
+        lmt_packaging_state.split_last_stretch,
+        lmt_packaging_state.split_last_shrink
     );
 }
 
-
-halfword tex_vert_break(halfword current, scaled height, scaled depth, int callback)
+halfword tex_vert_break(halfword current, scaled height, scaled depth, int callback, scaled extra)
 {
     /*tex
         If |p| is a glue node, |type(prev_p)| determines whether |p| is a legal breakpoint, an
@@ -3654,20 +3662,21 @@ halfword tex_vert_break(halfword current, scaled height, scaled depth, int callb
     halfword previous = current;
     /*tex The to be checked penalty value: */
     halfword penalty = 0;
+    int penalty_state = 0;
     /*tex The smallest badness plus penalties found so far: */
     halfword least_cost = awful_bad;
     /*tex The most recent break that leads to |least_cost|: */
     halfword best_place = null;
-    scaled last_total = 0;
     /*tex The depth of previous box in the list: */
     scaled previous_depth = 0;
     /*tex The various glue components: */
     scaled active_height[10] = { 0 };
+    scaled passive_height[10] = { 0 };
     /*tex For experiments: */
     int checks = callback ? vsplit_checks_par : 0;
     int callbackid = checks ? lmt_callback_defined(show_vsplit_callback) : 0;
     if (callbackid) { 
-        tex_aux_vsplit_callback_initialize(callbackid, checks, current, height, depth);
+        tex_aux_vsplit_callback_initialize(callbackid, checks, current, height, depth, extra    );
     }
     while (1) {
         /*tex
@@ -3726,7 +3735,13 @@ halfword tex_vert_break(halfword current, scaled height, scaled depth, int callb
                     }
                 case penalty_node:
                     penalty = penalty_amount(current);
-                    /* option: penalty = 0; */
+                    if (tex_has_penalty_option(current, penalty_option_widowed)) { 
+                            penalty_state = penalty_option_widowed;
+                    } else if (tex_has_penalty_option(current, penalty_option_clubbed)) { 
+                            penalty_state = penalty_option_clubbed;
+                    } else { 
+                            penalty_state = penalty_option_normal;
+                    }
                     break;
                 case mark_node:
                 case insert_node:
@@ -3746,12 +3761,23 @@ halfword tex_vert_break(halfword current, scaled height, scaled depth, int callb
             /*tex Compute the badness, |b|, using |awful_bad| if the box is too full. */
             int badness = tex_aux_vert_badness(height, active_height);
             int costs = tex_aux_vert_costs(badness, penalty);
+            if (badness == awful_bad && penalty_state) {
+                int b = tex_aux_vert_badness(height + extra, active_height);
+                int c = tex_aux_vert_costs(b, penalty);
+            //  printf("%i %i / %i %i",badness,b,costs,c);
+                badness = b; 
+                costs = c; 
+                height += extra;
+                penalty_state = penalty_option_normal;
+                extra = 0;
+            } 
             if (costs <= least_cost) {
                 best_place = current;
                 least_cost = costs;
-                last_total = active_height[total_advance_amount] + previous_depth;
-             // lmt_packaging_state.best_height_plus_depth = active_height[total_advance_amount] + previous_depth;
-                lmt_packaging_state.best_height_plus_depth = last_total;
+                for (int i = total_advance_amount; i <= total_stretch_amount; i++) {
+                    passive_height[i] = active_height[i];
+                }
+                lmt_packaging_state.best_height_plus_depth = passive_height[total_advance_amount];
                 /*tex 
                     Here's a patch suggested by DEK related to glue in inserts that needs to be taken 
                     into account. That patch is not applied to regular \TEX\ for compatibility reasons.
@@ -3764,17 +3790,17 @@ halfword tex_vert_break(halfword current, scaled height, scaled depth, int callb
             }
             if ((costs == awful_bad) || (penalty <= eject_penalty)) {
                 if (callbackid) { 
-                    tex_aux_vsplit_callback_quit(callbackid, checks, current, active_height[total_advance_amount], previous_depth, last_total, penalty, badness, costs);
+                    tex_aux_vsplit_callback_quit(callbackid, checks, current, active_height[total_advance_amount], previous_depth, passive_height[total_advance_amount], penalty, badness, costs);
                 }
                 goto WRAPUP;
             } else { 
                 if (callbackid) { 
-                    tex_aux_vsplit_callback_check(callbackid, checks, current, active_height[total_advance_amount], previous_depth, last_total, penalty, badness, costs);
+                    tex_aux_vsplit_callback_check(callbackid, checks, current, active_height[total_advance_amount], previous_depth, passive_height[total_advance_amount], penalty, badness, costs);
                 }
             }
         } else { 
             if (callbackid) { 
-                tex_aux_vsplit_callback_continue(callbackid, checks, current, active_height[total_advance_amount], previous_depth, last_total, penalty);
+                tex_aux_vsplit_callback_continue(callbackid, checks, current, active_height[total_advance_amount], previous_depth, passive_height[total_advance_amount], penalty);
             }
         }
       UPDATE_HEIGHTS:
@@ -3816,6 +3842,10 @@ halfword tex_vert_break(halfword current, scaled height, scaled depth, int callb
         current = node_next(current);
     }
   WRAPUP:
+    lmt_packaging_state.split_last_height  = passive_height[total_advance_amount];
+    lmt_packaging_state.split_last_depth   = previous_depth; /* yes or no */
+    lmt_packaging_state.split_last_stretch = passive_height[total_stretch_amount];
+    lmt_packaging_state.split_last_shrink  = passive_height[total_shrink_amount];
     if (callbackid) { 
         tex_aux_vsplit_callback_wrapup(callbackid, checks, best_place);
     }
@@ -3864,7 +3894,7 @@ halfword tex_vsplit(halfword n, scaled h, int m)
         return null;
     } else {
         /*tex points to where the break occurs */
-        halfword q = tex_vert_break(box_list(v), h, split_max_depth_par, 1);
+        halfword q = tex_vert_break(box_list(v), h, split_max_depth_par, 1, split_extra_height_par);
         /*tex
 
             Look at all the marks in nodes before the break, and set the final link to |null| at
