@@ -28636,6 +28636,7 @@ static void mp_initialize_primitives(MP mp)
     mp_primitive(mp, "stacking",              mp_internal_command,         mp_stacking_internal);
     mp_primitive(mp, "miterlimit",            mp_internal_command,         mp_miterlimit_internal);
     mp_primitive(mp, "warningcheck",          mp_internal_command,         mp_warning_check_internal);
+    mp_primitive(mp, "defaultzeroangle",      mp_internal_command,         mp_default_zero_angle_internal);
     mp_primitive(mp, "truecorners",           mp_internal_command,         mp_true_corners_internal);
     mp_primitive(mp, "defaultcolormodel",     mp_internal_command,         mp_default_color_model_internal);
     mp_primitive(mp, "restoreclipcolor",      mp_internal_command,         mp_restore_clip_color_internal);
@@ -29031,6 +29032,7 @@ static void mp_initialize_tables(MP mp)
     number_clone(internal_value(mp_less_digits_internal), zero_t);
     number_clone(internal_value(mp_intersection_precision_internal), two_t);
     number_clone(internal_value(mp_join_tolerance_internal), zero_t);
+    number_clone(internal_value(mp_default_zero_angle_internal), negative_one_eighty_deg_t);
 
     set_internal_string(mp_number_system_internal, mp_intern(mp, "scaled"));
 
@@ -29065,6 +29067,7 @@ static void mp_initialize_tables(MP mp)
     set_internal_name(mp_stacking_internal,               mp_strdup("stacking"));
     set_internal_name(mp_miterlimit_internal,             mp_strdup("miterlimit"));
     set_internal_name(mp_warning_check_internal,          mp_strdup("warningcheck"));
+    set_internal_name(mp_default_zero_angle_internal,     mp_strdup("defaultzeroangle"));
     set_internal_name(mp_true_corners_internal,           mp_strdup("truecorners"));
     set_internal_name(mp_default_color_model_internal,    mp_strdup("defaultcolormodel"));
     set_internal_name(mp_restore_clip_color_internal,     mp_strdup("restoreclipcolor"));
