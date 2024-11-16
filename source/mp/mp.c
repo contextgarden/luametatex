@@ -23213,7 +23213,7 @@ static void mp_do_binary(MP mp, mp_node p, int c)
             if ((mp->cur_exp.type == mp_path_type) && p->type == mp_known_type) {
                 // we can consider using ints as we have discrete points
                 mp_knot cur = cur_exp_knot;
-                mp_number len, aln, seg, tot, tim, stp, acc, tmp;
+                mp_number len, aln, seg, tot, tim, stp, acc, tmp, idx, cnt;
                 mp_knot last = NULL;
                 mp_knot list = NULL;
                 int iscycle = mp_left_type(cur_exp_knot) == mp_explicit_knot;
@@ -23225,7 +23225,9 @@ static void mp_do_binary(MP mp, mp_node p, int c)
                 new_number(tot);
                 new_number(tim);
                 new_number(stp);
-                set_number_from_div(stp, aln, mp_get_value_number(p));
+                number_clone(idx, mp_get_value_number(p));
+                set_number_from_div(stp, aln, idx);
+                new_number(cnt);
                 new_number(acc);
                 mp_get_subarc_length(mp, &acc, cur_exp_knot, &zero_t, &unity_t);
                 /* */
@@ -23239,7 +23241,8 @@ static void mp_do_binary(MP mp, mp_node p, int c)
                 last = list;
                 /* second and following points */
                 number_clone(tot, stp);
-                while (number_lessequal(tot, aln)) {
+                while (number_greater(idx, zero_t)) {
+                    int toss = 0;
                     mp_knot k;
                     while (1) {
                         if (number_lessequal(tot, acc)) {
@@ -23250,6 +23253,11 @@ static void mp_do_binary(MP mp, mp_node p, int c)
                             cur = mp_next_knot(cur);
                             mp_get_subarc_length(mp, &tmp, cur, &zero_t, &unity_t);
                             number_add(acc, tmp) ;
+                            number_add(cnt, unity_t);
+                            if (number_greater(cnt, len)) {
+                                k = mp_prev_knot(cur_exp_knot);
+                                goto OVERSHOOT;
+                            }
                         }
                     }
                     /* still from the start, can be improved with offset */
@@ -23258,7 +23266,6 @@ static void mp_do_binary(MP mp, mp_node p, int c)
                     k = mp_get_arc_time(mp, &new_expr.data.n, cur, &tmp, 1);
                     /* */
                     if (k) {
-                        int toss = 0;
                         mp_knot kk;
                         /* somehow we can get numbers way larger than 1 */
                         if (number_greaterequal(new_expr.data.n, unity_t)) {
@@ -23268,6 +23275,7 @@ static void mp_do_binary(MP mp, mp_node p, int c)
                             k = mp_split_cubic_knot(mp, k, &new_expr.data.n);
                             toss = 1;
                         }
+                      OVERSHOOT:
                         kk = mp_complex_knot(mp, k);
                         mp_prev_knot(list) = kk;
                         mp_next_knot(kk) = list;
@@ -23281,6 +23289,7 @@ static void mp_do_binary(MP mp, mp_node p, int c)
                     } else {
                         break;
                     }
+                    number_subtract(idx, unity_t);
                 }
                 free_number(len);
                 free_number(aln);
@@ -23290,6 +23299,8 @@ static void mp_do_binary(MP mp, mp_node p, int c)
                 free_number(stp);
                 free_number(acc);
                 free_number(tmp);
+                free_number(idx);
+                free_number(cnt);
                 if (list) {
                     if (iscycle) {
                         mp_left_type(list) = mp_explicit_knot;
