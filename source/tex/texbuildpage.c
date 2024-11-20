@@ -1204,7 +1204,7 @@ static void tex_aux_fire_up(halfword c)
     }
     /*tex Ensure that box |output_box| is empty before output. */
     if (box_register(output_box_par)) {
-        if (! no_output_box_error_par) { 
+        if (! ((no_output_box_error_par > 2) || (no_output_box_error_par & 2))) { 
             tex_handle_error(
                 normal_error_type,
                 "\\box%i is not void",
@@ -1530,7 +1530,7 @@ void tex_resume_after_output(void)
     lmt_page_builder_state.insert_penalties = 0;
     /*tex Ensure that box |output_box| is empty after output. */
     if (box_register(output_box_par)) {
-        if (! no_output_box_error_par) { 
+        if (! ((no_output_box_error_par > 2) || (no_output_box_error_par & 1))) { 
             tex_handle_error(
                 normal_error_type,
                 "Output routine didn't use all of \\box%i", output_box_par,
