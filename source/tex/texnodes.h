@@ -969,9 +969,9 @@ typedef enum list_geometries {
 //define box_reserved_1(a)    vlink02(a,6)
 //define box_reserved_2(a)    vlink03(a,6)
 # define box_glue_set(a)      dvalue(a,7)  /* So we reserve a whole memory word! */
-# define box_dir(a)           vlink00(a,8) /* We could encode it as geomtry but not now. */
+# define box_dir(a)           vlink00(a,8) /* We could encode it as geometry but not now. */
 # define box_package_state(a) vlink01(a,8)
-# define box_axis(a)          vlink02(a,8)
+# define box_options(a)       vlink02(a,8)
 # define box_geometry(a)      vlink03(a,8)
 # define box_orientation(a)   vinfo(a,8)   /* Also used for size in alignments. */
 # define box_x_offset(a)      vlink(a,9)
@@ -1036,12 +1036,14 @@ typedef enum package_leader_states {
 # define has_box_package_state(p,s) ((box_package_state(p) & s) == s)
 # define is_box_package_state(p,s)  ((p & s) == s)
 
-typedef enum list_axis { /* or maybe math states */
-    no_math_axis = 0x01,
-} list_axis;
+typedef enum box_options { 
+    box_option_no_math_axis = 0x01,
+ // box_option_synchronize  = 0x02,
+} box_options;
 
-# define has_box_axis(p,s) ((box_axis(p) & s) == s)
-# define set_box_axis(p,s) box_axis(p) |= (s & 0xFF)
+static inline void tex_add_box_option    (halfword a, halfword r) { box_options(a) |= r; }
+static inline void tex_remove_box_option (halfword a, halfword r) { box_options(a) &= ~r; }
+static inline int  tex_has_box_option    (halfword a, halfword r) { return (box_options(a) & r) == r; }
 
 /*tex
     These |unset| nodes have the same layout as list nodes and at some point become an |hlist| or
@@ -2574,11 +2576,17 @@ static int par_category_to_codes[par_n_of_codes] = { /* explicit size is check *
     par_ex_hyphen_penalty_category,   // par_ex_hyphen_penalty_code
 };
 
+
+typedef enum par_options {      
+    par_option_synchronize = 0x01,
+} par_options;
+
 /*tex Make sure that |max_chain_size| is large enough to have this huge node! */
 
 # define par_node_size                   35 // todo: less because we can pack some
 
-# define par_dir(a)                      vlink(a, 2)
+# define par_dir(a)                      vlink00(a, 2)
+# define par_options(a)                  vlink01(a, 2)
 # define par_box_left(a)                 vinfo(a, 2)
 # define par_box_left_width(a)           vlink(a, 3)
 # define par_box_right(a)                vinfo(a, 3)

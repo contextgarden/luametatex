@@ -4156,7 +4156,8 @@ halfword tex_new_par_node(quarterword subtype)
         tex_set_local_tolerance(par, local_tolerance_par);
         tex_set_local_pre_tolerance(par, local_pre_tolerance_par);
     }
-    par_dir(par) = par_direction_par;
+    par_dir(par) = (singleword) par_direction_par;
+    par_options(par) = (singleword) par_options_par;
     tex_add_local_boxes(par); /*tex Is this really always needed? */
     if (subtype != local_box_par_subtype) {
         lmt_insert_par_callback(par, subtype);

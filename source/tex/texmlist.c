@@ -2593,7 +2593,7 @@ static void tex_aux_make_vcenter(halfword target, halfword style, halfword size)
     }
     {
         scaled total = box_total(box);
-        scaled axis = has_box_axis(box, no_math_axis) ? 0 : tex_aux_math_axis(size);
+        scaled axis = tex_has_box_option(box, box_option_no_math_axis) ? 0 : tex_aux_math_axis(size);
         box_height(box) = axis + tex_half_scaled(total);
         box_depth(box) = total - box_height(box);
     }

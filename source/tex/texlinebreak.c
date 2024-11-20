@@ -338,6 +338,7 @@ void tex_line_break(int group_context, int par_context, int display_math)
                     .tracing_toddlers        = tracing_toddlers_par,
                     .tracing_orphans         = tracing_orphans_par,
                     .paragraph_dir           = par_dir(par),
+                    .paragraph_options       = par_options(par),
                     .parfill_left_skip       = parfill_left_skip_glue,
                     .parfill_right_skip      = parfill_right_skip_glue,
                     .parinit_left_skip       = parinit_left_skip_glue,
@@ -6076,6 +6077,9 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
             shaping = (lefthang || righthang);
             lmt_linebreak_state.just_box = tex_hpack(head, cur_width, properties->adjust_spacing ? packing_linebreak : packing_exactly, (singleword) properties->paragraph_dir, holding_none_option, box_limit_line);
          // attach_attribute_list_copy(linebreak_state.just_box, properties->initial_par);
+// if (cur_line == 1 && (properties->paragraph_options & par_option_synchronize)) {
+//     tex_add_box_option(lmt_linebreak_state.just_box, box_option_synchronize);
+// }
             if (node_type(tail) != glue_node || node_subtype(tail) != right_skip_glue) {
                 halfword rs = tex_new_glue_node((properties->right_skip ? properties->right_skip : zero_glue), right_skip_glue);
                 tex_attach_attribute_list_copy(rs, tail);

@@ -720,6 +720,7 @@ typedef enum begin_paragraph_codes {
     undent_par_code,
     snapshot_par_code,
     attribute_par_code,
+    options_par_code,
     wrapup_par_code,
 } begin_paragraph_codes;
 

@@ -4061,6 +4061,7 @@ static int texlib_linebreak(lua_State *L)
         properties.group_context = lua_group;
         properties.par_context = lua_par_context;
         properties.paragraph_dir = par_dir(par);
+        properties.paragraph_options = par_options(par);
         properties.parfill_left_skip = null;
         properties.parfill_right_skip = null;
         properties.parinit_left_skip = null;
@@ -4159,6 +4160,11 @@ static int texlib_linebreak(lua_State *L)
         lua_push_key(direction);
         if (lua_rawget(L, -2) == LUA_TNUMBER) {
             properties.paragraph_dir = checked_direction_value(lmt_tointeger(L, -1));
+        }
+        lua_pop(L, 1);
+        lua_push_key(options);
+        if (lua_rawget(L, -2) == LUA_TNUMBER) {
+            properties.paragraph_options = (singleword) lmt_tointeger(L, -1);
         }
         lua_pop(L, 1);
         get_integer_par  (properties.tracing_paragraphs,           tracingparagraphs,         tracing_paragraphs_par);

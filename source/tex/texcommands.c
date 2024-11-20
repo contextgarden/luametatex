@@ -384,6 +384,7 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "normalizeparmode",               internal_integer_cmd,   normalize_par_mode_code,                  internal_integer_base);
         tex_primitive(luatex_command, "nospaces",                       internal_integer_cmd,   no_spaces_code,                           internal_integer_base);
         tex_primitive(luatex_command, "outputbox",                      internal_integer_cmd,   output_box_code,                          internal_integer_base);
+        tex_primitive(luatex_command, "nooutputboxerror",               internal_integer_cmd,   no_output_box_error_code,                 internal_integer_base);
         tex_primitive(tex_command,    "outputpenalty",                  internal_integer_cmd,   output_penalty_code,                      internal_integer_base);
         tex_primitive(luatex_command, "overloadmode",                   internal_integer_cmd,   overload_mode_code,                       internal_integer_base);
      /* tex_primitive(luatex_command, "pageboundarypenalty",            internal_integer_cmd,   page_boundary_penalty_code,               internal_integer_base); */
@@ -1336,6 +1337,7 @@ void tex_initialize_commands(void)
         tex_primitive(tex_command,    "indent",                         begin_paragraph_cmd,    indent_par_code,                                 0);
         tex_primitive(tex_command,    "noindent",                       begin_paragraph_cmd,    noindent_par_code,                               0);
         tex_primitive(luatex_command, "parattribute",                   begin_paragraph_cmd,    attribute_par_code,                              0);
+        tex_primitive(luatex_command, "paroptions",                     begin_paragraph_cmd,    options_par_code,                                0); /* currently only used for experiments */
         tex_primitive(luatex_command, "quitvmode",                      begin_paragraph_cmd,    quitvmode_par_code,                              0);
         tex_primitive(luatex_command, "snapshotpar",                    begin_paragraph_cmd,    snapshot_par_code,                               0);
         tex_primitive(luatex_command, "undent",                         begin_paragraph_cmd,    undent_par_code,                                 0);

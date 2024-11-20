@@ -1204,13 +1204,15 @@ static void tex_aux_fire_up(halfword c)
     }
     /*tex Ensure that box |output_box| is empty before output. */
     if (box_register(output_box_par)) {
-        tex_handle_error(
-            normal_error_type,
-            "\\box%i is not void",
-            output_box_par,
-            "You shouldn't use \\box\\outputbox except in \\output routines. Proceed, and I'll\n"
-            "discard its present contents."
-        );
+        if (! no_output_box_error_par) { 
+            tex_handle_error(
+                normal_error_type,
+                "\\box%i is not void",
+                output_box_par,
+                "You shouldn't use \\box\\outputbox except in \\output routines. Proceed, and I'll\n"
+                "discard its present contents."
+            );
+        }
         box_register(output_box_par) = tex_aux_delete_box_content(box_register(output_box_par));
     }
     /*
@@ -1528,12 +1530,14 @@ void tex_resume_after_output(void)
     lmt_page_builder_state.insert_penalties = 0;
     /*tex Ensure that box |output_box| is empty after output. */
     if (box_register(output_box_par)) {
-        tex_handle_error(
-            normal_error_type,
-            "Output routine didn't use all of \\box%i", output_box_par,
-            "Your \\output commands should empty \\box\\outputbox, e.g., by saying\n"
-            "'\\shipout\\box\\outputbox'. Proceed; I'll discard its present contents."
-        );
+        if (! no_output_box_error_par) { 
+            tex_handle_error(
+                normal_error_type,
+                "Output routine didn't use all of \\box%i", output_box_par,
+                "Your \\output commands should empty \\box\\outputbox, e.g., by saying\n"
+                "'\\shipout\\box\\outputbox'. Proceed; I'll discard its present contents."
+            );
+        }
         box_register(output_box_par) = tex_aux_delete_box_content(box_register(output_box_par));;
     }
     if (lmt_insert_state.storing == insert_storage_delay && tex_insert_stored()) {

@@ -1021,6 +1021,10 @@ static void tex_aux_run_begin_paragraph_vmode(void)
             tex_scan_attribute_register_number();
             tex_scan_integer(1, NULL);
             break;
+        case options_par_code:
+            /* silently ignore */
+            tex_scan_integer(1, NULL);
+            break;
         case wrapup_par_code:
             tex_you_cant_error(NULL);
             break;
@@ -1086,6 +1090,15 @@ static void tex_aux_run_begin_paragraph_hmode(void)
                     } else {
                         tex_set_attribute(par, att, val);
                     }
+                }
+                break;
+            }
+        case options_par_code:
+            {
+                halfword val = tex_scan_integer(1, NULL);
+                halfword par = tex_find_par_par(cur_list.head);
+                if (par && val >= 0) {
+                    par_options(par) |= (singleword) val;
                 }
                 break;
             }

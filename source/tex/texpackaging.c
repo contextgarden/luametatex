@@ -270,7 +270,7 @@ static void tex_aux_scan_full_spec(halfword context, quarterword c, quarterword 
                         break;
                     case 'x': case 'X':
                         if (tex_scan_mandate_keyword("axis", 2)) {
-                            axis |= tex_scan_box_axis();
+                            axis = tex_scan_box_axis();
                         }
                         break;
                     default:
@@ -3144,7 +3144,11 @@ void tex_package(singleword nature)
         } else if (options & saved_box_mathtext_option) {
             node_subtype(boxnode) = math_text_list;
         }
-        box_axis(boxnode) = (singleword) axis;
+        if (axis) { 
+            tex_add_box_option(boxnode, box_option_no_math_axis);
+        } else { 
+            tex_remove_box_option(boxnode, box_option_no_math_axis);
+        }
         box_package_state(boxnode) |= (singleword) state;
         tex_pop_nest();
         tex_box_end(context, boxnode, shift, mainclass, slot, callback, leaders);
@@ -3708,6 +3712,14 @@ halfword tex_vert_break(halfword current, scaled height, scaled depth, int callb
                         continue;
                     }
                     */
+// if (tex_has_box_option(current, box_option_synchronize)) { 
+//     scaled total = active_height[total_advance_amount] + previous_depth + box_height(current) - top_skip_par ;
+//     int lines = (total - 65536)/ glue_amount(baseline_skip_par); /* todo: take from par */
+//     scaled target = (lines + 1) * glue_amount(baseline_skip_par);
+//     scaled delta = target - total;
+//     printf(">>> total %f, lines %i, target %f, delta %f\n",total/65536.0,lines,target/65536.0,delta/65536.0);
+//     box_height(current) += delta;
+// }
                     active_height[total_advance_amount] += previous_depth + box_height(current);
                     previous_depth = box_depth(current);
                     goto NOT_FOUND;

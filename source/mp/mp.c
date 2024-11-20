@@ -23241,6 +23241,7 @@ static void mp_do_binary(MP mp, mp_node p, int c)
                 last = list;
                 /* second and following points */
                 number_clone(tot, stp);
+                /* checking the index is more robust than checking on accumulated length */
                 while (number_greater(idx, zero_t)) {
                     int toss = 0;
                     mp_knot k;
@@ -23255,6 +23256,7 @@ static void mp_do_binary(MP mp, mp_node p, int c)
                             number_add(acc, tmp) ;
                             number_add(cnt, unity_t);
                             if (number_greater(cnt, len)) {
+                                /* we went over the end so we need to backtrack to the last knot */
                                 k = mp_prev_knot(cur_exp_knot);
                                 goto OVERSHOOT;
                             }

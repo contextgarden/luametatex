@@ -480,6 +480,7 @@ typedef enum int_codes {
     math_left_class_code,
     math_right_class_code,
     output_box_code,
+    no_output_box_error_code,
     new_line_char_code,
     end_line_char_code,
     language_code,
@@ -676,6 +677,7 @@ typedef enum int_codes {
     line_break_checks_code,
     vsplit_checks_code,
     etex_expr_mode_code,
+    par_options_code,
     /*
         This one was added as experiment to \LUATEX\ (answer to a forwarded question) but as it
         didn't get tested it will go away. \CONTEXT\ doesn't need it and we don't need to be
@@ -1357,6 +1359,8 @@ extern void tex_word_define        (int g, halfword p, halfword w);
 # define display_skip_mode_par            integer_parameter(math_display_skip_mode_code)
 # define math_eqno_gap_step_par           integer_parameter(math_eqno_gap_step_code)
 
+# define par_options_par                  integer_parameter(par_options_code)
+
 # define par_direction_par                integer_parameter(par_direction_code)
 # define text_direction_par               integer_parameter(text_direction_code)
 # define math_direction_par               integer_parameter(math_direction_code)
@@ -1602,6 +1606,7 @@ typedef enum shaping_penalties_mode_bits {
 
 # define max_dead_cycles_par             integer_parameter(max_dead_cycles_code)
 # define output_box_par                  integer_parameter(output_box_code)
+# define no_output_box_error_par         integer_parameter(no_output_box_error_code)
 # define holding_inserts_par             integer_parameter(holding_inserts_code)
 # define holding_migrations_par          integer_parameter(holding_migrations_code)
 # define output_routine_par              toks_parameter(output_routine_code)

@@ -264,6 +264,10 @@ extern int  luaextend_xcomplex  (lua_State *L);
 
 # define SPARSE_METATABLE_INSTANCE "sparse.instance"
 
+/*tex Maybe used in |lmtstrlibext| */
+
+# define STRING_BUFFER_INSTANCE "stringbuffer.instance"
+
 /*tex
     There are some more but for now we have no reason to alias them for performance reasons, so
     that got postponed. We then also need to move the defines here:
@@ -1489,6 +1493,8 @@ make_lua_key_alias(L, pdfe_stream_instance,     PDFE_METATABLE_STREAM);\
 make_lua_key_alias(L, pdfe_reference_instance,  PDFE_METATABLE_REFERENCE);\
 /* */ \
 make_lua_key_alias(L, file_handle_instance,     LUA_FILEHANDLE);\
+/* */ \
+make_lua_key_alias(L, string_buffer_instance,   STRING_BUFFER_INSTANCE);\
 /* done */
 
 # define declare_metapost_lua_keys(L) \
