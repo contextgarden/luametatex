@@ -6,14 +6,18 @@
 
 /* todo: 
 
-    discretionaries => remove or adapt 
-    demerits        => within set (first of pageshape entry) 
-    discardables 
-    why copy needed
-    depth 
-    temphead etc 
-    hyphenation     => discretionaries     
-    overfull        => skip to next 
+    remove or adapt discretionaries
+    don't use demerits across spread
+    why is a copy needed
+    how about max depth 
+    check usage of temphead (in helpers)
+    replace hyphenation by discretionaries     
+    skip to next when frozen overfull 
+    topskip stretch and shrink 
+    excepts
+    inserts
+    adjusts at the top 
+    share callback functions and use generic contexts 
 */
 
 typedef enum balance_states {
@@ -25,30 +29,31 @@ typedef enum balance_states {
 } balance_states;
 
 balance_state_info lmt_balance_state = {
-    .just_box            = 0,
-    .no_shrink_error_yet = 0,
-    .callback_id         = 0,
-    .threshold           = 0,
-    .passive             = 0,
-    .printed_node        = 0,
-    .serial_number       = 0,
-    .active_height       = { 0 },
-    .background          = { 0 },
-    .break_height        = { 0 },
-    .disc_height         = { 0 },
-    .minimal_demerits    = { 0 },
-    .minimum_demerits    = 0,
-    .easy_page           = 0,
-    .last_special_page   = 0,
-    .target_height       = 0,
-    .best_bet            = 0,
-    .fewest_demerits     = 0,
-    .best_page           = 0,
-    .actual_looseness    = 0,
-    .fill_height         = { 0 },
-    .warned              = 0,
-    .passes              = { 0 },
-    .current_page_number = 0,
+    .just_box             = 0,
+    .no_shrink_error_yet  = 0,
+    .callback_id          = 0,
+    .threshold            = 0,
+    .passive              = 0,
+    .printed_node         = 0,
+    .serial_number        = 0,
+    .active_height        = { 0 },
+    .background           = { 0 },
+    .break_height         = { 0 },
+    .disc_height          = { 0 },
+    .minimal_demerits     = { 0 },
+    .minimum_demerits     = 0,
+    .easy_page            = 0,
+    .last_special_page    = 0,
+    .target_height        = 0,
+    .best_bet             = 0,
+    .fewest_demerits      = 0,
+    .best_page            = 0,
+    .actual_looseness     = 0,
+    .fill_height          = { 0 },
+    .warned               = 0,
+    .passes               = { 0 },
+    .current_page_number  = 0,
+    .current_page_content = contribute_nothing,
 
     .quality                  = 0,
     .force_check_hyphenation  = 0,
@@ -73,14 +78,14 @@ static void tex_aux_pre_balance (
     const balance_properties *properties,
     int                       callback_id,
     halfword                  checks,
-    int                       state
+    int                       state /* not used here */
 );
 
 static void tex_aux_post_balance (
     const balance_properties *properties,
     int                       callback_id,
     halfword                  checks,
-    int                       state
+    int                       state /* not used here */
 );
 
 /* */
@@ -298,7 +303,7 @@ static void tex_aux_compute_break_height(int break_type, halfword p)
 }
 
 /*tex 
-    For now we use the same context values.  
+    we can share these with line breaks and rename the contexts.   
 */
 
 static void tex_aux_balance_callback_initialize(int callback_id, halfword checks, int subpasses)
@@ -531,6 +536,7 @@ static scaled tex_aux_try_balance(
             /*tex We have an |unhyphenated_node| or |hyphenated_node|. */
         }
         lmt_balance_state.current_page_number = page; /* we could just use this variable */
+        lmt_balance_state.current_page_content = contribute_nothing; 
         page = active_page_number(current);
         if (page > old_page) {
             if ((lmt_balance_state.minimum_demerits < awful_bad) && ((old_page != lmt_balance_state.easy_page) || (current == active_head))) {
@@ -617,7 +623,7 @@ static scaled tex_aux_try_balance(
                     previous = delta;
                 }
             }
-            /* line_height already has been calculated */
+            /* page_height already has been calculated */
             if (page > lmt_balance_state.easy_page) {
                 old_page = max_halfword - 1;
                 page_height = lmt_balance_state.target_height;
@@ -1110,37 +1116,56 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
         switch (node_type(current)) {
             case hlist_node:
             case vlist_node:
+                /* what with the migration (see buildpage) */
+                if (lmt_balance_state.current_page_content < contribute_box) {
+                    scaled delta = glue_amount(properties->topskip) - box_height(current);
+                    if (delta > 0) {
+                        lmt_balance_state.active_height[total_advance_amount] += delta;
+                    }
+                    lmt_balance_state.current_page_content = contribute_box;
+                    /* how about topskip stretch and shrink */
+                }
                 lmt_balance_state.active_height[total_advance_amount] += box_height(current);
                 lmt_balance_state.active_height[total_advance_amount] += box_depth(current);
                 break;
             case rule_node:
+                /* what with the migration (see buildpage) */
+                if (lmt_balance_state.current_page_content < contribute_box) {
+                    scaled delta = glue_amount(properties->topskip) - rule_height(current);
+                    if (delta > 0) {
+                        lmt_balance_state.active_height[total_advance_amount] += delta;
+                    }
+                    lmt_balance_state.current_page_content = contribute_rule;
+                    /* how about topskip stretch and shrink */
+                }
                 lmt_balance_state.active_height[total_advance_amount] += rule_height(current);
                 lmt_balance_state.active_height[total_advance_amount] += rule_depth(current);
                 break;
-         // case par_node:
-         //     /*tex Advance past a |par| node. */
-         //     break;
             case glue_node:
-                /*tex Checks for temp_head! */
-                if (tex_aux_valid_glue_break(current)) {
-                    tex_aux_try_balance(properties, 0, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
-                }
-                lmt_balance_state.active_height[total_advance_amount] += glue_amount(current);
-                lmt_balance_state.active_height[total_stretch_amount + glue_stretch_order(current)] += glue_stretch(current);
-                lmt_balance_state.active_height[total_shrink_amount] += tex_aux_checked_shrink(current);
-                break;
-            case kern_node:
-                /*tex there are not many vertical kerns that can occur in vmode */
-                if (node_subtype(current) == explicit_kern_subtype) { 
-                    halfword nxt = node_next(current);
-                    if (nxt && node_type(nxt) == glue_node) {
+                if (lmt_page_builder_state.contents < contribute_box) {
+                    /*tex Checks for temp_head! */
+                    if (tex_aux_valid_glue_break(current)) {
                         tex_aux_try_balance(properties, 0, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                     }
+                    lmt_balance_state.active_height[total_advance_amount] += glue_amount(current);
+                    lmt_balance_state.active_height[total_stretch_amount + glue_stretch_order(current)] += glue_stretch(current);
+                    lmt_balance_state.active_height[total_shrink_amount] += tex_aux_checked_shrink(current);
                 }
-                lmt_balance_state.active_height[total_advance_amount] += kern_amount(current);
+                break;
+            case kern_node:
+                if (lmt_page_builder_state.contents < contribute_box) {
+                    /*tex there are not many vertical kerns that can occur in vmode */
+                    if (node_subtype(current) == explicit_kern_subtype) { 
+                        halfword nxt = node_next(current);
+                        if (nxt && node_type(nxt) == glue_node) {
+                            tex_aux_try_balance(properties, 0, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
+                        }
+                    }
+                    lmt_balance_state.active_height[total_advance_amount] += kern_amount(current);
+                }
                 break;
             case disc_node:
-                {
+                if (lmt_page_builder_state.contents < contribute_box) {
                     halfword replace = disc_no_break_head(current);
                     if (lmt_balance_state.force_check_hyphenation || (node_subtype(current) != syllable_discretionary_code)) {
                         halfword actual_penalty = disc_penalty(current);
@@ -1197,22 +1222,34 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                     if (replace) {
                         tex_aux_add_to_heights(replace, lmt_balance_state.active_height);
                     }
-                    break;
+                } else { 
+                    halfword replace = disc_no_break_head(current);
+                    if (replace) {
+                        /* todo: top skip */
+                        tex_aux_add_to_heights(replace, lmt_balance_state.active_height);
+                    }
                 }
+                break;
             case penalty_node:
-                {
+                if (lmt_page_builder_state.contents < contribute_box) {
                     halfword penalty = penalty_amount(current);
                     tex_aux_try_balance(properties, penalty, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
-                    break;
                 }
-            case whatsit_node:
-            case mark_node:
+                break;
+            case boundary_node:
+                /* maybe handle page boundary here */
+                break;
             case insert_node:
-            case adjust_node:
-                /*tex Advance past these nodes in the |page_break| loop. Maybe trace them. */
+                /* maybe: tex_aux_append_insert(current); */
+                break;
+            case whatsit_node:
+                /* keep */
+                break;
+            case mark_node:
+                /* keep */
                 break;
             default:
-                tex_formatted_error("balancer", "weird node %d in page", node_type(current));
+                break;
         }
         current = node_next(current);
     }
@@ -1315,6 +1352,7 @@ void tex_balance_preset(balance_properties *properties)
     properties->tolerance          = 200;
     properties->pretolerance       = 100;
     properties->vsize              = 0; 
+    properties->topskip            = top_skip_par;
     properties->emergency_stretch  = 0;
     properties->emergency_original = 0;
     properties->looseness          = 0;
@@ -1483,6 +1521,8 @@ void tex_balance(balance_properties *properties, halfword head)
             halfword page = 1;
             scaled page_height;
             lmt_balance_state.current_page_number = page; /* we could just use this variable */
+            lmt_balance_state.current_page_content = contribute_nothing;
+            /* we could use target_height */
             if (properties->page_shape) {
                 page_height = tex_get_specification_height(properties->page_shape, page);
             } else {

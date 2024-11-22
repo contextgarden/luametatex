@@ -4327,6 +4327,7 @@ node_next(temp_head) = head;
         get_integer_par  (properties.looseness,          looseness,         properties.looseness);
         get_integer_par  (properties.adj_demerits,       adjdemerits,       properties.adj_demerits);
         get_dimension_par(properties.vsize,              vsize,             properties.vsize);
+        get_glue_par     (properties.topskip,            topskip,           properties.topskip);
         get_integer_par  (properties.hyphen_penalty,     hyphenpenalty,     properties.hyphen_penalty);
         get_shape_par    (properties.page_shape,         pageshape,         null);
         get_penalties_par(properties.page_passes,        pagepasses,        null, par_passes_code);

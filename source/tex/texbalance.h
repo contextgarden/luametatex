@@ -37,7 +37,8 @@ typedef struct balance_state_info {
     halfword     warned;
     break_passes passes;
     int          artificial_encountered; 
-    int          current_page_number; 
+    int          current_page_number; /* check if we can use something else */
+    int          current_page_content;
 } balance_state_info;
 
 extern balance_state_info lmt_balance_state; /* can be private */
