@@ -543,6 +543,7 @@ typedef enum int_codes {
     tracing_stats_code,                 /*tex show memory usage if \TeX\ knows it */
     tracing_paragraphs_code,            /*tex show line-break calculations */
     tracing_pages_code,                 /*tex show page-break calculations */
+    tracing_balancing_code,             /*tex show balance-break calculations */
     tracing_output_code,                /*tex show boxes when they are shipped out */
     tracing_lost_chars_code,            /*tex show characters that aren't in the font */
     tracing_commands_code,              /*tex show command codes at |big_switch| */
@@ -675,6 +676,7 @@ typedef enum int_codes {
     line_break_passes_code,
     line_break_optional_code,
     line_break_checks_code,
+    balance_checks_code,
     vsplit_checks_code,
     etex_expr_mode_code,
     par_options_code,
@@ -1467,6 +1469,7 @@ extern void tex_word_define        (int g, halfword p, halfword w);
 # define local_right_box_par              box_parameter(local_right_box_code)
 # define local_middle_box_par             box_parameter(local_middle_box_code)
 
+# define balance_checks_par               integer_parameter(balance_checks_code)
 # define line_break_checks_par            integer_parameter(line_break_checks_code)
 # define vsplit_checks_par                integer_parameter(vsplit_checks_code)
 
@@ -1620,6 +1623,8 @@ typedef enum shaping_penalties_mode_bits {
 # define tracing_stats_par               integer_parameter(tracing_stats_code)
 # define tracing_online_par              integer_parameter(tracing_online_code)
 # define tracing_paragraphs_par          integer_parameter(tracing_paragraphs_code)
+# define tracing_pages_par               integer_parameter(tracing_pages_code)
+# define tracing_balancing_par           integer_parameter(tracing_balancing_code)
 # define tracing_levels_par              integer_parameter(tracing_levels_code)
 # define tracing_nesting_par             integer_parameter(tracing_nesting_code)
 # define tracing_alignments_par          integer_parameter(tracing_alignments_code)
@@ -1632,7 +1637,6 @@ typedef enum shaping_penalties_mode_bits {
 # define tracing_macros_par              integer_parameter(tracing_macros_code)
 # define tracing_assigns_par             integer_parameter(tracing_assigns_code)
 //define tracing_fonts_par               integer_parameter(tracing_fonts_code)
-# define tracing_pages_par               integer_parameter(tracing_pages_code)
 # define tracing_restores_par            integer_parameter(tracing_restores_code)
 # define tracing_groups_par              integer_parameter(tracing_groups_code)
 # define tracing_math_par                integer_parameter(tracing_math_code)
@@ -1898,6 +1902,7 @@ extern halfword tex_explicit_disc_penalty  (halfword mode);
 # define update_tex_pre_display_size(v)        tex_eq_word_define(internal_dimension_location(pre_display_size_code), v)
 # define update_tex_text_direction(v)          tex_eq_word_define(internal_integer_location(text_direction_code), v)
 # define update_tex_line_break_checks(v)       tex_eq_word_define(internal_integer_location(line_break_checks_code), v)
+# define update_tex_balance_checks(v)          tex_eq_word_define(internal_integer_location(balance_checks_code), v)
 
 # define update_tex_font_identifier(v)         tex_eq_word_define(internal_integer_location(font_code), v)
 # define update_tex_glyph_scale(v)             tex_eq_word_define(internal_integer_location(glyph_scale_code), v)

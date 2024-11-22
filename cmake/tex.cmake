@@ -80,6 +80,7 @@ set(tex_sources
     source/tex/textextcodes.c
     source/tex/textoken.c
     source/tex/texrules.c
+    source/tex/texbalance.c
 
 )
 

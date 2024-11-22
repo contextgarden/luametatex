@@ -464,21 +464,26 @@ static void rethook (lua_State *L, CallInfo *ci, int nres) {
 
 /*
 ** Check whether 'func' has a '__call' metafield. If so, put it in the
-** stack, below original 'func', so that 'luaD_precall' can call it. Raise
-** an error if there is no '__call' metafield.
+** stack, below original 'func', so that 'luaD_precall' can call it.
+** Raise an error if there is no '__call' metafield.
+** Bits CIST_CCMT in status count how many _call metamethods were
+** invoked and how many corresponding extra arguments were pushed.
+** (This count will be saved in the 'callstatus' of the call).
+**  Raise an error if this counter overflows.
 */
-static StkId tryfuncTM (lua_State *L, StkId func) {
+static unsigned tryfuncTM (lua_State *L, StkId func, unsigned status) {
   const TValue *tm;
   StkId p;
-  checkstackp(L, 1, func);  /* space for metamethod */
-  tm = luaT_gettmbyobj(L, s2v(func), TM_CALL);  /* (after previous GC) */
-  if (l_unlikely(ttisnil(tm)))
-    luaG_callerror(L, s2v(func));  /* nothing to call */
+  tm = luaT_gettmbyobj(L, s2v(func), TM_CALL);
+  if (l_unlikely(ttisnil(tm)))  /* no metamethod? */
+    luaG_callerror(L, s2v(func));
   for (p = L->top.p; p > func; p--)  /* open space for metamethod */
     setobjs2s(L, p, p-1);
   L->top.p++;  /* stack space pre-allocated by the caller */
   setobj2s(L, func, tm);  /* metamethod is the new function to be called */
-  return func;
+  if ((status & MAX_CCMT) == MAX_CCMT)  /* is counter full? */
+    luaG_runerror(L, "'__call' chain too long");
+  return status + (1u << CIST_CCMT);  /* increment counter */
 }
 
 
@@ -564,12 +569,18 @@ void luaD_poscall (lua_State *L, CallInfo *ci, int nres) {
 #define next_ci(L)  (L->ci->next ? L->ci->next : luaE_extendCI(L))
 
 
-l_sinline CallInfo *prepCallInfo (lua_State *L, StkId func, int nresults,
-                                                l_uint32 mask, StkId top) {
+/*
+** Allocate and initialize CallInfo structure. At this point, the
+** only valid fields in the call status are number of results,
+** CIST_C (if it's a C function), and number of extra arguments.
+** (All these bit-fields fit in 16-bit values.)
+*/
+l_sinline CallInfo *prepCallInfo (lua_State *L, StkId func, unsigned status,
+                                                StkId top) {
   CallInfo *ci = L->ci = next_ci(L);  /* new frame */
   ci->func.p = func;
-  lua_assert(((nresults + 1) & ~CIST_NRESULTS) == 0);
-  ci->callstatus = mask | cast(l_uint32, nresults + 1);
+  lua_assert((status & ~(CIST_NRESULTS | CIST_C | MAX_CCMT)) == 0);
+  ci->callstatus = status;
   ci->top.p = top;
   return ci;
 }
@@ -578,12 +589,12 @@ l_sinline CallInfo *prepCallInfo (lua_State *L, StkId func, int nresults,
 /*
 ** precall for C functions
 */
-l_sinline int precallC (lua_State *L, StkId func, int nresults,
+l_sinline int precallC (lua_State *L, StkId func, unsigned status,
                                             lua_CFunction f) {
   int n;  /* number of returns */
   CallInfo *ci;
   checkstackp(L, LUA_MINSTACK, func);  /* ensure minimum stack size */
-  L->ci = ci = prepCallInfo(L, func, nresults, CIST_C,
+  L->ci = ci = prepCallInfo(L, func, status | CIST_C,
                                L->top.p + LUA_MINSTACK);
   lua_assert(ci->top.p <= L->stack_last.p);
   if (l_unlikely(L->hookmask & LUA_MASKCALL)) {
@@ -607,12 +618,13 @@ l_sinline int precallC (lua_State *L, StkId func, int nresults,
 */
 int luaD_pretailcall (lua_State *L, CallInfo *ci, StkId func,
                                     int narg1, int delta) {
+  unsigned status = LUA_MULTRET + 1;
  retry:
   switch (ttypetag(s2v(func))) {
     case LUA_VCCL:  /* C closure */
-      return precallC(L, func, LUA_MULTRET, clCvalue(s2v(func))->f);
+      return precallC(L, func, status, clCvalue(s2v(func))->f);
     case LUA_VLCF:  /* light C function */
-      return precallC(L, func, LUA_MULTRET, fvalue(s2v(func)));
+      return precallC(L, func, status, fvalue(s2v(func)));
     case LUA_VLCL: {  /* Lua function */
       Proto *p = clLvalue(s2v(func))->p;
       int fsize = p->maxstacksize;  /* frame size */
@@ -633,8 +645,8 @@ int luaD_pretailcall (lua_State *L, CallInfo *ci, StkId func,
       return -1;
     }
     default: {  /* not a function */
-      func = tryfuncTM(L, func);  /* try to get '__call' metamethod */
-      /* return luaD_pretailcall(L, ci, func, narg1 + 1, delta); */
+      checkstackp(L, 1, func);  /* space for metamethod */
+      status = tryfuncTM(L, func, status);  /* try '__call' metamethod */
       narg1++;
       goto retry;  /* try again */
     }
@@ -651,13 +663,15 @@ int luaD_pretailcall (lua_State *L, CallInfo *ci, StkId func,
 ** original function position.
 */
 CallInfo *luaD_precall (lua_State *L, StkId func, int nresults) {
+  unsigned status = cast_uint(nresults + 1);
+  lua_assert(status <= MAXRESULTS + 1);
  retry:
   switch (ttypetag(s2v(func))) {
     case LUA_VCCL:  /* C closure */
-      precallC(L, func, nresults, clCvalue(s2v(func))->f);
+      precallC(L, func, status, clCvalue(s2v(func))->f);
       return NULL;
     case LUA_VLCF:  /* light C function */
-      precallC(L, func, nresults, fvalue(s2v(func)));
+      precallC(L, func, status, fvalue(s2v(func)));
       return NULL;
     case LUA_VLCL: {  /* Lua function */
       CallInfo *ci;
@@ -666,7 +680,7 @@ CallInfo *luaD_precall (lua_State *L, StkId func, int nresults) {
       int nfixparams = p->numparams;
       int fsize = p->maxstacksize;  /* frame size */
       checkstackp(L, fsize, func);
-      L->ci = ci = prepCallInfo(L, func, nresults, 0, func + 1 + fsize);
+      L->ci = ci = prepCallInfo(L, func, status, func + 1 + fsize);
       ci->u.l.savedpc = p->code;  /* starting point */
       for (; narg < nfixparams; narg++)
         setnilvalue(s2v(L->top.p++));  /* complete missing arguments */
@@ -674,8 +688,8 @@ CallInfo *luaD_precall (lua_State *L, StkId func, int nresults) {
       return ci;
     }
     default: {  /* not a function */
-      func = tryfuncTM(L, func);  /* try to get '__call' metamethod */
-      /* return luaD_precall(L, func, nresults); */
+      checkstackp(L, 1, func);  /* space for metamethod */
+      status = tryfuncTM(L, func, status);  /* try '__call' metamethod */
       goto retry;  /* try again with metamethod */
     }
   }

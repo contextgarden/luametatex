@@ -179,10 +179,11 @@ extern halfword tex_badness(
 # define deplorable                            100000 /*tex more than |inf_bad|, but less than |awful_bad| */
 # define extremely_deplorable               100000000
 # define large_width_excess                   7230584
+# define large_height_excess                  7230584 /*tex same as |large_width_excess| */
 # define small_stretchability                 1663497
 # define loose_criterion                           99 
 # define decent_criterion                          12 
-# define tight_criterion                           12 /* same as |decent_criterion| */
+# define tight_criterion                           12 /*tex same as |decent_criterion| */
 # define max_calculated_badness                  8189
 # define emergency_adj_demerits                 10000
 
@@ -851,6 +852,27 @@ typedef struct line_break_properties {
     halfword sf_factor;
     halfword sf_stretch_factor;
 } line_break_properties;
+
+typedef struct balance_properties {
+    halfword tracing_balancing;
+    halfword tracing_fitness;
+    halfword tracing_passes;
+    halfword pretolerance;
+    halfword tolerance;
+    halfword emergency_stretch;
+    halfword emergency_original; 
+    halfword looseness;
+    halfword adj_demerits;
+    halfword max_adj_demerits;
+    scaled   vsize;
+    halfword page_shape;
+    halfword fitness_classes;
+    halfword balance_checks;
+    halfword hyphenation_mode;
+    halfword page_passes;
+    halfword hyphen_penalty;
+    halfword packing;
+} balance_properties;
 
 typedef enum sparse_identifiers {
     unknown_sparse_identifier,

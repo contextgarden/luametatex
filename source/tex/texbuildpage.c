@@ -838,7 +838,6 @@ static inline halfword tex_aux_used_penalty(halfword p)
     }
 }
 
-
 void tex_build_page(halfword context, halfword boundary)
 {
     if (! lmt_page_builder_state.output_active) {

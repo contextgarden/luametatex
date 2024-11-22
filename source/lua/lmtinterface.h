@@ -512,6 +512,7 @@ make_lua_key(L, auxiliary);\
 make_lua_key(L, axis);\
 make_lua_key(L, AxisHeight);\
 make_lua_key(L, baselineskip);\
+make_lua_key(L, balancechecks);\
 make_lua_key(L, beforedisplay);\
 make_lua_key(L, beforedisplaypenalty);\
 make_lua_key(L, begin_group);\
@@ -1055,12 +1056,15 @@ make_lua_key(L, overlayaccentvariant);\
 make_lua_key(L, overlinevariant);\
 make_lua_key(L, overloaded);\
 make_lua_key(L, package);\
+make_lua_key(L, packing);\
 make_lua_key(L, page);\
 make_lua_key(L, page_property);\
 make_lua_key(L, pagediscardshead);\
 make_lua_key(L, pagehead);\
 make_lua_key(L, pageinserthead);\
+make_lua_key(L, pagepasses);\
 make_lua_key(L, pages);\
+make_lua_key(L, pageshape);\
 make_lua_key(L, Pages);\
 make_lua_key(L, par);\
 make_lua_key(L, parameter);\
@@ -1396,6 +1400,7 @@ make_lua_key(L, topovershoot);\
 make_lua_key(L, topright);\
 make_lua_key(L, topskip);\
 make_lua_key(L, total);\
+make_lua_key(L, tracingbalancing);\
 make_lua_key(L, tracingparagraphs);\
 make_lua_key(L, tracingpasses);\
 make_lua_key(L, tracingfitness);\
@@ -1455,6 +1460,7 @@ make_lua_key(L, vmodepar);\
 make_lua_key(L, vmove);\
 make_lua_key(L, void);\
 make_lua_key(L, vrule);\
+make_lua_key(L, vsize);\
 make_lua_key(L, vskip);\
 make_lua_key(L, vtop);\
 make_lua_key(L, whatsit);\

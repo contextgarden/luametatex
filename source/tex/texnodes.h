@@ -2746,6 +2746,9 @@ static inline int  tex_par_to_be_set        (halfword state, halfword what) { re
 # define active_n_of_fitness_classes(a)    vlink(a,5)
 # define active_reserved(a)                vinfo(a,5)
 
+# define active_page_number(a)             vinfo(a,1)
+# define active_page_height(a)             vinfo(a,2)
+
 # define passive_node_size                 11
 # define passive_fitness(a)                vinfo1(a,0)
 # define passive_cur_break(a)              vlink(a,1)   /*tex in passive node, points to position of this breakpoint */

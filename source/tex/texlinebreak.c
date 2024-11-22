@@ -144,7 +144,7 @@ linebreak_state_info lmt_linebreak_state = {
     .global_threshold             = 0,
     .line_break_dir               = 0,
     .checked_expansion            = -1,
-    .passes                       = { { 0, 0, 0, 0 } },
+    .passes                       = { { 0, 0, 0, 0, 0, 0, 0, 0 } },
     .n_of_left_twins              = 0,
     .n_of_right_twins             = 0,
     .n_of_double_twins            = 0,
@@ -1437,7 +1437,7 @@ static void tex_aux_line_break_callback_list(int callback_id, halfword checks, h
 
 /* */
 
-static void tex_aux_print_break_node(halfword active, halfword passive)
+void tex_aux_print_break_node(halfword active, halfword passive, int do_last_line_fit)
 {
     /*tex Print a symbolic description of the new break node. */
     tex_print_format(
@@ -1449,7 +1449,7 @@ static void tex_aux_print_break_node(halfword active, halfword passive)
         node_type(active) == hyphenated_node ? " hyphenated, " : "",
         active_total_demerits(active)
     );
-    if (lmt_linebreak_state.do_last_line_fit) {
+    if (do_last_line_fit) {
         /*tex Print additional data in the new active node. */
         tex_print_format(
             " short %p, %s %p, ",
@@ -1464,10 +1464,10 @@ static void tex_aux_print_break_node(halfword active, halfword passive)
     );
 }
 
-static void tex_aux_print_feasible_break(halfword current, halfword breakpoint, halfword badness, halfword penalty, halfword d, halfword artificial_demerits, halfword fit_class)
+void tex_aux_print_feasible_break(halfword current, halfword breakpoint, halfword badness, halfword penalty, halfword d, halfword artificial_demerits, halfword fit_class, halfword printed_node)
 {
     /*tex Print a symbolic description of this feasible break. */
-    if (lmt_linebreak_state.printed_node != current) {
+    if (printed_node != current) {
         /*tex Print the list between |printed_node| and |cur_p|, then set |printed_node := cur_p|. */
         tex_print_nlp();
         if (current) {
@@ -2385,7 +2385,7 @@ static scaled tex_aux_try_break(
                         }
                         if (properties->tracing_paragraphs > 0) {
                             tex_begin_diagnostic();
-                            tex_aux_print_break_node(active, passive);
+                            tex_aux_print_break_node(active, passive, lmt_linebreak_state.do_last_line_fit);
                             tex_end_diagnostic();
                         }
                     }
@@ -2714,7 +2714,7 @@ static scaled tex_aux_try_break(
         prev_badness = badness;
         if (properties->tracing_paragraphs > 0) {
          // tex_begin_diagnostic();
-            tex_aux_print_feasible_break(cur_p, current, badness, penalty, demerits, artificial_demerits, fit_class);
+            tex_aux_print_feasible_break(cur_p, current, badness, penalty, demerits, artificial_demerits, fit_class, lmt_linebreak_state.printed_node);
          // tex_end_diagnostic();
         }
         /*tex This is the minimum total demerits from the beginning to |cur_p| via |r|. */
@@ -2904,11 +2904,13 @@ static inline halfword tex_aux_upcoming_math_penalty(halfword p, halfword factor
 
 # define max_prev_graf (max_integer/2)
 
-static inline int tex_aux_short_math(halfword m) {
+static inline int tex_aux_short_math(halfword m) 
+{
     return m && node_subtype(m) == begin_inline_math && math_penalty(m) > 0 && tex_has_math_option(m, math_option_short);
 }
 
-static inline void tex_aux_adapt_short_math_penalty(halfword m, halfword p1, halfword p2, int orphaned) {
+static inline void tex_aux_adapt_short_math_penalty(halfword m, halfword p1, halfword p2, int orphaned) 
+{
     if (p1 > math_penalty(m)) {
         math_penalty(m) = p1;
         if (orphaned) {
@@ -4048,7 +4050,7 @@ static inline int tex_aux_next_subpass(const line_break_properties *properties, 
             if (features & passes_if_emergency_stretch) {
                 if (! ( (properties->emergency_original || tex_get_passes_emergencystretch(passes, subpass)) && tex_get_passes_emergencyfactor(passes, subpass) ) ) {
                     if (tracing) {
-                        tex_aux_skip_message(passes, subpass, nofsubpasses, "emergcy stretch");
+                        tex_aux_skip_message(passes, subpass, nofsubpasses, "emergency stretch");
                     }
                     continue;
                 }
@@ -6529,7 +6531,6 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
         tex_begin_diagnostic();
         tex_print_format("[linebreak: dubious situation, current line %i is not best line %i]", cur_line, lmt_linebreak_state.best_line);
         tex_end_diagnostic();
-        cur_line = lmt_linebreak_state.best_line;
     //  tex_confusion("line breaking 1");
     } else if (node_next(temp_head)) {
         tex_confusion("line breaking 2");

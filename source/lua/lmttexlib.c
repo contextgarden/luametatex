@@ -4304,6 +4304,70 @@ static int texlib_linebreak(lua_State *L)
     return 1;
 }
 
+static int texlib_balance(lua_State *L)
+{
+    halfword direct;
+    halfword head = lmt_check_isdirectornode(L, 1, &direct);
+    if (head) {
+        balance_properties properties;
+        /* */
+tex_push_nest();
+node_next(temp_head) = head;
+        tex_balance_preset(&properties);
+        /* */
+        if (lua_gettop(L) != 2 || lua_type(L, 2) != LUA_TTABLE) {
+            lua_newtable(L);
+        }
+        get_integer_par  (properties.tracing_balancing,  tracingbalancing,  properties.tracing_balancing);
+        get_integer_par  (properties.tracing_fitness,    tracingfitness ,   properties.tracing_fitness);
+        get_integer_par  (properties.tracing_passes,     tracingpasses,     properties.tracing_passes);
+        get_integer_par  (properties.pretolerance,       pretolerance,      properties.pretolerance);
+        get_integer_par  (properties.tolerance,          tolerance,         properties.tolerance);
+        get_dimension_par(properties.emergency_stretch,  emergencystretch,  properties.emergency_stretch);
+        get_integer_par  (properties.looseness,          looseness,         properties.looseness);
+        get_integer_par  (properties.adj_demerits,       adjdemerits,       properties.adj_demerits);
+        get_dimension_par(properties.vsize,              vsize,             properties.vsize);
+        get_integer_par  (properties.hyphen_penalty,     hyphenpenalty,     properties.hyphen_penalty);
+        get_shape_par    (properties.page_shape,         pageshape,         null);
+        get_penalties_par(properties.page_passes,        pagepasses,        null, par_passes_code);
+        get_integer_par  (properties.balance_checks,     balancechecks,     properties.balance_checks);
+        get_integer_par  (properties.packing,            packing,           properties.packing);
+        /* */
+        tex_balance(&properties, head);
+        /* */
+        {
+            halfword current = node_next(cur_list.head);
+            halfword count = 0;
+         // halfword fewest_demerits = 0;
+         // halfword actual_looseness = 0;
+         // tex_get_linebreak_info(&fewest_demerits, &actual_looseness) ;
+            lua_createtable(L, 0, 0); /* we can have a count */
+            while (current) { 
+                lmt_push_directornode(L, current, direct);
+                lua_rawseti(L, -2, ++count);
+                current = node_next(current);
+            }
+            node_next(cur_list.head) = null;
+            lua_createtable(L, 0, 4);
+         // lua_push_key(demerits);
+         // lua_pushinteger(L, fewest_demerits);
+         // lua_settable(L, -3);
+         // lua_push_key(looseness);
+         // lua_pushinteger(L, actual_looseness);
+         // lua_settable(L, -3);
+        }
+        /* */
+        tex_balance_reset(&properties);
+        /* */
+node_next(temp_head) = null;
+tex_pop_nest();
+        return 2; /* for now empty table */
+    } else {
+        lmt_push_directornode(L, head, direct);
+        return 1;
+    }
+}
+
 static int texlib_resetparagraph(lua_State *L)
 {
     (void) L;
@@ -6520,6 +6584,7 @@ static const struct luaL_Reg texlib_function_list[] = {
     { "setmath",                      texlib_setmath                      },
     { "getmath",                      texlib_getmath                      },
     { "linebreak",                    texlib_linebreak                    },
+    { "balance",                      texlib_balance                      },
     { "getlinebreakparameterfields",  texlib_getlinebreakparameterfields  },
     { "getlinebreakresultfields",     texlib_getlinebreakresultfields     },
     { "preparelinebreak",             texlib_preparelinebreak             },

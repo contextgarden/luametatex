@@ -1479,7 +1479,7 @@ halfword tex_copy_node(halfword original)
                     tex_set_par_par(copy, par_adjacent_demerits_code, tex_get_par_par(original, par_adjacent_demerits_code), 1);
                     tex_set_par_par(copy, par_orphan_line_factors_code, tex_get_par_par(original, par_orphan_line_factors_code), 1);
                     tex_set_par_par(copy, par_par_passes_code, tex_get_par_par(original, par_par_passes_code), 1);
-                    tex_set_par_par(copy, line_break_checks_code, tex_get_par_par(original, line_break_checks_code), 1);
+                    tex_set_par_par(copy, par_line_break_checks_code, tex_get_par_par(original, par_line_break_checks_code), 1);
                     /* tokens, we could mess with a ref count instead */
                     par_end_par_tokens(copy) = par_end_par_tokens(original);
                     tex_add_token_reference(par_end_par_tokens(original));
@@ -4192,7 +4192,7 @@ static halfword tex_aux_internal_to_par_code(halfword cmd, halfword index) {
                 case final_hyphen_demerits_code  : return par_final_hyphen_demerits_code;
                 case shaping_penalties_mode_code : return par_shaping_penalties_mode_code;
                 case shaping_penalty_code        : return par_shaping_penalty_code;
-                case line_break_checks_code      : return line_break_checks_code;
+                case line_break_checks_code      : return par_line_break_checks_code;
                 case orphan_line_factors_code    : return par_orphan_line_factors_code;
                 case adjust_spacing_step_code    : return par_adjust_spacing_step_code;
                 case adjust_spacing_shrink_code  : return par_adjust_spacing_shrink_code;
@@ -4556,7 +4556,7 @@ void tex_set_par_par(halfword p, halfword what, halfword v, int force)
                 }
                 par_par_passes(p) = v ? tex_copy_node(v) : null;
                 break;
-            case line_break_checks_code:
+            case par_line_break_checks_code:
                 par_line_break_checks(p) = v;
                 break;
         }

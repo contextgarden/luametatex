@@ -59,6 +59,11 @@ static inline void     tex_set_specification_indent    (halfword a, halfword n, 
 static inline halfword tex_get_specification_width     (halfword a, halfword n)             { return specification_index(a,specification_n(a,n)).half1; }
 static inline void     tex_set_specification_width     (halfword a, halfword n, halfword v) { specification_index(a,n).half1 = v; }
 
+/* for now same as parshape */
+
+static inline halfword tex_get_specification_height    (halfword a, halfword n)             { return specification_index(a,specification_n(a,n)).half1; }
+static inline void     tex_set_specification_height    (halfword a, halfword n, halfword v) { specification_index(a,n).half1 = v; }
+
 /*tex
     because we want to be able to map the singular penalties efficiently by using the two extra 
     fields that we have anyway, we have special accessors for the penalties. 

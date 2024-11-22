@@ -286,7 +286,11 @@ static halfword tex_aux_scan_specification_penalties(quarterword code)
         if (count == 1 || count == -1) {
             halfword nepalty = pair ? tex_scan_integer(1, NULL) : 0;
             halfword penalty = tex_scan_integer(pair ? 0 : 1, NULL);
-            if (penalty || nepalty) {
+            /*tex 
+                We always need a node unless we introduce a zero_specification_cmd which is a bit
+                of overkill. 
+            */
+         /* if (penalty || nepalty) { */
                 if (count == -1) { 
                     options |= specification_option_final;
                     count = 1; 
@@ -295,7 +299,7 @@ static halfword tex_aux_scan_specification_penalties(quarterword code)
                 specification_count(p) = count;
                 tex_set_specification_nepalty(p, 0, nepalty); 
                 tex_set_specification_penalty(p, 0, penalty);
-            }
+         /* } */
         } else if (count > 0) {
             int final = specification_option_final(options);
             p = tex_new_specification_node(final ? count + 1 : count, code, options);
