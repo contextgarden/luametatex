@@ -866,6 +866,7 @@ typedef struct balance_properties {
     halfword max_adj_demerits;
     scaled   vsize;
     scaled   topskip;
+    scaled   bottomskip;
     halfword page_shape;
     halfword fitness_classes;
     halfword balance_checks;

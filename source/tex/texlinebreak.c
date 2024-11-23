@@ -1469,7 +1469,8 @@ void tex_aux_print_feasible_break(halfword current, halfword breakpoint, halfwor
     /*tex Print a symbolic description of this feasible break. */
     if (printed_node != current) {
         /*tex Print the list between |printed_node| and |cur_p|, then set |printed_node := cur_p|. */
-        tex_print_nlp();
+     // tex_print_nlp();
+        tex_print_format("%l[break: stripe] ");
         if (current) {
             halfword save_link = node_next(current);
             node_next(current) = null;
@@ -4494,6 +4495,7 @@ static inline halfword tex_aux_break_list(const line_break_properties *propertie
                                                         if (properties->tracing_paragraphs > 1) {
                                                             tex_begin_diagnostic();
                                                             tex_print_format("[linebreak: favour final prepost over replace, widths %p %p]", wpre + wpost, wreplace);
+                                                            tex_print_str("%l[linebreak: stripe] ");
                                                             tex_short_display(node_next(temp_head));
                                                             tex_end_diagnostic();
                                                         }
@@ -4505,6 +4507,7 @@ static inline halfword tex_aux_break_list(const line_break_properties *propertie
                                                         if (properties->tracing_paragraphs > 1) {
                                                             tex_begin_diagnostic();
                                                             tex_print_format("[linebreak: favour final replace over pre, widths %p %p]", wreplace, wpre);
+                                                            tex_print_str("%l[linebreak: stripe] ");
                                                             tex_short_display(node_next(temp_head));
                                                             tex_end_diagnostic();
                                                         }
@@ -5034,7 +5037,7 @@ void tex_do_line_break(line_break_properties *properties)
     lmt_linebreak_state.threshold = properties->pretolerance;
     if (properties->tracing_paragraphs > 1) {
         tex_begin_diagnostic();
-        tex_print_str("[linebreak: original]");
+        tex_print_str("[linebreak: original] ");
         tex_short_display(first);
         tex_end_diagnostic();
     }

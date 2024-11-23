@@ -503,6 +503,7 @@ typedef enum glue_subtypes {
     left_skip_glue,
     right_skip_glue,
     top_skip_glue,
+    bottom_skip_glue,
     split_top_skip_glue,
     tab_skip_glue,
     space_skip_glue,

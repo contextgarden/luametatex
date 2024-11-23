@@ -241,7 +241,7 @@ static void tex_aux_freeze_page_specs(int s)
     if (tracing_pages_par > 0) {
         tex_begin_diagnostic();
         tex_print_format(
-            "[page: frozen state, goal=%p, maxdepth=%p, contribution=%s, insertheights=%p]",
+            "[page: frozen state, goal %p, maxdepth %p, contribution %s, insertheights %p]",
             page_goal,
             lmt_page_builder_state.max_depth,
             lmt_interface.page_contribute_values[s].name,
@@ -261,7 +261,7 @@ static void update_page_goal(halfword index, scaled total, scaled delta)
     if (tracing_inserts_par > 0) {
         tex_begin_diagnostic();
         tex_print_format(
-            "[page: update page goal for insert, index=%i, total=%p, insertheights=%p, vsize=%p, delta=%p, goal=%p]",
+            "[page: update page goal for insert, index %i, total %p, insertheights %p, vsize %p, delta %p, goal %p]",
             index, total, lmt_page_builder_state.insert_heights, page_vsize, delta, page_goal
         );
         tex_end_diagnostic();
@@ -771,7 +771,7 @@ static void tex_aux_reconsider_goal(halfword current, halfword *badness, halfwor
                     if (tracing > 0) {
                         tex_begin_diagnostic();
                         tex_print_format(
-                            "[page: extra check, total=%P, goal=%p, extragoal=%p, badness=%B, costs=%i, extrabadness=%B, extracosts=%i]",
+                            "[page: extra check, total %P, goal %p, extragoal %p, badness %B, costs %i, extrabadness %B, extracosts %i]",
                             page_total, page_stretch, page_filstretch, page_filstretch, page_fillstretch, page_filllstretch, page_shrink,
                             page_goal, page_extra_goal_par,
                             *badness, *costs, extrabadness, extracosts
@@ -980,7 +980,7 @@ void tex_build_page(halfword context, halfword boundary)
             */
             if (tracing > 1) {
                 tex_begin_diagnostic();
-                tex_print_format("[page: compute: %N, %d, penalty=%i]", current, current, penalty);
+                tex_print_format("[page: compute: %N, %d, penalty %i]", current, current, penalty);
                 tex_end_diagnostic();
             }
             if (penalty < infinite_penalty) {
@@ -993,7 +993,7 @@ void tex_build_page(halfword context, halfword boundary)
                 lmt_page_builder_state.last_extra_used = 0;
                 if (tracing > 1) {
                     tex_begin_diagnostic();
-                    tex_print_format("[page: calculate, %N, %d, total=%P, goal=%p, badness=%B, costs=%i]", 
+                    tex_print_format("[page: calculate, %N, %d, total %P, goal %p, badness %B, costs %i]", 
                         current, current, 
                         page_total, page_stretch, page_fistretch, page_filstretch, page_fillstretch, page_filllstretch, page_shrink,
                         page_goal,

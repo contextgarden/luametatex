@@ -536,7 +536,7 @@ static scaled tex_aux_try_balance(
             /*tex We have an |unhyphenated_node| or |hyphenated_node|. */
         }
         lmt_balance_state.current_page_number = page; /* we could just use this variable */
-        lmt_balance_state.current_page_content = contribute_nothing; 
+//        lmt_balance_state.current_page_content = contribute_nothing; 
         page = active_page_number(current);
         if (page > old_page) {
             if ((lmt_balance_state.minimum_demerits < awful_bad) && ((old_page != lmt_balance_state.easy_page) || (current == active_head))) {
@@ -545,8 +545,10 @@ static scaled tex_aux_try_balance(
                 } else {
                     page_height = lmt_balance_state.target_height;
                 }
+//lmt_balance_state.current_page_content = contribute_nothing;
                 if (no_break_yet) {
                     no_break_yet = false;
+lmt_balance_state.current_page_content = contribute_nothing;
                     if (lmt_balance_state.emergency_percentage) {
                         scaled stretch = tex_xn_over_d(page_height, lmt_balance_state.emergency_percentage, scaling_factor);
                         lmt_balance_state.background[total_stretch_amount] -= lmt_balance_state.emergency_amount;
@@ -635,6 +637,7 @@ static scaled tex_aux_try_balance(
                     page_height = lmt_balance_state.target_height;
                 }
             }
+// lmt_balance_state.current_page_content = contribute_nothing;
             if (current == active_head) {
                 shortfall = page_height - current_active_height[total_advance_amount];
                 return shortfall;
@@ -642,6 +645,34 @@ static scaled tex_aux_try_balance(
         }
         artificial_demerits = 0;
         shortfall = page_height - current_active_height[total_advance_amount];
+        if (properties->tracing_balancing > 2) {
+            tex_begin_diagnostic();
+            tex_print_format("[balance: check, page %i, height %p, total %p, shortfall %p]", 
+                page, 
+                page_height,
+                lmt_balance_state.active_height[total_advance_amount],
+                shortfall
+            );
+            tex_end_diagnostic();
+        }
+
+
+// static halfword tex_page_badness(scaled goal)
+// {
+//     if (page_total + page_except < goal) {
+//         if (page_fistretch || page_filstretch || page_fillstretch || page_filllstretch) {
+//             return 0;
+//         } else {
+//             return tex_badness(goal - page_total, page_stretch);
+//         }
+//     } else if (page_total + page_except - goal > page_shrink) {
+//         return awful_bad;
+//     } else {
+//         return tex_badness(page_total + page_except - goal, page_shrink);
+//     }
+// }
+
+
         if (shortfall > 0) {
             if (current_active_height[total_fi_amount]   || current_active_height[total_fil_amount] ||
                 current_active_height[total_fill_amount] || current_active_height[total_filll_amount]) {
@@ -700,6 +731,7 @@ static scaled tex_aux_try_balance(
             int fit_current = (halfword) active_fitness(current);
             int distance = abs(fit_class - fit_current);
             demerits = badness; /* no line penalty addition equivalent here */
+demerits += 10; 
             if (abs(demerits) >= infinite_bad) {
                 demerits = extremely_deplorable;
             } else {
@@ -1113,86 +1145,199 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
     halfword callback_id = lmt_balance_state.callback_id;
     halfword checks = properties->balance_checks;
     scaled depth = 0; 
+    int line = 0;
+    int tracing = properties->tracing_balancing > 2; 
+    int pagenumber = 0; 
     while (current && (node_next(active_head) != active_head)) { /* we check the cycle */
-        int discarding = lmt_balance_state.current_page_content < contribute_box; /* == contribute_nothing */
+     // int discarding = lmt_balance_state.current_page_content < contribute_box; /* == contribute_nothing */
+        int discarding = pagenumber != lmt_balance_state.current_page_number;
         if (discarding) {
             depth = 0;
+            pagenumber = lmt_balance_state.current_page_number;
         }
-//printf("DISCARDING %i @ PAGE %i\n",discarding,lmt_balance_state.current_page_number);
         switch (node_type(current)) {
             case hlist_node:
             case vlist_node:
                 /* what with the migration (see buildpage where we inject and restart) */
-                if (discarding) {
-//printf("ADD TOPSKIP @ LIST\n");
-                    scaled delta = glue_amount(properties->topskip) - box_height(current);
-                    if (delta > 0) {
-                        lmt_balance_state.active_height[total_advance_amount] += delta;
+                {
+                    scaled delta = 0;
+                    if (discarding) {
+                        delta = glue_amount(properties->topskip) - box_height(current);
+                        if (delta > 0) {
+                            lmt_balance_state.active_height[total_advance_amount] += delta;
+                        } else {
+                            delta = 0; 
+                        }
+                        lmt_balance_state.current_page_content = contribute_box;
+                        /* how about topskip stretch and shrink */
+                    } else { 
+                        lmt_balance_state.active_height[total_advance_amount] += depth;
                     }
-                    lmt_balance_state.current_page_content = contribute_box;
-                    /* how about topskip stretch and shrink */
-                } else { 
-//printf("ADD DEPTH @ LIST\n");
-                    lmt_balance_state.active_height[total_advance_amount] += depth;
+                    lmt_balance_state.active_height[total_advance_amount] += box_height(current);
+if (glue_amount(properties->bottomskip)) { 
+                    if (box_depth(current) < glue_amount(properties->bottomskip)) {
+                        lmt_balance_state.active_height[total_advance_amount] += glue_amount(properties->bottomskip);
+                        depth = -(glue_amount(properties->bottomskip) - box_depth(current));
+                    } else { 
+                        lmt_balance_state.active_height[total_advance_amount] += box_depth(current);
+                        depth = 0;
+                    }
+} else {
+    lmt_balance_state.active_height[total_advance_amount] += box_depth(current);
+}
+                    if (tracing) {
+                        tex_begin_diagnostic();
+                        tex_print_format("[balance: list, page %i, line %i, height %p, depth %p, total %p, top %p, bottom %p]", 
+                            lmt_balance_state.current_page_number, 
+                            ++line,
+                            box_height(current), 
+                            box_depth(current), 
+                            lmt_balance_state.active_height[total_advance_amount], 
+                            delta, 
+                            depth
+                        );
+                        tex_end_diagnostic();
+                    }
+                    break;
                 }
-                lmt_balance_state.active_height[total_advance_amount] += box_height(current);
-                depth = box_depth(current);
-                break;
             case rule_node:
                 /* what with the migration (see buildpage where we inject and restart) */
-                if (discarding) {
-//printf("ADD TOPSKIP @ RULE\n");
-                    scaled delta = glue_amount(properties->topskip) - rule_height(current);
-                    if (delta > 0) {
-                        lmt_balance_state.active_height[total_advance_amount] += delta;
+                {
+                    scaled delta = 0;
+                    if (discarding) {
+                        delta = glue_amount(properties->topskip) - rule_height(current);
+                        if (delta > 0) {
+                            lmt_balance_state.active_height[total_advance_amount] += delta;
+                        } else {
+                            delta = 0; 
+                        }
+                        lmt_balance_state.current_page_content = contribute_rule;
+                        /* how about topskip stretch and shrink */
+                    } else { 
+                        lmt_balance_state.active_height[total_advance_amount] += depth;
                     }
-                    lmt_balance_state.current_page_content = contribute_rule;
-                    /* how about topskip stretch and shrink */
-                } else { 
-//printf("ADD DEPTH @ RULE\n");
-                    lmt_balance_state.active_height[total_advance_amount] += depth;
+                    lmt_balance_state.active_height[total_advance_amount] += rule_height(current);
+if (glue_amount(properties->bottomskip)) { 
+                    if (rule_depth(current) < glue_amount(properties->bottomskip)) {
+                        lmt_balance_state.active_height[total_advance_amount] += glue_amount(properties->bottomskip);
+                        depth = -(glue_amount(properties->bottomskip) - rule_depth(current));
+                    } else { 
+                        lmt_balance_state.active_height[total_advance_amount] += rule_depth(current);
+                        depth = 0;
+                    }
+} else {
+    lmt_balance_state.active_height[total_advance_amount] += rule_depth(current);
+}
+                    if (tracing) {
+                        tex_begin_diagnostic();
+                        tex_print_format("[balance: rule, page %i, line %i, height %p, depth %p, total %p, top %p, bottom %p]", 
+                            lmt_balance_state.current_page_number, 
+                            ++line,
+                            rule_height(current), 
+                            rule_depth(current), 
+                            lmt_balance_state.active_height[total_advance_amount], 
+                            delta, 
+                            depth
+                        );
+                        tex_end_diagnostic();
+                    }
+                    break;
                 }
-                lmt_balance_state.active_height[total_advance_amount] += rule_height(current);
-                depth = rule_depth(current);
-                break;
             case glue_node:
                 if (! discarding) {
                     /*tex Checks for temp_head! */
-lmt_balance_state.active_height[total_advance_amount] += depth;
                     if (tex_aux_valid_glue_break(current)) {
-//printf("TRY @ GLUE\n");
+                        if (tracing) {
+                            tex_begin_diagnostic();
+                            tex_print_format("[balance: glue, page %i, total %p, trying]", 
+                                lmt_balance_state.current_page_number, 
+                                lmt_balance_state.active_height[total_advance_amount]
+                            );
+                            tex_end_diagnostic();
+                        }
                         tex_aux_try_balance(properties, 0, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                     }
                     lmt_balance_state.active_height[total_advance_amount] += glue_amount(current);
                     lmt_balance_state.active_height[total_stretch_amount + glue_stretch_order(current)] += glue_stretch(current);
                     lmt_balance_state.active_height[total_shrink_amount] += tex_aux_checked_shrink(current);
+                    lmt_balance_state.active_height[total_advance_amount] += depth;
                     depth = 0;
+                    if (tracing) {
+                        tex_begin_diagnostic();
+                        tex_print_format("[balance: glue, page %i, advance %p, total %p]", 
+                            lmt_balance_state.current_page_number, 
+                            glue_amount(current),
+                            lmt_balance_state.active_height[total_advance_amount]
+                        );
+                        tex_end_diagnostic();
+                    }
                 } else { 
-//printf("DISCARD @ GLUE\n");
+                    if (tracing) {
+                        tex_begin_diagnostic();
+                        tex_print_format("[balance: glue, page %i, discard %p, total %p]", 
+                            lmt_balance_state.current_page_number, 
+                            glue_amount(current),
+                            lmt_balance_state.active_height[total_advance_amount]
+                        );
+                        tex_end_diagnostic();
+                    }
                 }
                 break;
             case kern_node:
                 if (! discarding) {
                     /*tex there are not many vertical kerns that can occur in vmode */
-lmt_balance_state.active_height[total_advance_amount] += kern_amount(current) + depth;
                     if (node_subtype(current) == explicit_kern_subtype) { 
                         halfword nxt = node_next(current);
                         if (nxt && node_type(nxt) == glue_node) {
-//printf("TRY @ KERN\n");
+                            if (tracing) {
+                                tex_begin_diagnostic();
+                                tex_print_format("[balance: kern, page %i, total %p, trying]", 
+                                    lmt_balance_state.current_page_number, 
+                                    lmt_balance_state.active_height[total_advance_amount]
+                                );
+                                tex_end_diagnostic();
+                            }
                             tex_aux_try_balance(properties, 0, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                         }
                     }
+                    lmt_balance_state.active_height[total_advance_amount] += kern_amount(current);
+                    lmt_balance_state.active_height[total_advance_amount] += depth;
                     depth = 0;
+                    if (tracing) {
+                        tex_begin_diagnostic();
+                        tex_print_format("[balance: kern, page %i, advance %p, total %p]", 
+                            lmt_balance_state.current_page_number, 
+                            kern_amount(current),
+                            lmt_balance_state.active_height[total_advance_amount]
+                        );
+                        tex_end_diagnostic();
+                    }
                 } else { 
-//printf("DISCARD @ KERN\n");
+                    if (tracing) {
+                        tex_begin_diagnostic();
+                        tex_print_format("[balance: kern, page %i, discard %p, total %p]", 
+                            lmt_balance_state.current_page_number, 
+                            kern_amount(current),
+                            lmt_balance_state.active_height[total_advance_amount]
+                        );
+                        tex_end_diagnostic();
+                    }
                 }
                 break;
             case penalty_node:
                 { // if (! discarding) {
                     halfword penalty = penalty_amount(current);
-//printf("TRY @ PENALTY\n");
-lmt_balance_state.active_height[total_advance_amount] += kern_amount(current) + depth;
+lmt_balance_state.active_height[total_advance_amount] += depth;
 depth = 0;
+                    if (tracing) {
+                        tex_begin_diagnostic();
+                        tex_print_format("[balance: penalty, page %i, amount %i, total %p, trying]", 
+                            lmt_balance_state.current_page_number, 
+                            penalty_amount(current),
+                            lmt_balance_state.active_height[total_advance_amount]
+                        );
+                        tex_end_diagnostic();
+                    }
                     tex_aux_try_balance(properties, penalty, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                 }
                 break;
@@ -1313,6 +1458,7 @@ void tex_balance_preset(balance_properties *properties)
     properties->pretolerance       = 100;
     properties->vsize              = 0; 
     properties->topskip            = top_skip_par;
+    properties->bottomskip         = bottom_skip_par;
     properties->emergency_stretch  = 0;
     properties->emergency_original = 0;
     properties->looseness          = 0;
@@ -1368,7 +1514,7 @@ void tex_balance(balance_properties *properties, halfword head)
     lmt_balance_state.threshold = properties->pretolerance;
     if (properties->tracing_balancing > 1) {
         tex_begin_diagnostic();
-        tex_print_str("[balance: original]");
+        tex_print_str("[balance: original] ");
         tex_short_display(first);
         tex_end_diagnostic();
     }
@@ -1481,13 +1627,14 @@ void tex_balance(balance_properties *properties, halfword head)
             halfword page = 1;
             scaled page_height;
             lmt_balance_state.current_page_number = page; /* we could just use this variable */
-            lmt_balance_state.current_page_content = contribute_nothing;
+//            lmt_balance_state.current_page_content = contribute_nothing;
             /* we could use target_height */
             if (properties->page_shape) {
                 page_height = tex_get_specification_height(properties->page_shape, page);
             } else {
                 page_height = lmt_balance_state.target_height;
             }
+lmt_balance_state.current_page_content = contribute_nothing;
             lmt_balance_state.background[total_stretch_amount] -= lmt_balance_state.emergency_amount;
             if (lmt_balance_state.emergency_percentage) {
                 scaled stretch = tex_xn_over_d(page_height, lmt_balance_state.emergency_percentage, scaling_factor);

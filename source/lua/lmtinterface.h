@@ -539,6 +539,7 @@ make_lua_key(L, bottomlevel);\
 make_lua_key(L, bottommargin);\
 make_lua_key(L, bottomovershoot);\
 make_lua_key(L, bottomright);\
+make_lua_key(L, bottomskip);\
 make_lua_key(L, boundary);\
 make_lua_key(L, box);\
 make_lua_key(L, box_property);\

@@ -223,6 +223,7 @@ void tex_initialize_commands(void)
         tex_primitive(tex_command,    "baselineskip",                   internal_glue_cmd,      baseline_skip_code,                       internal_glue_base);
         tex_primitive(tex_command,    "belowdisplayshortskip",          internal_glue_cmd,      below_display_short_skip_code,            internal_glue_base);
         tex_primitive(tex_command,    "belowdisplayskip",               internal_glue_cmd,      below_display_skip_code,                  internal_glue_base);
+        tex_primitive(luatex_command, "bottomskip",                     internal_glue_cmd,      bottom_skip_code,                         internal_glue_base);
         tex_primitive(luatex_command, "emergencyleftskip",              internal_glue_cmd,      emergency_left_skip_code,                 internal_glue_base);
         tex_primitive(luatex_command, "emergencyrightskip",             internal_glue_cmd,      emergency_right_skip_code,                internal_glue_base);
         tex_primitive(luatex_command, "initialpageskip",                internal_glue_cmd,      initial_page_skip_code,                   internal_glue_base);

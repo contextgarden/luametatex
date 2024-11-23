@@ -294,6 +294,7 @@ typedef enum glue_codes {
     left_skip_code,                /*tex glue at left of justified lines */
     right_skip_code,               /*tex glue at right of justified lines */
     top_skip_code,                 /*tex glue at top of main pages */
+    bottom_skip_code,       
     split_top_skip_code,           /*tex glue at top of split pages */
     tab_skip_code,                 /*tex glue between aligned entries */
     space_skip_code,               /*tex glue between words (if not |zero_glue|) */
@@ -1438,6 +1439,7 @@ extern void tex_word_define        (int g, halfword p, halfword w);
 # define short_inline_math_threshold_par  dimension_parameter(short_inline_math_threshold_code)
 
 # define top_skip_par                     glue_parameter(top_skip_code)
+# define bottom_skip_par                  glue_parameter(bottom_skip_code)
 # define split_top_skip_par               glue_parameter(split_top_skip_code)
 
 # define cur_fam_par                      integer_parameter(family_code)

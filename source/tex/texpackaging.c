@@ -2001,6 +2001,7 @@ halfword tex_hpack(halfword p, scaled target, int method, singleword pack_direct
     if (tracing_full_boxes_par > 0) {
         halfword detail = show_node_details_par;
         show_node_details_par = tracing_full_boxes_par;
+        tex_print_str("%l[package: result] ");
         tex_short_display(box_list(result));
         tex_print_ln();
         tex_begin_diagnostic();

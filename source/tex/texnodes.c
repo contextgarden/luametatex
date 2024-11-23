@@ -132,6 +132,7 @@ void lmt_nodelib_initialize(void) {
     set_value_entry_key(subtypes_glue, left_skip_glue,                leftskip)
     set_value_entry_key(subtypes_glue, right_skip_glue,               rightskip)
     set_value_entry_key(subtypes_glue, top_skip_glue,                 topskip)
+    set_value_entry_key(subtypes_glue, bottom_skip_glue,              bottomskip)
     set_value_entry_key(subtypes_glue, split_top_skip_glue,           splittopskip)
     set_value_entry_key(subtypes_glue, tab_skip_glue,                 tabskip)
     set_value_entry_key(subtypes_glue, space_skip_glue,               spaceskip)
