@@ -1116,7 +1116,7 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
         switch (node_type(current)) {
             case hlist_node:
             case vlist_node:
-                /* what with the migration (see buildpage) */
+                /* what with the migration (see buildpage where we inject and restart) */
                 if (lmt_balance_state.current_page_content < contribute_box) {
                     scaled delta = glue_amount(properties->topskip) - box_height(current);
                     if (delta > 0) {
@@ -1129,7 +1129,7 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                 lmt_balance_state.active_height[total_advance_amount] += box_depth(current);
                 break;
             case rule_node:
-                /* what with the migration (see buildpage) */
+                /* what with the migration (see buildpage where we inject and restart) */
                 if (lmt_balance_state.current_page_content < contribute_box) {
                     scaled delta = glue_amount(properties->topskip) - rule_height(current);
                     if (delta > 0) {
@@ -1691,7 +1691,6 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
  //     }
  //   DONE:
         r = passive_cur_break(cur_p);
-        q = temp_head; 
         q = node_next(temp_head); 
         post_disc_break = 0;
         if (r) {
@@ -1744,14 +1743,11 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
          //         break;
          // }
         } else {
+            /* kind of weird */
             r = tex_tail_of_node_list(temp_head);
         }
-node_next(temp_head) = node_next(r);
-//        r = node_next(q);
-//         node_next(q) = null;
-         node_next(r) = null;
-//        q = node_next(temp_head);
-//        tex_try_couple_nodes(temp_head, r);
+        node_next(temp_head) = node_next(r);
+        node_next(r) = null;
         if (properties->page_shape) {
             if (specification_count(properties->page_shape)) {
                 cur_height = tex_get_specification_height(properties->page_shape, cur_page);
@@ -1765,9 +1761,9 @@ node_next(temp_head) = node_next(r);
             lmt_balance_state.just_box = tex_vpack(q, 0, packing_additional, 0, 0, holding_none_option, NULL);
         } else {
             lmt_balance_state.just_box = tex_vpack(q, cur_height, packing_exactly, 0, 0, holding_none_option, NULL);
+        }
         if (callback_id) {
             tex_aux_balance_callback_page(callback_id, checks, cur_page, cur_p);
-        }
         }
         tex_tail_append(lmt_balance_state.just_box);
         ++cur_page;

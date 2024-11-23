@@ -4344,9 +4344,12 @@ node_next(temp_head) = head;
          // tex_get_linebreak_info(&fewest_demerits, &actual_looseness) ;
             lua_createtable(L, 0, 0); /* we can have a count */
             while (current) { 
+                halfword upcoming = node_next(current);
+                node_prev(current) = null;
+                node_next(current) = null;
                 lmt_push_directornode(L, current, direct);
                 lua_rawseti(L, -2, ++count);
-                current = node_next(current);
+                current = upcoming;
             }
             node_next(cur_list.head) = null;
             lua_createtable(L, 0, 4);
