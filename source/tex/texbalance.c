@@ -958,8 +958,8 @@ static int tex_aux_set_sub_pass_parameters(
         tex_print_format("  use criteria          %s\n", subpass >= passes_first_final(passes) ? "true" : "false");
         if (features & passes_test_set) {
             tex_print_str("  --------------------------------\n");
-            if (features & passes_if_emergency_stretch) { tex_print_format("  if emergency stretch true\n"); }
-            if (features & passes_if_looseness)         { tex_print_format("  if looseness         true\n"); }
+            if (features & passes_if_emergency_stretch) { tex_print_str("  if emergency stretch true\n"); }
+            if (features & passes_if_looseness)         { tex_print_str("  if looseness         true\n"); }
         }
         tex_print_str("  --------------------------------\n");
         tex_print_format("%s threshold            %p\n", is_okay(passes_threshold_okay), tex_get_passes_threshold(passes, subpass));
@@ -1112,127 +1112,87 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
 {
     halfword callback_id = lmt_balance_state.callback_id;
     halfword checks = properties->balance_checks;
+    scaled depth = 0; 
     while (current && (node_next(active_head) != active_head)) { /* we check the cycle */
+        int discarding = lmt_balance_state.current_page_content < contribute_box; /* == contribute_nothing */
+        if (discarding) {
+            depth = 0;
+        }
+//printf("DISCARDING %i @ PAGE %i\n",discarding,lmt_balance_state.current_page_number);
         switch (node_type(current)) {
             case hlist_node:
             case vlist_node:
                 /* what with the migration (see buildpage where we inject and restart) */
-                if (lmt_balance_state.current_page_content < contribute_box) {
+                if (discarding) {
+//printf("ADD TOPSKIP @ LIST\n");
                     scaled delta = glue_amount(properties->topskip) - box_height(current);
                     if (delta > 0) {
                         lmt_balance_state.active_height[total_advance_amount] += delta;
                     }
                     lmt_balance_state.current_page_content = contribute_box;
                     /* how about topskip stretch and shrink */
+                } else { 
+//printf("ADD DEPTH @ LIST\n");
+                    lmt_balance_state.active_height[total_advance_amount] += depth;
                 }
                 lmt_balance_state.active_height[total_advance_amount] += box_height(current);
-                lmt_balance_state.active_height[total_advance_amount] += box_depth(current);
+                depth = box_depth(current);
                 break;
             case rule_node:
                 /* what with the migration (see buildpage where we inject and restart) */
-                if (lmt_balance_state.current_page_content < contribute_box) {
+                if (discarding) {
+//printf("ADD TOPSKIP @ RULE\n");
                     scaled delta = glue_amount(properties->topskip) - rule_height(current);
                     if (delta > 0) {
                         lmt_balance_state.active_height[total_advance_amount] += delta;
                     }
                     lmt_balance_state.current_page_content = contribute_rule;
                     /* how about topskip stretch and shrink */
+                } else { 
+//printf("ADD DEPTH @ RULE\n");
+                    lmt_balance_state.active_height[total_advance_amount] += depth;
                 }
                 lmt_balance_state.active_height[total_advance_amount] += rule_height(current);
-                lmt_balance_state.active_height[total_advance_amount] += rule_depth(current);
+                depth = rule_depth(current);
                 break;
             case glue_node:
-                if (lmt_page_builder_state.contents < contribute_box) {
+                if (! discarding) {
                     /*tex Checks for temp_head! */
+lmt_balance_state.active_height[total_advance_amount] += depth;
                     if (tex_aux_valid_glue_break(current)) {
+//printf("TRY @ GLUE\n");
                         tex_aux_try_balance(properties, 0, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                     }
                     lmt_balance_state.active_height[total_advance_amount] += glue_amount(current);
                     lmt_balance_state.active_height[total_stretch_amount + glue_stretch_order(current)] += glue_stretch(current);
                     lmt_balance_state.active_height[total_shrink_amount] += tex_aux_checked_shrink(current);
+                    depth = 0;
+                } else { 
+//printf("DISCARD @ GLUE\n");
                 }
                 break;
             case kern_node:
-                if (lmt_page_builder_state.contents < contribute_box) {
+                if (! discarding) {
                     /*tex there are not many vertical kerns that can occur in vmode */
+lmt_balance_state.active_height[total_advance_amount] += kern_amount(current) + depth;
                     if (node_subtype(current) == explicit_kern_subtype) { 
                         halfword nxt = node_next(current);
                         if (nxt && node_type(nxt) == glue_node) {
+//printf("TRY @ KERN\n");
                             tex_aux_try_balance(properties, 0, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                         }
                     }
-                    lmt_balance_state.active_height[total_advance_amount] += kern_amount(current);
-                }
-                break;
-            case disc_node:
-                if (lmt_page_builder_state.contents < contribute_box) {
-                    halfword replace = disc_no_break_head(current);
-                    if (lmt_balance_state.force_check_hyphenation || (node_subtype(current) != syllable_discretionary_code)) {
-                        halfword actual_penalty = disc_penalty(current);
-                        halfword pre = disc_pre_break_head(current);
-                        tex_aux_reset_disc_target(lmt_balance_state.disc_height);
-                        if (pre) {
-                            if (replace && node_subtype(current) != mathematics_discretionary_code) {
-                                if (tex_has_disc_option(current, disc_option_prefer_break) || tex_has_disc_option(current, disc_option_prefer_nobreak)) {
-                                    switch (node_type(node_next(current))) {
-                                        case glue_node:
-                                        case penalty_node:
-                                        case boundary_node:
-                                            {
-                                                scaled hpre = tex_natural_vsize(pre);
-                                                scaled hreplace = tex_natural_vsize(replace);
-                                                if (tex_has_disc_option(current, disc_option_prefer_break)) {
-                                                    halfword post = disc_post_break_head(current);
-                                                    scaled hpost = post ? tex_natural_vsize(post) : 0;
-                                                    if (hpost > 0) {
-                                                        if (properties->tracing_balancing > 1) {
-                                                            tex_begin_diagnostic();
-                                                            tex_print_format("[balance: favour final prepost over replace, heights %p %p]", hpre + hpost, hreplace);
-                                                            tex_short_display(node_next(temp_head));
-                                                            tex_end_diagnostic();
-                                                        }
-                                                    } else {
-                                                        goto REPLACEONLY;
-                                                    }
-                                                } else {
-                                                    if (hreplace < hpre) {
-                                                        if (properties->tracing_balancing > 1) {
-                                                            tex_begin_diagnostic();
-                                                            tex_print_format("[balance: favour final replace over pre, heights %p %p]", hreplace, hpre);
-                                                            tex_short_display(node_next(temp_head));
-                                                            tex_end_diagnostic();
-                                                        }
-                                                        goto REPLACEONLY;
-                                                    }
-                                                }
-                                            }
-                                    }
-                                }
-                            }
-                            tex_aux_add_to_heights(pre, lmt_balance_state.disc_height);
-                            tex_aux_add_disc_source_to_target(lmt_balance_state.active_height, lmt_balance_state.disc_height);
-                            tex_aux_try_balance(properties, actual_penalty, hyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
-                            tex_aux_sub_disc_target_from_source(lmt_balance_state.active_height, lmt_balance_state.disc_height);
-                        } else {
-                            /*tex trivial pre-break */
-                            tex_aux_try_balance(properties, actual_penalty, hyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
-                        }
-                    }
-                  REPLACEONLY:
-                    if (replace) {
-                        tex_aux_add_to_heights(replace, lmt_balance_state.active_height);
-                    }
+                    depth = 0;
                 } else { 
-                    halfword replace = disc_no_break_head(current);
-                    if (replace) {
-                        /* todo: top skip */
-                        tex_aux_add_to_heights(replace, lmt_balance_state.active_height);
-                    }
+//printf("DISCARD @ KERN\n");
                 }
                 break;
             case penalty_node:
-                if (lmt_page_builder_state.contents < contribute_box) {
+                { // if (! discarding) {
                     halfword penalty = penalty_amount(current);
+//printf("TRY @ PENALTY\n");
+lmt_balance_state.active_height[total_advance_amount] += kern_amount(current) + depth;
+depth = 0;
                     tex_aux_try_balance(properties, penalty, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                 }
                 break;
@@ -1757,6 +1717,36 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
         } else {
             cur_height = lmt_balance_state.target_height;
         }
+        if (q) {
+            halfword current = q;
+            scaled height = 0; 
+            halfword gluenode = tex_new_glue_node(properties->topskip, top_skip_code);
+            tex_attach_attribute_list_copy(gluenode, current); /* also in buildpage ? */
+            while (current) {
+                switch (node_type(current)) {
+                    case hlist_node:
+                    case vlist_node:
+                        height = box_height(current); 
+                        goto ADDTOPSKIP;
+                    case rule_node:
+                        height = rule_height(current); 
+                        goto ADDTOPSKIP;
+                    default:
+                        break;
+
+                }
+                current = node_next(current);
+            }
+          ADDTOPSKIP:
+            if (glue_amount(gluenode) > height) {
+                glue_amount(gluenode) -= height;
+            } else {
+                glue_amount(gluenode) = 0;
+            }
+            tex_couple_nodes(gluenode, q);
+            q = gluenode;
+
+        }
         if (properties->packing == packing_additional) {
             lmt_balance_state.just_box = tex_vpack(q, 0, packing_additional, 0, 0, holding_none_option, NULL);
         } else {
@@ -1801,3 +1791,70 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
         tex_confusion("balancing 2");
     }
 }
+
+//            case disc_node:
+//                if (! discarding) {
+//                    halfword replace = disc_no_break_head(current);
+//                    if (lmt_balance_state.force_check_hyphenation || (node_subtype(current) != syllable_discretionary_code)) {
+//                        halfword actual_penalty = disc_penalty(current);
+//                        halfword pre = disc_pre_break_head(current);
+//                        tex_aux_reset_disc_target(lmt_balance_state.disc_height);
+//                        if (pre) {
+//                            if (replace && node_subtype(current) != mathematics_discretionary_code) {
+//                                if (tex_has_disc_option(current, disc_option_prefer_break) || tex_has_disc_option(current, disc_option_prefer_nobreak)) {
+//                                    switch (node_type(node_next(current))) {
+//                                        case glue_node:
+//                                        case penalty_node:
+//                                        case boundary_node:
+//                                            {
+//                                                scaled hpre = tex_natural_vsize(pre);
+//                                                scaled hreplace = tex_natural_vsize(replace);
+//                                                if (tex_has_disc_option(current, disc_option_prefer_break)) {
+//                                                    halfword post = disc_post_break_head(current);
+//                                                    scaled hpost = post ? tex_natural_vsize(post) : 0;
+//                                                    if (hpost > 0) {
+//                                                        if (properties->tracing_balancing > 1) {
+//                                                            tex_begin_diagnostic();
+//                                                            tex_print_format("[balance: favour final prepost over replace, heights %p %p]", hpre + hpost, hreplace);
+//                                                            tex_short_display(node_next(temp_head));
+//                                                            tex_end_diagnostic();
+//                                                        }
+//                                                    } else {
+//                                                        goto REPLACEONLY;
+//                                                    }
+//                                                } else {
+//                                                    if (hreplace < hpre) {
+//                                                        if (properties->tracing_balancing > 1) {
+//                                                            tex_begin_diagnostic();
+//                                                            tex_print_format("[balance: favour final replace over pre, heights %p %p]", hreplace, hpre);
+//                                                            tex_short_display(node_next(temp_head));
+//                                                            tex_end_diagnostic();
+//                                                        }
+//                                                        goto REPLACEONLY;
+//                                                    }
+//                                                }
+//                                            }
+//                                    }
+//                                }
+//                            }
+//                            tex_aux_add_to_heights(pre, lmt_balance_state.disc_height);
+//                            tex_aux_add_disc_source_to_target(lmt_balance_state.active_height, lmt_balance_state.disc_height);
+//                            tex_aux_try_balance(properties, actual_penalty, hyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
+//                            tex_aux_sub_disc_target_from_source(lmt_balance_state.active_height, lmt_balance_state.disc_height);
+//                        } else {
+//                            /*tex trivial pre-break */
+//                            tex_aux_try_balance(properties, actual_penalty, hyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
+//                        }
+//                    }
+//                  REPLACEONLY:
+//                    if (replace) {
+//                        tex_aux_add_to_heights(replace, lmt_balance_state.active_height);
+//                    }
+//                } else { 
+//                    halfword replace = disc_no_break_head(current);
+//                    if (replace) {
+//                        /* todo: top skip */
+//                        tex_aux_add_to_heights(replace, lmt_balance_state.active_height);
+//                    }
+//                }
+//                break;

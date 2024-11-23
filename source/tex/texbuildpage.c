@@ -670,6 +670,7 @@ static int tex_aux_topskip_restart(halfword current, int where, scaled height, s
             continue|.
         */
         halfword gluenode = tex_aux_insert_topskip(height, where);
+        tex_attach_attribute_list_copy(gluenode, current);
         tex_couple_nodes(gluenode, current);
         tex_couple_nodes(contribute_head, gluenode);
         if (tracing > 1) {
