@@ -1060,6 +1060,7 @@ make_lua_key(L, overloaded);\
 make_lua_key(L, package);\
 make_lua_key(L, packing);\
 make_lua_key(L, page);\
+make_lua_key(L, pagepenalty);\
 make_lua_key(L, page_property);\
 make_lua_key(L, pagediscardshead);\
 make_lua_key(L, pagehead);\

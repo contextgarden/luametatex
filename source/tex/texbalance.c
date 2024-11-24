@@ -4,17 +4,17 @@
 
 # include "luametatex.h"
 
-
 /*tex 
 
     Some remarks: 
 
     \startitemize 
     \startitem We don't go for flexible top skip. \stopitem 
-    \startitem We have firstheight and lastdepth \stopitem 
+    \startitem We have firstheight and lastdepth. \stopitem 
     \startitem For now we rejected vertical discretionaries. \stopitem 
     \startitem We assume end notes etc. so no inserts! \stopitem 
     \startitem We considered demerits on spread for a while. \stopitem 
+    \startitem There is a pagepenalty equivalent for linepenalty. \stopitem 
     \stopitemize 
 
     and 
@@ -25,9 +25,12 @@
     \startitem We will add balancing loops. \stopitem 
     \startitem We will look into adjust. \stopitem 
     \startitem We will add pagepasses. \stopitem 
+    \startitem How about a preroll. \stopitem 
     \stopitemize 
 
-    After all, it's a fun project of MS & HH, so don't complain. 
+    After all, it's a fun project of MS & HH, so don't complain. The intended usage (in \CONTEXT) 
+    is in columnsets. We hope to have a reasonable stable version for BT 2025 and a release at 
+    CTX 2025 and will wrap up in an article as we did with parpasses in 2024.  
 
 */
 
@@ -48,31 +51,31 @@ typedef enum balance_states {
 } balance_states;
 
 balance_state_info lmt_balance_state = {
-    .just_box             = 0,
-    .no_shrink_error_yet  = 0,
-    .callback_id          = 0,
-    .threshold            = 0,
-    .passive              = 0,
-    .printed_node         = 0,
-    .serial_number        = 0,
-    .active_height        = { 0 },
-    .background           = { 0 },
-    .break_height         = { 0 },
-    .disc_height          = { 0 },
-    .minimal_demerits     = { 0 },
-    .minimum_demerits     = 0,
-    .easy_page            = 0,
-    .last_special_page    = 0,
-    .target_height        = 0,
-    .best_bet             = 0,
-    .fewest_demerits      = 0,
-    .best_page            = 0,
-    .actual_looseness     = 0,
-    .fill_height          = { 0 },
-    .warned               = 0,
-    .passes               = { 0 },
-    .current_page_number  = 0,
-
+    .just_box                 = 0,
+    .no_shrink_error_yet      = 0,
+    .callback_id              = 0,
+    .threshold                = 0,
+    .passive                  = 0,
+    .printed_node             = 0,
+    .serial_number            = 0,
+    .active_height            = { 0 },
+    .background               = { 0 },
+    .break_height             = { 0 },
+ // .disc_height              = { 0 },
+    .minimal_demerits         = { 0 },
+    .minimum_demerits         = 0,
+    .easy_page                = 0,
+    .last_special_page        = 0,
+    .target_height            = 0,
+    .best_bet                 = 0,
+    .fewest_demerits          = 0,
+    .best_page                = 0,
+    .actual_looseness         = 0,
+    .fill_height              = { 0 },
+    .warned                   = 0,
+    .passes                   = { 0 },
+    .current_page_number      = 0,
+    /* */
     .quality                  = 0,
  // .force_check_hyphenation  = 0,
     .extra_background_stretch = 0,
@@ -83,7 +86,6 @@ balance_state_info lmt_balance_state = {
     .emergency_factor         = 0,
     .emergency_height_amount  = 0,
     .artificial_encountered   = 0, 
-
 };
 
 typedef enum fill_orders {
@@ -141,20 +143,20 @@ static void tex_aux_clean_up_the_memory(void)
     }
 }
 
-static inline void tex_aux_add_disc_source_to_target(scaled target[], const scaled source[])
-{
-    target[total_advance_amount] += source[total_advance_amount];
-}
+// static inline void tex_aux_add_disc_source_to_target(scaled target[], const scaled source[])
+// {
+//     target[total_advance_amount] += source[total_advance_amount];
+// }
 
-static inline void tex_aux_sub_disc_target_from_source(scaled target[], const scaled source[])
-{
-    target[total_advance_amount] -= source[total_advance_amount];
-}
+// static inline void tex_aux_sub_disc_target_from_source(scaled target[], const scaled source[])
+// {
+//     target[total_advance_amount] -= source[total_advance_amount];
+// }
 
-static inline void tex_aux_reset_disc_target(scaled *target)
-{
-    target[total_advance_amount] = 0;
-}
+// static inline void tex_aux_reset_disc_target(scaled *target)
+// {
+//     target[total_advance_amount] = 0;
+// }
 
 static inline void tex_aux_set_target_to_source(scaled target[], const scaled source[])
 {
@@ -218,86 +220,90 @@ static inline void tex_aux_add_delta_from_difference(halfword delta, const scale
     delta_field_total_shrink(delta)       += (source_1[total_shrink_amount]  - source_2[total_shrink_amount]);
 }
 
-static void tex_aux_add_to_heights(halfword s, scaled heights[])
-{
-    while (s) {
-        switch (node_type(s)) {
-            case hlist_node:
-            case vlist_node:
-                heights[total_advance_amount] += box_height(s);
-                heights[total_advance_amount] += box_depth(s);
-                break;
-            case rule_node:
-                heights[total_advance_amount] += rule_height(s);
-                heights[total_advance_amount] += rule_depth(s);
-                break;
-            case glue_node:
-                heights[total_advance_amount] += glue_amount(s);
-                heights[total_stretch_amount + glue_stretch_order(s)] += glue_stretch(s);
-                heights[total_shrink_amount] += glue_shrink(s);
-                break;
-            case kern_node:
-                heights[total_advance_amount] += kern_amount(s);
-                break;
-         // case disc_node:
-         //     break;
-            default:
-                break;
-        }
-        s = node_next(s);
-    }
-}
+// static void tex_aux_add_to_heights(halfword s, scaled heights[])
+// {
+//     while (s) {
+//         switch (node_type(s)) {
+//             case hlist_node:
+//             case vlist_node:
+//                 heights[total_advance_amount] += box_height(s);
+//                 heights[total_advance_amount] += box_depth(s);
+//                 break;
+//             case rule_node:
+//                 heights[total_advance_amount] += rule_height(s);
+//                 heights[total_advance_amount] += rule_depth(s);
+//                 break;
+//             case glue_node:
+//                 heights[total_advance_amount] += glue_amount(s);
+//                 heights[total_stretch_amount + glue_stretch_order(s)] += glue_stretch(s);
+//                 heights[total_shrink_amount] += glue_shrink(s);
+//                 break;
+//             case kern_node:
+//                 heights[total_advance_amount] += kern_amount(s);
+//                 break;
+//          // case disc_node:
+//          //     break;
+//             default:
+//                 break;
+//         }
+//         s = node_next(s);
+//     }
+// }
 
-static void tex_aux_sub_from_heights(halfword s, scaled heights[])
-{
-    while (s) {
-        switch (node_type(s)) {
-            case hlist_node:
-            case vlist_node:
-                heights[total_advance_amount] -= box_height(s);
-                heights[total_advance_amount] -= box_depth(s);
-                break;
-            case rule_node:
-                heights[total_advance_amount] -= rule_height(s);
-                heights[total_advance_amount] -= rule_depth(s);
-                break;
-            case glue_node:
-                heights[total_advance_amount] -= glue_amount(s);
-                heights[total_stretch_amount + glue_stretch_order(s)] -= glue_stretch(s);
-                heights[total_shrink_amount] -= glue_shrink(s);
-                break;
-            case kern_node:
-                heights[total_advance_amount] -= kern_amount(s);
-                break;
-         // case disc_node:
-         //     break;
-            default:
-                break;
-        }
-        s = node_next(s);
-    }
-}
+// static void tex_aux_sub_from_heights(halfword s, scaled heights[])
+// {
+//     while (s) {
+//         switch (node_type(s)) {
+//             case hlist_node:
+//             case vlist_node:
+//                 heights[total_advance_amount] -= box_height(s);
+//                 heights[total_advance_amount] -= box_depth(s);
+//                 break;
+//             case rule_node:
+//                 heights[total_advance_amount] -= rule_height(s);
+//                 heights[total_advance_amount] -= rule_depth(s);
+//                 break;
+//             case glue_node:
+//                 heights[total_advance_amount] -= glue_amount(s);
+//                 heights[total_stretch_amount + glue_stretch_order(s)] -= glue_stretch(s);
+//                 heights[total_shrink_amount] -= glue_shrink(s);
+//                 break;
+//             case kern_node:
+//                 heights[total_advance_amount] -= kern_amount(s);
+//                 break;
+//          // case disc_node:
+//          //     break;
+//             default:
+//                 break;
+//         }
+//         s = node_next(s);
+//     }
+// }
 
 static void tex_aux_compute_break_height(int break_type, halfword p)
 {
     halfword s = p;
-    if (p) {
-        switch (break_type) {
-            case hyphenated_node:
-            case delta_node:
-            case passive_node:
-                tex_aux_sub_from_heights(disc_no_break_head(p), lmt_balance_state.break_height);
-                tex_aux_add_to_heights(disc_post_break_head(p), lmt_balance_state.break_height);
-                tex_aux_add_disc_source_to_target(lmt_balance_state.break_height, lmt_balance_state.disc_height);
-                if (disc_post_break_head(p)) {
-                    s = null;
-                } else {
-                    /*tex no |post_break|: skip any whitespace following */
-                    s = node_next(p);
-                }
-                break;
-        }
-    }
+ // if (p) {
+ //     switch (break_type) {
+ //         case hyphenated_node:
+ //         case delta_node:
+ //         case passive_node:
+ //             if (node_type(p) == disc_node) {
+ //              // tex_aux_sub_from_heights(disc_no_break_head(p), lmt_balance_state.break_height);
+ //              // tex_aux_add_to_heights(disc_post_break_head(p), lmt_balance_state.break_height);
+ //              // tex_aux_add_disc_source_to_target(lmt_balance_state.break_height, lmt_balance_state.disc_height);
+ //              // if (disc_post_break_head(p)) {
+ //              //     s = null;
+ //              // } else {
+ //              //     /*tex no |post_break|: skip any whitespace following */
+ //              //     s = node_next(p);
+ //              // }
+ //             } else {
+ //                 tex_confusion("balancing 3");
+ //             }
+ //             break;
+ //     }
+ // }
     while (s) {
         switch (node_type(s)) {
             case glue_node:
@@ -489,12 +495,12 @@ static void tex_aux_set_quality(halfword active, halfword passive, scaled shrt, 
     if (shrt < 0) {
         shrt = -shrt;
         if (shrt > glue) {
-            quality = par_is_overfull;
+            quality = page_is_overfull;
             deficiency = shrt - glue;
         }
     } else if (shrt > 0) {
         if (shrt > glue) {
-            quality = par_is_underfull;
+            quality = page_is_underfull;
             deficiency = shrt - glue;
         }
     }
@@ -573,11 +579,11 @@ static scaled tex_aux_try_balance(
     halfword break_type,
     halfword first_p,
     halfword cur_p,
-    int callback_id,
+    int      callback_id,
     halfword checks,
-    int pass,
-    int subpass,
-    int artificial
+    int      pass,
+    int      subpass,
+    int      artificial
 )
 {
     halfword previous = active_head;
@@ -625,6 +631,13 @@ static scaled tex_aux_try_balance(
                     page_height = lmt_balance_state.target_height;
                 }
                 if (no_break_yet) {
+                    /*tex
+
+                        If we have a |hyphenated_node|, |delta_node| or |passive_node| the |cur_p| 
+                        has to be a disc node! Look at the next emergency adaptions, we've actually 
+                        set them elsewhere. (See linebreak.)
+
+                    */
                     no_break_yet = false;
                     if (lmt_balance_state.emergency_percentage) {
                         scaled stretch = tex_xn_over_d(page_height, lmt_balance_state.emergency_percentage, scaling_factor);
@@ -789,8 +802,7 @@ static scaled tex_aux_try_balance(
             /*tex Compute the demerits, |d|, from |r| to |cur_p|. */
             int fit_current = (halfword) active_fitness(current);
             int distance = abs(fit_class - fit_current);
-            demerits = badness; /* no line penalty addition equivalent here */
-demerits += 10; /* page_penalty_par like line_penalty_par */
+            demerits = badness + properties->page_penalty; 
             if (abs(demerits) >= infinite_bad) {
                 demerits = extremely_deplorable;
             } else {
@@ -901,11 +913,11 @@ static scaled tex_check_balance_quality(scaled shortfall, scaled *overfull, scal
     int result = 1;
     /* last page ... */
     switch (active_quality(active)) {
-        case par_is_overfull:
+        case page_is_overfull:
             *overfull = active_deficiency(active);
             *underfull = 0;
             break;
-        case par_is_underfull:
+        case page_is_underfull:
             *overfull = 0;
             *underfull = active_deficiency(active);
             break;
@@ -920,12 +932,12 @@ static scaled tex_check_balance_quality(scaled shortfall, scaled *overfull, scal
     if (passive) {
         while (passive) {
             switch (passive_quality(passive)) {
-                case par_is_overfull:
+                case page_is_overfull:
                     if (passive_deficiency(passive) > *overfull) {
                         *overfull = passive_deficiency(passive);
                     }
                     break;
-                case par_is_underfull:
+                case page_is_underfull:
                     if (passive_deficiency(passive) > *underfull) {
                         *underfull = passive_deficiency(passive);
                     }
@@ -1544,6 +1556,7 @@ void tex_balance_preset(balance_properties *properties)
     properties->fitness_classes    = tex_default_fitness_classes();
     properties->hyphenation_mode   = 1;
     properties->page_passes        = 0;   
+    properties->page_penalty       = 10; /* as in tex line_penalty */   
     properties->max_adj_demerits   = 0;
     properties->balance_checks     = balance_checks_par;
     properties->packing            = packing_exactly;

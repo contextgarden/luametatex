@@ -683,14 +683,14 @@ static int tex_aux_topskip_restart(halfword current, int where, scaled height, s
         /*tex Move a box to the current page, then |goto contribute|. */
         page_total += page_depth + height;
         page_depth = depth;
-page_except -= height;
-page_except -= depth;
+        page_except -= height;
+        page_except -= depth;
         if (exdepth > page_except) {
             page_except = exdepth;
         }
-if (page_except < 0) {
-    page_except = 0; 
-}
+        if (page_except < 0) {
+            page_except = 0; 
+        }
         return 0;
     }
 }
@@ -1077,7 +1077,7 @@ void tex_build_page(halfword context, halfword boundary)
                     goto APPEND;
                 case glue_node:
                     if (page_except) { 
-                        glue_stretch(current) = 0;
+                        glue_stretch(current) = 0; /* why not also shrink etc */
                         page_except -= glue_amount(current);
                         if (page_except < 0) {
                             page_except = 0;

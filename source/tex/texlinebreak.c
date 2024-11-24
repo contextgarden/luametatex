@@ -1251,14 +1251,18 @@ static void tex_aux_compute_break_width(int break_type, int adjust_spacing, int 
                     breaking on {\it this} position.
 
                 */
-                tex_aux_sub_from_widths(disc_no_break_head(p), adjust_spacing, adjust_spacing_step, sf_factor, sf_stretch_factor, lmt_linebreak_state.break_width);
-                tex_aux_add_to_widths(disc_post_break_head(p), adjust_spacing, adjust_spacing_step, sf_factor, sf_stretch_factor, lmt_linebreak_state.break_width);
-                tex_aux_add_disc_source_to_target(adjust_spacing, lmt_linebreak_state.break_width, lmt_linebreak_state.disc_width);
-                if (disc_post_break_head(p)) {
-                    s = null;
-                } else {
-                    /*tex no |post_break|: skip any whitespace following */
-                    s = node_next(p);
+                if (node_type(p) == disc_node) {
+                    tex_aux_sub_from_widths(disc_no_break_head(p), adjust_spacing, adjust_spacing_step, sf_factor, sf_stretch_factor, lmt_linebreak_state.break_width);
+                    tex_aux_add_to_widths(disc_post_break_head(p), adjust_spacing, adjust_spacing_step, sf_factor, sf_stretch_factor, lmt_linebreak_state.break_width);
+                    tex_aux_add_disc_source_to_target(adjust_spacing, lmt_linebreak_state.break_width, lmt_linebreak_state.disc_width);
+                    if (disc_post_break_head(p)) {
+                        s = null;
+                    } else {
+                        /*tex no |post_break|: skip any whitespace following */
+                        s = node_next(p);
+                    }
+                } else { 
+                    tex_confusion("line breaking 3");
                 }
                 break;
         }
@@ -2223,6 +2227,14 @@ lmt_linebreak_state.current_line_number = line; /* we could just use this variab
                     line_width = lmt_linebreak_state.first_width;
                 }
                 if (no_break_yet) {
+                    /*tex
+
+                        If we have a |hyphenated_node|, |delta_node| or |passive_node| the |cur_p| 
+                        has to be a disc node! Look at the next emergency adaptions, we've actually 
+                        set them elsewhere. So, when we end up here we have to be pretty sure that
+                        these threesome are okay as there was no test for node type!
+
+                    */
                     no_break_yet = false;
                     if (lmt_linebreak_state.emergency_percentage) {
                         scaled stretch = tex_xn_over_d(line_width, lmt_linebreak_state.emergency_percentage, scaling_factor);
@@ -2671,7 +2683,7 @@ lmt_linebreak_state.current_line_number = line; /* we could just use this variab
             /*tex Compute the demerits, |d|, from |r| to |cur_p|. */
             int fit_current = (halfword) active_fitness(current);
             int distance = abs(fit_class - fit_current);
-            demerits = properties->line_penalty + badness;
+            demerits = badness + properties->line_penalty;
             if (abs(demerits) >= infinite_bad) {
                 demerits = extremely_deplorable;
             } else {

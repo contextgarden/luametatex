@@ -20,7 +20,7 @@ typedef struct balance_state_info {
     scaled       active_height[n_of_glue_amounts];
     scaled       background[n_of_glue_amounts];
     scaled       break_height[n_of_glue_amounts];
-    scaled       disc_height[n_of_glue_amounts];
+ // scaled       disc_height[n_of_glue_amounts];
     scaled       fill_height[4];
     fitcriterion minimal_demerits;
     halfword     minimum_demerits;
@@ -42,6 +42,11 @@ typedef struct balance_state_info {
 } balance_state_info;
 
 extern balance_state_info lmt_balance_state; /* can be private */
+
+typedef enum balance_quality_states { 
+    page_is_overfull  = 0x0200, /*tex We use the same values |par_is_overfull|. */
+    page_is_underfull = 0x0400, /*tex We use the same values |par_is_underfull|. */
+} balance_quality_states;
 
 extern void tex_balance_preset (
     balance_properties *properties

@@ -4305,7 +4305,7 @@ static int texlib_linebreak(lua_State *L)
 
 static int texlib_getbalanceparameterfields(lua_State *L)
 {
-    lua_createtable(L, 16, 0);
+    lua_createtable(L, 17, 0);
     lua_push_key_at_index(L, tracingbalancing,  1);
     lua_push_key_at_index(L, tracingfitness ,   2);
     lua_push_key_at_index(L, tracingpasses,     3);
@@ -4319,9 +4319,10 @@ static int texlib_getbalanceparameterfields(lua_State *L)
     lua_push_key_at_index(L, topskip,          11);
     lua_push_key_at_index(L, bottomskip,       12);
     lua_push_key_at_index(L, pageshape,        13);
-    lua_push_key_at_index(L, pagepasses,       14);
-    lua_push_key_at_index(L, balancechecks,    15);
-    lua_push_key_at_index(L, packing,          16);
+    lua_push_key_at_index(L, pagepenalty,      14);
+    lua_push_key_at_index(L, pagepasses,       15);
+    lua_push_key_at_index(L, balancechecks,    16);
+    lua_push_key_at_index(L, packing,          17);
     return 1;
 }
 
@@ -4360,6 +4361,7 @@ static int texlib_balance(lua_State *L)
         get_glue_par     (properties.topskip,            topskip,           properties.topskip);
         get_glue_par     (properties.bottomskip,         bottomskip,        properties.bottomskip);
         get_shape_par    (properties.page_shape,         pageshape,         null);
+        get_integer_par  (properties.page_penalty,       pagepenalty,       properties.page_penalty);
         get_penalties_par(properties.page_passes,        pagepasses,        null, par_passes_code);
         get_integer_par  (properties.balance_checks,     balancechecks,     properties.balance_checks);
         get_integer_par  (properties.packing,            packing,           properties.packing);

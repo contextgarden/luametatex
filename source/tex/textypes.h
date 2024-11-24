@@ -874,6 +874,7 @@ typedef struct balance_properties {
     halfword balance_checks;
     halfword hyphenation_mode;
     halfword page_passes;
+    halfword page_penalty;
     halfword packing;
 } balance_properties;
 
