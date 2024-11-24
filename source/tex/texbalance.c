@@ -486,8 +486,6 @@ static void tex_aux_set_quality(halfword active, halfword passive, scaled shrt, 
     active_deficiency(active) = deficiency;
 }
 
-/* */
-
 static void tex_check_skips_shortfall(const balance_properties *properties, halfword breakpoint, halfword first, halfword current, halfword *shortfall)
 {
     halfword left = active_break_node(breakpoint) ? passive_cur_break(active_break_node(breakpoint)) : first; /* nasty */
@@ -515,7 +513,7 @@ static void tex_check_skips_shortfall(const balance_properties *properties, half
         }
         if (glue_amount(properties->topskip) > h) {
             top = glue_amount(properties->topskip) - h;
-            *shortfall += top;
+            *shortfall -= top;
         }
     }
     if (glue_amount(properties->bottomskip)) {
@@ -539,7 +537,7 @@ static void tex_check_skips_shortfall(const balance_properties *properties, half
         }
         if (glue_amount(properties->bottomskip) > d) {
             bottom = glue_amount(properties->bottomskip) - d;
-            *shortfall += bottom;
+            *shortfall -= bottom;
         }
     }
     if ((top || bottom) && properties->tracing_balancing > 2) {
@@ -548,8 +546,6 @@ static void tex_check_skips_shortfall(const balance_properties *properties, half
         tex_end_diagnostic();
     }
 }
-
-/* */
 
 static scaled tex_aux_try_balance(
     const balance_properties *properties,
@@ -720,9 +716,7 @@ lmt_balance_state.current_page_content = contribute_nothing;
             );
             tex_end_diagnostic();
         }
-
         tex_check_skips_shortfall(properties, current, first_p, cur_p, &shortfall);
-
         if (shortfall > 0) {
             if (current_active_height[total_fi_amount]   || current_active_height[total_fil_amount] ||
                 current_active_height[total_fill_amount] || current_active_height[total_filll_amount]) {
@@ -1191,19 +1185,77 @@ static inline int tex_aux_check_sub_pass(balance_properties *properties, scaled 
     return 0;
 }
 
+
+static void tex_aux_trace_list(halfword current, int line, const char *action)
+{
+    tex_begin_diagnostic();
+    tex_print_format("[balance: list, page %i, line %i, height %p, depth %p, total %p]", 
+        lmt_balance_state.current_page_number, 
+        line,
+        box_height(current), 
+        box_depth(current), 
+        lmt_balance_state.active_height[total_advance_amount]
+    );
+    tex_end_diagnostic();
+}
+
+static void tex_aux_trace_rule(halfword current, int line, const char *action)
+{
+    tex_begin_diagnostic();
+    tex_print_format("[balance: list, page %i, line %i, height %p, depth %p, total %p]", 
+        lmt_balance_state.current_page_number, 
+        line,
+        rule_height(current), 
+        rule_depth(current), 
+        lmt_balance_state.active_height[total_advance_amount]
+    );
+    tex_end_diagnostic();
+}
+
+static void tex_aux_trace_glue(halfword current, const char *action)
+{
+    tex_begin_diagnostic();
+    tex_print_format("[balance: glue, page %i, amount %p, total %p, %s]", 
+        lmt_balance_state.current_page_number, 
+        glue_amount(current),
+        lmt_balance_state.active_height[total_advance_amount],
+        action
+    );
+    tex_end_diagnostic();
+}
+
+static void tex_aux_trace_kern(halfword current, const char *action)
+{
+    tex_begin_diagnostic();
+    tex_print_format("[balance: kern, page %i, amount %p, total %p, %s]", 
+        lmt_balance_state.current_page_number, 
+        kern_amount(current),
+        lmt_balance_state.active_height[total_advance_amount],
+        action
+    );
+    tex_end_diagnostic();
+}
+
+static void tex_aux_trace_penalty(halfword current, const char *action)
+{
+    tex_begin_diagnostic();
+    tex_print_format("[balance: penalty, page %i, amount %p, total %p, %s]", 
+        lmt_balance_state.current_page_number, 
+        penalty_amount(current),
+        lmt_balance_state.active_height[total_advance_amount],
+        action
+    );
+    tex_end_diagnostic();
+}
+
 static inline halfword tex_aux_balance_list(const balance_properties *properties, halfword pass, halfword subpass, halfword current, halfword first, int artificial)
 {
     halfword callback_id = lmt_balance_state.callback_id;
     halfword checks = properties->balance_checks;
     int line = 0;
     int tracing = properties->tracing_balancing > 2; 
-    int pagenumber = 0; 
     while (current && (node_next(active_head) != active_head)) { /* we check the cycle */
-     // int discarding = lmt_balance_state.current_page_content < contribute_box; /* == contribute_nothing */
-        int discarding = pagenumber != lmt_balance_state.current_page_number;
-        if (discarding) {
-            pagenumber = lmt_balance_state.current_page_number;
-        }
+        int discarding = 0; // pagenumber != lmt_balance_state.current_page_number;
         switch (node_type(current)) {
             case hlist_node:
             case vlist_node:
@@ -1212,18 +1264,11 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                     if (discarding) {
                         lmt_balance_state.current_page_content = contribute_box;
                     }
+
                     lmt_balance_state.active_height[total_advance_amount] += box_height(current);
                     lmt_balance_state.active_height[total_advance_amount] += box_depth(current);
                     if (tracing) {
-                        tex_begin_diagnostic();
-                        tex_print_format("[balance: list, page %i, line %i, height %p, depth %p, total %p]", 
-                            lmt_balance_state.current_page_number, 
-                            ++line,
-                            box_height(current), 
-                            box_depth(current), 
-                            lmt_balance_state.active_height[total_advance_amount]
-                        );
-                        tex_end_diagnostic();
+                        tex_aux_trace_list(current, ++line, "contributing");
                     }
                     break;
                 }
@@ -1236,15 +1281,7 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                     lmt_balance_state.active_height[total_advance_amount] += rule_height(current);
                     lmt_balance_state.active_height[total_advance_amount] += rule_depth(current);
                     if (tracing) {
-                        tex_begin_diagnostic();
-                        tex_print_format("[balance: rule, page %i, line %i, height %p, depth %p, total %p]", 
-                            lmt_balance_state.current_page_number, 
-                            ++line,
-                            rule_height(current), 
-                            rule_depth(current), 
-                            lmt_balance_state.active_height[total_advance_amount] 
-                        );
-                        tex_end_diagnostic();
+                        tex_aux_trace_rule(current, ++line, "contributing");
                     }
                     break;
                 }
@@ -1253,12 +1290,7 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                     /*tex Checks for temp_head! */
                     if (tex_aux_valid_glue_break(current)) {
                         if (tracing) {
-                            tex_begin_diagnostic();
-                            tex_print_format("[balance: glue, page %i, total %p, trying]", 
-                                lmt_balance_state.current_page_number, 
-                                lmt_balance_state.active_height[total_advance_amount]
-                            );
-                            tex_end_diagnostic();
+                            tex_aux_trace_glue(current, "trying");
                         }
                         tex_aux_try_balance(properties, 0, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                     }
@@ -1266,23 +1298,11 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                     lmt_balance_state.active_height[total_stretch_amount + glue_stretch_order(current)] += glue_stretch(current);
                     lmt_balance_state.active_height[total_shrink_amount] += tex_aux_checked_shrink(current);
                     if (tracing) {
-                        tex_begin_diagnostic();
-                        tex_print_format("[balance: glue, page %i, advance %p, total %p]", 
-                            lmt_balance_state.current_page_number, 
-                            glue_amount(current),
-                            lmt_balance_state.active_height[total_advance_amount]
-                        );
-                        tex_end_diagnostic();
+                        tex_aux_trace_glue(current, "contributing");
                     }
                 } else { 
                     if (tracing) {
-                        tex_begin_diagnostic();
-                        tex_print_format("[balance: glue, page %i, discard %p, total %p]", 
-                            lmt_balance_state.current_page_number, 
-                            glue_amount(current),
-                            lmt_balance_state.active_height[total_advance_amount]
-                        );
-                        tex_end_diagnostic();
+                        tex_aux_trace_glue(current, "discarding");
                     }
                 }
                 break;
@@ -1293,35 +1313,18 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                         halfword nxt = node_next(current);
                         if (nxt && node_type(nxt) == glue_node) {
                             if (tracing) {
-                                tex_begin_diagnostic();
-                                tex_print_format("[balance: kern, page %i, total %p, trying]", 
-                                    lmt_balance_state.current_page_number, 
-                                    lmt_balance_state.active_height[total_advance_amount]
-                                );
-                                tex_end_diagnostic();
+                                tex_aux_trace_kern(current, "trying");
                             }
                             tex_aux_try_balance(properties, 0, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                         }
                     }
                     lmt_balance_state.active_height[total_advance_amount] += kern_amount(current);
                     if (tracing) {
-                        tex_begin_diagnostic();
-                        tex_print_format("[balance: kern, page %i, advance %p, total %p]", 
-                            lmt_balance_state.current_page_number, 
-                            kern_amount(current),
-                            lmt_balance_state.active_height[total_advance_amount]
-                        );
-                        tex_end_diagnostic();
+                        tex_aux_trace_kern(current, "contributing");
                     }
                 } else { 
                     if (tracing) {
-                        tex_begin_diagnostic();
-                        tex_print_format("[balance: kern, page %i, discard %p, total %p]", 
-                            lmt_balance_state.current_page_number, 
-                            kern_amount(current),
-                            lmt_balance_state.active_height[total_advance_amount]
-                        );
-                        tex_end_diagnostic();
+                        tex_aux_trace_kern(current, "discarding");
                     }
                 }
                 break;
@@ -1329,13 +1332,7 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                 { // if (! discarding) {
                     halfword penalty = penalty_amount(current);
                     if (tracing) {
-                        tex_begin_diagnostic();
-                        tex_print_format("[balance: penalty, page %i, amount %i, total %p, trying]", 
-                            lmt_balance_state.current_page_number, 
-                            penalty_amount(current),
-                            lmt_balance_state.active_height[total_advance_amount]
-                        );
-                        tex_end_diagnostic();
+                        tex_aux_trace_penalty(current, "trying");
                     }
                     tex_aux_try_balance(properties, penalty, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                 }
