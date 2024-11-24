@@ -52,7 +52,6 @@ balance_state_info lmt_balance_state = {
     .warned               = 0,
     .passes               = { 0 },
     .current_page_number  = 0,
-    .current_page_content = contribute_nothing,
 
     .quality                  = 0,
     .force_check_hyphenation  = 0,
@@ -596,7 +595,6 @@ static scaled tex_aux_try_balance(
             /*tex We have an |unhyphenated_node| or |hyphenated_node|. */
         }
         lmt_balance_state.current_page_number = page; /* we could just use this variable */
-//        lmt_balance_state.current_page_content = contribute_nothing; 
         page = active_page_number(current);
         if (page > old_page) {
             if ((lmt_balance_state.minimum_demerits < awful_bad) && ((old_page != lmt_balance_state.easy_page) || (current == active_head))) {
@@ -605,11 +603,8 @@ static scaled tex_aux_try_balance(
                 } else {
                     page_height = lmt_balance_state.target_height;
                 }
-//lmt_balance_state.current_page_content = contribute_nothing;
                 if (no_break_yet) {
                     no_break_yet = false;
-lmt_balance_state.current_page_content = contribute_nothing;
-
                     if (lmt_balance_state.emergency_percentage) {
                         scaled stretch = tex_xn_over_d(page_height, lmt_balance_state.emergency_percentage, scaling_factor);
                         lmt_balance_state.background[total_stretch_amount] -= lmt_balance_state.emergency_amount;
@@ -698,7 +693,6 @@ lmt_balance_state.current_page_content = contribute_nothing;
                     page_height = lmt_balance_state.target_height;
                 }
             }
-// lmt_balance_state.current_page_content = contribute_nothing;
             if (current == active_head) {
                 shortfall = page_height - current_active_height[total_advance_amount];
                 return shortfall;
@@ -1255,87 +1249,58 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
     int line = 0;
     int tracing = properties->tracing_balancing > 2; 
     while (current && (node_next(active_head) != active_head)) { /* we check the cycle */
-        int discarding = 0; // pagenumber != lmt_balance_state.current_page_number;
         switch (node_type(current)) {
             case hlist_node:
             case vlist_node:
                 /* what with the migration (see buildpage where we inject and restart) */
-                {
-                    if (discarding) {
-                        lmt_balance_state.current_page_content = contribute_box;
-                    }
-
-                    lmt_balance_state.active_height[total_advance_amount] += box_height(current);
-                    lmt_balance_state.active_height[total_advance_amount] += box_depth(current);
-                    if (tracing) {
-                        tex_aux_trace_list(current, ++line, "contributing");
-                    }
-                    break;
+                lmt_balance_state.active_height[total_advance_amount] += box_total(current);
+                if (tracing) {
+                    tex_aux_trace_list(current, ++line, "contributing");
                 }
+                break;
             case rule_node:
                 /* what with the migration (see buildpage where we inject and restart) */
-                {
-                    if (discarding) {
-                        lmt_balance_state.current_page_content = contribute_rule;
-                    }
-                    lmt_balance_state.active_height[total_advance_amount] += rule_height(current);
-                    lmt_balance_state.active_height[total_advance_amount] += rule_depth(current);
-                    if (tracing) {
-                        tex_aux_trace_rule(current, ++line, "contributing");
-                    }
-                    break;
+                lmt_balance_state.active_height[total_advance_amount] += rule_total(current);
+                if (tracing) {
+                    tex_aux_trace_rule(current, ++line, "contributing");
                 }
+                break;
             case glue_node:
-                if (! discarding) {
-                    /*tex Checks for temp_head! */
-                    if (tex_aux_valid_glue_break(current)) {
-                        if (tracing) {
-                            tex_aux_trace_glue(current, "trying");
-                        }
-                        tex_aux_try_balance(properties, 0, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
-                    }
-                    lmt_balance_state.active_height[total_advance_amount] += glue_amount(current);
-                    lmt_balance_state.active_height[total_stretch_amount + glue_stretch_order(current)] += glue_stretch(current);
-                    lmt_balance_state.active_height[total_shrink_amount] += tex_aux_checked_shrink(current);
+                /*tex Checks for temp_head! */
+                if (tex_aux_valid_glue_break(current)) {
                     if (tracing) {
-                        tex_aux_trace_glue(current, "contributing");
+                        tex_aux_trace_glue(current, "trying");
                     }
-                } else { 
-                    if (tracing) {
-                        tex_aux_trace_glue(current, "discarding");
-                    }
+                    tex_aux_try_balance(properties, 0, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
+                }
+                lmt_balance_state.active_height[total_advance_amount] += glue_amount(current);
+                lmt_balance_state.active_height[total_stretch_amount + glue_stretch_order(current)] += glue_stretch(current);
+                lmt_balance_state.active_height[total_shrink_amount] += tex_aux_checked_shrink(current);
+                if (tracing) {
+                    tex_aux_trace_glue(current, "contributing");
                 }
                 break;
             case kern_node:
-                if (! discarding) {
-                    /*tex there are not many vertical kerns that can occur in vmode */
-                    if (node_subtype(current) == explicit_kern_subtype) { 
-                        halfword nxt = node_next(current);
-                        if (nxt && node_type(nxt) == glue_node) {
-                            if (tracing) {
-                                tex_aux_trace_kern(current, "trying");
-                            }
-                            tex_aux_try_balance(properties, 0, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
+                /*tex there are not many vertical kerns that can occur in vmode */
+                if (node_subtype(current) == explicit_kern_subtype) { 
+                    halfword nxt = node_next(current);
+                    if (nxt && node_type(nxt) == glue_node) {
+                        if (tracing) {
+                            tex_aux_trace_kern(current, "trying");
                         }
+                        tex_aux_try_balance(properties, 0, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                     }
-                    lmt_balance_state.active_height[total_advance_amount] += kern_amount(current);
-                    if (tracing) {
-                        tex_aux_trace_kern(current, "contributing");
-                    }
-                } else { 
-                    if (tracing) {
-                        tex_aux_trace_kern(current, "discarding");
-                    }
+                }
+                lmt_balance_state.active_height[total_advance_amount] += kern_amount(current);
+                if (tracing) {
+                    tex_aux_trace_kern(current, "contributing");
                 }
                 break;
             case penalty_node:
-                { // if (! discarding) {
-                    halfword penalty = penalty_amount(current);
-                    if (tracing) {
-                        tex_aux_trace_penalty(current, "trying");
-                    }
-                    tex_aux_try_balance(properties, penalty, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
+                if (tracing) {
+                    tex_aux_trace_penalty(current, "trying");
                 }
+                tex_aux_try_balance(properties, penalty_amount(current), unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                 break;
             case boundary_node:
                 /* maybe handle page boundary here */
@@ -1623,14 +1588,12 @@ void tex_balance(balance_properties *properties, halfword head)
             halfword page = 1;
             scaled page_height;
             lmt_balance_state.current_page_number = page; /* we could just use this variable */
-//            lmt_balance_state.current_page_content = contribute_nothing;
             /* we could use target_height */
             if (properties->page_shape) {
                 page_height = tex_get_specification_height(properties->page_shape, page);
             } else {
                 page_height = lmt_balance_state.target_height;
             }
-lmt_balance_state.current_page_content = contribute_nothing;
             lmt_balance_state.background[total_stretch_amount] -= lmt_balance_state.emergency_amount;
             if (lmt_balance_state.emergency_percentage) {
                 scaled stretch = tex_xn_over_d(page_height, lmt_balance_state.emergency_percentage, scaling_factor);
