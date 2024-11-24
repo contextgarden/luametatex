@@ -6,18 +6,17 @@
 
 /* todo: 
 
-    remove or adapt discretionaries
     don't use demerits across spread
-    why is a copy needed
     how about max depth 
     check usage of temphead (in helpers)
-    replace hyphenation by discretionaries     
     skip to next when frozen overfull 
-    topskip stretch and shrink 
-    excepts
-    inserts
+    maybe [topskip bottomskip] stretch and shrink 
+    maybe excepts
+    no inserts
     adjusts at the top 
     share callback functions and use generic contexts 
+    no pagepasses for now so [pretolerance, tolerance, emergencystretch]
+
 */
 
 typedef enum balance_states {
@@ -485,7 +484,72 @@ static void tex_aux_set_quality(halfword active, halfword passive, scaled shrt, 
     passive_badness(passive) = badness;
     active_quality(active) = quality;
     active_deficiency(active) = deficiency;
- }
+}
+
+/* */
+
+static void tex_check_skips_shortfall(const balance_properties *properties, halfword breakpoint, halfword first, halfword current, halfword *shortfall)
+{
+    halfword left = active_break_node(breakpoint) ? passive_cur_break(active_break_node(breakpoint)) : first; /* nasty */
+    scaled top = 0;
+    scaled bottom = 0;
+    if (glue_amount(properties->topskip)) {
+        /* todo: check breakable */
+        halfword c = left;
+        scaled h = 0;
+        while (c) {
+            switch (node_type(c)) {
+                case hlist_node:
+                case vlist_node:
+                    h = box_height(c);
+                    c = null;
+                    break;
+                case rule_node:
+                    h = rule_height(c);
+                    c = null;
+                    break;
+                default: 
+                    c = node_next(c);
+                    break;
+            }
+        }
+        if (glue_amount(properties->topskip) > h) {
+            top = glue_amount(properties->topskip) - h;
+            *shortfall += top;
+        }
+    }
+    if (glue_amount(properties->bottomskip)) {
+        halfword c = node_prev(current);
+        scaled d = 0;
+        while (c) {
+            switch (node_type(c)) {
+                case hlist_node:
+                case vlist_node:
+                    d = box_depth(c);
+                    c = null;
+                    break;
+                case rule_node:
+                    d = rule_depth(c);
+                    c = null;
+                    break;
+                default: 
+                    c = node_prev(c);
+                    break;
+            }
+        }
+        if (glue_amount(properties->bottomskip) > d) {
+            bottom = glue_amount(properties->bottomskip) - d;
+            *shortfall += bottom;
+        }
+    }
+    if ((top || bottom) && properties->tracing_balancing > 2) {
+        tex_begin_diagnostic();
+        tex_print_format("[balance: correction, top %p, bottom %p]", top, bottom);
+        tex_end_diagnostic();
+    }
+}
+
+/* */
 
 static scaled tex_aux_try_balance(
     const balance_properties *properties,
@@ -549,6 +613,7 @@ static scaled tex_aux_try_balance(
                 if (no_break_yet) {
                     no_break_yet = false;
 lmt_balance_state.current_page_content = contribute_nothing;
+
                     if (lmt_balance_state.emergency_percentage) {
                         scaled stretch = tex_xn_over_d(page_height, lmt_balance_state.emergency_percentage, scaling_factor);
                         lmt_balance_state.background[total_stretch_amount] -= lmt_balance_state.emergency_amount;
@@ -572,7 +637,7 @@ lmt_balance_state.current_page_content = contribute_nothing;
                 }
                 if (properties->max_adj_demerits >= awful_bad - lmt_balance_state.minimum_demerits) {
                     lmt_balance_state.minimum_demerits = awful_bad - 1;
-                } else {
+               } else {
                     lmt_balance_state.minimum_demerits += properties->max_adj_demerits;
                 }
                 for (halfword fit_class = default_fitness; fit_class <= tex_max_fitness(properties->fitness_classes); fit_class++) {
@@ -656,22 +721,7 @@ lmt_balance_state.current_page_content = contribute_nothing;
             tex_end_diagnostic();
         }
 
-
-// static halfword tex_page_badness(scaled goal)
-// {
-//     if (page_total + page_except < goal) {
-//         if (page_fistretch || page_filstretch || page_fillstretch || page_filllstretch) {
-//             return 0;
-//         } else {
-//             return tex_badness(goal - page_total, page_stretch);
-//         }
-//     } else if (page_total + page_except - goal > page_shrink) {
-//         return awful_bad;
-//     } else {
-//         return tex_badness(page_total + page_except - goal, page_shrink);
-//     }
-// }
-
+        tex_check_skips_shortfall(properties, current, first_p, cur_p, &shortfall);
 
         if (shortfall > 0) {
             if (current_active_height[total_fi_amount]   || current_active_height[total_fil_amount] ||
@@ -731,7 +781,7 @@ lmt_balance_state.current_page_content = contribute_nothing;
             int fit_current = (halfword) active_fitness(current);
             int distance = abs(fit_class - fit_current);
             demerits = badness; /* no line penalty addition equivalent here */
-demerits += 10; 
+demerits += 10; /* page_penalty_par like line_penalty_par */
             if (abs(demerits) >= infinite_bad) {
                 demerits = extremely_deplorable;
             } else {
@@ -806,6 +856,7 @@ demerits += 10;
                 node_next(previous) = node_next(current);
                 tex_flush_node(current);
             }
+        } else { 
         }
     }
     return shortfall;
@@ -1144,7 +1195,6 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
 {
     halfword callback_id = lmt_balance_state.callback_id;
     halfword checks = properties->balance_checks;
-    scaled depth = 0; 
     int line = 0;
     int tracing = properties->tracing_balancing > 2; 
     int pagenumber = 0; 
@@ -1152,7 +1202,6 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
      // int discarding = lmt_balance_state.current_page_content < contribute_box; /* == contribute_nothing */
         int discarding = pagenumber != lmt_balance_state.current_page_number;
         if (discarding) {
-            depth = 0;
             pagenumber = lmt_balance_state.current_page_number;
         }
         switch (node_type(current)) {
@@ -1160,41 +1209,19 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
             case vlist_node:
                 /* what with the migration (see buildpage where we inject and restart) */
                 {
-                    scaled delta = 0;
                     if (discarding) {
-                        delta = glue_amount(properties->topskip) - box_height(current);
-                        if (delta > 0) {
-                            lmt_balance_state.active_height[total_advance_amount] += delta;
-                        } else {
-                            delta = 0; 
-                        }
                         lmt_balance_state.current_page_content = contribute_box;
-                        /* how about topskip stretch and shrink */
-                    } else { 
-                        lmt_balance_state.active_height[total_advance_amount] += depth;
                     }
                     lmt_balance_state.active_height[total_advance_amount] += box_height(current);
-if (glue_amount(properties->bottomskip)) { 
-                    if (box_depth(current) < glue_amount(properties->bottomskip)) {
-                        lmt_balance_state.active_height[total_advance_amount] += glue_amount(properties->bottomskip);
-                        depth = -(glue_amount(properties->bottomskip) - box_depth(current));
-                    } else { 
-                        lmt_balance_state.active_height[total_advance_amount] += box_depth(current);
-                        depth = 0;
-                    }
-} else {
-    lmt_balance_state.active_height[total_advance_amount] += box_depth(current);
-}
+                    lmt_balance_state.active_height[total_advance_amount] += box_depth(current);
                     if (tracing) {
                         tex_begin_diagnostic();
-                        tex_print_format("[balance: list, page %i, line %i, height %p, depth %p, total %p, top %p, bottom %p]", 
+                        tex_print_format("[balance: list, page %i, line %i, height %p, depth %p, total %p]", 
                             lmt_balance_state.current_page_number, 
                             ++line,
                             box_height(current), 
                             box_depth(current), 
-                            lmt_balance_state.active_height[total_advance_amount], 
-                            delta, 
-                            depth
+                            lmt_balance_state.active_height[total_advance_amount]
                         );
                         tex_end_diagnostic();
                     }
@@ -1203,41 +1230,19 @@ if (glue_amount(properties->bottomskip)) {
             case rule_node:
                 /* what with the migration (see buildpage where we inject and restart) */
                 {
-                    scaled delta = 0;
                     if (discarding) {
-                        delta = glue_amount(properties->topskip) - rule_height(current);
-                        if (delta > 0) {
-                            lmt_balance_state.active_height[total_advance_amount] += delta;
-                        } else {
-                            delta = 0; 
-                        }
                         lmt_balance_state.current_page_content = contribute_rule;
-                        /* how about topskip stretch and shrink */
-                    } else { 
-                        lmt_balance_state.active_height[total_advance_amount] += depth;
                     }
                     lmt_balance_state.active_height[total_advance_amount] += rule_height(current);
-if (glue_amount(properties->bottomskip)) { 
-                    if (rule_depth(current) < glue_amount(properties->bottomskip)) {
-                        lmt_balance_state.active_height[total_advance_amount] += glue_amount(properties->bottomskip);
-                        depth = -(glue_amount(properties->bottomskip) - rule_depth(current));
-                    } else { 
-                        lmt_balance_state.active_height[total_advance_amount] += rule_depth(current);
-                        depth = 0;
-                    }
-} else {
-    lmt_balance_state.active_height[total_advance_amount] += rule_depth(current);
-}
+                    lmt_balance_state.active_height[total_advance_amount] += rule_depth(current);
                     if (tracing) {
                         tex_begin_diagnostic();
-                        tex_print_format("[balance: rule, page %i, line %i, height %p, depth %p, total %p, top %p, bottom %p]", 
+                        tex_print_format("[balance: rule, page %i, line %i, height %p, depth %p, total %p]", 
                             lmt_balance_state.current_page_number, 
                             ++line,
                             rule_height(current), 
                             rule_depth(current), 
-                            lmt_balance_state.active_height[total_advance_amount], 
-                            delta, 
-                            depth
+                            lmt_balance_state.active_height[total_advance_amount] 
                         );
                         tex_end_diagnostic();
                     }
@@ -1260,8 +1265,6 @@ if (glue_amount(properties->bottomskip)) {
                     lmt_balance_state.active_height[total_advance_amount] += glue_amount(current);
                     lmt_balance_state.active_height[total_stretch_amount + glue_stretch_order(current)] += glue_stretch(current);
                     lmt_balance_state.active_height[total_shrink_amount] += tex_aux_checked_shrink(current);
-                    lmt_balance_state.active_height[total_advance_amount] += depth;
-                    depth = 0;
                     if (tracing) {
                         tex_begin_diagnostic();
                         tex_print_format("[balance: glue, page %i, advance %p, total %p]", 
@@ -1301,8 +1304,6 @@ if (glue_amount(properties->bottomskip)) {
                         }
                     }
                     lmt_balance_state.active_height[total_advance_amount] += kern_amount(current);
-                    lmt_balance_state.active_height[total_advance_amount] += depth;
-                    depth = 0;
                     if (tracing) {
                         tex_begin_diagnostic();
                         tex_print_format("[balance: kern, page %i, advance %p, total %p]", 
@@ -1327,8 +1328,6 @@ if (glue_amount(properties->bottomskip)) {
             case penalty_node:
                 { // if (! discarding) {
                     halfword penalty = penalty_amount(current);
-lmt_balance_state.active_height[total_advance_amount] += depth;
-depth = 0;
                     if (tracing) {
                         tex_begin_diagnostic();
                         tex_print_format("[balance: penalty, page %i, amount %i, total %p, trying]", 

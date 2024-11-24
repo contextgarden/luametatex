@@ -2194,7 +2194,7 @@ static scaled tex_aux_try_break(
             that |r = active| and |line_number (active) > old_l|.
 
         */
-        lmt_linebreak_state.current_line_number = line; /* we could just use this variable */
+lmt_linebreak_state.current_line_number = line; /* we could just use this variable */
         line = active_line_number(current);
         if (line > old_line) {
             /*tex Now we are no longer in the inner loop (well ...). */
@@ -2640,6 +2640,7 @@ static scaled tex_aux_try_break(
                 compatible because we lack a criterium.
 
             */
+
             if (artificial && (lmt_linebreak_state.minimum_demerits == awful_bad) && (node_next(current) == active_head) && (previous == active_head)) {
                 /*tex Set demerits zero, this break is forced. */
                 artificial_demerits = 1;
@@ -2797,6 +2798,7 @@ static scaled tex_aux_try_break(
                 node_next(previous) = node_next(current);
                 tex_flush_node(current);
             }
+        } else { 
         }
     }
     return shortfall;
