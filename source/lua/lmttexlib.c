@@ -3937,13 +3937,12 @@ static halfword texlib_topenalties(lua_State *L, int i, quarterword s)
     skips. This one can be called from within the callback so then we already have intialized.
 */
 
-
 /* par leftinit rightinit leftindent ... leftfill rightfill */
 
 static int texlib_getlinebreakparameterfields(lua_State *L)
 {
     lua_createtable(L, 61, 0);
-    lua_push_key_at_index(L,direction,               1);
+    lua_push_key_at_index(L, direction,              1);
     lua_push_key_at_index(L, tracingparagraphs,      2);
     lua_push_key_at_index(L, tracingfitness ,        3);
     lua_push_key_at_index(L, tracingpasses,          4);
@@ -4304,6 +4303,36 @@ static int texlib_linebreak(lua_State *L)
     return 1;
 }
 
+static int texlib_getbalanceparameterfields(lua_State *L)
+{
+    lua_createtable(L, 16, 0);
+    lua_push_key_at_index(L, tracingbalancing,  1);
+    lua_push_key_at_index(L, tracingfitness ,   2);
+    lua_push_key_at_index(L, tracingpasses,     3);
+    lua_push_key_at_index(L, pretolerance,      4);
+    lua_push_key_at_index(L, tolerance,         5);
+    lua_push_key_at_index(L, emergencystretch,  6);
+    lua_push_key_at_index(L, emergencyshrink,   7);
+    lua_push_key_at_index(L, looseness,         8);
+    lua_push_key_at_index(L, adjdemerits,       9);
+    lua_push_key_at_index(L, vsize,            10);
+    lua_push_key_at_index(L, topskip,          11);
+    lua_push_key_at_index(L, bottomskip,       12);
+    lua_push_key_at_index(L, pageshape,        13);
+    lua_push_key_at_index(L, pagepasses,       14);
+    lua_push_key_at_index(L, balancechecks,    15);
+    lua_push_key_at_index(L, packing,          16);
+    return 1;
+}
+
+static int texlib_getbalanceresultfields(lua_State *L)
+{
+    lua_createtable(L, 4, 0);
+ // lua_push_key_at_index(L, demerits,  1);
+ // lua_push_key_at_index(L, looseness, 2);
+    return 1;
+}
+
 static int texlib_balance(lua_State *L)
 {
     halfword direct;
@@ -4311,8 +4340,8 @@ static int texlib_balance(lua_State *L)
     if (head) {
         balance_properties properties;
         /* */
-tex_push_nest();
-node_next(temp_head) = head;
+        tex_push_nest();
+        node_next(temp_head) = head;
         tex_balance_preset(&properties);
         /* */
         if (lua_gettop(L) != 2 || lua_type(L, 2) != LUA_TTABLE) {
@@ -4324,12 +4353,12 @@ node_next(temp_head) = head;
         get_integer_par  (properties.pretolerance,       pretolerance,      properties.pretolerance);
         get_integer_par  (properties.tolerance,          tolerance,         properties.tolerance);
         get_dimension_par(properties.emergency_stretch,  emergencystretch,  properties.emergency_stretch);
+        get_dimension_par(properties.emergency_shrink,   emergencyshrink,   properties.emergency_shrink);
         get_integer_par  (properties.looseness,          looseness,         properties.looseness);
         get_integer_par  (properties.adj_demerits,       adjdemerits,       properties.adj_demerits);
         get_dimension_par(properties.vsize,              vsize,             properties.vsize);
         get_glue_par     (properties.topskip,            topskip,           properties.topskip);
         get_glue_par     (properties.bottomskip,         bottomskip,        properties.bottomskip);
-        get_integer_par  (properties.hyphen_penalty,     hyphenpenalty,     properties.hyphen_penalty);
         get_shape_par    (properties.page_shape,         pageshape,         null);
         get_penalties_par(properties.page_passes,        pagepasses,        null, par_passes_code);
         get_integer_par  (properties.balance_checks,     balancechecks,     properties.balance_checks);
@@ -4364,8 +4393,8 @@ node_next(temp_head) = head;
         /* */
         tex_balance_reset(&properties);
         /* */
-node_next(temp_head) = null;
-tex_pop_nest();
+        node_next(temp_head) = null;
+        tex_pop_nest();
         return 2; /* for now empty table */
     } else {
         lmt_push_directornode(L, head, direct);
@@ -6589,10 +6618,12 @@ static const struct luaL_Reg texlib_function_list[] = {
     { "setmath",                      texlib_setmath                      },
     { "getmath",                      texlib_getmath                      },
     { "linebreak",                    texlib_linebreak                    },
-    { "balance",                      texlib_balance                      },
     { "getlinebreakparameterfields",  texlib_getlinebreakparameterfields  },
     { "getlinebreakresultfields",     texlib_getlinebreakresultfields     },
     { "preparelinebreak",             texlib_preparelinebreak             },
+    { "getbalanceparameterfields",    texlib_getbalanceparameterfields    },
+    { "getbalanceresultfields",       texlib_getbalanceresultfields       },
+    { "balance",                      texlib_balance                      },
     { "resetparagraph",               texlib_resetparagraph               },
     { "showcontext",                  texlib_showcontext                  },
     { "triggerbuildpage",             texlib_triggerbuildpage             },

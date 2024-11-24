@@ -5265,7 +5265,7 @@ void tex_do_line_break(line_break_properties *properties)
                 break the paragraph, and a few other variables are used to help determine what is
                 best.
 
-            */
+            */ /* why hyphenated node here: */
             scaled shortfall = tex_aux_try_break(properties, eject_penalty, hyphenated_node, first, current, lmt_linebreak_state.callback_id, properties->line_break_checks, pass, subpass, artificial);
             if (node_next(active_head) != active_head) {
                 /*tex Find an active node with fewest demerits. */

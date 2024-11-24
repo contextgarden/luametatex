@@ -860,7 +860,9 @@ typedef struct balance_properties {
     halfword pretolerance;
     halfword tolerance;
     halfword emergency_stretch;
-    halfword emergency_original; 
+    halfword emergency_shrink;
+    halfword original_stretch; 
+    halfword original_shrink; 
     halfword looseness;
     halfword adj_demerits;
     halfword max_adj_demerits;
@@ -872,7 +874,6 @@ typedef struct balance_properties {
     halfword balance_checks;
     halfword hyphenation_mode;
     halfword page_passes;
-    halfword hyphen_penalty;
     halfword packing;
 } balance_properties;
 

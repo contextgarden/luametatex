@@ -4,18 +4,38 @@
 
 # include "luametatex.h"
 
+
+/*tex 
+
+    Some remarks: 
+
+    \startitemize 
+    \startitem We don't go for flexible top skip. \stopitem 
+    \startitem We have firstheight and lastdepth \stopitem 
+    \startitem For now we rejected vertical discretionaries. \stopitem 
+    \startitem We assume end notes etc. so no inserts! \stopitem 
+    \startitem We considered demerits on spread for a while. \stopitem 
+    \stopitemize 
+
+    and 
+
+    \startitemize 
+    \startitem We will handle excepts. \stopitem 
+    \startitem We might skip over excessive overfull. \stopitem 
+    \startitem We will add balancing loops. \stopitem 
+    \startitem We will look into adjust. \stopitem 
+    \startitem We will add pagepasses. \stopitem 
+    \stopitemize 
+
+    After all, it's a fun project of MS & HH, so don't complain. 
+
+*/
+
 /* todo: 
 
-    don't use demerits across spread
-    how about max depth 
     check usage of temphead (in helpers)
     skip to next when frozen overfull 
-    maybe [topskip bottomskip] stretch and shrink 
-    maybe excepts
-    no inserts
-    adjusts at the top 
     share callback functions and use generic contexts 
-    no pagepasses for now so [pretolerance, tolerance, emergencystretch]
 
 */
 
@@ -54,8 +74,9 @@ balance_state_info lmt_balance_state = {
     .current_page_number  = 0,
 
     .quality                  = 0,
-    .force_check_hyphenation  = 0,
+ // .force_check_hyphenation  = 0,
     .extra_background_stretch = 0,
+    .extra_background_shrink  = 0,
     .last_special_page        = 0,
     .emergency_amount         = 0,
     .emergency_percentage     = 0,
@@ -861,7 +882,7 @@ static inline int tex_aux_valid_glue_break(halfword p)
 
 static inline int tex_aux_emergency(const balance_properties *properties)
 {
-    if (properties->emergency_stretch > 0) {
+    if (properties->emergency_stretch > 0 || properties->emergency_shrink > 0) {
         return 1;
     } else {
         return 0;
@@ -986,9 +1007,9 @@ static int tex_aux_set_sub_pass_parameters(
     }
     lmt_balance_state.threshold = properties->tolerance;
     if (okay & passes_basics_okay) {
-        if (okay & passes_hyphenation_okay) {
-            lmt_balance_state.force_check_hyphenation = tex_get_passes_hyphenation(passes, subpass) > 0 ? 1 : 0;
-        }
+     // if (okay & passes_hyphenation_okay) {
+     //     lmt_balance_state.force_check_hyphenation = tex_get_passes_hyphenation(passes, subpass) > 0 ? 1 : 0;
+     // }
         if (okay & passes_emergencyfactor_okay) {
             lmt_balance_state.emergency_factor = tex_get_passes_emergencyfactor(passes, subpass);
         }
@@ -996,25 +1017,47 @@ static int tex_aux_set_sub_pass_parameters(
             lmt_balance_state.emergency_percentage = tex_get_passes_emergencypercentage(passes, subpass);
         }
     }
+    /* */
     if (okay & passes_emergencystretch_okay) {
         halfword v = tex_get_passes_emergencystretch(passes, subpass);
         if (v) {
             properties->emergency_stretch = v;
-            properties->emergency_original = v; /* ! */
+            properties->original_stretch = v; /* ! */
         } else {
-            properties->emergency_stretch = properties->emergency_original;
+            properties->emergency_stretch = properties->original_stretch;
         }
     } else {
-        properties->emergency_stretch = properties->emergency_original;
+        properties->emergency_stretch = properties->original_stretch;
     }
     if (lmt_balance_state.emergency_factor) {
-        properties->emergency_stretch = tex_xn_over_d(properties->emergency_original, lmt_balance_state.emergency_factor, scaling_factor);
+        properties->emergency_stretch = tex_xn_over_d(properties->original_stretch, lmt_balance_state.emergency_factor, scaling_factor);
     } else {
         properties->emergency_stretch = 0;
     }
     lmt_balance_state.background[total_stretch_amount] -= lmt_balance_state.extra_background_stretch;
     lmt_balance_state.extra_background_stretch = properties->emergency_stretch;
     lmt_balance_state.background[total_stretch_amount] += properties->emergency_stretch;
+    /* */
+ // if (okay & passes_emergencyshrink_okay) {
+ //     halfword v = tex_get_passes_emergencyshrink(passes, subpass);
+ //     if (v) {
+ //         properties->emergency_shrink = v;
+ //         properties->original_shrink = v; /* ! */
+ //     } else {
+ //         properties->emergency_shrink = properties->original_shrink;
+ //     }
+ // } else {
+ //     properties->emergency_shrink = properties->original_shrink;
+ // }
+ // if (lmt_balance_state.emergency_factor) {
+ //     properties->emergency_shrink = tex_xn_over_d(properties->original_shrink, lmt_balance_state.emergency_factor, scaling_factor);
+ // } else {
+ //     properties->emergency_shrink = 0;
+ // }
+    lmt_balance_state.background[total_shrink_amount] -= lmt_balance_state.extra_background_shrink;
+    lmt_balance_state.extra_background_shrink = properties->emergency_shrink;
+    lmt_balance_state.background[total_shrink_amount] += properties->emergency_shrink;
+    /* */
     if (okay & passes_looseness_okay) {
         properties->looseness = tex_get_passes_looseness(passes, subpass);
         tex_aux_set_looseness(properties);
@@ -1037,13 +1080,15 @@ static int tex_aux_set_sub_pass_parameters(
      // tex_print_format("%s demerits             %i\n", is_okay(passes_demerits_okay), tex_get_passes_demerits(passes, subpass));
         tex_print_str("  --------------------------------\n");
         tex_print_format("%s tolerance            %i\n", is_okay(passes_tolerance_okay), properties->tolerance);
-        tex_print_format("%s hyphenation          %s\n", is_okay(passes_hyphenation_okay), lmt_balance_state.force_check_hyphenation ? "true": "false");
+     // tex_print_format("%s hyphenation          %s\n", is_okay(passes_hyphenation_okay), lmt_balance_state.force_check_hyphenation ? "true": "false");
         tex_print_format("%s looseness            %i\n", is_okay(passes_looseness_okay), properties->looseness);
         tex_print_str("  --------------------------------\n");
         tex_print_format("%s adjdemerits          %i\n", is_okay(passes_adjdemerits_okay), properties->adj_demerits);
         tex_print_str("  --------------------------------\n");
-        tex_print_format("%s emergencyoriginal    %p\n", is_okay(passes_emergencystretch_okay), properties->emergency_original);
+        tex_print_format("%s originalstretch      %p\n", is_okay(passes_emergencystretch_okay), properties->original_stretch);
         tex_print_format("%s emergencystretch     %p\n", is_okay(passes_emergencystretch_okay), properties->emergency_stretch);
+     // tex_print_format("%s originalshrink       %p\n", is_okay(passes_emergencyshrink_okay), properties->original_shrink);
+     // tex_print_format("%s emergencyshrink      %p\n", is_okay(passes_emergencyshrink_okay), properties->emergency_shrink);
         tex_print_format("%s emergencyfactor      %i\n", is_okay(passes_emergencyfactor_okay), tex_get_passes_emergencyfactor(passes, subpass));
         tex_print_format("%s emergencypercentage  %i\n", is_okay(passes_emergencypercentage_okay), lmt_balance_state.emergency_percentage);
         tex_print_str("  --------------------------------\n");
@@ -1067,13 +1112,21 @@ static inline int tex_aux_next_subpass(const balance_properties *properties, hal
         halfword features = tex_get_passes_features(passes, subpass);
         if (features & passes_test_set) {
             if (features & passes_if_emergency_stretch) {
-                if (! ( (properties->emergency_original || tex_get_passes_emergencystretch(passes, subpass)) && tex_get_passes_emergencyfactor(passes, subpass) ) ) {
+                if (! ( (properties->original_stretch || tex_get_passes_emergencystretch(passes, subpass)) && tex_get_passes_emergencyfactor(passes, subpass) ) ) {
                     if (tracing) {
                         tex_aux_skip_message(passes, subpass, nofsubpasses, "emergency stretch");
                     }
                     continue;
                 }
             }
+         // if (features & passes_if_emergency_shrink) {
+         //     if (! ( (properties->original_shrink || tex_get_passes_emergencyshrink(passes, subpass)) && tex_get_passes_emergencyfactor(passes, subpass) ) ) {
+         //         if (tracing) {
+         //             tex_aux_skip_message(passes, subpass, nofsubpasses, "emergency shrink");
+         //         }
+         //         continue;
+         //     }
+         // }
             if (features & passes_if_looseness) {
                 if (! properties->looseness) {
                     if (tracing) {
@@ -1302,6 +1355,67 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                 }
                 tex_aux_try_balance(properties, penalty_amount(current), unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                 break;
+            /*
+            case disc_node:
+                {
+                    halfword replace = disc_no_break_head(current);
+                    if (lmt_balance_state.force_check_hyphenation) {
+                        halfword actual_penalty = disc_penalty(current);
+                        halfword pre = disc_pre_break_head(current);
+                        tex_aux_reset_disc_target(lmt_balance_state.disc_height);
+                        if (pre) {
+                            if (replace) {
+                                if (tex_has_disc_option(current, disc_option_prefer_break) || tex_has_disc_option(current, disc_option_prefer_nobreak)) {
+                                    switch (node_type(node_next(current))) {
+                                        case glue_node:
+                                        case penalty_node:
+                                        case boundary_node:
+                                            {
+                                                scaled hpre = tex_natural_vsize(pre);
+                                                scaled hreplace = tex_natural_vsize(replace);
+                                                if (tex_has_disc_option(current, disc_option_prefer_break)) {
+                                                    halfword post = disc_post_break_head(current);
+                                                    scaled hpost = post ? tex_natural_vsize(post) : 0;
+                                                    if (hpost > 0) {
+                                                        if (properties->tracing_balancing > 1) {
+                                                            tex_begin_diagnostic();
+                                                            tex_print_format("[balance: favour final prepost over replace, heights %p %p]", hpre + hpost, hreplace);
+                                                            tex_short_display(node_next(temp_head));
+                                                            tex_end_diagnostic();
+                                                        }
+                                                    } else {
+                                                        goto REPLACEONLY;
+                                                    }
+                                                } else {
+                                                    if (hreplace < hpre) {
+                                                        if (properties->tracing_balancing > 1) {
+                                                            tex_begin_diagnostic();
+                                                            tex_print_format("[balance: favour final replace over pre, heights %p %p]", hreplace, hpre);
+                                                            tex_short_display(node_next(temp_head));
+                                                            tex_end_diagnostic();
+                                                        }
+                                                        goto REPLACEONLY;
+                                                    }
+                                                }
+                                            }
+                                    }
+                                }
+                            }
+                            tex_aux_add_to_heights(pre, lmt_balance_state.disc_height);
+                            tex_aux_add_disc_source_to_target(lmt_balance_state.active_height, lmt_balance_state.disc_height);
+                            tex_aux_try_balance(properties, actual_penalty, hyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
+                            tex_aux_sub_disc_target_from_source(lmt_balance_state.active_height, lmt_balance_state.disc_height);
+                        } else {
+                            tex_aux_try_balance(properties, actual_penalty, hyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
+                        }
+                    }
+                  REPLACEONLY:
+                    if (replace) {
+                        tex_aux_add_to_heights(replace, lmt_balance_state.active_height);
+                    }
+                    break;
+                }
+            */
             case boundary_node:
                 /* maybe handle page boundary here */
                 break;
@@ -1416,17 +1530,18 @@ void tex_balance_preset(balance_properties *properties)
     properties->tracing_fitness    = tracing_fitness_par;
     properties->tracing_passes     = tracing_passes_par;
     properties->tolerance          = 200;
-    properties->pretolerance       = 100;
+    properties->pretolerance       = -1; /* we skip when the same */
     properties->vsize              = 0; 
     properties->topskip            = top_skip_par;
     properties->bottomskip         = bottom_skip_par;
     properties->emergency_stretch  = 0;
-    properties->emergency_original = 0;
+    properties->emergency_shrink   = 0;
+    properties->original_stretch   = 0;
+    properties->original_shrink    = 0;
     properties->looseness          = 0;
     properties->adj_demerits       = 0;
     properties->page_shape         = null; 
     properties->fitness_classes    = tex_default_fitness_classes();
-    properties->hyphen_penalty     = 0;
     properties->hyphenation_mode   = 1;
     properties->page_passes        = 0;   
     properties->max_adj_demerits   = 0;
@@ -1454,13 +1569,15 @@ void tex_balance(balance_properties *properties, halfword head)
     halfword first = node_next(temp_head);
     /*tex Some helpers use temp_head so we need to use that! */
     lmt_balance_state.passes.n_of_break_calls++;
-    properties->emergency_original = properties->emergency_stretch;
-    lmt_balance_state.force_check_hyphenation = hyphenation_permitted(properties->hyphenation_mode, force_check_hyphenation_mode);
+    properties->original_stretch = properties->emergency_stretch;
+    properties->original_shrink = properties->emergency_shrink;
+ // lmt_balance_state.force_check_hyphenation = hyphenation_permitted(properties->hyphenation_mode, force_check_hyphenation_mode);
     lmt_balance_state.callback_id = properties->balance_checks ? lmt_callback_defined(balance_callback) : 0;
     lmt_balance_state.fewest_demerits = 0;
     lmt_balance_state.no_shrink_error_yet = 1;
     lmt_balance_state.minimum_demerits = awful_bad;
     lmt_balance_state.extra_background_stretch = 0;
+    lmt_balance_state.extra_background_shrink = 0;
     lmt_balance_state.emergency_amount = 0;
     lmt_balance_state.emergency_factor = scaling_factor;
     lmt_balance_state.emergency_percentage = 0;
@@ -1524,7 +1641,7 @@ void tex_balance(balance_properties *properties, halfword head)
                         tex_print_format("[balance: second pass, used tolerance %i]", lmt_balance_state.threshold);
                         // tex_end_diagnostic();
                     }
-                    lmt_balance_state.force_check_hyphenation = 1;
+                 // lmt_balance_state.force_check_hyphenation = 1;
                     break;
                 } else {
                     pass = balance_final_pass;
@@ -1537,7 +1654,7 @@ void tex_balance(balance_properties *properties, halfword head)
                     tex_print_format("[balance: final pass, used tolerance %i, used emergency stretch %p]", lmt_balance_state.threshold, properties->emergency_stretch);
                     // tex_end_diagnostic();
                 }
-                lmt_balance_state.force_check_hyphenation = 1;
+             // lmt_balance_state.force_check_hyphenation = 1;
                 lmt_balance_state.background[total_stretch_amount] += properties->emergency_stretch;
                 break;
             case balance_specification_pass:
@@ -1556,16 +1673,16 @@ void tex_balance(balance_properties *properties, halfword head)
                     switch (subpass) {
                         case -2:
                             lmt_balance_state.threshold = properties->pretolerance;
-                            lmt_balance_state.force_check_hyphenation = 0;
+                         // lmt_balance_state.force_check_hyphenation = 0;
                             subpass = -1;
                             break;
                         case -1:
                             lmt_balance_state.threshold = properties->tolerance;
-                            lmt_balance_state.force_check_hyphenation = 1;
+                         // lmt_balance_state.force_check_hyphenation = 1;
                             subpass = 0;
                             break;
                         default:
-                            lmt_balance_state.force_check_hyphenation = 1;
+                         // lmt_balance_state.force_check_hyphenation = 1;
                             break;
                     }
                 }
@@ -1708,7 +1825,7 @@ static void tex_aux_pre_balance(const balance_properties *properties, int callba
 
 static void tex_aux_post_balance(const balance_properties *properties, int callback_id, halfword checks, int state)
 {
-    int post_disc_break = 0;
+ // int post_disc_break = 0;
     scaled cur_height = 0;
     halfword cur_p = null;
     halfword cur_page = 1;
@@ -1731,83 +1848,54 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
         }
     }
     do {
-        halfword cur_disc = null;
-        q = temp_head;
-        /* prune */
- //     while (q) {
- //         switch (node_type(q)) {
- //             case hlist_node:
- //                 goto DONE;
- //             case glue_node:
- //                 goto DONE;
- //             case kern_node:
- //                 if (node_subtype(q) == explicit_kern_subtype) {
- //                     break;
- //                 } else {
- //                     goto DONE;
- //                 }
- //             default:
- //                 if (non_discardable(q)) {
- //                     goto DONE;
- //                 } else {
- //                     break;
- //                 }
- //         }
- //         q = node_next(q);
- //     }
- //   DONE:
+     // halfword cur_disc = null;
         r = passive_cur_break(cur_p);
         q = node_next(temp_head); 
-        post_disc_break = 0;
+     // post_disc_break = 0;
         if (r) {
-         // switch (node_type(r)) {
-         //     case glue_node:
-         //      // tex_copy_glue_values(r, properties->right_skip);
-         //      // node_subtype(r) = right_skip_glue;
-         //      // glue_break = 1;
-         //         /*tex |q| refers to the last node of the page */
-         //         q = r;
-         //      // rs = q;
-         //         r = node_prev(r);
-         //         /*tex |r| refers to the node after which the dir nodes should be closed */
-         //         break;
-         //     case disc_node:
-         //         {
-         //             halfword prv = node_prev(r);
-         //             halfword nxt = node_next(r);
-         //             halfword h = disc_no_break_head(r);
-         //             if (h) {
-         //                 tex_flush_node_list(h);
-         //                 disc_no_break_head(r) = null;
-         //                 disc_no_break_tail(r) = null;
-         //             }
-         //             h = disc_pre_break_head(r);
-         //             if (h) {
-         //                 halfword t = disc_pre_break_tail(r);
-         //                 tex_set_discpart(r, h, t, glyph_discpart_pre);
-         //                 tex_couple_nodes(prv, h);
-         //                 tex_couple_nodes(t, r);
-         //                 disc_pre_break_head(r) = null;
-         //                 disc_pre_break_tail(r) = null;
-         //             }
-         //             h = disc_post_break_head(r);
-         //             if (h) {
-         //                 halfword t = disc_post_break_tail(r);
-         //                 tex_set_discpart(r, h, t, glyph_discpart_post);
-         //                 tex_couple_nodes(r, h);
-         //                 tex_couple_nodes(t, nxt);
-         //                 disc_post_break_head(r) = null;
-         //                 disc_post_break_tail(r) = null;
-         //                 post_disc_break = 1;
-         //             }
-         //             cur_disc = r;
-         //          //  disc_break = 1;
-         //         }
-         //         break;
-         //     case kern_node:
-         //         kern_amount(r) = 0;
-         //         break;
-         // }
+            switch (node_type(r)) {
+                case glue_node:
+                    r = node_prev(r);
+                    break;
+                /*
+                case disc_node:
+                    {
+                        halfword prv = node_prev(r);
+                        halfword nxt = node_next(r);
+                        halfword h = disc_no_break_head(r);
+                        if (h) {
+                            tex_flush_node_list(h);
+                            disc_no_break_head(r) = null;
+                            disc_no_break_tail(r) = null;
+                        }
+                        h = disc_pre_break_head(r);
+                        if (h) {
+                            halfword t = disc_pre_break_tail(r);
+                            tex_set_discpart(r, h, t, glyph_discpart_pre);
+                            tex_couple_nodes(prv, h);
+                            tex_couple_nodes(t, r);
+                            disc_pre_break_head(r) = null;
+                            disc_pre_break_tail(r) = null;
+                        }
+                        h = disc_post_break_head(r);
+                        if (h) {
+                            halfword t = disc_post_break_tail(r);
+                            tex_set_discpart(r, h, t, glyph_discpart_post);
+                            tex_couple_nodes(r, h);
+                            tex_couple_nodes(t, nxt);
+                            disc_post_break_head(r) = null;
+                            disc_post_break_tail(r) = null;
+                            post_disc_break = 1;
+                        }
+                        cur_disc = r;
+                     //  disc_break = 1;
+                    }
+                    break;
+                */
+                case kern_node:
+                    kern_amount(r) = 0;
+                    break;
+            }
         } else {
             /* kind of weird */
             r = tex_tail_of_node_list(temp_head);
@@ -1823,10 +1911,11 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
         } else {
             cur_height = lmt_balance_state.target_height;
         }
-        if (q) {
+        /* option: adapt height and depth instead of skip */
+        if (q && glue_amount(properties->topskip)) { 
             halfword current = q;
             scaled height = 0; 
-            halfword gluenode = tex_new_glue_node(properties->topskip, top_skip_code);
+            halfword gluenode = tex_new_glue_node(properties->topskip, top_skip_glue);
             tex_attach_attribute_list_copy(gluenode, current); /* also in buildpage ? */
             while (current) {
                 switch (node_type(current)) {
@@ -1839,7 +1928,6 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
                         goto ADDTOPSKIP;
                     default:
                         break;
-
                 }
                 current = node_next(current);
             }
@@ -1851,7 +1939,28 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
             }
             tex_couple_nodes(gluenode, q);
             q = gluenode;
-
+        }
+        if (r && glue_amount(properties->bottomskip)) { 
+            halfword current = q;
+            scaled depth = 0; 
+            halfword gluenode = tex_new_glue_node(properties->bottomskip, bottom_skip_glue); 
+            tex_attach_attribute_list_copy(gluenode, current);
+            switch (node_type(r)) {
+                case hlist_node:
+                case vlist_node:
+                    depth = box_depth(current); 
+                    break;
+                case rule_node:
+                    depth = rule_depth(current); 
+                    break;
+            }
+            if (glue_amount(gluenode) > depth) {
+                glue_amount(gluenode) -= depth;
+            } else {
+                glue_amount(gluenode) = 0;
+            }
+            tex_couple_nodes(r, gluenode);
+            r = gluenode;
         }
         if (properties->packing == packing_additional) {
             lmt_balance_state.just_box = tex_vpack(q, 0, packing_additional, 0, 0, holding_none_option, NULL);
@@ -1864,7 +1973,8 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
         tex_tail_append(lmt_balance_state.just_box);
         ++cur_page;
         cur_p = passive_next_break(cur_p);
-        if (cur_p && ! post_disc_break) {
+     // if (cur_p && ! post_disc_break) {
+        if (cur_p) {
             r = temp_head;
             while (1) {
                 q = node_next(r);
@@ -1883,10 +1993,10 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
                 tex_try_couple_nodes(temp_head, q);
             }
         }
-        if (cur_disc) {
-            tex_try_couple_nodes(node_prev(cur_disc),node_next(cur_disc));
-            tex_flush_node(cur_disc);
-        }
+     // if (cur_disc) {
+     //     tex_try_couple_nodes(node_prev(cur_disc),node_next(cur_disc));
+     //     tex_flush_node(cur_disc);
+     // }
     } while (cur_p);
     if (cur_page != lmt_balance_state.best_page) {
      // tex_begin_diagnostic();
@@ -1897,70 +2007,3 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
         tex_confusion("balancing 2");
     }
 }
-
-//            case disc_node:
-//                if (! discarding) {
-//                    halfword replace = disc_no_break_head(current);
-//                    if (lmt_balance_state.force_check_hyphenation || (node_subtype(current) != syllable_discretionary_code)) {
-//                        halfword actual_penalty = disc_penalty(current);
-//                        halfword pre = disc_pre_break_head(current);
-//                        tex_aux_reset_disc_target(lmt_balance_state.disc_height);
-//                        if (pre) {
-//                            if (replace && node_subtype(current) != mathematics_discretionary_code) {
-//                                if (tex_has_disc_option(current, disc_option_prefer_break) || tex_has_disc_option(current, disc_option_prefer_nobreak)) {
-//                                    switch (node_type(node_next(current))) {
-//                                        case glue_node:
-//                                        case penalty_node:
-//                                        case boundary_node:
-//                                            {
-//                                                scaled hpre = tex_natural_vsize(pre);
-//                                                scaled hreplace = tex_natural_vsize(replace);
-//                                                if (tex_has_disc_option(current, disc_option_prefer_break)) {
-//                                                    halfword post = disc_post_break_head(current);
-//                                                    scaled hpost = post ? tex_natural_vsize(post) : 0;
-//                                                    if (hpost > 0) {
-//                                                        if (properties->tracing_balancing > 1) {
-//                                                            tex_begin_diagnostic();
-//                                                            tex_print_format("[balance: favour final prepost over replace, heights %p %p]", hpre + hpost, hreplace);
-//                                                            tex_short_display(node_next(temp_head));
-//                                                            tex_end_diagnostic();
-//                                                        }
-//                                                    } else {
-//                                                        goto REPLACEONLY;
-//                                                    }
-//                                                } else {
-//                                                    if (hreplace < hpre) {
-//                                                        if (properties->tracing_balancing > 1) {
-//                                                            tex_begin_diagnostic();
-//                                                            tex_print_format("[balance: favour final replace over pre, heights %p %p]", hreplace, hpre);
-//                                                            tex_short_display(node_next(temp_head));
-//                                                            tex_end_diagnostic();
-//                                                        }
-//                                                        goto REPLACEONLY;
-//                                                    }
-//                                                }
-//                                            }
-//                                    }
-//                                }
-//                            }
-//                            tex_aux_add_to_heights(pre, lmt_balance_state.disc_height);
-//                            tex_aux_add_disc_source_to_target(lmt_balance_state.active_height, lmt_balance_state.disc_height);
-//                            tex_aux_try_balance(properties, actual_penalty, hyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
-//                            tex_aux_sub_disc_target_from_source(lmt_balance_state.active_height, lmt_balance_state.disc_height);
-//                        } else {
-//                            /*tex trivial pre-break */
-//                            tex_aux_try_balance(properties, actual_penalty, hyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
-//                        }
-//                    }
-//                  REPLACEONLY:
-//                    if (replace) {
-//                        tex_aux_add_to_heights(replace, lmt_balance_state.active_height);
-//                    }
-//                } else { 
-//                    halfword replace = disc_no_break_head(current);
-//                    if (replace) {
-//                        /* todo: top skip */
-//                        tex_aux_add_to_heights(replace, lmt_balance_state.active_height);
-//                    }
-//                }
-//                break;

@@ -11,8 +11,9 @@ typedef struct balance_state_info {
     int          threshold;
     halfword     quality;
     int          callback_id;
-    int          force_check_hyphenation;
+ // int          force_check_hyphenation;
     scaled       extra_background_stretch;
+    scaled       extra_background_shrink;
     halfword     passive;
     halfword     printed_node;
     halfword     serial_number;

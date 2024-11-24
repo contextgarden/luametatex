@@ -660,6 +660,7 @@ make_lua_key(L, doublesuperscript);\
 make_lua_key(L, emergencyextrastretch);\
 make_lua_key(L, emergencyleftskip);\
 make_lua_key(L, emergencyrightskip);\
+make_lua_key(L, emergencyshrink);\
 make_lua_key(L, emergencystretch);\
 make_lua_key(L, empty);\
 make_lua_key(L, end);\
