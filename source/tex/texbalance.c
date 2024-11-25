@@ -1046,25 +1046,25 @@ static int tex_aux_set_sub_pass_parameters(
     halfword            classes
 ) {
     int success = 0;
-    uint64_t okay = tex_get_passes_okay(passes, subpass);
+    uint64_t okay = tex_get_balance_passes_okay(passes, subpass);
     if (okay & passes_tolerance_okay) {
-        properties->tolerance = tex_get_passes_tolerance(passes, subpass);
+        properties->tolerance = tex_get_balance_passes_tolerance(passes, subpass);
     }
     lmt_balance_state.threshold = properties->tolerance;
     if (okay & passes_basics_okay) {
      // if (okay & passes_hyphenation_okay) {
-     //     lmt_balance_state.force_check_hyphenation = tex_get_passes_hyphenation(passes, subpass) > 0 ? 1 : 0;
+     //     lmt_balance_state.force_check_hyphenation = tex_get_balance_passes_hyphenation(passes, subpass) > 0 ? 1 : 0;
      // }
         if (okay & passes_emergencyfactor_okay) {
-            lmt_balance_state.emergency_factor = tex_get_passes_emergencyfactor(passes, subpass);
+            lmt_balance_state.emergency_factor = tex_get_balance_passes_emergencyfactor(passes, subpass);
         }
         if (okay & passes_emergencypercentage_okay) {
-            lmt_balance_state.emergency_percentage = tex_get_passes_emergencypercentage(passes, subpass);
+            lmt_balance_state.emergency_percentage = tex_get_balance_passes_emergencypercentage(passes, subpass);
         }
     }
     /* */
     if (okay & passes_emergencystretch_okay) {
-        halfword v = tex_get_passes_emergencystretch(passes, subpass);
+        halfword v = tex_get_balance_passes_emergencystretch(passes, subpass);
         if (v) {
             properties->emergency_stretch = v;
             properties->original_stretch = v; /* ! */
@@ -1084,7 +1084,7 @@ static int tex_aux_set_sub_pass_parameters(
     lmt_balance_state.background[total_stretch_amount] += properties->emergency_stretch;
     /* */
  // if (okay & passes_emergencyshrink_okay) {
- //     halfword v = tex_get_passes_emergencyshrink(passes, subpass);
+ //     halfword v = tex_get_balance_passes_emergencyshrink(passes, subpass);
  //     if (v) {
  //         properties->emergency_shrink = v;
  //         properties->original_shrink = v; /* ! */
@@ -1099,12 +1099,29 @@ static int tex_aux_set_sub_pass_parameters(
  // } else {
  //     properties->emergency_shrink = 0;
  // }
+    if (okay & passes_additional_okay) {
+        if (okay & passes_pagepenalty_okay) {
+            properties->page_penalty = tex_get_balance_passes_pagepenalty(passes,subpass);
+        }
+        if (okay & passes_adjdemerits_okay) {
+            properties->adj_demerits = tex_get_passes_adjdemerits(passes, subpass);
+            tex_aux_set_adjacent_demerits(properties);
+        }
+        if (okay & passes_fitnessclasses_okay) { 
+            if (tex_get_balance_passes_fitnessclasses(passes, subpass)) {
+                properties->fitness_classes = tex_get_passes_fitnessclasses(passes, subpass);
+            }
+        }
+        if (okay & passes_balancechecks_okay) {
+            properties->balance_checks = tex_get_balance_passes_pagebreakchecks(passes, subpass);
+        }
+    }
     lmt_balance_state.background[total_shrink_amount] -= lmt_balance_state.extra_background_shrink;
     lmt_balance_state.extra_background_shrink = properties->emergency_shrink;
     lmt_balance_state.background[total_shrink_amount] += properties->emergency_shrink;
     /* */
     if (okay & passes_looseness_okay) {
-        properties->looseness = tex_get_passes_looseness(passes, subpass);
+        properties->looseness = tex_get_balance_passes_looseness(passes, subpass);
         tex_aux_set_looseness(properties);
     }
     if (details) {
@@ -1121,8 +1138,8 @@ static int tex_aux_set_sub_pass_parameters(
             if (features & passes_if_looseness)         { tex_print_str("  if looseness         true\n"); }
         }
         tex_print_str("  --------------------------------\n");
-        tex_print_format("%s threshold            %p\n", is_okay(passes_threshold_okay), tex_get_passes_threshold(passes, subpass));
-     // tex_print_format("%s demerits             %i\n", is_okay(passes_demerits_okay), tex_get_passes_demerits(passes, subpass));
+        tex_print_format("%s threshold            %p\n", is_okay(passes_threshold_okay), tex_get_balance_passes_threshold(passes, subpass));
+     // tex_print_format("%s demerits             %i\n", is_okay(passes_demerits_okay), tex_get_balance_passes_demerits(passes, subpass));
         tex_print_str("  --------------------------------\n");
         tex_print_format("%s tolerance            %i\n", is_okay(passes_tolerance_okay), properties->tolerance);
      // tex_print_format("%s hyphenation          %s\n", is_okay(passes_hyphenation_okay), lmt_balance_state.force_check_hyphenation ? "true": "false");
@@ -1134,7 +1151,7 @@ static int tex_aux_set_sub_pass_parameters(
         tex_print_format("%s emergencystretch     %p\n", is_okay(passes_emergencystretch_okay), properties->emergency_stretch);
      // tex_print_format("%s originalshrink       %p\n", is_okay(passes_emergencyshrink_okay), properties->original_shrink);
      // tex_print_format("%s emergencyshrink      %p\n", is_okay(passes_emergencyshrink_okay), properties->emergency_shrink);
-        tex_print_format("%s emergencyfactor      %i\n", is_okay(passes_emergencyfactor_okay), tex_get_passes_emergencyfactor(passes, subpass));
+        tex_print_format("%s emergencyfactor      %i\n", is_okay(passes_emergencyfactor_okay), tex_get_balance_passes_emergencyfactor(passes, subpass));
         tex_print_format("%s emergencypercentage  %i\n", is_okay(passes_emergencypercentage_okay), lmt_balance_state.emergency_percentage);
         tex_print_str("  --------------------------------\n");
         tex_end_diagnostic();
@@ -1154,10 +1171,10 @@ static void tex_aux_skip_message(halfword passes, int subpass, int nofsubpasses,
 static inline int tex_aux_next_subpass(const balance_properties *properties, halfword passes, int subpass, int nofsubpasses, int tracing)
 {
     while (++subpass <= nofsubpasses) {
-        halfword features = tex_get_passes_features(passes, subpass);
+        halfword features = tex_get_balance_passes_features(passes, subpass);
         if (features & passes_test_set) {
             if (features & passes_if_emergency_stretch) {
-                if (! ( (properties->original_stretch || tex_get_passes_emergencystretch(passes, subpass)) && tex_get_passes_emergencyfactor(passes, subpass) ) ) {
+                if (! ( (properties->original_stretch || tex_get_balance_passes_emergencystretch(passes, subpass)) && tex_get_balance_passes_emergencyfactor(passes, subpass) ) ) {
                     if (tracing) {
                         tex_aux_skip_message(passes, subpass, nofsubpasses, "emergency stretch");
                     }
@@ -1165,7 +1182,7 @@ static inline int tex_aux_next_subpass(const balance_properties *properties, hal
                 }
             }
          // if (features & passes_if_emergency_shrink) {
-         //     if (! ( (properties->original_shrink || tex_get_passes_emergencyshrink(passes, subpass)) && tex_get_passes_emergencyfactor(passes, subpass) ) ) {
+         //     if (! ( (properties->original_shrink || tex_get_balance_passes_emergencyshrink(passes, subpass)) && tex_get_balance_passes_emergencyfactor(passes, subpass) ) ) {
          //         if (tracing) {
          //             tex_aux_skip_message(passes, subpass, nofsubpasses, "emergency shrink");
          //         }
@@ -1207,15 +1224,15 @@ static inline int tex_aux_check_sub_pass(balance_properties *properties, scaled 
             if (subpass > nofsubpasses) {
                 return subpass;
             } else {
-                halfword features = tex_get_passes_features(passes, subpass);
+                halfword features = tex_get_balance_passes_features(passes, subpass);
                 if (features & passes_quit_pass) {
                     return -1;
                 } else if (features & passes_skip_pass) {
                     continue;
                 } else {
-                    scaled threshold = tex_get_passes_threshold(passes, subpass);
-                    halfword demerits = tex_get_passes_demerits(passes, subpass); /* here we just use defaults */
-                    halfword classes = tex_get_passes_classes(passes, subpass);   /* here we just use defaults */  
+                    scaled threshold = tex_get_balance_passes_threshold(passes, subpass);
+                    halfword demerits = tex_get_balance_passes_demerits(passes, subpass); /* here we just use defaults */
+                    halfword classes = tex_get_balance_passes_classes(passes, subpass);   /* here we just use defaults */  
                     int callback = features & passes_callback_set;
                     int success = 0;
                     int details = properties->tracing_passes > 1;
@@ -1593,10 +1610,10 @@ void tex_balance_preset(balance_properties *properties)
     properties->original_shrink    = 0;
     properties->looseness          = 0;
     properties->adj_demerits       = 0;
-    properties->page_shape         = null; 
+    properties->page_shape         = balance_shape_par; 
     properties->fitness_classes    = tex_default_fitness_classes();
     properties->hyphenation_mode   = 1;
-    properties->page_passes        = 0;   
+    properties->page_passes        = balance_passes_par;   
     properties->page_penalty       = 10; /* as in tex line_penalty */   
     properties->max_adj_demerits   = 0;
     properties->balance_checks     = balance_checks_par;
@@ -1718,7 +1735,7 @@ void tex_balance(balance_properties *properties, halfword head)
                             properties, passes, subpass,
                             first,
                             properties->tracing_passes > 1,
-                            tex_get_passes_features(passes,subpass),
+                            tex_get_balance_passes_features(passes,subpass),
                             0, 0, 0, 0, 0, 0, 0
                         );
                         lmt_balance_state.passes.n_of_specification_passes++;

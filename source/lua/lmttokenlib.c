@@ -4196,6 +4196,7 @@ int lmt_push_specification(lua_State *L, halfword ptr, int onlycount)
                     return 1;
                 }
             case par_passes_code:
+            case balance_passes_code:
                 {
                     return 0;
                 }

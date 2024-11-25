@@ -33,11 +33,13 @@ typedef enum specification_option_flags {
 
 // static inline halfword specification_n(halfword a, halfword n) { return specification_repeat(a) ? ((n - 1) % specification_count(a) + 1) : (n > specification_count(a) ? specification_count(a) : n); }
 
-# define par_passes_size    20
-# define balance_shape_size  4
+# define par_passes_size     20
+# define balance_shape_size   4
+# define balance_passes_size  9
 
-# define par_passes_slot(n,m)    ((n-1)*par_passes_size   +m)
-# define balance_shape_slot(n,m) ((n-1)*balance_shape_size+m)
+# define par_passes_slot(n,m)     ((n-1)*par_passes_size+m)
+# define balance_shape_slot(n,m)  ((n-1)*balance_shape_size+m)
+# define balance_passes_slot(n,m) ((n-1)*balance_passes_size+m)
 
 extern void            tex_null_specification_list     (halfword a);
 extern void            tex_new_specification_list      (halfword a, halfword n);
@@ -272,6 +274,9 @@ typedef enum passes_parameter_okay {
     /* */
     passes_reserved_1_okay           = 0x40000000,
     passes_reserved_2_okay           = 0x80000000,
+    /* nicer */
+    passes_pagepenalty_okay          = 0x00000800,
+    passes_balancechecks_okay        = 0x00800000,
     /*tex Watch out: the following options exceed halfword: |noad_options| are |long long|. */
 } passes_parameters_okay;
 
@@ -391,14 +396,8 @@ static inline halfword tex_get_passes_looseness            (halfword a, halfword
 static inline halfword tex_get_passes_orphanlinefactors    (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,18)).half1;   }
 static inline halfword tex_get_passes_orphanpenalties      (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,19)).half0;   }
 
-extern        halfword tex_new_specification_node          (halfword n, quarterword s, halfword options);
-extern        void     tex_dispose_specification_nodes     (void);
-extern        void     tex_run_specification_spec          (void);
-extern        halfword tex_scan_specifier                  (void);
-extern        void     tex_aux_set_specification           (int a, halfword target);
-extern        halfword tex_aux_get_specification_value     (int a, halfword code);
 
-/* balance */
+/* balance shape */
 
 static inline void     tex_set_balance_index       (halfword a, halfword n, halfword v) { specification_index(a,balance_shape_slot(n,1)).half0 = v; }
 static inline void     tex_set_balance_height      (halfword a, halfword n, halfword v) { specification_index(a,balance_shape_slot(n,1)).half1 = v; }
@@ -413,5 +412,46 @@ static inline halfword tex_get_balance_topskip     (halfword a, halfword n) { re
 static inline halfword tex_get_balance_bottomskip  (halfword a, halfword n) { return specification_index(a,balance_shape_slot(n,2)).half1; }
 static inline halfword tex_get_balance_options     (halfword a, halfword n) { return specification_index(a,balance_shape_slot(n,3)).half0; }
 static inline halfword tex_get_balance_reserved    (halfword a, halfword n) { return specification_index(a,balance_shape_slot(n,3)).half1; }
+
+/* balance passes */
+
+static inline void tex_set_balance_passes_okay                (halfword a, halfword n, uint64_t v) { specification_index(a,balance_passes_slot(n, 1)).long0   |= v; }
+static inline void tex_set_balance_passes_features            (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n, 2)).quart00 |= (v & 0xFFFF); }
+static inline void tex_set_balance_passes_classes             (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n, 2)).quart01 |= (v & 0xFFFF); }
+static inline void tex_set_balance_passes_threshold           (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n, 3)).half1 = v; };
+static inline void tex_set_balance_passes_demerits            (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n, 3)).half0 = v; };
+static inline void tex_set_balance_passes_tolerance           (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n, 4)).half1 = v; };
+static inline void tex_set_balance_passes_emergencyfactor     (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n, 4)).half0 = v; };
+static inline void tex_set_balance_passes_emergencypercentage (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n, 5)).half1 = v; };
+static inline void tex_set_balance_passes_emergencystretch    (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n, 5)).half0 = v; };
+static inline void tex_set_balance_passes_fitnessclasses      (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n, 6)).half1 = v; };
+static inline void tex_set_balance_passes_looseness           (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n, 6)).half0 = v; };
+static inline void tex_set_balance_passes_pagebreakchecks     (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n, 7)).half1 = v; };
+static inline void tex_set_balance_passes_pagepenalty         (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n, 7)).half0 = v; };
+//     inline void tex_set_balance_passes_hyphenation         (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n, 8)).half1 = v; };
+
+static inline halfword tex_get_balance_passes_okay                (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n, 1)).long0;   };
+static inline halfword tex_get_balance_passes_features            (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n, 2)).quart00; };
+static inline halfword tex_get_balance_passes_classes             (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n, 2)).quart01; };
+static inline halfword tex_get_balance_passes_threshold           (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n, 3)).half1;   };
+static inline halfword tex_get_balance_passes_demerits            (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n, 3)).half0;   };
+static inline halfword tex_get_balance_passes_tolerance           (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n, 4)).half1;   };
+static inline halfword tex_get_balance_passes_emergencyfactor     (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n, 4)).half0;   };
+static inline halfword tex_get_balance_passes_emergencypercentage (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n, 5)).half1;   };
+static inline halfword tex_get_balance_passes_emergencystretch    (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n, 5)).half0;   };
+static inline halfword tex_get_balance_passes_fitnessclasses      (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n, 6)).half1;   };
+static inline halfword tex_get_balance_passes_looseness           (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n, 6)).half0;   };
+static inline halfword tex_get_balance_passes_pagebreakchecks     (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n, 7)).half1;   };
+static inline halfword tex_get_balance_passes_pagepenalty         (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n, 7)).half0;   };
+//     inline halfword tex_set_balance_passes_hyphenation         (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n, 8)).half1;   };
+
+/* general */
+
+extern        halfword tex_new_specification_node          (halfword n, quarterword s, halfword options);
+extern        void     tex_dispose_specification_nodes     (void);
+extern        void     tex_run_specification_spec          (void);
+extern        halfword tex_scan_specifier                  (void);
+extern        void     tex_aux_set_specification           (int a, halfword target);
+extern        halfword tex_aux_get_specification_value     (int a, halfword code);
 
 # endif

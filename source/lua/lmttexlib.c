@@ -3946,6 +3946,22 @@ static halfword texlib_topenalties(lua_State *L, int i, quarterword s)
     }
 }
 
+static halfword texlib_toparpasses(lua_State *L, int i)
+{
+    /* maybe some day */
+    (void) *L;
+    (void) i;
+    return 0;
+}
+
+static halfword texlib_tobalancepasses(lua_State *L, int i)
+{
+    /* maybe some day */
+    (void) *L;
+    (void) i;
+    return 0;
+}
+
 /*tex We should check for proper glue spec nodes ... todo. */
 
 # define get_dimension_par(P,A,B) \
@@ -3966,6 +3982,16 @@ static halfword texlib_topenalties(lua_State *L, int i, quarterword s)
 # define get_penalties_par(P,A,B,C) \
     lua_push_key(A); \
     P = (lua_rawget(L, -2) == LUA_TTABLE) ? texlib_topenalties(L, lua_gettop(L), C) : B; \
+    lua_pop(L, 1);
+
+# define get_par_passes_par(P,A,B) \
+    lua_push_key(A); \
+    P = (lua_rawget(L, -2) == LUA_TTABLE) ? texlib_toparpasses(L, lua_gettop(L)) : B; \
+    lua_pop(L, 1);
+
+# define get_balance_passes_par(P,A,B) \
+    lua_push_key(A); \
+    P = (lua_rawget(L, -2) == LUA_TTABLE) ? texlib_tobalancepasses(L, lua_gettop(L)) : B; \
     lua_pop(L, 1);
 
 # define get_demerits_par(P,A,B,C) \
@@ -4217,62 +4243,62 @@ static int texlib_linebreak(lua_State *L)
             properties.paragraph_options = (singleword) lmt_tointeger(L, -1);
         }
         lua_pop(L, 1);
-        get_integer_par  (properties.tracing_paragraphs,           tracingparagraphs,         tracing_paragraphs_par);
-        get_integer_par  (properties.tracing_fitness,              tracingfitness ,           tracing_fitness_par);
-        get_integer_par  (properties.tracing_passes,               tracingpasses,             tracing_passes_par);
-        get_integer_par  (properties.pretolerance,                 pretolerance,              tex_get_par_par(par, par_pre_tolerance_code));
-        get_integer_par  (properties.tolerance,                    tolerance,                 tex_get_par_par(par, par_tolerance_code));
-        get_dimension_par(properties.emergency_stretch,            emergencystretch,          tex_get_par_par(par, par_emergency_stretch_code));
-        get_dimension_par(properties.emergency_extra_stretch,      emergencyextrastretch,     tex_get_par_par(par, par_emergency_extra_stretch_code));
-        get_integer_par  (properties.looseness,                    looseness,                 tex_get_par_par(par, par_looseness_code));
-        get_integer_par  (properties.adjust_spacing,               adjustspacing,             tex_get_par_par(par, par_adjust_spacing_code));
-        get_integer_par  (properties.protrude_chars,               protrudechars,             tex_get_par_par(par, par_protrude_chars_code));
-        get_integer_par  (properties.adj_demerits,                 adjdemerits,               tex_get_par_par(par, par_adj_demerits_code));
-        get_integer_par  (properties.line_penalty,                 linepenalty,               tex_get_par_par(par, par_line_penalty_code));
-        get_integer_par  (properties.last_line_fit,                lastlinefit,               tex_get_par_par(par, par_last_line_fit_code));
-        get_integer_par  (properties.double_hyphen_demerits,       doublehyphendemerits,      tex_get_par_par(par, par_double_hyphen_demerits_code));
-        get_integer_par  (properties.final_hyphen_demerits,        finalhyphendemerits,       tex_get_par_par(par, par_final_hyphen_demerits_code));
-        get_dimension_par(properties.hsize,                        hsize,                     tex_get_par_par(par, par_hsize_code));
-        get_glue_par     (properties.left_skip,                    leftskip,                  tex_get_par_par(par, par_left_skip_code));
-        get_glue_par     (properties.right_skip,                   rightskip,                 tex_get_par_par(par, par_right_skip_code));
-        get_glue_par     (properties.emergency_left_skip,          emergencyleftskip,         tex_get_par_par(par, par_emergency_left_skip_code));
-        get_glue_par     (properties.emergency_right_skip,         emergencyrightskip,        tex_get_par_par(par, par_emergency_right_skip_code));
-        get_dimension_par(properties.hang_indent,                  hangindent,                tex_get_par_par(par, par_hang_indent_code));
-        get_integer_par  (properties.hang_after,                   hangafter,                 tex_get_par_par(par, par_hang_after_code));
-        get_integer_par  (properties.inter_line_penalty,           interlinepenalty,          tex_get_par_par(par, par_inter_line_penalty_code));
-        get_integer_par  (properties.club_penalty,                 clubpenalty,               tex_get_par_par(par, par_club_penalty_code));
-        get_integer_par  (properties.widow_penalty,                widowpenalty,              tex_get_par_par(par, par_widow_penalty_code));
-        get_integer_par  (properties.display_widow_penalty,        displaywidowpenalty,       tex_get_par_par(par, par_display_widow_penalty_code));
-        get_integer_par  (properties.toddler_penalties,            toddlerpenalties,          tex_get_par_par(par, par_toddler_penalties_code));
-        get_integer_par  (properties.left_twin_demerits,           lefttwindemerits,          tex_get_par_par(par, par_left_twin_demerits_code));
-        get_integer_par  (properties.right_twin_demerits,          righttwindemerits,         tex_get_par_par(par, par_right_twin_demerits_code));
-        get_integer_par  (properties.single_line_penalty,          singlelinepenalty,         tex_get_par_par(par, par_single_line_penalty_code));
-        get_integer_par  (properties.hyphen_penalty,               hyphenpenalty,             tex_get_par_par(par, par_hyphen_penalty_code));
-        get_integer_par  (properties.ex_hyphen_penalty,            exhyphenpenalty,           tex_get_par_par(par, par_ex_hyphen_penalty_code));
-        get_integer_par  (properties.broken_penalty,               brokenpenalty,             tex_get_par_par(par, par_broken_penalty_code));
-        get_glue_par     (properties.baseline_skip,                baselineskip,              tex_get_par_par(par, par_baseline_skip_code));
-        get_glue_par     (properties.line_skip,                    lineskip,                  tex_get_par_par(par, par_line_skip_code));
-        get_dimension_par(properties.line_skip_limit,              lineskiplimit,             tex_get_par_par(par, par_line_skip_limit_code));
-        get_integer_par  (properties.adjust_spacing,               adjustspacing,             tex_get_par_par(par, par_adjust_spacing_code));
-        get_integer_par  (properties.adjust_spacing_step,          adjustspacingstep,         tex_get_par_par(par, par_adjust_spacing_step_code));
-        get_integer_par  (properties.adjust_spacing_shrink,        adjustspacingshrink,       tex_get_par_par(par, par_adjust_spacing_shrink_code));
-        get_integer_par  (properties.adjust_spacing_stretch,       adjustspacingstretch,      tex_get_par_par(par, par_adjust_spacing_stretch_code));
-        get_integer_par  (properties.hyphenation_mode,             hyphenationmode,           tex_get_par_par(par, par_hyphenation_mode_code));
-        get_integer_par  (properties.shaping_penalties_mode,       shapingpenaltiesmode,      tex_get_par_par(par, par_shaping_penalties_mode_code));
-        get_integer_par  (properties.shaping_penalty,              shapingpenalty,            tex_get_par_par(par, par_shaping_penalty_code));
-        get_shape_par    (properties.par_shape,                    parshape,                  tex_get_par_par(par, par_par_shape_code));
-        get_penalties_par(properties.inter_line_penalties,         interlinepenalties,        tex_get_par_par(par, par_inter_line_penalties_code), inter_line_penalties_code);
-        get_penalties_par(properties.club_penalties,               clubpenalties,             tex_get_par_par(par, par_club_penalties_code), club_penalties_code);
-        get_penalties_par(properties.widow_penalties,              widowpenalties,            tex_get_par_par(par, par_widow_penalties_code), widow_penalties_code);
-        get_penalties_par(properties.display_widow_penalties,      displaywidowpenalties,     tex_get_par_par(par, par_display_widow_penalties_code), display_widow_penalties_code);
-        get_penalties_par(properties.broken_penalties,             brokenpenalties,           tex_get_par_par(par, par_broken_penalties_code), broken_penalties_code);
-        get_penalties_par(properties.orphan_penalties,             orphanpenalties,           tex_get_par_par(par, par_orphan_penalties_code), orphan_penalties_code);
-        get_demerits_par (properties.fitness_classes,              fitnessclasses,            tex_get_par_par(par, par_fitness_classes_code), fitness_classes_code);
-        get_demerits_par (properties.adjacent_demerits,            adjacentdemerits,          tex_get_par_par(par, par_adjacent_demerits_code), adjacent_demerits_code);
-        get_demerits_par (properties.orphan_line_factors,          orphanlinefactors,         tex_get_par_par(par, par_orphan_line_factors_code), orphan_line_factors_code);
-        get_penalties_par(properties.par_passes,                   parpasses,                 line_break_passes_par > 0 ? tex_get_par_par(par, par_par_passes_code) : null, par_passes_code);
-        get_integer_par  (properties.line_break_checks,            linebreakchecks,           tex_get_par_par(par, par_line_break_checks_code));
-        get_integer_par  (properties.line_break_optional,          linebreakoptional,         line_break_optional_par); /* hm */
+        get_integer_par   (properties.tracing_paragraphs,           tracingparagraphs,         tracing_paragraphs_par);
+        get_integer_par   (properties.tracing_fitness,              tracingfitness ,           tracing_fitness_par);
+        get_integer_par   (properties.tracing_passes,               tracingpasses,             tracing_passes_par);
+        get_integer_par   (properties.pretolerance,                 pretolerance,              tex_get_par_par(par, par_pre_tolerance_code));
+        get_integer_par   (properties.tolerance,                    tolerance,                 tex_get_par_par(par, par_tolerance_code));
+        get_dimension_par (properties.emergency_stretch,            emergencystretch,          tex_get_par_par(par, par_emergency_stretch_code));
+        get_dimension_par (properties.emergency_extra_stretch,      emergencyextrastretch,     tex_get_par_par(par, par_emergency_extra_stretch_code));
+        get_integer_par   (properties.looseness,                    looseness,                 tex_get_par_par(par, par_looseness_code));
+        get_integer_par   (properties.adjust_spacing,               adjustspacing,             tex_get_par_par(par, par_adjust_spacing_code));
+        get_integer_par   (properties.protrude_chars,               protrudechars,             tex_get_par_par(par, par_protrude_chars_code));
+        get_integer_par   (properties.adj_demerits,                 adjdemerits,               tex_get_par_par(par, par_adj_demerits_code));
+        get_integer_par   (properties.line_penalty,                 linepenalty,               tex_get_par_par(par, par_line_penalty_code));
+        get_integer_par   (properties.last_line_fit,                lastlinefit,               tex_get_par_par(par, par_last_line_fit_code));
+        get_integer_par   (properties.double_hyphen_demerits,       doublehyphendemerits,      tex_get_par_par(par, par_double_hyphen_demerits_code));
+        get_integer_par   (properties.final_hyphen_demerits,        finalhyphendemerits,       tex_get_par_par(par, par_final_hyphen_demerits_code));
+        get_dimension_par (properties.hsize,                        hsize,                     tex_get_par_par(par, par_hsize_code));
+        get_glue_par      (properties.left_skip,                    leftskip,                  tex_get_par_par(par, par_left_skip_code));
+        get_glue_par      (properties.right_skip,                   rightskip,                 tex_get_par_par(par, par_right_skip_code));
+        get_glue_par      (properties.emergency_left_skip,          emergencyleftskip,         tex_get_par_par(par, par_emergency_left_skip_code));
+        get_glue_par      (properties.emergency_right_skip,         emergencyrightskip,        tex_get_par_par(par, par_emergency_right_skip_code));
+        get_dimension_par (properties.hang_indent,                  hangindent,                tex_get_par_par(par, par_hang_indent_code));
+        get_integer_par   (properties.hang_after,                   hangafter,                 tex_get_par_par(par, par_hang_after_code));
+        get_integer_par   (properties.inter_line_penalty,           interlinepenalty,          tex_get_par_par(par, par_inter_line_penalty_code));
+        get_integer_par   (properties.club_penalty,                 clubpenalty,               tex_get_par_par(par, par_club_penalty_code));
+        get_integer_par   (properties.widow_penalty,                widowpenalty,              tex_get_par_par(par, par_widow_penalty_code));
+        get_integer_par   (properties.display_widow_penalty,        displaywidowpenalty,       tex_get_par_par(par, par_display_widow_penalty_code));
+        get_integer_par   (properties.toddler_penalties,            toddlerpenalties,          tex_get_par_par(par, par_toddler_penalties_code));
+        get_integer_par   (properties.left_twin_demerits,           lefttwindemerits,          tex_get_par_par(par, par_left_twin_demerits_code));
+        get_integer_par   (properties.right_twin_demerits,          righttwindemerits,         tex_get_par_par(par, par_right_twin_demerits_code));
+        get_integer_par   (properties.single_line_penalty,          singlelinepenalty,         tex_get_par_par(par, par_single_line_penalty_code));
+        get_integer_par   (properties.hyphen_penalty,               hyphenpenalty,             tex_get_par_par(par, par_hyphen_penalty_code));
+        get_integer_par   (properties.ex_hyphen_penalty,            exhyphenpenalty,           tex_get_par_par(par, par_ex_hyphen_penalty_code));
+        get_integer_par   (properties.broken_penalty,               brokenpenalty,             tex_get_par_par(par, par_broken_penalty_code));
+        get_glue_par      (properties.baseline_skip,                baselineskip,              tex_get_par_par(par, par_baseline_skip_code));
+        get_glue_par      (properties.line_skip,                    lineskip,                  tex_get_par_par(par, par_line_skip_code));
+        get_dimension_par (properties.line_skip_limit,              lineskiplimit,             tex_get_par_par(par, par_line_skip_limit_code));
+        get_integer_par   (properties.adjust_spacing,               adjustspacing,             tex_get_par_par(par, par_adjust_spacing_code));
+        get_integer_par   (properties.adjust_spacing_step,          adjustspacingstep,         tex_get_par_par(par, par_adjust_spacing_step_code));
+        get_integer_par   (properties.adjust_spacing_shrink,        adjustspacingshrink,       tex_get_par_par(par, par_adjust_spacing_shrink_code));
+        get_integer_par   (properties.adjust_spacing_stretch,       adjustspacingstretch,      tex_get_par_par(par, par_adjust_spacing_stretch_code));
+        get_integer_par   (properties.hyphenation_mode,             hyphenationmode,           tex_get_par_par(par, par_hyphenation_mode_code));
+        get_integer_par   (properties.shaping_penalties_mode,       shapingpenaltiesmode,      tex_get_par_par(par, par_shaping_penalties_mode_code));
+        get_integer_par   (properties.shaping_penalty,              shapingpenalty,            tex_get_par_par(par, par_shaping_penalty_code));
+        get_shape_par     (properties.par_shape,                    parshape,                  tex_get_par_par(par, par_par_shape_code));
+        get_penalties_par (properties.inter_line_penalties,         interlinepenalties,        tex_get_par_par(par, par_inter_line_penalties_code), inter_line_penalties_code);
+        get_penalties_par (properties.club_penalties,               clubpenalties,             tex_get_par_par(par, par_club_penalties_code), club_penalties_code);
+        get_penalties_par (properties.widow_penalties,              widowpenalties,            tex_get_par_par(par, par_widow_penalties_code), widow_penalties_code);
+        get_penalties_par (properties.display_widow_penalties,      displaywidowpenalties,     tex_get_par_par(par, par_display_widow_penalties_code), display_widow_penalties_code);
+        get_penalties_par (properties.broken_penalties,             brokenpenalties,           tex_get_par_par(par, par_broken_penalties_code), broken_penalties_code);
+        get_penalties_par (properties.orphan_penalties,             orphanpenalties,           tex_get_par_par(par, par_orphan_penalties_code), orphan_penalties_code);
+        get_demerits_par  (properties.fitness_classes,              fitnessclasses,            tex_get_par_par(par, par_fitness_classes_code), fitness_classes_code);
+        get_demerits_par  (properties.adjacent_demerits,            adjacentdemerits,          tex_get_par_par(par, par_adjacent_demerits_code), adjacent_demerits_code);
+        get_demerits_par  (properties.orphan_line_factors,          orphanlinefactors,         tex_get_par_par(par, par_orphan_line_factors_code), orphan_line_factors_code);
+        get_par_passes_par(properties.par_passes,                   parpasses,                 line_break_passes_par > 0 ? tex_get_par_par(par, par_par_passes_code) : null);
+        get_integer_par   (properties.line_break_checks,            linebreakchecks,           tex_get_par_par(par, par_line_break_checks_code));
+        get_integer_par   (properties.line_break_optional,          linebreakoptional,         line_break_optional_par); /* hm */
         if (! prepared) {
             halfword attr_template = tail;
             halfword final_line_penalty = tex_new_penalty_node(infinite_penalty, line_penalty_subtype);
@@ -4399,23 +4425,23 @@ static int texlib_balance(lua_State *L)
         if (lua_gettop(L) != 2 || lua_type(L, 2) != LUA_TTABLE) {
             lua_newtable(L);
         }
-        get_integer_par  (properties.tracing_balancing,  tracingbalancing,  properties.tracing_balancing);
-        get_integer_par  (properties.tracing_fitness,    tracingfitness ,   properties.tracing_fitness);
-        get_integer_par  (properties.tracing_passes,     tracingpasses,     properties.tracing_passes);
-        get_integer_par  (properties.pretolerance,       pretolerance,      properties.pretolerance);
-        get_integer_par  (properties.tolerance,          tolerance,         properties.tolerance);
-        get_dimension_par(properties.emergency_stretch,  emergencystretch,  properties.emergency_stretch);
-        get_dimension_par(properties.emergency_shrink,   emergencyshrink,   properties.emergency_shrink);
-        get_integer_par  (properties.looseness,          looseness,         properties.looseness);
-        get_integer_par  (properties.adj_demerits,       adjdemerits,       properties.adj_demerits);
-        get_dimension_par(properties.vsize,              vsize,             properties.vsize);
-        get_glue_par     (properties.topskip,            topskip,           properties.topskip);
-        get_glue_par     (properties.bottomskip,         bottomskip,        properties.bottomskip);
-        get_balance_shape(properties.page_shape,         pageshape,         null);
-        get_integer_par  (properties.page_penalty,       pagepenalty,       properties.page_penalty);
-        get_penalties_par(properties.page_passes,        pagepasses,        null, par_passes_code);
-        get_integer_par  (properties.balance_checks,     balancechecks,     properties.balance_checks);
-        get_integer_par  (properties.packing,            packing,           properties.packing);
+        get_integer_par       (properties.tracing_balancing,  tracingbalancing,  properties.tracing_balancing);
+        get_integer_par       (properties.tracing_fitness,    tracingfitness ,   properties.tracing_fitness);
+        get_integer_par       (properties.tracing_passes,     tracingpasses,     properties.tracing_passes);
+        get_integer_par       (properties.pretolerance,       pretolerance,      properties.pretolerance);
+        get_integer_par       (properties.tolerance,          tolerance,         properties.tolerance);
+        get_dimension_par     (properties.emergency_stretch,  emergencystretch,  properties.emergency_stretch);
+        get_dimension_par     (properties.emergency_shrink,   emergencyshrink,   properties.emergency_shrink);
+        get_integer_par       (properties.looseness,          looseness,         properties.looseness);
+        get_integer_par       (properties.adj_demerits,       adjdemerits,       properties.adj_demerits);
+        get_dimension_par     (properties.vsize,              vsize,             properties.vsize);
+        get_glue_par          (properties.topskip,            topskip,           properties.topskip);
+        get_glue_par          (properties.bottomskip,         bottomskip,        properties.bottomskip);
+        get_balance_shape     (properties.page_shape,         pageshape,         null);
+        get_integer_par       (properties.page_penalty,       pagepenalty,       properties.page_penalty);
+        get_balance_passes_par(properties.page_passes,        pagepasses,        balance_break_passes_par > 0 ? balance_passes_par : null);
+        get_integer_par       (properties.balance_checks,     balancechecks,     properties.balance_checks);
+        get_integer_par       (properties.packing,            packing,           properties.packing);
         /* */
         tex_balance(&properties, head);
         /* */

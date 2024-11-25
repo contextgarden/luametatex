@@ -285,6 +285,7 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "automigrationmode",              internal_integer_cmd,   auto_migration_mode_code,                 internal_integer_base);
         tex_primitive(luatex_command, "autoparagraphmode",              internal_integer_cmd,   auto_paragraph_mode_code,                 internal_integer_base);
         tex_primitive(luatex_command, "balancechecks",                  internal_integer_cmd,   balance_checks_code,                      internal_integer_base);
+        tex_primitive(luatex_command, "balancebreakpasses",             internal_integer_cmd,   balance_break_passes_code,                internal_integer_base);
         tex_primitive(tex_command,    "binoppenalty",                   internal_integer_cmd,   post_binary_penalty_code,                 internal_integer_base); /*tex For old times sake. */
         tex_primitive(tex_command,    "brokenpenalty",                  internal_integer_cmd,   broken_penalty_code,                      internal_integer_base);
         tex_primitive(luatex_command, "catcodetable",                   internal_integer_cmd,   cat_code_table_code,                      internal_integer_base);
@@ -682,7 +683,8 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "parpasses",                      specification_cmd,      par_passes_code,                          internal_specification_base);
         tex_primitive(luatex_command, "parpassesexception",             specification_cmd,      par_passes_exception_code,                internal_specification_base);
         tex_primitive(tex_command,    "parshape",                       specification_cmd,      par_shape_code,                           internal_specification_base);
-        tex_primitive(tex_command,    "balanceshape",                   specification_cmd,      balance_shape_code,                       internal_specification_base);
+        tex_primitive(luatex_command, "balanceshape",                   specification_cmd,      balance_shape_code,                       internal_specification_base);
+        tex_primitive(luatex_command, "balancepasses",                  specification_cmd,      balance_passes_code,                      internal_specification_base);
         tex_primitive(etex_command,   "widowpenalties",                 specification_cmd,      widow_penalties_code,                     internal_specification_base);
         tex_primitive(luatex_command, "brokenpenalties",                specification_cmd,      broken_penalties_code,                    internal_specification_base);
         tex_primitive(luatex_command, "fitnessclasses",                 specification_cmd,      fitness_classes_code,                     internal_specification_base);

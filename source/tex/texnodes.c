@@ -4987,6 +4987,9 @@ static void *tex_aux_allocate_specification(halfword p, int n, size_t *size)
         case balance_shape_code: 
             n *= balance_shape_size;
             break;
+        case balance_passes_code:
+            n *= balance_passes_size;
+            break;
         default:
             break;
     }
@@ -5066,6 +5069,9 @@ void tex_dispose_specification_list(halfword a)
                     }
                 }
                 break;
+            case balance_passes_code:
+                /* todo */
+                break;
         }
         tex_aux_deallocate_specification(specification_pointer(a), specification_size(a));
         specification_pointer(a) = NULL;
@@ -5107,6 +5113,9 @@ void tex_copy_specification_list(halfword target, halfword source)
                             tex_set_balance_bottomskip(target, i, c);
                         }
                     }
+                    break;
+                case balance_passes_code:
+                    /* todo */
                     break;
             }
             /* */

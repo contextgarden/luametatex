@@ -388,6 +388,7 @@ typedef enum specification_codes {
     par_passes_code,
     par_passes_exception_code,
     balance_shape_code,
+    balance_passes_code,
     inter_line_penalties_code,    /*tex additional penalties between lines */
     club_penalties_code,          /*tex penalties for creating club lines */
     widow_penalties_code,         /*tex penalties for creating widow lines */
@@ -679,6 +680,7 @@ typedef enum int_codes {
     line_break_optional_code,
     line_break_checks_code,
     balance_checks_code,
+    balance_break_passes_code,
     vsplit_checks_code,
     etex_expr_mode_code,
     par_options_code,
@@ -1473,6 +1475,7 @@ extern void tex_word_define        (int g, halfword p, halfword w);
 # define local_middle_box_par             box_parameter(local_middle_box_code)
 
 # define balance_checks_par               integer_parameter(balance_checks_code)
+# define balance_break_passes_par         integer_parameter(balance_break_passes_code)
 # define line_break_checks_par            integer_parameter(line_break_checks_code)
 # define vsplit_checks_par                integer_parameter(vsplit_checks_code)
 
@@ -1587,6 +1590,7 @@ typedef enum shaping_penalties_mode_bits {
 # define par_passes_par                  specification_parameter(par_passes_code)
 # define par_passes_exception_par        specification_parameter(par_passes_exception_code)
 # define balance_shape_par               specification_parameter(balance_shape_code)
+# define balance_passes_par              specification_parameter(balance_passes_code)
 # define inter_line_penalties_par        specification_parameter(inter_line_penalties_code)
 # define club_penalties_par              specification_parameter(club_penalties_code)
 # define widow_penalties_par             specification_parameter(widow_penalties_code)
@@ -1907,6 +1911,7 @@ extern halfword tex_explicit_disc_penalty  (halfword mode);
 # define update_tex_text_direction(v)          tex_eq_word_define(internal_integer_location(text_direction_code), v)
 # define update_tex_line_break_checks(v)       tex_eq_word_define(internal_integer_location(line_break_checks_code), v)
 # define update_tex_balance_checks(v)          tex_eq_word_define(internal_integer_location(balance_checks_code), v)
+# define update_tex_balance_break_passes(v)    tex_eq_word_define(internal_integer_location(balance_break_passes_code), v)
 
 # define update_tex_font_identifier(v)         tex_eq_word_define(internal_integer_location(font_code), v)
 # define update_tex_glyph_scale(v)             tex_eq_word_define(internal_integer_location(glyph_scale_code), v)
@@ -1922,6 +1927,7 @@ extern halfword tex_explicit_disc_penalty  (halfword mode);
 # define update_tex_par_passes(v)               tex_eq_define(internal_specification_location(par_passes_code),              specification_reference_cmd, v)
 # define update_tex_par_passes_exception(v)     tex_eq_define(internal_specification_location(par_passes_exception_code),    specification_reference_cmd, v)
 # define update_tex_balance_shape(v)            tex_eq_define(internal_specification_location(balance_shape_code),           specification_reference_cmd, v)
+# define update_tex_balance_passes(v)           tex_eq_define(internal_specification_location(balance_passes_code),          specification_reference_cmd, v)
 # define update_tex_inter_line_penalties(v)     tex_eq_define(internal_specification_location(inter_line_penalties_code),    specification_reference_cmd, v)
 # define update_tex_club_penalties(v)           tex_eq_define(internal_specification_location(club_penalties_code),          specification_reference_cmd, v)
 # define update_tex_widow_penalties(v)          tex_eq_define(internal_specification_location(widow_penalties_code),         specification_reference_cmd, v)
