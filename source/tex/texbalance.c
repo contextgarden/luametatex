@@ -39,6 +39,7 @@
     check usage of temphead (in helpers)
     skip to next when frozen overfull 
     share callback functions and use generic contexts 
+    always shape : continue or repeat, less code that way 
 
 */
 
@@ -512,12 +513,14 @@ static void tex_aux_set_quality(halfword active, halfword passive, scaled shrt, 
     active_deficiency(active) = deficiency;
 }
 
-static void tex_check_skips_shortfall(const balance_properties *properties, halfword breakpoint, halfword first, halfword current, halfword *shortfall)
+static void tex_check_skips_shortfall(const balance_properties *properties, halfword breakpoint, halfword first, halfword current, halfword page_topskip, halfword page_bottomskip, halfword *shortfall, halfword *stretch, halfword *shrink)
 {
     halfword left = active_break_node(breakpoint) ? passive_cur_break(active_break_node(breakpoint)) : first; /* nasty */
     scaled top = 0;
     scaled bottom = 0;
-    if (glue_amount(properties->topskip)) {
+    *stretch = 0;
+    *shrink = 0;
+    if (! tex_glue_is_zero(page_topskip)) {
         /* todo: check breakable */
         halfword c = left;
         scaled h = 0;
@@ -537,12 +540,14 @@ static void tex_check_skips_shortfall(const balance_properties *properties, half
                     break;
             }
         }
-        if (glue_amount(properties->topskip) > h) {
-            top = glue_amount(properties->topskip) - h;
+        if (glue_amount(page_topskip) > h) {
+            top = glue_amount(page_topskip) - h;
             *shortfall -= top;
+            *stretch += glue_stretch(page_topskip);
+            *shrink += glue_shrink(page_topskip);
         }
     }
-    if (glue_amount(properties->bottomskip)) {
+    if (! tex_glue_is_zero(page_bottomskip)) {
         halfword c = node_prev(current);
         scaled d = 0;
         while (c) {
@@ -561,9 +566,11 @@ static void tex_check_skips_shortfall(const balance_properties *properties, half
                     break;
             }
         }
-        if (glue_amount(properties->bottomskip) > d) {
-            bottom = glue_amount(properties->bottomskip) - d;
+        if (glue_amount(page_bottomskip) > d) {
+            bottom = glue_amount(page_bottomskip) - d;
             *shortfall -= bottom;
+            *stretch += glue_stretch(page_bottomskip);
+            *shrink += glue_shrink(page_bottomskip);
         }
     }
     if ((top || bottom) && properties->tracing_balancing > 2) {
@@ -598,12 +605,16 @@ static scaled tex_aux_try_balance(
     int demerits = 0;
     scaled glue = 0;
     scaled shortfall = 0;
+    scaled stretch = 0;
+    scaled shrink = 0;
     halfword old_page = 0;
     bool no_break_yet = true;
     int current_stays_active;
     halfword fit_class;
     int artificial_demerits;
     scaled page_height = 0;
+    halfword page_topskip = 0;
+    halfword page_bottomskip = 0;
     halfword page = 0;
     if (penalty >= infinite_penalty) {
         return shortfall;
@@ -625,10 +636,22 @@ static scaled tex_aux_try_balance(
         page = active_page_number(current);
         if (page > old_page) {
             if ((lmt_balance_state.minimum_demerits < awful_bad) && ((old_page != lmt_balance_state.easy_page) || (current == active_head))) {
-                if (properties->page_shape) {
-                    page_height = tex_get_specification_height(properties->page_shape, page);
+                if (page > lmt_balance_state.easy_page) {
+                    page_height = lmt_balance_state.second_height;
+                    page_topskip = lmt_balance_state.second_topskip;
+                    page_bottomskip = lmt_balance_state.second_bottomskip;
+                } else if (page > lmt_balance_state.last_special_page) {
+                    page_height = lmt_balance_state.second_height;
+                    page_topskip = lmt_balance_state.second_topskip;
+                    page_bottomskip = lmt_balance_state.second_bottomskip;
+                } else if (properties->page_shape) {
+                    page_height = tex_get_balance_height(properties->page_shape, page);
+                    page_topskip = tex_get_balance_topskip(properties->page_shape, page);
+                    page_bottomskip = tex_get_balance_bottomskip(properties->page_shape, page);
                 } else {
-                    page_height = lmt_balance_state.target_height;
+                    page_height = lmt_balance_state.first_height;
+                    page_topskip = lmt_balance_state.first_topskip;
+                    page_bottomskip = lmt_balance_state.first_bottomskip;
                 }
                 if (no_break_yet) {
                     /*tex
@@ -718,13 +741,21 @@ static scaled tex_aux_try_balance(
             /* page_height already has been calculated */
             if (page > lmt_balance_state.easy_page) {
                 old_page = max_halfword - 1;
-                page_height = lmt_balance_state.target_height;
+                page_height = lmt_balance_state.second_height;
             } else {
                 old_page = page;
-                if (properties->page_shape) {
-                    page_height = tex_get_specification_height(properties->page_shape, page);
+                if (page > lmt_balance_state.last_special_page) {
+                    page_height = lmt_balance_state.second_height;
+                    page_topskip = lmt_balance_state.second_topskip;
+                    page_bottomskip = lmt_balance_state.second_bottomskip;
+                } else if (properties->page_shape) {
+                    page_height = tex_get_balance_height(properties->page_shape, page);
+                    page_topskip = tex_get_balance_topskip(properties->page_shape, page);
+                    page_bottomskip = tex_get_balance_bottomskip(properties->page_shape, page);
                 } else {
-                    page_height = lmt_balance_state.target_height;
+                    page_height = lmt_balance_state.first_height;
+                    page_topskip = lmt_balance_state.first_topskip;
+                    page_bottomskip = lmt_balance_state.first_bottomskip;
                 }
             }
             if (current == active_head) {
@@ -744,25 +775,25 @@ static scaled tex_aux_try_balance(
             );
             tex_end_diagnostic();
         }
-        tex_check_skips_shortfall(properties, current, first_p, cur_p, &shortfall);
+        tex_check_skips_shortfall(properties, current, first_p, cur_p, page_topskip, page_bottomskip, &shortfall, &stretch, &shrink);
         if (shortfall > 0) {
             if (current_active_height[total_fi_amount]   || current_active_height[total_fil_amount] ||
                 current_active_height[total_fill_amount] || current_active_height[total_filll_amount]) {
                 badness = 0;
                 /*tex Infinite stretch. */
                 fit_class = tex_get_specification_decent(properties->fitness_classes) - 1;
-            } else if (shortfall > large_height_excess && current_active_height[total_stretch_amount] < small_stretchability) {
+            } else if (shortfall > large_height_excess && (current_active_height[total_stretch_amount] + stretch) < small_stretchability) {
                 badness = infinite_bad;
                 fit_class = default_fitness;
             } else {
-                badness = tex_badness(shortfall, current_active_height[total_stretch_amount]);
+                badness = tex_badness(shortfall, current_active_height[total_stretch_amount] + stretch);
                 fit_class = tex_normalized_loose_badness(badness, properties->fitness_classes);
             }
         } else {
             if (-shortfall > current_active_height[total_shrink_amount]) {
                 badness = infinite_bad + 1;
             } else {
-                badness = tex_badness(-shortfall, current_active_height[total_shrink_amount]);
+                badness = tex_badness(-shortfall, current_active_height[total_shrink_amount] + shrink);
         }
             fit_class = tex_normalized_tight_badness(badness, properties->fitness_classes);
         }
@@ -771,9 +802,9 @@ static scaled tex_aux_try_balance(
                 shortfall = 0;
                 glue = 0;
             } else if (shortfall > 0) {
-                glue = current_active_height[total_stretch_amount];
+                glue = current_active_height[total_stretch_amount] + stretch;
             } else if (shortfall < 0) {
-                glue = current_active_height[total_shrink_amount];
+                glue = current_active_height[total_shrink_amount] + shrink;
             } else {
                 glue = 0;
             }
@@ -1458,16 +1489,24 @@ static void tex_aux_set_height(const balance_properties *properties)
             } else {
                 lmt_balance_state.last_special_page = n - 1;
             }
-            lmt_balance_state.target_height = tex_get_specification_height(properties->page_shape, n);
+            lmt_balance_state.second_height = tex_get_balance_height(properties->page_shape, n);
+            lmt_balance_state.second_topskip = tex_get_balance_topskip(properties->page_shape, n);
+            lmt_balance_state.second_bottomskip = tex_get_balance_bottomskip(properties->page_shape, n);
         } else {
-            lmt_balance_state.last_special_page = 0;
-            lmt_balance_state.target_height = properties->vsize;
+            lmt_balance_state.last_special_page = 0; 
+            lmt_balance_state.second_height = properties->vsize;
+            lmt_balance_state.second_topskip = properties->topskip;
+            lmt_balance_state.second_bottomskip = properties->bottomskip;
         }
-    } else { 
+    } else {
         lmt_balance_state.last_special_page = 0;
-        lmt_balance_state.target_height = properties->vsize;
+        lmt_balance_state.second_height = properties->vsize;
+        lmt_balance_state.second_topskip = properties->topskip;
+        lmt_balance_state.second_bottomskip = properties->bottomskip;
     }
-    /* check: if target_height is zero then make it ... */
+    lmt_balance_state.first_height = lmt_balance_state.first_height; /* bogus */
+    lmt_balance_state.first_topskip = properties->topskip;
+    lmt_balance_state.first_bottomskip = properties->bottomskip;
 }
 
 static int tex_aux_quit_balance(const balance_properties *properties, int pass)
@@ -1717,12 +1756,25 @@ void tex_balance(balance_properties *properties, halfword head)
         {
             halfword page = 1;
             scaled page_height;
+         // halfword page_topskip;
+         // halfword page_bottomskip;
             lmt_balance_state.current_page_number = page; /* we could just use this variable */
-            /* we could use target_height */
-            if (properties->page_shape) {
-                page_height = tex_get_specification_height(properties->page_shape, page);
+            if (page > lmt_balance_state.easy_page) {
+                page_height = lmt_balance_state.second_height;
+             // page_topskip = lmt_balance_state.second_topskip;
+             // page_bottomskip = lmt_balance_state.second_bottomskip;
+            } else if (page > lmt_balance_state.last_special_page) {
+                page_height = lmt_balance_state.second_height;
+             // page_topskip = lmt_balance_state.second_topskip;
+             // page_bottomskip = lmt_balance_state.second_bottomskip;
+            } else if (properties->page_shape) {
+                page_height = tex_get_balance_height(properties->page_shape, page);
+             // page_topskip = tex_get_balance_topskip(properties->page_shape, page);
+             // page_bottomskip = tex_get_balance_bottomskip(properties->page_shape, page);
             } else {
-                page_height = lmt_balance_state.target_height;
+                page_height = lmt_balance_state.first_height;
+             // page_topskip = lmt_balance_state.first_topskip;
+             // page_bottomskip = lmt_balance_state.first_bottomskip;
             }
             lmt_balance_state.background[total_stretch_amount] -= lmt_balance_state.emergency_amount;
             if (lmt_balance_state.emergency_percentage) {
@@ -1840,6 +1892,8 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
 {
  // int post_disc_break = 0;
     scaled cur_height = 0;
+    halfword cur_topskip = null;
+    halfword cur_bottomskip = null;
     halfword cur_p = null;
     halfword cur_page = 1;
     halfword q = active_break_node(lmt_balance_state.best_bet);
@@ -1915,20 +1969,30 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
         }
         node_next(temp_head) = node_next(r);
         node_next(r) = null;
-        if (properties->page_shape) {
+        if (cur_page > lmt_balance_state.last_special_page) {
+            cur_height = lmt_balance_state.second_height;
+            cur_topskip = lmt_balance_state.second_topskip;
+            cur_bottomskip = lmt_balance_state.second_bottomskip;
+        } else if (properties->page_shape) {
             if (specification_count(properties->page_shape)) {
-                cur_height = tex_get_specification_height(properties->page_shape, cur_page);
+                cur_height = tex_get_balance_height(properties->page_shape, cur_page);
+                cur_topskip = tex_get_balance_topskip(properties->page_shape, cur_page);
+                cur_bottomskip = tex_get_balance_bottomskip(properties->page_shape, cur_page);
             } else {
-                cur_height = lmt_balance_state.target_height;
+                cur_height = lmt_balance_state.first_height;
+                cur_topskip = lmt_balance_state.first_topskip;
+                cur_bottomskip = lmt_balance_state.first_bottomskip;
             }
         } else {
-            cur_height = lmt_balance_state.target_height;
+            cur_height = lmt_balance_state.first_height;
+            cur_topskip = lmt_balance_state.first_topskip;
+            cur_bottomskip = lmt_balance_state.first_bottomskip;
         }
         /* option: adapt height and depth instead of skip */
-        if (q && glue_amount(properties->topskip)) { 
+        if (q && glue_amount(cur_topskip)) { 
             halfword current = q;
             scaled height = 0; 
-            halfword gluenode = tex_new_glue_node(properties->topskip, top_skip_glue);
+            halfword gluenode = tex_new_glue_node(cur_topskip, top_skip_glue);
             tex_attach_attribute_list_copy(gluenode, current); /* also in buildpage ? */
             while (current) {
                 switch (node_type(current)) {
@@ -1953,10 +2017,10 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
             tex_couple_nodes(gluenode, q);
             q = gluenode;
         }
-        if (r && glue_amount(properties->bottomskip)) { 
+        if (r && glue_amount(cur_bottomskip)) { 
             halfword current = q;
             scaled depth = 0; 
-            halfword gluenode = tex_new_glue_node(properties->bottomskip, bottom_skip_glue); 
+            halfword gluenode = tex_new_glue_node(cur_bottomskip, bottom_skip_glue); 
             tex_attach_attribute_list_copy(gluenode, current);
             switch (node_type(r)) {
                 case hlist_node:

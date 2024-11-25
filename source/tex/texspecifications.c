@@ -344,7 +344,7 @@ static halfword tex_aux_scan_specification_par_passes(void)
     halfword count = tex_scan_integer(1, NULL);
     if (count > 0) {
         /*tex 
-            We have no named options here. Presets are automaticly set anyway.  We might even drop 
+            We have no named options here. Presets are automaticly set anyway. We might even drop 
             the option scanning here.
         */
         halfword options = tex_scan_partial_keyword("options") ? tex_scan_integer(0, NULL) : 0;
@@ -820,11 +820,81 @@ static halfword tex_aux_scan_specification_par_passes(void)
     return p;
 }
 
+static halfword tex_aux_scan_specification_balance_shape(void)
+{
+    halfword p = null;
+    halfword count = tex_scan_integer(1, NULL);
+    if (count > 0) {
+        /*tex 
+            We have no named options here. Presets are automaticly set anyway. We might even drop 
+            the option scanning here.
+        */
+        halfword options = tex_scan_partial_keyword("options") ? tex_scan_integer(0, NULL) : 0;
+        halfword n = 1;
+        if (count > 0xFF) {
+            /* todo: message */
+            count = 0xFF;
+        }
+        p = tex_new_specification_node(count, balance_shape_code, options);
+        while (n <= count) {
+            switch (tex_scan_character("ihtbonIHTBON", 0, 1, 0)) {
+                case 0:
+                    goto DONE;
+                case 'i': case 'I':
+                    if (tex_scan_mandate_keyword("index", 1)) {
+                        tex_set_balance_index(p, n, tex_scan_integer(0, NULL));
+                    }
+                    break;
+                case 'h': case 'H':
+                    if (tex_scan_mandate_keyword("height", 1)) {
+                        tex_set_balance_height(p, n, tex_scan_dimension(0, 0, 0, 1, NULL));
+                    }
+                    break;
+                case 't': case 'T':
+                    if (tex_scan_mandate_keyword("top", 1)) {
+                        tex_set_balance_topskip(p, n, tex_scan_glue(glue_val_level, 0, 0));
+                    }
+                    break;
+                case 'b': case 'B':
+                    if (tex_scan_mandate_keyword("bottom", 1)) {
+                        tex_set_balance_bottomskip(p, n, tex_scan_glue(glue_val_level, 0, 0));
+                    }
+                    break;
+                case 'o': case 'O':
+                    if (tex_scan_mandate_keyword("options", 1)) {
+                        tex_set_balance_options(p, n, tex_scan_integer(0, NULL));
+                    }
+                    break;
+                case 'n': case 'N':
+                    if (tex_scan_mandate_keyword("next", 1)) {
+                        n++;
+                    }
+                    break;
+                default:
+                    goto DONE;
+            }
+        }
+      DONE:
+        if (n < count) {
+            tex_handle_error(
+                normal_error_type,
+                "there %s only %i of %i %s specified for \\balanceshape",
+                n == 1 ? "is" : "are", n, count, count == 1 ? "page" : "pages",
+                NULL
+            );
+        }
+    }
+    return p;
+}
+
+
 static halfword tex_aux_scan_specification(quarterword code)
 {
     switch (code) { 
         case par_shape_code: 
             return tex_aux_scan_specification_par_shape();
+        case balance_shape_code: 
+            return tex_aux_scan_specification_balance_shape();
         case fitness_classes_code: 
             return tex_aux_scan_specification_fitness_classes();
         case adjacent_demerits_code: 
@@ -935,6 +1005,10 @@ halfword tex_aux_get_specification_value(halfword spec, halfword code)
             {
                 halfword index = tex_scan_integer(0, NULL);
                 return tex_get_specification_fitness_class(spec, index); /* weird call */
+            }
+        case balance_shape_code:
+            {
+                return 0;
             }
         case adjacent_demerits_code:
             {

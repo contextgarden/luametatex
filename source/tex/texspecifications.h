@@ -33,9 +33,11 @@ typedef enum specification_option_flags {
 
 // static inline halfword specification_n(halfword a, halfword n) { return specification_repeat(a) ? ((n - 1) % specification_count(a) + 1) : (n > specification_count(a) ? specification_count(a) : n); }
 
-# define par_passes_size 20
+# define par_passes_size    20
+# define balance_shape_size  4
 
-# define par_passes_slot(n,m) ((n-1)*par_passes_size+m)
+# define par_passes_slot(n,m)    ((n-1)*par_passes_size   +m)
+# define balance_shape_slot(n,m) ((n-1)*balance_shape_size+m)
 
 extern void            tex_null_specification_list     (halfword a);
 extern void            tex_new_specification_list      (halfword a, halfword n);
@@ -58,11 +60,6 @@ static inline void     tex_set_specification_indent    (halfword a, halfword n, 
 
 static inline halfword tex_get_specification_width     (halfword a, halfword n)             { return specification_index(a,specification_n(a,n)).half1; }
 static inline void     tex_set_specification_width     (halfword a, halfword n, halfword v) { specification_index(a,n).half1 = v; }
-
-/* for now same as parshape */
-
-static inline halfword tex_get_specification_height    (halfword a, halfword n)             { return specification_index(a,specification_n(a,n)).half1; }
-static inline void     tex_set_specification_height    (halfword a, halfword n, halfword v) { specification_index(a,n).half1 = v; }
 
 /*tex
     because we want to be able to map the singular penalties efficiently by using the two extra 
@@ -400,5 +397,21 @@ extern        void     tex_run_specification_spec          (void);
 extern        halfword tex_scan_specifier                  (void);
 extern        void     tex_aux_set_specification           (int a, halfword target);
 extern        halfword tex_aux_get_specification_value     (int a, halfword code);
+
+/* balance */
+
+static inline void     tex_set_balance_index       (halfword a, halfword n, halfword v) { specification_index(a,balance_shape_slot(n,1)).half0 = v; }
+static inline void     tex_set_balance_height      (halfword a, halfword n, halfword v) { specification_index(a,balance_shape_slot(n,1)).half1 = v; }
+static inline void     tex_set_balance_topskip     (halfword a, halfword n, halfword v) { specification_index(a,balance_shape_slot(n,2)).half0 = v; }
+static inline void     tex_set_balance_bottomskip  (halfword a, halfword n, halfword v) { specification_index(a,balance_shape_slot(n,2)).half1 = v; }
+static inline void     tex_set_balance_options     (halfword a, halfword n, halfword v) { specification_index(a,balance_shape_slot(n,3)).half0 = v; }
+static inline void     tex_set_balance_reserved    (halfword a, halfword n, halfword v) { specification_index(a,balance_shape_slot(n,3)).half1 = v; }
+
+static inline halfword tex_get_balance_index       (halfword a, halfword n) { return specification_index(a,balance_shape_slot(n,1)).half0; }
+static inline halfword tex_get_balance_height      (halfword a, halfword n) { return specification_index(a,balance_shape_slot(n,1)).half1; }
+static inline halfword tex_get_balance_topskip     (halfword a, halfword n) { return specification_index(a,balance_shape_slot(n,2)).half0; }
+static inline halfword tex_get_balance_bottomskip  (halfword a, halfword n) { return specification_index(a,balance_shape_slot(n,2)).half1; }
+static inline halfword tex_get_balance_options     (halfword a, halfword n) { return specification_index(a,balance_shape_slot(n,3)).half0; }
+static inline halfword tex_get_balance_reserved    (halfword a, halfword n) { return specification_index(a,balance_shape_slot(n,3)).half1; }
 
 # endif

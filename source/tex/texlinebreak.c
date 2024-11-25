@@ -1226,6 +1226,7 @@ static void tex_aux_compute_break_width(int break_type, int adjust_spacing, int 
     */
     halfword s = p;
     if (p) {
+        /*tex TTP has a curious |break_type > unhyphenated_node| here, so delta and passive also are valid. */
         switch (break_type) {
             case hyphenated_node:
             case delta_node:
@@ -4753,7 +4754,7 @@ static void tex_aux_set_indentation(const line_break_properties *properties)
             lmt_linebreak_state.second_width = tex_get_specification_width(properties->par_shape, n);
             lmt_linebreak_state.second_indent = swap_parshape_indent(properties->paragraph_dir, lmt_linebreak_state.second_indent, lmt_linebreak_state.second_width);
         } else {
-            lmt_linebreak_state.last_special_line = 0;
+            lmt_linebreak_state.last_special_line = 0; 
             lmt_linebreak_state.second_width = properties->hsize;
             lmt_linebreak_state.second_indent = 0;
         }

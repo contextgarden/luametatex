@@ -4984,6 +4984,9 @@ static void *tex_aux_allocate_specification(halfword p, int n, size_t *size)
         case par_passes_code:
             n *= par_passes_size;
             break;
+        case balance_shape_code: 
+            n *= balance_shape_size;
+            break;
         default:
             break;
     }
@@ -4993,7 +4996,7 @@ static void *tex_aux_allocate_specification(halfword p, int n, size_t *size)
     if (lmt_node_memory_state.extra_data.ptr > lmt_node_memory_state.extra_data.top) {
         lmt_node_memory_state.extra_data.top = lmt_node_memory_state.extra_data.ptr;
     }
-    if (n) {
+    if (n) { 
         l = lmt_memory_calloc(n, sizeof(memoryword));
         if (! l) {
             tex_overflow_error("nodes", (int) *size);
@@ -5039,14 +5042,30 @@ halfword tex_new_specification_node(halfword n, quarterword s, halfword options)
 void tex_dispose_specification_list(halfword a)
 {
     if (specification_pointer(a)) {
-        if (node_subtype(a) == par_passes_code) {
-            for (int i = 1; i <= specification_count(a); i++) {
-                halfword f = tex_get_passes_fitnessclasses(a, i);
-                if (f) {
-                   tex_flush_node(f);
-                   tex_set_passes_fitnessclasses(a, i, null);
+        switch (node_subtype(a)) { 
+            case par_passes_code:
+                for (int i = 1; i <= specification_count(a); i++) {
+                    halfword f = tex_get_passes_fitnessclasses(a, i);
+                    if (f) {
+                       tex_flush_node(f);
+                       tex_set_passes_fitnessclasses(a, i, null);
+                    }
                 }
-            }
+                break;
+            case balance_shape_code:
+                for (int i = 1; i <= specification_count(a); i++) {
+                    halfword t = tex_get_balance_topskip(a, i);
+                    halfword b = tex_get_balance_bottomskip(a, i);
+                    if (t) {
+                       tex_flush_node(t);
+                       tex_set_balance_topskip(a, i, null);
+                    }
+                    if (b) {
+                       tex_flush_node(b);
+                       tex_set_balance_bottomskip(a, i, null);
+                    }
+                }
+                break;
         }
         tex_aux_deallocate_specification(specification_pointer(a), specification_size(a));
         specification_pointer(a) = NULL;
@@ -5065,14 +5084,30 @@ void tex_copy_specification_list(halfword target, halfword source)
             specification_size(target) = specification_size(source);
             memcpy(specification_pointer(target), specification_pointer(source), size);
             /* */
-            if (node_subtype(target) == par_passes_code) {
-                for (int i = 1; i <= specification_count(source); i++) {
-                    halfword f = tex_get_passes_fitnessclasses(source, i);
-                    if (f) {
-                        halfword c = tex_copy_node(f);
-                        tex_set_passes_fitnessclasses(target, i, c);
+            switch (node_subtype(target)) { 
+                case par_passes_code:
+                    for (int i = 1; i <= specification_count(source); i++) {
+                        halfword f = tex_get_passes_fitnessclasses(source, i);
+                        if (f) {
+                            halfword c = tex_copy_node(f);
+                            tex_set_passes_fitnessclasses(target, i, c);
+                        }
                     }
-                }
+                    break;
+                case balance_shape_code:
+                    for (int i = 1; i <= specification_count(source); i++) {
+                        halfword t = tex_get_balance_topskip(source, i);
+                        halfword b = tex_get_balance_bottomskip(source, i);
+                        if (t) {
+                            halfword c = tex_copy_node(t);
+                            tex_set_balance_topskip(target, i, c);
+                        }
+                        if (b) {
+                            halfword c = tex_copy_node(t);
+                            tex_set_balance_bottomskip(target, i, c);
+                        }
+                    }
+                    break;
             }
             /* */
         } else {

@@ -4160,6 +4160,11 @@ int lmt_push_specification(lua_State *L, halfword ptr, int onlycount)
                     }
                     return 1;
                 }
+            case balance_shape_code:
+                {
+                    /* todo */
+                    return 0;
+                }
             case fitness_classes_code:
                 {
                     int n = specification_count(ptr);

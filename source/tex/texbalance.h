@@ -27,6 +27,12 @@ typedef struct balance_state_info {
     halfword     easy_page;
     halfword     last_special_page;
     scaled       target_height; 
+    scaled       first_height;
+    scaled       second_height;
+scaled       first_topskip;
+scaled       second_topskip;
+scaled       first_bottomskip;
+scaled       second_bottomskip;
     scaled       emergency_amount;
     halfword     emergency_percentage;
     halfword     emergency_factor;

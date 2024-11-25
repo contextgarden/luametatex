@@ -202,6 +202,12 @@ halfword lmt_check_isnode(lua_State *L, int i)
     return n;
 }
 
+halfword lmt_optional_isnode(lua_State *L, int i)
+{
+    return lmt_maybe_isnode(L, i);
+}
+
+
 /* helpers */
 
 static void nodelib_push_direct_or_node(lua_State *L, int direct, halfword n)
