@@ -742,6 +742,8 @@ static scaled tex_aux_try_balance(
             if (page > lmt_balance_state.easy_page) {
                 old_page = max_halfword - 1;
                 page_height = lmt_balance_state.second_height;
+                page_topskip = lmt_balance_state.second_topskip;
+                page_bottomskip = lmt_balance_state.second_bottomskip;
             } else {
                 old_page = page;
                 if (page > lmt_balance_state.last_special_page) {
@@ -1989,7 +1991,7 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
             cur_bottomskip = lmt_balance_state.first_bottomskip;
         }
         /* option: adapt height and depth instead of skip */
-        if (q && glue_amount(cur_topskip)) { 
+        if (q && ! tex_glue_is_zero(cur_topskip)) { 
             halfword current = q;
             scaled height = 0; 
             halfword gluenode = tex_new_glue_node(cur_topskip, top_skip_glue);
@@ -2017,7 +2019,7 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
             tex_couple_nodes(gluenode, q);
             q = gluenode;
         }
-        if (r && glue_amount(cur_bottomskip)) { 
+        if (r && ! tex_glue_is_zero(cur_bottomskip)) { 
             halfword current = q;
             scaled depth = 0; 
             halfword gluenode = tex_new_glue_node(cur_bottomskip, bottom_skip_glue); 
