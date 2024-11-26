@@ -511,6 +511,7 @@ make_lua_key(L, automatic);\
 make_lua_key(L, auxiliary);\
 make_lua_key(L, axis);\
 make_lua_key(L, AxisHeight);\
+make_lua_key(L, balance);\
 make_lua_key(L, baselineskip);\
 make_lua_key(L, beforedisplay);\
 make_lua_key(L, beforedisplaypenalty);\

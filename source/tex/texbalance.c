@@ -2029,11 +2029,12 @@ extern halfword tex_vbalance (
             tex_pop_nest();
             /* maybe filtered because that also does the uleaders */
             result = tex_vpack(result, 0, packing_exactly, max_dimension, 0, holding_none_option, NULL);
+            node_subtype(result) = balance_list;
         }
         if (! trial) {
-                box_list(box) = null;
-                tex_flush_node(box);
-                box_register(n) = null;
+            box_list(box) = null;
+            tex_flush_node(box);
+            box_register(n) = null;
         }
         return result;
     }
@@ -2046,15 +2047,20 @@ extern halfword tex_vbalanced (
     halfword box = box_register(n);
     if (! box) {
         return null;
-    } else if (node_type(box) != vlist_node) {
-        tex_handle_error(
-            normal_error_type,
-            "\\vbalanced needs a \\vbox",
-            "The box you are trying to split is an \\hbox. I can't split such a box, so I''ll\n"
-            "leave it alone."
-        );
-    } else {
+    } else if (node_type(box) == vlist_node && node_subtype(box) == balance_list) {
+        /*tex 
+            We silently ignore anything other than a vbox which makes this routine less sensitive
+            for being a messed up balanced container. 
+        */
         halfword head = box_list(box);
+        while (head && node_type(head) != vlist_node) {
+            halfword next = node_next(head);
+            if (next) { 
+                node_prev(next) = null;
+            }
+            tex_flush_node(head);
+            head = next; 
+        }
         if (head) {
             halfword rest = node_next(head);
             halfword list = box_list(head);
@@ -2079,9 +2085,17 @@ extern halfword tex_vbalanced (
             }
             return head;
         } else { 
-            tex_flush_node(box);
-            box_register(n) = null;
+            /*tex Wipe the box, see below. */
         }
+    } else {
+        tex_handle_error(
+            normal_error_type,
+            "\\vbalanced needs a \\vbox result from \\vbalance",
+            "The box you are trying to fetch from is not the result of \\vbalance, so to play safe I''ll\n"
+            "wipe it."
+        );
     }
+    tex_flush_node(box);
+    box_register(n) = null;
     return null;
 }

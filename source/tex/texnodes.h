@@ -920,9 +920,10 @@ typedef enum list_subtypes {
     local_left_list,
     local_right_list,
     local_middle_list,
+    balance_list,
 } list_subtypes ;
 
-# define last_list_subtype    local_middle_list
+# define last_list_subtype    balance_list
 # define noad_class_list_base 0x0100
 
 typedef enum list_anchors {

@@ -266,7 +266,7 @@ void lmt_nodelib_initialize(void) {
     set_value_entry_key(subtypes_fence, left_operator_side,  operator)
     set_value_entry_key(subtypes_fence, no_fence_side,       no)
 
-    subtypes_list = lmt_aux_allocate_value_info(local_middle_list);
+    subtypes_list = lmt_aux_allocate_value_info(balance_list);
 
     set_value_entry_key(subtypes_list, unknown_list,              unknown)
     set_value_entry_key(subtypes_list, line_list,                 line)
@@ -310,6 +310,7 @@ void lmt_nodelib_initialize(void) {
     set_value_entry_key(subtypes_list, local_left_list,           left)
     set_value_entry_key(subtypes_list, local_right_list,          right)
     set_value_entry_key(subtypes_list, local_middle_list,         middle)
+    set_value_entry_key(subtypes_list, balance_list,              balance)
 
     subtypes_math = lmt_aux_allocate_value_info(end_broken_math);
 
