@@ -5070,7 +5070,13 @@ void tex_dispose_specification_list(halfword a)
                 }
                 break;
             case balance_passes_code:
-                /* todo */
+                for (int i = 1; i <= specification_count(a); i++) {
+                    halfword f = tex_get_balance_passes_fitnessclasses(a, i);
+                    if (f) {
+                       tex_flush_node(f);
+                       tex_set_balance_passes_fitnessclasses(a, i, null);
+                    }
+                }
                 break;
         }
         tex_aux_deallocate_specification(specification_pointer(a), specification_size(a));

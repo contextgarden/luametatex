@@ -2957,7 +2957,8 @@ static void tex_aux_set_vnature(halfword boxnode, int nature)
             break;
         case vbox_code: 
         case vsplit_code: 
-        case vbalanced_code: 
+        case vbalance_code: 
+        case vbalanced_box_code: 
             box_package_state(boxnode) = vbox_package_state;
             break;
         case dbox_code: 
@@ -4061,7 +4062,43 @@ void tex_begin_box(int boxcontext, scaled shift, halfword slot, halfword callbac
                 }
             }
             break;
-        case vbalanced_code:
+        case vbalance_code:
+            {
+                halfword index = tex_scan_box_register_number();
+                halfword mode = packing_exactly;
+                halfword trial = 0;
+                while (1) {
+                    switch (tex_scan_character("aetAET", 0, 1, 0)) {
+                        case 0:
+                            goto DONE;
+                        case 'e': case 'E':
+                            if (tex_scan_mandate_keyword("exactly", 1)) {
+                                mode = packing_exactly ;
+                            }
+                            break;
+                        case 'a': case 'A':
+                            if (tex_scan_mandate_keyword("additional", 1)) {
+                                mode = packing_additional;
+                            }
+                            break;
+                        case 't': case 'T':
+                            if (tex_scan_mandate_keyword("trial", 1)) {
+                             /* mode = packing_trial; */
+                                trial = 1;
+                            }
+                            break;
+                        default:
+                            tex_aux_show_keyword_error("exactly|additional|trial");
+                            goto DONE;
+                    }
+                }
+              DONE:
+                boxnode = tex_vbalance(index, mode, trial);
+            }
+            break;
+            {
+            }
+        case vbalanced_box_code:
             {
                 halfword index = tex_scan_box_register_number();
                 boxnode = tex_vbalanced(index);

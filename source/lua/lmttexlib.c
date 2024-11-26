@@ -4425,23 +4425,23 @@ static int texlib_balance(lua_State *L)
         if (lua_gettop(L) != 2 || lua_type(L, 2) != LUA_TTABLE) {
             lua_newtable(L);
         }
-        get_integer_par       (properties.tracing_balancing,  tracingbalancing,  properties.tracing_balancing);
-        get_integer_par       (properties.tracing_fitness,    tracingfitness ,   properties.tracing_fitness);
-        get_integer_par       (properties.tracing_passes,     tracingpasses,     properties.tracing_passes);
-        get_integer_par       (properties.pretolerance,       pretolerance,      properties.pretolerance);
-        get_integer_par       (properties.tolerance,          tolerance,         properties.tolerance);
-        get_dimension_par     (properties.emergency_stretch,  emergencystretch,  properties.emergency_stretch);
-        get_dimension_par     (properties.emergency_shrink,   emergencyshrink,   properties.emergency_shrink);
-        get_integer_par       (properties.looseness,          looseness,         properties.looseness);
-        get_integer_par       (properties.adj_demerits,       adjdemerits,       properties.adj_demerits);
-        get_dimension_par     (properties.vsize,              vsize,             properties.vsize);
-        get_glue_par          (properties.topskip,            topskip,           properties.topskip);
-        get_glue_par          (properties.bottomskip,         bottomskip,        properties.bottomskip);
-        get_balance_shape     (properties.shape,              shape,             null);
-        get_integer_par       (properties.penalty,            penalty,           properties.penalty);
-        get_balance_passes_par(properties.passes,             passes,            balance_break_passes_par > 0 ? balance_passes_par : null);
-        get_integer_par       (properties.checks,             checks,            properties.checks);
-        get_integer_par       (properties.packing,            packing,           properties.packing);
+        get_integer_par       (properties.tracing_balancing, tracingbalancing, properties.tracing_balancing);
+        get_integer_par       (properties.tracing_fitness,   tracingfitness ,  properties.tracing_fitness);
+        get_integer_par       (properties.tracing_passes,    tracingpasses,    properties.tracing_passes);
+        get_integer_par       (properties.pretolerance,      pretolerance,     properties.pretolerance);
+        get_integer_par       (properties.tolerance,         tolerance,        properties.tolerance);
+        get_dimension_par     (properties.emergency_stretch, emergencystretch, properties.emergency_stretch);
+        get_dimension_par     (properties.emergency_shrink,  emergencyshrink,  properties.emergency_shrink);
+        get_integer_par       (properties.looseness,         looseness,        properties.looseness);
+        get_integer_par       (properties.adj_demerits,      adjdemerits,      properties.adj_demerits);
+        get_dimension_par     (properties.vsize,             vsize,            properties.vsize);
+        get_glue_par          (properties.topskip,           topskip,          properties.topskip);
+        get_glue_par          (properties.bottomskip,        bottomskip,       properties.bottomskip);
+        get_balance_shape     (properties.shape,             shape,            null);
+        get_integer_par       (properties.penalty,           penalty,          properties.penalty);
+        get_balance_passes_par(properties.passes,            passes,           balance_break_passes_par > 0 ? balance_passes_par : null);
+        get_integer_par       (properties.checks,            checks,           properties.checks);
+        get_integer_par       (properties.packing,           packing,          properties.packing);
         /* */
         tex_balance(&properties, head);
         /* */

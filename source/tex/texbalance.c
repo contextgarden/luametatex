@@ -13,13 +13,12 @@
     Some remarks: 
 
     \startitemize 
-    \startitem We don't go for flexible top skip. \stopitem 
     \startitem We have topskip and bottomskip. \stopitem 
     \startitem For now we rejected vertical discretionaries. \stopitem 
     \startitem We assume end notes etc. so no inserts! \stopitem 
     \startitem We considered demerits on spread for a while. \stopitem 
-    \startitem There is a pagepenalty equivalent for linepenalty. \stopitem 
-    \startitem We added pagepasses akin parpasses. \stopitem 
+    \startitem There is a balance penalty equivalent for line penalty. \stopitem 
+    \startitem We added balance passes akin par passes. \stopitem 
     \stopitemize 
 
     and 
@@ -36,11 +35,20 @@
 
     \startitemize 
     \startitem check usage of temphead (in helpers) \stopitem 
-    \startitem skip to next when frozen overfull \stopitem
     \startitem share callback functions and use generic contexts \stopitem 
-    \startitem always shape : continue or repeat, less code that way \stopitem 
+    \startitem always shape: continue or repeat, less code that way \stopitem 
     \startitem get rid of this first and second \stopitem 
     \stopitemize 
+
+    We considered vertical discretionaries but there are several problems with this, consider for 
+    instance: 
+
+    <line> <vskip> <pre><post><replace> <vskip> <line>
+
+    When replace is empty we don't want twice the skip. When we put skips in the elements we need 
+    to handle glue inside there. It all complicates matters. Also, defining this at the tex end is 
+    fuzzy. And then we need to adapt al the lua code that operates on vertical boxes. So, in the 
+    end the code was removed. 
 
 */
 
@@ -63,7 +71,6 @@ balance_state_info lmt_balance_state = {
     .active_height            = { 0 },
     .background               = { 0 },
     .break_height             = { 0 },
- // .disc_height              = { 0 },
     .minimal_demerits         = { 0 },
     .minimum_demerits         = 0,
     .easy_page                = 0,
@@ -77,9 +84,7 @@ balance_state_info lmt_balance_state = {
     .warned                   = 0,
     .passes                   = { 0 },
     .current_page_number      = 0,
-    /* */
     .quality                  = 0,
- // .force_check_hyphenation  = 0,
     .extra_background_stretch = 0,
     .extra_background_shrink  = 0,
     .last_special_page        = 0,
@@ -145,21 +150,6 @@ static void tex_aux_clean_up_the_memory(void)
     }
 }
 
-// static inline void tex_aux_add_disc_source_to_target(scaled target[], const scaled source[])
-// {
-//     target[total_advance_amount] += source[total_advance_amount];
-// }
-
-// static inline void tex_aux_sub_disc_target_from_source(scaled target[], const scaled source[])
-// {
-//     target[total_advance_amount] -= source[total_advance_amount];
-// }
-
-// static inline void tex_aux_reset_disc_target(scaled *target)
-// {
-//     target[total_advance_amount] = 0;
-// }
-
 static inline void tex_aux_set_target_to_source(scaled target[], const scaled source[])
 {
     for (int i = total_advance_amount; i <= total_shrink_amount; i++) {
@@ -222,90 +212,8 @@ static inline void tex_aux_add_delta_from_difference(halfword delta, const scale
     delta_field_total_shrink(delta)       += (source_1[total_shrink_amount]  - source_2[total_shrink_amount]);
 }
 
-// static void tex_aux_add_to_heights(halfword s, scaled heights[])
-// {
-//     while (s) {
-//         switch (node_type(s)) {
-//             case hlist_node:
-//             case vlist_node:
-//                 heights[total_advance_amount] += box_height(s);
-//                 heights[total_advance_amount] += box_depth(s);
-//                 break;
-//             case rule_node:
-//                 heights[total_advance_amount] += rule_height(s);
-//                 heights[total_advance_amount] += rule_depth(s);
-//                 break;
-//             case glue_node:
-//                 heights[total_advance_amount] += glue_amount(s);
-//                 heights[total_stretch_amount + glue_stretch_order(s)] += glue_stretch(s);
-//                 heights[total_shrink_amount] += glue_shrink(s);
-//                 break;
-//             case kern_node:
-//                 heights[total_advance_amount] += kern_amount(s);
-//                 break;
-//          // case disc_node:
-//          //     break;
-//             default:
-//                 break;
-//         }
-//         s = node_next(s);
-//     }
-// }
-
-// static void tex_aux_sub_from_heights(halfword s, scaled heights[])
-// {
-//     while (s) {
-//         switch (node_type(s)) {
-//             case hlist_node:
-//             case vlist_node:
-//                 heights[total_advance_amount] -= box_height(s);
-//                 heights[total_advance_amount] -= box_depth(s);
-//                 break;
-//             case rule_node:
-//                 heights[total_advance_amount] -= rule_height(s);
-//                 heights[total_advance_amount] -= rule_depth(s);
-//                 break;
-//             case glue_node:
-//                 heights[total_advance_amount] -= glue_amount(s);
-//                 heights[total_stretch_amount + glue_stretch_order(s)] -= glue_stretch(s);
-//                 heights[total_shrink_amount] -= glue_shrink(s);
-//                 break;
-//             case kern_node:
-//                 heights[total_advance_amount] -= kern_amount(s);
-//                 break;
-//          // case disc_node:
-//          //     break;
-//             default:
-//                 break;
-//         }
-//         s = node_next(s);
-//     }
-// }
-
-static void tex_aux_compute_break_height(int break_type, halfword p)
+static void tex_aux_compute_break_height(int break_type, halfword s)
 {
-    halfword s = p;
- // if (p) {
- //     switch (break_type) {
- //         case hyphenated_node:
- //         case delta_node:
- //         case passive_node:
- //             if (node_type(p) == disc_node) {
- //              // tex_aux_sub_from_heights(disc_no_break_head(p), lmt_balance_state.break_height);
- //              // tex_aux_add_to_heights(disc_post_break_head(p), lmt_balance_state.break_height);
- //              // tex_aux_add_disc_source_to_target(lmt_balance_state.break_height, lmt_balance_state.disc_height);
- //              // if (disc_post_break_head(p)) {
- //              //     s = null;
- //              // } else {
- //              //     /*tex no |post_break|: skip any whitespace following */
- //              //     s = node_next(p);
- //              // }
- //             } else {
- //                 tex_confusion("balancing 3");
- //             }
- //             break;
- //     }
- // }
     while (s) {
         switch (node_type(s)) {
             case glue_node:
@@ -710,7 +618,7 @@ static scaled tex_aux_try_balance(
             previous = current;
             continue;
         } else {
-            /*tex We have an |unhyphenated_node| or |hyphenated_node|. */
+            /*tex We have an |unhyphenated_node|. */
         }
         lmt_balance_state.current_page_number = page; /* we could just use this variable */
         page = active_page_number(current);
@@ -718,13 +626,6 @@ static scaled tex_aux_try_balance(
             if ((lmt_balance_state.minimum_demerits < awful_bad) && ((old_page != lmt_balance_state.easy_page) || (current == active_head))) {
                 tex_aux_update_height_and_skips(properties, page, &page_height, &page_topskip, &page_bottomskip);
                 if (no_break_yet) {
-                    /*tex
-
-                        If we have a |hyphenated_node|, |delta_node| or |passive_node| the |cur_p| 
-                        has to be a disc node! Look at the next emergency adaptions, we've actually 
-                        set them elsewhere. (See linebreak.)
-
-                    */
                     no_break_yet = false;
                     if (lmt_balance_state.emergency_percentage) {
                         scaled stretch = tex_xn_over_d(page_height, lmt_balance_state.emergency_percentage, scaling_factor);
@@ -928,9 +829,10 @@ static scaled tex_aux_try_balance(
                     /*tex Not that usefull, basically every passive is touched. */
                     switch (node_type(current)) {
                         case unhyphenated_node:
-                        case hyphenated_node:
                             tex_aux_balance_callback_delete(callback_id, checks, passive);
                             break;
+                    //  case hyphenated_node:
+                    //      break;
                     //  case delta_node:
                     //      break;
                     }
@@ -1101,9 +1003,6 @@ static int tex_aux_set_sub_pass_parameters(
     }
     lmt_balance_state.threshold = properties->tolerance;
     if (okay & passes_basics_okay) {
-     // if (okay & passes_hyphenation_okay) {
-     //     lmt_balance_state.force_check_hyphenation = tex_get_balance_passes_hyphenation(passes, subpass) > 0 ? 1 : 0;
-     // }
         if (okay & passes_emergencyfactor_okay) {
             lmt_balance_state.emergency_factor = tex_get_balance_passes_emergencyfactor(passes, subpass);
         }
@@ -1191,7 +1090,6 @@ static int tex_aux_set_sub_pass_parameters(
      // tex_print_format("%s demerits             %i\n", is_okay(passes_demerits_okay), tex_get_balance_passes_demerits(passes, subpass));
         tex_print_str("  --------------------------------\n");
         tex_print_format("%s tolerance            %i\n", is_okay(passes_tolerance_okay), properties->tolerance);
-     // tex_print_format("%s hyphenation          %s\n", is_okay(passes_hyphenation_okay), lmt_balance_state.force_check_hyphenation ? "true": "false");
         tex_print_format("%s looseness            %i\n", is_okay(passes_looseness_okay), properties->looseness);
         tex_print_str("  --------------------------------\n");
         tex_print_format("%s adjdemerits          %i\n", is_okay(passes_adjdemerits_okay), properties->adj_demerits);
@@ -1466,67 +1364,6 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                 }
                 tex_aux_try_balance(properties, penalty_amount(current), unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                 break;
-            /*
-            case disc_node:
-                {
-                    halfword replace = disc_no_break_head(current);
-                    if (lmt_balance_state.force_check_hyphenation) {
-                        halfword actual_penalty = disc_penalty(current);
-                        halfword pre = disc_pre_break_head(current);
-                        tex_aux_reset_disc_target(lmt_balance_state.disc_height);
-                        if (pre) {
-                            if (replace) {
-                                if (tex_has_disc_option(current, disc_option_prefer_break) || tex_has_disc_option(current, disc_option_prefer_nobreak)) {
-                                    switch (node_type(node_next(current))) {
-                                        case glue_node:
-                                        case penalty_node:
-                                        case boundary_node:
-                                            {
-                                                scaled hpre = tex_natural_vsize(pre);
-                                                scaled hreplace = tex_natural_vsize(replace);
-                                                if (tex_has_disc_option(current, disc_option_prefer_break)) {
-                                                    halfword post = disc_post_break_head(current);
-                                                    scaled hpost = post ? tex_natural_vsize(post) : 0;
-                                                    if (hpost > 0) {
-                                                        if (properties->tracing_balancing > 1) {
-                                                            tex_begin_diagnostic();
-                                                            tex_print_format("[balance: favour final prepost over replace, heights %p %p]", hpre + hpost, hreplace);
-                                                            tex_short_display(node_next(temp_head));
-                                                            tex_end_diagnostic();
-                                                        }
-                                                    } else {
-                                                        goto REPLACEONLY;
-                                                    }
-                                                } else {
-                                                    if (hreplace < hpre) {
-                                                        if (properties->tracing_balancing > 1) {
-                                                            tex_begin_diagnostic();
-                                                            tex_print_format("[balance: favour final replace over pre, heights %p %p]", hreplace, hpre);
-                                                            tex_short_display(node_next(temp_head));
-                                                            tex_end_diagnostic();
-                                                        }
-                                                        goto REPLACEONLY;
-                                                    }
-                                                }
-                                            }
-                                    }
-                                }
-                            }
-                            tex_aux_add_to_heights(pre, lmt_balance_state.disc_height);
-                            tex_aux_add_disc_source_to_target(lmt_balance_state.active_height, lmt_balance_state.disc_height);
-                            tex_aux_try_balance(properties, actual_penalty, hyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
-                            tex_aux_sub_disc_target_from_source(lmt_balance_state.active_height, lmt_balance_state.disc_height);
-                        } else {
-                            tex_aux_try_balance(properties, actual_penalty, hyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
-                        }
-                    }
-                  REPLACEONLY:
-                    if (replace) {
-                        tex_aux_add_to_heights(replace, lmt_balance_state.active_height);
-                    }
-                    break;
-                }
-            */
             case boundary_node:
                 /* maybe handle page boundary here */
                 break;
@@ -1613,8 +1450,13 @@ static void tex_aux_find_best_bet(void)
     lmt_balance_state.best_page = active_page_number(lmt_balance_state.best_bet);
 }
 
+# define balance_fitness_classes lmt_balance_state.default_fitness_classes
+
 void tex_balance_preset(balance_properties *properties)
 {
+    if (! balance_fitness_classes) {
+        balance_fitness_classes = tex_default_fitness_classes();
+    }
     properties->tracing_balancing = tracing_balancing_par;
     properties->tracing_fitness   = tracing_fitness_par;
     properties->tracing_passes    = tracing_passes_par;
@@ -1630,20 +1472,22 @@ void tex_balance_preset(balance_properties *properties)
     properties->looseness         = balance_looseness_par;
     properties->adj_demerits      = balance_adj_demerits_par;
     properties->shape             = balance_shape_par; 
-    properties->fitness_classes   = tex_default_fitness_classes();
-    properties->hyphenation_mode  = 1;
+    properties->fitness_classes   = balance_fitness_classes;
     properties->passes            = balance_passes_par;   
     properties->penalty           = balance_penalty_par;
     properties->max_adj_demerits  = 0;
     properties->checks            = balance_checks_par;
     properties->packing           = packing_exactly;
+    properties->trial             = 0;
 }
 
 void tex_balance_reset(balance_properties *properties)
 {
-    tex_flush_node(properties->shape);
- //  tex_flush_node(properties->passes);
-    tex_flush_node(properties->fitness_classes);
+    if (properties->shape           != balance_shape_par      ) { tex_flush_node(properties->shape          ); }
+    if (properties->passes          != balance_passes_par     ) { tex_flush_node(properties->passes         ); }
+    if (properties->topskip         != balance_top_skip_par   ) { tex_flush_node(properties->topskip        ); }
+    if (properties->bottomskip      != balance_bottom_skip_par) { tex_flush_node(properties->bottomskip     ); }
+    if (properties->fitness_classes != balance_fitness_classes) { tex_flush_node(properties->fitness_classes); }
 }
 
 /* 
@@ -1662,7 +1506,6 @@ void tex_balance(balance_properties *properties, halfword head)
     lmt_balance_state.passes.n_of_break_calls++;
     properties->original_stretch = properties->emergency_stretch;
     properties->original_shrink = properties->emergency_shrink;
- // lmt_balance_state.force_check_hyphenation = hyphenation_permitted(properties->hyphenation_mode, force_check_hyphenation_mode);
     lmt_balance_state.callback_id = properties->checks ? lmt_callback_defined(balance_callback) : 0;
     lmt_balance_state.fewest_demerits = 0;
     lmt_balance_state.no_shrink_error_yet = 1;
@@ -1732,7 +1575,6 @@ void tex_balance(balance_properties *properties, halfword head)
                         tex_print_format("[balance: second pass, used tolerance %i]", lmt_balance_state.threshold);
                         // tex_end_diagnostic();
                     }
-                 // lmt_balance_state.force_check_hyphenation = 1;
                     break;
                 } else {
                     pass = balance_final_pass;
@@ -1745,7 +1587,6 @@ void tex_balance(balance_properties *properties, halfword head)
                     tex_print_format("[balance: final pass, used tolerance %i, used emergency stretch %p]", lmt_balance_state.threshold, properties->emergency_stretch);
                     // tex_end_diagnostic();
                 }
-             // lmt_balance_state.force_check_hyphenation = 1;
                 lmt_balance_state.background[total_stretch_amount] += properties->emergency_stretch;
                 break;
             case balance_specification_pass:
@@ -1764,16 +1605,13 @@ void tex_balance(balance_properties *properties, halfword head)
                     switch (subpass) {
                         case -2:
                             lmt_balance_state.threshold = properties->pretolerance;
-                         // lmt_balance_state.force_check_hyphenation = 0;
                             subpass = -1;
                             break;
                         case -1:
                             lmt_balance_state.threshold = properties->tolerance;
-                         // lmt_balance_state.force_check_hyphenation = 1;
                             subpass = 0;
                             break;
                         default:
-                         // lmt_balance_state.force_check_hyphenation = 1;
                             break;
                     }
                 }
@@ -1795,26 +1633,7 @@ void tex_balance(balance_properties *properties, halfword head)
         {
             halfword page = 1;
             scaled page_height;
-         // halfword page_topskip;
-         // halfword page_bottomskip;
             lmt_balance_state.current_page_number = page; /* we could just use this variable */
-         // if (page > lmt_balance_state.easy_page) {
-         //     page_height = lmt_balance_state.second_height;
-         //  // page_topskip = lmt_balance_state.second_topskip;
-         //  // page_bottomskip = lmt_balance_state.second_bottomskip;
-         // } else if (page > lmt_balance_state.last_special_page) {
-         //     page_height = lmt_balance_state.second_height;
-         //  // page_topskip = lmt_balance_state.second_topskip;
-         //  // page_bottomskip = lmt_balance_state.second_bottomskip;
-         // } else if (properties->page_shape) {
-         //     page_height = tex_get_balance_height(properties->page_shape, page);
-         //  // page_topskip = tex_get_balance_topskip(properties->page_shape, page);
-         //  // page_bottomskip = tex_get_balance_bottomskip(properties->page_shape, page);
-         // } else {
-         //     page_height = lmt_balance_state.first_height;
-         //  // page_topskip = lmt_balance_state.first_topskip;
-         //  // page_bottomskip = lmt_balance_state.first_bottomskip;
-         // }
             tex_aux_update_height(properties, page, &page_height);
             lmt_balance_state.background[total_stretch_amount] -= lmt_balance_state.emergency_amount;
             if (lmt_balance_state.emergency_percentage) {
@@ -1928,25 +1747,23 @@ static void tex_aux_pre_balance(const balance_properties *properties, int callba
     /* todo */
 }
 
+/* todo: we don't need just_box at all */
+
 static void tex_aux_post_balance(const balance_properties *properties, int callback_id, halfword checks, int state)
 {
- // int post_disc_break = 0;
-    scaled cur_height = 0;
-    halfword cur_topskip = null;
-    halfword cur_bottomskip = null;
     halfword cur_p = null;
-    halfword cur_page = 1;
-    halfword q = active_break_node(lmt_balance_state.best_bet);
-    halfword r;
     if (callback_id) {
         tex_aux_balance_callback_collect(callback_id, checks);
     }
-    do {
-        r = q;
-        q = passive_prev_break(q);
-        passive_next_break(r) = cur_p;
-        cur_p = r;
-    } while (q);
+    {
+        halfword q = active_break_node(lmt_balance_state.best_bet);
+        do {
+            halfword r = q;
+            q = passive_prev_break(q);
+            passive_next_break(r) = cur_p;
+            cur_p = r;
+        } while (q);
+    }
     if (callback_id) {
         halfword p = cur_p;
         while (p) {
@@ -1954,175 +1771,233 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
             p = passive_next_break(p);
         }
     }
-    do {
-     // halfword cur_disc = null;
-        r = passive_cur_break(cur_p);
-        q = node_next(temp_head); 
-     // post_disc_break = 0;
-        if (r) {
-            switch (node_type(r)) {
-                case glue_node:
-                    r = node_prev(r);
-                    break;
-                /*
-                case disc_node:
-                    {
-                        halfword prv = node_prev(r);
-                        halfword nxt = node_next(r);
-                        halfword h = disc_no_break_head(r);
-                        if (h) {
-                            tex_flush_node_list(h);
-                            disc_no_break_head(r) = null;
-                            disc_no_break_tail(r) = null;
-                        }
-                        h = disc_pre_break_head(r);
-                        if (h) {
-                            halfword t = disc_pre_break_tail(r);
-                            tex_set_discpart(r, h, t, glyph_discpart_pre);
-                            tex_couple_nodes(prv, h);
-                            tex_couple_nodes(t, r);
-                            disc_pre_break_head(r) = null;
-                            disc_pre_break_tail(r) = null;
-                        }
-                        h = disc_post_break_head(r);
-                        if (h) {
-                            halfword t = disc_post_break_tail(r);
-                            tex_set_discpart(r, h, t, glyph_discpart_post);
-                            tex_couple_nodes(r, h);
-                            tex_couple_nodes(t, nxt);
-                            disc_post_break_head(r) = null;
-                            disc_post_break_tail(r) = null;
-                            post_disc_break = 1;
-                        }
-                        cur_disc = r;
-                     //  disc_break = 1;
-                    }
-                    break;
-                */
-                case kern_node:
-                    kern_amount(r) = 0;
-                    break;
-            }
-        } else {
-            /* kind of weird */
-            r = tex_tail_of_node_list(temp_head);
-        }
-        node_next(temp_head) = node_next(r);
-        node_next(r) = null;
-     // if (cur_page > lmt_balance_state.last_special_page) {
-     //     cur_height = lmt_balance_state.second_height;
-     //     cur_topskip = lmt_balance_state.second_topskip;
-     //     cur_bottomskip = lmt_balance_state.second_bottomskip;
-     // } else if (properties->page_shape) {
-     //     cur_height = lmt_balance_state.first_height;
-     //     cur_topskip = lmt_balance_state.first_topskip;
-     //     cur_bottomskip = lmt_balance_state.first_bottomskip;
-     // } else {
-     //     cur_height = lmt_balance_state.first_height;
-     //     cur_topskip = lmt_balance_state.first_topskip;
-     //     cur_bottomskip = lmt_balance_state.first_bottomskip;
-     // }
-        tex_aux_update_height_and_skips(properties, cur_page, &cur_height, &cur_topskip, &cur_bottomskip);
-        /* option: adapt height and depth instead of skip */
-        if (q && ! tex_glue_is_zero(cur_topskip)) { 
-            halfword current = q;
-            scaled height = 0; 
-            halfword gluenode = tex_new_glue_node(cur_topskip, top_skip_glue);
-            tex_attach_attribute_list_copy(gluenode, current); /* also in buildpage ? */
-            while (current) {
-                switch (node_type(current)) {
-                    case hlist_node:
-                    case vlist_node:
-                        height = box_height(current); 
-                        goto ADDTOPSKIP;
-                    case rule_node:
-                        height = rule_height(current); 
-                        goto ADDTOPSKIP;
-                    default:
+    if (properties->trial) {
+        /*tex 
+            We're only interested in the natural size. So we create a fitting vertical empty box with 
+            a height and depth matching the expected result. 
+        */
+        halfword page = 1;
+        scaled height = 0;
+        halfword topskip = null;
+        halfword bottomskip = null;
+        halfword first = node_next(temp_head); 
+        do {
+            halfword last = passive_cur_break(cur_p);
+            scaled top = -1;
+            scaled bottom = -1;
+            if (last) {
+                switch (node_type(last)) {
+                    case glue_node:
+                        last = node_prev(last);
+                        break;
+                    case kern_node:
+                        last = node_prev(last);
                         break;
                 }
-                current = node_next(current);
-            }
-          ADDTOPSKIP:
-            if (glue_amount(gluenode) > height) {
-                glue_amount(gluenode) -= height;
             } else {
-                glue_amount(gluenode) = 0;
+                last = tex_tail_of_node_list(first);
             }
-            tex_couple_nodes(gluenode, q);
-            q = gluenode;
-        }
-        if (r && ! tex_glue_is_zero(cur_bottomskip)) { 
-            halfword current = q;
-            scaled depth = 0; 
-            halfword gluenode = tex_new_glue_node(cur_bottomskip, bottom_skip_glue); 
-            tex_attach_attribute_list_copy(gluenode, current);
-            switch (node_type(r)) {
-                case hlist_node:
-                case vlist_node:
-                    depth = box_depth(current); 
-                    break;
-                case rule_node:
-                    depth = rule_depth(current); 
-                    break;
+            tex_aux_update_height_and_skips(properties, page, &height, &topskip, &bottomskip);
+            if (first && ! tex_glue_is_zero(topskip)) { 
+                halfword current = first;
+                scaled height = 0; 
+                while (current) {
+                    switch (node_type(current)) {
+                        case hlist_node:
+                        case vlist_node:
+                            height = box_height(current); 
+                            goto ADDTOPSKIP1;
+                        case rule_node:
+                            height = rule_height(current); 
+                            goto ADDTOPSKIP1;
+                        default:
+                            break;
+                    }
+                    current = node_next(current);
+                }
+              ADDTOPSKIP1:
+                if (glue_amount(topskip) > height) {
+                    top = glue_amount(topskip) - height;
+                } else { 
+                    top = 0;
+                }
             }
-            if (glue_amount(gluenode) > depth) {
-                glue_amount(gluenode) -= depth;
-            } else {
-                glue_amount(gluenode) = 0;
+            if (last && ! tex_glue_is_zero(bottomskip)) { 
+                scaled depth = 0; 
+                switch (node_type(last)) {
+                    case hlist_node:
+                    case vlist_node:
+                        depth = box_depth(last); 
+                        break;
+                    case rule_node:
+                        depth = rule_depth(last); 
+                        break;
+                }
+                if (glue_amount(bottomskip) > depth) {
+                    bottom = glue_amount(bottomskip) - depth;
+                } else { 
+                    bottom = 0;
+                }
             }
-            tex_couple_nodes(r, gluenode);
-            r = gluenode;
-        }
-        if (properties->packing == packing_additional) {
-            lmt_balance_state.just_box = tex_vpack(q, 0, packing_additional, 0, 0, holding_none_option, NULL);
-        } else {
-            lmt_balance_state.just_box = tex_vpack(q, cur_height, packing_exactly, 0, 0, holding_none_option, NULL);
-        }
-        if (callback_id) {
-            tex_aux_balance_callback_page(callback_id, checks, cur_page, cur_p);
-        }
-        tex_tail_append(lmt_balance_state.just_box);
-        ++cur_page;
-        cur_p = passive_next_break(cur_p);
-     // if (cur_p && ! post_disc_break) {
-        if (cur_p) {
-            r = temp_head;
-            while (1) {
-                q = node_next(r);
-                if (q == passive_cur_break(cur_p)) {
-                    break;
-                } else if (non_discardable(q)) {
-                    break;
-                } else if (node_type(q) == kern_node && ! (node_subtype(q) == explicit_kern_subtype)) {
+            { 
+                scaledwhd whd = tex_natural_vsizes(first, node_next(last), 0.0, 0, 0);
+                lmt_balance_state.just_box = tex_vpack(null, whd.ht, packing_exactly, 0, 0, holding_none_option, NULL);
+                tex_attach_attribute_list_copy(lmt_balance_state.just_box, first);
+                if (top > 0) {
+                    whd.ht += top; 
+                }
+                if (bottom > 0) {
+                    whd.ht += top; 
+                    whd.dp = 0; 
+                }
+                box_width(lmt_balance_state.just_box) = whd.wd;
+                box_height(lmt_balance_state.just_box) = whd.ht;
+                box_depth(lmt_balance_state.just_box) = whd.dp;
+            }
+            if (callback_id) {
+                tex_aux_balance_callback_page(callback_id, checks, page, cur_p);
+            }
+            tex_tail_append(lmt_balance_state.just_box);
+            ++page;
+            cur_p = passive_next_break(cur_p);
+            if (cur_p) {
+                first = node_next(last);
+                while (first) {
+                    if (first == passive_cur_break(cur_p)) {
+                        break;
+                    } else if (non_discardable(first)) {
+                        break;
+                    } else if (node_type(first) == kern_node && ! (node_subtype(first) == explicit_kern_subtype)) {
+                        break;
+                    } else { 
+                        first = node_next(first);
+                    }
+                }
+                if (! first) {
                     break;
                 }
-                r = q;
             }
-            if (r != temp_head) {
-                node_next(r) = null;
-                tex_flush_node_list(node_next(temp_head));
-                tex_try_couple_nodes(temp_head, q);
+        } while (cur_p);
+    } else { 
+        halfword page = 1;
+        scaled height = 0;
+        halfword topskip = null;
+        halfword bottomskip = null;
+        do {
+            halfword first = node_next(temp_head); 
+            halfword last  = passive_cur_break(cur_p);
+            if (last) {
+                switch (node_type(last)) {
+                    case glue_node:
+                        last = node_prev(last);
+                        break;
+                    case kern_node:
+                        kern_amount(last) = 0;
+                        break;
+                }
+            } else {
+                /* kind of weird */
+                last = tex_tail_of_node_list(temp_head);
             }
+            node_next(temp_head) = node_next(last);
+            node_next(last) = null;
+            tex_aux_update_height_and_skips(properties, page, &height, &topskip, &bottomskip);
+            if (first && ! tex_glue_is_zero(topskip)) { 
+                halfword current = first;
+                scaled height = 0; 
+                halfword gluenode = tex_new_glue_node(topskip, top_skip_glue);
+                tex_attach_attribute_list_copy(gluenode, current);
+                while (current) {
+                    switch (node_type(current)) {
+                        case hlist_node:
+                        case vlist_node:
+                            height = box_height(current); 
+                            goto ADDTOPSKIP2;
+                        case rule_node:
+                            height = rule_height(current); 
+                            goto ADDTOPSKIP2;
+                        default:
+                            break;
+                    }
+                    current = node_next(current);
+                }
+              ADDTOPSKIP2:
+                if (glue_amount(gluenode) > height) {
+                    glue_amount(gluenode) -= height;
+                } else {
+                    glue_amount(gluenode) = 0;
+                }
+                tex_couple_nodes(gluenode, first);
+                first = gluenode;
+            }
+            if (last && ! tex_glue_is_zero(bottomskip)) { 
+                scaled depth = 0; 
+                halfword gluenode = tex_new_glue_node(bottomskip, bottom_skip_glue); 
+                tex_attach_attribute_list_copy(gluenode, last);
+                switch (node_type(last)) {
+                    case hlist_node:
+                    case vlist_node:
+                        depth = box_depth(last); 
+                        break;
+                    case rule_node:
+                        depth = rule_depth(last); 
+                        break;
+                }
+                if (glue_amount(gluenode) > depth) {
+                    glue_amount(gluenode) -= depth;
+                } else {
+                    glue_amount(gluenode) = 0;
+                }
+                tex_couple_nodes(last, gluenode);
+                last = gluenode;
+            }
+            if (properties->packing == packing_additional) {
+                lmt_balance_state.just_box = tex_vpack(first, 0, packing_additional, 0, 0, holding_none_option, NULL);
+            } else {
+                lmt_balance_state.just_box = tex_vpack(first, height, packing_exactly, 0, 0, holding_none_option, NULL);
+            }
+            if (callback_id) {
+                tex_aux_balance_callback_page(callback_id, checks, page, cur_p);
+            }
+            tex_tail_append(lmt_balance_state.just_box);
+            tex_attach_attribute_list_copy(lmt_balance_state.just_box, first);
+            ++page;
+            cur_p = passive_next_break(cur_p);
+            if (cur_p) {
+                /* this is kind of ugly code */
+                halfword r = temp_head;
+                halfword q = null;
+                while (1) {
+                    q = node_next(r);
+                    if (q == passive_cur_break(cur_p)) {
+                        break;
+                    } else if (non_discardable(q)) {
+                        break;
+                    } else if (node_type(q) == kern_node && ! (node_subtype(q) == explicit_kern_subtype)) {
+                        break;
+                    } else { 
+                        r = q;
+                    }
+                }
+                if (r != temp_head) {
+                    node_next(r) = null;
+                    tex_flush_node_list(node_next(temp_head));
+                    tex_try_couple_nodes(temp_head, q);
+                }
+            }
+        } while (cur_p);
+        if (page != lmt_balance_state.best_page) {
+         // tex_confusion("balancing 1");
+        } else if (node_next(temp_head)) {
+            tex_confusion("balancing 2");
         }
-     // if (cur_disc) {
-     //     tex_try_couple_nodes(node_prev(cur_disc),node_next(cur_disc));
-     //     tex_flush_node(cur_disc);
-     // }
-    } while (cur_p);
-    if (cur_page != lmt_balance_state.best_page) {
-     // tex_begin_diagnostic();
-     // tex_print_format("[balance: dubious situation, current page %i is not best page %i]", cur_page, lmt_balance_state.best_page);
-     // tex_end_diagnostic();
-     // tex_confusion("balancing 1");
-    } else if (node_next(temp_head)) {
-        tex_confusion("balancing 2");
     }
 }
 
 extern halfword tex_vbalance (
     halfword n,
-    halfword mode
+    halfword mode,
+    halfword trial
 ) 
 {
     halfword box = box_register(n);
@@ -2135,24 +2010,33 @@ extern halfword tex_vbalance (
             "The box you are trying to split is an \\hbox. I can't split such a box, so I''ll\n"
             "leave it alone."
         );
+        return null;
     } else {
         halfword head = box_list(box);
+        halfword result = null;
         if (head) {
             balance_properties properties;
             tex_push_nest();
             node_next(temp_head) = head;
-            properties.packing = mode; 
             tex_balance_preset(&properties);
+            properties.packing = mode; 
+            properties.trial = trial;
             tex_balance(&properties, head);
             tex_balance_reset(&properties);
-            box_list(box) = null;
-            tex_flush_node(box);
-            box_register(n) = tex_vpack(node_next(cur_list.head), 0, packing_exactly, max_dimension, 0, holding_none_option, NULL);
+            result = node_next(cur_list.head);
+            node_next(cur_list.head) = null;
             node_next(temp_head) = null;
             tex_pop_nest();
+            /* maybe filtered because that also does the uleaders */
+            result = tex_vpack(result, 0, packing_exactly, max_dimension, 0, holding_none_option, NULL);
         }
+        if (! trial) {
+                box_list(box) = null;
+                tex_flush_node(box);
+                box_register(n) = null;
+        }
+        return result;
     }
-    return null;
 }
 
 extern halfword tex_vbalanced (
@@ -2174,13 +2058,19 @@ extern halfword tex_vbalanced (
         if (head) {
             halfword rest = node_next(head);
             halfword list = box_list(head);
+            node_prev(head) = null;
             node_next(head) = null;
-            node_prev(rest) = null;
             box_list(box) = rest;
-            if (! rest) { 
+            if (rest) { 
+                node_prev(rest) = null;
+            } else { 
                 tex_flush_node(box);
                 box_register(n) = null;
             }
+            for (halfword i = 0; i <= lmt_mark_state.mark_data.ptr; i++) {
+                tex_delete_mark(i, split_first_mark_code);
+                tex_delete_mark(i, split_bot_mark_code);
+            } 
             while (list) {
                 if (node_type(list) == mark_node) {
                     tex_update_split_mark(list);
@@ -2188,6 +2078,9 @@ extern halfword tex_vbalanced (
                 list = node_next(list);
             }
             return head;
+        } else { 
+            tex_flush_node(box);
+            box_register(n) = null;
         }
     }
     return null;

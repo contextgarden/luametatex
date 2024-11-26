@@ -872,10 +872,10 @@ typedef struct balance_properties {
     halfword shape;
     halfword fitness_classes;
     halfword checks;
-    halfword hyphenation_mode;
     halfword passes;
     halfword penalty;
     halfword packing;
+    halfword trial; /* packing */
 } balance_properties;
 
 typedef enum sparse_identifiers {

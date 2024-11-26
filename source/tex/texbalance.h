@@ -11,7 +11,6 @@ typedef struct balance_state_info {
     int          threshold;
     halfword     quality;
     int          callback_id;
- // int          force_check_hyphenation;
     scaled       extra_background_stretch;
     scaled       extra_background_shrink;
     halfword     passive;
@@ -20,7 +19,6 @@ typedef struct balance_state_info {
     scaled       active_height[n_of_glue_amounts];
     scaled       background[n_of_glue_amounts];
     scaled       break_height[n_of_glue_amounts];
- // scaled       disc_height[n_of_glue_amounts];
     scaled       fill_height[4];
     fitcriterion minimal_demerits;
     halfword     minimum_demerits;
@@ -45,6 +43,7 @@ typedef struct balance_state_info {
     break_passes passes;
     int          artificial_encountered; 
     int          current_page_number; /* check if we can use something else */
+    halfword     default_fitness_classes;
 } balance_state_info;
 
 extern balance_state_info lmt_balance_state; /* can be private */
@@ -69,7 +68,8 @@ extern void tex_balance (
 
 extern halfword tex_vbalance (
     halfword n,
-    halfword mode
+    halfword mode,
+    halfword trial
 );
 
 extern halfword tex_vbalanced (

@@ -822,7 +822,6 @@ void tex_initialize_commands(void)
      // tex_primitive(luatex_command, "boxdepth",                       box_property_cmd,       box_depth_code,                           0);
      // tex_primitive(luatex_command, "boxheight",                      box_property_cmd,       box_height_code,                          0);
      // tex_primitive(luatex_command, "boxwidth",                       box_property_cmd,       box_width_code,                           0);
-        tex_primitive(luatex_command, "boxbalance",                     box_property_cmd,       box_balance_code,                         0);
 
         tex_primitive(tex_command,    "badness",                        some_item_cmd,          badness_code,                             0);
         tex_primitive(etex_command,   "currentgrouplevel",              some_item_cmd,          current_group_level_code,                 0);
@@ -1202,7 +1201,8 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "vpack",                          make_box_cmd,           vpack_code,                               0);
         tex_primitive(tex_command,    "vsplit",                         make_box_cmd,           vsplit_code,                              0);
         tex_primitive(tex_command,    "vtop",                           make_box_cmd,           vtop_code,                                0);
-        tex_primitive(luatex_command, "vbalancedbox",                   make_box_cmd,           vbalanced_code,                           0);
+        tex_primitive(luatex_command, "vbalance",                       make_box_cmd,           vbalance_code,                            0);
+        tex_primitive(luatex_command, "vbalancedbox",                   make_box_cmd,           vbalanced_box_code,                       0);
 
         /*tex Begin compatibility. */
 

@@ -14,6 +14,8 @@ static int valid_specification_options[] = {
     [orphan_penalties_code]        = 0,
     [par_passes_code]              = specification_option_presets,
     [par_shape_code]               = specification_option_repeat,
+    [balance_passes_code]          = specification_option_presets,
+    [balance_shape_code]           = specification_option_repeat,
     [widow_penalties_code]         = specification_option_double | specification_option_largest| specification_option_final,
     [broken_penalties_code]        = specification_option_double,
     [fitness_classes_code]         = 0,
@@ -840,7 +842,7 @@ static halfword tex_aux_scan_specification_balance_passes(void)
         }
         p = tex_new_specification_node(count, balance_passes_code, options);
         while (n <= count) {
-            switch (tex_scan_character("cdefilnpqtCDEFILNPQT", 0, 1, 0)) { /* hH */
+            switch (tex_scan_character("cdefilnpqtCDEFILNPQT", 0, 1, 0)) {
                 case 0:
                     goto DONE;
                 case 'c': case 'C':
@@ -901,12 +903,6 @@ static halfword tex_aux_scan_specification_balance_passes(void)
                         tex_set_balance_passes_okay(p, n, passes_fitnessclasses_okay);
                     }
                     break;
-             // case 'h': case 'H':
-             //     if (tex_scan_mandate_keyword("hyphenation", 1)) {
-             //         tex_set_balance_passes_hyphenation(p, n, tex_scan_integer(0, NULL));           
-             //         tex_set_balance_passes_okay(p, n, passes_hyphenation_okay);
-             //     }
-             //     break;
                 case 'i': case 'I':
                     switch (tex_scan_character("dfDF", 0, 0, 0)) {
                         case 'd': case 'D':

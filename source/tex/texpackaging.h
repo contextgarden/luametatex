@@ -9,14 +9,15 @@
 
 /* We define some constants used when calling |hpack| to deal with font expansion. */
 
-typedef enum hpack_subtypes {
+typedef enum hpack_packing_modes {
     packing_exactly,    /*tex a box dimension is pre-specified */
     packing_additional, /*tex a box dimension is increased from the natural one */
     packing_expanded,   /*tex calculate amount for font expansion after breaking paragraph into lines */
     packing_substitute, /*tex substitute fonts */
     packing_adapted, 
     packing_linebreak,  /*tex signals that we need to take the frozen adjust properties */
-} hpack_subtypes;
+ // packing_trial, 
+} hpack_packing_modes;
 
 typedef enum box_codes {
     box_code,      /*tex |chr_code| for |\box| */
@@ -35,7 +36,8 @@ typedef enum box_codes {
     vbox_code,     /*tex |chr_code| for |\vbox| */
     dbox_code,
     hbox_code,
-    vbalanced_code,
+    vbalance_code,
+    vbalanced_box_code,
     insert_box_code,
     insert_copy_code,
     local_left_box_box_code,
