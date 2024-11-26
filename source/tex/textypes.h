@@ -869,12 +869,12 @@ typedef struct balance_properties {
     scaled   vsize;
     scaled   topskip;
     scaled   bottomskip;
-    halfword page_shape;
+    halfword shape;
     halfword fitness_classes;
-    halfword balance_checks;
+    halfword checks;
     halfword hyphenation_mode;
-    halfword page_passes;
-    halfword page_penalty;
+    halfword passes;
+    halfword penalty;
     halfword packing;
 } balance_properties;
 

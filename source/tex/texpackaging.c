@@ -2957,6 +2957,7 @@ static void tex_aux_set_vnature(halfword boxnode, int nature)
             break;
         case vbox_code: 
         case vsplit_code: 
+        case vbalanced_code: 
             box_package_state(boxnode) = vbox_package_state;
             break;
         case dbox_code: 
@@ -4029,7 +4030,7 @@ void tex_begin_box(int boxcontext, scaled shift, halfword slot, halfword callbac
                 while (1) {
                     switch (tex_scan_character("atuATU", 0, 1, 0)) {
                         case 0:
-                            goto DONE;
+                            goto DONE1;
                         case 'a': case 'A':
                             if (tex_scan_mandate_keyword("attr", 1)) {
                                 attrlist = tex_scan_attribute(attrlist);
@@ -4049,15 +4050,21 @@ void tex_begin_box(int boxcontext, scaled shift, halfword slot, halfword callbac
                             break;
                         default:
                             tex_aux_show_keyword_error("attr|upto|to");
-                            goto DONE;
+                            goto DONE1;
                     }
                 }
-              DONE:
+              DONE1:
                 boxnode = tex_vsplit(index, size, mode);
                 tex_aux_set_vnature(boxnode, code);
                 if (attrlist) { 
                     tex_attach_attribute_list_attribute(boxnode, attrlist);
                 }
+            }
+            break;
+        case vbalanced_code:
+            {
+                halfword index = tex_scan_box_register_number();
+                boxnode = tex_vbalanced(index);
             }
             break;
         case insert_box_code:

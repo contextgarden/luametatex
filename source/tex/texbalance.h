@@ -67,4 +67,13 @@ extern void tex_balance (
     halfword head
 );
 
+extern halfword tex_vbalance (
+    halfword n,
+    halfword mode
+);
+
+extern halfword tex_vbalanced (
+    halfword n
+);
+
 # endif

@@ -512,7 +512,6 @@ make_lua_key(L, auxiliary);\
 make_lua_key(L, axis);\
 make_lua_key(L, AxisHeight);\
 make_lua_key(L, baselineskip);\
-make_lua_key(L, balancechecks);\
 make_lua_key(L, beforedisplay);\
 make_lua_key(L, beforedisplaypenalty);\
 make_lua_key(L, begin_group);\
@@ -565,6 +564,7 @@ make_lua_key(L, char_number);\
 make_lua_key(L, character);\
 make_lua_key(L, characters);\
 make_lua_key(L, check);\
+make_lua_key(L, checks);\
 make_lua_key(L, choice);\
 make_lua_key(L, class);\
 make_lua_key(L, cleaders);\
@@ -1060,14 +1060,11 @@ make_lua_key(L, overloaded);\
 make_lua_key(L, package);\
 make_lua_key(L, packing);\
 make_lua_key(L, page);\
-make_lua_key(L, pagepenalty);\
 make_lua_key(L, page_property);\
 make_lua_key(L, pagediscardshead);\
 make_lua_key(L, pagehead);\
 make_lua_key(L, pageinserthead);\
-make_lua_key(L, pagepasses);\
 make_lua_key(L, pages);\
-make_lua_key(L, pageshape);\
 make_lua_key(L, Pages);\
 make_lua_key(L, par);\
 make_lua_key(L, parameter);\
@@ -1085,6 +1082,7 @@ make_lua_key(L, parskip);\
 make_lua_key(L, parts);\
 make_lua_key(L, partsitalic);\
 make_lua_key(L, partsorientation);\
+make_lua_key(L, passes);\
 make_lua_key(L, passive);\
 make_lua_key(L, pdfe);\
 make_lua_key(L, penalty);\
@@ -1244,6 +1242,7 @@ make_lua_key(L, set_box);\
 make_lua_key(L, set_font);\
 make_lua_key(L, sffactor);\
 make_lua_key(L, sfstretchfactor);\
+make_lua_key(L, shape);\
 make_lua_key(L, shapingpenaltiesmode);\
 make_lua_key(L, shapingpenalty);\
 make_lua_key(L, shift);\

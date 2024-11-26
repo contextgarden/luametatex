@@ -693,6 +693,7 @@ typedef enum box_property_codes {
     box_limit_code,
     box_stretch_code,
     box_shrink_code,
+    box_balance_code,
     /* we actually need set_box_int_cmd, or set_box_property */
     box_attribute_code,
     box_vadjust_code,

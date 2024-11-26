@@ -2699,13 +2699,13 @@ static halfword texlib_tobalanceshape(lua_State *L, int i)
                     lua_push_key(top);
                     lua_rawget(L, -2);
                     target = lmt_optional_isnode(L, -1);
-                    tex_set_balance_topskip(p, j, tex_copy_node(target && node_type(target) == glue_spec_node ? target : top_skip_par));
+                    tex_set_balance_topskip(p, j, tex_copy_node(target && node_type(target) == glue_spec_node ? target : balance_top_skip_par));
                     lua_pop(L, 1);
                     /* */
                     lua_push_key(bottom);
                     lua_rawget(L, -2);
                     target = lmt_optional_isnode(L, -1);
-                    tex_set_balance_bottomskip(p, j, tex_copy_node(target && node_type(target) == glue_spec_node ? target : bottom_skip_par));
+                    tex_set_balance_bottomskip(p, j, tex_copy_node(target && node_type(target) == glue_spec_node ? target : balance_bottom_skip_par));
                     lua_pop(L, 1);
                 }
                 lua_pop(L, 1);
@@ -4395,10 +4395,10 @@ static int texlib_getbalanceparameterfields(lua_State *L)
     lua_push_key_at_index(L, vsize,            10);
     lua_push_key_at_index(L, topskip,          11);
     lua_push_key_at_index(L, bottomskip,       12);
-    lua_push_key_at_index(L, pageshape,        13);
-    lua_push_key_at_index(L, pagepenalty,      14);
-    lua_push_key_at_index(L, pagepasses,       15);
-    lua_push_key_at_index(L, balancechecks,    16);
+    lua_push_key_at_index(L, shape,            13);
+    lua_push_key_at_index(L, penalty,          14);
+    lua_push_key_at_index(L, passes,           15);
+    lua_push_key_at_index(L, checks,           16);
     lua_push_key_at_index(L, packing,          17);
     return 1;
 }
@@ -4437,10 +4437,10 @@ static int texlib_balance(lua_State *L)
         get_dimension_par     (properties.vsize,              vsize,             properties.vsize);
         get_glue_par          (properties.topskip,            topskip,           properties.topskip);
         get_glue_par          (properties.bottomskip,         bottomskip,        properties.bottomskip);
-        get_balance_shape     (properties.page_shape,         pageshape,         null);
-        get_integer_par       (properties.page_penalty,       pagepenalty,       properties.page_penalty);
-        get_balance_passes_par(properties.page_passes,        pagepasses,        balance_break_passes_par > 0 ? balance_passes_par : null);
-        get_integer_par       (properties.balance_checks,     balancechecks,     properties.balance_checks);
+        get_balance_shape     (properties.shape,              shape,             null);
+        get_integer_par       (properties.penalty,            penalty,           properties.penalty);
+        get_balance_passes_par(properties.passes,             passes,            balance_break_passes_par > 0 ? balance_passes_par : null);
+        get_integer_par       (properties.checks,             checks,            properties.checks);
         get_integer_par       (properties.packing,            packing,           properties.packing);
         /* */
         tex_balance(&properties, head);

@@ -959,7 +959,7 @@ static halfword tex_aux_scan_specification_balance_passes(void)
                             case 'p': case 'P':
                                 if (tex_scan_mandate_keyword("pagepenalty", 5)) {
                                     tex_set_balance_passes_pagepenalty(p, n, tex_scan_integer(0, NULL));
-                                    tex_set_balance_passes_okay(p, n, passes_pagepenalty_okay);
+                                    tex_set_balance_passes_okay(p, n, passes_balancepenalty_okay);
                                 } 
                                 break;
                             default:

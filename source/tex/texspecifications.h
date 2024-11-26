@@ -275,7 +275,7 @@ typedef enum passes_parameter_okay {
     passes_reserved_1_okay           = 0x40000000,
     passes_reserved_2_okay           = 0x80000000,
     /* nicer */
-    passes_pagepenalty_okay          = 0x00000800,
+    passes_balancepenalty_okay       = 0x00000800,
     passes_balancechecks_okay        = 0x00800000,
     /*tex Watch out: the following options exceed halfword: |noad_options| are |long long|. */
 } passes_parameters_okay;

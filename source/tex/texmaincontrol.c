@@ -4687,6 +4687,32 @@ static void tex_aux_set_box_property(void)
         case box_shrink_code:
             /* ignore: maybe apply some factor  */            
             break;
+        case box_balance_code:
+            {
+                halfword mode = packing_exactly ;
+                while (1) {
+                    switch (tex_scan_character("aeAE", 0, 1, 0)) {
+                        case 0:
+                            goto DONE;
+                        case 'e': case 'E':
+                            if (tex_scan_mandate_keyword("exactly", 1)) {
+                                mode = packing_exactly ;
+                            }
+                            break;
+                        case 'a': case 'A':
+                            if (tex_scan_mandate_keyword("additional", 1)) {
+                                mode = packing_additional;
+                            }
+                            break;
+                        default:
+                            tex_aux_show_keyword_error("exactly|additional");
+                            goto DONE;
+                    }
+                }
+              DONE:
+                tex_vbalance(n, mode);
+            }
+            break;
         default:
             break;
     }
