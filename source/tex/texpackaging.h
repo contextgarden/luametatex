@@ -38,6 +38,7 @@ typedef enum box_codes {
     hbox_code,
     vbalance_code,
     vbalanced_box_code,
+    flush_mvl_box_code,
     insert_box_code,
     insert_copy_code,
     local_left_box_box_code,

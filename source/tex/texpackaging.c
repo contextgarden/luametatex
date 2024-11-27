@@ -2959,6 +2959,7 @@ static void tex_aux_set_vnature(halfword boxnode, int nature)
         case vsplit_code: 
         case vbalance_code: 
         case vbalanced_box_code: 
+        case flush_mvl_box_code: 
             box_package_state(boxnode) = vbox_package_state;
             break;
         case dbox_code: 
@@ -4102,6 +4103,12 @@ void tex_begin_box(int boxcontext, scaled shift, halfword slot, halfword callbac
             {
                 halfword index = tex_scan_box_register_number();
                 boxnode = tex_vbalanced(index);
+            }
+            break;
+        case flush_mvl_box_code:
+            {
+                halfword index = tex_scan_integer(0, NULL);
+                boxnode = tex_flush_list_state(index);
             }
             break;
         case insert_box_code:

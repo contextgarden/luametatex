@@ -638,6 +638,9 @@ void tex_initialize_commands(void)
         tex_primitive(etex_command,   "scantokens",                     input_cmd,              token_input_code,                         0);
         tex_primitive(luatex_command, "tokenized",                      input_cmd,              tokenized_code,                           0);
 
+        tex_primitive(luatex_command, "beginmvl",                       mvl_cmd,                begin_mvl_code,                           0);
+        tex_primitive(luatex_command, "endmvl",                         mvl_cmd,                end_mvl_code,                             0);
+
         tex_primitive(tex_command,    "insert",                         insert_cmd,             normal_code,                              0);
 
         tex_primitive(luatex_command, "luabytecodecall",                lua_function_call_cmd,  lua_bytecode_call_code,                   0);
@@ -1203,6 +1206,7 @@ void tex_initialize_commands(void)
         tex_primitive(tex_command,    "vtop",                           make_box_cmd,           vtop_code,                                0);
         tex_primitive(luatex_command, "vbalance",                       make_box_cmd,           vbalance_code,                            0);
         tex_primitive(luatex_command, "vbalancedbox",                   make_box_cmd,           vbalanced_box_code,                       0);
+        tex_primitive(luatex_command, "flushmvl",                       make_box_cmd,           flush_mvl_box_code,                       0);
 
         /*tex Begin compatibility. */
 

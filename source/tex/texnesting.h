@@ -10,6 +10,8 @@
     end up with the same size. We also end up with plenty of casts elsewhere. 
 */
 
+# define max_list_stack 16 
+
 typedef struct list_state_record {
     int      mode;                 // singleword 
     halfword head;                 
@@ -38,6 +40,8 @@ typedef struct nest_state_info {
     memory_data        nest_data;
     int                shown_mode; // singleword
     int                math_mode;  // singleword
+    list_state_record  stack[max_list_stack + 1];
+    int                stackslot; 
 } nest_state_info;
 
 extern nest_state_info lmt_nest_state;
@@ -79,5 +83,11 @@ extern int         tex_vmode_nest_index      (void);
 /*
 # define tail_append tex_tail_append
 */
+
+extern void     tex_initialize_list_states (void);
+extern void     tex_start_list_state       (int n);
+extern void     tex_stop_list_state        (void);
+extern halfword tex_flush_list_state       (int n);
+extern int      tex_appended_list_state    (void);
 
 # endif

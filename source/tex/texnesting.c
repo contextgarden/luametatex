@@ -160,7 +160,86 @@ nest_state_info lmt_nest_state = {
     },
     .shown_mode = 0,
     .math_mode  = 0,
+    .stackslot  = 0, 
+    .stack      = { { 0 } },
 };
+
+/*tex 
+    We start with an experiment. 
+*/
+
+static void tex_aux_reset_list_state(int i, int allocate) 
+{
+    halfword head = allocate ? tex_new_temp_node() : lmt_nest_state.stack[i].head;
+    lmt_nest_state.stack[i] = (list_state_record) {
+        .mode              = 0,
+        .head              = head,
+        .tail              = head,
+        .delimiter         = null,
+        .prev_graf         = 0,
+        .mode_line         = 0,   /* lmt_input_state.input_line */
+        .prev_depth        = 0,   /* todo */
+        .space_factor      = 0,   /* todo */
+        .incomplete_noad   = null,
+        .direction_stack   = null,
+        .math_dir          = 0,
+        .math_style        = -1,
+        .math_main_style   = 0,
+        .math_parent_style = 0,
+        .math_flatten      = 1,
+        .math_begin        = unset_noad_class,
+        .math_end          = unset_noad_class,
+    };
+}
+
+void tex_initialize_list_states(void)
+{
+    for (int i = 0; i <= max_list_stack; i++) {
+        tex_aux_reset_list_state(i, 1);
+    }
+}
+    
+void tex_start_list_state(int n)
+{
+    if (n > 0 && n <= max_list_stack && ! lmt_nest_state.stackslot) {
+        lmt_nest_state.stackslot = n;
+    }
+}
+
+void tex_stop_list_state(void)
+{
+    if (lmt_nest_state.stackslot) {
+        lmt_nest_state.stackslot = 0;
+    }
+}
+
+halfword tex_flush_list_state(int n)
+{
+    if (n > 0 && n <= max_list_stack && lmt_nest_state.stack[n].tail != lmt_nest_state.stack[n].head) {
+        halfword result = tex_vpack(node_next(lmt_nest_state.stack[n].head), 0, packing_additional, max_dimension, 0, holding_none_option, NULL);
+        tex_aux_reset_list_state(n, 0);
+        node_next(lmt_nest_state.stack[n].head) = null;
+        lmt_nest_state.stack[n].tail = lmt_nest_state.stack[n].head;
+        return result; 
+    } else { 
+        return null;
+    }
+}
+
+int tex_appended_list_state(void)
+{
+    if (lmt_nest_state.stackslot) {
+        if (node_next(contribute_head)) {
+             tex_try_couple_nodes(lmt_nest_state.stack[lmt_nest_state.stackslot].tail, node_next(contribute_head));
+             lmt_nest_state.stack[lmt_nest_state.stackslot].tail = contribute_tail;
+             node_next(contribute_head) = null;
+             contribute_tail = contribute_head;
+        }
+        return 1;
+    } else { 
+        return 0;
+    }
+}
 
 /*tex
 
@@ -184,6 +263,8 @@ void tex_initialize_nest_state(void)
     } else {
         tex_overflow_error("nest",  size);
     }
+    /*tex Instead this could also be called elsewhere. */
+    tex_initialize_list_states();
 }
 
 static int tex_aux_room_on_nest_stack(void) /* quite similar to save_stack checker so maybe share */

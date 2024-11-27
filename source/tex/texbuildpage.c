@@ -844,7 +844,9 @@ void tex_build_page(halfword context, halfword boundary)
     if (! lmt_page_builder_state.output_active) {
         lmt_page_filter_callback(context, boundary);
     }
-    if (node_next(contribute_head) && ! lmt_page_builder_state.output_active) {
+    if (tex_appended_list_state()) {
+        // printf("APPENDED\n");
+    } else if (node_next(contribute_head) && ! lmt_page_builder_state.output_active) {
         /*tex The (upcoming) penalty to be added to the badness: */
         halfword penalty = 0;
         int callback_id = lmt_callback_defined(show_build_callback);
@@ -1559,7 +1561,7 @@ void tex_resume_after_output(void)
         lmt_page_builder_state.page_tail = cur_list.tail;
     }
     if (node_next(page_head)) {
-        /* Both go before heldover contributions. */
+        /* Both go before held over contributions. */
         if (! node_next(contribute_head)) {
             contribute_tail = lmt_page_builder_state.page_tail;
         }

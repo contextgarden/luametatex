@@ -150,6 +150,7 @@ typedef enum tex_command_code {
     mark_cmd,                         /*tex mark definition (|mark|) */
     node_cmd,                         /*tex a node injected via \LUA */
     xray_cmd,                         /*tex peek inside of \TEX\ (|\show|, |\showbox|, etc.) */
+    mvl_cmd,
     make_box_cmd,                     /*tex make a box (|\box|, |\copy|, |\hbox|, etc.) */
     hmove_cmd,                        /*tex horizontal motion (|\moveleft|, |\moveright|) */
     vmove_cmd,                        /*tex vertical motion (|\raise|, |\lower|) */
@@ -532,6 +533,13 @@ typedef enum input_codes {
 } input_codes;
 
 # define last_input_code quit_loop_now_code
+
+typedef enum mvl_codes {
+    begin_mvl_code,
+    end_mvl_code,
+} mvl_codes;
+
+# define last_mvl_code end_mvl_code
 
 typedef enum some_item_codes {
     lastpenalty_code,           /*tex |\lastpenalty| */

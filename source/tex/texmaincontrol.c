@@ -6963,6 +6963,7 @@ halfword tex_expand_iterator(halfword tok)
         default:                        return 0;
     }
 }
+
 static void tex_aux_run_parameter(void)
 {
     tex_get_token();
@@ -6974,6 +6975,23 @@ static void tex_aux_run_parameter(void)
             tex_back_input(cur_tok);
             tex_aux_run_illegal_case(); 
         }
+    }
+}
+
+static void tex_aux_run_mvl(void)
+{
+    switch (cur_chr) {
+        case begin_mvl_code:
+            tex_start_list_state(tex_scan_integer(0, NULL)); // todo: use na range specific scanner 
+            break;
+        case end_mvl_code:
+            if (cur_list.mode == hmode) {
+                tex_aux_run_paragraph_end_hmode();
+            }
+            tex_stop_list_state();
+            break;
+        default:
+            break;
     }
 }
 
@@ -7078,9 +7096,8 @@ static inline void tex_aux_big_switch(int mode, int cmd)
         case alignment_cmd:               
         case alignment_tab_cmd:           tex_run_alignment_error();        break;
         case end_template_cmd:            tex_run_alignment_end_template(); break;
-
+        case mvl_cmd:                     tex_aux_run_mvl();                break;      
         /* */
-
         case math_fraction_cmd:    mode == mmode ? tex_run_math_fraction()         : tex_aux_run_insert_dollar_sign(); break;
         case delimiter_number_cmd: mode == mmode ? tex_run_math_delimiter_number() : tex_aux_run_insert_dollar_sign(); break;
         case math_fence_cmd:       mode == mmode ? tex_run_math_fence()            : tex_aux_run_insert_dollar_sign(); break;

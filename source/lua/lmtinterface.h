@@ -999,6 +999,7 @@ make_lua_key(L, mskip);\
 make_lua_key(L, muglue);\
 make_lua_key(L, mugluespec);\
 make_lua_key(L, mutable);\
+make_lua_key(L, mvl);\
 make_lua_key(L, name);\
 make_lua_key(L, nepalty);\
 make_lua_key(L, nestedlist);\

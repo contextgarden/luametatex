@@ -19,6 +19,7 @@
     \startitem We considered demerits on spread for a while. \stopitem 
     \startitem There is a balance penalty equivalent for line penalty. \stopitem 
     \startitem We added balance passes akin par passes. \stopitem 
+    \startitem Ther eis a trial mode too. \stopitem 
     \stopitemize 
 
     and 
@@ -28,7 +29,6 @@
     \startitem We might skip over excessive overfull. \stopitem 
     \startitem We will add balancing loops. \stopitem 
     \startitem We will look into adjust. \stopitem 
-    \startitem How about a preroll. \stopitem 
     \stopitemize 
 
     plus todo: 
@@ -1773,8 +1773,8 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
     }
     if (properties->trial) {
         /*tex 
-            We're only interested in the natural size. So we create a fitting vertical empty box with 
-            a height and depth matching the expected result. 
+            We're only interested in the natural dimensions. So we create a fitting vertical empty 
+            box with a height and depth matching the expected result. 
         */
         halfword page = 1;
         scaled height = 0;
@@ -2040,7 +2040,7 @@ extern halfword tex_vbalance (
     }
 }
 
-extern halfword tex_vbalanced (
+halfword tex_vbalanced (
     halfword n
 ) 
 {
