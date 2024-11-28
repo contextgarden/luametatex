@@ -125,8 +125,8 @@ static scaled tex_aux_checked_shrink(halfword p)
             lmt_balance_state.no_shrink_error_yet = 0;
             tex_handle_error(
                 normal_error_type,
-                "Infinite glue shrinkage found in a page",
-                "The page just ended includes some glue that has infinite shrinkability.\n"
+                "Infinite glue shrinkage found in a (balance) page",
+                "The (balance) page just ended includes some glue that has infinite shrinkability.\n"
             );
         }
         glue_shrink_order(p) = normal_glue_order;
@@ -497,6 +497,14 @@ static void tex_check_skips_shortfall(const balance_properties *properties, half
 
 */
 
+static void tex_aux_check_height(scaled *height)
+{
+    if (*height <= 0) {
+        *height = 50*655360; /* maybe vsize_par */
+        tex_formatted_warning("balance", "invalid height, defaulting to %p", *height);
+    }
+}
+
 static void tex_aux_set_height(
     const balance_properties *properties
 )
@@ -520,6 +528,8 @@ static void tex_aux_set_height(
     lmt_balance_state.first_height = properties->vsize;;
     lmt_balance_state.first_topskip = properties->topskip;
     lmt_balance_state.first_bottomskip = properties->bottomskip;
+    tex_aux_check_height(&lmt_balance_state.first_height);
+    tex_aux_check_height(&lmt_balance_state.second_height);
 }
 
 static void tex_aux_update_height(
@@ -537,6 +547,7 @@ static void tex_aux_update_height(
     } else {
         *height = lmt_balance_state.first_height;
     }
+    tex_aux_check_height(height);
 }
 
 static void tex_aux_update_height_and_skips(
@@ -564,6 +575,7 @@ static void tex_aux_update_height_and_skips(
         *topskip = lmt_balance_state.first_topskip;
         *bottomskip = lmt_balance_state.first_bottomskip;
     }
+    tex_aux_check_height(height);
 }
 
 /* */ 
@@ -1462,7 +1474,7 @@ void tex_balance_preset(balance_properties *properties)
     properties->tracing_passes    = tracing_passes_par;
     properties->tolerance         = balance_tolerance_par;
     properties->pretolerance      = -1; /* we skip when the same */
-    properties->vsize             = balance_vsize_par; 
+    properties->vsize             = balance_vsize_par;
     properties->topskip           = balance_top_skip_par;
     properties->bottomskip        = balance_bottom_skip_par;
     properties->emergency_stretch = balance_emergency_stretch_par;

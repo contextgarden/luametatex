@@ -2941,6 +2941,7 @@ static void tex_aux_set_vnature(halfword boxnode, int nature)
     switch (nature) { 
         case vtop_code: 
         case tsplit_code: 
+        case vbalanced_top_code: 
             {
                 /*tex
 
@@ -4100,6 +4101,7 @@ void tex_begin_box(int boxcontext, scaled shift, halfword slot, halfword callbac
             {
             }
         case vbalanced_box_code:
+        case vbalanced_top_code:
             {
                 halfword index = tex_scan_box_register_number();
                 boxnode = tex_vbalanced(index);

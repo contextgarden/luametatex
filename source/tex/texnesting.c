@@ -165,62 +165,90 @@ nest_state_info lmt_nest_state = {
 };
 
 /*tex 
-    We start with an experiment. 
+    We start with an experiment. We reserve slot 0 for special purposes. 
 */
 
-static void tex_aux_reset_list_state(int i, int allocate) 
+static void tex_aux_reset_list_state(int i) 
 {
-    halfword head = allocate ? tex_new_temp_node() : lmt_nest_state.stack[i].head;
     lmt_nest_state.stack[i] = (list_state_record) {
-        .mode              = 0,
-        .head              = head,
-        .tail              = head,
+        .mode              = vmode,
+        .head              = null,
+        .tail              = null,
         .delimiter         = null,
         .prev_graf         = 0,
-        .mode_line         = 0,   /* lmt_input_state.input_line */
-        .prev_depth        = 0,   /* todo */
-        .space_factor      = 0,   /* todo */
+        .mode_line         = 0,
+        .prev_depth        = ignore_depth,   
+        .space_factor      = default_space_factor,
         .incomplete_noad   = null,
         .direction_stack   = null,
         .math_dir          = 0,
         .math_style        = -1,
-        .math_main_style   = 0,
-        .math_parent_style = 0,
+        .math_main_style   = -1,
+        .math_parent_style = -1,
         .math_flatten      = 1,
         .math_begin        = unset_noad_class,
         .math_end          = unset_noad_class,
     };
 }
 
+/* todo: stack so that we can nest */
+
+/* 
+    contribute_head : nest[0].head : temp node 
+    contribute_tail : nest[0].tail 
+*/
+
 void tex_initialize_list_states(void)
 {
-    for (int i = 0; i <= max_list_stack; i++) {
-        tex_aux_reset_list_state(i, 1);
+    for (int i = 0; i <= max_n_list_stack_entries; i++) {
+        tex_aux_reset_list_state(i);
     }
+    lmt_nest_state.stackslot = 0;
 }
     
 void tex_start_list_state(int n)
 {
-    if (n > 0 && n <= max_list_stack && ! lmt_nest_state.stackslot) {
+    if (n > 0 && n <= max_n_list_stack_entries && ! lmt_nest_state.stackslot) {
+        int start = ! lmt_nest_state.stack[n].head;
+        if (tracing_mvl_par) { 
+            tex_begin_diagnostic();
+            tex_print_format("[mvl: index %i, %s]", n, start ? "start" : "restart");
+            tex_end_diagnostic();
+        }
+        if (start) { 
+            lmt_nest_state.stack[n].head = tex_new_temp_node();
+            lmt_nest_state.stack[n].tail = lmt_nest_state.stack[n].head;
+        } else { 
+        }
         lmt_nest_state.stackslot = n;
     }
 }
 
 void tex_stop_list_state(void)
 {
-    if (lmt_nest_state.stackslot) {
+    if (lmt_nest_state.stackslot && lmt_nest_state.stackslot <= max_n_list_stack_entries) {
+        if (tracing_mvl_par) { 
+            tex_begin_diagnostic();
+            tex_print_format("[mvl: index %i, %s]", lmt_nest_state.stackslot, "stop");
+            tex_end_diagnostic();
+        }
         lmt_nest_state.stackslot = 0;
     }
 }
 
 halfword tex_flush_list_state(int n)
 {
-    if (n > 0 && n <= max_list_stack && lmt_nest_state.stack[n].tail != lmt_nest_state.stack[n].head) {
-        halfword result = tex_vpack(node_next(lmt_nest_state.stack[n].head), 0, packing_additional, max_dimension, 0, holding_none_option, NULL);
-        tex_aux_reset_list_state(n, 0);
-        node_next(lmt_nest_state.stack[n].head) = null;
-        lmt_nest_state.stack[n].tail = lmt_nest_state.stack[n].head;
-        return result; 
+    if (n > 0 && n <= max_n_list_stack_entries && ! lmt_nest_state.stackslot && lmt_nest_state.stack[n].tail != lmt_nest_state.stack[n].head) {
+        halfword head = node_next(lmt_nest_state.stack[n].head);
+        tex_flush_node(lmt_nest_state.stack[n].head);
+        tex_aux_reset_list_state(n);
+        if (tracing_mvl_par) { 
+            tex_begin_diagnostic();
+            tex_print_format("[mvl: index %i, %s]", n, "flush");
+            tex_end_diagnostic();
+        }
+        node_prev(head) = null;
+        return tex_vpack(head, 0, packing_additional, max_dimension, 0, holding_none_option, NULL);
     } else { 
         return null;
     }
@@ -229,12 +257,22 @@ halfword tex_flush_list_state(int n)
 int tex_appended_list_state(void)
 {
     if (lmt_nest_state.stackslot) {
-        if (node_next(contribute_head)) {
-             tex_try_couple_nodes(lmt_nest_state.stack[lmt_nest_state.stackslot].tail, node_next(contribute_head));
-             lmt_nest_state.stack[lmt_nest_state.stackslot].tail = contribute_tail;
-             node_next(contribute_head) = null;
-             contribute_tail = contribute_head;
+        if (contribute_head != contribute_tail && node_next(contribute_head)) {
+            int assign = lmt_nest_state.stack[lmt_nest_state.stackslot].tail == lmt_nest_state.stack[lmt_nest_state.stackslot].head;
+            if (tracing_mvl_par) { 
+                tex_begin_diagnostic();
+                tex_print_format("[mvl: index %i, %s]", lmt_nest_state.stackslot, assign ? "assign" : "append");
+                tex_end_diagnostic();
+            }
+            if (assign) { 
+                node_next(lmt_nest_state.stack[lmt_nest_state.stackslot].head) = node_next(contribute_head);
+            } else { 
+                tex_couple_nodes(lmt_nest_state.stack[lmt_nest_state.stackslot].tail, node_next(contribute_head));
+            }
+            lmt_nest_state.stack[lmt_nest_state.stackslot].tail = contribute_tail;
         }
+        node_next(contribute_head) = null;
+        contribute_tail = contribute_head;
         return 1;
     } else { 
         return 0;

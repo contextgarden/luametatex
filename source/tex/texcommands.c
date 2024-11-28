@@ -442,7 +442,7 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "tracingadjusts",                 internal_integer_cmd,   tracing_adjusts_code,                     internal_integer_base);
         tex_primitive(luatex_command, "tracingalignments",              internal_integer_cmd,   tracing_alignments_code,                  internal_integer_base);
         tex_primitive(etex_command,   "tracingassigns",                 internal_integer_cmd,   tracing_assigns_code,                     internal_integer_base);
-        tex_primitive(tex_command,    "tracingbalancing",               internal_integer_cmd,   tracing_balancing_code,                   internal_integer_base);
+        tex_primitive(luatex_command, "tracingbalancing",               internal_integer_cmd,   tracing_balancing_code,                   internal_integer_base);
         tex_primitive(tex_command,    "tracingcommands",                internal_integer_cmd,   tracing_commands_code,                    internal_integer_base);
         tex_primitive(luatex_command, "tracingexpressions",             internal_integer_cmd,   tracing_expressions_code,                 internal_integer_base);
         tex_primitive(luatex_command, "tracingfitness",                 internal_integer_cmd,   tracing_fitness_code,                     internal_integer_base);
@@ -459,6 +459,7 @@ void tex_initialize_commands(void)
         tex_primitive(tex_command,    "tracingmacros",                  internal_integer_cmd,   tracing_macros_code,                      internal_integer_base);
         tex_primitive(luatex_command, "tracingmarks",                   internal_integer_cmd,   tracing_marks_code,                       internal_integer_base);
         tex_primitive(luatex_command, "tracingmath",                    internal_integer_cmd,   tracing_math_code,                        internal_integer_base);
+        tex_primitive(luatex_command, "tracingmvl",                     internal_integer_cmd,   tracing_mvl_code,                         internal_integer_base);
         tex_primitive(etex_command,   "tracingnesting",                 internal_integer_cmd,   tracing_nesting_code,                     internal_integer_base);
         tex_primitive(luatex_command, "tracingnodes",                   internal_integer_cmd,   tracing_nodes_code,                       internal_integer_base);
         tex_primitive(tex_command,    "tracingonline",                  internal_integer_cmd,   tracing_online_code,                      internal_integer_base);
@@ -1206,6 +1207,7 @@ void tex_initialize_commands(void)
         tex_primitive(tex_command,    "vtop",                           make_box_cmd,           vtop_code,                                0);
         tex_primitive(luatex_command, "vbalance",                       make_box_cmd,           vbalance_code,                            0);
         tex_primitive(luatex_command, "vbalancedbox",                   make_box_cmd,           vbalanced_box_code,                       0);
+        tex_primitive(luatex_command, "vbalancedtop",                   make_box_cmd,           vbalanced_top_code,                       0);
         tex_primitive(luatex_command, "flushmvl",                       make_box_cmd,           flush_mvl_box_code,                       0);
 
         /*tex Begin compatibility. */

@@ -10,8 +10,6 @@
     end up with the same size. We also end up with plenty of casts elsewhere. 
 */
 
-# define max_list_stack 16 
-
 typedef struct list_state_record {
     int      mode;                 // singleword 
     halfword head;                 
@@ -40,7 +38,7 @@ typedef struct nest_state_info {
     memory_data        nest_data;
     int                shown_mode; // singleword
     int                math_mode;  // singleword
-    list_state_record  stack[max_list_stack + 1];
+    list_state_record  stack[max_n_list_stack_entries + 1];
     int                stackslot; 
 } nest_state_info;
 

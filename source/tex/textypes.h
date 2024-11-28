@@ -310,6 +310,8 @@ extern halfword tex_badness(
 # define max_n_of_catcode_tables                256
 # define max_n_of_box_indices          max_halfword
 
+# define max_n_list_stack_entries                15 
+
 # define max_character_code                0x10FFFF /*tex 1114111, the largest allowed character number; must be |< max_halfword| */
 //define max_math_character_code           0x0FFFFF /*tex 1048575, for now this is plenty, otherwise we need to store differently */
 # define max_math_character_code max_character_code /*tex part gets clipped when we convert to a number */

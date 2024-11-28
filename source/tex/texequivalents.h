@@ -558,6 +558,7 @@ typedef enum int_codes {
     tracing_groups_code,                /*tex show save/restore groups */
     tracing_ifs_code,                   /*tex show conditionals */
     tracing_math_code,
+    tracing_mvl_code,
     tracing_levels_code,                /*tex show levels when tracing */
     tracing_nesting_code,               /*tex show incomplete groups and ifs within files */
     tracing_alignments_code,            /*tex show nesting of noalign and preambles */
@@ -1588,6 +1589,7 @@ extern void tex_word_define        (int g, halfword p, halfword w);
 # define tracing_macros_par               integer_parameter(tracing_macros_code)
 # define tracing_marks_par                integer_parameter(tracing_marks_code)
 # define tracing_math_par                 integer_parameter(tracing_math_code)
+# define tracing_mvl_par                  integer_parameter(tracing_mvl_code)
 # define tracing_nesting_par              integer_parameter(tracing_nesting_code)
 # define tracing_nodes_par                integer_parameter(tracing_nodes_code)
 # define tracing_online_par               integer_parameter(tracing_online_code)
