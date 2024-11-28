@@ -191,7 +191,12 @@ static void tex_aux_reset_list_state(int i)
     };
 }
 
-/* todo: stack so that we can nest */
+/* 
+    todo: stack so that we can nest 
+    todo: handle prev_depth 
+    todo: less fields needed, so actually we can have a 'register' or maybe even use a box 
+    todo: check if at the outer level 
+*/
 
 /* 
     contribute_head : nest[0].head : temp node 
@@ -218,8 +223,9 @@ void tex_start_list_state(int n)
         if (start) { 
             lmt_nest_state.stack[n].head = tex_new_temp_node();
             lmt_nest_state.stack[n].tail = lmt_nest_state.stack[n].head;
-        } else { 
         }
+lmt_nest_state.stack[0].prev_depth = lmt_nest_state.nest[0].prev_depth;
+lmt_nest_state.nest[0].prev_depth = lmt_nest_state.stack[n].prev_depth;
         lmt_nest_state.stackslot = n;
     }
 }
@@ -232,6 +238,8 @@ void tex_stop_list_state(void)
             tex_print_format("[mvl: index %i, %s]", lmt_nest_state.stackslot, "stop");
             tex_end_diagnostic();
         }
+lmt_nest_state.stack[lmt_nest_state.stackslot].prev_depth = lmt_nest_state.nest[0].prev_depth;
+lmt_nest_state.nest[0].prev_depth = lmt_nest_state.stack[lmt_nest_state.stackslot].prev_depth;
         lmt_nest_state.stackslot = 0;
     }
 }
@@ -299,7 +307,7 @@ void tex_initialize_nest_state(void)
     if (lmt_nest_state.nest) {
         lmt_nest_state.nest_data.allocated = size;
     } else {
-        tex_overflow_error("nest",  size);
+        tex_overflow_error("nest", size);
     }
     /*tex Instead this could also be called elsewhere. */
     tex_initialize_list_states();
