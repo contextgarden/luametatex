@@ -310,6 +310,7 @@ extern halfword tex_badness(
 # define max_n_of_catcode_tables                256
 # define max_n_of_box_indices          max_halfword
 
+# define min_n_list_stack_entries                 7 
 # define max_n_list_stack_entries                15 
 
 # define max_character_code                0x10FFFF /*tex 1114111, the largest allowed character number; must be |< max_halfword| */
@@ -614,6 +615,10 @@ typedef union tokenword {
 # define siz_nest_size           10000    /* Quite a bit more that the old default 50. */
 # define stp_nest_size            1000    /* We use this step when we increase the table. */
 
+# define max_mvl_size              500
+# define min_mvl_size               10
+# define stp_mvl_size               10
+
 # define max_in_open              2000    /* The table will grow dynamically but the file system might have limitations. */
 # define min_in_open               500    /* This used to be 100, but who knows what users load. */
 # define siz_in_open              2000    /* This used to be 100, but who knows what users load. */
@@ -740,6 +745,7 @@ typedef struct memory_data {
     int itemsize;  /* the itemsize */
     int initial;
     int offset;    /* offset of ptr and top */
+    int extra; 
 } memory_data;
 
 typedef struct limits_data {

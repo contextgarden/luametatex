@@ -32,26 +32,15 @@ node_memory_state_info lmt_node_memory_state = {
         .ptr       = 0, // total size in use
         .initial   = 0,
         .offset    = 0,
+        .extra     = 0, 
     },
-    .extra_data  = {
-        .minimum   = memory_data_unset,
-        .maximum   = memory_data_unset,
-        .size      = memory_data_unset,
-        .step      = memory_data_unset,
-        .allocated = 0,
-        .itemsize  = 1,
-        .top       = 0,
-        .ptr       = 0,
-        .initial   = memory_data_unset,
-        .offset    = 0,
-    },
-    .reserved                      = 0,
-    .padding                       = 0,
-    .node_properties_id            = 0,
-    .lua_properties_level          = 0,
-    .attribute_cache               = 0,
-    .max_used_attribute            = 1,
-    .node_properties_table_size    = 0,
+    .reserved                   = 0,
+    .padding                    = 0,
+    .node_properties_id         = 0,
+    .lua_properties_level       = 0,
+    .attribute_cache            = 0,
+    .max_used_attribute         = 1,
+    .node_properties_table_size = 0,
 };
 
 /*tex Defined below. */
@@ -4995,11 +4984,7 @@ static void *tex_aux_allocate_specification(halfword p, int n, size_t *size)
             break;
     }
     *size = n * sizeof(memoryword);
-    lmt_node_memory_state.extra_data.allocated += (int) *size;
-    lmt_node_memory_state.extra_data.ptr = lmt_node_memory_state.extra_data.allocated;
-    if (lmt_node_memory_state.extra_data.ptr > lmt_node_memory_state.extra_data.top) {
-        lmt_node_memory_state.extra_data.top = lmt_node_memory_state.extra_data.ptr;
-    }
+    lmt_node_memory_state.nodes_data.extra += (int) *size;
     if (n) { 
         l = lmt_memory_calloc(n, sizeof(memoryword));
         if (! l) {
@@ -5011,8 +4996,7 @@ static void *tex_aux_allocate_specification(halfword p, int n, size_t *size)
 
 static void tex_aux_deallocate_specification(void *p, int size)
 {
-    lmt_node_memory_state.extra_data.allocated -= size;
-    lmt_node_memory_state.extra_data.ptr = lmt_node_memory_state.extra_data.allocated;
+    lmt_node_memory_state.nodes_data.extra -= size;
     lmt_memory_free(p);
 }
 

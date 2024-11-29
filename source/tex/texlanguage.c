@@ -28,11 +28,12 @@ language_state_info lmt_language_state = {
         .size         = memory_data_unset,
         .step         = stp_language_size,
         .allocated    = 0,
-        .itemsize     = 1,
+        .itemsize     = sizeof(tex_language *),
         .top          = 0,
         .ptr          = 0,
         .initial      = memory_data_unset,
         .offset       = 0,
+        .extra        = 0, 
     },
     .handler_table_id = 0,
     .handler_count    = 0,
@@ -104,7 +105,7 @@ static halfword tex_aux_new_language_id(halfword id)
                 tmp[i] = NULL;
             }
             lmt_language_state.languages = tmp;
-            lmt_language_state.language_data.allocated += ((size_t) top - lmt_language_state.language_data.top) * sizeof(tex_language *);
+            lmt_language_state.language_data.allocated = top;
             lmt_language_state.language_data.top = top;
             lmt_language_state.language_data.ptr += 1;
             return lmt_language_state.language_data.ptr;
@@ -123,7 +124,7 @@ void tex_initialize_languages(void)
             tmp[i] = NULL;
         }
         lmt_language_state.languages = tmp;
-        lmt_language_state.language_data.allocated += lmt_language_state.language_data.minimum * sizeof(tex_language *);
+        lmt_language_state.language_data.allocated = lmt_language_state.language_data.minimum;
         lmt_language_state.language_data.top = lmt_language_state.language_data.minimum;
     } else {
         tex_overflow_error("languages", lmt_language_state.language_data.minimum);
@@ -155,7 +156,7 @@ tex_language *tex_new_language(halfword n)
         tex_language *lang = lmt_memory_malloc(sizeof(struct tex_language));
         if (lang) {
             lmt_language_state.languages[id] = lang;
-            lmt_language_state.language_data.allocated += sizeof(struct tex_language);
+            lmt_language_state.language_data.extra += sizeof(struct tex_language);
             tex_aux_reset_language(id);
             if (saving_hyph_codes_par) {
                 /*tex
@@ -236,6 +237,7 @@ void tex_undump_language_data(dumpstream f)
             lmt_language_state.language_data.top = top;
             lmt_language_state.language_data.ptr = ptr;
             lmt_language_state.languages = tmp;
+            lmt_language_state.language_data.allocated = top;
             for (int i = 0; i < top; i++) {
                 unsigned char marker;
                 undump_uchar(f, marker);
@@ -243,7 +245,7 @@ void tex_undump_language_data(dumpstream f)
                     tex_language *lang = lmt_memory_malloc(sizeof(struct tex_language));
                     if (lang) {
                         lmt_language_state.languages[i] = lang;
-                        lmt_language_state.language_data.allocated += sizeof(struct tex_language);
+                        lmt_language_state.language_data.extra += sizeof(struct tex_language);
                         lang->exceptions = 0;
                         lang->patterns = NULL;
                         lang->wordhandler = 0;

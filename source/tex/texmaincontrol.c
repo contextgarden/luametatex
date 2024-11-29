@@ -6982,13 +6982,13 @@ static void tex_aux_run_mvl(void)
 {
     switch (cur_chr) {
         case begin_mvl_code:
-            tex_start_list_state(tex_scan_integer(0, NULL)); // todo: use na range specific scanner 
+            tex_start_mvl(tex_scan_integer(0, NULL)); // todo: use na range specific scanner 
             break;
         case end_mvl_code:
             if (cur_list.mode == hmode) {
                 tex_aux_run_paragraph_end_hmode();
             }
-            tex_stop_list_state();
+            tex_stop_mvl();
             break;
         default:
             break;

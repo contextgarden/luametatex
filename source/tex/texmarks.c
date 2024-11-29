@@ -38,6 +38,7 @@ mark_state_info lmt_mark_state = {
         .ptr       = 0,
         .initial   = memory_data_unset,
         .offset    = 0,
+        .extra     = 0, 
     },
 };
 
@@ -46,7 +47,7 @@ void tex_initialize_marks(void)
     /* allocated: minimum + 1 */
     lmt_mark_state.data = aux_allocate_clear_array(sizeof(mark_record), lmt_mark_state.mark_data.minimum, 1);
     if (lmt_mark_state.data) {
-        lmt_mark_state.mark_data.allocated = sizeof(mark_record) * lmt_mark_state.mark_data.minimum;
+        lmt_mark_state.mark_data.allocated = lmt_mark_state.mark_data.minimum;
         lmt_mark_state.mark_data.top = lmt_mark_state.mark_data.minimum;
     }
 }
@@ -70,7 +71,7 @@ void tex_reset_mark(halfword m)
                lmt_mark_state.data = tmp;
                memset(&lmt_mark_state.data[lmt_mark_state.mark_data.top], 0, sizeof(mark_record) * (size - lmt_mark_state.mark_data.top));
                lmt_mark_state.mark_data.top = size;
-               lmt_mark_state.mark_data.allocated = sizeof(mark_record) * size;
+               lmt_mark_state.mark_data.allocated = size;
            } else {
                tex_overflow_error("marks", size);
            }

@@ -501,7 +501,7 @@ static void tex_aux_check_height(scaled *height)
 {
     if (*height <= 0) {
         *height = 50*655360; /* maybe vsize_par */
-        tex_formatted_warning("balance", "invalid height, defaulting to %p", *height);
+        tex_normal_warning("balance", "invalid height, defaulting to 50pt");
     }
 }
 

@@ -165,7 +165,6 @@ typedef struct node_memory_state_info {
     char        *nodesizes;
     halfword     free_chain[max_chain_size];
     memory_data  nodes_data;
-    memory_data  extra_data;
     int          reserved; /*tex There are some predefined nodes. */
     int          padding;
     int          node_properties_id;

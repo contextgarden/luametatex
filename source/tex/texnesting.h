@@ -38,8 +38,6 @@ typedef struct nest_state_info {
     memory_data        nest_data;
     int                shown_mode; // singleword
     int                math_mode;  // singleword
-    list_state_record  stack[max_n_list_stack_entries + 1];
-    int                stackslot; 
 } nest_state_info;
 
 extern nest_state_info lmt_nest_state;
@@ -82,10 +80,18 @@ extern int         tex_vmode_nest_index      (void);
 # define tail_append tex_tail_append
 */
 
-extern void     tex_initialize_list_states (void);
-extern void     tex_start_list_state       (int n);
-extern void     tex_stop_list_state        (void);
-extern halfword tex_flush_list_state       (int n);
-extern int      tex_appended_list_state    (void);
+typedef struct mvl_state_info {
+    list_state_record *mvl;
+    memory_data        mvl_data;
+    halfword           slot;
+} mvl_state_info;
+
+extern mvl_state_info  lmt_mvl_state;
+
+extern void     tex_initialize_mvl_state (void);
+extern void     tex_start_mvl            (int n);
+extern void     tex_stop_mvl             (void);
+extern halfword tex_flush_mvl            (int n);
+extern int      tex_appended_mvl         (void);
 
 # endif

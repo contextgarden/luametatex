@@ -48,6 +48,7 @@ hash_state_info lmt_hash_state = {
         .ptr       = 0,
         .initial   = 0,
         .offset    = 0, // eqtb_size,
+        .extra     = 0, 
     },
     .eqtb_data = {
         .minimum   = min_hash_size,
@@ -60,6 +61,8 @@ hash_state_info lmt_hash_state = {
         .ptr       = 0,
         .initial   = 0,
         .offset    = 0,
+        .extra     = 0, 
+        .extra     = 0, 
     },
     .eqtb        = NULL,
     .no_new_cs   = 1,

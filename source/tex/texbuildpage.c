@@ -844,7 +844,7 @@ void tex_build_page(halfword context, halfword boundary)
     if (! lmt_page_builder_state.output_active) {
         lmt_page_filter_callback(context, boundary);
     }
-    if (tex_appended_list_state()) {
+    if (tex_appended_mvl()) {
         // printf("APPENDED\n");
     } else if (node_next(contribute_head) && ! lmt_page_builder_state.output_active) {
         /*tex The (upcoming) penalty to be added to the badness: */

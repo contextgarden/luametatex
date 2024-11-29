@@ -64,6 +64,7 @@ token_memory_state_info lmt_token_memory_state = {
         .ptr       = 0, /* used to register usage */
         .initial   = 0,
         .offset    = 0,
+        .extra     = 0, 
     },
     .available  = 0,
     .padding    = 0,

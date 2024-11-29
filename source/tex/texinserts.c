@@ -47,6 +47,7 @@ insert_state_info lmt_insert_state = {
         .ptr       = 0,
         .initial   = memory_data_unset,
         .offset    = 0,
+        .extra     = 0, 
     },
     .mode        = unset_insert_mode,
     .storing     = 0,
@@ -89,7 +90,7 @@ void tex_initialize_inserts(void)
     insert_record *tmp = aux_allocate_clear_array(sizeof(insert_record), lmt_insert_state.insert_data.minimum, 1);
     if (tmp) {
         lmt_insert_state.inserts = tmp;
-        lmt_insert_state.insert_data.allocated = lmt_insert_state.insert_data.minimum * sizeof(insert_record);
+        lmt_insert_state.insert_data.allocated = lmt_insert_state.insert_data.minimum;
         lmt_insert_state.insert_data.top = lmt_insert_state.insert_data.minimum;
         lmt_insert_state.insert_data.ptr = 0;
     } else {
@@ -120,7 +121,7 @@ int tex_valid_insert_id(halfword n)
                 lmt_insert_state.insert_data.ptr = n;
                 return 1;
             } else if (n < lmt_insert_state.insert_data.maximum && lmt_insert_state.insert_data.top < lmt_insert_state.insert_data.maximum) {
-                insert_record *tmp ;
+                insert_record *tmp;
                 int top = n + lmt_insert_state.insert_data.step;
                 if (top > lmt_insert_state.insert_data.maximum) {
                     top = lmt_insert_state.insert_data.maximum;
@@ -131,7 +132,7 @@ int tex_valid_insert_id(halfword n)
                     memset(&tmp[lmt_insert_state.insert_data.top + 1], 0, extra);
                  // memset(&tmp[lmt_insert_state.insert_data.top], 0, extra);
                     lmt_insert_state.inserts = tmp;
-                    lmt_insert_state.insert_data.allocated += (int) extra;
+                    lmt_insert_state.insert_data.allocated = top;
                     lmt_insert_state.insert_data.top = top;
                     lmt_insert_state.insert_data.ptr = n;
                     return 1;
@@ -464,7 +465,7 @@ void tex_undump_insert_data(dumpstream f) {
     tmp = aux_allocate_clear_array(sizeof(insert_record), lmt_insert_state.insert_data.top, 1);
     if (tmp) {
         lmt_insert_state.inserts = tmp;
-        lmt_insert_state.insert_data.allocated = lmt_insert_state.insert_data.top * sizeof(insert_record);
+        lmt_insert_state.insert_data.allocated = lmt_insert_state.insert_data.top;
         undump_things(f, lmt_insert_state.inserts[0], lmt_insert_state.insert_data.ptr);
     } else {
         tex_overflow_error("inserts", lmt_insert_state.insert_data.top);
