@@ -2696,17 +2696,42 @@ static halfword texlib_tobalanceshape(lua_State *L, int i)
                     set_numeric_field_by_index(target, options, 0);
                     tex_set_balance_options(p, j, target);
                     /* */
-                    lua_push_key(top);
-                    lua_rawget(L, -2);
-                    target = lmt_optional_isnode(L, -1);
-                    tex_set_balance_topskip(p, j, tex_copy_node(target && node_type(target) == glue_spec_node ? target : balance_top_skip_par));
+                    lua_push_key(top);                    
+                    switch (lua_rawget(L, -2)) { 
+                        case LUA_TNUMBER: 
+                            { 
+                                target = tex_new_glue_spec_node(zero_glue);
+                                glue_amount(target) = lmt_toroundnumber(L, -1);
+                                tex_set_balance_topskip(p, j, target);
+                                break;
+                            }
+                        case LUA_TUSERDATA: 
+                            { 
+                                target = lmt_optional_isnode(L, -1);
+                                tex_set_balance_topskip(p, j, tex_copy_node(target && node_type(target) == glue_spec_node ? target : balance_top_skip_par));
+                                break;
+                            }
+                    }
                     lua_pop(L, 1);
                     /* */
                     lua_push_key(bottom);
-                    lua_rawget(L, -2);
-                    target = lmt_optional_isnode(L, -1);
-                    tex_set_balance_bottomskip(p, j, tex_copy_node(target && node_type(target) == glue_spec_node ? target : balance_bottom_skip_par));
+                    switch (lua_rawget(L, -2)) { 
+                        case LUA_TNUMBER: 
+                            { 
+                                target = tex_new_glue_spec_node(zero_glue);
+                                glue_amount(target) = lmt_toroundnumber(L, -1);
+                                tex_set_balance_bottomskip(p, j, target);
+                                break;
+                            }
+                        case LUA_TUSERDATA: 
+                            { 
+                                target = lmt_optional_isnode(L, -1);
+                                tex_set_balance_bottomskip(p, j, tex_copy_node(target && node_type(target) == glue_spec_node ? target : balance_bottom_skip_par));
+                                break;
+                            }
+                    }
                     lua_pop(L, 1);
+                    /* */
                 }
                 lua_pop(L, 1);
             }
@@ -2714,6 +2739,14 @@ static halfword texlib_tobalanceshape(lua_State *L, int i)
         }
     }
     return null;
+}
+
+int texlib_setbalanceshape(lua_State *L)
+{
+    halfword p = texlib_tobalanceshape(L, 1);
+    update_tex_balance_shape(p);
+    lua_pushinteger(L, p ? specification_count(p) : 0);
+    return 1;
 }
 
 static int texlib_shiftparshape(lua_State *L)
@@ -3172,6 +3205,150 @@ static int texlib_getromannumeral(lua_State *L)
     would mean a lot of extra code to support it, like box properties that we can already access
     otherwise anyway.
 */
+
+int lmt_push_specification(lua_State *L, halfword ptr, int onlycount)
+{
+    if (ptr) {
+        halfword code = node_subtype(ptr);
+        switch (code) {
+            case par_shape_code:
+                {
+                    int n = specification_count(ptr);
+                    if (onlycount == 1) {
+                        lua_pushinteger(L, n);
+                    } else {
+                        int r = specification_repeat(ptr);
+                        lua_createtable(L, n, r ? 1 : 0);
+                        if (r) {
+                            lua_push_boolean_at_key(L, repeat, r);
+                        }
+                        for (int m = 1; m <= n; m++) {
+                            lua_createtable(L, 2, 0);
+                            lua_pushinteger(L, tex_get_specification_indent(ptr, m));
+                            lua_rawseti(L, -2, 1);
+                            lua_pushinteger(L, tex_get_specification_width(ptr, m));
+                            lua_rawseti(L, -2, 2);
+                            lua_rawseti(L, -2, m);
+                        }
+                    }
+                    return 1;
+                }
+            case balance_shape_code:
+                {
+                    int n = specification_count(ptr);
+                    if (onlycount == 1) {
+                        lua_pushinteger(L, n);
+                    } else {
+                        int r = specification_repeat(ptr);
+                        lua_createtable(L, n, r ? 1 : 0);
+                        if (r) {
+                            lua_push_boolean_at_key(L, repeat, r);
+                        }
+                        for (int m = 1; m <= n; m++) {
+                            lua_createtable(L, 0, 5);
+                            lua_push_integer_at_key(L, height, tex_get_balance_height(ptr, m));
+                            lua_push_integer_at_key(L, options, tex_get_balance_options(ptr, m));
+                            lua_push_integer_at_key(L, index, tex_get_balance_index(ptr, m));
+                            /* for now, will become an array */
+                            lua_push_integer_at_key(L, top, glue_amount(tex_get_balance_topskip(ptr, m)));
+                            lua_push_integer_at_key(L, bottom, glue_amount(tex_get_balance_bottomskip(ptr, m)));
+                            /* */
+                            lua_rawseti(L, -2, m);
+                        }
+                    }
+                    return 1;
+                }
+            case fitness_classes_code:
+                {
+                    int n = specification_count(ptr);
+                    if (onlycount == 1) {
+                        lua_pushinteger(L, n);
+                    } else {
+                        for (int m = 1; m <= n; m++) {
+                            lua_pushinteger(L, tex_get_specification_fitness_class(ptr, m));
+                            lua_rawseti(L, -2, m);
+                        }
+                    }
+                    return 1;
+                }
+            case adjacent_demerits_code:
+                {
+                    int n = specification_count(ptr);
+                    if (onlycount == 1) {
+                        lua_pushinteger(L, n);
+                    } else {
+                        for (int m = 1; m <= n; m++) {
+                            lua_createtable(L, 2, 0);
+                            lua_pushinteger(L, tex_get_specification_adjacent_u(ptr, m));
+                            lua_rawseti(L, -2, 1);
+                            lua_pushinteger(L, tex_get_specification_adjacent_d(ptr, m));
+                            lua_rawseti(L, -2, 2);
+                            lua_rawseti(L, -2, m);
+                        }
+                    }
+                    return 1;
+                }
+            case par_passes_code:
+            case balance_passes_code:
+                {
+                    return 0;
+                }
+            case inter_line_penalties_code:
+            case club_penalties_code:
+            case widow_penalties_code:
+            case display_widow_penalties_code:
+            case orphan_penalties_code:
+            case toddler_penalties_code:
+            case orphan_line_factors_code:
+            case math_forward_penalties_code:
+            case math_backward_penalties_code:
+            case integer_list_code:
+            case dimension_list_code:
+            case posit_list_code:
+                {
+                    int n = specification_count(ptr);
+                    if (onlycount == 1) {
+                        lua_pushinteger(L, n);
+                    } else {
+                        lua_createtable(L, n, 0);
+                        if (specification_double(ptr)) {
+                            for (int m = 1; m <= n; m++) {
+                                lua_createtable(L, 2, 0);
+                                if (code == posit_list_code) {
+                                    if (specification_integer(ptr)) {
+                                        lua_pushinteger(L, tex_get_specification_nepalty(ptr, m));
+                                    } else {
+                                        lua_pushnumber(L, tex_posit_to_double(tex_get_specification_nepalty(ptr, m)));
+                                    }
+                                    lua_rawseti(L, -2, 1);
+                                    lua_pushnumber(L, tex_posit_to_double(tex_get_specification_penalty(ptr, m)));
+                                    lua_rawseti(L, -2, 2);
+                                } else {
+                                    lua_pushinteger(L, tex_get_specification_nepalty(ptr, m));
+                                    lua_rawseti(L, -2, 1);
+                                    lua_pushinteger(L, tex_get_specification_penalty(ptr, m));
+                                    lua_rawseti(L, -2, 2);
+                                }
+                                lua_rawseti(L, -2, m);
+                            }
+                        } else {
+                            for (int m = 1; m <= n; m++) {
+                                if (code == posit_list_code) {
+                                    lua_pushnumber(L, tex_posit_to_double(tex_get_specification_penalty(ptr, m)));
+                                } else {
+                                    lua_pushinteger(L, tex_get_specification_penalty(ptr, m));
+                                }
+                                lua_rawseti(L, -2, m);
+                            }
+                        }
+                    }
+                    return 1;
+                }
+        }
+    }
+    lua_pushnil(L);
+    return 1;
+}
 
 static int texlib_get_internal(lua_State *L, int index, int all)
 {
@@ -6857,6 +7034,8 @@ static const struct luaL_Reg texlib_function_list[] = {
     { "getlocalbox",                  texlib_getlocalbox                  },
     { "setlocalbox",                  texlib_setlocalbox                  },
     { "getlocalboxlocations",         texlib_getlocalboxlocations         },
+    /* */
+    { "setbalanceshape",              texlib_setbalanceshape              },
     /* */
     { "pushsavelevel",                texlib_pushsavelevel                },
     { "popsavelevel",                 texlib_popsavelevel                 },
