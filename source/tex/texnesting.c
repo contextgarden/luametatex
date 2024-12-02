@@ -554,7 +554,14 @@ void tex_initialize_mvl_state(void)
 }
 
 static int tex_valid_mvl_id(halfword n)
-{
+{ 
+ // if (lmt_nest_state.nest_data.ptr > 0) {
+ //     tex_handle_error(
+ //         normal_error_type,
+ //         "An mlv command can only be used at the outer level.",
+ //         "You cannot use an mlv command inside a box."
+ //     );
+ // } else 
     if (n <= lmt_mvl_state.mvl_data.ptr) {
         return 1;
     } else if (n < lmt_mvl_state.mvl_data.top) {
@@ -581,29 +588,64 @@ static int tex_valid_mvl_id(halfword n)
     return 0;
 }
 
-void tex_start_mvl(int n)
+void tex_start_mvl(void)
 {
+    halfword index = 0; 
+    halfword options = 0;
+    halfword prevdepth = max_dimen;
+    while (1) {
+        switch (tex_scan_character("iopIOP", 0, 1, 0)) {
+            case 'i': case 'I':
+                if (tex_scan_mandate_keyword("index", 1)) {
+                    index = tex_scan_integer(0, NULL);
+                }
+                break;
+            case 'o': case 'O':
+                if (tex_scan_mandate_keyword("options", 1)) {
+                    options = tex_scan_integer(0, NULL);
+                }
+                break;
+            case 'p': case 'P':
+                if (tex_scan_mandate_keyword("prevdepth", 1)) {
+                    prevdepth = tex_scan_dimension(0, 0, 0, 0, NULL);
+                }
+                break;
+            default:
+                goto DONE;
+        }
+    }
+  DONE:
+    if (! index) { 
+        index = tex_scan_integer(0, NULL);
+    }
     if (lmt_mvl_state.slot) {
         /*tex We're already collecting. */
-    } else if (n <= 0) {
+    } else if (index <= 0) {
         /*tex We have an invalid id. */
-    } else if (! tex_valid_mvl_id(n)) {
+    } else if (! tex_valid_mvl_id(index)) {
         /*tex We're in trouble. */
     } else { 
         /*tex We're can start collecting. */
-        int start = ! lmt_mvl_state.mvl[n].head;
+        int start = ! lmt_mvl_state.mvl[index].head;
+        if (options & mvl_ignore_prev_depth) { 
+            prevdepth = ignore_depth_criterion_par;
+        } else if (options & mvl_no_prev_depth) { 
+            prevdepth = 0;
+        } else if (prevdepth == max_dimen) { 
+            prevdepth = lmt_mvl_state.mvl[index].prev_depth;
+        }
         if (tracing_mvl_par) { 
             tex_begin_diagnostic();
-            tex_print_format("[mvl: index %i, %s]", n, start ? "start" : "restart");
+            tex_print_format("[mvl: index %i, prevdepth %p, options %X, %s]", index, prevdepth, options, start ? "start" : "restart");
             tex_end_diagnostic();
         }
         if (start) { 
-            lmt_mvl_state.mvl[n].head = tex_new_temp_node();
-            lmt_mvl_state.mvl[n].tail = lmt_mvl_state.mvl[n].head;
+            lmt_mvl_state.mvl[index].head = tex_new_temp_node();
+            lmt_mvl_state.mvl[index].tail = lmt_mvl_state.mvl[index].head;
         }
         lmt_mvl_state.mvl[0].prev_depth = lmt_nest_state.nest[0].prev_depth;
-        lmt_nest_state.nest[0].prev_depth = lmt_mvl_state.mvl[n].prev_depth;
-        lmt_mvl_state.slot = n;
+        lmt_nest_state.nest[0].prev_depth = prevdepth;
+        lmt_mvl_state.slot = index;
     }
 }
 
@@ -624,25 +666,26 @@ void tex_stop_mvl(void)
     }
 }
 
-halfword tex_flush_mvl(int n)
+halfword tex_flush_mvl(halfword index)
 {
+ // halfword index = tex_scan_integer(0, NULL);
     if (lmt_mvl_state.slot) { 
         /*tex We're collecting. */
         return null; 
-    } else if (! tex_valid_mvl_id(n)) {
+    } else if (! tex_valid_mvl_id(index)) {
         /*tex We're in trouble. */
         return null;
-    } else if (! lmt_mvl_state.mvl[n].tail || lmt_mvl_state.mvl[n].tail == lmt_mvl_state.mvl[n].head) {
+    } else if (! lmt_mvl_state.mvl[index].tail || lmt_mvl_state.mvl[index].tail == lmt_mvl_state.mvl[index].head) {
         /*tex We collected nothing or are invalid. */
         return null;
     } else { 
         /*tex We collected something. */
-        halfword head = node_next(lmt_mvl_state.mvl[n].head);
-        tex_flush_node(lmt_mvl_state.mvl[n].head);
-        tex_aux_reset_mvl(n);
+        halfword head = node_next(lmt_mvl_state.mvl[index].head);
+        tex_flush_node(lmt_mvl_state.mvl[index].head);
+        tex_aux_reset_mvl(index);
         if (tracing_mvl_par) { 
             tex_begin_diagnostic();
-            tex_print_format("[mvl: index %i, %s]", n, "flush");
+            tex_print_format("[mvl: index %i, %s]", index, "flush");
             tex_end_diagnostic();
         }
         node_prev(head) = null;
@@ -675,4 +718,9 @@ int tex_appended_mvl(void)
         contribute_tail = contribute_head;
         return 1;
     }
+}
+
+int tex_current_mvl(void)
+{
+    return lmt_mvl_state.slot >= 0 ? lmt_mvl_state.slot : 0;
 }

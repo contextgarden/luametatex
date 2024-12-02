@@ -4109,6 +4109,7 @@ void tex_begin_box(int boxcontext, scaled shift, halfword slot, halfword callbac
             break;
         case flush_mvl_box_code:
             {
+                /*tex Scanning might move to the flush routine. */
                 halfword index = tex_scan_integer(0, NULL);
                 boxnode = tex_flush_mvl(index);
             }

@@ -455,10 +455,12 @@ typedef enum page_property_codes {
     split_last_height_code,
     split_last_shrink_code,
     split_last_stretch_code,
+    /* */
+    mvl_currently_active_code,
 } page_property_codes;
 
 # define first_page_property_code page_goal_code
-# define last_page_property_code  insert_width_code
+# define last_page_property_code  mvl_currently_active_code
 
 /*tex
     We cheat: these previous bases are to really bases which is why math and del get separated by

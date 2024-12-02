@@ -796,6 +796,8 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "splitlastshrink",                page_property_cmd,      split_last_shrink_code,                   0);
         tex_primitive(luatex_command, "splitlaststretch",               page_property_cmd,      split_last_stretch_code,                  0);
 
+        tex_primitive(luatex_command, "mvlcurrentlyactive",             page_property_cmd,      mvl_currently_active_code,                0);
+
         tex_primitive(luatex_command, "boxadapt",                       box_property_cmd,       box_adapt_code,                           0);
         tex_primitive(luatex_command, "boxanchor",                      box_property_cmd,       box_anchor_code,                          0);
         tex_primitive(luatex_command, "boxanchors",                     box_property_cmd,       box_anchors_code,                         0);

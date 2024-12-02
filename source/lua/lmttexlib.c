@@ -6428,6 +6428,14 @@ static int texlib_setinsertcontent(lua_State *L)
     return 0;
 }
 
+static int texlib_getmvloptionvalues(lua_State *L)
+{
+    lua_createtable(L, 2, 0);
+    lua_set_string_by_index(L, mvl_ignore_prev_depth, "ignoreprevdepth");
+    lua_set_string_by_index(L, mvl_no_prev_depth,     "noprevdepth");
+    return 1;
+}
+
 static int texlib_getlocalboxlocations(lua_State *L)
 {
     lua_createtable(L, 2, 1);
@@ -6826,6 +6834,7 @@ static const struct luaL_Reg texlib_function_list[] = {
     { "getmathscriptsmodevalues",     texlib_getmathscriptsmodevalues     },
     { "getlargestusedmark",           texlib_getlargestusedmark           },
     { "getoutputactive",              texlib_getoutputactive              },
+    { "getmvloptionvalues",           texlib_getmvloptionvalues           },
     /* experiment (metafun update) */
     { "shiftparshape",                texlib_shiftparshape                },
     { "snapshotpar",                  texlib_snapshotpar                  },

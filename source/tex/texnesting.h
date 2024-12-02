@@ -80,6 +80,11 @@ extern int         tex_vmode_nest_index      (void);
 # define tail_append tex_tail_append
 */
 
+typedef enum mvl_options {
+    mvl_ignore_prev_depth = 0x1,
+    mvl_no_prev_depth     = 0x2,
+} mvl_options;
+
 typedef struct mvl_state_info {
     list_state_record *mvl;
     memory_data        mvl_data;
@@ -89,9 +94,10 @@ typedef struct mvl_state_info {
 extern mvl_state_info  lmt_mvl_state;
 
 extern void     tex_initialize_mvl_state (void);
-extern void     tex_start_mvl            (int n);
+extern void     tex_start_mvl            (void); /* includes scanning */
 extern void     tex_stop_mvl             (void);
-extern halfword tex_flush_mvl            (int n);
+extern halfword tex_flush_mvl            (halfword n);
 extern int      tex_appended_mvl         (void);
+extern int      tex_current_mvl          (void);
 
 # endif

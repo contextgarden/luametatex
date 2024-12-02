@@ -5088,10 +5088,35 @@ static void tex_aux_set_def(int flags, int force)
             goto DONE;
     }
     tex_get_r_token();
-  DONE:
+    DONE:
+# if 1
     if (global_defs_par) {
         flags = global_defs_par > 0 ? add_global_flag(flags) : remove_global_flag(flags);
     }
+# else
+    /*tex Tracing discussed @ tex-implementors but differently. It makes not that sense anyway. */
+    if (global_defs_par) {
+        if (global_defs_par < 0) {
+            if (is_global(flags)) {
+                remove_global_flag(flags);
+                if (tracing_commands_par) {
+                    begin_diagnostic();
+                    tprint_nl("{\global canceled}");
+                    end_diagnostic();
+                }
+            }
+        } else {
+            if (! is_global(flags)) {
+                add_global_flag(flags);
+                if (tracing_commands_par) {
+                    begin_diagnostic();
+                    tprint_nl("{\global enforced}");
+                    end_diagnostic();
+                }
+            }
+        }
+    }
+# endif 
     if (force || tex_define_permitted(cur_cs, flags)) {
         halfword p = cur_cs;
         halfword t = expand == 2 ? tex_scan_toks_expand(0, null, 1, 0) : (expand ? tex_scan_macro_expand() : tex_scan_macro_normal());
@@ -6982,7 +7007,7 @@ static void tex_aux_run_mvl(void)
 {
     switch (cur_chr) {
         case begin_mvl_code:
-            tex_start_mvl(tex_scan_integer(0, NULL)); // todo: use na range specific scanner 
+            tex_start_mvl(); // todo: use na range specific scanner 
             break;
         case end_mvl_code:
             if (cur_list.mode == hmode) {
