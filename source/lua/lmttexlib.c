@@ -6607,9 +6607,11 @@ static int texlib_setinsertcontent(lua_State *L)
 
 static int texlib_getmvloptionvalues(lua_State *L)
 {
-    lua_createtable(L, 2, 0);
+    lua_createtable(L, 2, 2);
     lua_set_string_by_index(L, mvl_ignore_prev_depth, "ignoreprevdepth");
     lua_set_string_by_index(L, mvl_no_prev_depth,     "noprevdepth");
+    lua_set_string_by_index(L, mvl_discard_top,       "discardtop");
+    lua_set_string_by_index(L, mvl_discard_bottom,    "discardbottom");
     return 1;
 }
 

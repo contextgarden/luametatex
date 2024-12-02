@@ -30,7 +30,7 @@ typedef struct list_state_record {
     halfword math_mode;            // singleword 
     halfword delimiter;            // todo: get rid of these and use the stack 
     halfword incomplete_noad;      // todo: get rid of these and use the stack 
-    int      padding; 
+    int      options; 
 } list_state_record;
 
 typedef struct nest_state_info {
@@ -81,8 +81,10 @@ extern int         tex_vmode_nest_index      (void);
 */
 
 typedef enum mvl_options {
-    mvl_ignore_prev_depth = 0x1,
-    mvl_no_prev_depth     = 0x2,
+    mvl_ignore_prev_depth = 0x0001,
+    mvl_no_prev_depth     = 0x0002,
+    mvl_discard_top       = 0x0004, 
+    mvl_discard_bottom    = 0x0008, 
 } mvl_options;
 
 typedef struct mvl_state_info {

@@ -125,8 +125,8 @@ static scaled tex_aux_checked_shrink(halfword p)
             lmt_balance_state.no_shrink_error_yet = 0;
             tex_handle_error(
                 normal_error_type,
-                "Infinite glue shrinkage found in a (balance) page",
-                "The (balance) page just ended includes some glue that has infinite shrinkability.\n"
+                "Infinite glue shrinkage found in a (balance) slot",
+                "The (balance) slot just ended includes some glue that has infinite shrinkability.\n"
             );
         }
         glue_shrink_order(p) = normal_glue_order;

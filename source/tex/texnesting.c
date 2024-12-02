@@ -217,8 +217,9 @@ void tex_initialize_nesting(void)
 {
     lmt_nest_state.nest_data.ptr = 0;
     lmt_nest_state.nest_data.top = 0;
- // lmt_nest_state.shown_mode = 0;
- // lmt_nest_state.math_mode = 0;
+# if 1
+    lmt_nest_state.shown_mode = 0;
+    lmt_nest_state.math_mode = 0;
     cur_list.mode = vmode;
     cur_list.head = contribute_head;
     cur_list.tail = contribute_head;
@@ -237,6 +238,30 @@ void tex_initialize_nesting(void)
     cur_list.math_begin = unset_noad_class;
     cur_list.math_end = unset_noad_class;
     cur_list.math_mode = 0;
+    cur_list.options = 0;
+# else 
+    cur_list = (list_state_record) {
+        .mode              = vmode,
+        .head              = contribute_head,
+        .tail              = contribute_head,
+        .delimiter         = null,
+        .prev_graf         = 0,
+        .mode_line         = 0,
+        .prev_depth        = ignore_depth, /*tex |ignore_depth_criterion_par| is not yet available! */
+        .space_factor      = default_space_factor,
+        .incomplete_noad   = null,
+        .direction_stack   = null,
+        .math_dir          = 0,
+        .math_style        = -1,
+        .math_main_style   = -1,
+        .math_parent_style = -1,
+        .math_flatten      = 1,
+        .math_begin        = unset_noad_class,
+        .math_end          = unset_noad_class,
+        .math_mode         = 0,
+        .options           = 0,
+    };
+# endif 
 }
 
 halfword tex_pop_tail(void)
@@ -274,26 +299,56 @@ void tex_push_nest(void)
  // lmt_nest_state.shown_mode = 0; // needs checking 
     lmt_nest_state.math_mode = 0;
     if (tex_aux_room_on_nest_stack()) {
-        cur_list.mode = top->mode;
-        cur_list.head = tex_new_temp_node();
-        cur_list.tail = cur_list.head;
-        cur_list.delimiter = null;
-        cur_list.prev_graf = 0;
-        cur_list.mode_line = lmt_input_state.input_line;
-        cur_list.prev_depth = top->prev_depth;
-        cur_list.space_factor = top->space_factor;
-        cur_list.incomplete_noad = top->incomplete_noad;
-        cur_list.direction_stack = null;
-        cur_list.math_dir = 0;
-        cur_list.math_style = -1;
-        cur_list.math_main_style = top->math_main_style;
-        cur_list.math_parent_style = top->math_parent_style;
-        cur_list.math_flatten = 1;
-        cur_list.math_begin = unset_noad_class;
-        cur_list.math_end = unset_noad_class;
-     // cur_list.math_begin = top->math_begin;
-     // cur_list.math_end = top->math_end;
-        cur_list.math_mode = 0;
+# if 1
+            cur_list.mode = top->mode;
+            cur_list.head = tex_new_temp_node();
+            cur_list.tail = cur_list.head;
+            cur_list.delimiter = null;
+            cur_list.prev_graf = 0;
+            cur_list.mode_line = lmt_input_state.input_line;
+            cur_list.prev_depth = top->prev_depth;
+            cur_list.space_factor = top->space_factor;
+            cur_list.incomplete_noad = top->incomplete_noad;
+            cur_list.direction_stack = null;
+            cur_list.math_dir = 0;
+            cur_list.math_style = -1;
+            cur_list.math_main_style = top->math_main_style;
+            cur_list.math_parent_style = top->math_parent_style;
+            cur_list.math_flatten = 1;
+            cur_list.math_begin = unset_noad_class;
+            cur_list.math_end = unset_noad_class;
+         // cur_list.math_begin = top->math_begin;
+         // cur_list.math_end = top->math_end;
+            cur_list.math_mode = 0;
+            cur_list.options = 0;
+# else
+            cur_list = (list_state_record) {
+                .mode              = top->mode,
+                .head              = null,
+                .tail              = null,
+                .delimiter         = null,
+                .prev_graf         = 0,
+                .mode_line         = lmt_input_state.input_line,
+                .prev_depth        = top->prev_depth,
+                .space_factor      = top->space_factor,
+                .incomplete_noad   = top->incomplete_noad,
+                .direction_stack   = null,
+                .math_dir          = 0,
+                .math_style        = -1,
+                .math_main_style   = top->math_main_style,
+                .math_parent_style = top->math_parent_style,
+                .math_flatten      = 1,
+                .math_begin        = unset_noad_class,
+                .math_end          = unset_noad_class,
+             // .math_begin        = top->math_begin,
+             // .math_end          = top->math_end,
+                .math_mode         = 0,
+                .options           = 0,
+            };
+            cur_list.head = tex_new_temp_node(),
+            cur_list.tail = cur_list.head;
+# endif
+
     } else {
         tex_overflow_error("semantic nest size", lmt_nest_state.nest_data.size);
     }
@@ -533,6 +588,7 @@ static void tex_aux_reset_mvl(int i)
         .math_flatten      = 1,
         .math_begin        = unset_noad_class,
         .math_end          = unset_noad_class,
+        .options           = 0,
     };
 }
 
@@ -643,6 +699,7 @@ void tex_start_mvl(void)
             lmt_mvl_state.mvl[index].head = tex_new_temp_node();
             lmt_mvl_state.mvl[index].tail = lmt_mvl_state.mvl[index].head;
         }
+        lmt_mvl_state.mvl[index].options = options;
         lmt_mvl_state.mvl[0].prev_depth = lmt_nest_state.nest[0].prev_depth;
         lmt_nest_state.nest[0].prev_depth = prevdepth;
         lmt_mvl_state.slot = index;
@@ -655,10 +712,31 @@ void tex_stop_mvl(void)
         /*tex We're not collecting. */
     } else { 
         /*tex We're were collecting. */
+        int something = lmt_mvl_state.mvl[lmt_mvl_state.slot].tail != lmt_mvl_state.mvl[lmt_mvl_state.slot].head;
         if (tracing_mvl_par) { 
             tex_begin_diagnostic();
             tex_print_format("[mvl: index %i, %s]", lmt_mvl_state.slot, "stop");
             tex_end_diagnostic();
+        }
+        if (something && (lmt_mvl_state.mvl[lmt_mvl_state.slot].options & mvl_discard_bottom)) {
+            halfword last = lmt_mvl_state.mvl[lmt_mvl_state.slot].tail;
+            while (last) {
+                if (non_discardable(last)) {
+                    break;
+                } else if (node_type(last) == kern_node && ! (node_subtype(last) == explicit_kern_subtype)) {
+                    break;
+                } else { 
+                    halfword preceding = node_prev(last);
+                    node_next(preceding) = null;
+                    tex_flush_node(last);
+                    lmt_mvl_state.mvl[lmt_mvl_state.slot].tail = preceding;
+                    if (lmt_mvl_state.mvl[lmt_mvl_state.slot].head == preceding) { 
+                        break;
+                    } else {
+                        last = preceding;
+                    }
+                }
+            }
         }
         lmt_mvl_state.mvl[lmt_mvl_state.slot].prev_depth = lmt_nest_state.nest[0].prev_depth;
         lmt_nest_state.nest[0].prev_depth = lmt_mvl_state.mvl[lmt_mvl_state.slot].prev_depth;
@@ -700,17 +778,33 @@ int tex_appended_mvl(void)
         return 0;
     } else { 
         /*tex We're collecting. */
-        if (contribute_head != contribute_tail && node_next(contribute_head)) {
-            int assign = lmt_mvl_state.mvl[lmt_mvl_state.slot].tail == lmt_mvl_state.mvl[lmt_mvl_state.slot].head;
+        halfword first = node_next(contribute_head); 
+        int assign = lmt_mvl_state.mvl[lmt_mvl_state.slot].tail == lmt_mvl_state.mvl[lmt_mvl_state.slot].head;
+        if (assign && (lmt_mvl_state.mvl[lmt_mvl_state.slot].options & mvl_discard_top)) {
+            while (first) {
+                if (non_discardable(first)) {
+                    break;
+                } else if (node_type(first) == kern_node && ! (node_subtype(first) == explicit_kern_subtype)) {
+                    break;
+                } else { 
+                    halfword following = node_next(first);
+                    node_prev(following) = null;
+                    tex_flush_node(first);
+                    first = following;
+                }
+            }
+        }
+        if (contribute_head != contribute_tail && first) {
             if (tracing_mvl_par) { 
                 tex_begin_diagnostic();
                 tex_print_format("[mvl: index %i, %s]", lmt_mvl_state.slot, assign ? "assign" : "append");
                 tex_end_diagnostic();
             }
             if (assign) { 
-                node_next(lmt_mvl_state.mvl[lmt_mvl_state.slot].head) = node_next(contribute_head);
+                node_next(lmt_mvl_state.mvl[lmt_mvl_state.slot].head) = first;
+                /* what with prev */
             } else { 
-                tex_couple_nodes(lmt_mvl_state.mvl[lmt_mvl_state.slot].tail, node_next(contribute_head));
+                tex_couple_nodes(lmt_mvl_state.mvl[lmt_mvl_state.slot].tail, first);
             }
             lmt_mvl_state.mvl[lmt_mvl_state.slot].tail = contribute_tail;
         }
