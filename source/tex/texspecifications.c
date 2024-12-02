@@ -842,9 +842,15 @@ static halfword tex_aux_scan_specification_balance_passes(void)
         }
         p = tex_new_specification_node(count, balance_passes_code, options);
         while (n <= count) {
-            switch (tex_scan_character("cdefilnpqtCDEFILNPQT", 0, 1, 0)) {
+            switch (tex_scan_character("acdefilnpqtACDEFILNPQT", 0, 1, 0)) {
                 case 0:
                     goto DONE;
+                case 'a': case 'A':
+                    if (tex_scan_mandate_keyword("adjdemerits", 1)) {
+                        tex_set_balance_passes_adjdemerits(p, n, tex_scan_integer(0, NULL));
+                        tex_set_passes_okay(p, n, passes_adjdemerits_okay);
+                    }
+                    break;
                 case 'c': case 'C':
                     if (tex_scan_mandate_keyword("classes", 1)) {
                         tex_set_balance_passes_classes(p, n, tex_scan_integer(0, NULL));

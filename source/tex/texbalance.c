@@ -500,8 +500,9 @@ static void tex_check_skips_shortfall(const balance_properties *properties, half
 static void tex_aux_check_height(scaled *height)
 {
     if (*height <= 0) {
+        /*tex In a shape it's ok when it's not the last. */
         *height = 50*655360; /* maybe vsize_par */
-        tex_normal_warning("balance", "invalid height, defaulting to 50pt");
+        tex_normal_warning("balance", "invalid height, defaulting to 500pt");
     }
 }
 
@@ -525,11 +526,13 @@ static void tex_aux_set_height(
         lmt_balance_state.second_bottomskip = properties->bottomskip;
     }
     /* This first is never used: */
-    lmt_balance_state.first_height = properties->vsize;;
+    lmt_balance_state.first_height = properties->vsize;
     lmt_balance_state.first_topskip = properties->topskip;
     lmt_balance_state.first_bottomskip = properties->bottomskip;
-    tex_aux_check_height(&lmt_balance_state.first_height);
-    tex_aux_check_height(&lmt_balance_state.second_height);
+    if(! properties->shape || specification_count(properties->shape) < 2) {
+        tex_aux_check_height(&lmt_balance_state.first_height);
+        tex_aux_check_height(&lmt_balance_state.second_height);
+    }
 }
 
 static void tex_aux_update_height(
@@ -544,6 +547,10 @@ static void tex_aux_update_height(
         *height = lmt_balance_state.second_height;
     } else if (properties->shape && specification_count(properties->shape) > 0) {
         *height = tex_get_balance_height(properties->shape, page);
+        if (page < specification_count(properties->shape)) { 
+            /*tex We permits zero height before the last specification. */
+            return;
+        }
     } else {
         *height = lmt_balance_state.first_height;
     }
@@ -570,6 +577,10 @@ static void tex_aux_update_height_and_skips(
         *height = tex_get_balance_height(properties->shape, page);
         *topskip = tex_get_balance_topskip(properties->shape, page);
         *bottomskip = tex_get_balance_bottomskip(properties->shape, page);
+        if (page < specification_count(properties->shape)) { 
+            /*tex We permits zero height before the last specification. */
+            return;
+        }
     } else {
         *height = lmt_balance_state.first_height;
         *topskip = lmt_balance_state.first_topskip;
@@ -1021,6 +1032,10 @@ static int tex_aux_set_sub_pass_parameters(
         if (okay & passes_emergencypercentage_okay) {
             lmt_balance_state.emergency_percentage = tex_get_balance_passes_emergencypercentage(passes, subpass);
         }
+    }
+    /* */
+    if (okay & passes_adjdemerits_okay) {
+        properties->adj_demerits = tex_get_balance_passes_adjdemerits(passes, subpass);
     }
     /* */
     if (okay & passes_emergencystretch_okay) {
@@ -2041,6 +2056,7 @@ extern halfword tex_vbalance (
             tex_pop_nest();
             /* maybe filtered because that also does the uleaders */
             result = tex_vpack(result, 0, packing_exactly, max_dimension, 0, holding_none_option, NULL);
+            tex_attach_attribute_list_copy(result, box);
             node_subtype(result) = balance_list;
         }
         if (! trial) {

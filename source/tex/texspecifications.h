@@ -35,7 +35,7 @@ typedef enum specification_option_flags {
 
 # define par_passes_size     20
 # define balance_shape_size   4
-# define balance_passes_size  8
+# define balance_passes_size  9
 
 # define par_passes_slot(n,m)     ((n-1)*par_passes_size+m)
 # define balance_shape_slot(n,m)  ((n-1)*balance_shape_size+m)
@@ -427,6 +427,8 @@ static inline void tex_set_balance_passes_fitnessclasses      (halfword a, halfw
 static inline void tex_set_balance_passes_looseness           (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,6)).half0 = v; };
 static inline void tex_set_balance_passes_pagebreakchecks     (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,7)).half1 = v; };
 static inline void tex_set_balance_passes_pagepenalty         (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,7)).half0 = v; };
+static inline void tex_set_balance_passes_adjdemerits         (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,8)).half1 = v; };
+static inline void tex_set_balance_passes_reserved            (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,8)).half0 = v; };
 
 static inline halfword tex_get_balance_passes_okay                (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n,1)).long0;   };
 static inline halfword tex_get_balance_passes_features            (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n,2)).quart00; };
@@ -441,6 +443,8 @@ static inline halfword tex_get_balance_passes_fitnessclasses      (halfword a, h
 static inline halfword tex_get_balance_passes_looseness           (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n,6)).half0;   };
 static inline halfword tex_get_balance_passes_pagebreakchecks     (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n,7)).half1;   };
 static inline halfword tex_get_balance_passes_pagepenalty         (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n,7)).half0;   };
+static inline halfword tex_get_balance_passes_adjdemerits         (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n,8)).half1;   };
+static inline halfword tex_get_balance_passes_reserved            (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n,8)).half0;   };
 
 /* general */
 
