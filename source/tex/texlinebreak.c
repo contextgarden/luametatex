@@ -4996,7 +4996,6 @@ void tex_do_line_break(line_break_properties *properties)
     lmt_linebreak_state.fewest_demerits = 0;
     lmt_linebreak_state.checked_expansion = -1;
     lmt_linebreak_state.no_shrink_error_yet = 1;
-    lmt_linebreak_state.minimum_demerits = awful_bad;
     lmt_linebreak_state.extra_background_stretch = 0;
     lmt_linebreak_state.emergency_left_skip = null;
     lmt_linebreak_state.emergency_right_skip = null;
@@ -5011,9 +5010,21 @@ void tex_do_line_break(line_break_properties *properties)
     lmt_linebreak_state.emergency_right_extra = 0;
     lmt_linebreak_state.has_orphans = 0;
     lmt_linebreak_state.has_toddlers = 0;
+
+ // for (int i = 0; i < n_of_glue_amounts; i++) {
+ //     lmt_linebreak_state.active_width[i] = 0;
+ //     lmt_linebreak_state.background[i] = 0;
+ //     lmt_linebreak_state.break_width[i] = 0;
+ //     lmt_linebreak_state.minimal_demerits[i] = 0;
+ // }
+
+    /* Needs checking: shouldn't this be done every pass? */
+
+    lmt_linebreak_state.minimum_demerits = awful_bad;
     for (int i = 0; i < max_n_of_fitness_values; i++) {
         lmt_linebreak_state.minimal_demerits[i] = awful_bad;
     }
+
     lmt_linebreak_state.line_break_dir = properties->paragraph_dir;
     if (lmt_linebreak_state.dir_ptr) {
         tex_flush_node_list(lmt_linebreak_state.dir_ptr);

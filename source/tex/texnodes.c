@@ -1164,7 +1164,6 @@ halfword tex_new_node(quarterword type, quarterword subtype)
         so we can clear one word less than |s|.
 
     */
-
     memset((void *) (lmt_node_memory_state.nodes + node + 1), 0, (sizeof(memoryword) * ((size_t) size - 1)));
 
     if (tex_nodetype_is_complex(type)) {
@@ -1447,6 +1446,7 @@ halfword tex_copy_node(halfword original)
                     par_display_widow_penalties(copy) = null;
                     par_broken_penalties(copy) = null;
                     par_orphan_penalties(copy) = null;
+                    par_toddler_penalties(copy) = null;
                     par_fitness_classes(copy) = null;
                     par_adjacent_demerits(copy) = null;
                     par_orphan_line_factors(copy) = null;
@@ -1466,11 +1466,11 @@ halfword tex_copy_node(halfword original)
                     tex_set_par_par(copy, par_widow_penalties_code, tex_get_par_par(original, par_widow_penalties_code), 1);
                     tex_set_par_par(copy, par_display_widow_penalties_code, tex_get_par_par(original, par_display_widow_penalties_code), 1);
                     tex_set_par_par(copy, par_orphan_penalties_code, tex_get_par_par(original, par_orphan_penalties_code), 1);
+                    tex_set_par_par(copy, par_toddler_penalties_code, tex_get_par_par(original, par_toddler_penalties_code), 1);
                     tex_set_par_par(copy, par_fitness_classes_code, tex_get_par_par(original, par_fitness_classes_code), 1);
                     tex_set_par_par(copy, par_adjacent_demerits_code, tex_get_par_par(original, par_adjacent_demerits_code), 1);
                     tex_set_par_par(copy, par_orphan_line_factors_code, tex_get_par_par(original, par_orphan_line_factors_code), 1);
                     tex_set_par_par(copy, par_par_passes_code, tex_get_par_par(original, par_par_passes_code), 1);
-                    tex_set_par_par(copy, par_line_break_checks_code, tex_get_par_par(original, par_line_break_checks_code), 1);
                     /* tokens, we could mess with a ref count instead */
                     par_end_par_tokens(copy) = par_end_par_tokens(original);
                     tex_add_token_reference(par_end_par_tokens(original));
@@ -1568,6 +1568,7 @@ void tex_flush_node(halfword p)
                     tex_flush_node(par_display_widow_penalties(p));
                     tex_flush_node(par_broken_penalties(p));
                     tex_flush_node(par_orphan_penalties(p));
+                    tex_flush_node(par_toddler_penalties(p));
                     tex_flush_node(par_fitness_classes(p));
                     tex_flush_node(par_adjacent_demerits(p));
                     tex_flush_node(par_orphan_line_factors(p));

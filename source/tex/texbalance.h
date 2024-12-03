@@ -19,7 +19,6 @@ typedef struct balance_state_info {
     scaled       active_height[n_of_glue_amounts];
     scaled       background[n_of_glue_amounts];
     scaled       break_height[n_of_glue_amounts];
-    scaled       fill_height[4];
     fitcriterion minimal_demerits;
     halfword     minimum_demerits;
     halfword     easy_page;
@@ -27,10 +26,10 @@ typedef struct balance_state_info {
     scaled       target_height; 
     scaled       first_height;
     scaled       second_height;
-    scaled       first_topskip;
-    scaled       second_topskip;
-    scaled       first_bottomskip;
-    scaled       second_bottomskip;
+    halfword     first_topskip;
+    halfword     second_topskip;
+    halfword     first_bottomskip;
+    halfword     second_bottomskip;
     scaled       emergency_amount;
     halfword     emergency_percentage;
     halfword     emergency_factor;

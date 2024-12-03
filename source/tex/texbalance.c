@@ -61,38 +61,43 @@ typedef enum balance_states {
 } balance_states;
 
 balance_state_info lmt_balance_state = {
-    .just_box                 = 0,
-    .no_shrink_error_yet      = 0,
-    .callback_id              = 0,
-    .threshold                = 0,
-    .passive                  = 0,
-    .printed_node             = 0,
-    .serial_number            = 0,
-    .active_height            = { 0 },
-    .background               = { 0 },
-    .break_height             = { 0 },
-    .minimal_demerits         = { 0 },
-    .minimum_demerits         = 0,
-    .easy_page                = 0,
-    .last_special_page        = 0,
-    .target_height            = 0,
-    .best_bet                 = 0,
-    .fewest_demerits          = 0,
-    .best_page                = 0,
-    .actual_looseness         = 0,
-    .fill_height              = { 0 },
-    .warned                   = 0,
-    .passes                   = { 0 },
-    .current_page_number      = 0,
-    .quality                  = 0,
-    .extra_background_stretch = 0,
-    .extra_background_shrink  = 0,
-    .last_special_page        = 0,
-    .emergency_amount         = 0,
-    .emergency_percentage     = 0,
-    .emergency_factor         = 0,
-    .emergency_height_amount  = 0,
-    .artificial_encountered   = 0, 
+    .just_box                   = null,
+    .no_shrink_error_yet        = 1,
+    .threshold                  = 0,
+    .quality                    = 0,
+    .callback_id                = 0,
+    .extra_background_stretch   = 0,
+    .extra_background_shrink    = 0,
+    .passive                    = null,
+    .printed_node               = null,
+    .serial_number              = 0,
+    .active_height              = { 0 },
+    .background                 = { 0 },
+    .break_height               = { 0 },
+    .minimal_demerits           = { 0 },
+    .minimum_demerits           = awful_bad,
+    .easy_page                  = 0,
+    .last_special_page          = 0,
+    .target_height              = 0, 
+    .first_height               = 0,
+    .second_height              = 0,
+    .first_topskip              = null,
+    .second_topskip             = null,
+    .first_bottomskip           = null,
+    .second_bottomskip          = null,
+    .emergency_amount           = 0,
+    .emergency_percentage       = 0,
+    .emergency_factor           = scaling_factor,
+    .emergency_height_amount    = 0,
+    .best_bet                   = null,
+    .fewest_demerits            = 0,
+    .best_page                  = 0,
+    .actual_looseness           = 0,
+    .warned                     = 0,
+    .passes                     = { 0 },
+    .artificial_encountered     = 0, 
+    .current_page_number        = 0,
+    .default_fitness_classes    = 0,
 };
 
 typedef enum fill_orders {
@@ -1528,60 +1533,53 @@ void tex_balance(balance_properties *properties, halfword head)
     int pass = balance_no_pass;
     halfword first = node_next(temp_head);
     /*tex Some helpers use temp_head so we need to use that! */
-    lmt_balance_state.passes.n_of_break_calls++;
     properties->original_stretch = properties->emergency_stretch;
     properties->original_shrink = properties->emergency_shrink;
-
-
-lmt_balance_state = (balance_state_info) {
-    .just_box                 = 0,
-    .no_shrink_error_yet      = 0,
-    .callback_id              = 0,
-    .threshold                = 0,
-    .passive                  = 0,
-    .printed_node             = 0,
-    .serial_number            = 0,
-    .active_height            = { 0 },
-    .background               = { 0 },
-    .break_height             = { 0 },
-    .minimal_demerits         = { 0 },
-    .minimum_demerits         = 0,
-    .easy_page                = 0,
-    .last_special_page        = 0,
-    .target_height            = 0,
-    .best_bet                 = 0,
-    .fewest_demerits          = 0,
-    .best_page                = 0,
-    .actual_looseness         = 0,
-    .fill_height              = { 0 },
-    .warned                   = 0,
- // .passes                   = { 0 },
-    .current_page_number      = 0,
-    .quality                  = 0,
-    .extra_background_stretch = 0,
-    .extra_background_shrink  = 0,
-    .last_special_page        = 0,
-    .emergency_amount         = 0,
-    .emergency_percentage     = 0,
-    .emergency_factor         = 0,
-    .emergency_height_amount  = 0,
-    .artificial_encountered   = 0, 
-};
-
-
-
-
-
-    lmt_balance_state.callback_id = properties->checks ? lmt_callback_defined(balance_callback) : 0;
-    lmt_balance_state.fewest_demerits = 0;
-    lmt_balance_state.no_shrink_error_yet = 1;
-    lmt_balance_state.minimum_demerits = awful_bad;
+    lmt_balance_state.just_box                 = 0;
+    lmt_balance_state.no_shrink_error_yet      = 1;
+    lmt_balance_state.threshold                = properties->pretolerance;
+    lmt_balance_state.quality                  = 0;
+    lmt_balance_state.callback_id              = properties->checks ? lmt_callback_defined(balance_callback) : 0;
     lmt_balance_state.extra_background_stretch = 0;
-    lmt_balance_state.extra_background_shrink = 0;
-    lmt_balance_state.emergency_amount = 0;
-    lmt_balance_state.emergency_factor = scaling_factor;
-    lmt_balance_state.emergency_percentage = 0;
-    lmt_balance_state.emergency_height_amount = 0;
+    lmt_balance_state.extra_background_shrink  = 0;
+    lmt_balance_state.passive                  = null;
+    lmt_balance_state.printed_node             = temp_head;
+    lmt_balance_state.serial_number            = 0;
+ /* lmt_balance_state.active_height            = { 0 }; */
+ /* lmt_balance_state.background               = { 0 }; */
+ /* lmt_balance_state.break_height             = { 0 }; */
+ /* lmt_balance_state.fill_height              = { 0 }; */
+ /* lmt_balance_state.minimal_demerits         = { 0 }; */
+    lmt_balance_state.minimum_demerits         = awful_bad;
+    lmt_balance_state.easy_page                = 0;
+    lmt_balance_state.last_special_page        = 0;
+    lmt_balance_state.target_height            = 0;
+    lmt_balance_state.first_height             = 0;
+    lmt_balance_state.second_height            = 0;
+    lmt_balance_state.first_topskip            = null;
+    lmt_balance_state.second_topskip           = null;
+    lmt_balance_state.first_bottomskip         = null;
+    lmt_balance_state.second_bottomskip        = null;
+    lmt_balance_state.emergency_amount         = 0;
+    lmt_balance_state.emergency_percentage     = 0;
+    lmt_balance_state.emergency_factor         = scaling_factor;
+    lmt_balance_state.emergency_height_amount  = 0;
+    lmt_balance_state.best_bet                 = 0;
+    lmt_balance_state.fewest_demerits          = 0;
+    lmt_balance_state.best_page                = 0;
+    lmt_balance_state.actual_looseness         = 0;
+    lmt_balance_state.warned                   = 0;
+    lmt_balance_state.passes.n_of_break_calls += 1;
+    lmt_balance_state.artificial_encountered   = 0;
+    lmt_balance_state.current_page_number      = 0;
+    lmt_balance_state.last_special_page        = 0;
+ /* lmt_balance_state.default_fitness_classes  = null  */ /* shared */ 
+    for (int i = 0; i < n_of_glue_amounts; i++) {
+        lmt_balance_state.active_height[i] = 0;
+        lmt_balance_state.background[i] = 0;
+        lmt_balance_state.break_height[i] = 0;
+        lmt_balance_state.minimal_demerits[i] = 0;
+    }
     for (int i = 0; i < max_n_of_fitness_values; i++) {
         lmt_balance_state.minimal_demerits[i] = awful_bad;
     }
@@ -1589,7 +1587,6 @@ lmt_balance_state = (balance_state_info) {
     tex_aux_set_adjacent_demerits(properties);
     tex_aux_set_height(properties);
     tex_aux_set_looseness(properties);
-    lmt_balance_state.threshold = properties->pretolerance;
     if (properties->tracing_balancing > 1) {
         tex_begin_diagnostic();
         tex_print_str("[balance: original] ");
@@ -1712,9 +1709,6 @@ lmt_balance_state = (balance_state_info) {
             lmt_balance_state.background[total_advance_amount] -= lmt_balance_state.emergency_height_amount;
         }
         tex_aux_set_target_to_source(lmt_balance_state.active_height, lmt_balance_state.background);
-        lmt_balance_state.passive = null;
-        lmt_balance_state.printed_node = temp_head;
-        lmt_balance_state.serial_number = 0;
         lmt_print_state.font_in_short_display = null_font;
         lmt_packaging_state.previous_char_ptr = null;
         switch (pass) {
@@ -1967,7 +1961,7 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
             }
             node_next(temp_head) = node_next(last);
             node_next(last) = null;
-            tex_aux_update_height_and_skips(properties, page, &height, &topskip, &bottomskip, 0);
+            tex_aux_update_height_and_skips(properties, page, &height, &topskip, &bottomskip, 1);
             if (first && ! tex_glue_is_zero(topskip)) { 
                 halfword current = first;
                 scaled height = 0; 
@@ -2166,23 +2160,3 @@ halfword tex_vbalanced (
     box_register(n) = null;
     return null;
 }
-
-
-
-// if (properties->shape && specification_count(properties->shape) > 0) {
-//     halfword current = node_next(cur_list.head);
-//     int page = 0;
-//     scaled extra = -65536;
-//     while (current) { 
-//         scaled natural = tex_natural_vsize(box_list(current));
-//         scaled height = 0;
-//         tex_aux_update_height(&properties, ++page, &height);
-//         if (natural > height + extra) { 
-//             tex_set_balance_extra(properties->shape, page, 655360);
-//             printf("\n>>>> %f %f\n\n",height/65536.0,natural/65536.0);
-//             goto AGAIN;
-//         } else { 
-//             current = node_next(current);
-//         }
-//     }
-// }
