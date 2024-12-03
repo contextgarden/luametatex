@@ -2693,6 +2693,8 @@ static halfword texlib_tobalanceshape(lua_State *L, int i)
                     tex_set_balance_index(p, j, target);
                     set_numeric_field_by_index(target, height, 0);
                     tex_set_balance_height(p, j, target);
+                    set_numeric_field_by_index(target, extra, 0);
+                    tex_set_balance_extra(p, j, target);
                     set_numeric_field_by_index(target, options, 0);
                     tex_set_balance_options(p, j, target);
                     /* */

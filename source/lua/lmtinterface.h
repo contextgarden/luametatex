@@ -698,6 +698,7 @@ make_lua_key(L, explicit_space);\
 make_lua_key(L, expression);\
 make_lua_key(L, extender);\
 make_lua_key(L, extensible);\
+make_lua_key(L, extra);\
 make_lua_key(L, extrahyphenpenalty);\
 make_lua_key(L, extraattr);\
 make_lua_key(L, extraspace);\

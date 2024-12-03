@@ -517,6 +517,7 @@ static void tex_aux_set_height(
             lmt_balance_state.last_special_page = specification_count(properties->shape) - 1;
         }
         lmt_balance_state.second_height = tex_get_balance_height(properties->shape, specification_count(properties->shape));
+        lmt_balance_state.second_height = tex_get_balance_height(properties->shape, specification_count(properties->shape)) + tex_get_balance_extra(properties->shape, specification_count(properties->shape));
         lmt_balance_state.second_topskip = tex_get_balance_topskip(properties->shape, specification_count(properties->shape));
         lmt_balance_state.second_bottomskip = tex_get_balance_bottomskip(properties->shape, specification_count(properties->shape));
     } else {
@@ -546,7 +547,7 @@ static void tex_aux_update_height(
     } else if (page > lmt_balance_state.last_special_page) {
         *height = lmt_balance_state.second_height;
     } else if (properties->shape && specification_count(properties->shape) > 0) {
-        *height = tex_get_balance_height(properties->shape, page);
+        *height = tex_get_balance_height(properties->shape, page) + tex_get_balance_extra(properties->shape, page);
         if (page < specification_count(properties->shape)) { 
             /*tex We permits zero height before the last specification. */
             return;
@@ -562,7 +563,8 @@ static void tex_aux_update_height_and_skips(
     int                       page, 
     scaled                   *height, 
     scaled                   *topskip, 
-    scaled                   *bottomskip
+    scaled                   *bottomskip,
+    int                       final
 )
 {
     if (page > lmt_balance_state.easy_page) {
@@ -574,7 +576,7 @@ static void tex_aux_update_height_and_skips(
         *topskip = lmt_balance_state.second_topskip;
         *bottomskip = lmt_balance_state.second_bottomskip;
     } else if (properties->shape && specification_count(properties->shape) > 0) {
-        *height = tex_get_balance_height(properties->shape, page);
+        *height = tex_get_balance_height(properties->shape, page) + (final ? 0 : tex_get_balance_extra(properties->shape, page));
         *topskip = tex_get_balance_topskip(properties->shape, page);
         *bottomskip = tex_get_balance_bottomskip(properties->shape, page);
         if (page < specification_count(properties->shape)) { 
@@ -647,7 +649,7 @@ static scaled tex_aux_try_balance(
         page = active_page_number(current);
         if (page > old_page) {
             if ((lmt_balance_state.minimum_demerits < awful_bad) && ((old_page != lmt_balance_state.easy_page) || (current == active_head))) {
-                tex_aux_update_height_and_skips(properties, page, &page_height, &page_topskip, &page_bottomskip);
+                tex_aux_update_height_and_skips(properties, page, &page_height, &page_topskip, &page_bottomskip, 0);
                 if (no_break_yet) {
                     no_break_yet = false;
                     if (lmt_balance_state.emergency_percentage) {
@@ -732,7 +734,7 @@ static scaled tex_aux_try_balance(
                 old_page = page;
             }
             /*tex Actually, page_height already has been calculated: */
-            tex_aux_update_height_and_skips(properties, page, &page_height, &page_topskip, &page_bottomskip);
+            tex_aux_update_height_and_skips(properties, page, &page_height, &page_topskip, &page_bottomskip, 0);
             if (current == active_head) {
                 shortfall = page_height - current_active_height[total_advance_amount];
                 return shortfall;
@@ -772,19 +774,15 @@ static scaled tex_aux_try_balance(
         }
             fit_class = tex_normalized_tight_badness(badness, properties->fitness_classes);
         }
-        if (1) {
-            if (! cur_p) {
-                shortfall = 0;
-                glue = 0;
-            } else if (shortfall > 0) {
-                glue = current_active_height[total_stretch_amount] + stretch;
-            } else if (shortfall < 0) {
-                glue = current_active_height[total_shrink_amount] + shrink;
-            } else {
-                glue = 0;
-            }
+        if (! cur_p) {
+            shortfall = 0;
+            glue = 0;
+        } else if (shortfall > 0) {
+            glue = current_active_height[total_stretch_amount] + stretch;
+        } else if (shortfall < 0) {
+            glue = current_active_height[total_shrink_amount] + shrink;
         } else {
-            /* Can we get here at all? */
+            glue = 0;
         }
         if ((badness > infinite_bad) || (penalty == eject_penalty)) {
             if (artificial && (lmt_balance_state.minimum_demerits == awful_bad) && (node_next(current) == active_head) && (previous == active_head)) {
@@ -1533,6 +1531,47 @@ void tex_balance(balance_properties *properties, halfword head)
     lmt_balance_state.passes.n_of_break_calls++;
     properties->original_stretch = properties->emergency_stretch;
     properties->original_shrink = properties->emergency_shrink;
+
+
+lmt_balance_state = (balance_state_info) {
+    .just_box                 = 0,
+    .no_shrink_error_yet      = 0,
+    .callback_id              = 0,
+    .threshold                = 0,
+    .passive                  = 0,
+    .printed_node             = 0,
+    .serial_number            = 0,
+    .active_height            = { 0 },
+    .background               = { 0 },
+    .break_height             = { 0 },
+    .minimal_demerits         = { 0 },
+    .minimum_demerits         = 0,
+    .easy_page                = 0,
+    .last_special_page        = 0,
+    .target_height            = 0,
+    .best_bet                 = 0,
+    .fewest_demerits          = 0,
+    .best_page                = 0,
+    .actual_looseness         = 0,
+    .fill_height              = { 0 },
+    .warned                   = 0,
+ // .passes                   = { 0 },
+    .current_page_number      = 0,
+    .quality                  = 0,
+    .extra_background_stretch = 0,
+    .extra_background_shrink  = 0,
+    .last_special_page        = 0,
+    .emergency_amount         = 0,
+    .emergency_percentage     = 0,
+    .emergency_factor         = 0,
+    .emergency_height_amount  = 0,
+    .artificial_encountered   = 0, 
+};
+
+
+
+
+
     lmt_balance_state.callback_id = properties->checks ? lmt_callback_defined(balance_callback) : 0;
     lmt_balance_state.fewest_demerits = 0;
     lmt_balance_state.no_shrink_error_yet = 1;
@@ -1824,7 +1863,7 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
             } else {
                 last = tex_tail_of_node_list(first);
             }
-            tex_aux_update_height_and_skips(properties, page, &height, &topskip, &bottomskip);
+            tex_aux_update_height_and_skips(properties, page, &height, &topskip, &bottomskip, 1);
             if (first && ! tex_glue_is_zero(topskip)) { 
                 halfword current = first;
                 scaled height = 0; 
@@ -1928,7 +1967,7 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
             }
             node_next(temp_head) = node_next(last);
             node_next(last) = null;
-            tex_aux_update_height_and_skips(properties, page, &height, &topskip, &bottomskip);
+            tex_aux_update_height_and_skips(properties, page, &height, &topskip, &bottomskip, 0);
             if (first && ! tex_glue_is_zero(topskip)) { 
                 halfword current = first;
                 scaled height = 0; 
@@ -2127,3 +2166,23 @@ halfword tex_vbalanced (
     box_register(n) = null;
     return null;
 }
+
+
+
+// if (properties->shape && specification_count(properties->shape) > 0) {
+//     halfword current = node_next(cur_list.head);
+//     int page = 0;
+//     scaled extra = -65536;
+//     while (current) { 
+//         scaled natural = tex_natural_vsize(box_list(current));
+//         scaled height = 0;
+//         tex_aux_update_height(&properties, ++page, &height);
+//         if (natural > height + extra) { 
+//             tex_set_balance_extra(properties->shape, page, 655360);
+//             printf("\n>>>> %f %f\n\n",height/65536.0,natural/65536.0);
+//             goto AGAIN;
+//         } else { 
+//             current = node_next(current);
+//         }
+//     }
+// }

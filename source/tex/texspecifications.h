@@ -403,14 +403,14 @@ static inline void     tex_set_balance_height      (halfword a, halfword n, half
 static inline void     tex_set_balance_topskip     (halfword a, halfword n, halfword v) { specification_index(a,balance_shape_slot(n,2)).half0 = v; }
 static inline void     tex_set_balance_bottomskip  (halfword a, halfword n, halfword v) { specification_index(a,balance_shape_slot(n,2)).half1 = v; }
 static inline void     tex_set_balance_options     (halfword a, halfword n, halfword v) { specification_index(a,balance_shape_slot(n,3)).half0 = v; }
-static inline void     tex_set_balance_reserved    (halfword a, halfword n, halfword v) { specification_index(a,balance_shape_slot(n,3)).half1 = v; }
+static inline void     tex_set_balance_extra       (halfword a, halfword n, halfword v) { specification_index(a,balance_shape_slot(n,3)).half1 = v; }
 
 static inline halfword tex_get_balance_index       (halfword a, halfword n) { return specification_index(a,balance_shape_slot(specification_n(a,n),1)).half0; }
 static inline halfword tex_get_balance_height      (halfword a, halfword n) { return specification_index(a,balance_shape_slot(specification_n(a,n),1)).half1; }
 static inline halfword tex_get_balance_topskip     (halfword a, halfword n) { return specification_index(a,balance_shape_slot(specification_n(a,n),2)).half0; }
 static inline halfword tex_get_balance_bottomskip  (halfword a, halfword n) { return specification_index(a,balance_shape_slot(specification_n(a,n),2)).half1; }
 static inline halfword tex_get_balance_options     (halfword a, halfword n) { return specification_index(a,balance_shape_slot(specification_n(a,n),3)).half0; }
-static inline halfword tex_get_balance_reserved    (halfword a, halfword n) { return specification_index(a,balance_shape_slot(specification_n(a,n),3)).half1; }
+static inline halfword tex_get_balance_extra       (halfword a, halfword n) { return specification_index(a,balance_shape_slot(specification_n(a,n),3)).half1; }
 
 /* balance passes */
 
