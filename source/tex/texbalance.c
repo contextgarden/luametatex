@@ -1872,7 +1872,13 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
                     }
                     current = node_next(current);
                 }
-              ADDTOPSKIP1:
+                ADDTOPSKIP1:
+if (balance_line_height_par) { 
+    while (height > balance_line_height_par) {
+        height -= balance_line_height_par;
+    }
+}
+
                 if (glue_amount(topskip) > height) {
                     top = glue_amount(topskip) - height;
                 } else { 
@@ -1979,6 +1985,11 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
                     current = node_next(current);
                 }
               ADDTOPSKIP2:
+if (balance_line_height_par) { 
+    while (height > balance_line_height_par) {
+        height -= balance_line_height_par;
+    }
+}
                 if (glue_amount(gluenode) > height) {
                     glue_amount(gluenode) -= height;
                 } else {

@@ -485,6 +485,7 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "balanceemergencystretch",        internal_dimension_cmd, balance_emergency_stretch_code,           internal_dimension_base);
         tex_primitive(luatex_command, "balanceemergencyshrink",         internal_dimension_cmd, balance_emergency_shrink_code,            internal_dimension_base);
         tex_primitive(luatex_command, "balancevsize",                   internal_dimension_cmd, balance_vsize_code,                       internal_dimension_base);
+        tex_primitive(luatex_command, "balancelineheight",              internal_dimension_cmd, balance_line_height_code,                 internal_dimension_base);
         tex_primitive(tex_command,    "boxmaxdepth",                    internal_dimension_cmd, box_max_depth_code,                       internal_dimension_base);
         tex_primitive(tex_command,    "delimitershortfall",             internal_dimension_cmd, delimiter_shortfall_code,                 internal_dimension_base);
         tex_primitive(tex_command,    "displayindent",                  internal_dimension_cmd, display_indent_code,                      internal_dimension_base);

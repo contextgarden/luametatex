@@ -776,12 +776,13 @@ typedef enum dimension_codes {
     balance_emergency_stretch_code,
     balance_emergency_shrink_code,
     balance_vsize_code,
+    balance_line_height_code,
     /*tex total number of dimension parameters */
     number_dimension_pars,
 } dimension_codes;
 
 # define first_dimension_code par_indent_code
-# define last_dimension_code  short_inline_math_threshold_code
+# define last_dimension_code  balance_line_height_code
 
 typedef enum attribute_codes {
     /*tex total number of attribute parameters */
@@ -1361,6 +1362,7 @@ extern void tex_word_define        (int g, halfword p, halfword w);
 # define balance_emergency_shrink_par     dimension_parameter(balance_emergency_shrink_code)
 # define balance_emergency_stretch_par    dimension_parameter(balance_emergency_stretch_code)
 # define balance_vsize_par                dimension_parameter(balance_vsize_code)
+# define balance_line_height_par          dimension_parameter(balance_line_height_code)
 # define box_max_depth_par                dimension_parameter(box_max_depth_code)
 # define box_max_depth_par                dimension_parameter(box_max_depth_code)
 # define delimiter_shortfall_par          dimension_parameter(delimiter_shortfall_code)
