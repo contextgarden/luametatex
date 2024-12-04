@@ -903,6 +903,7 @@ static void tex_aux_clean_up_the_memory(void)
         tex_flush_node(q);
         q = p;
     }
+    node_next(active_head) = null;
     q = lmt_linebreak_state.passive;
     while (q) {
         halfword p = node_next(q);
@@ -911,6 +912,7 @@ static void tex_aux_clean_up_the_memory(void)
         tex_flush_node(q);
         q = p;
     }
+    lmt_linebreak_state.passive = null;
 }
 
 /*tex

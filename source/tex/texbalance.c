@@ -147,12 +147,14 @@ static void tex_aux_clean_up_the_memory(void)
         tex_flush_node(q);
         q = p;
     }
+    node_next(active_head) = null;
     q = lmt_balance_state.passive;
     while (q) {
         halfword p = node_next(q);
         tex_flush_node(q);
         q = p;
     }
+    lmt_balance_state.passive = null;
 }
 
 static inline void tex_aux_set_target_to_source(scaled target[], const scaled source[])
@@ -1519,11 +1521,6 @@ void tex_balance_reset(balance_properties *properties)
     if (properties->bottomskip      != balance_bottom_skip_par) { tex_flush_node(properties->bottomskip     ); }
     if (properties->fitness_classes != balance_fitness_classes) { tex_flush_node(properties->fitness_classes); }
 }
-
-/* 
-    todo: we could push_nest/pop_nest and use temp_head  
-    todo: check for par_shape or vsize 
-*/
 
 void tex_balance(balance_properties *properties, halfword head)
 {
