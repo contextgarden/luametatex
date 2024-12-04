@@ -839,20 +839,18 @@ static inline halfword tex_aux_used_penalty(halfword p)
     }
 }
 
-void tex_build_page(halfword context, halfword boundary)
+static void tex_process_mvl(halfword context, halfword boundary)
 {
     if (! lmt_page_builder_state.output_active) {
         lmt_page_filter_callback(context, boundary);
-    }
-    if (tex_appended_mvl()) {
-        // printf("APPENDED\n");
-    } else if (node_next(contribute_head) && ! lmt_page_builder_state.output_active) {
+    }        
+    if (node_next(contribute_head) && ! lmt_page_builder_state.output_active) {
         /*tex The (upcoming) penalty to be added to the badness: */
         halfword penalty = 0;
         int callback_id = lmt_callback_defined(show_build_callback);
         int tracing = tracing_pages_par;
         if (callback_id) { 
-           tex_aux_initialize_show_build_node(callback_id);
+            tex_aux_initialize_show_build_node(callback_id);
         }
         do {
             /*tex 
@@ -863,7 +861,7 @@ void tex_build_page(halfword context, halfword boundary)
             halfword type = node_type(current);
             quarterword subtype = node_subtype(current);
             if (callback_id) { 
-               tex_aux_step_show_build_node(callback_id, current);
+                tex_aux_step_show_build_node(callback_id, current);
             }
             if (lmt_page_builder_state.last_glue != max_halfword) {
                 tex_flush_node(lmt_page_builder_state.last_glue);
@@ -965,14 +963,14 @@ void tex_build_page(halfword context, halfword boundary)
                     goto CONTRIBUTE;
                 default:
                     tex_handle_error(
-                     // normal_error_type,
+                        // normal_error_type,
                         succumb_error_type,
                         "Invalid %N node in pagebuilder",
                         current,
                         NULL
                     );
                     goto DISCARD;
-                 // tex_formatted_error("pagebuilder", "invalid %N node in vertical mode", current);
+                    // tex_formatted_error("pagebuilder", "invalid %N node in vertical mode", current);
                     break;
             }
             /*tex
@@ -1025,7 +1023,7 @@ void tex_build_page(halfword context, halfword boundary)
                         }
                         tex_aux_save_best_page_specs();
                         if (callback_id) { 
-                           tex_aux_move_show_build_node(callback_id, current);
+                            tex_aux_move_show_build_node(callback_id, current);
                         }
                     }
                     if (fireup) {
@@ -1035,14 +1033,14 @@ void tex_build_page(halfword context, halfword boundary)
                             tex_end_diagnostic();
                         }
                         if (callback_id) { 
-                           tex_aux_fireup_show_build_node(callback_id, current);
+                            tex_aux_fireup_show_build_node(callback_id, current);
                         }
                         /*tex Output the current page at the best place. */
                         tex_aux_fire_up(current);
                         if (lmt_page_builder_state.output_active) {
                             /*tex User's output routine will act. */
                             if (callback_id) { 
-                               tex_aux_wrapup_show_build_node(callback_id);
+                                tex_aux_wrapup_show_build_node(callback_id);
                             }
                             return;
                         } else {
@@ -1056,7 +1054,7 @@ void tex_build_page(halfword context, halfword boundary)
                     tex_aux_skip_show_build_node(callback_id, current);
                 }
             }
-          UPDATEHEIGHTS:
+            UPDATEHEIGHTS:
             /*tex
                 Go here to record glue in the |active_height| table. Update the current page
                 measurements with respect to the glue or kern specified by node~|p|.
@@ -1090,7 +1088,7 @@ void tex_build_page(halfword context, halfword boundary)
                     page_depth = 0;
                     goto APPEND;
             }
-          CONTRIBUTE:
+            CONTRIBUTE:
             /*tex
                 Go here to link a node into the current page. Make sure that |page_max_depth| is
                 not exceeded.
@@ -1104,7 +1102,7 @@ void tex_build_page(halfword context, halfword boundary)
                 page_total += page_depth - lmt_page_builder_state.max_depth;
                 page_depth = lmt_page_builder_state.max_depth;
             }
-          APPEND:
+            APPEND:
             if (tracing > 1) {
                 tex_begin_diagnostic();
                 tex_print_format("[page: append, %N, %d]", current, current);
@@ -1116,7 +1114,7 @@ void tex_build_page(halfword context, halfword boundary)
             tex_try_couple_nodes(contribute_head, node_next(current));
             node_next(current) = null;
             continue; // or: break; 
-          DISCARD:
+            DISCARD:
             if (tracing > 1) {
                 tex_begin_diagnostic();
                 tex_print_format("[page: discard, %N, %d]", current, current);
@@ -1138,6 +1136,13 @@ void tex_build_page(halfword context, halfword boundary)
         } while (node_next(contribute_head));
         /*tex Make the contribution list empty by setting its tail to |contribute_head|. */
         contribute_tail = contribute_head;
+    }
+}
+
+void tex_build_page(halfword context, halfword boundary)
+{
+    if (! tex_appended_mvl(context, boundary)) {
+        tex_process_mvl(context, boundary);
     }
 }
 

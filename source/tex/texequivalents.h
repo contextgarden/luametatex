@@ -1764,6 +1764,7 @@ typedef enum normalize_par_mode_bits {
     /*tex Conform etex we reset but one can wonder (ms mail/discussion) so we now have a flag. */
     keep_interline_penalties_mode = 0x0008,
     /*tex Maybe add some more control over the resets. */
+    remove_trailing_spaces_mode   = 0x0010,
 } normalize_par_mode_bits;
 
 typedef enum parameter_mode_bits {

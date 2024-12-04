@@ -771,50 +771,72 @@ halfword tex_flush_mvl(halfword index)
     }
 }
 
-int tex_appended_mvl(void)
+int tex_appended_mvl(halfword context, halfword boundary)
 {
     if (! lmt_mvl_state.slot) {
         /*tex We're not collecting. */
         return 0;
     } else { 
-        /*tex We're collecting. */
-        halfword first = node_next(contribute_head); 
-        int assign = lmt_mvl_state.mvl[lmt_mvl_state.slot].tail == lmt_mvl_state.mvl[lmt_mvl_state.slot].head;
-        if (assign && (lmt_mvl_state.mvl[lmt_mvl_state.slot].options & mvl_discard_top)) {
-            while (first) {
-                if (non_discardable(first)) {
-                    break;
-                } else if (node_type(first) == kern_node && ! (node_subtype(first) == explicit_kern_subtype)) {
-                    break;
-                } else { 
-                    halfword following = node_next(first);
-                    node_prev(following) = null;
-                    tex_flush_node(first);
-                    first = following;
+        if (! lmt_page_builder_state.output_active) {
+            lmt_page_filter_callback(context, boundary);
+        } 
+        if (node_next(contribute_head) && ! lmt_page_builder_state.output_active) {
+            halfword first = node_next(contribute_head); 
+            int assign = lmt_mvl_state.mvl[lmt_mvl_state.slot].tail == lmt_mvl_state.mvl[lmt_mvl_state.slot].head;
+            if (assign && (lmt_mvl_state.mvl[lmt_mvl_state.slot].options & mvl_discard_top)) {
+                while (first) {
+                    if (non_discardable(first)) {
+                        break;
+                    } else if (node_type(first) == kern_node && ! (node_subtype(first) == explicit_kern_subtype)) {
+                        break;
+                    } else { 
+                        halfword following = node_next(first);
+                        node_prev(following) = null;
+                        tex_flush_node(first);
+                        first = following;
+                    }
                 }
             }
-        }
-        if (contribute_head != contribute_tail && first) {
-            if (tracing_mvl_par) { 
-                tex_begin_diagnostic();
-                tex_print_format("[mvl: index %i, %s]", lmt_mvl_state.slot, assign ? "assign" : "append");
-                tex_end_diagnostic();
+            if (contribute_head != contribute_tail && first) {
+                if (tracing_mvl_par) { 
+                    tex_begin_diagnostic();
+                    tex_print_format("[mvl: index %i, %s]", lmt_mvl_state.slot, assign ? "assign" : "append");
+                    tex_end_diagnostic();
+                }
+                if (assign) { 
+                    node_next(lmt_mvl_state.mvl[lmt_mvl_state.slot].head) = first;
+                    /* what with prev */
+                } else { 
+                    tex_couple_nodes(lmt_mvl_state.mvl[lmt_mvl_state.slot].tail, first);
+                }
+                lmt_mvl_state.mvl[lmt_mvl_state.slot].tail = contribute_tail;
             }
-            if (assign) { 
-                node_next(lmt_mvl_state.mvl[lmt_mvl_state.slot].head) = first;
-                /* what with prev */
-            } else { 
-                tex_couple_nodes(lmt_mvl_state.mvl[lmt_mvl_state.slot].tail, first);
-            }
-            lmt_mvl_state.mvl[lmt_mvl_state.slot].tail = contribute_tail;
+            node_next(contribute_head) = null;
+            contribute_tail = contribute_head;
         }
-        node_next(contribute_head) = null;
-        contribute_tail = contribute_head;
         return 1;
     }
 }
 
-int tex_current_mvl(void)
+int tex_current_mvl(halfword *head, halfword *tail)
 {
-    return lmt_mvl_state.slot >= 0 ? lmt_mvl_state.slot : 0;
+    if (lmt_mvl_state.slot == 0) { 
+        if (head && tail) {
+            *head = node_next(page_head);
+            *tail = lmt_page_builder_state.page_tail;
+        }
+        return 0; 
+    } else if (lmt_mvl_state.slot > 0) {
+        if (head && tail) {
+            *head = lmt_mvl_state.mvl[lmt_mvl_state.slot].head;
+            *tail = lmt_mvl_state.mvl[lmt_mvl_state.slot].tail;
+        }
+        return lmt_mvl_state.slot; 
+    } else { 
+        if (head && tail) {
+            *head = null;
+            *tail = null;
+        }
+        return 0;
+    } 
 }

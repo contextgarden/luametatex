@@ -1252,7 +1252,7 @@ static void tex_aux_set_cur_val_by_page_property_cmd(int code)
             cur_val_level = dimension_val_level;
             break;
         case mvl_currently_active_code:
-            cur_val = tex_current_mvl();
+            cur_val = tex_current_mvl(NULL, NULL);
             cur_val_level = integer_val_level;
             break;
         default:

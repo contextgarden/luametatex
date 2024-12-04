@@ -99,7 +99,7 @@ extern void     tex_initialize_mvl_state (void);
 extern void     tex_start_mvl            (void); /* includes scanning */
 extern void     tex_stop_mvl             (void);
 extern halfword tex_flush_mvl            (halfword n);
-extern int      tex_appended_mvl         (void);
-extern int      tex_current_mvl          (void);
+extern int      tex_appended_mvl         (halfword context, halfword boundary);
+extern int      tex_current_mvl          (halfword *head, halfword *tail);
 
 # endif

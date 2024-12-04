@@ -10674,6 +10674,8 @@ static int nodelib_direct_firstitalicglyph(lua_State *L)
     return 1;
 }
 
+/* not yet ok: */
+
 # define isspeciallist_usage  common_usage
 # define getspeciallist_usage common_usage
 # define setspeciallist_usage common_usage
@@ -10764,6 +10766,23 @@ static int nodelib_direct_setspeciallist(lua_State *L)
         tex_set_special_node_list(split_discards_list_type, head);
     }
     return 0;
+}
+
+/* not yet ok: */
+
+# define getmvllist_usage common_usage
+# define setmvllist_usage common_usage
+
+static int nodelib_direct_getmvllist(lua_State *L)
+{
+    /* todo: optional mvl integer for direct access */
+    halfword head = null;
+    halfword tail = null;
+    halfword mvl  = tex_current_mvl(&head, &tail);
+    lua_pushinteger(L, head);
+    lua_pushinteger(L, tail);
+    lua_pushinteger(L, mvl);
+    return 3;
 }
 
 /*tex
@@ -11054,6 +11073,7 @@ static const usage_record usage_data[] = {
     { .name = "getleftdelimiter",       .target = direct_usage_target,   .usage = getleftdelimiter_usage       },
     { .name = "getlist",                .target = direct_usage_target,   .usage = getlist_usage                },
     { .name = "getlistdimensions",      .target = direct_usage_target,   .usage = getlistdimensions_usage      },
+    { .name = "getmvllist",             .target = direct_usage_target,   .usage = getmvllist_usage             },
     { .name = "getnext",                .target = direct_usage_target,   .usage = getnext_usage                },
     { .name = "getnodes",               .target = direct_usage_target,   .usage = getnodes_usage               },
     { .name = "getnormalizedline",      .target = direct_usage_target,   .usage = getnormalizedline_usage      },
@@ -11415,6 +11435,7 @@ static const struct luaL_Reg nodelib_direct_function_list[] = {
     { "getlist",                 nodelib_direct_getlist                },
     { "getlistdimensions",       nodelib_direct_getlistdimensions      },
     { "getnext",                 nodelib_direct_getnext                },
+    { "getmvllist",              nodelib_direct_getmvllist             },
     { "getnodes",                nodelib_direct_getnodes               },
     { "getnormalizedline",       nodelib_direct_getnormalizedline      },
     { "getnucleus",              nodelib_direct_getnucleus             },

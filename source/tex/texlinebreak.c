@@ -203,11 +203,14 @@ void tex_line_break_prepare(
         *parfill_right_skip_glue = tex_new_glue_node(tex_get_par_par(par, par_par_fill_right_skip_code), par_fill_right_skip_glue);
         *parinit_left_skip_glue = null;
         *parinit_right_skip_glue = null;
-        if (par != *tail && node_type(*tail) == glue_node && ! tex_is_par_init_glue(*tail)) {
+        while (par != *tail && node_type(*tail) == glue_node && ! tex_is_par_init_glue(*tail)) {
             halfword prev = node_prev(*tail);
             node_next(prev) = null;
             tex_flush_node(*tail);
             *tail = prev;
+            if (! normalize_par_mode_option(remove_trailing_spaces_mode)) {
+                break;
+            }
         }
         tex_add_penalty_option(*final_line_penalty, penalty_option_end_of_par);
         tex_attach_attribute_list_copy(*final_line_penalty, par);

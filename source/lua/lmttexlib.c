@@ -2751,6 +2751,12 @@ int texlib_setbalanceshape(lua_State *L)
     return 1;
 }
 
+static int texlib_getcurrentmvl(lua_State *L)
+{
+    lua_pushinteger(L, tex_current_mvl(NULL, NULL));
+    return 1;
+}
+
 static int texlib_shiftparshape(lua_State *L)
 {
     if (par_shape_par) {
@@ -6034,11 +6040,12 @@ static int texlib_getnormalizelinevalues(lua_State *L)
 
 static int texlib_getnormalizeparvalues(lua_State *L)
 {
-    lua_createtable(L, 2, 2);
+    lua_createtable(L, 2, 3);
     lua_set_string_by_index(L, normalize_par_mode,            "normalizepar");
     lua_set_string_by_index(L, flatten_v_leaders_mode,        "flattenvleaders");
     lua_set_string_by_index(L, limit_prev_graf_mode,          "limitprevgraf");
     lua_set_string_by_index(L, keep_interline_penalties_mode, "keepinterlinepenalties");
+    lua_set_string_by_index(L, remove_trailing_spaces_mode,   "removetrailingspaces");
     return 1;
 }
 
@@ -7039,6 +7046,7 @@ static const struct luaL_Reg texlib_function_list[] = {
     { "setlocalbox",                  texlib_setlocalbox                  },
     { "getlocalboxlocations",         texlib_getlocalboxlocations         },
     /* */
+    { "getcurrentmvl",                texlib_getcurrentmvl                },
     { "setbalanceshape",              texlib_setbalanceshape              },
     /* */
     { "pushsavelevel",                texlib_pushsavelevel                },
