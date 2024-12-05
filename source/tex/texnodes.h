@@ -562,12 +562,14 @@ static inline void tex_remove_glue_option (halfword a, halfword r) { glue_option
 static inline int  tex_has_glue_option    (halfword a, halfword r) { return (glue_options(a) & r) == r; }
 
 typedef enum glue_option_codes {
-    glue_option_normal         = 0x0000,
-    glue_option_no_auto_break  = 0x0001, /* math related */
-    glue_option_has_factor     = 0x0002,
-    glue_option_is_limited     = 0x0004,
-    glue_option_limit          = 0x0008,
-    glue_option_u_leaders_line = 0x0010,
+    glue_option_normal            = 0x0000,
+    glue_option_no_auto_break     = 0x0001, /* math related */
+    glue_option_has_factor        = 0x0002,
+    glue_option_is_limited        = 0x0004,
+    glue_option_limit             = 0x0008,
+    glue_option_u_leaders_line    = 0x0010,
+    glue_option_set_discardable   = 0x0020,
+    glue_option_reset_discardable = 0x0040,
 } glue_option_codes;
 
 typedef enum math_subtypes {
@@ -954,7 +956,7 @@ typedef enum list_geometries {
     anchor_geometry      = 0x4,
 } list_geometries;
 
-# define box_node_size        16
+# define box_node_size        17
 # define box_width(a)         vlink(a,2)
 # define box_w_offset(a)      vinfo(a,2)
 # define box_depth(a)         vlink(a,3)
@@ -987,8 +989,10 @@ typedef enum list_geometries {
 # define box_index(a)         vinfo(a,13)
 # define box_except(a)        vlink(a,14)
 # define box_exdepth(a)       vinfo(a,14)
-# define box_input_file(a)    vlink(a,15)
-# define box_input_line(a)    vinfo(a,15)
+# define box_discardable(a)   vinfo(a,15)  /* internal usage */
+# define box_reserved(a)      vlink(a,15)
+# define box_input_file(a)    vlink(a,16)
+# define box_input_line(a)    vinfo(a,16)
 
 # define box_total(a) (box_height(a) + box_depth(a)) /* Here we add, with glyphs we maximize. */
 
@@ -1125,19 +1129,21 @@ typedef enum rule_option_codes {
 # define first_rule_code   normal_rule_code
 # define last_rule_code    strut_rule_code
 
-# define rule_node_size    8
-# define rule_width(a)     vlink(a,2)
-# define rule_x_offset(a)  vinfo(a,2)
-# define rule_depth(a)     vlink(a,3)
-# define rule_y_offset(a)  vinfo(a,3)
-# define rule_height(a)    vlink(a,4)
-# define rule_data(a)      vinfo(a,4) /* used for linewidth */
-# define rule_options(a)   vlink(a,5)
-# define rule_thickness(a) vinfo(a,5) /* future see data */
-# define rule_left(a)      vinfo(a,6) /* depends on subtype */
-# define rule_right(a)     vlink(a,6) /* depends on subtype */
-# define rule_extra_1(a)   vinfo(a,7) /* depends on subtype */
-# define rule_extra_2(a)   vlink(a,7) /* depends on subtype */
+# define rule_node_size      9
+# define rule_width(a)       vlink(a,2)
+# define rule_x_offset(a)    vinfo(a,2)
+# define rule_depth(a)       vlink(a,3)
+# define rule_y_offset(a)    vinfo(a,3)
+# define rule_height(a)      vlink(a,4)
+# define rule_data(a)        vinfo(a,4)   /* used for linewidth */
+# define rule_options(a)     vlink(a,5)
+# define rule_thickness(a)   vinfo(a,5)   /* future see data */
+# define rule_left(a)        vinfo(a,6)   /* depends on subtype */
+# define rule_right(a)       vlink(a,6)   /* depends on subtype */
+# define rule_extra_1(a)     vinfo(a,7)   /* depends on subtype */
+# define rule_extra_2(a)     vlink(a,7)   /* depends on subtype */
+# define rule_discardable(a) vinfo(a,8)   /* internal usage */
+# define rule_reserved(a)    vlink(a,8) 
 
 # define rule_line_on         rule_extra_1    /* for user rules */
 # define rule_line_off        rule_extra_2    /* for user rules */

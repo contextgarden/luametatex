@@ -440,15 +440,18 @@ static void tex_check_skips_shortfall(const balance_properties *properties, half
         /* todo: check breakable */
         halfword c = left;
         scaled h = 0;
+        scaled e = 0;
         while (c) {
             switch (node_type(c)) {
                 case hlist_node:
                 case vlist_node:
                     h = box_height(c);
+                    e = box_discardable(c);
                     c = null;
                     break;
                 case rule_node:
                     h = rule_height(c);
+                    e = rule_discardable(c);
                     c = null;
                     break;
                 default: 
@@ -462,6 +465,7 @@ static void tex_check_skips_shortfall(const balance_properties *properties, half
             *stretch += glue_stretch(page_topskip);
             *shrink += glue_shrink(page_topskip);
         }
+        *shortfall -= e;
     }
     if (! tex_glue_is_zero(page_bottomskip)) {
         halfword c = node_prev(current);
@@ -1828,6 +1832,39 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
             p = passive_next_break(p);
         }
     }
+    {
+        halfword current = node_next(temp_head);
+        scaled extra = 0;
+        while (current) {
+            switch (node_type(current)) {
+                case hlist_node:
+                case vlist_node:
+                    if (extra) {
+                        box_discardable(current) = extra;
+                        // printf(">>> SET EXTRA %f\n",extra/65536.0);
+                    }
+                    break;
+                case rule_node:
+                    if (extra) {
+                        rule_discardable(current) = extra;
+                        // printf(">>> SET EXTRA %f\n",extra/65536.0);
+                    }
+                    break;
+                case glue_node:
+                    if (! glue_amount(current)) {
+                        /* ignore */
+                    } if (tex_has_glue_option(current, glue_option_set_discardable)) {
+                     // printf(">>> HAS EXTRA %f\n",extra/65536.0);
+                        extra = glue_amount(current);
+                    } else if (tex_has_glue_option(current, glue_option_reset_discardable)) {
+                     // printf(">>> NO MORE EXTRA %f\n",extra/65536.0);
+                        extra = 0;
+                    }
+                    break;
+            }
+            current = node_next(current);
+        }
+    }
     if (properties->trial) {
         /*tex 
             We're only interested in the natural dimensions. So we create a fitting vertical empty 
@@ -1838,6 +1875,7 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
         halfword topskip = null;
         halfword bottomskip = null;
         halfword first = node_next(temp_head); 
+        scaled extra = 0;
         do {
             halfword last = passive_cur_break(cur_p);
             scaled top = -1;
@@ -1855,17 +1893,28 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
                 last = tex_tail_of_node_list(first);
             }
             tex_aux_update_height_and_skips(properties, page, &height, &topskip, &bottomskip, 1);
-            if (first && ! tex_glue_is_zero(topskip)) { 
+            if (first && (extra || ! tex_glue_is_zero(topskip))) { 
                 halfword current = first;
                 scaled height = 0; 
+                scaled extra = 0;
                 while (current) {
                     switch (node_type(current)) {
                         case hlist_node:
                         case vlist_node:
-                            height = box_height(current); 
+                            height = box_height(current);
+                            if (box_discardable(current)) {
+                                extra += box_discardable(current);
+                                box_discardable(current) = 0;
+                             // printf(">>> @ %i GET EXTRA TRIAL %f\n",page,extra/65536.0);
+                            }
                             goto ADDTOPSKIP1;
                         case rule_node:
                             height = rule_height(current); 
+                            if (rule_discardable(current)) {
+                                extra += rule_discardable(current);
+                                rule_discardable(current) = 0;
+                             // printf(">>> @ %i GET EXTRA TRIAL %f\n",page,extra/65536.0);
+                            }
                             goto ADDTOPSKIP1;
                         default:
                             break;
@@ -1873,17 +1922,12 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
                     current = node_next(current);
                 }
                 ADDTOPSKIP1:
-if (balance_line_height_par) { 
-    while (height > balance_line_height_par) {
-        height -= balance_line_height_par;
-    }
-}
-
                 if (glue_amount(topskip) > height) {
                     top = glue_amount(topskip) - height;
                 } else { 
                     top = 0;
                 }
+                top += extra;
             }
             if (last && ! tex_glue_is_zero(bottomskip)) { 
                 scaled depth = 0; 
@@ -1949,6 +1993,7 @@ if (balance_line_height_par) {
         do {
             halfword first = node_next(temp_head); 
             halfword last  = passive_cur_break(cur_p);
+            scaled extra = 0;
             if (last) {
                 switch (node_type(last)) {
                     case glue_node:
@@ -1965,7 +2010,7 @@ if (balance_line_height_par) {
             node_next(temp_head) = node_next(last);
             node_next(last) = null;
             tex_aux_update_height_and_skips(properties, page, &height, &topskip, &bottomskip, 1);
-            if (first && ! tex_glue_is_zero(topskip)) { 
+            if (first && (! tex_glue_is_zero(topskip) || extra)) { 
                 halfword current = first;
                 scaled height = 0; 
                 halfword gluenode = tex_new_glue_node(topskip, top_skip_glue);
@@ -1975,9 +2020,19 @@ if (balance_line_height_par) {
                         case hlist_node:
                         case vlist_node:
                             height = box_height(current); 
+                            if (box_discardable(current)) {
+                                extra += box_discardable(current);
+                                box_discardable(current) = 0;
+                             // printf(">>> @ %i GET EXTRA FINAL %f\n",page,extra/65536.0);
+                            }
                             goto ADDTOPSKIP2;
                         case rule_node:
                             height = rule_height(current); 
+                            if (rule_discardable(current)) {
+                                extra += rule_discardable(current);
+                                rule_discardable(current) = 0;
+                             // printf(">>> @ %i GET EXTRA FINAL %f\n",page,extra/65536.0);
+                            }
                             goto ADDTOPSKIP2;
                         default:
                             break;
@@ -1985,11 +2040,6 @@ if (balance_line_height_par) {
                     current = node_next(current);
                 }
               ADDTOPSKIP2:
-if (balance_line_height_par) { 
-    while (height > balance_line_height_par) {
-        height -= balance_line_height_par;
-    }
-}
                 if (glue_amount(gluenode) > height) {
                     glue_amount(gluenode) -= height;
                 } else {
@@ -1997,6 +2047,7 @@ if (balance_line_height_par) {
                 }
                 tex_couple_nodes(gluenode, first);
                 first = gluenode;
+                glue_amount(gluenode) = extra;
             }
             if (last && ! tex_glue_is_zero(bottomskip)) { 
                 scaled depth = 0; 

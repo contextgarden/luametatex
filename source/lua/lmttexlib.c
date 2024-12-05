@@ -5684,13 +5684,15 @@ static int texlib_getglyphoptionvalues(lua_State *L)
 
 static int texlib_getglueoptionvalues(lua_State *L)
 {
-    lua_createtable(L, 4, 2);
-    lua_set_string_by_index(L, glue_option_normal,         "normal");
-    lua_set_string_by_index(L, glue_option_no_auto_break,  "noautobreak");
-    lua_set_string_by_index(L, glue_option_has_factor,     "hasfactor");
-    lua_set_string_by_index(L, glue_option_is_limited,     "islimited");
-    lua_set_string_by_index(L, glue_option_limit,          "limit");
-    lua_set_string_by_index(L, glue_option_u_leaders_line, "uleadersline");
+    lua_createtable(L, 6, 2);
+    lua_set_string_by_index(L, glue_option_normal,            "normal");
+    lua_set_string_by_index(L, glue_option_no_auto_break,     "noautobreak");
+    lua_set_string_by_index(L, glue_option_has_factor,        "hasfactor");
+    lua_set_string_by_index(L, glue_option_is_limited,        "islimited");
+    lua_set_string_by_index(L, glue_option_limit,             "limit");
+    lua_set_string_by_index(L, glue_option_u_leaders_line,    "uleadersline");
+    lua_set_string_by_index(L, glue_option_set_discardable,   "setdiscardable");
+    lua_set_string_by_index(L, glue_option_reset_discardable, "resetdiscardable");
     return 1;
 }
 
