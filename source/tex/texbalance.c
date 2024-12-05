@@ -1584,6 +1584,40 @@ void tex_balance(balance_properties *properties, halfword head)
     for (int i = 0; i < max_n_of_fitness_values; i++) {
         lmt_balance_state.minimal_demerits[i] = awful_bad;
     }
+    /* */
+    {
+        halfword current = head;
+        scaled extra = 0;
+        while (current) {
+            switch (node_type(current)) {
+                case hlist_node:
+                case vlist_node:
+                    if (extra) {
+                        box_discardable(current) = extra;
+                        // printf(">>> SET EXTRA %f\n",extra/65536.0);
+                    }
+                    break;
+                case rule_node:
+                    if (extra) {
+                        rule_discardable(current) = extra;
+                        // printf(">>> SET EXTRA %f\n",extra/65536.0);
+                    }
+                    break;
+                case glue_node:
+                    if (! glue_amount(current)) {
+                        /* ignore */
+                    } if (tex_has_glue_option(current, glue_option_set_discardable)) {
+                     // printf(">>> HAS EXTRA %f\n",extra/65536.0);
+                        extra = glue_amount(current);
+                    } else if (tex_has_glue_option(current, glue_option_reset_discardable)) {
+                     // printf(">>> NO MORE EXTRA %f\n",extra/65536.0);
+                        extra = 0;
+                    }
+                    break;
+            }
+            current = node_next(current);
+        }
+    }    /* */
     tex_aux_pre_balance(properties, lmt_balance_state.callback_id, properties->checks, 0);
     tex_aux_set_adjacent_demerits(properties);
     tex_aux_set_height(properties);
@@ -1832,39 +1866,39 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
             p = passive_next_break(p);
         }
     }
-    {
-        halfword current = node_next(temp_head);
-        scaled extra = 0;
-        while (current) {
-            switch (node_type(current)) {
-                case hlist_node:
-                case vlist_node:
-                    if (extra) {
-                        box_discardable(current) = extra;
-                        // printf(">>> SET EXTRA %f\n",extra/65536.0);
-                    }
-                    break;
-                case rule_node:
-                    if (extra) {
-                        rule_discardable(current) = extra;
-                        // printf(">>> SET EXTRA %f\n",extra/65536.0);
-                    }
-                    break;
-                case glue_node:
-                    if (! glue_amount(current)) {
-                        /* ignore */
-                    } if (tex_has_glue_option(current, glue_option_set_discardable)) {
-                     // printf(">>> HAS EXTRA %f\n",extra/65536.0);
-                        extra = glue_amount(current);
-                    } else if (tex_has_glue_option(current, glue_option_reset_discardable)) {
-                     // printf(">>> NO MORE EXTRA %f\n",extra/65536.0);
-                        extra = 0;
-                    }
-                    break;
-            }
-            current = node_next(current);
-        }
-    }
+ // {
+ //     halfword current = node_next(temp_head);
+ //     scaled extra = 0;
+ //     while (current) {
+ //         switch (node_type(current)) {
+ //             case hlist_node:
+ //             case vlist_node:
+ //                 if (extra) {
+ //                     box_discardable(current) = extra;
+ //                     // printf(">>> SET EXTRA %f\n",extra/65536.0);
+ //                 }
+ //                 break;
+ //             case rule_node:
+ //                 if (extra) {
+ //                     rule_discardable(current) = extra;
+ //                     // printf(">>> SET EXTRA %f\n",extra/65536.0);
+ //                 }
+ //                 break;
+ //             case glue_node:
+ //                 if (! glue_amount(current)) {
+ //                     /* ignore */
+ //                 } if (tex_has_glue_option(current, glue_option_set_discardable)) {
+ //                  // printf(">>> HAS EXTRA %f\n",extra/65536.0);
+ //                     extra = glue_amount(current);
+ //                 } else if (tex_has_glue_option(current, glue_option_reset_discardable)) {
+ //                  // printf(">>> NO MORE EXTRA %f\n",extra/65536.0);
+ //                     extra = 0;
+ //                 }
+ //                 break;
+ //         }
+ //         current = node_next(current);
+ //     }
+ // }
     if (properties->trial) {
         /*tex 
             We're only interested in the natural dimensions. So we create a fitting vertical empty 
