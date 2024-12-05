@@ -1608,6 +1608,7 @@ void tex_balance(balance_properties *properties, halfword head)
                         /* ignore */
                     } if (tex_has_glue_option(current, glue_option_set_discardable)) {
                      // printf(">>> HAS EXTRA %f\n",extra/65536.0);
+                        /* stretch and shrink */
                         extra = glue_amount(current);
                     } else if (tex_has_glue_option(current, glue_option_reset_discardable)) {
                      // printf(">>> NO MORE EXTRA %f\n",extra/65536.0);
@@ -1937,7 +1938,7 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
                         case vlist_node:
                             height = box_height(current);
                             if (box_discardable(current)) {
-                                extra += box_discardable(current);
+                                extra = box_discardable(current);
                                 box_discardable(current) = 0;
                              // printf(">>> @ %i GET EXTRA TRIAL %f\n",page,extra/65536.0);
                             }
@@ -1945,7 +1946,7 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
                         case rule_node:
                             height = rule_height(current); 
                             if (rule_discardable(current)) {
-                                extra += rule_discardable(current);
+                                extra = rule_discardable(current);
                                 rule_discardable(current) = 0;
                              // printf(">>> @ %i GET EXTRA TRIAL %f\n",page,extra/65536.0);
                             }
@@ -2055,7 +2056,7 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
                         case vlist_node:
                             height = box_height(current); 
                             if (box_discardable(current)) {
-                                extra += box_discardable(current);
+                                extra = box_discardable(current);
                                 box_discardable(current) = 0;
                              // printf(">>> @ %i GET EXTRA FINAL %f\n",page,extra/65536.0);
                             }
@@ -2063,7 +2064,7 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
                         case rule_node:
                             height = rule_height(current); 
                             if (rule_discardable(current)) {
-                                extra += rule_discardable(current);
+                                extra = rule_discardable(current);
                                 rule_discardable(current) = 0;
                              // printf(">>> @ %i GET EXTRA FINAL %f\n",page,extra/65536.0);
                             }
@@ -2081,7 +2082,7 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
                 }
                 tex_couple_nodes(gluenode, first);
                 first = gluenode;
-                glue_amount(gluenode) = extra;
+                glue_amount(gluenode) += extra;
             }
             if (last && ! tex_glue_is_zero(bottomskip)) { 
                 scaled depth = 0; 
