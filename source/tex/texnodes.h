@@ -2371,6 +2371,7 @@ typedef enum boundary_subtypes {
     lua_boundary,
     par_boundary,
     adjust_boundary,
+    balance_boundary,
 } boundary_subtypes;
 
 typedef enum protrusion_boundary_options {

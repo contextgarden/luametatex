@@ -560,6 +560,7 @@ void tex_initialize_commands(void)
      /* tex_primitive(luatex_command, "parboundary",                    boundary_cmd,           par_boundary,                             0); */
         tex_primitive(luatex_command, "protrusionboundary",             boundary_cmd,           protrusion_boundary,                      0);
         tex_primitive(luatex_command, "wordboundary",                   boundary_cmd,           word_boundary,                            0);
+        tex_primitive(luatex_command, "balanceboundary",                boundary_cmd,           balance_boundary,                         0);
 
         tex_primitive(luatex_command, "hpenalty",                       penalty_cmd,            h_penalty_code,                           0);
         tex_primitive(tex_command,    "penalty",                        penalty_cmd,            normal_penalty_code,                      0);

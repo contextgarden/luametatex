@@ -1242,6 +1242,18 @@ static void tex_aux_run_par_boundary(void)
                 }
                 break;
             }
+        case balance_boundary:
+            {
+                halfword n = tex_scan_integer(0, NULL);
+                halfword m = tex_scan_integer(0, NULL);
+                if (cur_list.mode == vmode && ! lmt_page_builder_state.output_active) {
+                    halfword boundary = tex_new_node(boundary_node, balance_boundary);
+                    boundary_data(boundary) = n;
+                    boundary_reserved(boundary) = m;
+                    tex_tail_append(boundary);
+                }
+                break;
+            }
         /*tex Not yet, first I need a proper use case. */ /*
         case par_boundary:
             {
@@ -1271,6 +1283,10 @@ static void tex_aux_run_text_boundary(void)
             boundary_data(boundary) = tex_scan_integer(0, NULL);
             boundary_reserved(boundary) = tex_scan_integer(0, NULL);
             break;
+        case balance_boundary:
+            /*tex Maybe we should force vmode? For now we just ignore the value. */
+            tex_scan_integer(0, NULL);
+            /* fall through */
         case page_boundary:
             /*tex Maybe we should force vmode? For now we just ignore the value. */
             tex_scan_integer(0, NULL);
@@ -1477,14 +1493,29 @@ static void tex_aux_run_after_something(void)
         case at_end_of_group_code:
             {
                 halfword t = tex_get_token(); /* avoid realloc issues */
-                halfword r = tex_get_available_token(t);
-                if (end_of_group_par) {
-                    halfword p = tex_tail_of_token_list(end_of_group_par);
-                    token_link(p) = r;
-                } else {
-                    halfword p = tex_get_available_token(null);
-                    token_link(p) = r;
-                    update_tex_end_of_group(p);
+                switch (token_cmd(t)) {
+                    case left_brace_cmd:
+                    case right_brace_cmd:
+                        /*tex We don't want to crash. */
+                        tex_handle_error(
+                            normal_error_type,
+                            "I don't expected a { or }",
+                            "The '\\atendofgroup' command won't handle this, maybe you want \\atendofgrouped instead."
+                        );
+                        break;
+                    default: 
+                        {
+                            halfword r = tex_get_available_token(t);
+                            if (end_of_group_par) {
+                                halfword p = tex_tail_of_token_list(end_of_group_par);
+                                token_link(p) = r;
+                            } else {
+                                halfword p = tex_get_available_token(null);
+                                token_link(p) = r;
+                                update_tex_end_of_group(p);
+                            }
+                        }
+                        break;
                 }
                 break;
             }

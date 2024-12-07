@@ -1058,9 +1058,21 @@ static halfword tex_aux_scan_specification_balance_shape(void)
                 case 0:
                     goto DONE;
                 case 'i': case 'I':
-                    if (tex_scan_mandate_keyword("index", 1)) {
-                        tex_set_balance_index(p, n, tex_scan_integer(0, NULL));
-                    }
+                    switch (tex_scan_character("dnDN", 0, 0, 0)) {
+                        case 'd': case 'D':
+                            if (tex_scan_mandate_keyword("identifier", 2)) {
+                                balance_shape_identifier(p) = tex_scan_integer(0, NULL);
+                            }
+                            break;
+                        case 'n': case 'N':
+                            if (tex_scan_mandate_keyword("index", 2)) {
+                                tex_set_balance_index(p, n, tex_scan_integer(0, NULL));
+                            }
+                            break;
+                        default:
+                            tex_aux_show_keyword_error("identifier|index");
+                            goto DONE;
+                    } 
                     break;
                 case 'h': case 'H':
                     if (tex_scan_mandate_keyword("height", 1)) {

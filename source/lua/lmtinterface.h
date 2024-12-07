@@ -807,6 +807,7 @@ make_lua_key(L, hyphenationmode);\
 make_lua_key(L, hyphenchar);\
 make_lua_key(L, hyphenpenalty);\
 make_lua_key(L, id);\
+make_lua_key(L, identifier);\
 make_lua_key(L, if_test);\
 make_lua_key(L, ifstack);\
 make_lua_key(L, ignore);\

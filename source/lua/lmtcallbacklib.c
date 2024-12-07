@@ -85,6 +85,7 @@ static const char *callbacklib_names[total_callbacks] = {
     "italic_correction",
     "show_loners",
     "tail_append",
+    "balance_boundary",
 };
 
 /*tex

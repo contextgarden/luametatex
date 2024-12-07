@@ -2686,6 +2686,11 @@ static halfword texlib_tobalanceshape(lua_State *L, int i)
                 tex_set_specification_option(p, specification_option_repeat); /* not yet used */
             }
             lua_pop(L, 1);
+            {
+                halfword target = 0;
+                set_numeric_field_by_index(target, identifier, 0);
+                balance_shape_identifier(p) = target;
+            }
             for (int j = 1; j <= n; j++) {
                 if (lua_rawgeti(L, i, j) == LUA_TTABLE) {
                     halfword target = 0;

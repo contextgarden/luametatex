@@ -41,7 +41,7 @@ typedef struct balance_state_info {
     halfword     warned;
     break_passes passes;
     int          artificial_encountered; 
-    int          current_page_number; /* check if we can use something else */
+    int          current_slot_number;   
     halfword     default_fitness_classes;
 } balance_state_info;
 

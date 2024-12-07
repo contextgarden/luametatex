@@ -61,43 +61,43 @@ typedef enum balance_states {
 } balance_states;
 
 balance_state_info lmt_balance_state = {
-    .just_box                   = null,
-    .no_shrink_error_yet        = 1,
-    .threshold                  = 0,
-    .quality                    = 0,
-    .callback_id                = 0,
-    .extra_background_stretch   = 0,
-    .extra_background_shrink    = 0,
-    .passive                    = null,
-    .printed_node               = null,
-    .serial_number              = 0,
-    .active_height              = { 0 },
-    .background                 = { 0 },
-    .break_height               = { 0 },
-    .minimal_demerits           = { 0 },
-    .minimum_demerits           = awful_bad,
-    .easy_page                  = 0,
-    .last_special_page          = 0,
-    .target_height              = 0, 
-    .first_height               = 0,
-    .second_height              = 0,
-    .first_topskip              = null,
-    .second_topskip             = null,
-    .first_bottomskip           = null,
-    .second_bottomskip          = null,
-    .emergency_amount           = 0,
-    .emergency_percentage       = 0,
-    .emergency_factor           = scaling_factor,
-    .emergency_height_amount    = 0,
-    .best_bet                   = null,
-    .fewest_demerits            = 0,
-    .best_page                  = 0,
-    .actual_looseness           = 0,
-    .warned                     = 0,
-    .passes                     = { 0 },
-    .artificial_encountered     = 0, 
-    .current_page_number        = 0,
-    .default_fitness_classes    = 0,
+    .just_box                 = null,
+    .no_shrink_error_yet      = 1,
+    .threshold                = 0,
+    .quality                  = 0,
+    .callback_id              = 0,
+    .extra_background_stretch = 0,
+    .extra_background_shrink  = 0,
+    .passive                  = null,
+    .printed_node             = null,
+    .serial_number            = 0,
+    .active_height            = { 0 },
+    .background               = { 0 },
+    .break_height             = { 0 },
+    .minimal_demerits         = { 0 },
+    .minimum_demerits         = awful_bad,
+    .easy_page                = 0,
+    .last_special_page        = 0,
+    .target_height            = 0, 
+    .first_height             = 0,
+    .second_height            = 0,
+    .first_topskip            = null,
+    .second_topskip           = null,
+    .first_bottomskip         = null,
+    .second_bottomskip        = null,
+    .emergency_amount         = 0,
+    .emergency_percentage     = 0,
+    .emergency_factor         = scaling_factor,
+    .emergency_height_amount  = 0,
+    .best_bet                 = null,
+    .fewest_demerits          = 0,
+    .best_page                = 0,
+    .actual_looseness         = 0,
+    .warned                   = 0,
+    .passes                   = { 0 },
+    .artificial_encountered   = 0, 
+    .current_slot_number      = 0,
+    .default_fitness_classes  = 0,
 };
 
 typedef enum fill_orders {
@@ -228,6 +228,7 @@ static void tex_aux_compute_break_height(int break_type, halfword s)
                 lmt_balance_state.break_height[total_stretch_amount + glue_stretch_order(s)] -= glue_stretch(s);
                 lmt_balance_state.break_height[total_shrink_amount] -= glue_shrink(s);
                 break;
+//case boundary_node:
             case penalty_node:
                 break;
             case kern_node:
@@ -656,7 +657,7 @@ static scaled tex_aux_try_balance(
         } else {
             /*tex We have an |unhyphenated_node|. */
         }
-        lmt_balance_state.current_page_number = page; /* we could just use this variable */
+        lmt_balance_state.current_slot_number = page; /* we could just use this variable */
         page = active_page_number(current);
         if (page > old_page) {
             if ((lmt_balance_state.minimum_demerits < awful_bad) && ((old_page != lmt_balance_state.easy_page) || (current == active_head))) {
@@ -1281,8 +1282,8 @@ static inline int tex_aux_check_sub_pass(balance_properties *properties, scaled 
 static void tex_aux_trace_list(halfword current, int line, const char *action)
 {
     tex_begin_diagnostic();
-    tex_print_format("[balance: list, page %i, line %i, height %p, depth %p, total %p]", 
-        lmt_balance_state.current_page_number, 
+    tex_print_format("[balance: list, slot %i, line %i, height %p, depth %p, total %p]", 
+        lmt_balance_state.current_slot_number, 
         line,
         box_height(current), 
         box_depth(current), 
@@ -1294,8 +1295,8 @@ static void tex_aux_trace_list(halfword current, int line, const char *action)
 static void tex_aux_trace_rule(halfword current, int line, const char *action)
 {
     tex_begin_diagnostic();
-    tex_print_format("[balance: list, page %i, line %i, height %p, depth %p, total %p]", 
-        lmt_balance_state.current_page_number, 
+    tex_print_format("[balance: list, slot %i, line %i, height %p, depth %p, total %p]", 
+        lmt_balance_state.current_slot_number, 
         line,
         rule_height(current), 
         rule_depth(current), 
@@ -1307,8 +1308,8 @@ static void tex_aux_trace_rule(halfword current, int line, const char *action)
 static void tex_aux_trace_glue(halfword current, const char *action)
 {
     tex_begin_diagnostic();
-    tex_print_format("[balance: glue, page %i, amount %p, total %p, %s]", 
-        lmt_balance_state.current_page_number, 
+    tex_print_format("[balance: glue, slot %i, amount %p, total %p, %s]", 
+        lmt_balance_state.current_slot_number, 
         glue_amount(current),
         lmt_balance_state.active_height[total_advance_amount],
         action
@@ -1319,8 +1320,8 @@ static void tex_aux_trace_glue(halfword current, const char *action)
 static void tex_aux_trace_kern(halfword current, const char *action)
 {
     tex_begin_diagnostic();
-    tex_print_format("[balance: kern, page %i, amount %p, total %p, %s]", 
-        lmt_balance_state.current_page_number, 
+    tex_print_format("[balance: kern, slot %i, amount %p, total %p, %s]", 
+        lmt_balance_state.current_slot_number, 
         kern_amount(current),
         lmt_balance_state.active_height[total_advance_amount],
         action
@@ -1331,8 +1332,8 @@ static void tex_aux_trace_kern(halfword current, const char *action)
 static void tex_aux_trace_penalty(halfword current, const char *action)
 {
     tex_begin_diagnostic();
-    tex_print_format("[balance: penalty, page %i, amount %p, total %p, %s]", 
-        lmt_balance_state.current_page_number, 
+    tex_print_format("[balance: penalty, slot %i, amount %p, total %p, %s]", 
+        lmt_balance_state.current_slot_number, 
         penalty_amount(current),
         lmt_balance_state.active_height[total_advance_amount],
         action
@@ -1401,7 +1402,25 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                 tex_aux_try_balance(properties, penalty_amount(current), unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                 break;
             case boundary_node:
-                /* maybe handle page boundary here */
+                if (node_subtype(current) == balance_boundary) {
+                    if (properties->shape && specification_count(properties->shape) > 0) { 
+                        int callback = lmt_callback_defined(balance_boundary_callback);
+                        if (callback) {
+                            /* todo: new current and penalty */
+                            int *eject = 0;
+                            lmt_run_callback(lmt_lua_state.lua_instance, callback, "dddd->b",
+                                boundary_data(current),
+                                boundary_reserved(current),
+                                balance_shape_identifier(properties->shape),
+                                lmt_balance_state.current_slot_number,
+                                &eject
+                            );
+                            if (eject) { 
+                                tex_aux_try_balance(properties, eject_penalty, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
+                            }
+                        }
+                    }
+                }
                 break;
             case insert_node:
                 /* maybe: tex_aux_append_insert(current); */
@@ -1526,6 +1545,42 @@ void tex_balance_reset(balance_properties *properties)
     if (properties->fitness_classes != balance_fitness_classes) { tex_flush_node(properties->fitness_classes); }
 }
 
+void tex_aux_check_extra(halfword head)
+{
+    halfword current = head;
+    scaled extra = 0;
+    while (current) {
+        switch (node_type(current)) {
+            case hlist_node:
+            case vlist_node:
+                if (extra) {
+                    box_discardable(current) = extra;
+                    // printf(">>> SET EXTRA %f\n",extra/65536.0);
+                }
+                break;
+            case rule_node:
+                if (extra) {
+                    rule_discardable(current) = extra;
+                    // printf(">>> SET EXTRA %f\n",extra/65536.0);
+                }
+                break;
+            case glue_node:
+                if (! glue_amount(current)) {
+                    /* ignore */
+                } if (tex_has_glue_option(current, glue_option_set_discardable)) {
+                    // printf(">>> HAS EXTRA %f\n",extra/65536.0);
+                    /* stretch and shrink */
+                    extra = glue_amount(current);
+                } else if (tex_has_glue_option(current, glue_option_reset_discardable)) {
+                    // printf(">>> NO MORE EXTRA %f\n",extra/65536.0);
+                    extra = 0;
+                }
+                break;
+        }
+        current = node_next(current);
+    }
+}
+
 void tex_balance(balance_properties *properties, halfword head)
 {
     halfword passes = properties->passes;
@@ -1572,7 +1627,7 @@ void tex_balance(balance_properties *properties, halfword head)
     lmt_balance_state.warned                   = 0;
     lmt_balance_state.passes.n_of_break_calls += 1;
     lmt_balance_state.artificial_encountered   = 0;
-    lmt_balance_state.current_page_number      = 0;
+    lmt_balance_state.current_slot_number      = 0;
     lmt_balance_state.last_special_page        = 0;
  /* lmt_balance_state.default_fitness_classes  = null  */ /* shared */ 
     for (int i = 0; i < n_of_glue_amounts; i++) {
@@ -1584,41 +1639,7 @@ void tex_balance(balance_properties *properties, halfword head)
     for (int i = 0; i < max_n_of_fitness_values; i++) {
         lmt_balance_state.minimal_demerits[i] = awful_bad;
     }
-    /* */
-    {
-        halfword current = head;
-        scaled extra = 0;
-        while (current) {
-            switch (node_type(current)) {
-                case hlist_node:
-                case vlist_node:
-                    if (extra) {
-                        box_discardable(current) = extra;
-                        // printf(">>> SET EXTRA %f\n",extra/65536.0);
-                    }
-                    break;
-                case rule_node:
-                    if (extra) {
-                        rule_discardable(current) = extra;
-                        // printf(">>> SET EXTRA %f\n",extra/65536.0);
-                    }
-                    break;
-                case glue_node:
-                    if (! glue_amount(current)) {
-                        /* ignore */
-                    } if (tex_has_glue_option(current, glue_option_set_discardable)) {
-                     // printf(">>> HAS EXTRA %f\n",extra/65536.0);
-                        /* stretch and shrink */
-                        extra = glue_amount(current);
-                    } else if (tex_has_glue_option(current, glue_option_reset_discardable)) {
-                     // printf(">>> NO MORE EXTRA %f\n",extra/65536.0);
-                        extra = 0;
-                    }
-                    break;
-            }
-            current = node_next(current);
-        }
-    }    /* */
+    tex_aux_check_extra(head);
     tex_aux_pre_balance(properties, lmt_balance_state.callback_id, properties->checks, 0);
     tex_aux_set_adjacent_demerits(properties);
     tex_aux_set_height(properties);
@@ -1732,7 +1753,7 @@ void tex_balance(balance_properties *properties, halfword head)
         {
             halfword page = 1;
             scaled page_height;
-            lmt_balance_state.current_page_number = page; /* we could just use this variable */
+            lmt_balance_state.current_slot_number = page; 
             tex_aux_update_height(properties, page, &page_height);
             lmt_balance_state.background[total_stretch_amount] -= lmt_balance_state.emergency_amount;
             if (lmt_balance_state.emergency_percentage) {
@@ -1867,39 +1888,6 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
             p = passive_next_break(p);
         }
     }
- // {
- //     halfword current = node_next(temp_head);
- //     scaled extra = 0;
- //     while (current) {
- //         switch (node_type(current)) {
- //             case hlist_node:
- //             case vlist_node:
- //                 if (extra) {
- //                     box_discardable(current) = extra;
- //                     // printf(">>> SET EXTRA %f\n",extra/65536.0);
- //                 }
- //                 break;
- //             case rule_node:
- //                 if (extra) {
- //                     rule_discardable(current) = extra;
- //                     // printf(">>> SET EXTRA %f\n",extra/65536.0);
- //                 }
- //                 break;
- //             case glue_node:
- //                 if (! glue_amount(current)) {
- //                     /* ignore */
- //                 } if (tex_has_glue_option(current, glue_option_set_discardable)) {
- //                  // printf(">>> HAS EXTRA %f\n",extra/65536.0);
- //                     extra = glue_amount(current);
- //                 } else if (tex_has_glue_option(current, glue_option_reset_discardable)) {
- //                  // printf(">>> NO MORE EXTRA %f\n",extra/65536.0);
- //                     extra = 0;
- //                 }
- //                 break;
- //         }
- //         current = node_next(current);
- //     }
- // }
     if (properties->trial) {
         /*tex 
             We're only interested in the natural dimensions. So we create a fitting vertical empty 

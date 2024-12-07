@@ -398,6 +398,8 @@ static inline halfword tex_get_passes_orphanpenalties      (halfword a, halfword
 
 /* balance shape */
 
+# define balance_shape_identifier  specification_anything_2
+
 static inline void     tex_set_balance_index       (halfword a, halfword n, halfword v) { specification_index(a,balance_shape_slot(n,1)).half0 = v; }
 static inline void     tex_set_balance_height      (halfword a, halfword n, halfword v) { specification_index(a,balance_shape_slot(n,1)).half1 = v; }
 static inline void     tex_set_balance_topskip     (halfword a, halfword n, halfword v) { specification_index(a,balance_shape_slot(n,2)).half0 = v; }
