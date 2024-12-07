@@ -1406,17 +1406,18 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                     if (properties->shape && specification_count(properties->shape) > 0) { 
                         int callback = lmt_callback_defined(balance_boundary_callback);
                         if (callback) {
-                            /* todo: new current and penalty */
-                            int *eject = 0;
-                            lmt_run_callback(lmt_lua_state.lua_instance, callback, "dddd->b",
+                            halfword penalty = 0;
+                            halfword trybreak = 0;
+                            lmt_run_callback(lmt_lua_state.lua_instance, callback, "dddd->bd",
                                 boundary_data(current),
                                 boundary_reserved(current),
                                 balance_shape_identifier(properties->shape),
                                 lmt_balance_state.current_slot_number,
-                                &eject
+                                &trybreak,
+                                &penalty
                             );
-                            if (eject) { 
-                                tex_aux_try_balance(properties, eject_penalty, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
+                            if (trybreak) {
+                                tex_aux_try_balance(properties, penalty, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                             }
                         }
                     }
@@ -1971,7 +1972,10 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
             }
             { 
                 scaledwhd whd = tex_natural_vsizes(first, node_next(last), 0.0, 0, 0);
+// printf("natural: h %f d %f\n",whd.ht/65536.0,whd.dp/65536.0);
                 lmt_balance_state.just_box = tex_vpack(null, whd.ht, packing_exactly, 0, 0, holding_none_option, NULL);
+// lmt_balance_state.just_box = tex_vpack(null, whd.ht, packing_exactly, 0, whd.dp, holding_none_option, NULL);
+// printf("vpacked: h %f d %f\n",box_height(lmt_balance_state.just_box)/65536.0,box_depth(lmt_balance_state.just_box)/65536.0);
                 tex_attach_attribute_list_copy(lmt_balance_state.just_box, first);
                 if (top > 0) {
                     whd.ht += top; 

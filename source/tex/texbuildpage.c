@@ -299,12 +299,14 @@ static void tex_aux_start_new_page(void)
 
 */
 
-static halfword tex_aux_delete_box_content(int n)
+static halfword tex_aux_delete_box_content(int n, const char *what, int where)
 {
-    tex_begin_diagnostic();
-    tex_print_format("[page: deleting box]");
-    tex_show_box(n);
-    tex_end_diagnostic();
+    if (tracing_pages_par > 0) {
+        tex_begin_diagnostic();
+        tex_print_format("[page: deleting %s box, case %i]", what, where);
+        tex_show_box(n);
+        tex_end_diagnostic();
+    }
     tex_flush_node_list(n);
     return null;
 }
@@ -462,7 +464,7 @@ static void tex_aux_append_insert(halfword current)
         tex_couple_nodes(location, splitnode);
         location = splitnode;
         if (! tex_aux_valid_insert_content(content)) {
-            content = tex_aux_delete_box_content(content);
+            content = tex_aux_delete_box_content(content, "insert", 1);
             tex_set_insert_content(index, content);
         };
         if (content) {
@@ -1220,7 +1222,7 @@ static void tex_aux_fire_up(halfword c)
                 "discard its present contents."
             );
         }
-        box_register(output_box_par) = tex_aux_delete_box_content(box_register(output_box_par));
+        box_register(output_box_par) = tex_aux_delete_box_content(box_register(output_box_par), "output", 1);
     }
     /*
     {
@@ -1273,7 +1275,7 @@ static void tex_aux_fire_up(halfword c)
                     halfword index = insert_index(insert);
                     halfword content = tex_get_insert_content(index);
                     if (! tex_aux_valid_insert_content(content)) {
-                        content = tex_aux_delete_box_content(content);
+                        content = tex_aux_delete_box_content(content, "insert", 2);
                     }
                     if (! content) {
                         /*tex
@@ -1545,7 +1547,7 @@ void tex_resume_after_output(void)
                 "'\\shipout\\box\\outputbox'. Proceed; I'll discard its present contents."
             );
         }
-        box_register(output_box_par) = tex_aux_delete_box_content(box_register(output_box_par));;
+        box_register(output_box_par) = tex_aux_delete_box_content(box_register(output_box_par), "output", 1);
     }
     if (lmt_insert_state.storing == insert_storage_delay && tex_insert_stored()) {
         if (tracing_inserts_par > 0) {
