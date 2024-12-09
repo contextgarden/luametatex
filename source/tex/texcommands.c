@@ -773,7 +773,6 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "insertstoring",                  page_property_cmd,      insert_storing_code,                      0);
         tex_primitive(luatex_command, "insertwidth",                    page_property_cmd,      insert_width_code,                        0);
         tex_primitive(tex_command,    "pagedepth",                      page_property_cmd,      page_depth_code,                          0);
-        tex_primitive(luatex_command, "pagedepth",                      page_property_cmd,      page_depth_code,                          0);
         tex_primitive(luatex_command, "pageexcess",                     page_property_cmd,      page_excess_code,                         0);
         tex_primitive(tex_command,    "pagefilllstretch",               page_property_cmd,      page_filllstretch_code,                   0);
         tex_primitive(tex_command,    "pagefillstretch",                page_property_cmd,      page_fillstretch_code,                    0);
