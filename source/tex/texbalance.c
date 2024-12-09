@@ -2184,7 +2184,7 @@ extern halfword tex_vbalance (
     }
 }
 
-halfword tex_vbalanced (
+halfword tex_vbalanced(
     halfword n
 ) 
 {
@@ -2207,7 +2207,7 @@ halfword tex_vbalanced (
         }
         if (head) {
             halfword rest = node_next(head);
-            halfword list = box_list(head);
+         // halfword list = box_list(head);
             node_prev(head) = null;
             node_next(head) = null;
             box_list(box) = rest;
@@ -2217,16 +2217,16 @@ halfword tex_vbalanced (
                 tex_flush_node(box);
                 box_register(n) = null;
             }
-            for (halfword i = 0; i <= lmt_mark_state.mark_data.ptr; i++) {
-                tex_delete_mark(i, split_first_mark_code);
-                tex_delete_mark(i, split_bot_mark_code);
-            } 
-            while (list) {
-                if (node_type(list) == mark_node) {
-                    tex_update_split_mark(list);
-                }
-                list = node_next(list);
-            }
+         // for (halfword i = 0; i <= lmt_mark_state.mark_data.ptr; i++) {
+         //     tex_delete_mark(i, split_first_mark_code);
+         //     tex_delete_mark(i, split_bot_mark_code);
+         // } 
+         // while (list) {
+         //     if (node_type(list) == mark_node) {
+         //         tex_update_split_mark(list);
+         //     }
+         //     list = node_next(list);
+         // }
             return head;
         } else { 
             /*tex Wipe the box, see below. */

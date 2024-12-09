@@ -84,7 +84,6 @@
 /* # define NODE_PROPERTIES_INDIRECT  "node.properties.indirect" */
 /* # define NODE_PROPERTIES_INSTANCE  "node.properties.instance" */
 
-
 # define hlist_usage          ((lua_Integer) 1 << (hlist_node          + 1))
 # define vlist_usage          ((lua_Integer) 1 << (vlist_node          + 1))
 # define rule_usage           ((lua_Integer) 1 << (rule_node           + 1))
@@ -121,6 +120,8 @@
 
 # define common_usage         ((lua_Integer) 1 << (last_nodetype       + 2))
 # define generic_usage        ((lua_Integer) 1 << (last_nodetype       + 3))
+
+# define no_usage             ((lua_Integer) 0)
 
 /*tex
 
@@ -10785,6 +10786,62 @@ static int nodelib_direct_getmvllist(lua_State *L)
     return 3;
 }
 
+# define updatetopmarks_usage        common_usage
+# define updatefirstmarks_usage      common_usage
+# define updatefirstandbotmark_usage no_usage
+# define updatemarks_usage           no_usage
+
+/* before */
+
+static int nodelib_direct_updatetopmarks(lua_State *L)
+{
+    tex_update_top_marks();
+    return 0;
+}
+
+/* after */
+
+static int nodelib_direct_updatefirstmarks(lua_State *L)
+{
+    tex_update_first_marks();
+    return 0;
+}
+
+/* as we go */
+
+static int nodelib_direct_updatefirstandbotmark(lua_State *L)
+{
+    halfword n = nodelib_valid_direct_from_index(L, 1);
+    if (n) {
+        tex_update_first_and_bot_mark(n);
+    }
+    return 0;
+}
+
+static int nodelib_direct_updatemarks(lua_State *L)
+{
+    halfword n = nodelib_valid_direct_from_index(L, 1);
+    if (n) {
+        tex_update_marks(n);
+    }
+    return 0;
+}
+
+// static int nodelib_direct_resetsplitmarks(lua_State *L)
+// {
+//     tex_reset_split_marks();
+//     return 0;
+// }
+// 
+// static int nodelib_direct_updatesplitmark(lua_State *L)
+// {
+//     halfword n = nodelib_valid_direct_from_index(L, 1);
+//     if (n) {
+//         tex_update_split_mark(n);
+//     }
+//     return 0;
+// }
+
 /*tex
     This is just an experiment, so it might go away. Using a list can be a bit faster that traverse
     (2-4 times) but you only see a difference on very last lists and even then one need some 10K
@@ -11286,6 +11343,12 @@ static const usage_record usage_data[] = {
     { .name = "write",                  .target = separate_usage_target, .usage = write_usage                  },
     { .name = "xscaled",                .target = direct_usage_target,   .usage = xscaled_usage                },
     { .name = "yscaled",                .target = direct_usage_target,   .usage = yscaled_usage                },
+
+    { .name = "updatetopmarks",         .target = no_usage_target,       .usage = updatetopmarks_usage         },
+    { .name = "updatemarks",            .target = direct_usage_target,   .usage = updatemarks_usage            },
+    { .name = "updatefirstmarks",       .target = no_usage_target,       .usage = updatefirstmarks_usage       },
+    { .name = "updatefirstandbotmark",  .target = direct_usage_target,   .usage = updatefirstandbotmark_usage  },
+
     { .name = NULL,                     .target = no_usage_target,       .usage = 0                            },
 } ;
 
@@ -11634,6 +11697,12 @@ static const struct luaL_Reg nodelib_direct_function_list[] = {
     { "write",                   nodelib_direct_write                  },
     { "xscaled",                 nodelib_direct_xscaled                },
     { "yscaled",                 nodelib_direct_yscaled                },
+
+    { "updatetopmarks",          nodelib_direct_updatetopmarks         },
+    { "updatefirstmarks",        nodelib_direct_updatefirstmarks       },
+    { "updatefirstandbotmark",   nodelib_direct_updatefirstandbotmark  },
+    { "updatemarks",             nodelib_direct_updatemarks            },
+
  /* { "appendtocurrentlist",     nodelib_direct_appendtocurrentlist    }, */ /* beware, we conflict in ctx */
 
     { "gluetostring",            nodelib_hybrid_gluetostring           },

@@ -596,14 +596,14 @@ typedef union tokenword {
 # define stp_body_size         1000000
 
 # define max_node_size       100000000    /* Currently these are the memory words! */
-# define min_node_size         2000000    /* Currently these are the memory words! */
+# define min_node_size        10000000    /* Currently these are the memory words! */
 # define siz_node_size        25000000
-# define stp_node_size          500000    /* Currently these are the memory words! */
+# define stp_node_size         5000000    /* Currently these are the memory words! */
 
 # define max_token_size       10000000    /* If needed we can go much larger. */
 # define min_token_size        2000000    /* The original 10000 is a bit cheap. */
 # define siz_token_size       10000000
-# define stp_token_size         500000
+# define stp_token_size        1000000
 
 # define max_buffer_size     100000000    /* Let's be generous */
 # define min_buffer_size       1000000    /* We often need quite a bit. */

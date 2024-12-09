@@ -137,6 +137,7 @@ halfword tex_new_mark(quarterword subtype, halfword index, halfword ptr)
 static void tex_aux_print_mark(const char *s, halfword t)
 {
     if (t) {
+        /* todo: proper indentation */
         tex_print_token_list(s, token_link(t));
     }
 }
@@ -232,36 +233,48 @@ void tex_update_first_marks(void)
     }
 }
 
+void tex_update_marks(
+    halfword n
+)
+{
+    if (n && node_type(n) == vlist_node) {
+        halfword list = box_list(n);
+        while (list) {
+            if (node_type(list) == mark_node) {
+                tex_update_first_and_bot_mark(list);
+            }
+            list = node_next(list);
+        }
+    }
+}
+
 void tex_update_split_mark(halfword n)
 {
     halfword index = mark_index(n);
     halfword ptr = mark_ptr(n);
     if (node_subtype(n) == reset_mark_value_code) {
         tex_reset_mark(index);
+    } else if (tex_get_mark(index, split_first_marks_code)) {
+        tex_set_mark(index, split_bot_marks_code, ptr);
+        if (tracing_marks_par > 1) {
+            tex_begin_diagnostic();
+            tex_print_format("[mark: index %i, split bot becomes mark]", index);
+            tex_aux_print_mark(NULL, tex_get_mark(index, split_bot_marks_code));
+            tex_end_diagnostic();
+        }
     } else {
-        if (tex_get_mark(index, split_first_marks_code)) {
-            tex_set_mark(index, split_bot_marks_code, ptr);
-            if (tracing_marks_par > 1) {
-                tex_begin_diagnostic();
-                tex_print_format("[mark: index %i, split bot becomes mark]", index);
-                tex_aux_print_mark(NULL, tex_get_mark(index, split_bot_marks_code));
-                tex_end_diagnostic();
-            }
-        } else {
-            tex_set_mark(index, split_first_marks_code, ptr);
-            tex_set_mark(index, split_bot_marks_code, ptr);
-            if (tracing_marks_par > 1) {
-                tex_begin_diagnostic();
-                tex_print_format("[mark: index %i, split first becomes mark]", index);
-                tex_aux_print_mark(NULL, tex_get_mark(index, split_first_marks_code));
-                tex_print_format("[mark: index %i, split bot becomes split first]", index);
-                tex_aux_print_mark(NULL, tex_get_mark(index, split_bot_marks_code));
-                tex_end_diagnostic();
-            }
+        tex_set_mark(index, split_first_marks_code, ptr);
+        tex_set_mark(index, split_bot_marks_code, ptr);
+        if (tracing_marks_par > 1) {
+            tex_begin_diagnostic();
+            tex_print_format("[mark: index %i, split first becomes mark]", index);
+            tex_aux_print_mark(NULL, tex_get_mark(index, split_first_marks_code));
+            tex_print_format("[mark: index %i, split bot becomes split first]", index);
+            tex_aux_print_mark(NULL, tex_get_mark(index, split_bot_marks_code));
+            tex_end_diagnostic();
         }
     }
 }
-
 
 void tex_delete_mark(halfword m, int what)
 {

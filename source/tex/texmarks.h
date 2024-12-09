@@ -55,6 +55,8 @@ extern void     tex_update_top_marks          (void);
 extern void     tex_update_first_and_bot_mark (halfword m);
 extern void     tex_update_first_marks        (void);
 extern void     tex_update_split_mark         (halfword m);
+extern void     tex_update_marks              (halfword n);
+
 extern void     tex_show_marks                (void);
 extern int      tex_has_mark                  (halfword m);
 extern halfword tex_get_mark                  (halfword m, halfword s);
