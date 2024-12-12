@@ -616,6 +616,9 @@ typedef enum some_item_codes {
     par_shape_length_code,      /*tex |\parshapelength| */
     par_shape_indent_code,      /*tex |\parshapeindent| */
     par_shape_width_code,       /*tex |\parshapewidth| */
+    balance_shape_height_code,
+    balance_shape_top_code,
+    balance_shape_bottom_code,
     glue_stretch_code,          /*tex |\gluestretch| */
     glue_shrink_code,           /*tex |\glueshrink| */
     mu_to_glue_code,            /*tex |\mutoglue| */

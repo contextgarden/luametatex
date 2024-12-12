@@ -920,6 +920,9 @@ void tex_initialize_commands(void)
         tex_primitive(etex_command,   "parshapeindent",                 some_item_cmd,          par_shape_indent_code,                    0);
         tex_primitive(etex_command,   "parshapelength",                 some_item_cmd,          par_shape_length_code,                    0);
         tex_primitive(luatex_command, "parshapewidth",                  some_item_cmd,          par_shape_width_code,                     0);
+        tex_primitive(luatex_command, "balanceshapeheight",             some_item_cmd,          balance_shape_height_code,                0);
+        tex_primitive(luatex_command, "balanceshapetop",                some_item_cmd,          balance_shape_top_code,                   0);
+        tex_primitive(luatex_command, "balanceshapebottom",             some_item_cmd,          balance_shape_bottom_code,                0);
         tex_primitive(luatex_command, "previousloopiterator",           some_item_cmd,          previous_loop_iterator_code,              0);
         tex_primitive(luatex_command, "rightmarginkern",                some_item_cmd,          right_margin_kern_code,                   0);
         tex_primitive(luatex_command, "scaledemwidth",                  some_item_cmd,          scaled_em_width_code,                     0);

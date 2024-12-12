@@ -909,6 +909,34 @@ static int tex_aux_set_cur_val_by_some_cmd(int code)
                 cur_val_level = dimension_val_level;
                 break;
             }
+        case balance_shape_height_code:
+        case balance_shape_top_code:
+        case balance_shape_bottom_code:
+            {
+                halfword shape = balance_shape_par;
+                if (shape) {
+                    halfword index = tex_scan_integer(0, NULL);
+                    if (index >= 1 && index <= specification_count(shape)) {
+                        switch (code) {
+                            case balance_shape_height_code:
+                                cur_val = tex_get_balance_height(shape, index);
+                                break;
+                            case balance_shape_top_code:
+                                cur_val = glue_amount(tex_get_balance_topskip(shape, index));
+                                break;
+                            case balance_shape_bottom_code:
+                                cur_val = glue_amount(tex_get_balance_bottomskip(shape, index));
+                                break;
+                        }
+                    } else {
+                        cur_val = 0;
+                    }
+                } else {
+                    cur_val = 0;
+                }
+                cur_val_level = dimension_val_level;
+                break;
+            }
         case glue_stretch_code:
         case glue_shrink_code:
             {
