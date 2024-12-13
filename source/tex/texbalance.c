@@ -1408,7 +1408,7 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                         if (callback) {
                             halfword penalty = 0;
                             halfword trybreak = 0;
-                            lmt_run_callback(lmt_lua_state.lua_instance, callback, "dddd->bd",
+                            lmt_run_callback(lmt_lua_state.lua_instance, callback, "dddd->dd",
                                 boundary_data(current),
                                 boundary_reserved(current),
                                 balance_shape_identifier(properties->shape),
@@ -1416,8 +1416,24 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                                 &trybreak,
                                 &penalty
                             );
-                            if (trybreak) {
-                                tex_aux_try_balance(properties, penalty, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
+                            switch (trybreak) { 
+                                case 0:
+                                    break;
+                                case 1:
+                                    tex_aux_try_balance(properties, penalty, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
+                                    break;
+                                case 2:
+                                    current = node_next(current);
+                                    while (current) { 
+                                        if (node_type(current) == boundary_node && node_subtype(current) == balance_boundary && boundary_data(current) == 0 && boundary_reserved(current) == 0) {
+                                            break;
+                                        } else {
+                                            current = node_next(current);
+                                        }
+                                    } 
+                                    break;
+                                default:
+                                    break;
                             }
                         }
                     }
