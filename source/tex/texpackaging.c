@@ -2354,6 +2354,8 @@ scaledwhd tex_natural_vsizes(halfword p, halfword pp, glueratio g_mult, int g_si
     scaledwhd siz = { .wd = 0, .ht = 0, .dp = 0, .ns = 0 };
     scaled gp = 0;
     scaled gm = 0;
+    halfword f = p; 
+    int insertfound = 0;
     while (p && p != pp) {
         switch (node_type(p)) {
             case hlist_node:
@@ -2422,13 +2424,11 @@ scaledwhd tex_natural_vsizes(halfword p, halfword pp, glueratio g_mult, int g_si
                 break;
             case insert_node: 
                 if (inserts) {
-                    halfword index = insert_index(p);
-                    halfword multiplier = tex_get_insert_multiplier(index);
-                    halfword needed = insert_total_height(p);
-                    if (multiplier > 0 && needed > 0) {
-                        needed = tex_x_over_n(needed, scaling_factor) * multiplier;
-                        siz.ht += siz.dp + needed;
+                    halfword height = tex_insert_height(p);
+                    if (height > 0) {
+                        siz.ht += siz.dp + height;
                         siz.dp = 0;
+                        insertfound = 1;
                     }
                 }
                 break;
@@ -2442,6 +2442,9 @@ scaledwhd tex_natural_vsizes(halfword p, halfword pp, glueratio g_mult, int g_si
                 break;
         }
         p = node_next(p);
+    }
+    if (insertfound) { 
+        siz.ht += tex_insert_distances(f, pp ? node_next(pp) : null, NULL, NULL);
     }
     siz.ns = siz.ht;
     switch (g_sign) {

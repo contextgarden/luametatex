@@ -39,6 +39,7 @@ typedef struct balance_state_info {
     halfword     best_page;
     halfword     actual_looseness;
     halfword     warned;
+    int          inserts_found;
     break_passes passes;
     int          artificial_encountered; 
     int          current_slot_number;   

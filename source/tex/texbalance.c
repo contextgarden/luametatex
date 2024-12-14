@@ -94,6 +94,7 @@ balance_state_info lmt_balance_state = {
     .best_page                = 0,
     .actual_looseness         = 0,
     .warned                   = 0,
+    .inserts_found            = 0,
     .passes                   = { 0 },
     .artificial_encountered   = 0, 
     .current_slot_number      = 0,
@@ -447,7 +448,7 @@ static void tex_check_skips_shortfall(const balance_properties *properties, half
                 case hlist_node:
                 case vlist_node:
                     h = box_height(c);
-                    e = box_discardable(c);
+                    e = box_discardable(c); /* maybe also when no topskip */
                     c = null;
                     break;
                 case rule_node:
@@ -498,6 +499,9 @@ static void tex_check_skips_shortfall(const balance_properties *properties, half
         tex_begin_diagnostic();
         tex_print_format("[balance: correction, top %p, bottom %p]", top, bottom);
         tex_end_diagnostic();
+    }
+    if (lmt_balance_state.inserts_found) { 
+        *shortfall += tex_insert_distances(left, current ? node_next(current) : null, stretch, shrink);
     }
 }
 
@@ -1441,12 +1445,10 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                 break;
             case insert_node:
                 if (holding_inserts_par <= 0) {
-                    halfword index = insert_index(current);
-                    halfword multiplier = tex_get_insert_multiplier(index);
-                    halfword needed = insert_total_height(current);
-                    if (multiplier > 0 && needed > 0) {
-                        needed = tex_x_over_n(needed, scaling_factor) * multiplier;
-                        lmt_balance_state.active_height[total_advance_amount] += needed;
+                    scaled height = tex_insert_height(current);
+                    if (height > 0) {
+                        lmt_balance_state.active_height[total_advance_amount] += tex_insert_height(current);
+                        ++lmt_balance_state.inserts_found;
                     }
                 }
                 break;
@@ -1650,6 +1652,7 @@ void tex_balance(balance_properties *properties, halfword head)
     lmt_balance_state.best_page                = 0;
     lmt_balance_state.actual_looseness         = 0;
     lmt_balance_state.warned                   = 0;
+    lmt_balance_state.inserts_found            = 0;
     lmt_balance_state.passes.n_of_break_calls += 1;
     lmt_balance_state.artificial_encountered   = 0;
     lmt_balance_state.current_slot_number      = 0;

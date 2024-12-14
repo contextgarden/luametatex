@@ -575,3 +575,59 @@ int tex_identify_inserts(halfword b)
     }
     return value;
 }
+
+scaled tex_insert_height(halfword node)
+{
+    /*tex A redundant check but we do it anyway. */
+    if (node && node_type(node) == insert_node) {
+        halfword multiplier = tex_get_insert_multiplier(insert_index(node));
+        halfword needed = insert_total_height(node);
+        if (multiplier > 0 && needed > 0) {
+            return tex_x_over_n(needed, scaling_factor) * multiplier;
+        }
+    }
+    return 0;
+}
+
+# define set_bit(bits,n) bits[n/8] |= (1 << (index % 8))
+# define get_bit(bits,n) (1 & (bits[index/8] >> (n % 8)))
+
+scaled tex_insert_distances(halfword first, halfword last, scaled *stretch, scaled *shrink)
+{
+    /*tex Not efficient, we might as well lower the number of inserts, or delay till we have one. */
+    char bits[(max_n_of_inserts/8)+1] = { 0 };
+    int isfirst = 1;
+    scaled amount = 0;
+    halfword c = first; 
+    int count = 0;
+    int unique = 0;
+    while (c != last) {
+        if (node_type(c) == insert_node) { 
+            halfword distance = null;
+            halfword index = insert_index(c);
+            if (isfirst) { 
+                distance = lmt_get_insert_distance(index, 1); /* first */
+                isfirst = 0;
+                set_bit(bits,index);
+                ++unique;
+            } else if (insert_index(c) == index && ! get_bit(bits, index)) {
+                distance = lmt_get_insert_distance(index, 2); /* inbetween */
+                set_bit(bits,index);
+                ++unique;
+            }
+            if (distance) { 
+                amount += glue_amount(distance);
+                if (stretch) {
+                    *stretch += glue_stretch(distance); /* ignore order, at least we can't handle that now */
+                }
+                if (shrink) {
+                    *shrink += glue_shrink(distance);   /* no order, no infite warning either */
+                }
+            }
+            ++count;
+        }
+        c = node_next(c);
+    }
+ // printf(">>> count %i, unique %i, amount %f\n", count, unique, amount/65536.0);
+    return amount;
+}

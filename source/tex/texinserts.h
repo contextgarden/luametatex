@@ -98,4 +98,7 @@ extern void     tex_finish_insert_group    (void);
 extern void     tex_show_insert_group      (void);
 extern int      tex_show_insert_record     (void);
 
+extern scaled   tex_insert_height          (halfword node);
+extern scaled   tex_insert_distances       (halfword first, halfword last, scaled *stretch, scaled *shrink);
+
 # endif
