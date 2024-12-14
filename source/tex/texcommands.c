@@ -806,6 +806,7 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "boxdirection",                   box_property_cmd,       box_direction_code,                       0);
         tex_primitive(luatex_command, "boxfinalize",                    box_property_cmd,       box_finalize_code,                        0);
         tex_primitive(luatex_command, "boxfreeze",                      box_property_cmd,       box_freeze_code,                          0);
+        tex_primitive(luatex_command, "boxinserts",                     box_property_cmd,       box_inserts_code,                         0);
         tex_primitive(luatex_command, "boxmigrate",                     box_property_cmd,       box_migrate_code,                         0);
         tex_primitive(luatex_command, "boxgeometry",                    box_property_cmd,       box_geometry_code,                        0);
         tex_primitive(luatex_command, "boxlimitate",                    box_property_cmd,       box_limitate_code,                        0);
@@ -1214,6 +1215,7 @@ void tex_initialize_commands(void)
         tex_primitive(luatex_command, "vbalance",                       make_box_cmd,           vbalance_code,                            0);
         tex_primitive(luatex_command, "vbalancedbox",                   make_box_cmd,           vbalanced_box_code,                       0);
         tex_primitive(luatex_command, "vbalancedtop",                   make_box_cmd,           vbalanced_top_code,                       0);
+        tex_primitive(luatex_command, "vbalancedinsert",                make_box_cmd,           vbalanced_insert_code,                    0);
         tex_primitive(luatex_command, "flushmvl",                       make_box_cmd,           flush_mvl_box_code,                       0);
 
         /*tex Begin compatibility. */

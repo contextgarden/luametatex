@@ -5550,7 +5550,11 @@ static int nodelib_direct_dimensions(lua_State *L)
             vertical = lua_toboolean(L, i);
         }
         if (n) {
-            siz = (vertical ? tex_natural_vsizes : tex_natural_hsizes)(n, p, g_mult, g_sign, g_order);
+            if (vertical) { 
+                siz = tex_natural_vsizes(n, p, g_mult, g_sign, g_order, 0);
+            } else {
+                siz = tex_natural_hsizes(n, p, g_mult, g_sign, g_order);
+            } 
         }
         lua_pushinteger(L, siz.wd);
         lua_pushinteger(L, siz.ht);
@@ -5587,7 +5591,11 @@ static int nodelib_direct_rangedimensions(lua_State *L)
         }
         nsizetoo = lua_toboolean(L, index);
         if (parent && first) {
-            siz = (vertical ? tex_natural_vsizes : tex_natural_hsizes)(first, last, (glueratio) box_glue_set(parent), box_glue_sign(parent), box_glue_order(parent));
+            if (vertical) { 
+                siz = tex_natural_vsizes(first, last, (glueratio) box_glue_set(parent), box_glue_sign(parent), box_glue_order(parent), 0);
+            } else {
+                siz = tex_natural_hsizes(first, last, (glueratio) box_glue_set(parent), box_glue_sign(parent), box_glue_order(parent));
+            }
         }
         lua_pushinteger(L, siz.wd);
         lua_pushinteger(L, siz.ht);

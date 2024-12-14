@@ -1689,6 +1689,10 @@ static void tex_aux_set_cur_val_by_box_property_cmd(halfword chr)
             }
             cur_val_level = integer_val_level;
             break;
+        case box_inserts_code:
+            cur_val = tex_identify_inserts(b);
+            cur_val_level = integer_val_level;
+            break;
     }
 }
 

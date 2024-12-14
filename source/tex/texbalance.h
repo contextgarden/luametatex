@@ -75,4 +75,9 @@ extern halfword tex_vbalanced (
     halfword n
 );
 
+extern halfword tex_vbalanced_insert (
+    halfword n,
+    halfword i
+);
+
 # endif

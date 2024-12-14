@@ -1010,6 +1010,12 @@ typedef enum box_pre_post_states {
     has_post_migrated = 0x8,
 } box_pre_post_states;
 
+typedef enum box_insert_states {
+    has_inserts              = 0x1,
+    has_inserts_with_content = 0x2,
+    has_inserts_with_height  = 0x4,
+} box_insert_states;
+
 /*tex These three make the bitset in |box_package_state|. */
 
 typedef enum package_states {

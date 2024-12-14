@@ -2349,7 +2349,7 @@ scaledwhd tex_natural_msizes(halfword p, int ignoreprime)
     return siz;
 }
 
-scaledwhd tex_natural_vsizes(halfword p, halfword pp, glueratio g_mult, int g_sign, int g_order)
+scaledwhd tex_natural_vsizes(halfword p, halfword pp, glueratio g_mult, int g_sign, int g_order, int inserts)
 {
     scaledwhd siz = { .wd = 0, .ht = 0, .dp = 0, .ns = 0 };
     scaled gp = 0;
@@ -2419,6 +2419,18 @@ scaledwhd tex_natural_vsizes(halfword p, halfword pp, glueratio g_mult, int g_si
             case kern_node:
                 siz.ht += siz.dp + kern_amount(p);
                 siz.dp = 0;
+                break;
+            case insert_node: 
+                if (inserts) {
+                    halfword index = insert_index(p);
+                    halfword multiplier = tex_get_insert_multiplier(index);
+                    halfword needed = insert_total_height(p);
+                    if (multiplier > 0 && needed > 0) {
+                        needed = tex_x_over_n(needed, scaling_factor) * multiplier;
+                        siz.ht += siz.dp + needed;
+                        siz.dp = 0;
+                    }
+                }
                 break;
             case glyph_node:
                 tex_confusion("glyph in vpack");
@@ -2960,6 +2972,7 @@ static void tex_aux_set_vnature(halfword boxnode, int nature)
         case vsplit_code: 
         case vbalance_code: 
         case vbalanced_box_code: 
+        case vbalanced_insert_code: 
         case flush_mvl_box_code: 
             box_package_state(boxnode) = vbox_package_state;
             break;
@@ -4105,6 +4118,13 @@ void tex_begin_box(int boxcontext, scaled shift, halfword slot, halfword callbac
             {
                 halfword index = tex_scan_box_register_number();
                 boxnode = tex_vbalanced(index);
+            }
+            break;
+        case vbalanced_insert_code:
+            {
+                halfword index = tex_scan_box_register_number();
+                halfword insert = tex_scan_insert_index();
+                boxnode = tex_vbalanced_insert(index, insert);
             }
             break;
         case flush_mvl_box_code:

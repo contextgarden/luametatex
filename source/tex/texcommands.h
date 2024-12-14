@@ -707,9 +707,10 @@ typedef enum box_property_codes {
     /* we actually need set_box_int_cmd, or set_box_property */
     box_attribute_code,
     box_vadjust_code,
+    box_inserts_code,
 } box_property_codes;
 
-# define last_box_property_code box_vadjust_code
+# define last_box_property_code box_inserts_code
 
 typedef enum hyphenation_codes {
     hyphenation_code,

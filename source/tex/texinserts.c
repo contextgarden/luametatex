@@ -548,3 +548,30 @@ void tex_finish_insert_group(void)
         }
     }
 }
+
+int tex_identify_inserts(halfword b)
+{
+    halfword value = 0;
+    /* intercept balanced segment, maybe tag these sub balance boxes with a special subtype */
+    if (b && node_type(b) == hlist_node) {
+        b = box_list(b);
+    }
+    if (b && node_type(b) == vlist_node) {
+        halfword current = box_list(b);
+        while (current) { 
+            if (node_type(current) == insert_node) {
+                if (insert_list(current)) {
+                    value |= has_inserts_with_content | has_inserts;
+                }
+                if (insert_total_height(current) > 0 && tex_get_insert_multiplier(insert_index(current)) > 0) {
+                    value |= has_inserts_with_height | has_inserts;
+                } else { 
+                    value |= has_inserts;
+                }
+
+            }
+            current = node_next(current);
+        }
+    }
+    return value;
+}

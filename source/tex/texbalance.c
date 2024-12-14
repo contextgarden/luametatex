@@ -1440,7 +1440,15 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                 }
                 break;
             case insert_node:
-                /* maybe: tex_aux_append_insert(current); */
+                if (holding_inserts_par <= 0) {
+                    halfword index = insert_index(current);
+                    halfword multiplier = tex_get_insert_multiplier(index);
+                    halfword needed = insert_total_height(current);
+                    if (multiplier > 0 && needed > 0) {
+                        needed = tex_x_over_n(needed, scaling_factor) * multiplier;
+                        lmt_balance_state.active_height[total_advance_amount] += needed;
+                    }
+                }
                 break;
             case whatsit_node:
                 /* keep */
@@ -1987,7 +1995,7 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
                 }
             }
             { 
-                scaledwhd whd = tex_natural_vsizes(first, node_next(last), 0.0, 0, 0);
+                scaledwhd whd = tex_natural_vsizes(first, node_next(last), 0.0, 0, 0, 1);
                 lmt_balance_state.just_box = tex_vpack(null, whd.ht, packing_exactly, 0, 0, holding_none_option, NULL);
                 tex_attach_attribute_list_copy(lmt_balance_state.just_box, first);
                 if (top > 0) {
@@ -2257,5 +2265,43 @@ halfword tex_vbalanced(
     }
     tex_flush_node(box);
     box_register(n) = null;
+    return null;
+}
+
+halfword tex_vbalanced_insert(halfword n, halfword i)
+{
+    halfword b = box_register(n);
+    if (b) { 
+        if (b && node_type(b) == hlist_node) {
+            b = box_list(b);
+        }
+        /* maybe tag these sub balance boxes with a special subtype */
+        if (b && node_type(b) == vlist_node) {
+            halfword current = box_list(b);
+            halfword head = null;
+            halfword tail = null;
+            while (current) { 
+                if (node_type(current) == insert_node && insert_index(current) == i) {
+                    halfword list = insert_list(current);
+                    if (list) {
+                        if (head) {
+                            tex_couple_nodes(tail, list);
+                        } else { 
+                            head = list;
+                        }      
+                        tail = list;
+                        /* maybe: remove the insert node */
+                        insert_list(current) = null;
+                        /* for now: safeguard */
+                        insert_total_height(current) = 0;
+                    }
+                }
+                current = node_next(current);
+            }
+            if (head) { 
+                return tex_vpack(head, 0, packing_additional, 0, 0, holding_none_option, NULL);
+            }
+        }
+    }
     return null;
 }

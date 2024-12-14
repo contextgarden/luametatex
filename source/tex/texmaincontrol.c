@@ -4718,6 +4718,8 @@ static void tex_aux_set_box_property(void)
         case box_shrink_code:
             /* ignore: maybe apply some factor  */            
             break;
+        case box_inserts_code:
+            break;
         default:
             break;
     }
