@@ -592,6 +592,20 @@ scaled tex_insert_height(halfword node)
 # define set_bit(bits,n) bits[n/8] |= (1 << (index % 8))
 # define get_bit(bits,n) (1 & (bits[index/8] >> (n % 8)))
 
+void tex_insert_reset_distances(void)
+{
+    for (int index = 0; index <= lmt_insert_state.insert_data.top; index++) {
+        if (lmt_insert_state.inserts[index].before) { 
+            tex_flush_node(lmt_insert_state.inserts[index].before);
+        } 
+        lmt_insert_state.inserts[index].before = null;
+        if (lmt_insert_state.inserts[index].inbetween) { 
+            tex_flush_node(lmt_insert_state.inserts[index].inbetween);
+        } 
+        lmt_insert_state.inserts[index].inbetween = null;
+    }
+}
+
 scaled tex_insert_distances(halfword first, halfword last, scaled *stretch, scaled *shrink)
 {
     /*tex Not efficient, we might as well lower the number of inserts, or delay till we have one. */
@@ -599,21 +613,31 @@ scaled tex_insert_distances(halfword first, halfword last, scaled *stretch, scal
     int isfirst = 1;
     scaled amount = 0;
     halfword c = first; 
-    int count = 0;
-    int unique = 0;
+ // int count = 0;
+ // int unique = 0;
     while (c != last) {
         if (node_type(c) == insert_node) { 
             halfword distance = null;
             halfword index = insert_index(c);
             if (isfirst) { 
-                distance = lmt_get_insert_distance(index, 1); /* first */
+                if (lmt_insert_state.inserts[index].before) {
+                    distance = lmt_insert_state.inserts[index].before;
+                } else { 
+                    distance = lmt_get_insert_distance(index, 1); /* first */
+                    lmt_insert_state.inserts[index].before = distance;
+                }
                 isfirst = 0;
                 set_bit(bits,index);
-                ++unique;
+             // ++unique;
             } else if (insert_index(c) == index && ! get_bit(bits, index)) {
-                distance = lmt_get_insert_distance(index, 2); /* inbetween */
+                if (lmt_insert_state.inserts[index].inbetween) {
+                    distance = lmt_insert_state.inserts[index].inbetween;
+                } else {
+                    distance = lmt_get_insert_distance(index, 2); /* inbetween */
+                    lmt_insert_state.inserts[index].inbetween = distance;
+                }
                 set_bit(bits,index);
-                ++unique;
+             // ++unique;
             }
             if (distance) { 
                 amount += glue_amount(distance);
@@ -623,9 +647,8 @@ scaled tex_insert_distances(halfword first, halfword last, scaled *stretch, scal
                 if (shrink) {
                     *shrink += glue_shrink(distance);   /* no order, no infite warning either */
                 }
-                tex_flush_node(distance);
             }
-            ++count;
+         // ++count;
         }
         c = node_next(c);
     }

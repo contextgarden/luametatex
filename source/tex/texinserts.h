@@ -14,6 +14,8 @@ typedef struct insert_record {
     halfword options;
     halfword penalty;
     halfword maxdepth;
+    halfword before;
+    halfword inbetween;
 } insert_record;
 
 typedef enum insert_modes {
@@ -99,6 +101,7 @@ extern void     tex_show_insert_group      (void);
 extern int      tex_show_insert_record     (void);
 
 extern scaled   tex_insert_height          (halfword node);
+extern void     tex_insert_reset_distances (void);
 extern scaled   tex_insert_distances       (halfword first, halfword last, scaled *stretch, scaled *shrink);
 
 # endif

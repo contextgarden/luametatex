@@ -503,7 +503,7 @@ static void tex_check_skips_shortfall(const balance_properties *properties, half
         tex_end_diagnostic();
     }
     if (lmt_balance_state.inserts_found) { 
-        *shortfall += tex_insert_distances(left, current ? node_next(current) : null, stretch, shrink);
+        *shortfall -= tex_insert_distances(left, current ? node_next(current) : null, stretch, shrink);
         ++lmt_balance_state.total_inserts_checked;
     }
 }
@@ -1670,6 +1670,7 @@ void tex_balance(balance_properties *properties, halfword head)
     for (int i = 0; i < max_n_of_fitness_values; i++) {
         lmt_balance_state.minimal_demerits[i] = awful_bad;
     }
+    tex_insert_reset_distances();
     tex_aux_check_extra(head);
     tex_aux_pre_balance(properties, lmt_balance_state.callback_id, properties->checks, 0);
     tex_aux_set_adjacent_demerits(properties);
@@ -1882,6 +1883,9 @@ void tex_balance(balance_properties *properties, halfword head)
         tex_print_format("%l[looseness: page %i, requested %i, actual %i]\n", lmt_balance_state.best_page - 1, properties->looseness, lmt_balance_state.actual_looseness);
     }
     lmt_balance_state.total_inserts_found += lmt_balance_state.inserts_found; 
+    if (lmt_balance_state.inserts_found) { 
+        tex_insert_reset_distances();
+    }
     tex_aux_post_balance(properties, lmt_balance_state.callback_id, properties->checks, 0);
     tex_aux_clean_up_the_memory();
     if (lmt_balance_state.callback_id) {
