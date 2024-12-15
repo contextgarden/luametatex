@@ -35,7 +35,7 @@ static int statslib_callbackstate(lua_State *L)
 
 static int statslib_linebreakstate(lua_State *L)
 {
-    lua_createtable(L, n_of_par_context_codes, 0);
+    lua_createtable(L, n_of_par_context_codes + 3, 0);
     for (int i = 0; i < n_of_par_context_codes; i++) {
         lua_push_key_by_index(lmt_interface.par_context_values[i].lua);
         lua_createtable(L, 0, 5);
@@ -50,6 +50,20 @@ static int statslib_linebreakstate(lua_State *L)
     lua_set_integer_by_key(L, "lefttwins",   lmt_linebreak_state.n_of_left_twins);
     lua_set_integer_by_key(L, "righttwins",  lmt_linebreak_state.n_of_right_twins);
     lua_set_integer_by_key(L, "doubletwins", lmt_linebreak_state.n_of_double_twins);
+    return 1;
+}
+
+static int statslib_balancestate(lua_State *L)
+{
+    lua_createtable(L, 8, 0);
+    lua_set_integer_by_key(L, "calls",          lmt_balance_state.passes.n_of_break_calls);
+    lua_set_integer_by_key(L, "first",          lmt_balance_state.passes.n_of_first_passes);
+    lua_set_integer_by_key(L, "second",         lmt_balance_state.passes.n_of_second_passes);
+    lua_set_integer_by_key(L, "final",          lmt_balance_state.passes.n_of_final_passes);
+    lua_set_integer_by_key(L, "specification",  lmt_balance_state.passes.n_of_specification_passes);
+    lua_set_integer_by_key(L, "sub",            lmt_balance_state.passes.n_of_sub_passes);
+    lua_set_integer_by_key(L, "foundinserts",   lmt_balance_state.total_inserts_found);
+    lua_set_integer_by_key(L, "checkedinserts", lmt_balance_state.total_inserts_checked);
     return 1;
 }
 
@@ -453,6 +467,7 @@ static struct statistic_entry statslib_entries[] = {
     { .name = "luastate",           .value = &statslib_luastate,           .type = 'f' },
     { .name = "callbackstate",      .value = &statslib_callbackstate,      .type = 'f' },
     { .name = "linebreakstate",     .value = &statslib_linebreakstate,     .type = 'f' },
+    { .name = "balancestate",       .value = &statslib_balancestate,       .type = 'f' },
     { .name = "hyphenationstate",   .value = &statslib_hyphenationstate,   .type = 'f' },
     { .name = "errorstate",         .value = &statslib_errorstate,         .type = 'f' },
     { .name = "warningstate",       .value = &statslib_warningstate,       .type = 'f' },
@@ -573,6 +588,7 @@ static const struct luaL_Reg statslib_function_list[] = {
     { "getreadstate",          statslib_readstate          },
     { "getcallbackstate",      statslib_callbackstate      },
     { "getlinebreakstate",     statslib_linebreakstate     },
+    { "getbalancestate",       statslib_balancestate       },
     { "gethyphenationstate",   statslib_hyphenationstate   },
 
     { "geterrorlinestate",     statslib_errorlinestate     },

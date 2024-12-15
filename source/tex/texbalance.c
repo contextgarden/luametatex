@@ -95,6 +95,8 @@ balance_state_info lmt_balance_state = {
     .actual_looseness         = 0,
     .warned                   = 0,
     .inserts_found            = 0,
+    .total_inserts_found      = 0,
+    .total_inserts_checked    = 0,
     .passes                   = { 0 },
     .artificial_encountered   = 0, 
     .current_slot_number      = 0,
@@ -502,6 +504,7 @@ static void tex_check_skips_shortfall(const balance_properties *properties, half
     }
     if (lmt_balance_state.inserts_found) { 
         *shortfall += tex_insert_distances(left, current ? node_next(current) : null, stretch, shrink);
+        ++lmt_balance_state.total_inserts_checked;
     }
 }
 
@@ -1878,6 +1881,7 @@ void tex_balance(balance_properties *properties, halfword head)
         tex_print_nlp();
         tex_print_format("%l[looseness: page %i, requested %i, actual %i]\n", lmt_balance_state.best_page - 1, properties->looseness, lmt_balance_state.actual_looseness);
     }
+    lmt_balance_state.total_inserts_found += lmt_balance_state.inserts_found; 
     tex_aux_post_balance(properties, lmt_balance_state.callback_id, properties->checks, 0);
     tex_aux_clean_up_the_memory();
     if (lmt_balance_state.callback_id) {

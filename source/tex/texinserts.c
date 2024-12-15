@@ -623,6 +623,7 @@ scaled tex_insert_distances(halfword first, halfword last, scaled *stretch, scal
                 if (shrink) {
                     *shrink += glue_shrink(distance);   /* no order, no infite warning either */
                 }
+                tex_flush_node(distance);
             }
             ++count;
         }
