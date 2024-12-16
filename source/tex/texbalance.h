@@ -42,6 +42,7 @@ typedef struct balance_state_info {
     int          inserts_found;
     int          total_inserts_found;
     int          total_inserts_checked;
+    int          n_of_callbacks;
     break_passes passes;
     int          artificial_encountered; 
     int          current_slot_number;   

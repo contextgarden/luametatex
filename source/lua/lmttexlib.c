@@ -2004,7 +2004,11 @@ static int texlib_getmark(lua_State *L)
                 return 1;
             }
         } else {
-            luaL_error(L, "valid mark class expected");
+            /*tex 
+                An error message is actually counterproductive, but if needed we can 
+                have |tex.usedmark(...)|.
+            */
+            /* luaL_error(L, "valid mark class expected"); */
         }
     }
     lua_pushnil(L);

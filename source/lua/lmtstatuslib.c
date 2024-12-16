@@ -55,7 +55,7 @@ static int statslib_linebreakstate(lua_State *L)
 
 static int statslib_balancestate(lua_State *L)
 {
-    lua_createtable(L, 8, 0);
+    lua_createtable(L, 9, 0);
     lua_set_integer_by_key(L, "calls",          lmt_balance_state.passes.n_of_break_calls);
     lua_set_integer_by_key(L, "first",          lmt_balance_state.passes.n_of_first_passes);
     lua_set_integer_by_key(L, "second",         lmt_balance_state.passes.n_of_second_passes);
@@ -64,6 +64,7 @@ static int statslib_balancestate(lua_State *L)
     lua_set_integer_by_key(L, "sub",            lmt_balance_state.passes.n_of_sub_passes);
     lua_set_integer_by_key(L, "foundinserts",   lmt_balance_state.total_inserts_found);
     lua_set_integer_by_key(L, "checkedinserts", lmt_balance_state.total_inserts_checked);
+    lua_set_integer_by_key(L, "callbacks",      lmt_balance_state.n_of_callbacks);
     return 1;
 }
 

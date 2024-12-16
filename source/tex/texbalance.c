@@ -97,6 +97,7 @@ balance_state_info lmt_balance_state = {
     .inserts_found            = 0,
     .total_inserts_found      = 0,
     .total_inserts_checked    = 0,
+    .n_of_callbacks           = 0,
     .passes                   = { 0 },
     .artificial_encountered   = 0, 
     .current_slot_number      = 0,
@@ -615,6 +616,7 @@ static void tex_aux_update_height_and_skips(
 static scaled tex_aux_try_balance(
     const balance_properties *properties,
     halfword penalty,
+    scaled   extra, 
     halfword break_type,
     halfword first_p,
     halfword cur_p,
@@ -763,14 +765,16 @@ static scaled tex_aux_try_balance(
         shortfall = page_height - current_active_height[total_advance_amount];
         if (properties->tracing_balancing > 2) {
             tex_begin_diagnostic();
-            tex_print_format("[balance: check, page %i, height %p, total %p, shortfall %p]", 
+            tex_print_format("[balance: check, page %i, height %p, total %p, extra %p, shortfall %p]", 
                 page, 
                 page_height,
                 lmt_balance_state.active_height[total_advance_amount],
+                extra, 
                 shortfall
             );
             tex_end_diagnostic();
         }
+        shortfall -= extra; 
         tex_check_skips_shortfall(properties, current, first_p, cur_p, page_topskip, page_bottomskip, &shortfall, &stretch, &shrink);
         if (shortfall > 0) {
             if (current_active_height[total_fi_amount]   || current_active_height[total_fil_amount] ||
@@ -1377,7 +1381,7 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                     if (tracing) {
                         tex_aux_trace_glue(current, "trying");
                     }
-                    tex_aux_try_balance(properties, 0, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
+                    tex_aux_try_balance(properties, 0, 0, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                 }
                 lmt_balance_state.active_height[total_advance_amount] += glue_amount(current);
                 lmt_balance_state.active_height[total_stretch_amount + glue_stretch_order(current)] += glue_stretch(current);
@@ -1394,7 +1398,7 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                         if (tracing) {
                             tex_aux_trace_kern(current, "trying");
                         }
-                        tex_aux_try_balance(properties, 0, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
+                        tex_aux_try_balance(properties, 0, 0, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                     }
                 }
                 lmt_balance_state.active_height[total_advance_amount] += kern_amount(current);
@@ -1406,7 +1410,7 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                 if (tracing) {
                     tex_aux_trace_penalty(current, "trying");
                 }
-                tex_aux_try_balance(properties, penalty_amount(current), unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
+                tex_aux_try_balance(properties, penalty_amount(current), 0, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                 break;
             case boundary_node:
                 if (node_subtype(current) == balance_boundary) {
@@ -1414,20 +1418,22 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                         int callback = lmt_callback_defined(balance_boundary_callback);
                         if (callback) {
                             halfword penalty = 0;
+                            halfword extra = 0;
                             halfword trybreak = 0;
-                            lmt_run_callback(lmt_lua_state.lua_instance, callback, "dddd->dd",
+                            lmt_run_callback(lmt_lua_state.lua_instance, callback, "dddd->drr", // r: optional 
                                 boundary_data(current),
                                 boundary_reserved(current),
                                 balance_shape_identifier(properties->shape),
                                 lmt_balance_state.current_slot_number,
                                 &trybreak,
-                                &penalty
+                                &penalty,
+                                &extra
                             );
                             switch (trybreak) { 
                                 case 0:
                                     break;
                                 case 1:
-                                    tex_aux_try_balance(properties, penalty, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
+                                    tex_aux_try_balance(properties, penalty, extra, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                                     break;
                                 case 2:
                                     current = node_next(current);
@@ -1813,7 +1819,7 @@ void tex_balance(balance_properties *properties, halfword head)
         }
         current = tex_aux_balance_list(properties, pass, subpass, current, first, artificial);
         if (! current) {
-            scaled shortfall = tex_aux_try_balance(properties, eject_penalty, hyphenated_node, first, current, lmt_balance_state.callback_id, properties->checks, pass, subpass, artificial);
+            scaled shortfall = tex_aux_try_balance(properties, eject_penalty, 0, hyphenated_node, first, current, lmt_balance_state.callback_id, properties->checks, pass, subpass, artificial);
             if (node_next(active_head) != active_head) {
                 /*tex Find an active node with fewest demerits. */
                 tex_aux_find_best_bet();

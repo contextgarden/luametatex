@@ -629,6 +629,7 @@ int tex_identify_inserts(halfword b, halfword cbk)
             if (node_type(current) == insert_node) {
                 int callback = lmt_callback_defined(balance_insert_callback);
                 if (callback) {
+                    ++lmt_balance_state.n_of_callbacks;
                     lmt_run_callback(lmt_lua_state.lua_instance, callback, "Nddd->",
                         current, 
                         cbk,
