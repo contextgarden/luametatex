@@ -54,16 +54,24 @@ insert_state_info lmt_insert_state = {
 };
 
 typedef enum saved_insert_entries {
-    saved_insert_index_entry  = 0, /* value_1 */
-    saved_insert_n_of_records = 1,
+    saved_insert_index_entry    = 0, 
+    saved_insert_data_entry     = 0, 
+ // saved_insert_reserved_entry = 0, 
+    saved_insert_n_of_records   = 1,
 } saved_insert_entries;
 
-# define saved_insert_index saved_value_1(saved_insert_index_entry)
+# define saved_insert_index    saved_value_1(saved_insert_index_entry)
+# define saved_insert_data     saved_value_2(saved_insert_data_entry)
+//define saved_insert_reserved saved_value_3(saved_insert_reserved_entry)
 
 static inline void saved_inserts_initialize(void)
 {
     saved_type(0) = saved_record_0;
+    saved_type(1) = saved_record_1;
+ // saved_type(2) = saved_record_2;
     saved_record(0) = insert_save_type;
+    saved_record(1) = insert_save_type;
+ // saved_record(1) = insert_save_type;
 }
 
 void tex_show_insert_group(void)
@@ -78,6 +86,9 @@ int tex_show_insert_record(void)
     switch (save_type(lmt_save_state.save_stack_data.ptr)) { 
        case saved_record_0:
             tex_print_format("index %i", saved_insert_index);
+            break;
+       case saved_record_1:
+            tex_print_format("data %i", saved_insert_data);
             break;
         default: 
             return 0;
@@ -478,11 +489,43 @@ void tex_undump_insert_data(dumpstream f) {
 
 void tex_run_insert(void)
 {
+    int brace = 0;
+    halfword data = 0;
+    halfword index = -1;
+    while (1) {
+        switch (tex_scan_character("diDI", 1, 1, 1)) {
+            case 0:
+                goto DONE;
+            case 'd': case 'D':
+                /* identifier */
+                if (tex_scan_mandate_keyword("data", 1)) {
+                    data = tex_scan_integer(0, NULL);
+                }
+                break;
+            case 'i': case 'I':
+                if (tex_scan_mandate_keyword("index", 1)) {
+                    index = tex_scan_insert_index();
+                }
+                break;
+            case '{':
+                brace = 1;
+                goto DONE;
+            default:
+                goto DONE;
+        }
+    }
+  DONE:
+    if (index < 0) {
+        index = tex_scan_insert_index();
+    }
     saved_inserts_initialize();
-    saved_insert_index = tex_scan_insert_index();
+    saved_insert_index = index;
+    saved_insert_data = data;
     lmt_save_state.save_stack_data.ptr += saved_insert_n_of_records;
     tex_new_save_level(insert_group);
-    tex_scan_left_brace();
+    if (! brace) {
+        tex_scan_left_brace();
+    }
     tex_normal_paragraph(insert_par_context);
     tex_push_nest();
     cur_list.mode = internal_vmode;
@@ -515,6 +558,7 @@ void tex_finish_insert_group(void)
         p = tex_vpack(p, 0, packing_additional, max_dimension, direction_unknown, holding_none_option, NULL);
         {
             halfword index = saved_insert_index;
+            halfword data = saved_insert_data;
             halfword insert = tex_new_node(insert_node, 0);
             halfword maxdepth = tex_get_insert_maxdepth(index);
             halfword floating = tex_get_insert_penalty(index);
@@ -524,6 +568,7 @@ void tex_finish_insert_group(void)
                 tex_tail_append(insert);
             }
             insert_index(insert) = index;
+            insert_identifier(insert) = data;
             insert_total_height(insert) = box_total(p);
             insert_list(insert) = box_list(p);
             insert_split_top(insert) = q;
@@ -549,26 +594,55 @@ void tex_finish_insert_group(void)
     }
 }
 
-int tex_identify_inserts(halfword b)
+/*tex 
+    This one is meant for the elements (slots) in balanced lists but as we can have them packaged
+    we try to handle this. 
+*/
+
+int tex_identify_inserts(halfword b, halfword cbk)
 {
     halfword value = 0;
-    /* intercept balanced segment, maybe tag these sub balance boxes with a special subtype */
-    if (b && node_type(b) == hlist_node) {
+    while (b) { 
+        switch (node_type(b)) {
+            case hlist_node:
+            case vlist_node:
+                switch (node_subtype(b)) {
+                    case hbox_list:
+                    case container_list:
+                    case unknown_list:
+                        break;
+                    case balance_slot_list:
+                        goto DONE;
+                    default: 
+                        return value;
+                }
+                break;
+            default: 
+                return value; 
+        }
         b = box_list(b);
     }
+  DONE:
     if (b && node_type(b) == vlist_node) {
         halfword current = box_list(b);
         while (current) { 
             if (node_type(current) == insert_node) {
+                int callback = lmt_callback_defined(balance_insert_callback);
+                if (callback) {
+                    lmt_run_callback(lmt_lua_state.lua_instance, callback, "Nddd->",
+                        current, 
+                        cbk,
+                        insert_index(current),
+                        insert_identifier(current)
+                    );
+                }
+                value |= has_inserts;
                 if (insert_list(current)) {
-                    value |= has_inserts_with_content | has_inserts;
+                    value |= has_inserts_with_content;
                 }
                 if (insert_total_height(current) > 0 && tex_get_insert_multiplier(insert_index(current)) > 0) {
-                    value |= has_inserts_with_height | has_inserts;
-                } else { 
-                    value |= has_inserts;
+                    value |= has_inserts_with_height;
                 }
-
             }
             current = node_next(current);
         }
@@ -608,15 +682,12 @@ void tex_insert_reset_distances(void)
 
 scaled tex_insert_distances(halfword first, halfword last, scaled *stretch, scaled *shrink)
 {
-    /*tex Not efficient, we might as well lower the number of inserts, or delay till we have one. */
-    char bits[(max_n_of_inserts/8)+1] = { 0 };
+    char bits[(max_n_of_inserts/8)+1] = { 0 }; /* brrr */
     int isfirst = 1;
     scaled amount = 0;
     halfword c = first; 
- // int count = 0;
- // int unique = 0;
     while (c != last) {
-        if (node_type(c) == insert_node) { 
+        if (node_type(c) == insert_node && insert_total_height(c) > 0 && tex_get_insert_multiplier(insert_index(c)) > 0) { 
             halfword distance = null;
             halfword index = insert_index(c);
             if (isfirst) { 
@@ -628,7 +699,6 @@ scaled tex_insert_distances(halfword first, halfword last, scaled *stretch, scal
                 }
                 isfirst = 0;
                 set_bit(bits,index);
-             // ++unique;
             } else if (insert_index(c) == index && ! get_bit(bits, index)) {
                 if (lmt_insert_state.inserts[index].inbetween) {
                     distance = lmt_insert_state.inserts[index].inbetween;
@@ -637,7 +707,6 @@ scaled tex_insert_distances(halfword first, halfword last, scaled *stretch, scal
                     lmt_insert_state.inserts[index].inbetween = distance;
                 }
                 set_bit(bits,index);
-             // ++unique;
             }
             if (distance) { 
                 amount += glue_amount(distance);
@@ -648,10 +717,8 @@ scaled tex_insert_distances(halfword first, halfword last, scaled *stretch, scal
                     *shrink += glue_shrink(distance);   /* no order, no infite warning either */
                 }
             }
-         // ++count;
         }
         c = node_next(c);
     }
- // printf(">>> count %i, unique %i, amount %f\n", count, unique, amount/65536.0);
     return amount;
 }

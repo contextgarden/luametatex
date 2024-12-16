@@ -92,7 +92,7 @@ extern halfword tex_scan_insert_index      (void);
 extern void     tex_set_insert_mode        (halfword mode);
 extern int      tex_insert_is_void         (halfword i);
 
-extern int      tex_identify_inserts       (halfword b);
+extern int      tex_identify_inserts       (halfword b, halfword cbk);
                                            
 extern void     tex_run_insert             (void);
 extern void     tex_finish_insert_group    (void);

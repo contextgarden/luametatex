@@ -2019,6 +2019,7 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
                 box_width(lmt_balance_state.just_box) = whd.wd;
                 box_height(lmt_balance_state.just_box) = whd.ht;
                 box_depth(lmt_balance_state.just_box) = whd.dp;
+                node_subtype(lmt_balance_state.just_box) = balance_slot_list;
             }
             if (callback_id) {
                 tex_aux_balance_callback_page(callback_id, checks, page, cur_p);
@@ -2134,6 +2135,7 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
             } else {
                 lmt_balance_state.just_box = tex_vpack(first, height, packing_exactly, 0, 0, holding_none_option, NULL);
             }
+            node_subtype(lmt_balance_state.just_box) = balance_slot_list;
             if (callback_id) {
                 tex_aux_balance_callback_page(callback_id, checks, page, cur_p);
             }

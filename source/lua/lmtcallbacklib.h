@@ -72,6 +72,7 @@ typedef enum callback_callback_types {
     show_loners_callback,
     tail_append_callback,
     balance_boundary_callback,
+    balance_insert_callback,
     total_callbacks,
 } callback_callback_types;
 

@@ -921,6 +921,7 @@ typedef enum list_subtypes {
     local_left_list,
     local_right_list,
     local_middle_list,
+    balance_slot_list,
     balance_list,
 } list_subtypes ;
 
@@ -1479,9 +1480,9 @@ typedef enum adjust_options {
 # define insert_node_size       6          /*tex Can become 1 smaller or we can have insert_index instead of subtype. */
 # define insert_index(a)        vinfo(a,2) /*tex The |width| is not used. */
 # define insert_float_cost(a)   vlink(a,2)
-# define insert_whatever_1(a)   vinfo(a,3) /* */
+# define insert_identifier(a)   vinfo(a,3) /*tex aka: |insert_data| but that macro messes up a field */
 # define insert_max_depth(a)    vlink(a,3)
-# define insert_whatever_2(a)   vinfo(a,4) /* */
+# define insert_reserved(a)     vinfo(a,4) /* */
 # define insert_total_height(a) vlink(a,4) /*tex The sum of height and depth, i.e. total. */
 # define insert_list(a)         vinfo(a,5) /*tex Is alias for |node_next|. */
 # define insert_split_top(a)    vlink(a,5)

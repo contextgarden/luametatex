@@ -3678,6 +3678,10 @@ static int nodelib_direct_getdata(lua_State *L)
                 lua_pushinteger(L, boundary_data(n));
                 lua_pushinteger(L, boundary_reserved(n));
                 return 2;
+            case insert_node:
+                lua_pushinteger(L, insert_identifier(n));
+             // lua_pushinteger(L, insert_reserved(n));
+                return 1;
             case attribute_node:
                 switch (node_subtype(n)) {
                     case attribute_list_subtype:
@@ -3723,6 +3727,10 @@ static int nodelib_direct_setdata(lua_State *L) /* data and value */
             case boundary_node:
                 boundary_data(n) = lmt_tohalfword(L, 2);
                 boundary_reserved(n) = lmt_opthalfword(L, 3, 0);
+                break;
+            case insert_node:
+                insert_identifier(n) = lmt_tohalfword(L, 2);
+             // insert_reserved(n) = lmt_opthalfword(L, 3, 0);
                 break;
             case attribute_node:
                 /*tex Not supported for now! */
@@ -7781,6 +7789,8 @@ static int nodelib_common_getfield(lua_State *L, int direct, halfword n)
                                 lua_pushinteger(L, insert_total_height(n));
                             } else if (lua_key_eq(s, list) || lua_key_eq(s, head)) {
                                 nodelib_push_direct_or_node_node_prev(L, direct, insert_list(n));
+                            } else if (lua_key_eq(s, data)) {
+                                lua_pushinteger(L, insert_identifier(n));
                             } else {
                                 goto CANTGET;
                             }
@@ -8493,6 +8503,8 @@ static int nodelib_common_setfield(lua_State *L, int direct, halfword n)
                                 insert_total_height(n) = (halfword) lmt_roundnumber(L, 3);
                             } else if (lua_key_eq(s, list) || lua_key_eq(s, head)) {
                                 insert_list(n) = nodelib_direct_or_node_from_index(L, direct, 3);
+                            } else if (lua_key_eq(s, data)) {
+                                insert_identifier(n) = (halfword) lmt_roundnumber(L, 3); 
                             } else {
                                 goto CANTSET;
                             }
