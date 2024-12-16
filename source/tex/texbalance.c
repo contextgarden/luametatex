@@ -1430,12 +1430,12 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                                 &extra
                             );
                             switch (trybreak) { 
-                                case 0:
+                                case balance_callback_nothing:
                                     break;
-                                case 1:
+                                case balance_callback_try_break:
                                     tex_aux_try_balance(properties, penalty, extra, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                                     break;
-                                case 2:
+                                case balance_callback_skip_zeros:
                                     current = node_next(current);
                                     while (current) { 
                                         if (node_type(current) == boundary_node && node_subtype(current) == balance_boundary && boundary_data(current) == 0 && boundary_reserved(current) == 0) {

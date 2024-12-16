@@ -6635,6 +6635,15 @@ static int texlib_getmvloptionvalues(lua_State *L)
     return 1;
 }
 
+static int texlib_getbalancecallbackvalues(lua_State *L)
+{
+    lua_createtable(L, 2, 1);
+    lua_set_string_by_index(L, balance_callback_nothing,    "nothing");
+    lua_set_string_by_index(L, balance_callback_try_break,  "trybreak"); 
+    lua_set_string_by_index(L, balance_callback_skip_zeros, "skipzeros");
+    return 1;
+}
+
 static int texlib_getlocalboxlocations(lua_State *L)
 {
     lua_createtable(L, 2, 1);
@@ -7034,6 +7043,7 @@ static const struct luaL_Reg texlib_function_list[] = {
     { "getlargestusedmark",           texlib_getlargestusedmark           },
     { "getoutputactive",              texlib_getoutputactive              },
     { "getmvloptionvalues",           texlib_getmvloptionvalues           },
+    { "getbalancecallbackvalues",     texlib_getbalancecallbackvalues     },
     /* experiment (metafun update) */
     { "shiftparshape",                texlib_shiftparshape                },
     { "snapshotpar",                  texlib_snapshotpar                  },

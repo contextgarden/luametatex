@@ -56,6 +56,12 @@ typedef enum balance_quality_states {
     page_is_underfull = 0x0400, /*tex We use the same values |par_is_underfull|. */
 } balance_quality_states;
 
+typedef enum balance_callback_states {
+    balance_callback_nothing,
+    balance_callback_try_break,
+    balance_callback_skip_zeros,
+} balance_callback_states;
+
 extern void tex_balance_preset (
     balance_properties *properties
 );
