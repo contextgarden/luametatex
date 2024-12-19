@@ -2150,22 +2150,27 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
             ++page;
             cur_p = passive_next_break(cur_p);
             if (cur_p) {
-                /* this is kind of ugly code */
+                /*tex 
+                    This is kind of ugly code. In order to avoid loops due to an empty list we 
+                    replaced |(1)| by |(r)| below. 
+                */
                 halfword r = temp_head;
                 halfword q = null;
-                while (1) {
+                while (r) {
                     q = node_next(r);
                     if (q == passive_cur_break(cur_p)) {
                         break;
                     } else if (non_discardable(q)) {
                         break;
-                    } else if (node_type(q) == kern_node && ! (node_subtype(q) == explicit_kern_subtype)) {
+                    } else if (node_type(q) == kern_node && node_subtype(q) != explicit_kern_subtype) {
                         break;
                     } else { 
                         r = q;
                     }
                 }
-                if (r != temp_head) {
+                if (! r) {
+                    break;
+                } else if (r != temp_head) {
                     node_next(r) = null;
                     tex_flush_node_list(node_next(temp_head));
                     tex_try_couple_nodes(temp_head, q);
@@ -2179,6 +2184,31 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
         }
     }
 }
+
+// extern int tex_only_boundaries(halfword n) 
+// {
+//      int state = 0;
+//      while (n) {
+//          switch (node_type(n)) { 
+//             case glue_node:
+//                 if (state) { 
+//                     break;
+//                 } else { 
+//                     return 0;
+//                 } 
+//             case boundary_node:
+//                 if (node_subtype(balance_boundary)) {
+//                     state = 1; 
+//                     break;
+//                 } else { 
+//                     return 0;
+//                 }
+//             default: 
+//                 return 0;
+//          }
+//      }
+//      return 1;
+// }
 
 extern halfword tex_vbalance (
     halfword n,

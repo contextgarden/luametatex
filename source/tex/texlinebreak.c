@@ -1493,7 +1493,7 @@ void tex_aux_print_feasible_break(halfword current, halfword breakpoint, halfwor
     }
     tex_print_format(
         "%l[break: feasible, trigger '%s', serial %i, badness %B, penalty %i, demerits %B, fit class %i]",
-        lmt_interface.node_data[current ? node_type(current) : par_node].name,
+        lmt_interface.node_data[current ? node_type(current) : par_node].name, /* weird */
         active_break_node(breakpoint) ? passive_serial(active_break_node(breakpoint)) : 0,
         badness,
         penalty,
