@@ -352,7 +352,15 @@ static int auxgetinfo (lua_State *L, const char *what, lua_Debug *ar,
         break;
       }
       case 't': {
-        ar->istailcall = (ci != NULL && (ci->callstatus & CIST_TAIL));
+        if (ci != NULL) {
+          ar->istailcall = !!(ci->callstatus & CIST_TAIL);
+          ar->extraargs =
+                   cast_uchar((ci->callstatus & MAX_CCMT) >> CIST_CCMT);
+        }
+        else {
+          ar->istailcall = 0;
+          ar->extraargs = 0;
+        }
         break;
       }
       case 'n': {
@@ -534,18 +542,6 @@ static void rname (const Proto *p, int pc, int c, const char **name) {
 
 
 /*
-** Find a "name" for a 'C' value in an RK instruction.
-*/
-static void rkname (const Proto *p, int pc, Instruction i, const char **name) {
-  int c = GETARG_C(i);  /* key index */
-  if (GETARG_k(i))  /* is 'c' a constant? */
-    kname(p, c, name);
-  else  /* 'c' is a register */
-    rname(p, pc, c, name);
-}
-
-
-/*
 ** Check whether table being indexed by instruction 'i' is the
 ** environment '_ENV'
 */
@@ -592,7 +588,8 @@ static const char *getobjname (const Proto *p, int lastpc, int reg,
         return isEnv(p, lastpc, i, 0);
       }
       case OP_SELF: {
-        rkname(p, lastpc, i, name);
+        int k = GETARG_C(i);  /* key index */
+        kname(p, k, name);
         return "method";
       }
       default: break;  /* go through to return NULL */
@@ -847,7 +844,8 @@ l_noret luaG_runerror (lua_State *L, const char *fmt, ...) {
   va_start(argp, fmt);
   msg = luaO_pushvfstring(L, fmt, argp);  /* format message */
   va_end(argp);
-  if (isLua(ci)) {  /* if Lua function, add source:line information */
+  if (msg != NULL && isLua(ci)) {  /* Lua function? (and no error) */
+    /* add source:line information */
     luaG_addinfo(L, msg, ci_func(ci)->p->source, getcurrentline(ci));
     setobjs2s(L, L->top.p - 2, L->top.p - 1);  /* remove 'msg' */
     L->top.p--;
@@ -900,7 +898,7 @@ int luaG_tracecall (lua_State *L) {
   if (ci->u.l.savedpc == p->code) {  /* first instruction (not resuming)? */
     if (p->flag & PF_ISVARARG)
       return 0;  /* hooks will start at VARARGPREP instruction */
-    else if (!(ci->callstatus & CIST_HOOKYIELD))  /* not yieded? */
+    else if (!(ci->callstatus & CIST_HOOKYIELD))  /* not yielded? */
       luaD_hookcall(L, ci);  /* check 'call' hook */
   }
   return 1;  /* keep 'trap' on */

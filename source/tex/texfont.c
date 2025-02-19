@@ -117,11 +117,12 @@ font_state_info lmt_font_state = {
         .size      = memory_data_unset,
         .step      = stp_font_size,
         .allocated = 0,
-        .itemsize  = 1,
+        .itemsize  = sizeof(texfont *),
         .top       = 0,
         .ptr       = 0,
         .initial   = memory_data_unset,
         .offset    = 0,
+        .extra     = 0, 
     },
 };
 
@@ -138,7 +139,7 @@ void tex_initialize_fonts(void)
             tmp[i] = NULL;
         }
         lmt_font_state.fonts = tmp;
-        lmt_font_state.font_data.allocated += lmt_font_state.font_data.minimum * sizeof(texfont *);
+        lmt_font_state.font_data.allocated = lmt_font_state.font_data.minimum;
         lmt_font_state.font_data.top = lmt_font_state.font_data.minimum;
         lmt_font_state.font_data.ptr = -1; /* we need to end up with id zero first */
         tex_create_null_font();
@@ -166,7 +167,7 @@ int tex_new_font_id(void)
                 tmp[i] = NULL;
             }
             lmt_font_state.fonts = tmp;
-            lmt_font_state.font_data.allocated += ((size_t) top - lmt_font_state.font_data.top) * sizeof(texfont *);
+            lmt_font_state.font_data.allocated = top;
             lmt_font_state.font_data.top = top;
             lmt_font_state.font_data.ptr += 1;
             return lmt_font_state.font_data.ptr;
@@ -214,7 +215,7 @@ void tex_set_font_parameters(halfword f, int index)
         int size = (index + 2) * (int) sizeof(int);
         int *list = lmt_memory_realloc(font_parameter_base(f), (size_t) size);
         if (list) {
-            lmt_font_state.font_data.allocated += (index - i + 1) * (int) sizeof(scaled);
+            lmt_font_state.font_data.extra += (index - i + 1) * (int) sizeof(scaled);
             font_parameter_base(f) = list;
             font_parameter_count(f) = index;
             while (i < index) {
@@ -239,7 +240,7 @@ int tex_new_font(void)
         if (tf) {
             sa_tree_item sa_value = { 0 };
             int id = tex_new_font_id();
-            lmt_font_state.font_data.allocated += size;
+            lmt_font_state.font_data.extra += size;
             lmt_font_state.fonts[id] = tf;
             set_font_name(id, NULL);
             set_font_original(id, NULL);
@@ -257,7 +258,7 @@ int tex_new_font(void)
                 tex_set_font_parameter(id, i, 0);
             }
             /*tex character info zero is reserved for |notdef|. The stack size 1, default item value 0. */
-            tf->characters = sa_new_tree(fontchar_sparse_identifier, 1, 4, sa_value);
+            tf->characters = sa_new_tree(fontchar_sparse_identifier, 1, 1, 4, sa_value);
             tf->chardata = ci;
             tf->chardata_size = 1;
             tf->weight = 1.0;
@@ -274,7 +275,7 @@ void tex_font_malloc_charinfo(halfword f, int index)
     int size = (glyph + index) * sizeof(charinfo);
     charinfo *data = lmt_memory_realloc(lmt_font_state.fonts[f]->chardata , (size_t) size);
     if (data) {
-        lmt_font_state.font_data.allocated += index * sizeof(charinfo);
+        lmt_font_state.font_data.extra += index * sizeof(charinfo);
         lmt_font_state.fonts[f]->chardata = data;
         memset(&data[glyph], 0, (size_t) index * sizeof(charinfo));
         lmt_font_state.fonts[f]->chardata_size += index;
@@ -316,7 +317,7 @@ void tex_char_malloc_mathinfo(charinfo *ci)
             set_charinfo_bottom_left_math_kern_array(ci, NULL);
             lmt_memory_free(ci->math);
         } else {
-            lmt_font_state.font_data.allocated += size;
+            lmt_font_state.font_data.extra += size;
         }
         ci->math = mi;
     } else {
@@ -334,9 +335,10 @@ static inline int aux_find_charinfo_id(halfword f, int c)
 charinfo *tex_get_charinfo(halfword f, int c)
 {
     if (proper_char_index(f, c)) {
-        sa_tree_item item; 
+        sa_tree_item item;
+        int glyph; 
         sa_get_item_4(lmt_font_state.fonts[f]->characters, c, &item);
-        int glyph = (int) item.int_value;
+        glyph = (int) item.int_value;
         if (! glyph) {
             sa_tree_item sa_value = { 0 };
             int tglyph = ++lmt_font_state.fonts[f]->chardata_count;
@@ -355,7 +357,7 @@ charinfo *tex_get_charinfo(halfword f, int c)
             int size = sizeof(charinfo);
             charinfo *ci = lmt_memory_calloc(1, (size_t) size);
             if (ci) {
-                lmt_font_state.font_data.allocated += size;
+                lmt_font_state.font_data.extra += size;
                 set_font_left_boundary(f, ci);
             } else {
                 tex_overflow_error("font", size);
@@ -367,7 +369,7 @@ charinfo *tex_get_charinfo(halfword f, int c)
             int size = sizeof(charinfo);
             charinfo *ci = lmt_memory_calloc(1, (size_t) size);
             if (ci) {
-                lmt_font_state.font_data.allocated += size;
+                lmt_font_state.font_data.extra += size;
                 set_font_right_boundary(f, ci);
             } else {
                 tex_overflow_error("font", size);
@@ -691,7 +693,7 @@ void tex_set_font_math_parameters(halfword f, int b)
         size_t size = ((size_t) b + 2) * sizeof(scaled);
         scaled *data = lmt_memory_realloc(font_math_parameter_base(f), size);
         if (data) {
-            lmt_font_state.font_data.allocated += (int) (((size_t) b - i + 1) * sizeof(scaled));
+            lmt_font_state.font_data.extra += (int) (((size_t) b - i + 1) * sizeof(scaled));
             font_math_parameter_base(f) = data;
             font_math_parameter_count(f) = b;
             while (i < b) {
@@ -1660,7 +1662,7 @@ int tex_tex_def_font(int a)
         lmt_fileio_state.name_in_progress = 1;
         if (tex_scan_keyword("at")) {
             /*tex Put the positive 'at' size into |s|. */
-            s = tex_scan_dimension(0, 0, 0, 0, NULL);
+            s = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
             if ((s <= 0) || (s >= 0x8000000)) { 
                 tex_handle_error(
                     normal_error_type,
@@ -1672,7 +1674,7 @@ int tex_tex_def_font(int a)
                 s = 10 * unity;
             }
         } else if (tex_scan_keyword("scaled")) {
-            s = tex_scan_integer(0, NULL);
+            s = tex_scan_integer(0, NULL, NULL);
             if ((s <= 0) || (s > 0x8000)) {
                 tex_handle_error(
                     normal_error_type,
@@ -1696,22 +1698,29 @@ int tex_tex_def_font(int a)
 }
 
 /*tex
+
     When \TEX\ wants to typeset a character that doesn't exist, the character node is not created;
     thus the output routine can assume that characters exist when it sees them. The following
-    procedure prints a warning message unless the user has suppressed it.
+    procedure prints a warning message unless the user has suppressed it. When this feature was 
+    extended in \LUATEX\ (2025) that was a good moment to get rid of the one occasion where we did
+    not yet use the callback but the message instead (in math because then we really need the 
+    character). Contrary to \LUATEX\ we never error because the backend where all is resolved can 
+    do that if needed. 
+
 */
 
-void tex_char_warning(halfword f, int c)
+void tex_missing_character(halfword n, halfword f, halfword c, halfword where) 
 {
-    if (tracing_lost_chars_par > 0) {
-        /*tex saved value of |tracing_online| */
+    int callback_id = lmt_callback_defined(missing_character_callback);
+    if (callback_id > 0) {
+        lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "dNdd->", where, n, f, c);
+    } else if (tracing_lost_chars_par > 0) { 
         int old_setting = tracing_online_par;
-        /*tex index to current digit; we assume that $0\L n<16^{22}$ */
         if (tracing_lost_chars_par > 1) {
             tracing_online_par = 1;
         }
         tex_begin_diagnostic();
-        tex_print_format("[font: missing character, character %c (%U), font '%s']", c, c, font_name(f));
+        tex_print_format("[font: missing character, character %c (%U), font '%s', location %i]", c, c, font_name(f), where);
         tex_end_diagnostic();
         tracing_online_par = old_setting;
     }
@@ -2190,9 +2199,9 @@ scaled tex_get_math_font_y_scale(halfword f, halfword size)
 scaled tex_get_math_font_weight(halfword f, halfword size)
 {
     switch (size) {
-        case  2: return lmt_font_state.fonts[f]->mathweights[2] ; break;
-        case  1: return lmt_font_state.fonts[f]->mathweights[1] ; break;
-        default: return lmt_font_state.fonts[f]->mathweights[0] ; break;
+        case  2: return lmt_font_state.fonts[f]->mathweights[2];
+        case  1: return lmt_font_state.fonts[f]->mathweights[1];
+        default: return lmt_font_state.fonts[f]->mathweights[0];
     }
 }
 

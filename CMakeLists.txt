@@ -3,9 +3,11 @@
 # has a lot of dependencies - ssh related, compression, security, xml, etc), but maybe 
 # there is a lightweight version of CMake. 
 
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.9..3.28)
 
-project(luametatex VERSION 2.10 LANGUAGES C)
+project(luametatex VERSION 2.11 LANGUAGES C)
+
+# I need to check with Mojca of the compile farm can handle this. 
 
 set(CMAKE_C_STANDARD 11)
 # set(CMAKE_C_STANDARD 17) # needs 3.21
@@ -24,16 +26,29 @@ include(GNUInstallDirs)
 set(LMT_KPSE_TOO 1) # In case we want to manage MKII scripts (etc) with mtxrun.
 set(LMT_HB_TOO   1) # Maybe handy for Idris' font development (old converted ffi stuff)
 
-# When set, because we're sparse we also strip the binary. Because we only gain some 1-2% on
-# runtime, enabling it makes not much sense:
+# This triggere link time optimization, which adds to compile time and gains (at most) a few 
+# percent on runtime. When set, because we're sparse, we also strip the binary.
 
-#set(LMT_OPTIMIZE 1)
+# set(LMT_OPTIMIZE 1)
 
 # This makes the binary some 135K smaller so it might become the default at some point which is 
 # nice (the smaller as runner the better). After all, we don't load external (Lua) libraries 
 # anyway. 
 
 set(LMT_STRIP 1)
+
+# When one wants to use Lua libraries, this is needed. But keep in mind that it's not supported, 
+# so we won't look into issues that could result from that. Getting a matching library is upto 
+# the user. Keep in mind that we might have set a different bytecode (luac) version during the 
+# alpha/beta stages of a Lua development version. 
+
+# set(LMT_PERMIT_LUA_LIBRARIES 1)
+
+if (DEFINED LMT_PERMIT_LUA_LIBRARIES)
+    unset(LMT_STRIP)
+    unset(LMT_OPTIMIZE)
+    add_definitions(-DLMT_PERMIT_LUA_LIBRARIES="yes")
+endif ()
 
 if (MSVC)
 
@@ -198,6 +213,8 @@ if (CMAKE_C_COMPILER_ID MATCHES "Clang")
         -Wno-unsafe-buffer-usage
         -Wno-macro-redefined
         -Wno-undef
+        -Wno-switch-default
+        -Wno-class-varargs
     )
 
 endif()
@@ -240,8 +257,15 @@ endif()
 #
 # When the old osx version is dropped and armhf is upgraded we can enable unix except solaris which
 # fails. So, only osx 10.6 and rpi 32 fail. But we will probably drop 32 bit in the future anyway.
+#
+# At the beginning of 2025 the gain is some 5 percent on the 650 page luametate manual over the 
+# default memory allocator. 
 
 # CMAKE_HOST_SYSTEM_PROCESSOR arm64 x86_64
+
+# if (APPLE)
+#     set(MI_OSX_ZONE 1)
+# endif()
 
 if (CMAKE_HOST_SOLARIS)
     # fails
@@ -251,6 +275,8 @@ elseif (CMAKE_HOST_APPLE AND NOT (${CMAKE_C_COMPILER} MATCHES "arm"))
     # fails on the osx intel
 elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "armv7l")
     # fails on the rpi 32 bit
+elseif (CMAKE_C_COMPILER_ID MATCHES "AppleClang|Clang")
+    # no motivation to figure specifics out
 else()
     set(luametatex_use_mimalloc 1)
 endif()

@@ -64,6 +64,7 @@ token_memory_state_info lmt_token_memory_state = {
         .ptr       = 0, /* used to register usage */
         .initial   = 0,
         .offset    = 0,
+        .extra     = 0, 
     },
     .available  = 0,
     .padding    = 0,
@@ -82,7 +83,6 @@ token_memory_state_info lmt_token_memory_state = {
 
 token_state_info lmt_token_state = {
     .null_list      = null,
-    .in_lua_escape  = 0, /* obsolete */
     .force_eof      = 0,
     .luacstrings    = 0,
     .par_loc        = null,
@@ -93,6 +93,7 @@ token_state_info lmt_token_state = {
     .bufloc         = 0,
     .bufmax         = 0,
     .empty          = null,
+    .padding        = 0,
 };
 
 /*tex Some properties are dumped in the format so these are aet already! */
@@ -602,6 +603,10 @@ static const char *tex_aux_special_cmd_string(halfword cmd, halfword chr, const 
         case end_local_cmd               : return "[[special cmd: end local call]]";
      // case prefix_cmd                  : return "[[special cmd: enforced]]";
         case prefix_cmd                  : return "\\always ";
+# if (match_experiment)
+        case integer_reference_cmd       : return "[[special cmd: integer pointer]]"; 
+        case dimension_reference_cmd     : return "[[special cmd: dimension pointer]]"; 
+# endif 
         default                          : printf("[[unknown cmd: (%i,%i)]]\n", cmd, chr); return unknown;
     }
 }
@@ -1232,14 +1237,7 @@ halfword tex_active_to_cs(int c, int force)
     the line is accepted as it stands, otherwise the line typed is used instead of the line in the
     file.
 
-    We no longer need the following:
-
 */
-
-// void firm_up_the_line(void)
-// {
-//     ilimit = fileio_state.io_last;
-// }
 
 /*tex
 
@@ -1355,6 +1353,10 @@ static int tex_aux_get_next_file(void)
                     /*tex We are storing stuff in a token list or macro body. */
                 } else if ((cur_mode == mmode || lmt_nest_state.math_mode) && tex_check_active_math_char(cur_chr)) {
                     /*tex We have an intercept. */
+                } else if (lmt_scanner_state.expression_depth) {
+                    /*tex well */
+                    cur_tok = other_token + cur_chr;
+                    cur_cmd = other_char_cmd;
                 } else {
                     cur_cs = tex_active_to_cs(cur_chr, ! lmt_hash_state.no_new_cs);
                     cur_cmd = eq_type(cur_cs);
@@ -1833,66 +1835,6 @@ static int tex_aux_scan_control_sequence(void)
     return state;
 }
 
-/*tex
-
-    All of the easy branches of |get_next| have now been taken care of. There is one more branch.
-    Conversely, the |file_warning| procedure is invoked when a file ends and some groups entered or
-    conditionals started while reading from that file are still incomplete.
-
-*/
-
-static void tex_aux_file_warning(void)
-{
-    {
-     // save_state_info saved_save_stack_data = lmt_save_state;
-        halfword saved_stack_ptr = lmt_save_state.save_stack_data.ptr;
-        quarterword saved_group = cur_group;
-        quarterword saved_level = cur_level;
-        lmt_save_state.save_stack_data.ptr = cur_boundary;
-        while (lmt_input_state.in_stack[lmt_input_state.in_stack_data.ptr].group != lmt_save_state.save_stack_data.ptr) {
-            --cur_level;
-            tex_print_nlp();
-            tex_print_format("Warning: end of file when %G is incomplete", 1);
-            cur_group = save_level(lmt_save_state.save_stack_data.ptr);
-            lmt_save_state.save_stack_data.ptr = save_value(lmt_save_state.save_stack_data.ptr);
-        }
-     // lmt_save_state = saved_save_stack_data;
-        lmt_save_state.save_stack_data.ptr = saved_stack_ptr;
-        cur_level = saved_level;
-        cur_group = saved_group;
-    }
-    {
-        condition_state_info saved_condition_state = lmt_condition_state;
-        while (lmt_input_state.in_stack[lmt_input_state.in_stack_data.ptr].if_ptr != lmt_condition_state.cond_ptr) {
-            /* todo, more info */
-            tex_print_nlp();
-            tex_print_format("Warning: end of file when %C", if_test_cmd, lmt_condition_state.cur_if);
-            if (lmt_condition_state.if_limit == fi_code) {
-                tex_print_str_esc("else");
-            }
-            if (lmt_condition_state.if_line) {
-                tex_print_format(" entered on line %i", lmt_condition_state.if_line);
-            }
-            tex_print_str(" is incomplete");
-            lmt_condition_state.cur_if = if_limit_subtype(lmt_condition_state.cond_ptr);
-            lmt_condition_state.cur_unless = if_limit_unless(lmt_condition_state.cond_ptr);
-            lmt_condition_state.if_step = if_limit_step(lmt_condition_state.cond_ptr);
-            lmt_condition_state.if_unless = if_limit_stepunless(lmt_condition_state.cond_ptr);
-            lmt_condition_state.if_limit = if_limit_type(lmt_condition_state.cond_ptr);
-            lmt_condition_state.if_line = if_limit_line(lmt_condition_state.cond_ptr);
-            lmt_condition_state.cond_ptr = node_next(lmt_condition_state.cond_ptr);
-        }
-        lmt_condition_state = saved_condition_state;
-    }
-    tex_print_nlp();
-    if (tracing_nesting_par > 1) {
-        tex_show_context();
-    }
-    if (lmt_error_state.history == spotless) {
-        lmt_error_state.history = warning_issued;
-    }
-}
-
 static void tex_aux_check_validity(void)
 {
     switch (lmt_input_state.scanner_status) {
@@ -1968,7 +1910,7 @@ static inline next_line_retval tex_aux_next_line(void)
                                 break;
                             case string_tex_input:
                                 /*tex string */
-                                lmt_input_state.cur_input.limit = lmt_fileio_state.io_last; /*tex Was |firm_up_the_line();|. */
+                                lmt_input_state.cur_input.limit = lmt_fileio_state.io_last;
                                 lmt_input_state.cur_input.cattable = (short) cattable;
                                 lmt_input_state.cur_input.partial = (signed char) partial;
                                 if (finalline || partial || cattable == no_catcode_table_preset) {
@@ -1997,7 +1939,7 @@ static inline next_line_retval tex_aux_next_line(void)
                             case node_tex_input:
                                 /*tex node */
                                 if (node_token_overflow(result)) {
-                                    /* we could link them and avoid ine input level */
+                                    /* we could link them and avoid one input level */
                                     tex_back_input(token_val(ignore_cmd, node_token_lsb(result)));
                                     tex_reinsert_token(token_val(node_cmd, node_token_msb(result)));
                                     return next_line_restart;
@@ -2030,7 +1972,7 @@ static inline next_line_retval tex_aux_next_line(void)
                                 break;
                             case string_tex_input:
                                 /*tex string */
-                                lmt_input_state.cur_input.limit = lmt_fileio_state.io_last; /*tex Was |firm_up_the_line();|. */
+                                lmt_input_state.cur_input.limit = lmt_fileio_state.io_last;
                                 lmt_input_state.cur_input.cattable = (short) cattable;
                                 lmt_input_state.cur_input.partial = (signed char) partial;
                                 inhibit_eol = lmt_input_state.cur_input.name != io_token_eof_input_code;
@@ -2053,7 +1995,7 @@ static inline next_line_retval tex_aux_next_line(void)
                 default:
                     if (tex_lua_input_ln()) {
                         /*tex Not end of file, set |ilimit|. */
-                        lmt_input_state.cur_input.limit = lmt_fileio_state.io_last; /*tex Was |firm_up_the_line();|. */
+                        lmt_input_state.cur_input.limit = lmt_fileio_state.io_last;
                         lmt_input_state.cur_input.cattable = default_catcode_table_preset;
                         break;
                     } else if (! lmt_input_state.in_stack[lmt_input_state.cur_input.index].end_of_file_seen && tex_aux_every_eof()) {
@@ -2065,12 +2007,28 @@ static inline next_line_retval tex_aux_next_line(void)
                     }
             }
         }
+        /*tex
+            All of the easy branches of |get_next| have now been taken care of. There is one more 
+            branch. Conversely, the |file_warning| procedure is invoked when a file ends and some 
+            groups entered or conditionals started while reading from that file are still incomplete.
+        */
         if (lmt_token_state.force_eof) {
             if (tracing_nesting_par > 0) {
                 if ((lmt_input_state.in_stack[lmt_input_state.in_stack_data.ptr].group != cur_boundary) || (lmt_input_state.in_stack[lmt_input_state.in_stack_data.ptr].if_ptr != lmt_condition_state.cond_ptr)) {
                     if (! io_token_input(lmt_input_state.cur_input.name)) {
-                        /*tex Give warning for some unfinished groups and/or conditionals. */
-                        tex_aux_file_warning();
+                        /*tex Check for unfinished groups: */
+                        tex_save_stack_catch_up();
+                        /*tex Check for unfinished conditionals: */
+                        tex_conditional_catch_up();
+                        /*tex Show the context, when asked for: */
+                        tex_print_nlp();
+                        if (tracing_nesting_par > 1) {
+                            tex_show_context();
+                        }
+                        /*tex Recover if needed: */
+                        if (lmt_error_state.history == spotless) {
+                            lmt_error_state.history = warning_issued;
+                        }
                     }
                 }
             }
@@ -2180,6 +2138,10 @@ static int tex_aux_get_next_tokenlist(void)
             case active_char_cmd:
                 if ((cur_mode == mmode || lmt_nest_state.math_mode) && tex_check_active_math_char(cur_chr)) {
                     /*tex We have an intercept. */
+                } else if (lmt_scanner_state.expression_depth) {
+                    /*tex well */
+                    cur_tok = other_token + cur_chr;
+                    cur_cmd = other_char_cmd;
                 }
                 break;
             case parameter_reference_cmd:
@@ -2394,30 +2356,30 @@ void tex_get_x_or_protected(void)
 
 /*tex This changes the string |s| to a token list. */
 
-halfword tex_string_to_toks(const char *ss)
-{
-    const char *s = ss;
-    const char *se = ss + strlen(s);
-    /*tex tail of the token list */
-    halfword h = null;
-    halfword p = null;
-    /*tex new node being added to the token list via |store_new_token| */
-    while (s < se) {
-        int tl;
-        halfword t = (halfword) aux_str2uni_len((const unsigned char *) s, &tl);
-        s += tl;
-        if (t == ' ') {
-            t = space_token;
-        } else {
-            t += other_token;
-        }
-        p = tex_store_new_token(p, t);
-        if (! h) {
-            h = p;
-        }
-    }
-    return h;
-}
+// halfword tex_string_to_toks(const char *ss)
+// {
+//     const char *s = ss;
+//     const char *se = ss + strlen(s);
+//     /*tex tail of the token list */
+//     halfword h = null;
+//     halfword p = null;
+//     /*tex new node being added to the token list via |store_new_token| */
+//     while (s < se) {
+//         int tl;
+//         halfword t = (halfword) aux_str2uni_len((const unsigned char *) s, &tl);
+//         s += tl;
+//         if (t == ' ') {
+//             t = space_token;
+//         } else {
+//             t += other_token;
+//         }
+//         p = tex_store_new_token(p, t);
+//         if (! h) {
+//             h = p;
+//         }
+//     }
+//     return h;
+// }
 
 /*tex
 
@@ -2947,7 +2909,7 @@ void tex_run_convert_tokens(halfword code)
         case number_code:
             {
                 int saved_selector;
-                halfword v = tex_scan_integer(0, NULL);
+                halfword v = tex_scan_integer(0, NULL, NULL);
                 push_selector;
                 tex_print_int(v);
                 pop_selector;
@@ -2957,10 +2919,13 @@ void tex_run_convert_tokens(halfword code)
         case to_hexadecimal_code:
             {
                 int saved_selector;
-                halfword v = tex_scan_integer(0, NULL);
-                tex_get_x_token(); /* maybe not x here */
-                if (cur_cmd != relax_cmd) {
-                    tex_back_input(cur_tok);
+                int grouped = 0;
+                halfword v = tex_scan_integer(0, NULL, &grouped);
+                if (! grouped) {
+                    tex_get_x_token(); /* maybe not x here */
+                    if (cur_cmd != relax_cmd) {
+                       tex_back_input(cur_tok);
+                    }
                 }
                 push_selector;
                 if (code == to_integer_code) {
@@ -2977,10 +2942,13 @@ void tex_run_convert_tokens(halfword code)
         case to_sparse_dimension_code:
             {
                 int saved_selector;
-                halfword v = tex_scan_dimension(0, 0, 0, 0, NULL);
-                tex_get_x_token(); /* maybe not x here */
-                if (cur_cmd != relax_cmd) {
-                    tex_back_input(cur_tok);
+                int grouped = 0;
+                halfword v = tex_scan_dimension(0, 0, 0, 0, NULL, &grouped);
+                if (! grouped) {
+                    tex_get_x_token(); /* maybe not x here */
+                    if (cur_cmd != relax_cmd) {
+                       tex_back_input(cur_tok);
+                    }
                 }
                 push_selector;
                 switch (code) {
@@ -3013,7 +2981,7 @@ void tex_run_convert_tokens(halfword code)
         case lua_function_code:
             {
              /* We can use:  tex_aux_lua_call(convert_cmd, v); */
-                halfword v = tex_scan_integer(0, NULL);
+                halfword v = tex_scan_integer(0, NULL, NULL);
                 if (v > 0) {
                     strnumber u = tex_save_cur_string();
                     lmt_token_state.luacstrings = 0;
@@ -3029,7 +2997,7 @@ void tex_run_convert_tokens(halfword code)
             }
         case lua_bytecode_code:
             {
-                halfword v = tex_scan_integer(0, NULL);
+                halfword v = tex_scan_integer(0, NULL, NULL);
                 if (v < 0 || v > 65535) {
                     tex_normal_error("luabytecode", "invalid number");
                 } else {
@@ -3243,7 +3211,6 @@ void tex_run_convert_tokens(halfword code)
                         } else {
                             goto WHATEVER;
                         }
-                        break;
                     default:
                       WHATEVER:
                         {
@@ -3265,7 +3232,7 @@ void tex_run_convert_tokens(halfword code)
         case roman_numeral_code:
             {
                 int saved_selector;
-                halfword v = tex_scan_integer(0, NULL);
+                halfword v = tex_scan_integer(0, NULL, NULL);
                 push_selector;
                 tex_print_roman_int(v);
                 pop_selector;
@@ -3377,6 +3344,15 @@ void tex_run_convert_tokens(halfword code)
                 int saved_selector;
                 push_selector;
                 tex_print_str(lmt_engine_state.luatex_banner);
+                pop_selector;
+                break;
+            }
+        case font_identifier_code:
+            {
+                int saved_selector;
+                halfword fnt = tex_scan_font_identifier(NULL);
+                push_selector;
+                tex_print_font_identifier(fnt);
                 pop_selector;
                 break;
             }

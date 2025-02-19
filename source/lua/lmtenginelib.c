@@ -195,7 +195,7 @@ static void enginelib_show_help(void)
         "\n"
         "The following regular options are understood:\n"
         "\n"
-        "  --credits           display credits and exit\n"
+        "  --credits           display credits and some details and exit\n"
         "  --fmt=FORMAT        load the format file FORMAT\n"
         "  --help              display help and exit\n"
         "  --ini               be ini" luametatex_name_lowercase ", for dumping formats\n"
@@ -209,7 +209,7 @@ static void enginelib_show_help(void)
         "\n"
         "Loading libraries from Lua is blocked unless one explicitly permits it:\n"
         "\n"
-        "  --permitloadlib     permit loading of external libraries (coming)\n"
+        "  --permitloadlib     permit loading of external libraries\n"
         "\n"
         "See the reference manual for more information about the startup process.\n"
         "\n"
@@ -343,16 +343,19 @@ static void enginelib_show_credits(void)
         "simple foreign interface subsystem. Although this is provided and considered part of the\n"
         "LuaMetaTeX engine it is not something ConTeXt depends (and will) depend on.\n"
         "\n"
-        "version   : " luametatex_version_string " | " LMT_TOSTRING(luametatex_development_id) "\n"
-        "format id : " LMT_TOSTRING(luametatex_format_fingerprint) "\n"
+        "version    : " luametatex_version_string " | " LMT_TOSTRING(luametatex_development_id) "\n"
+        "format id  : " LMT_TOSTRING(luametatex_format_fingerprint) "\n"
 # ifdef __DATE__
-        "date      : " __TIME__ " | " __DATE__ "\n"
+        "date       : " __TIME__ " | " __DATE__ "\n"
 # endif
 # ifdef LMT_COMPILER_USED
-        "compiler  : " LMT_COMPILER_USED "\n"
+        "compiler   : " LMT_COMPILER_USED "\n"
 # endif
-        "lua       : " LMT_TOSTRING(LUA_VERSION) "\n"
-        "luaformat : " LMT_TOSTRING(LUAC_FORMAT) "\n"
+        "lua        : " LUA_VERSION "\n"
+        "luacformat : " LMT_TOSTRING(LUAC_FORMAT) "\n"
+# ifdef LMT_PERMIT_LUA_LIBRARIES
+        "libraries  : enabled but not officially supported" "\n"
+# endif
     );
     printf("own path  : %s\n", lmt_environment_state.ownpath);
     printf("own base  : %s\n", lmt_environment_state.ownbase);
@@ -857,6 +860,19 @@ void lmt_make_table(
     lua_pop(L, 1);                   /*tex |[{<tex>}]| : clean the stack */
 }
 
+/*tex 
+    Quite some reallocs happen in \LUA. We often see size 4 bumped to some larger size (strings) 
+    but we also see realloc that go from 8 to 7 (kind of weird). We also see 0 coming by. We see 
+    doubling from 24 to 48 (very popular) to 96. 
+*/
+
+# if (1) 
+
+static void enginelib_initialize_memory_pool(void) 
+{
+    /* dummy */
+}
+
 static void *enginelib_aux_luaalloc(
     void   *ud,    /*tex Not used, but passed by \LUA. */
     void   *ptr,   /*tex The old pointer. */
@@ -869,7 +885,6 @@ static void *enginelib_aux_luaalloc(
     if (lmt_lua_state.used_bytes > lmt_lua_state.used_bytes_max) {
         lmt_lua_state.used_bytes_max = lmt_lua_state.used_bytes;
     }
-    /*tex Quite some reallocs happen in \LUA. */
     if (nsize == 0) {
         /* printf("free %i\n",(int) osize); */
         lmt_memory_free(ptr);
@@ -882,6 +897,124 @@ static void *enginelib_aux_luaalloc(
         return lmt_memory_realloc(ptr, nsize);
     }
 }
+
+# else
+
+# define max_memory_pool 96
+# define max_memory_slot (8*1024)
+
+typedef struct memory_pool_entry { 
+    unsigned     size; 
+    unsigned     max; 
+    void      ** data;
+} memory_pool_entry;
+
+static memory_pool_entry memory_pool[max_memory_pool+1];
+
+static void enginelib_initialize_memory_pool(void) 
+{
+    for (int i = 0; i < max_memory_pool; i++) {
+        switch (i) { 
+            case 4: case 8: case 12: case 24: case 48: case 96:
+                memory_pool[i].data = lmt_memory_calloc(max_memory_slot, sizeof(void *));
+                memory_pool[i].size = 0;
+                memory_pool[i].max = max_memory_slot - 1;
+                break;
+        }
+    }
+}
+
+static void *enginelib_aux_luaalloc(
+    void   *ud,    /*tex Not used, but passed by \LUA. */
+    void   *ptr,   /*tex The old pointer. */
+    size_t  osize, /*tex The old size. */
+    size_t  nsize  /*tex The new size. */
+)
+{
+    (void) ud;
+    lmt_lua_state.used_bytes += (int) (nsize - osize);
+    if (lmt_lua_state.used_bytes > lmt_lua_state.used_bytes_max) {
+        lmt_lua_state.used_bytes_max = lmt_lua_state.used_bytes;
+    }
+    if (nsize == 0) {
+        if (ptr) { 
+            switch (osize) { 
+                case 4: case 8: case 12: case 24: case 48: case 96:
+                    {
+                         unsigned s = (unsigned) osize;
+                         if (memory_pool[s].size < memory_pool[s].max) { 
+                             memory_pool[s].data[memory_pool[s].size] = ptr;
+                          // printf("add to pool: size %d slot %d\n",s,memory_pool[s].size);
+                             memory_pool[s].size++;
+                             break;
+                         } else { 
+                          // printf("full pool: size %d\n",s);
+                         }
+                    }
+                 default: 
+                 // printf("free %i\n", (int) osize); 
+                    lmt_memory_free(ptr);
+            }
+        }
+        return NULL;
+    } else if (osize == 0) {
+        switch (nsize) { 
+            case 4: case 8: case 12: case 24: case 48: case 96:
+                {
+                    unsigned s = (unsigned) nsize;
+                    if (memory_pool[s].size > 0) {
+                        memory_pool[s].size--;
+                        void * p = memory_pool[s].data[memory_pool[s].size];
+                     // printf("take from pool: size %d slot %d\n",s,memory_pool[s].size);
+                        return p;
+                    } else { 
+                     // printf("empty pool: size %d\n",s);
+                    }
+                }
+            default: 
+             // printf("malloc %i\n",(int) nsize); 
+                return lmt_memory_malloc(nsize);
+        } 
+    } else {
+        if (ptr && nsize && nsize > osize) { 
+            switch (nsize) { 
+                case 4: case 8: case 12: case 24: case 48: case 96:
+                    {
+                        unsigned s = (unsigned) nsize;
+                        if (memory_pool[s].size > 0) {
+                            memory_pool[s].size--;
+                            void * p = memory_pool[s].data[memory_pool[s].size];
+                            if (osize) {
+                                memcpy(p, ptr, osize);
+                            }
+                         // printf("take from pool: size %d slot %d\n",s,memory_pool[s].size);
+                            switch (osize) { 
+                                case 4: case 8: case 12: case 24: case 48: case 96:
+                                    {
+                                        unsigned s = (unsigned) osize;
+                                        if (memory_pool[s].size < memory_pool[s].max) { 
+                                            memory_pool[s].data[memory_pool[s].size] = ptr;
+                                            memory_pool[s].size++;
+                                            return p; 
+                                        } else { 
+                                            break;
+                                        }
+                                    }
+                            }
+                            lmt_memory_free(ptr);
+                            return p;
+                        } else { 
+                         // printf("empty pool: size %d\n",s);
+                        }
+                    }
+            }
+        }
+     // printf("realloc %i -> %i\n", (int) osize, (int) nsize); 
+        return lmt_memory_realloc(ptr, nsize);
+    }
+}
+
+# endif 
 
 static int enginelib_aux_luapanic(lua_State *L)
 {
@@ -1029,6 +1162,7 @@ void lmt_initialize(void)
     lua_State *L = NULL;
     int seed = luaL_makeseed(L); /* maybe we will default to the luametatex version number */
     L = lua_newstate(enginelib_aux_luaalloc, NULL, seed);
+enginelib_initialize_memory_pool();
     if (L) {
         /*tex By default we use the generational garbage collector. */
         lua_gc(L, LUA_GCGEN, 0, 0);

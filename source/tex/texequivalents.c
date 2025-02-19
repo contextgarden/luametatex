@@ -90,6 +90,7 @@ save_state_info lmt_save_state = {
         .ptr       = 0,
         .initial   = memory_data_unset,
         .offset    = 0,
+        .extra     = 0, 
     },
     .current_level    = 0,
     .current_group    = 0,
@@ -374,7 +375,7 @@ static void tex_undump_equivalents_mem_hash(dumpstream f)
     }
 }
 
-void tex_undump_equivalents_mem_registers(dumpstream f) /* the old unpacker */
+static void tex_undump_equivalents_mem_registers(dumpstream f) /* the old unpacker */
 {
     int index = first_register_base;
     int n_of_different = 0;
@@ -407,7 +408,7 @@ void tex_undump_equivalents_mem_registers(dumpstream f) /* the old unpacker */
     }
 }
 
-void tex_undump_equivalents_mem_extra(dumpstream f)
+static void tex_undump_equivalents_mem_extra(dumpstream f)
 {
     undump_int(f, lmt_hash_state.hash_data.ptr);
     if (lmt_hash_state.hash_data.ptr > 0) {
@@ -416,7 +417,7 @@ void tex_undump_equivalents_mem_extra(dumpstream f)
     }
 }
 
-void tex_undump_equivalents_mem_specials(dumpstream f)
+static void tex_undump_equivalents_mem_specials(dumpstream f)
 {
     undump_int(f, lmt_token_state.par_loc);
     if (lmt_token_state.par_loc >= hash_base && lmt_token_state.par_loc <= lmt_hash_state.hash_data.top) {
@@ -2404,7 +2405,7 @@ int tex_located_save_value(int id)
     return 0;
 }
 
-extern int tex_cs_state(halfword p)
+int tex_cs_state(halfword p)
 {
     if (p == null_cs) {
         return cs_null_error;
@@ -2417,4 +2418,24 @@ extern int tex_cs_state(halfword p)
     } else {
         return cs_no_error;
     }
+}
+
+void tex_save_stack_catch_up(void)
+{
+    // save_state_info saved_save_stack_data = lmt_save_state;
+    halfword saved_stack_ptr = lmt_save_state.save_stack_data.ptr;
+    quarterword saved_group = cur_group;
+    quarterword saved_level = cur_level;
+    lmt_save_state.save_stack_data.ptr = cur_boundary;
+    while (lmt_input_state.in_stack[lmt_input_state.in_stack_data.ptr].group != lmt_save_state.save_stack_data.ptr) {
+        --cur_level;
+        tex_print_nlp();
+        tex_print_format("Warning: end of file when %G is incomplete", 1);
+        cur_group = save_level(lmt_save_state.save_stack_data.ptr);
+        lmt_save_state.save_stack_data.ptr = save_value(lmt_save_state.save_stack_data.ptr);
+    }
+    // lmt_save_state = saved_save_stack_data;
+    lmt_save_state.save_stack_data.ptr = saved_stack_ptr;
+    cur_level = saved_level;
+    cur_group = saved_group;
 }

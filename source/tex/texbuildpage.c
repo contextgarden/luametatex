@@ -241,7 +241,7 @@ static void tex_aux_freeze_page_specs(int s)
     if (tracing_pages_par > 0) {
         tex_begin_diagnostic();
         tex_print_format(
-            "[page: frozen state, goal=%p, maxdepth=%p, contribution=%s, insertheights=%p]",
+            "[page: frozen state, goal %p, maxdepth %p, contribution %s, insertheights %p]",
             page_goal,
             lmt_page_builder_state.max_depth,
             lmt_interface.page_contribute_values[s].name,
@@ -261,7 +261,7 @@ static void update_page_goal(halfword index, scaled total, scaled delta)
     if (tracing_inserts_par > 0) {
         tex_begin_diagnostic();
         tex_print_format(
-            "[page: update page goal for insert, index=%i, total=%p, insertheights=%p, vsize=%p, delta=%p, goal=%p]",
+            "[page: update page goal for insert, index %i, total %p, insertheights %p, vsize %p, delta %p, goal %p]",
             index, total, lmt_page_builder_state.insert_heights, page_vsize, delta, page_goal
         );
         tex_end_diagnostic();
@@ -299,12 +299,14 @@ static void tex_aux_start_new_page(void)
 
 */
 
-static halfword tex_aux_delete_box_content(int n)
+static halfword tex_aux_delete_box_content(int n, const char *what, int where)
 {
-    tex_begin_diagnostic();
-    tex_print_format("[page: deleting box]");
-    tex_show_box(n);
-    tex_end_diagnostic();
+    if (tracing_pages_par > 0) {
+        tex_begin_diagnostic();
+        tex_print_format("[page: deleting %s box, case %i]", what, where);
+        tex_show_box(n);
+        tex_end_diagnostic();
+    }
     tex_flush_node_list(n);
     return null;
 }
@@ -462,7 +464,7 @@ static void tex_aux_append_insert(halfword current)
         tex_couple_nodes(location, splitnode);
         location = splitnode;
         if (! tex_aux_valid_insert_content(content)) {
-            content = tex_aux_delete_box_content(content);
+            content = tex_aux_delete_box_content(content, "insert", 1);
             tex_set_insert_content(index, content);
         };
         if (content) {
@@ -537,7 +539,7 @@ static void tex_aux_append_insert(halfword current)
             if (height > limit - box_height(location)) {
                 height = limit - box_height(location);
             }
-            breaknode = tex_vert_break(insert_list(current), height, insert_max_depth(current));
+            breaknode = tex_vert_break(insert_list(current), height, insert_max_depth(current), 0, 0);
             box_height(location) += lmt_packaging_state.best_height_plus_depth;
             penalty = breaknode ? (node_type(breaknode) == penalty_node ? penalty_amount(breaknode) : 0) : eject_penalty;
             if (tracing_pages_par > 0) {
@@ -662,34 +664,39 @@ static void tex_aux_show_loner_penalty(int callback_id, halfword options, scaled
     lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "dd->", options, penalty);
 }
 
-static int tex_aux_topskip_restart(halfword current, int where, scaled height, scaled depth, scaled exdepth, int tracing)
+static int tex_aux_topskip_restart(halfword current, int where, scaled height, scaled depth, scaled exdepth, int discard, int tracing)
 {
     if (lmt_page_builder_state.contents < contribute_box) {
         /*tex
             Initialize the current page, insert the |\topskip| glue ahead of |p|, and |goto 
             continue|.
         */
-        halfword gluenode = tex_aux_insert_topskip(height, where);
-        tex_couple_nodes(gluenode, current);
-        tex_couple_nodes(contribute_head, gluenode);
-        if (tracing > 1) {
-            tex_begin_diagnostic();
-            tex_print_format("[page: initialize, topskip at %s]", where == contribute_box ? "box" : "rule");
-            tex_end_diagnostic();
+        if (discard) { 
+            return 2;
+        } else { 
+            halfword gluenode = tex_aux_insert_topskip(height, where);
+            tex_attach_attribute_list_copy(gluenode, current);
+            tex_couple_nodes(gluenode, current);
+            tex_couple_nodes(contribute_head, gluenode);
+            if (tracing > 1) {
+                tex_begin_diagnostic();
+                tex_print_format("[page: initialize, topskip at %s]", where == contribute_box ? "box" : "rule");
+                tex_end_diagnostic();
+            }
         }
         return 1;
     } else {
         /*tex Move a box to the current page, then |goto contribute|. */
         page_total += page_depth + height;
         page_depth = depth;
-page_except -= height;
-page_except -= depth;
+        page_except -= height;
+        page_except -= depth;
         if (exdepth > page_except) {
             page_except = exdepth;
         }
-if (page_except < 0) {
-    page_except = 0; 
-}
+        if (page_except < 0) {
+            page_except = 0; 
+        }
         return 0;
     }
 }
@@ -770,7 +777,7 @@ static void tex_aux_reconsider_goal(halfword current, halfword *badness, halfwor
                     if (tracing > 0) {
                         tex_begin_diagnostic();
                         tex_print_format(
-                            "[page: extra check, total=%P, goal=%p, extragoal=%p, badness=%B, costs=%i, extrabadness=%B, extracosts=%i]",
+                            "[page: extra check, total %P, goal %p, extragoal %p, badness %B, costs %i, extrabadness %B, extracosts %i]",
                             page_total, page_stretch, page_filstretch, page_filstretch, page_fillstretch, page_filllstretch, page_shrink,
                             page_goal, page_extra_goal_par,
                             *badness, *costs, extrabadness, extracosts
@@ -838,19 +845,18 @@ static inline halfword tex_aux_used_penalty(halfword p)
     }
 }
 
-
-void tex_build_page(halfword context, halfword boundary)
+static void tex_process_mvl(halfword context, halfword boundary)
 {
     if (! lmt_page_builder_state.output_active) {
         lmt_page_filter_callback(context, boundary);
-    }
+    }        
     if (node_next(contribute_head) && ! lmt_page_builder_state.output_active) {
         /*tex The (upcoming) penalty to be added to the badness: */
         halfword penalty = 0;
         int callback_id = lmt_callback_defined(show_build_callback);
         int tracing = tracing_pages_par;
         if (callback_id) { 
-           tex_aux_initialize_show_build_node(callback_id);
+            tex_aux_initialize_show_build_node(callback_id);
         }
         do {
             /*tex 
@@ -861,7 +867,7 @@ void tex_build_page(halfword context, halfword boundary)
             halfword type = node_type(current);
             quarterword subtype = node_subtype(current);
             if (callback_id) { 
-               tex_aux_step_show_build_node(callback_id, current);
+                tex_aux_step_show_build_node(callback_id, current);
             }
             if (lmt_page_builder_state.last_glue != max_halfword) {
                 tex_flush_node(lmt_page_builder_state.last_glue);
@@ -900,16 +906,30 @@ void tex_build_page(halfword context, halfword boundary)
                 case vlist_node:
                     if (tex_aux_migrating_restart(current, tracing)) {
                         continue;
-                    } else if (tex_aux_topskip_restart(current, contribute_box, box_height(current), box_depth(current), box_exdepth(current), tracing)) {
-                        continue;
-                    } else {
-                        goto CONTRIBUTE;
+                    } else { 
+                        switch (tex_aux_topskip_restart(current, contribute_box, box_height(current), box_depth(current), box_exdepth(current), (box_options(current) & box_option_discardable), tracing)) {
+                            case 1: 
+                                continue;
+                            case 2: 
+                                /* todo: remove */
+                                box_height(current) = 0;
+                                box_depth(current) = 0;
+                                continue;
+                            default: 
+                                goto CONTRIBUTE;
+                        }
                     }
                 case rule_node:
-                    if (tex_aux_topskip_restart(current, contribute_rule, rule_height(current), rule_depth(current), 0, tracing)) {
-                        continue;
-                    } else {
-                        goto CONTRIBUTE;
+                    switch (tex_aux_topskip_restart(current, contribute_rule, rule_height(current), rule_depth(current), 0, (rule_options(current) & rule_option_discardable), tracing)) {
+                        case 1: 
+                            continue;
+                        case 2: 
+                            /* todo: remove */
+                            rule_height(current) = 0;
+                            rule_depth(current) = 0;
+                            continue;
+                        default: 
+                            goto CONTRIBUTE;
                     }
                 case boundary_node:
                     if (subtype == page_boundary) {
@@ -963,14 +983,14 @@ void tex_build_page(halfword context, halfword boundary)
                     goto CONTRIBUTE;
                 default:
                     tex_handle_error(
-                     // normal_error_type,
+                        // normal_error_type,
                         succumb_error_type,
                         "Invalid %N node in pagebuilder",
                         current,
                         NULL
                     );
                     goto DISCARD;
-                 // tex_formatted_error("pagebuilder", "invalid %N node in vertical mode", current);
+                    // tex_formatted_error("pagebuilder", "invalid %N node in vertical mode", current);
                     break;
             }
             /*tex
@@ -980,7 +1000,7 @@ void tex_build_page(halfword context, halfword boundary)
             */
             if (tracing > 1) {
                 tex_begin_diagnostic();
-                tex_print_format("[page: compute: %N, %d, penalty=%i]", current, current, penalty);
+                tex_print_format("[page: compute: %N, %d, penalty %i]", current, current, penalty);
                 tex_end_diagnostic();
             }
             if (penalty < infinite_penalty) {
@@ -993,7 +1013,7 @@ void tex_build_page(halfword context, halfword boundary)
                 lmt_page_builder_state.last_extra_used = 0;
                 if (tracing > 1) {
                     tex_begin_diagnostic();
-                    tex_print_format("[page: calculate, %N, %d, total=%P, goal=%p, badness=%B, costs=%i]", 
+                    tex_print_format("[page: calculate, %N, %d, total %P, goal %p, badness %B, costs %i]", 
                         current, current, 
                         page_total, page_stretch, page_fistretch, page_filstretch, page_fillstretch, page_filllstretch, page_shrink,
                         page_goal,
@@ -1023,7 +1043,7 @@ void tex_build_page(halfword context, halfword boundary)
                         }
                         tex_aux_save_best_page_specs();
                         if (callback_id) { 
-                           tex_aux_move_show_build_node(callback_id, current);
+                            tex_aux_move_show_build_node(callback_id, current);
                         }
                     }
                     if (fireup) {
@@ -1033,14 +1053,14 @@ void tex_build_page(halfword context, halfword boundary)
                             tex_end_diagnostic();
                         }
                         if (callback_id) { 
-                           tex_aux_fireup_show_build_node(callback_id, current);
+                            tex_aux_fireup_show_build_node(callback_id, current);
                         }
                         /*tex Output the current page at the best place. */
                         tex_aux_fire_up(current);
                         if (lmt_page_builder_state.output_active) {
                             /*tex User's output routine will act. */
                             if (callback_id) { 
-                               tex_aux_wrapup_show_build_node(callback_id);
+                                tex_aux_wrapup_show_build_node(callback_id);
                             }
                             return;
                         } else {
@@ -1054,7 +1074,7 @@ void tex_build_page(halfword context, halfword boundary)
                     tex_aux_skip_show_build_node(callback_id, current);
                 }
             }
-          UPDATEHEIGHTS:
+            UPDATEHEIGHTS:
             /*tex
                 Go here to record glue in the |active_height| table. Update the current page
                 measurements with respect to the glue or kern specified by node~|p|.
@@ -1077,7 +1097,7 @@ void tex_build_page(halfword context, halfword boundary)
                     goto APPEND;
                 case glue_node:
                     if (page_except) { 
-                        glue_stretch(current) = 0;
+                        glue_stretch(current) = 0; /* why not also shrink etc */
                         page_except -= glue_amount(current);
                         if (page_except < 0) {
                             page_except = 0;
@@ -1088,7 +1108,7 @@ void tex_build_page(halfword context, halfword boundary)
                     page_depth = 0;
                     goto APPEND;
             }
-          CONTRIBUTE:
+            CONTRIBUTE:
             /*tex
                 Go here to link a node into the current page. Make sure that |page_max_depth| is
                 not exceeded.
@@ -1102,7 +1122,7 @@ void tex_build_page(halfword context, halfword boundary)
                 page_total += page_depth - lmt_page_builder_state.max_depth;
                 page_depth = lmt_page_builder_state.max_depth;
             }
-          APPEND:
+            APPEND:
             if (tracing > 1) {
                 tex_begin_diagnostic();
                 tex_print_format("[page: append, %N, %d]", current, current);
@@ -1114,7 +1134,7 @@ void tex_build_page(halfword context, halfword boundary)
             tex_try_couple_nodes(contribute_head, node_next(current));
             node_next(current) = null;
             continue; // or: break; 
-          DISCARD:
+            DISCARD:
             if (tracing > 1) {
                 tex_begin_diagnostic();
                 tex_print_format("[page: discard, %N, %d]", current, current);
@@ -1136,6 +1156,13 @@ void tex_build_page(halfword context, halfword boundary)
         } while (node_next(contribute_head));
         /*tex Make the contribution list empty by setting its tail to |contribute_head|. */
         contribute_tail = contribute_head;
+    }
+}
+
+void tex_build_page(halfword context, halfword boundary)
+{
+    if (! tex_appended_mvl(context, boundary)) {
+        tex_process_mvl(context, boundary);
     }
 }
 
@@ -1204,14 +1231,16 @@ static void tex_aux_fire_up(halfword c)
     }
     /*tex Ensure that box |output_box| is empty before output. */
     if (box_register(output_box_par)) {
-        tex_handle_error(
-            normal_error_type,
-            "\\box%i is not void",
-            output_box_par,
-            "You shouldn't use \\box\\outputbox except in \\output routines. Proceed, and I'll\n"
-            "discard its present contents."
-        );
-        box_register(output_box_par) = tex_aux_delete_box_content(box_register(output_box_par));
+        if (! ((no_output_box_error_par > 2) || (no_output_box_error_par & 1))) { 
+            tex_handle_error(
+                normal_error_type,
+                "\\box%i is not void",
+                output_box_par,
+                "You shouldn't use \\box\\outputbox except in \\output routines. Proceed, and I'll\n"
+                "discard its present contents."
+            );
+        }
+        box_register(output_box_par) = tex_aux_delete_box_content(box_register(output_box_par), "output", 1);
     }
     /*
     {
@@ -1264,7 +1293,7 @@ static void tex_aux_fire_up(halfword c)
                     halfword index = insert_index(insert);
                     halfword content = tex_get_insert_content(index);
                     if (! tex_aux_valid_insert_content(content)) {
-                        content = tex_aux_delete_box_content(content);
+                        content = tex_aux_delete_box_content(content, "insert", 2);
                     }
                     if (! content) {
                         /*tex
@@ -1528,13 +1557,15 @@ void tex_resume_after_output(void)
     lmt_page_builder_state.insert_penalties = 0;
     /*tex Ensure that box |output_box| is empty after output. */
     if (box_register(output_box_par)) {
-        tex_handle_error(
-            normal_error_type,
-            "Output routine didn't use all of \\box%i", output_box_par,
-            "Your \\output commands should empty \\box\\outputbox, e.g., by saying\n"
-            "'\\shipout\\box\\outputbox'. Proceed; I'll discard its present contents."
-        );
-        box_register(output_box_par) = tex_aux_delete_box_content(box_register(output_box_par));;
+        if (! ((no_output_box_error_par > 2) || (no_output_box_error_par & 2))) { 
+            tex_handle_error(
+                normal_error_type,
+                "Output routine didn't use all of \\box%i", output_box_par,
+                "Your \\output commands should empty \\box\\outputbox, e.g., by saying\n"
+                "'\\shipout\\box\\outputbox'. Proceed; I'll discard its present contents."
+            );
+        }
+        box_register(output_box_par) = tex_aux_delete_box_content(box_register(output_box_par), "output", 1);
     }
     if (lmt_insert_state.storing == insert_storage_delay && tex_insert_stored()) {
         if (tracing_inserts_par > 0) {
@@ -1555,7 +1586,7 @@ void tex_resume_after_output(void)
         lmt_page_builder_state.page_tail = cur_list.tail;
     }
     if (node_next(page_head)) {
-        /* Both go before heldover contributions. */
+        /* Both go before held over contributions. */
         if (! node_next(contribute_head)) {
             contribute_tail = lmt_page_builder_state.page_tail;
         }

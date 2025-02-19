@@ -173,7 +173,7 @@ typedef enum linebreak_quality_states {
 # define paragraph_has_optional(state) (state & par_has_optional)
 
 extern void tex_line_break_prepare (
-    halfword par, 
+    halfword  par, 
     halfword *tail, 
     halfword *parinit_left_skip_glue,
     halfword *parinit_right_skip_glue,
@@ -279,4 +279,25 @@ extern void tex_get_line_content_range(
     halfword *first, 
     halfword *last
 ); 
+
+/*tex Some more shared helpers: */
+
+extern void tex_aux_print_break_node(
+    halfword active, 
+    halfword passive, 
+    int      do_last_line_fit
+);
+
+extern void tex_aux_print_feasible_break(
+    halfword current, 
+    halfword breakpoint, 
+    halfword badness, 
+    halfword penalty, 
+    halfword d, 
+    halfword artificial_demerits, 
+    halfword fit_class, 
+    halfword printed_node
+);
+
+
 # endif

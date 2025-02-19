@@ -28,21 +28,22 @@ language_state_info lmt_language_state = {
         .size         = memory_data_unset,
         .step         = stp_language_size,
         .allocated    = 0,
-        .itemsize     = 1,
+        .itemsize     = sizeof(tex_language *),
         .top          = 0,
         .ptr          = 0,
         .initial      = memory_data_unset,
         .offset       = 0,
+        .extra        = 0, 
     },
-    .handler_table_id = 0,
-    .handler_count    = 0,
-    .list_count       = 0, 
-    .checked_count    = 0,
-    .exceptions_count = 0,
-    .hyphenated_count = 0,
-    .nothing_count    = 0,
-    .word_buffer      = { 0 },
-    .uword_buffer     = { 0 }, 
+    .handler_table_id    = 0,
+    .handler_count       = 0,
+    .list_count          = 0, 
+    .checked_count       = 0,
+    .exceptions_count    = 0,
+    .hyphenated_count    = 0,
+    .nothing_count       = 0,
+    .shared_word_buffer  = { 0 },
+    .shared_uword_buffer = { 0 }, 
 };
 
 /*tex
@@ -104,7 +105,7 @@ static halfword tex_aux_new_language_id(halfword id)
                 tmp[i] = NULL;
             }
             lmt_language_state.languages = tmp;
-            lmt_language_state.language_data.allocated += ((size_t) top - lmt_language_state.language_data.top) * sizeof(tex_language *);
+            lmt_language_state.language_data.allocated = top;
             lmt_language_state.language_data.top = top;
             lmt_language_state.language_data.ptr += 1;
             return lmt_language_state.language_data.ptr;
@@ -123,7 +124,7 @@ void tex_initialize_languages(void)
             tmp[i] = NULL;
         }
         lmt_language_state.languages = tmp;
-        lmt_language_state.language_data.allocated += lmt_language_state.language_data.minimum * sizeof(tex_language *);
+        lmt_language_state.language_data.allocated = lmt_language_state.language_data.minimum;
         lmt_language_state.language_data.top = lmt_language_state.language_data.minimum;
     } else {
         tex_overflow_error("languages", lmt_language_state.language_data.minimum);
@@ -155,7 +156,7 @@ tex_language *tex_new_language(halfword n)
         tex_language *lang = lmt_memory_malloc(sizeof(struct tex_language));
         if (lang) {
             lmt_language_state.languages[id] = lang;
-            lmt_language_state.language_data.allocated += sizeof(struct tex_language);
+            lmt_language_state.language_data.extra += sizeof(struct tex_language);
             tex_aux_reset_language(id);
             if (saving_hyph_codes_par) {
                 /*tex
@@ -236,6 +237,7 @@ void tex_undump_language_data(dumpstream f)
             lmt_language_state.language_data.top = top;
             lmt_language_state.language_data.ptr = ptr;
             lmt_language_state.languages = tmp;
+            lmt_language_state.language_data.allocated = top;
             for (int i = 0; i < top; i++) {
                 unsigned char marker;
                 undump_uchar(f, marker);
@@ -243,7 +245,7 @@ void tex_undump_language_data(dumpstream f)
                     tex_language *lang = lmt_memory_malloc(sizeof(struct tex_language));
                     if (lang) {
                         lmt_language_state.languages[i] = lang;
-                        lmt_language_state.language_data.allocated += sizeof(struct tex_language);
+                        lmt_language_state.language_data.extra += sizeof(struct tex_language);
                         lang->exceptions = 0;
                         lang->patterns = NULL;
                         lang->wordhandler = 0;
@@ -385,8 +387,8 @@ void tex_load_tex_patterns(halfword curlang, halfword head)
 /* define tex_isspace(c) (c == ' ' || c == '\t') */
 #  define tex_isspace(c) (c == ' ')
 
-# define word_buffer  lmt_language_state.word_buffer
-# define uword_buffer lmt_language_state.uword_buffer
+# define word_buffer  lmt_language_state.shared_word_buffer
+# define uword_buffer lmt_language_state.shared_uword_buffer
 
 const char *tex_clean_hyphenation(halfword id, const char *buff, char **cleaned)
 {
@@ -421,7 +423,7 @@ const char *tex_clean_hyphenation(halfword id, const char *buff, char **cleaned)
     */
     i = 0;
     while (uword_buffer[i] > 0) {
-        int u = uword_buffer[i++];
+        unsigned u = uword_buffer[i++];
         if (u == '-') {
             /*tex Skip. */
         } else if (u == '=') {
@@ -583,7 +585,7 @@ static halfword tex_aux_insert_discretionary(halfword t, halfword pre, halfword 
     return d;
 }
 
-static halfword tex_aux_insert_syllable_discretionary(halfword t, lang_variables *lan)
+static halfword tex_aux_insert_syllable_discretionary(halfword t, language_variables *lan)
 {
     halfword n = tex_new_disc_node(syllable_discretionary_code);
     disc_penalty(n) = hyphen_penalty_par;
@@ -593,10 +595,12 @@ static halfword tex_aux_insert_syllable_discretionary(halfword t, lang_variables
     if (lan->pre_hyphen_char > 0) {
         halfword g = tex_new_glyph_node(glyph_unset_subtype, glyph_font(t), lan->pre_hyphen_char, t);
         tex_set_disc_field(n, pre_break_code, g);
+        set_glyph_disccode(g, glyph_disc_syllable);
     }
     if (lan->post_hyphen_char > 0) {
         halfword g = tex_new_glyph_node(glyph_unset_subtype, glyph_font(t), lan->post_hyphen_char, t);
         tex_set_disc_field(n, post_break_code, g);
+        set_glyph_disccode(g, glyph_disc_syllable);
     }
     return n;
 }
@@ -616,6 +620,12 @@ static halfword tex_aux_compound_word_break(halfword t, halfword clang, halfword
     }
     pre  = prechar  > 0 ? tex_new_glyph_node(glyph_unset_subtype, glyph_font(t), prechar,  t) : null;
     post = postchar > 0 ? tex_new_glyph_node(glyph_unset_subtype, glyph_font(t), postchar, t) : null;
+    if (pre) { 
+        set_glyph_disccode(pre, glyph_disc_automatic);
+    }
+    if (post) { 
+        set_glyph_disccode(post, glyph_disc_automatic);
+    }
     disc = tex_aux_insert_discretionary(t, pre, post, t, automatic_discretionary_code, tex_automatic_disc_penalty(glyph_hyphenate(t)));
     return disc;
 }
@@ -683,12 +693,14 @@ static halfword tex_aux_find_exception_part(unsigned int *j, unsigned int *uword
                             tex_add_glyph_option(s, glyph_option_no_left_kern);
                             nokerning = 0;
                         }
+                        set_glyph_disccode(head, glyph_disc_syllable);
                         tail = node_next(tail);
                         break;
                     }
             }
         } else {
             head = tex_new_glyph_node(glyph_unset_subtype, glyph_font(parent), (int) uword[i + 1], parent); /* todo: data */
+            set_glyph_disccode(head, glyph_disc_syllable);
             tail = head;
         }
         i++;
@@ -732,7 +744,7 @@ static void tex_aux_show_exception_error(const char *part)
 static void tex_aux_do_exception(halfword wordstart, halfword r, char *replacement)
 {
     halfword t = wordstart;
-    lang_variables langdata;
+    language_variables langdata;
     unsigned uword[max_size_of_word_buffer]; //  = { 0 };
     unsigned len = aux_splitutf2uni(uword, replacement);
     int clang = get_glyph_language(wordstart);
@@ -979,7 +991,7 @@ static inline halfword tex_aux_is_hyphen_char(halfword chr)
     } else if (chr == ex_hyphen_char_par) {
         return chr;
     } else {
-        return null;
+        return 0;
     }
 }
 
@@ -1184,13 +1196,13 @@ void tex_handle_hyphenation(halfword head, halfword tail)
 }
 
 static int tex_aux_hnj_hyphen_hyphenate(
-    hjn_dictionary *dict,
-    halfword        first,
-    halfword        last,
-    int             length,
-    halfword        left,
-    halfword        right,
-    lang_variables *lan
+    hjn_dictionary     *dict,
+    halfword            first,
+    halfword            last,
+    int                 length,
+    halfword            left,
+    halfword            right,
+    language_variables *lan
 )
 {
     /*tex +2 for dots at each end, +1 for points outside characters. */
@@ -1213,7 +1225,7 @@ static int tex_aux_hnj_hyphen_hyphenate(
         node_next(end_period) = node_next(last);
         node_next(last) = end_period;
         /*tex Now, run the finite state machine. */
-        for (char_num = 0, here = begin_period; here != node_next(end_period); here = node_next(here)) {
+        for (here = begin_period, char_num = 0; here != node_next(end_period); here = node_next(here)) {
             int ch;
             if (here == begin_period || here == end_period) {
                 ch = '.';
@@ -1328,11 +1340,19 @@ static inline int is_traditional_hyphen(halfword n)
     return (
         (glyph_character(n) == ex_hyphen_char_par)                             /*tex parameter */
      && (has_font_text_control(glyph_font(n),text_control_collapse_hyphens))   /*tex font driven */
-     && (hyphenation_permitted(glyph_hyphenate(n), collapse_hyphenation_mode)) /*tex language driven */
+     && (hyphenation_permitted(glyph_hyphenate(n),collapse_hyphenation_mode)) /*tex language driven */
     );
 }
 
-int tex_collapse_list(halfword head, halfword c1, halfword c2, halfword c3) /* ex_hyphen_char_par 0x2013 0x2014 */
+static inline int is_apostrophe(halfword n)
+{
+    return (
+        (glyph_character(n) == ex_apostrophe_char_par)                                   /*tex parameter */
+     && (has_font_text_control(glyph_font(n),text_control_replace_apostrophe))           /*tex font driven */
+     && (hyphenation_permitted(glyph_hyphenate(n),replace_apostrophe_hyphenation_mode)) /*tex language driven */
+    );
+}
+int tex_collapse_list(halfword head, halfword c1, halfword c2, halfword c3, halfword c4) /* ex_hyphen_char_par 0x2013 0x2014 0x2019 */
 {
     /*tex Let's play safe: */
     halfword found = 0;
@@ -1364,18 +1384,21 @@ int tex_collapse_list(halfword head, halfword c1, halfword c2, halfword c3) /* e
                         } else {
                             glyph_character(n1) = c1; /* can become language dependent */
                         }
+                    } else if (is_apostrophe(n1)) {
+                        glyph_character(n1) = c4; /* can become language dependent */
+                        found = 1;
                     }
                     break;
                 case disc_node:
                     {
                         halfword done = 0;
-                        if (disc_pre_break_head(n1) && tex_collapse_list(disc_pre_break_head(n1), c1, c2, c3)) {
+                        if (disc_pre_break_head(n1) && tex_collapse_list(disc_pre_break_head(n1), c1, c2, c3, c4)) {
                             ++done;
                         }
-                        if (disc_post_break_head(n1) && tex_collapse_list(disc_post_break_head(n1), c1, c2, c3)) {
+                        if (disc_post_break_head(n1) && tex_collapse_list(disc_post_break_head(n1), c1, c2, c3, c4)) {
                             ++done;
                         }
-                        if (disc_no_break_head(n1) && tex_collapse_list(disc_no_break_head(n1), c1, c2, c3)) {
+                        if (disc_no_break_head(n1) && tex_collapse_list(disc_no_break_head(n1), c1, c2, c3, c4)) {
                             ++done;
                         }
                         if (done) {
@@ -1434,7 +1457,7 @@ void tex_hyphenate_list(halfword head, halfword tail)
             /* */
             r = tex_aux_find_next_wordstart(r, first_language);
             if (r) {
-                lang_variables langdata;
+                language_variables langdata;
                 char utf8word[max_size_of_word_buffer];
                 char utf8original[max_size_of_word_buffer];
                 char *utf8ptr = utf8word;
@@ -1544,6 +1567,7 @@ void tex_hyphenate_list(halfword head, halfword tail)
                                 if (t && node_type(t) == glyph_node && ! tex_aux_is_hyphen_char(glyph_character(t)) && hyphenation_permitted(glyph_hyphenate(t), automatic_hyphenation_mode)) {
                                     /*tex we have a word already but the next character may not be a hyphen too */
                                     halfword g = r;
+                                    set_glyph_disccode(g, glyph_disc_automatic);
                                     r = tex_aux_compound_word_break(r, get_glyph_language(g), explicit_hyphen);
                                     if (trace > 1) {
                                         *utf8ori = 0;
@@ -1571,6 +1595,7 @@ void tex_hyphenate_list(halfword head, halfword tail)
                                 } else {
                                     /*tex We jump over the sequence of hyphens ... traditional. */
                                     while (t && node_type(t) == glyph_node && tex_aux_is_hyphen_char(glyph_character(t))) {
+                                        set_glyph_disccode(t, glyph_disc_automatic);
                                         r = t;
                                         t = node_next(r);
                                     }

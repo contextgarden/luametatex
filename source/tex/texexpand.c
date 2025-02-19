@@ -461,7 +461,7 @@ void tex_expand_current_token(void)
                             }
                         case expand_parameter_code:
                             {
-                                halfword n = tex_scan_integer(0, NULL);
+                                halfword n = tex_scan_integer(0, NULL, NULL);
                                 if (n >= 0 && n < lmt_input_state.parameter_stack_data.ptr) {
                                     halfword p = lmt_input_state.parameter_stack[n];
                                     if (p) {
@@ -631,7 +631,7 @@ void tex_expand_current_token(void)
                                     so we don't need to optimize. If needed we can make a version
                                     where this is mandate.
                                 */
-                                int cattable = (code == retokenized_code || tex_scan_optional_keyword("catcodetable")) ? tex_scan_integer(0, NULL) : cat_code_table_par; /* no _optional_ here ? */
+                                int cattable = (code == retokenized_code || tex_scan_optional_keyword("catcodetable")) ? tex_scan_integer(0, NULL, NULL) : cat_code_table_par; /* no _optional_ here ? */
                                 full_scanner_status saved_full_status = tex_save_full_scanner_status();
                                 strnumber u = tex_save_cur_string();
                                 halfword s = tex_scan_toks_expand(0, NULL, 0, 0);
@@ -745,11 +745,11 @@ static void tex_aux_complain_missing_csname(void)
 //     return m;
 // }
 
-static inline int tex_aux_chr_to_buffer(unsigned char *b, int m, int c)
-{
-    b[m++] = (unsigned char) c;
-    return m;
-}
+// static inline int tex_aux_chr_to_buffer(unsigned char *b, int m, int c)
+// {
+//     b[m++] = (unsigned char) c;
+//     return m;
+// }
 
 static inline int tex_aux_uni_to_buffer(unsigned char *b, int m, int c)
 {
@@ -1507,6 +1507,56 @@ static void tex_aux_macro_call(halfword cs, halfword cmd, halfword chr)
                         nested = true;
                      // match = match_token;
                         goto AGAIN;
+# if (match_experiment)
+/* 
+    This is a proof of concept that kind of works but we need a storage model that permits the
+    larger values. But that is currently not worth the trouble because we seldom need this. Think 
+    of dimension_value_cmd and integer_value_cmd where the next token pointed too is the value 
+    but that is actually also kind of alien to tex (not really a token list then). Typing the 
+    stack is overkill too. We can do the same as node_cmd: have a lsb/msb in a folow up ignore_cmd
+    token. 
+*/
+case dimension_match_token:
+    {
+        if (last) { 
+            tex_back_input(cur_tok);
+        }
+        halfword v = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+        halfword p ;
+        if (node_token_overflow(v)) {
+            p = tex_store_new_token(null, token_val(dimension_reference_cmd, node_token_msb(v)));
+            tex_store_new_token(p, token_val(ignore_cmd, node_token_lsb(v)));
+        } else {
+            p = tex_store_new_token(null, token_val(dimension_reference_cmd, v));
+        }
+        pstack[nofscanned] = p;
+        ++nofscanned;
+        matchpointer = token_link(matchpointer);
+        matchtoken = token_info(matchpointer);
+        last = false;
+        goto OEPS;
+    }
+case integer_match_token:
+    {
+        if (last) { 
+            tex_back_input(cur_tok);
+        }
+        halfword v = tex_scan_integer(0, NULL, NULL);
+        halfword p ;
+        if (node_token_overflow(v)) {
+            p = tex_store_new_token(null, token_val(integer_reference_cmd, node_token_msb(v)));
+            tex_store_new_token(p, token_val(ignore_cmd, node_token_lsb(v)));
+        } else {
+            p = tex_store_new_token(null, token_val(integer_reference_cmd, v));
+        }       
+        pstack[nofscanned] = p;
+        ++nofscanned;
+        matchpointer = token_link(matchpointer);
+        matchtoken = token_info(matchpointer);
+        last = false;
+        goto OEPS;
+    }
+# endif 
                     default:
                         match = matchtoken - match_token;
                         break;
@@ -1881,6 +1931,9 @@ static void tex_aux_macro_call(halfword cs, halfword cmd, halfword chr)
                     matchtoken = token_info(matchpointer);
                 }
             }
+# if (match_experiment)
+  OEPS:
+# endif 
         } while (matchtoken != end_match_token);
         nofarguments = nofscanned;
       QUITDONE:

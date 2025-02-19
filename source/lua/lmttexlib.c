@@ -1041,7 +1041,7 @@ static const char *texlib_aux_scan_dimension_part(lua_State * L, const char *ss,
         We dropped the |nd| and |nc| units as well as the |true| prefix. We could use a similar
         switch as in the normal scsanner but this one is not really used, so ...
     */
-    if ((char) *str) {
+    if (str[0] && str[1]) {
         int index = unit_parameter_index(str[0], str[1]);
         if (index >= 0) {
             switch (index) {
@@ -1961,50 +1961,31 @@ static int texlib_getmarknames(lua_State *L)
 
 static int texlib_getmark(lua_State *L)
 {
-    int mark = -1;
     if (lua_gettop(L) == 0) {
         lua_pushinteger(L, lmt_mark_state.mark_data.ptr);
         return 1;
     } else {
-        switch (lua_type(L, 1)) {
-            case LUA_TSTRING:
-                {
-                    const char *s = lua_tostring(L, 1);
-                    if (lua_key_eq(s, top)) {
-                        mark = top_marks_code;
-                    } else if (lua_key_eq(s, first)) {
-                        mark = first_marks_code;
-                    } else if (lua_key_eq(s, bottom)) {
-                        mark = bot_marks_code;
-                    } else if (lua_key_eq(s, splitfirst)) {
-                        mark = split_first_marks_code;
-                    } else if (lua_key_eq(s, splitbottom)) {
-                        mark = split_bot_marks_code;
-                    } else if (lua_key_eq(s, current)) {
-                        mark = current_marks_code;
+        halfword mark = lmt_get_mark_class(L, 1);
+        if (mark >= 0) {
+            halfword index = lmt_opthalfword(L, 2, 0);
+            if (index >= 0 && index <= lmt_mark_state.mark_data.ptr) {
+                halfword ptr = tex_get_some_mark(mark, index);
+                if (ptr) {
+                    char *str = tex_tokenlist_to_tstring(ptr, 1, NULL, 0, 0, 0, 0, 1); /* single hashes */
+                    if (str) {
+                        lua_pushstring(L, str);
+                    } else {
+                        lua_pushliteral(L, "");
                     }
-                    break;
+                    return 1;
                 }
-            case LUA_TNUMBER:
-                mark = lmt_tointeger(L, 1);
-                break;
-        }
-    }
-    if (mark >= 0) {
-        int index = lmt_optinteger(L, 2, 0);
-        if (index >= 0 && index <= lmt_mark_state.mark_data.ptr) {
-            halfword ptr = tex_get_some_mark(mark, index);
-            if (ptr) {
-                char *str = tex_tokenlist_to_tstring(ptr, 1, NULL, 0, 0, 0, 0, 1); /* single hashes */
-                if (str) {
-                    lua_pushstring(L, str);
-                } else {
-                    lua_pushliteral(L, "");
-                }
-                return 1;
+            } else {
+                /*tex 
+                    An error message is actually counterproductive, but if needed we can 
+                    have |tex.usedmark(...)|.
+                */
+                /* luaL_error(L, "valid mark class expected"); */
             }
-        } else {
-            luaL_error(L, "valid mark class expected");
         }
     }
     lua_pushnil(L);
@@ -2652,7 +2633,6 @@ static halfword texlib_toparshape(lua_State *L, int i)
                 tex_set_specification_option(p, specification_option_repeat);
             }
             lua_pop(L, 1);
-            /* fill |p| */
             for (int j = 1; j <= n; j++) {
                 halfword indent = 0;
                 halfword width = 0;
@@ -2674,6 +2654,93 @@ static halfword texlib_toparshape(lua_State *L, int i)
         }
     }
     return null;
+}
+
+static halfword texlib_tobalanceshape(lua_State *L, int i)
+{
+    if (lua_type(L, i) == LUA_TTABLE) {
+        halfword n = (halfword) luaL_len(L, i);
+        if (n > 0) {
+            halfword p = tex_new_specification_node(n, balance_shape_code, 0); /* todo: repeat but then not top based */
+            lua_push_key(repeat);
+            if (lua_rawget(L, -2) == LUA_TBOOLEAN && lua_toboolean(L, -1)) {
+                tex_set_specification_option(p, specification_option_repeat); /* not yet used */
+            }
+            lua_pop(L, 1);
+            {
+                halfword target = 0;
+                set_numeric_field_by_index(target, identifier, 0);
+                balance_shape_identifier(p) = target;
+            }
+            for (int j = 1; j <= n; j++) {
+                if (lua_rawgeti(L, i, j) == LUA_TTABLE) {
+                    halfword target = 0;
+                    set_numeric_field_by_index(target, index, 0);
+                    tex_set_balance_index(p, j, target);
+                    set_numeric_field_by_index(target, vsize, 0);
+                    tex_set_balance_vsize(p, j, target);
+                    set_numeric_field_by_index(target, extra, 0);
+                    tex_set_balance_extra(p, j, target);
+                    set_numeric_field_by_index(target, options, 0);
+                    tex_set_balance_options(p, j, target);
+                    /* */
+                    lua_push_key(topskip);                    
+                    switch (lua_rawget(L, -2)) { 
+                        case LUA_TNUMBER: 
+                            { 
+                                target = tex_new_glue_spec_node(zero_glue);
+                                glue_amount(target) = lmt_toroundnumber(L, -1);
+                                tex_set_balance_topskip(p, j, target);
+                                break;
+                            }
+                        case LUA_TUSERDATA: 
+                            { 
+                                target = lmt_optional_isnode(L, -1);
+                                tex_set_balance_topskip(p, j, tex_copy_node(target && node_type(target) == glue_spec_node ? target : balance_top_skip_par));
+                                break;
+                            }
+                    }
+                    lua_pop(L, 1);
+                    /* */
+                    lua_push_key(bottomskip);
+                    switch (lua_rawget(L, -2)) { 
+                        case LUA_TNUMBER: 
+                            { 
+                                target = tex_new_glue_spec_node(zero_glue);
+                                glue_amount(target) = lmt_toroundnumber(L, -1);
+                                tex_set_balance_bottomskip(p, j, target);
+                                break;
+                            }
+                        case LUA_TUSERDATA: 
+                            { 
+                                target = lmt_optional_isnode(L, -1);
+                                tex_set_balance_bottomskip(p, j, tex_copy_node(target && node_type(target) == glue_spec_node ? target : balance_bottom_skip_par));
+                                break;
+                            }
+                    }
+                    lua_pop(L, 1);
+                    /* */
+                }
+                lua_pop(L, 1);
+            }
+            return p;
+        }
+    }
+    return null;
+}
+
+static int texlib_setbalanceshape(lua_State *L)
+{
+    halfword p = texlib_tobalanceshape(L, 1);
+    update_tex_balance_shape(p);
+    lua_pushinteger(L, p ? specification_count(p) : 0);
+    return 1;
+}
+
+static int texlib_getcurrentmvl(lua_State *L)
+{
+    lua_pushinteger(L, tex_current_mvl(NULL, NULL));
+    return 1;
 }
 
 static int texlib_shiftparshape(lua_State *L)
@@ -2906,6 +2973,12 @@ static int texlib_set_item(lua_State* L, int index, int prefixes)
                                         }
                                         break;
                                     }
+                             // case balance_shape_code:
+                             //     {
+                             //         halfword p = texlib_tobalanceshape(L, slot);
+                             //         tex_define(flags, spec, specification_reference_cmd, p);
+                             //         break;
+                             //     }
                                 /* todo, when we need it, for instance lists */
                             }
                         }
@@ -3126,6 +3199,150 @@ static int texlib_getromannumeral(lua_State *L)
     would mean a lot of extra code to support it, like box properties that we can already access
     otherwise anyway.
 */
+
+int lmt_push_specification(lua_State *L, halfword ptr, int onlycount)
+{
+    if (ptr) {
+        halfword code = node_subtype(ptr);
+        switch (code) {
+            case par_shape_code:
+                {
+                    int n = specification_count(ptr);
+                    if (onlycount == 1) {
+                        lua_pushinteger(L, n);
+                    } else {
+                        int r = specification_repeat(ptr);
+                        lua_createtable(L, n, r ? 1 : 0);
+                        if (r) {
+                            lua_push_boolean_at_key(L, repeat, r);
+                        }
+                        for (int m = 1; m <= n; m++) {
+                            lua_createtable(L, 2, 0);
+                            lua_pushinteger(L, tex_get_specification_indent(ptr, m));
+                            lua_rawseti(L, -2, 1);
+                            lua_pushinteger(L, tex_get_specification_width(ptr, m));
+                            lua_rawseti(L, -2, 2);
+                            lua_rawseti(L, -2, m);
+                        }
+                    }
+                    return 1;
+                }
+            case balance_shape_code:
+                {
+                    int n = specification_count(ptr);
+                    if (onlycount == 1) {
+                        lua_pushinteger(L, n);
+                    } else {
+                        int r = specification_repeat(ptr);
+                        lua_createtable(L, n, r ? 1 : 0);
+                        if (r) {
+                            lua_push_boolean_at_key(L, repeat, r);
+                        }
+                        for (int m = 1; m <= n; m++) {
+                            lua_createtable(L, 0, 5);
+                            lua_push_integer_at_key(L, vsize, tex_get_balance_vsize(ptr, m));
+                            lua_push_integer_at_key(L, options, tex_get_balance_options(ptr, m));
+                            lua_push_integer_at_key(L, index, tex_get_balance_index(ptr, m));
+                            /* for now, will become an array */
+                            lua_push_integer_at_key(L, topskip, glue_amount(tex_get_balance_topskip(ptr, m)));
+                            lua_push_integer_at_key(L, bottomskip, glue_amount(tex_get_balance_bottomskip(ptr, m)));
+                            /* */
+                            lua_rawseti(L, -2, m);
+                        }
+                    }
+                    return 1;
+                }
+            case fitness_classes_code:
+                {
+                    int n = specification_count(ptr);
+                    if (onlycount == 1) {
+                        lua_pushinteger(L, n);
+                    } else {
+                        for (int m = 1; m <= n; m++) {
+                            lua_pushinteger(L, tex_get_specification_fitness_class(ptr, m));
+                            lua_rawseti(L, -2, m);
+                        }
+                    }
+                    return 1;
+                }
+            case adjacent_demerits_code:
+                {
+                    int n = specification_count(ptr);
+                    if (onlycount == 1) {
+                        lua_pushinteger(L, n);
+                    } else {
+                        for (int m = 1; m <= n; m++) {
+                            lua_createtable(L, 2, 0);
+                            lua_pushinteger(L, tex_get_specification_adjacent_u(ptr, m));
+                            lua_rawseti(L, -2, 1);
+                            lua_pushinteger(L, tex_get_specification_adjacent_d(ptr, m));
+                            lua_rawseti(L, -2, 2);
+                            lua_rawseti(L, -2, m);
+                        }
+                    }
+                    return 1;
+                }
+            case par_passes_code:
+            case balance_passes_code:
+                {
+                    return 0;
+                }
+            case inter_line_penalties_code:
+            case club_penalties_code:
+            case widow_penalties_code:
+            case display_widow_penalties_code:
+            case orphan_penalties_code:
+            case toddler_penalties_code:
+            case orphan_line_factors_code:
+            case math_forward_penalties_code:
+            case math_backward_penalties_code:
+            case integer_list_code:
+            case dimension_list_code:
+            case posit_list_code:
+                {
+                    int n = specification_count(ptr);
+                    if (onlycount == 1) {
+                        lua_pushinteger(L, n);
+                    } else {
+                        lua_createtable(L, n, 0);
+                        if (specification_double(ptr)) {
+                            for (int m = 1; m <= n; m++) {
+                                lua_createtable(L, 2, 0);
+                                if (code == posit_list_code) {
+                                    if (specification_integer(ptr)) {
+                                        lua_pushinteger(L, tex_get_specification_nepalty(ptr, m));
+                                    } else {
+                                        lua_pushnumber(L, tex_posit_to_double(tex_get_specification_nepalty(ptr, m)));
+                                    }
+                                    lua_rawseti(L, -2, 1);
+                                    lua_pushnumber(L, tex_posit_to_double(tex_get_specification_penalty(ptr, m)));
+                                    lua_rawseti(L, -2, 2);
+                                } else {
+                                    lua_pushinteger(L, tex_get_specification_nepalty(ptr, m));
+                                    lua_rawseti(L, -2, 1);
+                                    lua_pushinteger(L, tex_get_specification_penalty(ptr, m));
+                                    lua_rawseti(L, -2, 2);
+                                }
+                                lua_rawseti(L, -2, m);
+                            }
+                        } else {
+                            for (int m = 1; m <= n; m++) {
+                                if (code == posit_list_code) {
+                                    lua_pushnumber(L, tex_posit_to_double(tex_get_specification_penalty(ptr, m)));
+                                } else {
+                                    lua_pushinteger(L, tex_get_specification_penalty(ptr, m));
+                                }
+                                lua_rawseti(L, -2, m);
+                            }
+                        }
+                    }
+                    return 1;
+                }
+        }
+    }
+    lua_pushnil(L);
+    return 1;
+}
 
 static int texlib_get_internal(lua_State *L, int index, int all)
 {
@@ -3900,6 +4117,22 @@ static halfword texlib_topenalties(lua_State *L, int i, quarterword s)
     }
 }
 
+static halfword texlib_toparpasses(lua_State *L, int i)
+{
+    /* maybe some day */
+    (void) *L;
+    (void) i;
+    return 0;
+}
+
+static halfword texlib_tobalancepasses(lua_State *L, int i)
+{
+    /* maybe some day */
+    (void) *L;
+    (void) i;
+    return 0;
+}
+
 /*tex We should check for proper glue spec nodes ... todo. */
 
 # define get_dimension_par(P,A,B) \
@@ -3922,6 +4155,16 @@ static halfword texlib_topenalties(lua_State *L, int i, quarterword s)
     P = (lua_rawget(L, -2) == LUA_TTABLE) ? texlib_topenalties(L, lua_gettop(L), C) : B; \
     lua_pop(L, 1);
 
+# define get_par_passes_par(P,A,B) \
+    lua_push_key(A); \
+    P = (lua_rawget(L, -2) == LUA_TTABLE) ? texlib_toparpasses(L, lua_gettop(L)) : B; \
+    lua_pop(L, 1);
+
+# define get_balance_passes_par(P,A,B) \
+    lua_push_key(A); \
+    P = (lua_rawget(L, -2) == LUA_TTABLE) ? texlib_tobalancepasses(L, lua_gettop(L)) : B; \
+    lua_pop(L, 1);
+
 # define get_demerits_par(P,A,B,C) \
     lua_push_key(A); \
     P = (lua_rawget(L, -2) == LUA_TTABLE) ? texlib_todemerits(L, lua_gettop(L), C) : B; \
@@ -3932,18 +4175,22 @@ static halfword texlib_topenalties(lua_State *L, int i, quarterword s)
     P = (lua_rawget(L, -2) == LUA_TTABLE) ? texlib_toparshape(L, lua_gettop(L)) : B; \
     lua_pop(L, 1);
 
+# define get_balance_shape(P,A,B) \
+    lua_push_key(A); \
+    P = (lua_rawget(L, -2) == LUA_TTABLE) ? texlib_tobalanceshape(L, lua_gettop(L)) : B; \
+    lua_pop(L, 1);
+
 /*tex
     The next function needs to be kept in sync with the regular linebreak handler, wrt the special
     skips. This one can be called from within the callback so then we already have intialized.
 */
-
 
 /* par leftinit rightinit leftindent ... leftfill rightfill */
 
 static int texlib_getlinebreakparameterfields(lua_State *L)
 {
     lua_createtable(L, 61, 0);
-    lua_push_key_at_index(L,direction,               1);
+    lua_push_key_at_index(L, direction,              1);
     lua_push_key_at_index(L, tracingparagraphs,      2);
     lua_push_key_at_index(L, tracingfitness ,        3);
     lua_push_key_at_index(L, tracingpasses,          4);
@@ -4061,6 +4308,7 @@ static int texlib_linebreak(lua_State *L)
         properties.group_context = lua_group;
         properties.par_context = lua_par_context;
         properties.paragraph_dir = par_dir(par);
+        properties.paragraph_options = par_options(par);
         properties.parfill_left_skip = null;
         properties.parfill_right_skip = null;
         properties.parinit_left_skip = null;
@@ -4161,62 +4409,67 @@ static int texlib_linebreak(lua_State *L)
             properties.paragraph_dir = checked_direction_value(lmt_tointeger(L, -1));
         }
         lua_pop(L, 1);
-        get_integer_par  (properties.tracing_paragraphs,           tracingparagraphs,         tracing_paragraphs_par);
-        get_integer_par  (properties.tracing_fitness,              tracingfitness ,           tracing_fitness_par);
-        get_integer_par  (properties.tracing_passes,               tracingpasses,             tracing_passes_par);
-        get_integer_par  (properties.pretolerance,                 pretolerance,              tex_get_par_par(par, par_pre_tolerance_code));
-        get_integer_par  (properties.tolerance,                    tolerance,                 tex_get_par_par(par, par_tolerance_code));
-        get_dimension_par(properties.emergency_stretch,            emergencystretch,          tex_get_par_par(par, par_emergency_stretch_code));
-        get_dimension_par(properties.emergency_extra_stretch,      emergencyextrastretch,     tex_get_par_par(par, par_emergency_extra_stretch_code));
-        get_integer_par  (properties.looseness,                    looseness,                 tex_get_par_par(par, par_looseness_code));
-        get_integer_par  (properties.adjust_spacing,               adjustspacing,             tex_get_par_par(par, par_adjust_spacing_code));
-        get_integer_par  (properties.protrude_chars,               protrudechars,             tex_get_par_par(par, par_protrude_chars_code));
-        get_integer_par  (properties.adj_demerits,                 adjdemerits,               tex_get_par_par(par, par_adj_demerits_code));
-        get_integer_par  (properties.line_penalty,                 linepenalty,               tex_get_par_par(par, par_line_penalty_code));
-        get_integer_par  (properties.last_line_fit,                lastlinefit,               tex_get_par_par(par, par_last_line_fit_code));
-        get_integer_par  (properties.double_hyphen_demerits,       doublehyphendemerits,      tex_get_par_par(par, par_double_hyphen_demerits_code));
-        get_integer_par  (properties.final_hyphen_demerits,        finalhyphendemerits,       tex_get_par_par(par, par_final_hyphen_demerits_code));
-        get_dimension_par(properties.hsize,                        hsize,                     tex_get_par_par(par, par_hsize_code));
-        get_glue_par     (properties.left_skip,                    leftskip,                  tex_get_par_par(par, par_left_skip_code));
-        get_glue_par     (properties.right_skip,                   rightskip,                 tex_get_par_par(par, par_right_skip_code));
-        get_glue_par     (properties.emergency_left_skip,          emergencyleftskip,         tex_get_par_par(par, par_emergency_left_skip_code));
-        get_glue_par     (properties.emergency_right_skip,         emergencyrightskip,        tex_get_par_par(par, par_emergency_right_skip_code));
-        get_dimension_par(properties.hang_indent,                  hangindent,                tex_get_par_par(par, par_hang_indent_code));
-        get_integer_par  (properties.hang_after,                   hangafter,                 tex_get_par_par(par, par_hang_after_code));
-        get_integer_par  (properties.inter_line_penalty,           interlinepenalty,          tex_get_par_par(par, par_inter_line_penalty_code));
-        get_integer_par  (properties.club_penalty,                 clubpenalty,               tex_get_par_par(par, par_club_penalty_code));
-        get_integer_par  (properties.widow_penalty,                widowpenalty,              tex_get_par_par(par, par_widow_penalty_code));
-        get_integer_par  (properties.display_widow_penalty,        displaywidowpenalty,       tex_get_par_par(par, par_display_widow_penalty_code));
-        get_integer_par  (properties.toddler_penalties,            toddlerpenalties,          tex_get_par_par(par, par_toddler_penalties_code));
-        get_integer_par  (properties.left_twin_demerits,           lefttwindemerits,          tex_get_par_par(par, par_left_twin_demerits_code));
-        get_integer_par  (properties.right_twin_demerits,          righttwindemerits,         tex_get_par_par(par, par_right_twin_demerits_code));
-        get_integer_par  (properties.single_line_penalty,          singlelinepenalty,         tex_get_par_par(par, par_single_line_penalty_code));
-        get_integer_par  (properties.hyphen_penalty,               hyphenpenalty,             tex_get_par_par(par, par_hyphen_penalty_code));
-        get_integer_par  (properties.ex_hyphen_penalty,            exhyphenpenalty,           tex_get_par_par(par, par_ex_hyphen_penalty_code));
-        get_integer_par  (properties.broken_penalty,               brokenpenalty,             tex_get_par_par(par, par_broken_penalty_code));
-        get_glue_par     (properties.baseline_skip,                baselineskip,              tex_get_par_par(par, par_baseline_skip_code));
-        get_glue_par     (properties.line_skip,                    lineskip,                  tex_get_par_par(par, par_line_skip_code));
-        get_dimension_par(properties.line_skip_limit,              lineskiplimit,             tex_get_par_par(par, par_line_skip_limit_code));
-        get_integer_par  (properties.adjust_spacing,               adjustspacing,             tex_get_par_par(par, par_adjust_spacing_code));
-        get_integer_par  (properties.adjust_spacing_step,          adjustspacingstep,         tex_get_par_par(par, par_adjust_spacing_step_code));
-        get_integer_par  (properties.adjust_spacing_shrink,        adjustspacingshrink,       tex_get_par_par(par, par_adjust_spacing_shrink_code));
-        get_integer_par  (properties.adjust_spacing_stretch,       adjustspacingstretch,      tex_get_par_par(par, par_adjust_spacing_stretch_code));
-        get_integer_par  (properties.hyphenation_mode,             hyphenationmode,           tex_get_par_par(par, par_hyphenation_mode_code));
-        get_integer_par  (properties.shaping_penalties_mode,       shapingpenaltiesmode,      tex_get_par_par(par, par_shaping_penalties_mode_code));
-        get_integer_par  (properties.shaping_penalty,              shapingpenalty,            tex_get_par_par(par, par_shaping_penalty_code));
-        get_shape_par    (properties.par_shape,                    parshape,                  tex_get_par_par(par, par_par_shape_code));
-        get_penalties_par(properties.inter_line_penalties,         interlinepenalties,        tex_get_par_par(par, par_inter_line_penalties_code), inter_line_penalties_code);
-        get_penalties_par(properties.club_penalties,               clubpenalties,             tex_get_par_par(par, par_club_penalties_code), club_penalties_code);
-        get_penalties_par(properties.widow_penalties,              widowpenalties,            tex_get_par_par(par, par_widow_penalties_code), widow_penalties_code);
-        get_penalties_par(properties.display_widow_penalties,      displaywidowpenalties,     tex_get_par_par(par, par_display_widow_penalties_code), display_widow_penalties_code);
-        get_penalties_par(properties.broken_penalties,             brokenpenalties,           tex_get_par_par(par, par_broken_penalties_code), broken_penalties_code);
-        get_penalties_par(properties.orphan_penalties,             orphanpenalties,           tex_get_par_par(par, par_orphan_penalties_code), orphan_penalties_code);
-        get_demerits_par (properties.fitness_classes,              fitnessclasses,            tex_get_par_par(par, par_fitness_classes_code), fitness_classes_code);
-        get_demerits_par (properties.adjacent_demerits,            adjacentdemerits,          tex_get_par_par(par, par_adjacent_demerits_code), adjacent_demerits_code);
-        get_demerits_par (properties.orphan_line_factors,          orphanlinefactors,         tex_get_par_par(par, par_orphan_line_factors_code), orphan_line_factors_code);
-        get_penalties_par(properties.par_passes,                   parpasses,                 line_break_passes_par > 0 ? tex_get_par_par(par, par_par_passes_code) : null, par_passes_code);
-        get_integer_par  (properties.line_break_checks,            linebreakchecks,           tex_get_par_par(par, par_line_break_checks_code));
-        get_integer_par  (properties.line_break_optional,          linebreakoptional,         line_break_optional_par); /* hm */
+        lua_push_key(options);
+        if (lua_rawget(L, -2) == LUA_TNUMBER) {
+            properties.paragraph_options = (singleword) lmt_tointeger(L, -1);
+        }
+        lua_pop(L, 1);
+        get_integer_par   (properties.tracing_paragraphs,           tracingparagraphs,         tracing_paragraphs_par);
+        get_integer_par   (properties.tracing_fitness,              tracingfitness ,           tracing_fitness_par);
+        get_integer_par   (properties.tracing_passes,               tracingpasses,             tracing_passes_par);
+        get_integer_par   (properties.pretolerance,                 pretolerance,              tex_get_par_par(par, par_pre_tolerance_code));
+        get_integer_par   (properties.tolerance,                    tolerance,                 tex_get_par_par(par, par_tolerance_code));
+        get_dimension_par (properties.emergency_stretch,            emergencystretch,          tex_get_par_par(par, par_emergency_stretch_code));
+        get_dimension_par (properties.emergency_extra_stretch,      emergencyextrastretch,     tex_get_par_par(par, par_emergency_extra_stretch_code));
+        get_integer_par   (properties.looseness,                    looseness,                 tex_get_par_par(par, par_looseness_code));
+        get_integer_par   (properties.adjust_spacing,               adjustspacing,             tex_get_par_par(par, par_adjust_spacing_code));
+        get_integer_par   (properties.protrude_chars,               protrudechars,             tex_get_par_par(par, par_protrude_chars_code));
+        get_integer_par   (properties.adj_demerits,                 adjdemerits,               tex_get_par_par(par, par_adj_demerits_code));
+        get_integer_par   (properties.line_penalty,                 linepenalty,               tex_get_par_par(par, par_line_penalty_code));
+        get_integer_par   (properties.last_line_fit,                lastlinefit,               tex_get_par_par(par, par_last_line_fit_code));
+        get_integer_par   (properties.double_hyphen_demerits,       doublehyphendemerits,      tex_get_par_par(par, par_double_hyphen_demerits_code));
+        get_integer_par   (properties.final_hyphen_demerits,        finalhyphendemerits,       tex_get_par_par(par, par_final_hyphen_demerits_code));
+        get_dimension_par (properties.hsize,                        hsize,                     tex_get_par_par(par, par_hsize_code));
+        get_glue_par      (properties.left_skip,                    leftskip,                  tex_get_par_par(par, par_left_skip_code));
+        get_glue_par      (properties.right_skip,                   rightskip,                 tex_get_par_par(par, par_right_skip_code));
+        get_glue_par      (properties.emergency_left_skip,          emergencyleftskip,         tex_get_par_par(par, par_emergency_left_skip_code));
+        get_glue_par      (properties.emergency_right_skip,         emergencyrightskip,        tex_get_par_par(par, par_emergency_right_skip_code));
+        get_dimension_par (properties.hang_indent,                  hangindent,                tex_get_par_par(par, par_hang_indent_code));
+        get_integer_par   (properties.hang_after,                   hangafter,                 tex_get_par_par(par, par_hang_after_code));
+        get_integer_par   (properties.inter_line_penalty,           interlinepenalty,          tex_get_par_par(par, par_inter_line_penalty_code));
+        get_integer_par   (properties.club_penalty,                 clubpenalty,               tex_get_par_par(par, par_club_penalty_code));
+        get_integer_par   (properties.widow_penalty,                widowpenalty,              tex_get_par_par(par, par_widow_penalty_code));
+        get_integer_par   (properties.display_widow_penalty,        displaywidowpenalty,       tex_get_par_par(par, par_display_widow_penalty_code));
+        get_integer_par   (properties.toddler_penalties,            toddlerpenalties,          tex_get_par_par(par, par_toddler_penalties_code));
+        get_integer_par   (properties.left_twin_demerits,           lefttwindemerits,          tex_get_par_par(par, par_left_twin_demerits_code));
+        get_integer_par   (properties.right_twin_demerits,          righttwindemerits,         tex_get_par_par(par, par_right_twin_demerits_code));
+        get_integer_par   (properties.single_line_penalty,          singlelinepenalty,         tex_get_par_par(par, par_single_line_penalty_code));
+        get_integer_par   (properties.hyphen_penalty,               hyphenpenalty,             tex_get_par_par(par, par_hyphen_penalty_code));
+        get_integer_par   (properties.ex_hyphen_penalty,            exhyphenpenalty,           tex_get_par_par(par, par_ex_hyphen_penalty_code));
+        get_integer_par   (properties.broken_penalty,               brokenpenalty,             tex_get_par_par(par, par_broken_penalty_code));
+        get_glue_par      (properties.baseline_skip,                baselineskip,              tex_get_par_par(par, par_baseline_skip_code));
+        get_glue_par      (properties.line_skip,                    lineskip,                  tex_get_par_par(par, par_line_skip_code));
+        get_dimension_par (properties.line_skip_limit,              lineskiplimit,             tex_get_par_par(par, par_line_skip_limit_code));
+        get_integer_par   (properties.adjust_spacing,               adjustspacing,             tex_get_par_par(par, par_adjust_spacing_code));
+        get_integer_par   (properties.adjust_spacing_step,          adjustspacingstep,         tex_get_par_par(par, par_adjust_spacing_step_code));
+        get_integer_par   (properties.adjust_spacing_shrink,        adjustspacingshrink,       tex_get_par_par(par, par_adjust_spacing_shrink_code));
+        get_integer_par   (properties.adjust_spacing_stretch,       adjustspacingstretch,      tex_get_par_par(par, par_adjust_spacing_stretch_code));
+        get_integer_par   (properties.hyphenation_mode,             hyphenationmode,           tex_get_par_par(par, par_hyphenation_mode_code));
+        get_integer_par   (properties.shaping_penalties_mode,       shapingpenaltiesmode,      tex_get_par_par(par, par_shaping_penalties_mode_code));
+        get_integer_par   (properties.shaping_penalty,              shapingpenalty,            tex_get_par_par(par, par_shaping_penalty_code));
+        get_shape_par     (properties.par_shape,                    parshape,                  tex_get_par_par(par, par_par_shape_code));
+        get_penalties_par (properties.inter_line_penalties,         interlinepenalties,        tex_get_par_par(par, par_inter_line_penalties_code), inter_line_penalties_code);
+        get_penalties_par (properties.club_penalties,               clubpenalties,             tex_get_par_par(par, par_club_penalties_code), club_penalties_code);
+        get_penalties_par (properties.widow_penalties,              widowpenalties,            tex_get_par_par(par, par_widow_penalties_code), widow_penalties_code);
+        get_penalties_par (properties.display_widow_penalties,      displaywidowpenalties,     tex_get_par_par(par, par_display_widow_penalties_code), display_widow_penalties_code);
+        get_penalties_par (properties.broken_penalties,             brokenpenalties,           tex_get_par_par(par, par_broken_penalties_code), broken_penalties_code);
+        get_penalties_par (properties.orphan_penalties,             orphanpenalties,           tex_get_par_par(par, par_orphan_penalties_code), orphan_penalties_code);
+        get_demerits_par  (properties.fitness_classes,              fitnessclasses,            tex_get_par_par(par, par_fitness_classes_code), fitness_classes_code);
+        get_demerits_par  (properties.adjacent_demerits,            adjacentdemerits,          tex_get_par_par(par, par_adjacent_demerits_code), adjacent_demerits_code);
+        get_demerits_par  (properties.orphan_line_factors,          orphanlinefactors,         tex_get_par_par(par, par_orphan_line_factors_code), orphan_line_factors_code);
+        get_par_passes_par(properties.par_passes,                   parpasses,                 line_break_passes_par > 0 ? tex_get_par_par(par, par_par_passes_code) : null);
+        get_integer_par   (properties.line_break_checks,            linebreakchecks,           tex_get_par_par(par, par_line_break_checks_code));
+        get_integer_par   (properties.line_break_optional,          linebreakoptional,         line_break_optional_par); /* hm */
         if (! prepared) {
             halfword attr_template = tail;
             halfword final_line_penalty = tex_new_penalty_node(infinite_penalty, line_penalty_subtype);
@@ -4296,6 +4549,107 @@ static int texlib_linebreak(lua_State *L)
   NOTHING:
     lmt_push_directornode(L, par, direct);
     return 1;
+}
+
+static int texlib_getbalanceparameterfields(lua_State *L)
+{
+    lua_createtable(L, 17, 0);
+    lua_push_key_at_index(L, tracingbalancing,  1);
+    lua_push_key_at_index(L, tracingfitness ,   2);
+    lua_push_key_at_index(L, tracingpasses,     3);
+    lua_push_key_at_index(L, pretolerance,      4);
+    lua_push_key_at_index(L, tolerance,         5);
+    lua_push_key_at_index(L, emergencystretch,  6);
+    lua_push_key_at_index(L, emergencyshrink,   7);
+    lua_push_key_at_index(L, looseness,         8);
+    lua_push_key_at_index(L, adjdemerits,       9);
+    lua_push_key_at_index(L, vsize,            10);
+    lua_push_key_at_index(L, topskip,          11);
+    lua_push_key_at_index(L, bottomskip,       12);
+    lua_push_key_at_index(L, shape,            13);
+    lua_push_key_at_index(L, penalty,          14);
+    lua_push_key_at_index(L, passes,           15);
+    lua_push_key_at_index(L, checks,           16);
+    lua_push_key_at_index(L, packing,          17);
+    return 1;
+}
+
+static int texlib_getbalanceresultfields(lua_State *L)
+{
+    lua_createtable(L, 4, 0);
+ // lua_push_key_at_index(L, demerits,  1);
+ // lua_push_key_at_index(L, looseness, 2);
+    return 1;
+}
+
+static int texlib_balance(lua_State *L)
+{
+    halfword direct;
+    halfword head = lmt_check_isdirectornode(L, 1, &direct);
+    if (head) {
+        balance_properties properties;
+        /* */
+        tex_push_nest();
+        node_next(temp_head) = head;
+        tex_balance_preset(&properties);
+        /* */
+        if (lua_gettop(L) != 2 || lua_type(L, 2) != LUA_TTABLE) {
+            lua_newtable(L);
+        }
+        get_integer_par       (properties.tracing_balancing, tracingbalancing, properties.tracing_balancing);
+        get_integer_par       (properties.tracing_fitness,   tracingfitness ,  properties.tracing_fitness);
+        get_integer_par       (properties.tracing_passes,    tracingpasses,    properties.tracing_passes);
+        get_integer_par       (properties.pretolerance,      pretolerance,     properties.pretolerance);
+        get_integer_par       (properties.tolerance,         tolerance,        properties.tolerance);
+        get_dimension_par     (properties.emergency_stretch, emergencystretch, properties.emergency_stretch);
+        get_dimension_par     (properties.emergency_shrink,  emergencyshrink,  properties.emergency_shrink);
+        get_integer_par       (properties.looseness,         looseness,        properties.looseness);
+        get_integer_par       (properties.adj_demerits,      adjdemerits,      properties.adj_demerits);
+        get_dimension_par     (properties.vsize,             vsize,            properties.vsize);
+        get_glue_par          (properties.topskip,           topskip,          properties.topskip);
+        get_glue_par          (properties.bottomskip,        bottomskip,       properties.bottomskip);
+        get_balance_shape     (properties.shape,             shape,            null);
+        get_integer_par       (properties.penalty,           penalty,          properties.penalty);
+        get_balance_passes_par(properties.passes,            passes,           balance_break_passes_par > 0 ? balance_passes_par : null);
+        get_integer_par       (properties.checks,            checks,           properties.checks);
+        get_integer_par       (properties.packing,           packing,          properties.packing);
+        /* */
+        tex_balance(&properties, head);
+        /* */
+        {
+            halfword current = node_next(cur_list.head);
+            halfword count = 0;
+         // halfword fewest_demerits = 0;
+         // halfword actual_looseness = 0;
+         // tex_get_linebreak_info(&fewest_demerits, &actual_looseness) ;
+            lua_createtable(L, 0, 0); /* we can have a count */
+            while (current) { 
+                halfword upcoming = node_next(current);
+                node_prev(current) = null;
+                node_next(current) = null;
+                lmt_push_directornode(L, current, direct);
+                lua_rawseti(L, -2, ++count);
+                current = upcoming;
+            }
+            node_next(cur_list.head) = null;
+            lua_createtable(L, 0, 4);
+         // lua_push_key(demerits);
+         // lua_pushinteger(L, fewest_demerits);
+         // lua_settable(L, -3);
+         // lua_push_key(looseness);
+         // lua_pushinteger(L, actual_looseness);
+         // lua_settable(L, -3);
+        }
+        /* */
+        tex_balance_reset(&properties);
+        /* */
+        node_next(temp_head) = null;
+        tex_pop_nest();
+        return 2; /* for now empty table */
+    } else {
+        lmt_push_directornode(L, head, direct);
+        return 1;
+    }
 }
 
 static int texlib_resetparagraph(lua_State *L)
@@ -4609,7 +4963,7 @@ static int texlib_expandasvalue(lua_State *L) /* mostly like the mp one */
                     tex_begin_inserted_list(head);
                     lmt_error_state.intercept = 1;
                     lmt_error_state.last_intercept = 0;
-                    value = tex_scan_dimension(0, 0, 0, 0, NULL);
+                    value = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
                     lmt_error_state.intercept = 0;
                     while (cur_tok != deep_frozen_relax_token) {
                         tex_get_token();
@@ -4638,7 +4992,7 @@ static int texlib_expandasvalue(lua_State *L) /* mostly like the mp one */
                     tex_begin_inserted_list(head);
                     lmt_error_state.intercept = 1;
                     lmt_error_state.last_intercept = 0;
-                    value = tex_scan_integer(0, NULL);
+                    value = tex_scan_integer(0, NULL, NULL);
                     lmt_error_state.intercept = 0;
                     while (cur_tok != deep_frozen_relax_token) {
                         tex_get_token();
@@ -4925,28 +5279,6 @@ static int texlib_chardef(lua_State *L)
     }
     return 0;
 }
-
-// static int tokenlib_set_char(lua_State *L) /* also in texlib */
-// {
-//     int top = lua_gettop(L);
-//     if (top >= 2) {
-//         size_t lname = 0;
-//         const char *name = lua_tolstring(L, 1, &lname);
-//         if (name) {
-//             int value = lmt_tointeger(L, 2);
-//             if (value >= 0 && value <= max_character_code) {
-//                 int flags = 0;
-//                 int cs = tex_string_locate(name, lname, 1);
-//                 if (top > 2) {
-//                     lmt_check_for_flags(L, 3, &flags, 1, 0);
-//                 }
-//                 tex_define(flags, cs, char_given_cmd, value);
-//             }
-//         }
-//     }
-//     return 0;
-// }
-
 
 /* todo: same range checks as in texlib_setmathcode */
 
@@ -5285,7 +5617,7 @@ static int texlib_getrunstate(lua_State *L)
 
 static int texlib_gethyphenationvalues(lua_State *L)
 {
-    lua_createtable(L, 2, 17);
+    lua_createtable(L, 2, 18);
     lua_push_key_at_index(L, normal,    normal_hyphenation_mode);
     lua_push_key_at_index(L, automatic, automatic_hyphenation_mode);
     lua_push_key_at_index(L, explicit,  explicit_hyphenation_mode);
@@ -5306,12 +5638,13 @@ static int texlib_gethyphenationvalues(lua_State *L)
     lua_set_string_by_index(L, force_handler_hyphenation_mode,       "forcehandler");
     lua_set_string_by_index(L, feedback_compound_hyphenation_mode,   "feedbackcompound");
     lua_set_string_by_index(L, ignore_bounds_hyphenation_mode,       "ignorebounds");
+    lua_set_string_by_index(L, replace_apostrophe_hyphenation_mode,  "replaceapostrophe");
     return 1;
 }
 
 static int texlib_getglyphoptionvalues(lua_State *L)
 {
-    lua_createtable(L, 3, 15);
+    lua_createtable(L, 3, 16);
     lua_set_string_by_index(L, glyph_option_normal_glyph,              "normal");
     lua_set_string_by_index(L, glyph_option_no_left_ligature,          "noleftligature");
     lua_set_string_by_index(L, glyph_option_no_right_ligature,         "norightligature");
@@ -5331,6 +5664,7 @@ static int texlib_getglyphoptionvalues(lua_State *L)
     lua_set_string_by_index(L, glyph_option_check_toddler,             "checktoddler");
     lua_set_string_by_index(L, glyph_option_check_twin,                "checktwin");
     lua_set_string_by_index(L, glyph_option_is_toddler,                "istoddler");
+    lua_set_string_by_index(L, glyph_option_is_continuation,           "iscontinuation");
     lua_set_string_by_index(L, glyph_option_user_first,                "userfirst");
     lua_set_string_by_index(L, glyph_option_user_last,                 "userlast");
     return 1;
@@ -5338,13 +5672,25 @@ static int texlib_getglyphoptionvalues(lua_State *L)
 
 static int texlib_getglueoptionvalues(lua_State *L)
 {
-    lua_createtable(L, 4, 2);
-    lua_set_string_by_index(L, glue_option_normal,         "normal");
-    lua_set_string_by_index(L, glue_option_no_auto_break,  "noautobreak");
-    lua_set_string_by_index(L, glue_option_has_factor,     "hasfactor");
-    lua_set_string_by_index(L, glue_option_is_limited,     "islimited");
-    lua_set_string_by_index(L, glue_option_limit,          "limit");
-    lua_set_string_by_index(L, glue_option_u_leaders_line, "uleadersline");
+    lua_createtable(L, 8, 2);
+    lua_set_string_by_index(L, glue_option_normal,            "normal");
+    lua_set_string_by_index(L, glue_option_no_auto_break,     "noautobreak");
+    lua_set_string_by_index(L, glue_option_has_factor,        "hasfactor");
+    lua_set_string_by_index(L, glue_option_is_limited,        "islimited");
+    lua_set_string_by_index(L, glue_option_limit,             "limit");
+    lua_set_string_by_index(L, glue_option_u_leaders_line,    "uleadersline");
+    lua_set_string_by_index(L, glue_option_set_discardable,   "setdiscardable");
+    lua_set_string_by_index(L, glue_option_reset_discardable, "resetdiscardable");
+    lua_set_string_by_index(L, glue_option_non_discardable,   "nondiscardable");
+    lua_set_string_by_index(L, glue_option_in_insert,         "ininsert");
+    return 1;
+}
+
+static int texlib_getkernoptionvalues(lua_State *L)
+{
+    lua_createtable(L, 1, 1);
+    lua_set_string_by_index(L, kern_option_normal,    "normal");
+    lua_set_string_by_index(L, kern_option_in_insert, "ininsert");
     return 1;
 }
 
@@ -5361,7 +5707,7 @@ static int texlib_getmathoptionvalues(lua_State *L)
 
 static int texlib_getpenaltyoptionvalues(lua_State *L)
 {
-    lua_createtable(L, 2, 13);
+    lua_createtable(L, 2, 15);
     lua_set_string_by_index(L, penalty_option_normal,        "normal");
     lua_set_string_by_index(L, penalty_option_math_forward,  "mathforward");
     lua_set_string_by_index(L, penalty_option_math_backward, "mathbackward");
@@ -5377,6 +5723,8 @@ static int texlib_getpenaltyoptionvalues(lua_State *L)
     lua_set_string_by_index(L, penalty_option_double_used,   "doubleused");
     lua_set_string_by_index(L, penalty_option_factor_used,   "factorused");
     lua_set_string_by_index(L, penalty_option_end_of_par,    "endofpar");
+    lua_set_string_by_index(L, penalty_option_in_insert,     "ininsert");
+    lua_set_string_by_index(L, penalty_option_final_balance, "finalbalance");
     return 1;
 }
 
@@ -5457,6 +5805,14 @@ static int texlib_getnoadoptionvalues(lua_State *L)
     return 1;
 }
 
+static int texlib_getbalancestepoptionvalues(lua_State *L)
+{
+    lua_createtable(L, 2, 0);
+    lua_push_key_at_index(L, top,    balance_step_option_top);
+    lua_push_key_at_index(L, bottom, balance_step_option_bottom);
+    return 1;
+}
+
 static int texlib_getdiscoptionvalues(lua_State *L)
 {
     lua_createtable(L, 2, 7);
@@ -5475,10 +5831,19 @@ static int texlib_getdiscoptionvalues(lua_State *L)
 static int texlib_getruleoptionvalues(lua_State *L)
 {
     lua_createtable(L, 2, 2);
-    lua_set_string_by_index(L, rule_option_horizontal, "horizontal");
-    lua_set_string_by_index(L, rule_option_vertical,   "vertical");
-    lua_set_string_by_index(L, rule_option_thickness,  "thickness");
-    lua_set_string_by_index(L, rule_option_running,    "running");
+    lua_set_string_by_index(L, rule_option_horizontal,  "horizontal");
+    lua_set_string_by_index(L, rule_option_vertical,    "vertical");
+    lua_set_string_by_index(L, rule_option_thickness,   "thickness");
+    lua_set_string_by_index(L, rule_option_running,     "running");
+    lua_set_string_by_index(L, rule_option_discardable, "discardable");
+    return 1;
+}
+
+static int texlib_getboxoptionvalues(lua_State *L)
+{
+    lua_createtable(L, 2, 0);
+    lua_set_string_by_index(L, box_option_no_math_axis, "nomathaxis");
+    lua_set_string_by_index(L, box_option_discardable,  "discardable");
     return 1;
 }
 
@@ -5694,11 +6059,12 @@ static int texlib_getnormalizelinevalues(lua_State *L)
 
 static int texlib_getnormalizeparvalues(lua_State *L)
 {
-    lua_createtable(L, 2, 2);
+    lua_createtable(L, 2, 3);
     lua_set_string_by_index(L, normalize_par_mode,            "normalizepar");
     lua_set_string_by_index(L, flatten_v_leaders_mode,        "flattenvleaders");
     lua_set_string_by_index(L, limit_prev_graf_mode,          "limitprevgraf");
     lua_set_string_by_index(L, keep_interline_penalties_mode, "keepinterlinepenalties");
+    lua_set_string_by_index(L, remove_trailing_spaces_mode,   "removetrailingspaces");
     return 1;
 }
 
@@ -5772,6 +6138,7 @@ static int texlib_getfrozenparvalues(lua_State *L)
     lua_set_string_by_index(L, par_ex_hyphen_penalty_category,   "exhyphenpenalty");
     lua_set_string_by_index(L, par_line_break_checks_category,   "linebreakchecks");
     lua_set_string_by_index(L, par_twin_demerits_category,       "twindemerits");
+    lua_set_string_by_index(L, par_fitness_classes_category,     "fitnessclasses");
  /* lua_set_string_by_index(L, par_all_category,                 "all"); */
     return 1;
 }
@@ -5840,6 +6207,16 @@ static int texlib_getshapingpenaltiesvalues(lua_State *L)
     return 1;
 }
 
+static int texlib_getbadnessmodevalues(lua_State *L)
+{
+    lua_createtable(L, 2, 2);
+    lua_set_string_by_index(L, badness_mode_underfull, "underfull");
+    lua_set_string_by_index(L, badness_mode_loose,     "loose");
+    lua_set_string_by_index(L, badness_mode_tight,     "tight");
+    lua_set_string_by_index(L, badness_mode_overfull,  "overfull");
+    return 1;
+}
+
 static int texlib_getautoparagraphvalues(lua_State *L)
 {
     lua_createtable(L, 2, 1);
@@ -5855,6 +6232,15 @@ static int texlib_getprimitiveorigins(lua_State *L)
     lua_push_key_at_index(L, tex,    tex_command);
     lua_push_key_at_index(L, etex,   etex_command);
     lua_push_key_at_index(L, luatex, luatex_command);
+    return 1;
+}
+
+static int texlib_getmissingcharactervalues(lua_State *L)
+{
+    lua_createtable(L, 2, 1);
+    lua_set_string_by_index(L,missing_character_text_glyph,  "textglyph");
+    lua_set_string_by_index(L,missing_character_math_glyph,  "mathglyph");
+    lua_set_string_by_index(L,missing_character_math_kernel, "mathkernel");
     return 1;
 }
 
@@ -5900,11 +6286,13 @@ static int texlib_getiftypes(lua_State *L)
     lua_set_string_by_index(L, if_true_code           - first_real_if_test_code, "true");
     lua_set_string_by_index(L, if_false_code          - first_real_if_test_code, "false");
     lua_set_string_by_index(L, if_chk_int_code        - first_real_if_test_code, "chknum");
-    lua_set_string_by_index(L, if_chk_integer_code    - first_real_if_test_code, "chknunber");
+    lua_set_string_by_index(L, if_chk_integer_code    - first_real_if_test_code, "chknumber");
+    lua_set_string_by_index(L, if_chk_intexpr_code    - first_real_if_test_code, "chknumexpr");
     lua_set_string_by_index(L, if_val_int_code        - first_real_if_test_code, "numval");
     lua_set_string_by_index(L, if_cmp_int_code        - first_real_if_test_code, "cmpnum");
     lua_set_string_by_index(L, if_chk_dim_code        - first_real_if_test_code, "chkdim");
     lua_set_string_by_index(L, if_chk_dimension_code  - first_real_if_test_code, "chkdimension");
+    lua_set_string_by_index(L, if_chk_dimexpr_code    - first_real_if_test_code, "chkdimexpr");
     lua_set_string_by_index(L, if_val_dim_code        - first_real_if_test_code, "dimval");
     lua_set_string_by_index(L, if_cmp_dim_code        - first_real_if_test_code, "cmpdim");
     lua_set_string_by_index(L, if_case_code           - first_real_if_test_code, "case");
@@ -5934,6 +6322,7 @@ static int texlib_getiftypes(lua_State *L)
     lua_set_string_by_index(L, if_insert_code         - first_real_if_test_code, "insert");
     lua_set_string_by_index(L, if_in_alignment_code   - first_real_if_test_code, "inalignment");
     lua_set_string_by_index(L, if_cramped_code        - first_real_if_test_code, "ifcramped");
+    lua_set_string_by_index(L, if_list_code           - first_real_if_test_code, "iflist");
  /* lua_set_string_by_index(L, if_bitwise_and_code    - first_real_if_test_code, "bitwiseand"); */ /* not (yet) used */
     return 1;
 }
@@ -5941,6 +6330,27 @@ static int texlib_getiftypes(lua_State *L)
 static int texlib_getlargestusedmark(lua_State* L)
 {
     lua_pushinteger(L, lmt_mark_state.mark_data.ptr);
+    return 1;
+}
+
+static int texlib_getusedmarks(lua_State *L)
+{
+    if (lmt_mark_state.min_used >= 0) {
+        lua_Integer index = 0;
+        for (halfword m = lmt_mark_state.min_used; m <= lmt_mark_state.max_used; m++) {
+            if (lmt_mark_state.data[m].state) { 
+                if (! index) { 
+                    lua_createtable(L, 0, 0);
+                }
+                lua_pushinteger(L, m);
+                lua_rawseti(L, -2, ++index);
+            }
+        }
+        if (index) { 
+            return 1;
+        }
+    }
+    lua_pushnil(L);
     return 1;
 }
 
@@ -6022,6 +6432,11 @@ static int texlib_getbuildcontextvalues(lua_State *L)
     return lmt_push_info_values(L, lmt_interface.build_context_values);
 }
 
+static int texlib_getvsplitcontextvalues(lua_State *L)
+{
+    return lmt_push_info_values(L, lmt_interface.vsplit_context_values);
+}
+
 static int texlib_getpartriggervalues(lua_State *L)
 {
     return lmt_push_info_values(L, lmt_interface.par_trigger_values);
@@ -6057,13 +6472,16 @@ static int texlib_getmathvariantpresets(lua_State *L)
 
 static int texlib_getspecificationoptionvalues(lua_State *L)
 {
-    lua_createtable(L, 2, 4);
+    lua_createtable(L, 2, 7);
     lua_set_string_by_index(L, specification_option_repeat,  "repeat");
     lua_set_string_by_index(L, specification_option_double,  "double");
     lua_set_string_by_index(L, specification_option_largest, "largest");
     lua_set_string_by_index(L, specification_option_presets, "presets");
     lua_set_string_by_index(L, specification_option_integer, "integer");
     lua_set_string_by_index(L, specification_option_final,   "final");
+    lua_set_string_by_index(L, specification_option_default, "default");
+    lua_set_string_by_index(L, specification_option_ignore,  "ignore");
+    lua_set_string_by_index(L, specification_option_rotate,  "rotate");
     return 1;
 }
 
@@ -6132,13 +6550,14 @@ static int texlib_getmathcontrolvalues(lua_State *L)
 
 static int texlib_gettextcontrolvalues(lua_State *L)
 {
-    lua_createtable(L, 2, 4);
-    lua_set_string_by_index(L, text_control_collapse_hyphens, "collapsehyphens");
-    lua_set_string_by_index(L, text_control_base_ligaturing,  "baseligaturing");
-    lua_set_string_by_index(L, text_control_base_kerning,     "basekerning");
-    lua_set_string_by_index(L, text_control_none_protected,   "noneprotected");
-    lua_set_string_by_index(L, text_control_has_italics,      "hasitalics");
-    lua_set_string_by_index(L, text_control_auto_italics,     "autoitalics");
+    lua_createtable(L, 2, 5);
+    lua_set_string_by_index(L, text_control_collapse_hyphens,   "collapsehyphens");
+    lua_set_string_by_index(L, text_control_base_ligaturing,    "baseligaturing");
+    lua_set_string_by_index(L, text_control_base_kerning,       "basekerning");
+    lua_set_string_by_index(L, text_control_none_protected,     "noneprotected");
+    lua_set_string_by_index(L, text_control_has_italics,        "hasitalics");
+    lua_set_string_by_index(L, text_control_auto_italics,       "autoitalics");
+    lua_set_string_by_index(L, text_control_replace_apostrophe, "replaceapostrophe");
     return 1;
 }
 
@@ -6163,6 +6582,16 @@ static int texlib_getadjustoptionvalues(lua_State *L)
     lua_set_string_by_index(L, adjust_option_depth_check,  "depthcheck");
     lua_set_string_by_index(L, adjust_option_depth_last,   "depthlast");
     lua_set_string_by_index(L, adjust_option_except,       "except");
+    return 1;
+}
+
+static int texlib_getemptyparagraphmodevalues(lua_State *L)
+{
+    lua_createtable(L, 2, 2);
+    lua_set_string_by_index(L, effective_empty_option_par,         "par");
+    lua_set_string_by_index(L, effective_empty_option_dir,         "dir");
+    lua_set_string_by_index(L, effective_empty_option_indent_list, "indentlist");
+    lua_set_string_by_index(L, effective_empty_option_indent_glue, "indentglue");
     return 1;
 }
 
@@ -6261,6 +6690,25 @@ static int texlib_setinsertcontent(lua_State *L)
     return 0;
 }
 
+static int texlib_getmvloptionvalues(lua_State *L)
+{
+    lua_createtable(L, 2, 2);
+    lua_set_string_by_index(L, mvl_ignore_prev_depth, "ignoreprevdepth");
+    lua_set_string_by_index(L, mvl_no_prev_depth,     "noprevdepth");
+    lua_set_string_by_index(L, mvl_discard_top,       "discardtop");
+    lua_set_string_by_index(L, mvl_discard_bottom,    "discardbottom");
+    return 1;
+}
+
+static int texlib_getbalancecallbackvalues(lua_State *L)
+{
+    lua_createtable(L, 2, 1);
+    lua_set_string_by_index(L, balance_callback_nothing,    "nothing");
+    lua_set_string_by_index(L, balance_callback_try_break,  "trybreak"); 
+    lua_set_string_by_index(L, balance_callback_skip_zeros, "skipzeros");
+    return 1;
+}
+
 static int texlib_getlocalboxlocations(lua_State *L)
 {
     lua_createtable(L, 2, 1);
@@ -6345,6 +6793,24 @@ static int texlib_getmathstylevariant(lua_State *L)
     } else {
         return 0;
     }
+}
+
+static int texlib_getpardataspecifications(lua_State *L)
+{
+    lua_createtable(L, par_n_of_codes, 0); /* one too many */
+    for (int i = 1 ; i < par_n_of_codes; i++) {
+        int cmd = lmt_interface.par_data[i].cmd;
+        int chr = lmt_interface.par_data[i].chr;
+        size_t len;
+        char *csname = tex_makeclstring(lmt_primitive_state.prim_data[cmd].names[chr], &len);
+        lua_createtable(L, 4, 0);
+        lua_set_integer_by_index(L, 1, cmd);
+        lua_set_integer_by_index(L, 2, chr);
+        lua_set_string_by_index (L, 3, csname);
+        lua_set_integer_by_index(L, 4, lmt_interface.par_data[i].category);
+        lua_rawseti(L, -2, (lua_Integer) i);
+    }
+    return 1;
 }
 
 /*tex
@@ -6515,6 +6981,9 @@ static const struct luaL_Reg texlib_function_list[] = {
     { "getlinebreakparameterfields",  texlib_getlinebreakparameterfields  },
     { "getlinebreakresultfields",     texlib_getlinebreakresultfields     },
     { "preparelinebreak",             texlib_preparelinebreak             },
+    { "getbalanceparameterfields",    texlib_getbalanceparameterfields    },
+    { "getbalanceresultfields",       texlib_getbalanceresultfields       },
+    { "balance",                      texlib_balance                      },
     { "resetparagraph",               texlib_resetparagraph               },
     { "showcontext",                  texlib_showcontext                  },
     { "triggerbuildpage",             texlib_triggerbuildpage             },
@@ -6574,12 +7043,15 @@ static const struct luaL_Reg texlib_function_list[] = {
     { "gethyphenationvalues",         texlib_gethyphenationvalues         },
     { "getglyphoptionvalues",         texlib_getglyphoptionvalues         },
     { "getglueoptionvalues",          texlib_getglueoptionvalues          },
+    { "getkernoptionvalues",          texlib_getkernoptionvalues          },
     { "getmathoptionvalues",          texlib_getmathoptionvalues          },
     { "getpenaltyoptionvalues",       texlib_getpenaltyoptionvalues       },
     { "getuleaderlocationvalues",     texlib_getuleaderlocationvalues     },
     { "getnoadoptionvalues",          texlib_getnoadoptionvalues          },
+    { "getbalancestepoptionvalues",   texlib_getbalancestepoptionvalues   },
     { "getdiscoptionvalues",          texlib_getdiscoptionvalues          },
     { "getruleoptionvalues",          texlib_getruleoptionvalues          },
+    { "getboxoptionvalues",           texlib_getboxoptionvalues           },
     { "getmathsurroundvalues",        texlib_getmathsurroundvalues        },
     { "getlistanchorvalues",          texlib_getlistanchorvalues          },
     { "getlistsignvalues",            texlib_getlistsignvalues            },
@@ -6596,8 +7068,10 @@ static const struct luaL_Reg texlib_function_list[] = {
     { "getmathvariantpresets",        texlib_getmathvariantpresets        },
     { "getmathcontrolvalues",         texlib_getmathcontrolvalues         },
     { "gettextcontrolvalues",         texlib_gettextcontrolvalues         },
+    { "getpardataspecifications",     texlib_getpardataspecifications     },
     { "getprepoststatevalues",        texlib_getprepoststatevalues        },
     { "getadjustoptionvalues",        texlib_getadjustoptionvalues        },
+    { "getemptyparagraphmodevalues",  texlib_getemptyparagraphmodevalues  },
     { "getpacktypevalues",            texlib_getpacktypevalues            },
     { "getgroupvalues",               texlib_getgroupvalues               },
     { "getparcontextvalues",          texlib_getparcontextvalues          },
@@ -6606,6 +7080,7 @@ static const struct luaL_Reg texlib_function_list[] = {
     { "getalignmentcontextvalues",    texlib_getalignmentcontextvalues    },
     { "getbreakcontextvalues",        texlib_getbreakcontextvalues        },
     { "getbuildcontextvalues",        texlib_getbuildcontextvalues        },
+    { "getvsplitcontextvalues",       texlib_getvsplitcontextvalues       },
     { "getpartriggervalues",          texlib_getpartriggervalues          },
     { "getparmodevalues",             texlib_getparmodevalues             },
     { "getautomigrationvalues",       texlib_getautomigrationvalues       },
@@ -6622,9 +7097,11 @@ static const struct luaL_Reg texlib_function_list[] = {
     { "getunitclassvalues",           texlib_getunitclassvalues           },
     { "geterrorvalues",               texlib_geterrorvalues               },
     { "getinteractionmodes",          texlib_getinteractionmodes          },
+    { "getbadnessmodevalues",         texlib_getbadnessmodevalues         },
     { "getiftypes",                   texlib_getiftypes                   },
     { "getiovalues",                  texlib_getiovalues                  },
     { "getprimitiveorigins",          texlib_getprimitiveorigins          },
+    { "getmissingcharactervalues",    texlib_getmissingcharactervalues    }, 
     { "getfrozenparvalues",           texlib_getfrozenparvalues           },
     { "getshapingpenaltiesvalues",    texlib_getshapingpenaltiesvalues    },
     { "getautoparagraphvalues",       texlib_getautoparagraphvalues       },
@@ -6635,7 +7112,10 @@ static const struct luaL_Reg texlib_function_list[] = {
     { "getmathscriptordervalues",     texlib_getmathscriptordervalues     },
     { "getmathscriptsmodevalues",     texlib_getmathscriptsmodevalues     },
     { "getlargestusedmark",           texlib_getlargestusedmark           },
+    { "getusedmarks",                 texlib_getusedmarks                 },
     { "getoutputactive",              texlib_getoutputactive              },
+    { "getmvloptionvalues",           texlib_getmvloptionvalues           },
+    { "getbalancecallbackvalues",     texlib_getbalancecallbackvalues     },
     /* experiment (metafun update) */
     { "shiftparshape",                texlib_shiftparshape                },
     { "snapshotpar",                  texlib_snapshotpar                  },
@@ -6658,6 +7138,9 @@ static const struct luaL_Reg texlib_function_list[] = {
     { "getlocalbox",                  texlib_getlocalbox                  },
     { "setlocalbox",                  texlib_setlocalbox                  },
     { "getlocalboxlocations",         texlib_getlocalboxlocations         },
+    /* */
+    { "getcurrentmvl",                texlib_getcurrentmvl                },
+    { "setbalanceshape",              texlib_setbalanceshape              },
     /* */
     { "pushsavelevel",                texlib_pushsavelevel                },
     { "popsavelevel",                 texlib_popsavelevel                 },

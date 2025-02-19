@@ -48,6 +48,9 @@ typedef enum if_test_codes {
     /*tex 
         Here come the \if... codes. Some are just there to minimize tracing and are not faster, 
         like |\ifzerodim| (we can use |\ifcase| instead but not with |\unless|). 
+
+        For historic reasons we see a mixture if |int| and |num| here but I see no reason the 
+        change that now.  
     */
 
     if_char_code,            /*tex |\if| */
@@ -79,10 +82,12 @@ typedef enum if_test_codes {
     if_false_code,           /*tex |\iffalse| */
     if_chk_int_code,         /*tex |\ifchknum| */
     if_chk_integer_code,     /*tex |\ifchknumber| */
+    if_chk_intexpr_code,     /*tex |\ifnumexpr| */
     if_val_int_code,         /*tex |\ifnumval| */
     if_cmp_int_code,         /*tex |\ifcmpnum| */
     if_chk_dim_code,         /*tex |\ifchkdim| */
     if_chk_dimension_code,   /*tex |\ifchkdimension| */
+    if_chk_dimexpr_code,     /*tex |\ifdimexpr| */
     if_val_dim_code,         /*tex |\ifdimval| */
     if_cmp_dim_code,         /*tex |\ifcmpdim| */
     if_case_code,            /*tex |\ifcase| */
@@ -110,30 +115,31 @@ typedef enum if_test_codes {
     if_insert_code,          /*tex |\ifinsert| */
     if_in_alignment_code,    /*tex |\ifinalignment| */
     if_cramped_code,         /*tex |\ifcrampedmathstyle| */
+    if_list_code,            /*tex |\iflist| */
  // if_bitwise_and_code,     /*tex |\ifbitwiseand| */
 } if_test_codes;
 
 # define first_if_test_code fi_code
-# define last_if_test_code  if_cramped_code
+# define last_if_test_code  if_list_code
 //define last_if_test_code  if_bitwise_and_code
 
 # define first_real_if_test_code if_char_code
-# define last_real_if_test_code  if_cramped_code
+# define last_real_if_test_code  if_list_code
 //define last_real_if_test_code  if_bitwise_and_code
 
 typedef struct condition_state_info {
-    halfword  cond_ptr;   /*tex top of the condition stack */
-    int       cur_if;     /*tex type of conditional being worked on */
-    int       cur_unless;
-    int       if_step;
-    int       if_limit;   /*tex upper bound on |fi_or_else| codes */
-    int       if_line;    /*tex line where that conditional began */
-    halfword  if_nesting;
-    int       if_unless;
-    int       skip_line;  /*tex skipping began here */
-    halfword  chk_integer;
-    scaled    chk_dimension;
-    halfword  padding;
+    halfword    cond_ptr;      /*tex top of the condition stack */
+    quarterword cur_if;        /*tex type of conditional being worked on */
+    quarterword if_limit;      /*tex upper bound on |fi_or_else| codes */
+    singleword  cur_unless;
+    singleword  if_unless;
+    singleword  if_step;
+    singleword  unused;
+    halfword    if_line;       /*tex line where that conditional began */
+    halfword    if_nesting;
+    halfword    skip_line;     /*tex skipping began here */
+    halfword    chk_integer;
+    scaled      chk_dimension;
 } condition_state_info ;
 
 extern condition_state_info lmt_condition_state;
@@ -142,6 +148,7 @@ extern void tex_conditional_if         (halfword code, int unless);
 extern void tex_conditional_fi_or_else (void);
 extern void tex_conditional_unless     (void);
 extern void tex_show_ifs               (void);
+extern void tex_conditional_catch_up   (void);
 /*     void tex_quit_fi                (void); */
 /*     void tex_conditional_after_fi   (void); */
 

@@ -15,12 +15,11 @@ CWARNSCPP= \
 	-Wdouble-promotion \
 	-Wmissing-declarations \
 	-Wconversion \
+	-Wstrict-overflow=2 \
         # the next warnings might be useful sometimes,
 	# but usually they generate too much noise
 	# -Werror \
 	# -pedantic   # warns if we use jump tables \
-	# -Wsign-conversion \
-	# -Wstrict-overflow=2 \
 	# -Wformat=2 \
 	# -Wcast-qual \
 
@@ -63,13 +62,15 @@ CWARNS= $(CWARNSCPP) $(CWARNSC) $(CWARNGCC)
 # ASAN_OPTIONS="detect_invalid_pointer_pairs=2".
 # -fsanitize=undefined
 # -fsanitize=pointer-subtract -fsanitize=address -fsanitize=pointer-compare
-# TESTS= -DLUA_USER_H='"ltests.h"' -O0 -g
+# TESTS= -DLUA_USER_H='"ltests.h"' -Og -g
 
 
 LOCAL = $(TESTS) $(CWARNS)
 
 
-# enable Linux goodies
+# To enable Linux goodies, -DLUA_USE_LINUX
+# For C89, "-std=c89 -DLUA_USE_C89"
+# Note that Linux/Posix options are not compatible with C89
 MYCFLAGS= $(LOCAL) -std=c99 -DLUA_USE_LINUX
 MYLDFLAGS= $(LOCAL) -Wl,-E
 MYLIBS= -ldl

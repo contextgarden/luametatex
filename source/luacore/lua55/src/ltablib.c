@@ -62,9 +62,9 @@ static void checktab (lua_State *L, int arg, int what) {
 static int tcreate (lua_State *L) {
   lua_Unsigned sizeseq = (lua_Unsigned)luaL_checkinteger(L, 1);
   lua_Unsigned sizerest = (lua_Unsigned)luaL_optinteger(L, 2, 0);
-  luaL_argcheck(L, sizeseq <= UINT_MAX, 1, "out of range");
-  luaL_argcheck(L, sizerest <= UINT_MAX, 2, "out of range");
-  lua_createtable(L, (unsigned)sizeseq, (unsigned)sizerest);
+  luaL_argcheck(L, sizeseq <= cast_uint(INT_MAX), 1, "out of range");
+  luaL_argcheck(L, sizerest <= cast_uint(INT_MAX), 2, "out of range");
+  lua_createtable(L, cast_int(sizeseq), cast_int(sizerest));
   return 1;
 }
 
@@ -192,7 +192,7 @@ static int tconcat (lua_State *L) {
 static int tpack (lua_State *L) {
   int i;
   int n = lua_gettop(L);  /* number of elements to pack */
-  lua_createtable(L, cast_uint(n), 1);  /* create result table */
+  lua_createtable(L, n, 1);  /* create result table */
   lua_insert(L, 1);  /* put it at index 1 */
   for (i = n; i >= 1; i--)  /* assign elements */
     lua_seti(L, 1, i);
@@ -298,14 +298,14 @@ static IdxT partition (lua_State *L, IdxT lo, IdxT up) {
   for (;;) {
     /* next loop: repeat ++i while a[i] < P */
     while ((void)geti(L, 1, ++i), sort_comp(L, -1, -2)) {
-      if (l_unlikely(i == up - 1))  /* a[i] < P  but a[up - 1] == P  ?? */
+      if (l_unlikely(i == up - 1))  /* a[up - 1] < P == a[up - 1] */
         luaL_error(L, "invalid order function for sorting");
       lua_pop(L, 1);  /* remove a[i] */
     }
-    /* after the loop, a[i] >= P and a[lo .. i - 1] < P */
+    /* after the loop, a[i] >= P and a[lo .. i - 1] < P  (a) */
     /* next loop: repeat --j while P < a[j] */
     while ((void)geti(L, 1, --j), sort_comp(L, -3, -1)) {
-      if (l_unlikely(j < i))  /* j < i  but  a[j] > P ?? */
+      if (l_unlikely(j < i))  /* j <= i - 1 and a[j] > P, contradicts (a) */
         luaL_error(L, "invalid order function for sorting");
       lua_pop(L, 1);  /* remove a[j] */
     }

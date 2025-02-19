@@ -32,26 +32,15 @@ node_memory_state_info lmt_node_memory_state = {
         .ptr       = 0, // total size in use
         .initial   = 0,
         .offset    = 0,
+        .extra     = 0, 
     },
-    .extra_data  = {
-        .minimum   = memory_data_unset,
-        .maximum   = memory_data_unset,
-        .size      = memory_data_unset,
-        .step      = memory_data_unset,
-        .allocated = 0,
-        .itemsize  = 1,
-        .top       = 0,
-        .ptr       = 0,
-        .initial   = memory_data_unset,
-        .offset    = 0,
-    },
-    .reserved                      = 0,
-    .padding                       = 0,
-    .node_properties_id            = 0,
-    .lua_properties_level          = 0,
-    .attribute_cache               = 0,
-    .max_used_attribute            = 1,
-    .node_properties_table_size    = 0,
+    .reserved                   = 0,
+    .padding                    = 0,
+    .node_properties_id         = 0,
+    .lua_properties_level       = 0,
+    .attribute_cache            = 0,
+    .max_used_attribute         = 1,
+    .node_properties_table_size = 0,
 };
 
 /*tex Defined below. */
@@ -132,6 +121,7 @@ void lmt_nodelib_initialize(void) {
     set_value_entry_key(subtypes_glue, left_skip_glue,                leftskip)
     set_value_entry_key(subtypes_glue, right_skip_glue,               rightskip)
     set_value_entry_key(subtypes_glue, top_skip_glue,                 topskip)
+    set_value_entry_key(subtypes_glue, bottom_skip_glue,              bottomskip)
     set_value_entry_key(subtypes_glue, split_top_skip_glue,           splittopskip)
     set_value_entry_key(subtypes_glue, tab_skip_glue,                 tabskip)
     set_value_entry_key(subtypes_glue, space_skip_glue,               spaceskip)
@@ -161,7 +151,7 @@ void lmt_nodelib_initialize(void) {
     set_value_entry_key(subtypes_glue, g_leaders,                     gleaders)
     set_value_entry_key(subtypes_glue, u_leaders,                     uleaders)
 
-    subtypes_boundary = lmt_aux_allocate_value_info(adjust_boundary);
+    subtypes_boundary = lmt_aux_allocate_value_info(balance_boundary);
 
     set_value_entry_key(subtypes_boundary, cancel_boundary,     cancel)
     set_value_entry_key(subtypes_boundary, user_boundary,       user)
@@ -173,6 +163,7 @@ void lmt_nodelib_initialize(void) {
     set_value_entry_key(subtypes_boundary, lua_boundary,        lua)
     set_value_entry_key(subtypes_boundary, par_boundary,        par)
     set_value_entry_key(subtypes_boundary, adjust_boundary,     adjust)
+    set_value_entry_key(subtypes_boundary, balance_boundary,    balance)
 
     subtypes_penalty = lmt_aux_allocate_value_info(equation_number_penalty_subtype);
 
@@ -208,7 +199,7 @@ void lmt_nodelib_initialize(void) {
     set_value_entry_key(subtypes_kern, horizontal_math_kern_subtype, horizontalmathkern)
     set_value_entry_key(subtypes_kern, vertical_math_kern_subtype,   verticalmathkern)
 
-    subtypes_rule = lmt_aux_allocate_value_info(image_rule_subtype);
+    subtypes_rule = lmt_aux_allocate_value_info(spacing_rule_subtype);
 
     set_value_entry_key(subtypes_rule, normal_rule_subtype,        normal)
     set_value_entry_key(subtypes_rule, empty_rule_subtype,         empty)
@@ -222,6 +213,7 @@ void lmt_nodelib_initialize(void) {
     set_value_entry_key(subtypes_rule, math_radical_rule_subtype,  radical)
     set_value_entry_key(subtypes_rule, box_rule_subtype,           box)
     set_value_entry_key(subtypes_rule, image_rule_subtype,         image)
+    set_value_entry_key(subtypes_rule, spacing_rule_subtype,       spacing)
 
     subtypes_glyph = lmt_aux_allocate_value_info(glyph_math_accent_subtype);
 
@@ -265,7 +257,7 @@ void lmt_nodelib_initialize(void) {
     set_value_entry_key(subtypes_fence, left_operator_side,  operator)
     set_value_entry_key(subtypes_fence, no_fence_side,       no)
 
-    subtypes_list = lmt_aux_allocate_value_info(local_middle_list);
+    subtypes_list = lmt_aux_allocate_value_info(spacing_list);
 
     set_value_entry_key(subtypes_list, unknown_list,              unknown)
     set_value_entry_key(subtypes_list, line_list,                 line)
@@ -293,7 +285,8 @@ void lmt_nodelib_initialize(void) {
     set_value_entry_key(subtypes_list, math_sup_list,             sup)
     set_value_entry_key(subtypes_list, math_sub_list,             sub)
     set_value_entry_key(subtypes_list, math_prime_list,           prime)
-    set_value_entry_key(subtypes_list, math_pre_post_list,        prepost)
+    set_value_entry_key(subtypes_list, math_pre_post_sup_list,    prepostsup)
+    set_value_entry_key(subtypes_list, math_pre_post_sub_list,    prepostsub)
     set_value_entry_key(subtypes_list, math_degree_list,          degree)
     set_value_entry_key(subtypes_list, math_scripts_list,         scripts)
     set_value_entry_key(subtypes_list, math_over_list,            over)
@@ -309,6 +302,9 @@ void lmt_nodelib_initialize(void) {
     set_value_entry_key(subtypes_list, local_left_list,           left)
     set_value_entry_key(subtypes_list, local_right_list,          right)
     set_value_entry_key(subtypes_list, local_middle_list,         middle)
+    set_value_entry_key(subtypes_list, balance_slot_list,         balanceslot)
+    set_value_entry_key(subtypes_list, balance_list,              balance)
+    set_value_entry_key(subtypes_list, spacing_list,              spacing)
 
     subtypes_math = lmt_aux_allocate_value_info(end_broken_math);
 
@@ -893,6 +889,8 @@ void lmt_nodelib_initialize(void) {
     */
 
     lmt_interface.node_data[expression_node]     = (node_info) { .id = expression_node,     .size = expression_node_size,     .first = 0, .last = 0,                         .subtypes = NULL,              .fields = NULL,                           .name = lua_key(expression),     .lua = lua_key_index(expression),      .visible = 0 };
+    lmt_interface.node_data[lmtx_expression_node]= (node_info) { .id = lmtx_expression_node,.size = lmtx_expression_node_size,.first = 0, .last = 0,                         .subtypes = NULL,              .fields = NULL,                           .name = lua_key(lmtxexpression), .lua = lua_key_index(lmtxexpression),  .visible = 0 };
+    lmt_interface.node_data[rpn_expression_node] = (node_info) { .id = rpn_expression_node, .size = rpn_expression_node_size, .first = 0, .last = 0,                         .subtypes = NULL,              .fields = NULL,                           .name = lua_key(rpnexpression),  .lua = lua_key_index(rpnexpression),   .visible = 0 };
     lmt_interface.node_data[loop_state_node]     = (node_info) { .id = loop_state_node,     .size = loop_state_node_size,     .first = 0, .last = 0,                         .subtypes = NULL,              .fields = NULL,                           .name = lua_key(loopstate),      .lua = lua_key_index(loopstate),       .visible = 0 };
     lmt_interface.node_data[math_spec_node]      = (node_info) { .id = math_spec_node,      .size = math_spec_node_size,      .first = 0, .last = 0,                         .subtypes = NULL,              .fields = NULL,                           .name = lua_key(mathspec),       .lua = lua_key_index(mathspec),        .visible = 0 };
     lmt_interface.node_data[font_spec_node]      = (node_info) { .id = font_spec_node,      .size = font_spec_node_size,      .first = 0, .last = 0,                         .subtypes = NULL,              .fields = NULL,                           .name = lua_key(fontspec),       .lua = lua_key_index(fontspec),        .visible = 0 };
@@ -906,6 +904,66 @@ void lmt_nodelib_initialize(void) {
     lmt_interface.node_data[delta_node]          = (node_info) { .id = delta_node,          .size = delta_node_size,          .first = 0, .last = 0,                         .subtypes = NULL,              .fields = NULL,                           .name = lua_key(delta),          .lua = lua_key_index(delta),           .visible = 0 };
     lmt_interface.node_data[passive_node]        = (node_info) { .id = passive_node,        .size = passive_node_size,        .first = 0, .last = 0,                         .subtypes = NULL,              .fields = NULL,                           .name = lua_key(passive),        .lua = lua_key_index(passive),         .visible = 0 };
     lmt_interface.node_data[passive_node + 1]    = (node_info) { .id = -1,                  .size = -1,                       .first = 0, .last = 0,                         .subtypes = NULL,              .fields = NULL,                           .name = NULL,                    .lua = 0,                              .visible = 0 };
+
+    lmt_interface.par_data = lmt_memory_malloc(par_n_of_codes * sizeof(par_info));
+
+    lmt_interface.par_data[par_none_code                   ] = (par_info) { .cmd = 0,                      .chr = 0,                            .category = par_none_category                };
+    lmt_interface.par_data[par_hsize_code                  ] = (par_info) { .cmd = internal_dimension_cmd, .chr = hsize_code,                   .category = par_hsize_category               };
+    lmt_interface.par_data[par_left_skip_code              ] = (par_info) { .cmd = internal_glue_cmd,      .chr = left_skip_code,               .category = par_skip_category                };
+    lmt_interface.par_data[par_right_skip_code             ] = (par_info) { .cmd = internal_glue_cmd,      .chr = right_skip_code,              .category = par_skip_category                };
+    lmt_interface.par_data[par_hang_indent_code            ] = (par_info) { .cmd = internal_dimension_cmd, .chr = hang_indent_code,             .category = par_hang_category                };
+    lmt_interface.par_data[par_hang_after_code             ] = (par_info) { .cmd = internal_integer_cmd,   .chr = hang_after_code,              .category = par_hang_category                };
+    lmt_interface.par_data[par_par_indent_code             ] = (par_info) { .cmd = internal_dimension_cmd, .chr = par_indent_code,              .category = par_indent_category              };
+    lmt_interface.par_data[par_par_fill_left_skip_code     ] = (par_info) { .cmd = internal_glue_cmd,      .chr = par_fill_left_skip_code,      .category = par_par_fill_category            };
+    lmt_interface.par_data[par_par_fill_right_skip_code    ] = (par_info) { .cmd = internal_glue_cmd,      .chr = par_fill_right_skip_code,     .category = par_par_fill_category            };
+    lmt_interface.par_data[par_par_init_left_skip_code     ] = (par_info) { .cmd = internal_glue_cmd,      .chr = par_init_left_skip_code,      .category = par_par_fill_category            };
+    lmt_interface.par_data[par_par_init_right_skip_code    ] = (par_info) { .cmd = internal_glue_cmd,      .chr = par_init_right_skip_code,     .category = par_par_fill_category            };
+    lmt_interface.par_data[par_emergency_left_skip_code    ] = (par_info) { .cmd = internal_glue_cmd,      .chr = emergency_left_skip_code,     .category = par_emergency_category           };
+    lmt_interface.par_data[par_emergency_right_skip_code   ] = (par_info) { .cmd = internal_glue_cmd,      .chr = emergency_right_skip_code,    .category = par_emergency_category           };
+    lmt_interface.par_data[par_adjust_spacing_code         ] = (par_info) { .cmd = internal_integer_cmd,   .chr = adjust_spacing_code,          .category = par_adjust_category              };
+    lmt_interface.par_data[par_protrude_chars_code         ] = (par_info) { .cmd = internal_integer_cmd,   .chr = protrude_chars_code,          .category = par_protrude_category            };
+    lmt_interface.par_data[par_pre_tolerance_code          ] = (par_info) { .cmd = internal_integer_cmd,   .chr = pre_tolerance_code,           .category = par_tolerance_category           };
+    lmt_interface.par_data[par_tolerance_code              ] = (par_info) { .cmd = internal_integer_cmd,   .chr = tolerance_code,               .category = par_tolerance_category           };
+    lmt_interface.par_data[par_emergency_stretch_code      ] = (par_info) { .cmd = internal_dimension_cmd, .chr = emergency_stretch_code,       .category = par_stretch_category             };
+    lmt_interface.par_data[par_looseness_code              ] = (par_info) { .cmd = internal_integer_cmd,   .chr = looseness_code,               .category = par_looseness_category           };
+    lmt_interface.par_data[par_last_line_fit_code          ] = (par_info) { .cmd = internal_integer_cmd,   .chr = last_line_fit_code,           .category = par_last_line_category           };
+    lmt_interface.par_data[par_line_penalty_code           ] = (par_info) { .cmd = internal_integer_cmd,   .chr = line_penalty_code,            .category = par_line_penalty_category        };
+    lmt_interface.par_data[par_inter_line_penalty_code     ] = (par_info) { .cmd = internal_integer_cmd,   .chr = inter_line_penalty_code,      .category = par_line_penalty_category        };
+    lmt_interface.par_data[par_club_penalty_code           ] = (par_info) { .cmd = internal_integer_cmd,   .chr = club_penalty_code,            .category = par_club_penalty_category        };
+    lmt_interface.par_data[par_widow_penalty_code          ] = (par_info) { .cmd = internal_integer_cmd,   .chr = widow_penalty_code,           .category = par_widow_penalty_category       };
+    lmt_interface.par_data[par_display_widow_penalty_code  ] = (par_info) { .cmd = internal_integer_cmd,   .chr = display_widow_penalty_code,   .category = par_display_penalty_category     };
+    lmt_interface.par_data[par_left_twin_demerits_code     ] = (par_info) { .cmd = internal_integer_cmd,   .chr = left_twin_demerits_code,      .category = par_twin_demerits_category       };
+    lmt_interface.par_data[par_right_twin_demerits_code    ] = (par_info) { .cmd = internal_integer_cmd,   .chr = right_twin_demerits_code,     .category = par_twin_demerits_category       };
+    lmt_interface.par_data[par_broken_penalty_code         ] = (par_info) { .cmd = internal_integer_cmd,   .chr = broken_penalty_code,          .category = par_broken_penalty_category      };
+    lmt_interface.par_data[par_adj_demerits_code           ] = (par_info) { .cmd = internal_integer_cmd,   .chr = adj_demerits_code,            .category = par_demerits_category            };
+    lmt_interface.par_data[par_double_hyphen_demerits_code ] = (par_info) { .cmd = internal_integer_cmd,   .chr = double_hyphen_demerits_code,  .category = par_demerits_category            };
+    lmt_interface.par_data[par_final_hyphen_demerits_code  ] = (par_info) { .cmd = internal_integer_cmd,   .chr = final_hyphen_demerits_code,   .category = par_demerits_category            };
+    lmt_interface.par_data[par_par_shape_code              ] = (par_info) { .cmd = specification_cmd,      .chr = par_shape_code,               .category = par_shape_category               };
+    lmt_interface.par_data[par_inter_line_penalties_code   ] = (par_info) { .cmd = specification_cmd,      .chr = inter_line_penalties_code,    .category = par_line_penalty_category        };
+    lmt_interface.par_data[par_club_penalties_code         ] = (par_info) { .cmd = specification_cmd,      .chr = club_penalties_code,          .category = par_club_penalty_category        };
+    lmt_interface.par_data[par_widow_penalties_code        ] = (par_info) { .cmd = specification_cmd,      .chr = widow_penalties_code,         .category = par_widow_penalty_category       };
+    lmt_interface.par_data[par_display_widow_penalties_code] = (par_info) { .cmd = specification_cmd,      .chr = display_widow_penalties_code, .category = par_display_penalty_category     };
+    lmt_interface.par_data[par_broken_penalties_code       ] = (par_info) { .cmd = specification_cmd,      .chr = broken_penalties_code,        .category = par_broken_penalty_category      };
+    lmt_interface.par_data[par_orphan_penalties_code       ] = (par_info) { .cmd = specification_cmd,      .chr = orphan_penalties_code,        .category = par_orphan_penalty_category      };
+    lmt_interface.par_data[par_toddler_penalties_code      ] = (par_info) { .cmd = specification_cmd,      .chr = toddler_penalties_code,       .category = par_toddler_penalty_category     };
+    lmt_interface.par_data[par_fitness_classes_code        ] = (par_info) { .cmd = specification_cmd,      .chr = fitness_classes_code,         .category = par_fitness_classes_category     };
+    lmt_interface.par_data[par_adjacent_demerits_code      ] = (par_info) { .cmd = specification_cmd,      .chr = adjacent_demerits_code,       .category = par_demerits_category            };
+    lmt_interface.par_data[par_orphan_line_factors_code    ] = (par_info) { .cmd = internal_integer_cmd,   .chr = orphan_line_factors_code,     .category = par_orphan_penalty_category      };
+    lmt_interface.par_data[par_baseline_skip_code          ] = (par_info) { .cmd = internal_glue_cmd,      .chr = baseline_skip_code,           .category = par_line_category                };
+    lmt_interface.par_data[par_line_skip_code              ] = (par_info) { .cmd = internal_glue_cmd,      .chr = line_skip_code,               .category = par_line_category                };
+    lmt_interface.par_data[par_line_skip_limit_code        ] = (par_info) { .cmd = internal_dimension_cmd, .chr = line_skip_limit_code,         .category = par_line_category                };
+    lmt_interface.par_data[par_adjust_spacing_step_code    ] = (par_info) { .cmd = internal_integer_cmd,   .chr = adjust_spacing_step_code,     .category = par_adjust_category              };
+    lmt_interface.par_data[par_adjust_spacing_shrink_code  ] = (par_info) { .cmd = internal_integer_cmd,   .chr = adjust_spacing_shrink_code,   .category = par_adjust_category              };
+    lmt_interface.par_data[par_adjust_spacing_stretch_code ] = (par_info) { .cmd = internal_integer_cmd,   .chr = adjust_spacing_stretch_code,  .category = par_adjust_category              };
+    lmt_interface.par_data[par_hyphenation_mode_code       ] = (par_info) { .cmd = internal_integer_cmd,   .chr = hyphenation_mode_code,        .category = par_hyphenation_category,         };
+    lmt_interface.par_data[par_shaping_penalties_mode_code ] = (par_info) { .cmd = internal_integer_cmd,   .chr = shaping_penalties_mode_code,  .category = par_shaping_penalty_category     };
+    lmt_interface.par_data[par_shaping_penalty_code        ] = (par_info) { .cmd = internal_integer_cmd,   .chr = shaping_penalty_code,         .category = par_shaping_penalty_category     };
+    lmt_interface.par_data[par_emergency_extra_stretch_code] = (par_info) { .cmd = internal_dimension_cmd, .chr = emergency_extra_stretch_code, .category = par_emergency_category           };
+    lmt_interface.par_data[par_par_passes_code             ] = (par_info) { .cmd = specification_cmd,      .chr = par_passes_code,              .category = par_par_passes_category          };
+    lmt_interface.par_data[par_line_break_checks_code      ] = (par_info) { .cmd = internal_integer_cmd,   .chr = line_break_checks_code,       .category = par_line_break_checks_category   };
+    lmt_interface.par_data[par_single_line_penalty_code    ] = (par_info) { .cmd = internal_integer_cmd,   .chr = single_line_penalty_code,     .category = par_single_line_penalty_category };
+    lmt_interface.par_data[par_hyphen_penalty_code         ] = (par_info) { .cmd = internal_integer_cmd,   .chr = hyphen_penalty_code,          .category = par_hyphen_penalty_category      };
+    lmt_interface.par_data[par_ex_hyphen_penalty_code      ] = (par_info) { .cmd = internal_integer_cmd,   .chr = ex_hyphen_penalty_code,       .category = par_ex_hyphen_penalty_category   };
 
 }
 
@@ -1113,7 +1171,6 @@ halfword tex_new_node(quarterword type, quarterword subtype)
         so we can clear one word less than |s|.
 
     */
-
     memset((void *) (lmt_node_memory_state.nodes + node + 1), 0, (sizeof(memoryword) * ((size_t) size - 1)));
 
     if (tex_nodetype_is_complex(type)) {
@@ -1396,6 +1453,7 @@ halfword tex_copy_node(halfword original)
                     par_display_widow_penalties(copy) = null;
                     par_broken_penalties(copy) = null;
                     par_orphan_penalties(copy) = null;
+                    par_toddler_penalties(copy) = null;
                     par_fitness_classes(copy) = null;
                     par_adjacent_demerits(copy) = null;
                     par_orphan_line_factors(copy) = null;
@@ -1415,11 +1473,11 @@ halfword tex_copy_node(halfword original)
                     tex_set_par_par(copy, par_widow_penalties_code, tex_get_par_par(original, par_widow_penalties_code), 1);
                     tex_set_par_par(copy, par_display_widow_penalties_code, tex_get_par_par(original, par_display_widow_penalties_code), 1);
                     tex_set_par_par(copy, par_orphan_penalties_code, tex_get_par_par(original, par_orphan_penalties_code), 1);
+                    tex_set_par_par(copy, par_toddler_penalties_code, tex_get_par_par(original, par_toddler_penalties_code), 1);
                     tex_set_par_par(copy, par_fitness_classes_code, tex_get_par_par(original, par_fitness_classes_code), 1);
                     tex_set_par_par(copy, par_adjacent_demerits_code, tex_get_par_par(original, par_adjacent_demerits_code), 1);
                     tex_set_par_par(copy, par_orphan_line_factors_code, tex_get_par_par(original, par_orphan_line_factors_code), 1);
                     tex_set_par_par(copy, par_par_passes_code, tex_get_par_par(original, par_par_passes_code), 1);
-                    tex_set_par_par(copy, line_break_checks_code, tex_get_par_par(original, line_break_checks_code), 1);
                     /* tokens, we could mess with a ref count instead */
                     par_end_par_tokens(copy) = par_end_par_tokens(original);
                     tex_add_token_reference(par_end_par_tokens(original));
@@ -1454,7 +1512,6 @@ static inline void tex_aux_free_sub_node(halfword source)
 }
 
 /* We don't need the checking for attributes if we make these lists frozen. */
-
 
 void tex_flush_node(halfword p)
 {
@@ -1517,6 +1574,7 @@ void tex_flush_node(halfword p)
                     tex_flush_node(par_display_widow_penalties(p));
                     tex_flush_node(par_broken_penalties(p));
                     tex_flush_node(par_orphan_penalties(p));
+                    tex_flush_node(par_toddler_penalties(p));
                     tex_flush_node(par_fitness_classes(p));
                     tex_flush_node(par_adjacent_demerits(p));
                     tex_flush_node(par_orphan_line_factors(p));
@@ -3596,17 +3654,17 @@ halfword tex_new_char_node(quarterword subtype, halfword fnt, halfword chr, int 
         set_glyph_slant(p, glyph_slant_par);
         set_glyph_weight(p, glyph_weight_par);
     }
-    if (! tex_char_exists(fnt, chr)) {
-        int callback_id = lmt_callback_defined(missing_character_callback);
-        if (callback_id > 0) {
-            /* maybe direct node */
-            lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "Ndd->", p, fnt, chr);
-        }
-    } else {
+    if (tex_char_exists(fnt, chr)) {
         tex_char_process(fnt, chr);
+    } else { 
+        tex_missing_character(p, fnt, chr, missing_character_text_glyph);
     }
     return p;
 }
+
+/*tex
+    This one is called in the lua node interface so we assume checking being done at that end. 
+*/
 
 halfword tex_new_text_glyph(halfword fnt, halfword chr)
 {
@@ -4096,7 +4154,8 @@ halfword tex_new_par_node(quarterword subtype)
         tex_set_local_tolerance(par, local_tolerance_par);
         tex_set_local_pre_tolerance(par, local_pre_tolerance_par);
     }
-    par_dir(par) = par_direction_par;
+    par_dir(par) = (singleword) par_direction_par;
+    par_options(par) = (singleword) par_options_par;
     tex_add_local_boxes(par); /*tex Is this really always needed? */
     if (subtype != local_box_par_subtype) {
         lmt_insert_par_callback(par, subtype);
@@ -4131,6 +4190,12 @@ static halfword tex_aux_internal_to_par_code(halfword cmd, halfword index) {
                 case final_hyphen_demerits_code  : return par_final_hyphen_demerits_code;
                 case shaping_penalties_mode_code : return par_shaping_penalties_mode_code;
                 case shaping_penalty_code        : return par_shaping_penalty_code;
+                case line_break_checks_code      : return par_line_break_checks_code;
+                case orphan_line_factors_code    : return par_orphan_line_factors_code;
+                case adjust_spacing_step_code    : return par_adjust_spacing_step_code;
+                case adjust_spacing_shrink_code  : return par_adjust_spacing_shrink_code;
+                case adjust_spacing_stretch_code : return par_adjust_spacing_stretch_code;
+                case hyphenation_mode_code       : return par_hyphenation_mode_code;
             }
             break;
         case internal_dimension_cmd:
@@ -4157,6 +4222,7 @@ static halfword tex_aux_internal_to_par_code(halfword cmd, halfword index) {
                 case line_skip_code              : return par_line_skip_code;
             }
             break;
+
         case specification_reference_cmd:
             switch (index) {
                 case par_shape_code              : return par_par_shape_code;
@@ -4166,11 +4232,11 @@ static halfword tex_aux_internal_to_par_code(halfword cmd, halfword index) {
                 case display_widow_penalties_code: return par_display_widow_penalties_code;
                 case orphan_penalties_code       : return par_orphan_penalties_code;
                 case toddler_penalties_code      : return par_toddler_penalties_code;
+                case par_broken_penalties_code   : return par_broken_penalties_code;
                 case fitness_classes_code        : return par_fitness_classes_code;
                 case adjacent_demerits_code      : return par_adjacent_demerits_code;
                 case orphan_line_factors_code    : return par_orphan_line_factors_code;
                 case par_passes_code             : return par_par_passes_code;
-                case line_break_checks_code      : return line_break_checks_code;
             }
             break;
     }
@@ -4488,7 +4554,7 @@ void tex_set_par_par(halfword p, halfword what, halfword v, int force)
                 }
                 par_par_passes(p) = v ? tex_copy_node(v) : null;
                 break;
-            case line_break_checks_code:
+            case par_line_break_checks_code:
                 par_line_break_checks(p) = v;
                 break;
         }
@@ -4915,16 +4981,18 @@ static void *tex_aux_allocate_specification(halfword p, int n, size_t *size)
         case par_passes_code:
             n *= par_passes_size;
             break;
+        case balance_shape_code: 
+            n *= balance_shape_size;
+            break;
+        case balance_passes_code:
+            n *= balance_passes_size;
+            break;
         default:
             break;
     }
     *size = n * sizeof(memoryword);
-    lmt_node_memory_state.extra_data.allocated += (int) *size;
-    lmt_node_memory_state.extra_data.ptr = lmt_node_memory_state.extra_data.allocated;
-    if (lmt_node_memory_state.extra_data.ptr > lmt_node_memory_state.extra_data.top) {
-        lmt_node_memory_state.extra_data.top = lmt_node_memory_state.extra_data.ptr;
-    }
-    if (n) {
+    lmt_node_memory_state.nodes_data.extra += (int) *size;
+    if (n) { 
         l = lmt_memory_calloc(n, sizeof(memoryword));
         if (! l) {
             tex_overflow_error("nodes", (int) *size);
@@ -4935,8 +5003,7 @@ static void *tex_aux_allocate_specification(halfword p, int n, size_t *size)
 
 static void tex_aux_deallocate_specification(void *p, int size)
 {
-    lmt_node_memory_state.extra_data.allocated -= size;
-    lmt_node_memory_state.extra_data.ptr = lmt_node_memory_state.extra_data.allocated;
+    lmt_node_memory_state.nodes_data.extra -= size;
     lmt_memory_free(p);
 }
 
@@ -4970,14 +5037,39 @@ halfword tex_new_specification_node(halfword n, quarterword s, halfword options)
 void tex_dispose_specification_list(halfword a)
 {
     if (specification_pointer(a)) {
-        if (node_subtype(a) == par_passes_code) {
-            for (int i = 1; i <= specification_count(a); i++) {
-                halfword f = tex_get_passes_fitnessclasses(a, i);
-                if (f) {
-                   tex_flush_node(f);
-                   tex_set_passes_fitnessclasses(a, i, null);
+        switch (node_subtype(a)) { 
+            case par_passes_code:
+                for (int i = 1; i <= specification_count(a); i++) {
+                    halfword f = tex_get_passes_fitnessclasses(a, i);
+                    if (f) {
+                       tex_flush_node(f);
+                       tex_set_passes_fitnessclasses(a, i, null);
+                    }
                 }
-            }
+                break;
+            case balance_shape_code:
+                for (int i = 1; i <= specification_count(a); i++) {
+                    halfword t = tex_get_balance_topskip(a, i);
+                    halfword b = tex_get_balance_bottomskip(a, i);
+                    if (t) {
+                       tex_flush_node(t);
+                       tex_set_balance_topskip(a, i, null);
+                    }
+                    if (b) {
+                       tex_flush_node(b);
+                       tex_set_balance_bottomskip(a, i, null);
+                    }
+                }
+                break;
+            case balance_passes_code:
+                for (int i = 1; i <= specification_count(a); i++) {
+                    halfword f = tex_get_balance_passes_fitnessclasses(a, i);
+                    if (f) {
+                       tex_flush_node(f);
+                       tex_set_balance_passes_fitnessclasses(a, i, null);
+                    }
+                }
+                break;
         }
         tex_aux_deallocate_specification(specification_pointer(a), specification_size(a));
         specification_pointer(a) = NULL;
@@ -4996,14 +5088,33 @@ void tex_copy_specification_list(halfword target, halfword source)
             specification_size(target) = specification_size(source);
             memcpy(specification_pointer(target), specification_pointer(source), size);
             /* */
-            if (node_subtype(target) == par_passes_code) {
-                for (int i = 1; i <= specification_count(source); i++) {
-                    halfword f = tex_get_passes_fitnessclasses(source, i);
-                    if (f) {
-                        halfword c = tex_copy_node(f);
-                        tex_set_passes_fitnessclasses(target, i, c);
+            switch (node_subtype(target)) { 
+                case par_passes_code:
+                    for (int i = 1; i <= specification_count(source); i++) {
+                        halfword f = tex_get_passes_fitnessclasses(source, i);
+                        if (f) {
+                            halfword c = tex_copy_node(f);
+                            tex_set_passes_fitnessclasses(target, i, c);
+                        }
                     }
-                }
+                    break;
+                case balance_shape_code:
+                    for (int i = 1; i <= specification_count(source); i++) {
+                        halfword t = tex_get_balance_topskip(source, i);
+                        halfword b = tex_get_balance_bottomskip(source, i);
+                        if (t) {
+                            halfword c = tex_copy_node(t);
+                            tex_set_balance_topskip(target, i, c);
+                        }
+                        if (b) {
+                            halfword c = tex_copy_node(t);
+                            tex_set_balance_bottomskip(target, i, c);
+                        }
+                    }
+                    break;
+                case balance_passes_code:
+                    /* todo */
+                    break;
             }
             /* */
         } else {
@@ -5146,7 +5257,7 @@ void tex_shift_specification_list(halfword shape, int n, int rotate)
                 halfword m = count - n;
                 memcpy(target, source + n, m * sizeof(memoryword));
                 memcpy(target + m, source, n * sizeof(memoryword));
-                tex_aux_deallocate_specification(source, size);
+                tex_aux_deallocate_specification(source, (halfword) size);
                 specification_pointer(shape) = target;
             }
         } else {
@@ -5163,11 +5274,11 @@ void tex_shift_specification_list(halfword shape, int n, int rotate)
                     memcpy(target, source + n, newsize);
                 }
                 if (oldsize > 0) {
-                    tex_aux_deallocate_specification(source, oldsize);
+                    tex_aux_deallocate_specification(source, (halfword) oldsize);
                 }
                 specification_pointer(shape) = target;
                 specification_count(shape) = slice;
-                specification_size(shape) = newsize;
+                specification_size(shape) = (halfword) newsize;
             }
         }
     }
@@ -5182,8 +5293,8 @@ void tex_set_disc_field(halfword target, halfword location, halfword source)
         case post_break_code: target = disc_post_break(target); break;
         case no_break_code:   target = disc_no_break(target);   break;
     }
-    node_prev(source) = null; /* don't expose this one! */
     if (source) {
+        node_prev(source) = null; /* don't expose this one! */
         node_head(target) = source;
         node_tail(target) = tex_tail_of_node_list(source);
     } else {
@@ -5251,7 +5362,7 @@ disc (pre post replace) disc
 halfword tex_flatten_discretionaries(halfword head, int *count, int nest)
 {
     halfword current = head;
-    singleword after = 0;
+    halfword after = 0;
     while (current) {
         halfword next = node_next(current);
         switch (node_type(current)) {
@@ -5406,25 +5517,22 @@ void tex_soften_hyphens(halfword head, int *found, int *replaced)
             case glyph_node:
                 {
                     if (glyph_character(current) == 0x2D) {
-                        /*
-                            We actually need a callback for this? Or we can have a nested loop
-                            helper in the nodelib.
-                        */
                         ++(*found);
-                        switch (glyph_discpart(current)) {
-                            case glyph_discpart_unset:
-                                /*tex Never seen by any disc handler. */
-                                set_glyph_discpart(current, glyph_discpart_always);
-                            case glyph_discpart_always:
-                                /*tex A hard coded - in the input. */
-                                break;
-                            default :
-                                if (tex_char_exists(glyph_font(current), 0xAD)) {
+                     // switch (glyph_discpart(current)) {
+                     //     case glyph_discpart_unset:
+                     //         /*tex Never seen by any disc handler. */
+                     //         set_glyph_discpart(current, glyph_discpart_always);
+                     //         break;
+                     //     case glyph_discpart_always:
+                     //         /*tex A hard coded - in the input. */
+                     //         break;
+                     //     default :
+                                if (glyph_disccode(current) == glyph_disc_syllable && tex_char_exists(glyph_font(current), 0xAD)) {
                                     ++(*replaced);
                                     glyph_character(current) = 0xAD;
                                 }
                                 break;
-                        }
+                     // }
                     }
                     break;
                 }
@@ -5636,13 +5744,13 @@ scaled tex_effective_glue(halfword parent, halfword glue)
                                         w -= glue_shrink(glue) * (double) box_glue_set(parent);
                                     }
                                     break;
+                                default: 
+                                    return (scaled) lmt_roundedfloat(w);
                             }
-                            return (scaled) lmt_roundedfloat(w);
                         }
                     default:
                         return glue_amount(glue);
                 }
-                break;
         }
     }
     return 0;

@@ -79,13 +79,13 @@ extern void        tex_scan_something_simple          (halfword cmd, halfword co
 extern void        tex_scan_left_brace                (void);
 extern void        tex_scan_optional_equals           (void);
 extern int         tex_scan_cardinal                  (int optional_equal, unsigned *value, int dontbark);
-extern halfword    tex_scan_integer                   (int optional_equal, int *radix);
+extern halfword    tex_scan_integer                   (int optional_equal, int *radix, int *grouped);
 extern void        tex_scan_integer_validate          (void);
 extern halfword    tex_scan_positive_integer          (int optional_equal);
 extern halfword    tex_scan_scale                     (int optional_equal);
 extern halfword    tex_scan_scale_factor              (int optional_equal);
 extern halfword    tex_scan_posit                     (int optional_equal);
-extern halfword    tex_scan_dimension                 (int mu, int inf, int shortcut, int optional_equal, halfword *order);
+extern halfword    tex_scan_dimension                 (int mu, int inf, int shortcut, int optional_equal, halfword *order, int *grouped);
 extern void        tex_scan_dimension_validate        (void);
 extern halfword    tex_scan_glue                      (int level, int optional_equal, int options_too);
 extern halfword    tex_scan_font                      (int optional_equal);
@@ -112,6 +112,7 @@ extern halfword    tex_scan_orientation               (int optional_equal);
 extern halfword    tex_scan_anchor                    (int optional_equal);
 extern halfword    tex_scan_anchors                   (int optional_equal);
 
+extern halfword    tex_scan_expr                      (int level);
 extern int         tex_scanned_expression             (int level);
 
 extern halfword    tex_scan_integer_register_number   (void);
@@ -219,12 +220,17 @@ static inline int tex_token_is_sign(halfword t) {
     return (t == minus_token) || (t == plus_token);
 }
 
-static inline int tex_token_is_seperator(halfword t) {
+static inline int tex_token_is_separator(halfword t) {
     return (t == period_token) || (t == comma_token);
 }
 
 static inline int tex_token_is_operator(halfword t) {
     return (t == plus_token) || (t == minus_token) || (t == asterisk_token) || (t == slash_token) || (t == colon_token);
+}
+
+static inline int tex_token_is_unit(halfword t) {
+    return (t >= a_token_l && t <= z_token_l) || (t >= a_token_o && t <= z_token_o)
+        || (t >= A_token_l && t <= Z_token_l) || (t >= A_token_o && t <= Z_token_o);
 }
 
 # endif

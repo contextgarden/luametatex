@@ -12,6 +12,7 @@ extern void     lmt_node_list_to_lua      (lua_State *L, halfword n);
 extern halfword lmt_node_list_from_lua    (lua_State *L, int n);
 extern int      lmt_get_math_style        (lua_State *L, int n, int dflt);
 extern int      lmt_get_math_parameter    (lua_State *L, int n, int dflt);
+extern halfword lmt_optional_isnode       (lua_State *L, int i);
 extern halfword lmt_check_isnode          (lua_State *L, int i);
 extern halfword lmt_check_isdirect        (lua_State *L, int i);
 extern halfword lmt_check_isdirectornode  (lua_State *L, int i, int *isdirect);
@@ -135,11 +136,20 @@ extern void lmt_insert_par_callback(
 );
 
 extern halfword lmt_uleader_callback(
-    halfword    head,
-    halfword    index, 
-    int         context,
-    halfword    box,
-    int         location
+    halfword head,
+    halfword index, 
+    int      context,
+    halfword box,
+    int      location
+);
+
+extern halfword lmt_uinsert_callback(
+    halfword callback, 
+    halfword index,
+    halfword order,
+    halfword packed,
+    scaled   height, 
+    scaled   amount
 );
 
 extern scaled lmt_italic_correction_callback(

@@ -48,6 +48,7 @@ hash_state_info lmt_hash_state = {
         .ptr       = 0,
         .initial   = 0,
         .offset    = 0, // eqtb_size,
+        .extra     = 0, 
     },
     .eqtb_data = {
         .minimum   = min_hash_size,
@@ -60,6 +61,7 @@ hash_state_info lmt_hash_state = {
         .ptr       = 0,
         .initial   = 0,
         .offset    = 0,
+        .extra     = 0, 
     },
     .eqtb        = NULL,
     .no_new_cs   = 1,
@@ -461,7 +463,7 @@ void tex_primitive(int cmd_origin, const char *str, singleword cmd, halfword chr
 static halfword tex_aux_insert_id(halfword p, const unsigned char *str, unsigned int l)
 {
     if (cs_text(p) > 0) {
-     RESTART:
+      RESTART:
         if (lmt_hash_state.hash_data.ptr < lmt_hash_state.hash_data.allocated) {
             ++lmt_hash_state.hash_data.ptr;
             cs_next(p) = lmt_hash_state.hash_data.ptr + eqtb_size;
@@ -746,6 +748,9 @@ void tex_print_cmd_flags(halfword cs, halfword cmd, int flags, int escaped)
 {
     if (flags) {
         flags = eq_flag(cs);
+        if (eq_level(cs) == level_one) { 
+            (escaped ? tex_print_str_esc : tex_print_str)("global "); 
+        }
         if (is_frozen   (flags)) { (escaped ? tex_print_str_esc : tex_print_str)("frozen "   ); }
         if (is_permanent(flags)) { (escaped ? tex_print_str_esc : tex_print_str)("permanent "); }
         if (is_immutable(flags)) { (escaped ? tex_print_str_esc : tex_print_str)("immutable "); }
@@ -932,6 +937,16 @@ void tex_print_cmd_chr(singleword cmd, halfword chr)
             tex_print_str("parameter ");
             tex_print_int(chr);
             break;
+# if (match_experiment)
+case integer_reference_cmd:
+    tex_print_str(node_token_flagged(chr) ? "large" : "small");
+    tex_print_str(" integer reference");
+    break;
+case dimension_reference_cmd:
+    tex_print_str(node_token_flagged(chr) ? "large" : "small");
+    tex_print_str(" dimension reference");
+    break;
+# endif 
         case mathspec_cmd:
             switch (node_subtype(chr)) {
                 case tex_mathcode:
@@ -955,7 +970,20 @@ void tex_print_cmd_chr(singleword cmd, halfword chr)
             /* Mo need now for more details. */
             tex_print_str("specification ");
             if (chr) {
-                tex_aux_prim_cmd_chr(specification_cmd, node_subtype(chr), 0);
+                switch (node_subtype(chr)) {
+                    case integer_list_code:
+                        tex_print_str_esc("count");
+                        break;
+                    case dimension_list_code:
+                        tex_print_str_esc("dimen");
+                        break;
+                    case posit_list_code:
+                        tex_print_str_esc("posit");
+                        break;
+                    default:
+                        tex_aux_prim_cmd_chr(specification_cmd, node_subtype(chr), 0);
+                        break;
+                }
             } else { 
                 tex_print_str("<unset>");
             }

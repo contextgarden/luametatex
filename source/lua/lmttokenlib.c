@@ -4,7 +4,7 @@
 
 /*tex
 
-    The tokenlib started out as an expetiment. The first version provided a rough interface to the
+    The tokenlib started out as an experiment. The first version provided a rough interface to the
     internals but could only really be used for simple introspection and limited piping back. A major
     step up came in a second version where Taco introduced a couple of scanners. During experiments
     in \CONTEXT\ I added some more so now we have a reasonable repertoire of creators, accessors and
@@ -105,6 +105,7 @@ void lmt_tokenlib_initialize(void)
     lmt_interface.command_names[mark_cmd]                             = (command_item) { .id = mark_cmd,                           .lua = lua_key_index(mark),                         .name = lua_key(mark),                         .kind = regular_command_item,   .min = 0,                         .max = last_set_mark_code,           .base = 0,                       .fixedvalue = 0            };
     lmt_interface.command_names[node_cmd]                             = (command_item) { .id = node_cmd,                           .lua = lua_key_index(node),                         .name = lua_key(node),                         .kind = node_command_item,      .min = ignore_entry,              .max = ignore_entry,                 .base = ignore_entry,            .fixedvalue = 0            };
     lmt_interface.command_names[xray_cmd]                             = (command_item) { .id = xray_cmd,                           .lua = lua_key_index(xray),                         .name = lua_key(xray),                         .kind = regular_command_item,   .min = 0,                         .max = last_xray_code,               .base = 0,                       .fixedvalue = 0            };
+    lmt_interface.command_names[mvl_cmd]                              = (command_item) { .id = mvl_cmd,                            .lua = lua_key_index(mvl),                          .name = lua_key(mvl),                          .kind = regular_command_item,   .min = 0,                         .max = last_mvl_code,                .base = 0,                       .fixedvalue = 0            };
     lmt_interface.command_names[make_box_cmd]                         = (command_item) { .id = make_box_cmd,                       .lua = lua_key_index(make_box),                     .name = lua_key(make_box),                     .kind = regular_command_item,   .min = 0,                         .max = last_nu_box_code,             .base = 0,                       .fixedvalue = 0            };
     lmt_interface.command_names[hmove_cmd]                            = (command_item) { .id = hmove_cmd,                          .lua = lua_key_index(hmove),                        .name = lua_key(hmove),                        .kind = regular_command_item,   .min = 0,                         .max = last_move_code,               .base = 0,                       .fixedvalue = 0            };
     lmt_interface.command_names[vmove_cmd]                            = (command_item) { .id = vmove_cmd,                          .lua = lua_key_index(vmove),                        .name = lua_key(vmove),                        .kind = regular_command_item,   .min = 0,                         .max = last_move_code,               .base = 0,                       .fixedvalue = 0            };
@@ -204,6 +205,10 @@ void lmt_tokenlib_initialize(void)
     lmt_interface.command_names[def_cmd]                              = (command_item) { .id = def_cmd,                            .lua = lua_key_index(def),                          .name = lua_key(def),                          .kind = regular_command_item,   .min = 0,                         .max = last_def_code,                .base = 0,                       .fixedvalue = 0            };
     lmt_interface.command_names[set_box_cmd]                          = (command_item) { .id = set_box_cmd,                        .lua = lua_key_index(set_box),                      .name = lua_key(set_box),                      .kind = regular_command_item,   .min = 0,                         .max = 0,                            .base = 0,                       .fixedvalue = 0            };
     lmt_interface.command_names[hyphenation_cmd]                      = (command_item) { .id = hyphenation_cmd,                    .lua = lua_key_index(hyphenation),                  .name = lua_key(hyphenation),                  .kind = regular_command_item,   .min = 0,                         .max = last_hyphenation_code,        .base = 0,                       .fixedvalue = 0            };
+# if (match_experiment)
+    lmt_interface.command_names[integer_reference_cmd]                = (command_item) { .id = integer_reference_cmd,              .lua = lua_key_index(integer_reference),            .name = lua_key(hyphenation),                  .kind = regular_command_item,   .min = 0,                         .max = 0,                            .base = 0,                       .fixedvalue = 0            };
+    lmt_interface.command_names[dimension_reference_cmd]              = (command_item) { .id = dimension_reference_cmd,            .lua = lua_key_index(dimension_reference),          .name = lua_key(hyphenation),                  .kind = regular_command_item,   .min = 0,                         .max = 0,                            .base = 0,                       .fixedvalue = 0            };
+# endif
     lmt_interface.command_names[interaction_cmd]                      = (command_item) { .id = interaction_cmd,                    .lua = lua_key_index(interaction),                  .name = lua_key(interaction),                  .kind = regular_command_item,   .min = 0,                         .max = last_interaction_level,       .base = 0,                       .fixedvalue = 0            };
     lmt_interface.command_names[undefined_cs_cmd]                     = (command_item) { .id = undefined_cs_cmd,                   .lua = lua_key_index(undefined_cs),                 .name = lua_key(undefined_cs),                 .kind = regular_command_item,   .min = 0,                         .max = 0,                            .base = 0,                       .fixedvalue = 0            };
     lmt_interface.command_names[expand_after_cmd]                     = (command_item) { .id = expand_after_cmd,                   .lua = lua_key_index(expand_after),                 .name = lua_key(expand_after),                 .kind = regular_command_item,   .min = 0,                         .max = last_expand_after_code,       .base = 0,                       .fixedvalue = 0            };
@@ -268,7 +273,7 @@ static inline saved_tex_scanner tokenlib_aux_save_tex_scanner(void) {
     };
 }
 
-static inline void tokenlib_aux_unsave_tex_scanner(saved_tex_scanner a)
+static inline void tokenlib_aux_unsave_tex_scanner(const saved_tex_scanner a)
 {
     cur_cmd = a.cmd;
     cur_chr = a.chr;
@@ -927,7 +932,7 @@ static int tokenlib_scaninteger(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     int eq = lua_toboolean(L, 1);
-    halfword v = tex_scan_integer(eq, NULL);
+    halfword v = tex_scan_integer(eq, NULL, NULL);
     lua_pushinteger(L, (int) v);
     tokenlib_aux_unsave_tex_scanner(texstate);
     return 1;
@@ -950,7 +955,7 @@ static int tokenlib_gobbleinteger(lua_State *L)
     int eq = lua_toboolean(L, 1);
     lmt_error_state.intercept = 1;
     lmt_error_state.last_intercept = 0;
-    tex_scan_integer(eq, NULL);
+    tex_scan_integer(eq, NULL, NULL);
     lua_pushboolean(L, ! lmt_error_state.last_intercept);
     lmt_error_state.intercept = 0;
     lmt_error_state.last_intercept = 0;
@@ -1036,7 +1041,7 @@ static int tokenlib_scan_float_indeed(lua_State *L, int exponent, int hexadecima
         goto SCANDECIMAL;
     }
   SCANDECIMAL:
-    if (tex_token_is_seperator(cur_tok)) {
+    if (tex_token_is_separator(cur_tok)) {
         luaL_addchar(&b, '.');
         while (1) {
             tex_get_x_token();
@@ -1057,7 +1062,7 @@ static int tokenlib_scan_float_indeed(lua_State *L, int exponent, int hexadecima
       PICKUPDECIMAL:
         if (tex_token_is_digit(cur_tok)) {
             luaL_addchar(&b, (unsigned char) cur_chr);
-        } else if (tex_token_is_seperator(cur_tok)) {
+        } else if (tex_token_is_separator(cur_tok)) {
             luaL_addchar(&b, '.');
             while (1) {
                 tex_get_x_token();
@@ -1097,7 +1102,7 @@ static int tokenlib_scan_float_indeed(lua_State *L, int exponent, int hexadecima
     goto DONE;
   SCANHEXADECIMAL:
     tex_get_x_token();
-    if (tex_token_is_seperator(cur_tok)) {
+    if (tex_token_is_separator(cur_tok)) {
        luaL_addchar(&b, '.');
         while (1) {
             tex_get_x_token();
@@ -1117,7 +1122,7 @@ static int tokenlib_scan_float_indeed(lua_State *L, int exponent, int hexadecima
             tex_get_x_token();
             if (tex_token_is_xdigit(cur_tok)) {
                 luaL_addchar(&b, (unsigned char) cur_chr);
-            } else if (tex_token_is_seperator(cur_tok)) {
+            } else if (tex_token_is_separator(cur_tok)) {
                 luaL_addchar(&b, '.');
                 while (1) {
                     tex_get_x_token();
@@ -1312,8 +1317,8 @@ static int tokenlib_scandimension(lua_State *L)
     int inf = lua_toboolean(L, 1);
     int mu = lua_toboolean(L, 2);
     int eq = lua_toboolean(L, 3);
-    halfword order;
-    halfword val = tex_scan_dimension(mu, inf, 0, eq, &order);
+    halfword order = normal_glue_order;
+    halfword val = tex_scan_dimension(mu, inf, 0, eq, &order, NULL);
     lua_pushinteger(L, val);
     tokenlib_aux_unsave_tex_scanner(texstate);
     if (inf) {
@@ -1347,7 +1352,7 @@ static int tokenlib_gobbledimension(lua_State *L)
     int eq = lua_toboolean(L, 3);
     lmt_error_state.intercept = 1;
     lmt_error_state.last_intercept = 0;
-    tex_scan_dimension(mu, inf, 0, eq, NULL);
+    tex_scan_dimension(mu, inf, 0, eq, NULL, NULL);
     lua_pushboolean(L, ! lmt_error_state.last_intercept);
     lmt_error_state.intercept = 0;
     lmt_error_state.last_intercept = 0;
@@ -1676,6 +1681,8 @@ static int tokenlib_scanargument(lua_State *L)
     return 1;
 }
 
+/*tex begin of obsolete (redundant). */
+
 static void show_right_brace_error(void)
 {
     tex_handle_error(
@@ -1696,7 +1703,7 @@ static int tokenlib_scanintegerargument(lua_State *L)
     } else {
         wrapped = 1;
     }
-    lua_pushinteger(L, (int) tex_scan_integer(wrapped ? 0 : eq, NULL));
+    lua_pushinteger(L, (int) tex_scan_integer(wrapped ? 0 : eq, NULL, NULL));
     if (wrapped) {
         tokenlib_aux_goto_first_candidate();
         if (cur_cmd != right_brace_cmd) {
@@ -1711,17 +1718,18 @@ static int tokenlib_scandimensionargument(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
     int wrapped = 0;
-    halfword order = 0;
+    halfword order = normal_glue_order;
     int inf = lua_toboolean(L, 1);
     int mu = lua_toboolean(L, 2);
     int eq = lua_toboolean(L, 3);
     tokenlib_aux_goto_first_candidate();
+    /* todo: just assumed grouped */
     if (cur_cmd != left_brace_cmd) {
         tex_back_input(cur_tok);
     } else {
         wrapped = 1;
     }
-    lua_pushinteger(L, tex_scan_dimension(mu, inf, 0, wrapped ? 0 : eq, &order));
+    lua_pushinteger(L, tex_scan_dimension(mu, inf, 0, wrapped ? 0 : eq, &order, NULL));
     if (wrapped) {
         tokenlib_aux_goto_first_candidate();
         if (cur_cmd != right_brace_cmd) {
@@ -1736,6 +1744,11 @@ static int tokenlib_scandimensionargument(lua_State *L)
         return 1;
     }
 }
+
+/*tex End of obsolete (redundant). */
+
+
+/* */
 
 static int tokenlib_scandelimited(lua_State *L)
 {
@@ -2351,7 +2364,7 @@ static int tokenlib_future_expand(lua_State *L)
             case other_char_cmd:
                 if (lua_tointeger(L, 1) == cur_chr) {
                     tex_back_input(t);
-                    tex_back_input(yes);
+                    tex_back_input(yes); // maybe tex_reinsert_token 
                     tokenlib_aux_unsave_tex_scanner(texstate);
                     return 0;
                 }
@@ -3483,10 +3496,10 @@ static int tokenlib_undefinemacro(lua_State *L) /* todo: protected */
     return 0;
 }
 
-static int tokenlib_setmacro(lua_State *L) /* todo: protected */
+static int tokenlib_setmacro(lua_State *L)
 {
-    int top = lua_gettop(L);
-    if (top > 0) {
+    int stacktop = lua_gettop(L);
+    if (stacktop > 0) {
         const char *name = NULL;
         size_t lname = 0;
         int slot = 1;
@@ -3500,10 +3513,10 @@ static int tokenlib_setmacro(lua_State *L) /* todo: protected */
             const char *str = lua_tolstring(L, slot++, &lstr);
             halfword cs = tex_string_locate(name, lname, 1);
             int flags = 0;
-            if (slot <= top) {
+            if (slot <= stacktop) {
                 slot = lmt_check_for_flags(L, slot, &flags, 1, 1);
             }
-            if (tex_define_permitted(cs, flags)) { /* we check before we allocate */
+            if (tex_define_permitted(cs, flags)) {
                 halfword h;
                 if (lstr > 0) {
                     h = get_reference_token();
@@ -3514,6 +3527,40 @@ static int tokenlib_setmacro(lua_State *L) /* todo: protected */
                  // tex_add_token_reference(h);
                 }
                 tex_define(flags, cs, tex_flags_to_cmd(flags), h);
+            }
+        }
+    }
+    return 0;
+}
+
+/* name mark component flags  */
+
+static int tokenlib_setmacrofrommark(lua_State *L) 
+{
+    int stacktop = lua_gettop(L);
+    if (stacktop > 0) {
+        size_t lname = 0;
+        int slot = 1;
+        const char *name = lua_tolstring(L, slot++, &lname);
+        if (name) {
+            halfword mark = lmt_tohalfword(L, slot++);
+            halfword what = lmt_get_mark_class(L, slot++);
+            int flags = 0;
+            halfword cs = tex_string_locate(name, lname, 1);
+            if (slot <= stacktop) {
+                slot = lmt_check_for_flags(L, slot, &flags, 1, 1);
+            }
+            if (tex_define_permitted(cs, flags)) {
+                halfword head = null;
+                if (mark >= lmt_mark_state.min_used && mark <= lmt_mark_state.max_used) { 
+                    head = tex_get_mark(mark, what);
+                    if (head && token_link(head)) { 
+                        add_token_reference(head);
+                    } else { 
+                        head = lmt_token_state.empty;
+                    }
+                }
+                tex_define(flags, cs, tex_flags_to_cmd(flags), head);
             }
         }
     }
@@ -3801,8 +3848,8 @@ static const struct luaL_Reg tokenlib_function_list[] = {
     { "scankeywordcs",         tokenlib_scankeywordcs         },
     { "scanint",               tokenlib_scaninteger           }, /* obsolete */
     { "scaninteger",           tokenlib_scaninteger           },
-    { "scanintegerargument",   tokenlib_scanintegerargument   },
-    { "scandimensionargument", tokenlib_scandimensionargument },
+    { "scanintegerargument",   tokenlib_scanintegerargument   }, /* handled by scaninteger */
+    { "scandimensionargument", tokenlib_scandimensionargument }, /* handled by scandimension */
     { "scandimenargument",     tokenlib_scandimensionargument }, /* obsolete */
     { "scancardinal",          tokenlib_scancardinal          },
     { "scanfloat",             tokenlib_scanfloat             },
@@ -3871,6 +3918,7 @@ static const struct luaL_Reg tokenlib_function_list[] = {
     /* */
     { "locatemacro",           tokenlib_locatemacro           },
     { "setmacro",              tokenlib_setmacro              },
+    { "setmacrofrommark",      tokenlib_setmacrofrommark      },
     { "undefinemacro",         tokenlib_undefinemacro         },
     { "expandmacro",           tokenlib_expandmacro           },
  // { "setchar",               tokenlib_setchar               },
@@ -4132,124 +4180,6 @@ void lmt_function_call(int slot)
 }
 
 */
-
-int lmt_push_specification(lua_State *L, halfword ptr, int onlycount)
-{
-    if (ptr) {
-        halfword code = node_subtype(ptr);
-        switch (code) {
-            case par_shape_code:
-                {
-                    int n = specification_count(ptr);
-                    if (onlycount == 1) {
-                        lua_pushinteger(L, n);
-                    } else {
-                        int r = specification_repeat(ptr);
-                        lua_createtable(L, n, r ? 1 : 0);
-                        if (r) {
-                            lua_push_boolean_at_key(L, repeat, r);
-                        }
-                        for (int m = 1; m <= n; m++) {
-                            lua_createtable(L, 2, 0);
-                            lua_pushinteger(L, tex_get_specification_indent(ptr, m));
-                            lua_rawseti(L, -2, 1);
-                            lua_pushinteger(L, tex_get_specification_width(ptr, m));
-                            lua_rawseti(L, -2, 2);
-                            lua_rawseti(L, -2, m);
-                        }
-                    }
-                    return 1;
-                }
-            case fitness_classes_code:
-                {
-                    int n = specification_count(ptr);
-                    if (onlycount == 1) {
-                        lua_pushinteger(L, n);
-                    } else {
-                        for (int m = 1; m <= n; m++) {
-                            lua_pushinteger(L, tex_get_specification_fitness_class(ptr, m));
-                            lua_rawseti(L, -2, m);
-                        }
-                    }
-                    return 1;
-                }
-            case adjacent_demerits_code:
-                {
-                    int n = specification_count(ptr);
-                    if (onlycount == 1) {
-                        lua_pushinteger(L, n);
-                    } else {
-                        for (int m = 1; m <= n; m++) {
-                            lua_createtable(L, 2, 0);
-                            lua_pushinteger(L, tex_get_specification_adjacent_u(ptr, m));
-                            lua_rawseti(L, -2, 1);
-                            lua_pushinteger(L, tex_get_specification_adjacent_d(ptr, m));
-                            lua_rawseti(L, -2, 2);
-                            lua_rawseti(L, -2, m);
-                        }
-                    }
-                    return 1;
-                }
-            case par_passes_code:
-                {
-                    return 0;
-                }
-            case inter_line_penalties_code:
-            case club_penalties_code:
-            case widow_penalties_code:
-            case display_widow_penalties_code:
-            case orphan_penalties_code:
-            case toddler_penalties_code:
-            case orphan_line_factors_code:
-            case math_forward_penalties_code:
-            case math_backward_penalties_code:
-            case integer_list_code:
-            case dimension_list_code:
-            case posit_list_code:
-                {
-                    int n = specification_count(ptr);
-                    if (onlycount == 1) {
-                        lua_pushinteger(L, n);
-                    } else {
-                        lua_createtable(L, n, 0);
-                        if (specification_double(ptr)) {
-                            for (int m = 1; m <= n; m++) {
-                                lua_createtable(L, 2, 0);
-                                if (code == posit_list_code) {
-                                    if (specification_integer(ptr)) {
-                                        lua_pushinteger(L, tex_get_specification_nepalty(ptr, m));
-                                    } else {
-                                        lua_pushnumber(L, tex_posit_to_double(tex_get_specification_nepalty(ptr, m)));
-                                    }
-                                    lua_rawseti(L, -2, 1);
-                                    lua_pushnumber(L, tex_posit_to_double(tex_get_specification_penalty(ptr, m)));
-                                    lua_rawseti(L, -2, 2);
-                                } else {
-                                    lua_pushinteger(L, tex_get_specification_nepalty(ptr, m));
-                                    lua_rawseti(L, -2, 1);
-                                    lua_pushinteger(L, tex_get_specification_penalty(ptr, m));
-                                    lua_rawseti(L, -2, 2);
-                                }
-                                lua_rawseti(L, -2, m);
-                            }
-                        } else {
-                            for (int m = 1; m <= n; m++) {
-                                if (code == posit_list_code) {
-                                    lua_pushnumber(L, tex_posit_to_double(tex_get_specification_penalty(ptr, m)));
-                                } else {
-                                    lua_pushinteger(L, tex_get_specification_penalty(ptr, m));
-                                }
-                                lua_rawseti(L, -2, m);
-                            }
-                        }
-                    }
-                    return 1;
-                }
-        }
-    }
-    lua_pushnil(L);
-    return 1;
-}
 
 halfword lmt_get_lua_token_cs(lua_State *L, int index)
 {

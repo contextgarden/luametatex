@@ -40,6 +40,7 @@ string_pool_info lmt_string_pool_state = {
         .ptr       = 0,
         .initial   = 0,
         .offset    = cs_offset_value,
+        .extra     = 0, 
     },
     .string_body_data      = {
         .minimum   = min_body_size,
@@ -52,6 +53,7 @@ string_pool_info lmt_string_pool_state = {
         .ptr       = memory_data_unset,
         .initial   = 0,
         .offset    = 0,
+        .extra     = 0, 
     },
     .reserved              = 0,
     .string_max_length     = 0,
@@ -173,7 +175,7 @@ void tex_initialize_string_pool(void)
     if (size && nullstring) {
         lmt_string_pool_state.string_pool[0].s = nullstring;
         nullstring[0] = '\0';
-        lmt_string_pool_state.string_pool_data.ptr += 1;
+        lmt_string_pool_state.string_pool_data.ptr++;
         tex_reset_cur_string();
     } else {
         tex_overflow_error("pool", size);
@@ -463,7 +465,7 @@ char *tex_makecstring(int s)
 */
 
 /*tex 
-    I might eventually replace this because in qite some calls we know that we knwo that we have
+    I might eventually replace this because in quite some calls we know that we knwo that we have
     a pointer in string space. We can kin dof predict in what cases we are below |cs_offset_value|
     anyway. 
 */

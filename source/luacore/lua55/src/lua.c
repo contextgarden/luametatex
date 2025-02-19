@@ -185,7 +185,7 @@ static void print_version (void) {
 static void createargtable (lua_State *L, char **argv, int argc, int script) {
   int i, narg;
   narg = argc - (script + 1);  /* number of positive indices */
-  lua_createtable(L, cast_uint(narg), cast_uint(script + 1));
+  lua_createtable(L, narg, script + 1);
   for (i = 0; i < argc; i++) {
     lua_pushstring(L, argv[i]);
     lua_rawseti(L, -2, i - script);
@@ -497,7 +497,7 @@ static void lua_freeline (char *line) {
 static void lua_initreadline (lua_State *L) {
   void *lib = dlopen(LUA_READLINELIB, RTLD_NOW | RTLD_LOCAL);
   if (lib == NULL)
-    lua_warning(L, "library '" LUA_READLINELIB "'not found", 0);
+    lua_warning(L, "library '" LUA_READLINELIB "' not found", 0);
   else {
     const char **name = cast(const char**, dlsym(lib, "rl_readline_name"));
     if (name != NULL)
@@ -587,15 +587,28 @@ static int addreturn (lua_State *L) {
 }
 
 
+static void checklocal (const char *line) {
+  static const size_t szloc = sizeof("local") - 1;
+  static const char space[] = " \t";
+  line += strspn(line, space);  /* skip spaces */
+  if (strncmp(line, "local", szloc) == 0 &&  /* "local"? */
+      strchr(space, *(line + szloc)) != NULL) {  /* followed by a space? */
+    lua_writestringerror("%s\n",
+      "warning: locals do not survive across lines in interactive mode");
+  }
+}
+
+
 /*
 ** Read multiple lines until a complete Lua statement or an error not
 ** for an incomplete statement. Start with first line already read in
 ** the stack.
 */
 static int multiline (lua_State *L) {
+  size_t len;
+  const char *line = lua_tolstring(L, 1, &len);  /* get first line */
+  checklocal(line);
   for (;;) {  /* repeat until gets a complete statement */
-    size_t len;
-    const char *line = lua_tolstring(L, 1, &len);  /* get what it has */
     int status = luaL_loadbuffer(L, line, len, "=stdin");  /* try it */
     if (!incomplete(L, status) || !pushline(L, 0))
       return status;  /* should not or cannot try to add continuation line */
@@ -603,6 +616,7 @@ static int multiline (lua_State *L) {
     lua_pushliteral(L, "\n");  /* add newline... */
     lua_insert(L, -2);  /* ...between the two lines */
     lua_concat(L, 3);  /* join them */
+    line = lua_tolstring(L, 1, &len);  /* get what is has */
   }
 }
 

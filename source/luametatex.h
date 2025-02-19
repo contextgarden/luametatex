@@ -100,12 +100,14 @@
 
 /*tex Currently LUAC_FORMAT is set to 2 awaiting an official version bump. */
 
-# define luametatex_version          2
-# define luametatex_revision         11
-# define luametatex_release          05
-# define luametatex_version_string   "2.11.05"
-# define luametatex_version_number   211.5
-# define luametatex_development_id   20241031
+# define luametatex_majorversion     2
+# define luametatex_minorversion     11
+# define luametatex_version          211
+# define luametatex_revision         0
+# define luametatex_release          06
+# define luametatex_version_string   "2.11.06"
+# define luametatex_version_number   211.6
+# define luametatex_development_id   20250218
 # define luametatex_name_camelcase   "LuaMetaTeX"
 # define luametatex_name_lowercase   "luametatex"
 # define luametatex_copyright_holder "Taco Hoekwater, Hans Hagen, Wolfgang Schuster & Mikael Sundqvist"
@@ -124,6 +126,8 @@
 */
 
 typedef struct version_state_info {
+    int         majorversion;
+    int         minorversion; 
     int         version;
     int         revision;
     int         release; 
@@ -273,8 +277,12 @@ extern version_state_info lmt_version_state;
 /*tex This is not used (yet) as I don't expect much from it, but \LUA\ has some of it. */
 
 # if defined(__GNUC__)
-#   define lmt_likely(x)   (__builtin_expect(((x) != 0), 1))
-#   define lmt_unlikely(x) (__builtin_expect(((x) != 0), 0))
+    // Lua: 
+ // # define lmt_likely(x)   (__builtin_expect(((x) != 0), 1))
+ // # define lmt_unlikely(x) (__builtin_expect(((x) != 0), 0))
+    // Kernel: 
+    # define lmt_likely(x)   (__builtin_expect(!!(x), 1))
+    # define lmt_unlikely(x) (__builtin_expect(!!(x), 0))
 # else
 #   define lmt_likely(x)   (x)
 #   define lmt_unlikely(x) (x)
@@ -333,8 +341,8 @@ extern version_state_info lmt_version_state;
 # include "tex/texprimitive.h"
 # include "tex/texequivalents.h"
 # include "tex/texfont.h"
+# include "tex/texbalance.h"
 # include "tex/texlanguage.h"
-
 # include "lua/lmtcallbacklib.h"
 # include "lua/lmttokenlib.h"
 # include "lua/lmtnodelib.h"
