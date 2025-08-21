@@ -36,7 +36,7 @@
     special nature is easily discernible. The expandable commands come first.
 
     The extensions on top of standard \TEX\ came with extra |cmd| categories so at some point it
-    make sense to normalize soms of that. Similar commands became one category. Some more could be
+    make sense to normalize some of that. Similar commands became one category. Some more could be
     combined, like rules and move etc.\ but for now it makes no sense. We could also move the mode
     tests to the runners and make the main lookup simpler. Some commands need their own category
     because they also can bind to characters (like super and subscript).
@@ -291,7 +291,7 @@ dimension_reference_cmd,
         they became |protected_call_cmd|. After that we also got two frozen variants and later four
         tolerant so we ended up with eight. When I wanted some more, a different solution was
         chosen, so now we have just one again instead of |[tolerant_][frozen_][protected_]call_cmd|.
-        But ... in the end I setteled again for four basic call commands because it's nicer in
+        But ... in the end I settled again for four basic call commands because it's nicer in
         the token interface.
 
         The todo cmds come from a todo list and relate to |\expand| but then like \expand{...} even
@@ -320,7 +320,7 @@ dimension_reference_cmd,
     internal_glue_reference_cmd,      /*tex the equivalent points to internal glue specification */
     register_glue_reference_cmd,      /*tex the equivalent points to register glue specification */
     internal_muglue_reference_cmd,    /*tex the equivalent points to internal muglue specification */
-    register_muglue_reference_cmd,    /*tex the equivalent points to egister muglue specification */
+    register_muglue_reference_cmd,    /*tex the equivalent points to register muglue specification */
     internal_box_reference_cmd,       /*tex the equivalent points to internal box node, or is |null| */
     register_box_reference_cmd,       /*tex the equivalent points to register box node, or is |null| */
     internal_toks_reference_cmd,      /*tex the equivalent points to internal token list */
@@ -482,6 +482,7 @@ typedef enum convert_codes {
     to_sparse_scaled_code,    /*tex command code for |\tosparsescaled| (also gobbles |\relax|) */
     to_dimension_code,        /*tex command code for |\todimension| (also gobbles |\relax|) */
     to_sparse_dimension_code, /*tex command code for |\tosparsedimension| */
+    to_limited_float_code,    /*tex command code for |\tolimitedfloat| */
     to_mathstyle_code,        /*tex command code for |\tomathstyle| */
     lua_code,                 /*tex command code for |\directlua| */
     lua_function_code,        /*tex command code for |\luafunction| */
@@ -528,6 +529,7 @@ typedef enum input_codes {
     eof_input_code,
     end_of_input_code,
     token_input_code,
+    ignore_input_code,
     tex_token_input_code,
     tokenized_code,
     retokenized_code,
@@ -681,9 +683,16 @@ typedef enum font_property_codes {
     font_cf_code,
     font_dimension_code,
     scaled_font_dimension_code,
+    scaled_font_slant_per_point_code,
+    scaled_font_interword_space_code,
+    scaled_font_interword_stretch_code,
+    scaled_font_interword_shrink_code,
+    scaled_font_ex_height_code,
+    scaled_font_em_width_code,
+    scaled_font_extra_space_code,
 } font_property_codes;
 
-# define last_font_property_code scaled_font_dimension_code
+# define last_font_property_code scaled_font_extra_space_code
 
 typedef enum box_property_codes {
     box_width_code,
@@ -764,9 +773,10 @@ typedef enum relax_codes {
     relax_code,
     no_relax_code,
     no_expand_relax_code,
+    no_arguments_relax_code,
 } relax_codes;
 
-# define last_relax_code no_relax_code
+# define last_relax_code no_arguments_relax_code
 
 typedef enum end_paragraph_codes {
     normal_end_paragraph_code,

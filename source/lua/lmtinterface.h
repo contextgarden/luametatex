@@ -71,12 +71,14 @@ extern int  luaopen_md5         (lua_State *L);
 extern int  luaopen_mime_core   (lua_State *L);
 extern int  luaopen_mplib       (lua_State *L);
 extern int  luaopen_node        (lua_State *L);
+extern int  luaopen_helper      (lua_State *L);
 extern int  luaopen_optional    (lua_State *L);
 extern int  luaopen_pdfdecode   (lua_State *L);
 extern int  luaopen_pdfe        (lua_State *L);
 extern int  luaopen_pngdecode   (lua_State *L);
 extern int  luaopen_posit       (lua_State *L);
 extern int  luaopen_potrace     (lua_State *L);
+extern int  luaopen_qrcodegen   (lua_State *L);
 extern int  luaopen_sha2        (lua_State *L);
 extern int  luaopen_sio         (lua_State *L);
 extern int  luaopen_socket_core (lua_State *L);
@@ -89,6 +91,8 @@ extern int  luaopen_xcomplex    (lua_State *L);
 extern int  luaopen_xdecimal    (lua_State *L);
 extern int  luaopen_xmath       (lua_State *L);
 extern int  luaopen_xzip        (lua_State *L);
+extern int  luaopen_serial      (lua_State *L);
+extern int  luaopen_vector      (lua_State *L);
 
 extern int  luaextend_io        (lua_State *L);
 extern int  luaextend_os        (lua_State *L);
@@ -179,6 +183,10 @@ extern int  luaextend_xcomplex  (lua_State *L);
     lua_pushstring(L, s); \
     lua_rawseti(L, -2, i);
 
+# define lua_push_boolean_at_index(L,i,x) \
+    lua_pushboolean(L, (x)); \
+    lua_rawseti(L, -2, i);
+
 /* why not lua_push_key(k); lua_rawseti(L, -2, i); */
 
 # define lua_push_key_at_index(L,k,i) \
@@ -206,7 +214,7 @@ extern int  luaextend_xcomplex  (lua_State *L);
     lua_pushstring(L, s); \
     lua_rawset(L, -3);
 
-# define mlua_push_lstring_at_key(L,k,s,l) \
+# define lua_push_lstring_at_key(L,k,s,l) \
     lua_push_key(k); \
     lua_pushlstring(L, s, l); \
     lua_rawset(L, -3);
@@ -267,6 +275,14 @@ extern int  luaextend_xcomplex  (lua_State *L);
 
 # define STRING_BUFFER_INSTANCE "stringbuffer.instance"
 
+/* Various */
+
+# define VECTOR_METATABLE_INSTANCE  "vector"
+# define MESH_METATABLE_INSTANCE    "mesh"
+# define DECIMAL_METATABLE_INSTANCE "decimal"
+# define COMPLEX_METATABLE_INSTANCE "complex"
+# define POSIT_METATABLE_INSTANCE   "posit"
+
 /*tex
     There are some more but for now we have no reason to alias them for performance reasons, so
     that got postponed. We then also need to move the defines here:
@@ -326,7 +342,6 @@ typedef struct par_info {
     int   category;
 } par_info;
 
-
 typedef struct command_item {
     int         id;
     int         lua;
@@ -356,7 +371,9 @@ typedef struct lmt_interface_info {
     value_info    *group_code_values;
     value_info    *par_context_values;
     value_info    *page_context_values;
-    value_info    *append_line_context_values;
+ /* value_info    *append_line_context_values; */
+    value_info    *append_adjust_context_values;
+    value_info    *append_migrate_context_values;
     value_info    *alignment_context_values;
     value_info    *line_break_context_values;
     value_info    *build_context_values;
@@ -386,47 +403,51 @@ typedef struct lmt_interface_info {
 
 extern lmt_interface_info lmt_interface;
 
-# define lmt_push_pack_type(L,n)           lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.pack_type_values          [n].lua)
-# define lmt_push_group_code(L,n)          lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.group_code_values         [n].lua)
-# define lmt_push_par_context(L,n)         lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.par_context_values        [n].lua)
-# define lmt_push_page_context(L,n)        lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.page_context_values       [n].lua)
-# define lmt_push_append_line_context(L,n) lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.append_line_context_values[n].lua)
-# define lmt_push_alignment_context(L,n)   lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.alignment_context_values  [n].lua)
-# define lmt_push_par_trigger(L,n)         lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.par_trigger_values        [n].lua)
-# define lmt_push_par_mode(L,n)            lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.par_mode_values           [n].lua)
-# define lmt_push_math_style_name(L,n)     lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.math_style_name_values    [n].lua)
-# define lmt_push_math_style_variant(L,n)  lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.math_style_variant_values [n].lua)
-# define lmt_push_math_noad_option(L,n)    lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.math_noad_option_values   [n].lua)
-# define lmt_push_lua_function_values(L,n) lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.lua_function_values       [n].lua)
-# define lmt_push_direction(L,n)           lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.direction_values          [n].lua)
-# define lmt_push_node_fill(L,n)           lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.node_fill_values          [n].lua)
-# define lmt_push_page_contribute(L,n)     lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.page_contribute_values    [n].lua)
-# define lmt_push_math_style(L,n)          lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.math_style_values         [n].lua)
-# define lmt_push_math_parameter(L,n)      lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.math_parameter_values     [n].lua)
-# define lmt_push_math_font_parameter(L,n) lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.math_font_parameter_values[n].lua)
-# define lmt_push_math_indirect(L,n)       lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.math_indirect_values      [n].lua)
-# define lmt_push_field_type(L,n)          lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.field_type_values         [n].lua)
+# define lmt_push_pack_type(L,n)              lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.pack_type_values             [n].lua)
+# define lmt_push_group_code(L,n)             lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.group_code_values            [n].lua)
+# define lmt_push_par_context(L,n)            lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.par_context_values           [n].lua)
+# define lmt_push_page_context(L,n)           lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.page_context_values          [n].lua)
+//define lmt_push_append_line_context(L,n)    lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.append_line_context_values   [n].lua)
+# define lmt_push_append_adjust_context(L,n)  lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.append_adjust_context_values [n].lua)
+# define lmt_push_append_migrate_context(L,n) lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.append_migrate_context_values[n].lua)
+# define lmt_push_alignment_context(L,n)      lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.alignment_context_values     [n].lua)
+# define lmt_push_par_trigger(L,n)            lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.par_trigger_values           [n].lua)
+# define lmt_push_par_mode(L,n)               lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.par_mode_values              [n].lua)
+# define lmt_push_math_style_name(L,n)        lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.math_style_name_values       [n].lua)
+# define lmt_push_math_style_variant(L,n)     lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.math_style_variant_values    [n].lua)
+# define lmt_push_math_noad_option(L,n)       lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.math_noad_option_values      [n].lua)
+# define lmt_push_lua_function_values(L,n)    lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.lua_function_values          [n].lua)
+# define lmt_push_direction(L,n)              lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.direction_values             [n].lua)
+# define lmt_push_node_fill(L,n)              lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.node_fill_values             [n].lua)
+# define lmt_push_page_contribute(L,n)        lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.page_contribute_values       [n].lua)
+# define lmt_push_math_style(L,n)             lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.math_style_values            [n].lua)
+# define lmt_push_math_parameter(L,n)         lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.math_parameter_values        [n].lua)
+# define lmt_push_math_font_parameter(L,n)    lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.math_font_parameter_values   [n].lua)
+# define lmt_push_math_indirect(L,n)          lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.math_indirect_values         [n].lua)
+# define lmt_push_field_type(L,n)             lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.field_type_values            [n].lua)
 
-# define lmt_name_of_pack_type(n)           lmt_interface.pack_type_values          [n].name
-# define lmt_name_of_group_code(n)          lmt_interface.group_code_values         [n].name
-# define lmt_name_of_par_context(n)         lmt_interface.par_context_values        [n].name
-# define lmt_name_of_page_context(n)        lmt_interface.page_context_values       [n].name
-# define lmt_name_of_append_line_context(n) lmt_interface.append_line_context_values[n].name
-# define lmt_name_of_alignment_context(n)   lmt_interface.alignment_context_values  [n].name
-# define lmt_name_of_trigger_begin(n)       lmt_interface.par_trigger_values        [n].name
-# define lmt_name_of_par_mode(n)            lmt_interface.par_mode_values           [n].name
-# define lmt_name_of_math_style_name(n)     lmt_interface.math_style_name_values    [n].name
-# define lmt_name_of_math_style_variant(n)  lmt_interface.math_style_variant_values [n].name
-# define lmt_name_of_math_noad_option(n)    lmt_interface.math_noad_option_values   [n].name
-# define lmt_name_of_lua_function_values(n) lmt_interface.lua_function_values       [n].name
-# define lmt_name_of_direction(n)           lmt_interface.direction_values          [n].name
-# define lmt_name_of_node_fill(n)           lmt_interface.node_fill_values          [n].name
-# define lmt_name_of_page_contribute(n)     lmt_interface.page_contribute_values    [n].name
-# define lmt_name_of_math_style(n)          lmt_interface.math_style_values         [n].name
-# define lmt_name_of_math_parameter(n)      lmt_interface.math_parameter_values     [n].name
-# define lmt_name_of_math_font_parameter(n) lmt_interface.math_font_parameter_values[n].name
-# define lmt_name_of_math_indirect(n)       lmt_interface.math_indirect_values      [n].name
-# define lmt_name_of_field_type(n)          lmt_interface.field_type_values         [n].name
+# define lmt_name_of_pack_type(n)              lmt_interface.pack_type_values             [n].name
+# define lmt_name_of_group_code(n)             lmt_interface.group_code_values            [n].name
+# define lmt_name_of_par_context(n)            lmt_interface.par_context_values           [n].name
+# define lmt_name_of_page_context(n)           lmt_interface.page_context_values          [n].name
+//define lmt_name_of_append_line_context(n)    lmt_interface.append_line_context_values   [n].name
+# define lmt_name_of_append_adjust_context(n)  lmt_interface.append_adjust_context_values [n].name
+# define lmt_name_of_append_migrate_context(n) lmt_interface.append_migrate_context_values[n].name
+# define lmt_name_of_alignment_context(n)      lmt_interface.alignment_context_values     [n].name
+# define lmt_name_of_trigger_begin(n)          lmt_interface.par_trigger_values           [n].name
+# define lmt_name_of_par_mode(n)               lmt_interface.par_mode_values              [n].name
+# define lmt_name_of_math_style_name(n)        lmt_interface.math_style_name_values       [n].name
+# define lmt_name_of_math_style_variant(n)     lmt_interface.math_style_variant_values    [n].name
+# define lmt_name_of_math_noad_option(n)       lmt_interface.math_noad_option_values      [n].name
+# define lmt_name_of_lua_function_values(n)    lmt_interface.lua_function_values          [n].name
+# define lmt_name_of_direction(n)              lmt_interface.direction_values             [n].name
+# define lmt_name_of_node_fill(n)              lmt_interface.node_fill_values             [n].name
+# define lmt_name_of_page_contribute(n)        lmt_interface.page_contribute_values       [n].name
+# define lmt_name_of_math_style(n)             lmt_interface.math_style_values            [n].name
+# define lmt_name_of_math_parameter(n)         lmt_interface.math_parameter_values        [n].name
+# define lmt_name_of_math_font_parameter(n)    lmt_interface.math_font_parameter_values   [n].name
+# define lmt_name_of_math_indirect(n)          lmt_interface.math_indirect_values         [n].name
+# define lmt_name_of_field_type(n)             lmt_interface.field_type_values            [n].name
 
 /*tex
     This list will be made smaller because not all values need the boost. Before we define the
@@ -934,10 +955,12 @@ make_lua_key(L, lua_local_call);\
 make_lua_key(L, lua_protected_call);\
 make_lua_key(L, lua_semiprotected_call);\
 make_lua_key(L, lua_value);\
+make_lua_key(L, luametatex);\
 make_lua_key(L, luatex);\
 make_lua_key(L, macro);\
 make_lua_key(L, mainclass);\
 make_lua_key(L, make_box);\
+make_lua_key(L, margin);\
 make_lua_key(L, mark);\
 make_lua_key(L, match);\
 make_lua_key(L, math);\
@@ -967,7 +990,7 @@ make_lua_key(L, mathinline);\
 make_lua_key(L, mathkern);\
 make_lua_key(L, mathkerns);\
 make_lua_key(L, MathLeading);\
-make_lua_key(L, mathnumber);\
+make_lua_key(L, mathequationnumber);\
 make_lua_key(L, mathoperator);\
 make_lua_key(L, mathpack);\
 make_lua_key(L, mathpenaltyfactor);\
@@ -990,8 +1013,10 @@ make_lua_key(L, mathparentstyle);\
 make_lua_key(L, mathsubformula);\
 make_lua_key(L, mathtext);\
 make_lua_key(L, mathtextchar);\
+make_lua_key(L, maximum);\
 make_lua_key(L, medmuskip);\
 make_lua_key(L, message);\
+make_lua_key(L, method);\
 make_lua_key(L, middle);\
 make_lua_key(L, middlebox);\
 make_lua_key(L, MinConnectorOverlap);\
@@ -1513,6 +1538,12 @@ make_lua_key_alias(L, pdfe_array_instance,      PDFE_METATABLE_ARRAY);\
 make_lua_key_alias(L, pdfe_stream_instance,     PDFE_METATABLE_STREAM);\
 make_lua_key_alias(L, pdfe_reference_instance,  PDFE_METATABLE_REFERENCE);\
 /* */ \
+make_lua_key_alias(L, vector_instance,          VECTOR_METATABLE_INSTANCE);\
+make_lua_key_alias(L, mesh_instance,            MESH_METATABLE_INSTANCE);\
+make_lua_key_alias(L, decimal_instance,         DECIMAL_METATABLE_INSTANCE);\
+make_lua_key_alias(L, complex_instance,         COMPLEX_METATABLE_INSTANCE);\
+make_lua_key_alias(L, posit_instance,           POSIT_METATABLE_INSTANCE);\
+/* */ \
 make_lua_key_alias(L, file_handle_instance,     LUA_FILEHANDLE);\
 /* */ \
 make_lua_key_alias(L, string_buffer_instance,   STRING_BUFFER_INSTANCE);\
@@ -1521,6 +1552,7 @@ make_lua_key_alias(L, string_buffer_instance,   STRING_BUFFER_INSTANCE);\
 # define declare_metapost_lua_keys(L) \
 /* */\
 /*          (L, close); */\
+make_lua_key(L, bytemap);\
 make_lua_key(L, color);\
 make_lua_key(L, curl);\
 make_lua_key(L, curled);\
@@ -1575,6 +1607,7 @@ make_lua_key(L, prescript);\
 make_lua_key(L, primary);\
 make_lua_key(L, print_line);\
 make_lua_key(L, random_seed);\
+make_lua_key(L, rectangle);\
 /*          (L, reader); */\
 make_lua_key(L, restore);\
 make_lua_key(L, right_curl);\
@@ -1587,6 +1620,7 @@ make_lua_key(L, run_internal);\
 make_lua_key(L, run_logger);\
 make_lua_key(L, run_overload);\
 make_lua_key(L, run_script);\
+make_lua_key(L, run_status);\
 make_lua_key(L, run_warning);\
 make_lua_key(L, rx);\
 make_lua_key(L, ry);\
@@ -1605,6 +1639,7 @@ make_lua_key(L, strings);\
 make_lua_key(L, sx);\
 make_lua_key(L, sy);\
 make_lua_key(L, symbols);\
+make_lua_key(L, tense);\
 make_lua_key(L, tertiary);\
 /*          (L, text); */\
 make_lua_key(L, text_mode);\
@@ -1619,6 +1654,9 @@ make_lua_key(L, warning);\
 make_lua_key(L, writer);\
 make_lua_key(L, x_coord);\
 make_lua_key(L, y_coord);\
+/* */\
+make_lua_key(L, vector);\
+make_lua_key(L, mesh);\
 /* */\
 make_lua_key_alias(L, mplib_instance, MP_METATABLE_INSTANCE);\
 make_lua_key_alias(L, mplib_figure,   MP_METATABLE_FIGURE);\
@@ -1663,15 +1701,18 @@ extern lmt_keys_info lmt_keys;
 
 */
 
-//define lmt_rounded(d)            (lua_Integer) (round(d))
-//define lmt_roundedfloat(f)       (lua_Integer) (round((double) f))
+//define lmt_rounded(d)            (lua_Integer)  (round(d))
+//define lmt_roundedfloat(f)       (lua_Integer)  (round((double) f))
 
-# define lmt_rounded(d)            (lua_Integer) (llround(d))
-# define lmt_roundedfloat(f)       (lua_Integer) (llround((double) f))
+# define lmt_rounded(d)            (lua_Integer)  (llround(d))
+# define lmt_roundedfloat(f)       (lua_Integer)  (llround((double) f)) 
 
-# define lmt_tolong(L,i)           (long)        lua_tointeger(L,i)
-# define lmt_checklong(L,i)        (long)        luaL_checkinteger(L,i)
-# define lmt_optlong(L,i,j)        (long)        luaL_optinteger(L,i,j)
+# define lmt_tolong(L,i)           (long)         lua_tointeger(L,i)
+# define lmt_checklong(L,i)        (long)         luaL_checkinteger(L,i)
+# define lmt_optlong(L,i,j)        (long)         luaL_optinteger(L,i,j)
+
+# define lmt_todouble(L,i,d)       (double)       lua_tonumber(L,i)
+# define lmt_optdouble(L,i,d)      (double)       luaL_optnumber(L,i,d)
 
 # define lmt_tointeger(L,i)        (int)          lua_tointeger(L,i)
 # define lmt_checkinteger(L,i)     (int)          luaL_checkinteger(L,i)
@@ -1823,44 +1864,28 @@ static inline void lmt_newline_to_buffer(void)
 
 /* moved here */
 
-# if (1) 
+# define lua_pop_one(L) lua_pop(L, 1)
 
-    # define set_numeric_field_by_index(target,name,dflt) \
-        lua_push_key(name); \
-        target = (lua_rawget(L, -2) == LUA_TNUMBER) ? lmt_roundnumber(L, -1) : dflt ; \
-        lua_pop(L, 1);
+//define lua_pop_one(L) L->top.p--
 
-# else 
-
-    # define set_numeric_field_by_index(target,name,dflt) \
-        lua_push_key(name); \
-        if (lua_rawget(L, -2) == LUA_TNUMBER) { \
-            target = lmt_roundnumber(L, -1); \
-            lua_pop(L, 1); \
-            lua_push_key(name); \
-            lua_push_integer(L, target); \
-            lua_rawset(L, -3); \
-        } else { \
-            target = dflt ; \
-            lua_pop(L, 1); \
-        } 
-
-# endif 
+# define set_numeric_field_by_index(target,name,dflt) \
+    lua_push_key(name); \
+    target = (lua_rawget(L, -2) == LUA_TNUMBER) ? lmt_roundnumber(L, -1) : dflt ; \
+    lua_pop_one(L);
 
 # define set_boolean_field_by_index(target,name,dflt) \
     lua_push_key(name); \
     target = (lua_rawget(L, -2) == LUA_TBOOLEAN) ? lua_toboolean(L, -1) : dflt ; \
-    lua_pop(L, 1);
+    lua_pop_one(L);
 
 # define set_string_field_by_index(target,name) \
     lua_push_key(name); \
     target = (lua_rawget(L, -2) == LUA_TSTRING) ? lua_tostring(L, -1) : NULL ; \
-    lua_pop(L, 1);
+    lua_pop_one(L);
 
 # define set_any_field_by_index(target,name) \
     lua_push_key(name); \
     target = (lua_rawget(L, -2) != LUA_TNIL); \
-    lua_pop(L, 1);
-
+    lua_pop_one(L);
 
 # endif

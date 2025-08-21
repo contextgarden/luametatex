@@ -6,7 +6,7 @@
 
 /*tex
 
-    We no longer dump the patterns and exeptions as they as supposed to be loaded runtime. There is
+    We no longer dump the patterns and exceptions as they as supposed to be loaded runtime. There is
     no gain getting them from the format. But we do dump some of the properties.
 
     There were all kind of checks for simple characters i.e. not ligatures but there is no need for
@@ -14,8 +14,8 @@
     traditional font has glyphs we can assume that the old school font encoding matches the patterns
     i.e. that ligatures are not in the normal character slots.
 
-    Exceptions are stored at the \LUA\ end. We cannot easilly go dynamic because fonts are stored
-    in the eqtb so we would have to use some more indirect mechanism (doable as we do it for other
+    Exceptions are stored at the \LUA\ end. We cannot easily go dynamic because fonts are stored
+    in the |eqtb| so we would have to use some more indirect mechanism (doable as we do it for other
     items) too.
 
 */
@@ -1178,8 +1178,8 @@ void tex_handle_hyphenation(halfword head, halfword tail)
             int top = 0;
             if (lmt_callback_okay(L, callback_id, &top)) {
                 int i;
-                lmt_node_list_to_lua(L, head);
-                lmt_node_list_to_lua(L, tail);
+                lmt_push_node_to_callback(L, head);
+                lmt_push_node_to_callback(L, tail);
                 i = lmt_callback_call(L, 2, 0, top);
                 if (i) {
                     lmt_callback_error(L, top, i);
@@ -1338,8 +1338,8 @@ static void tex_aux_hyphenate_show(halfword beg, halfword end)
 static inline int is_traditional_hyphen(halfword n)
 {
     return (
-        (glyph_character(n) == ex_hyphen_char_par)                             /*tex parameter */
-     && (has_font_text_control(glyph_font(n),text_control_collapse_hyphens))   /*tex font driven */
+        (glyph_character(n) == ex_hyphen_char_par)                            /*tex parameter */
+     && (has_font_text_control(glyph_font(n),text_control_collapse_hyphens))  /*tex font driven */
      && (hyphenation_permitted(glyph_hyphenate(n),collapse_hyphenation_mode)) /*tex language driven */
     );
 }
@@ -1347,11 +1347,12 @@ static inline int is_traditional_hyphen(halfword n)
 static inline int is_apostrophe(halfword n)
 {
     return (
-        (glyph_character(n) == ex_apostrophe_char_par)                                   /*tex parameter */
-     && (has_font_text_control(glyph_font(n),text_control_replace_apostrophe))           /*tex font driven */
+        (glyph_character(n) == ex_apostrophe_char_par)                                  /*tex parameter */
+     && (has_font_text_control(glyph_font(n),text_control_replace_apostrophe))          /*tex font driven */
      && (hyphenation_permitted(glyph_hyphenate(n),replace_apostrophe_hyphenation_mode)) /*tex language driven */
     );
 }
+
 int tex_collapse_list(halfword head, halfword c1, halfword c2, halfword c3, halfword c4) /* ex_hyphen_char_par 0x2013 0x2014 0x2019 */
 {
     /*tex Let's play safe: */

@@ -10,7 +10,8 @@ project(luametatex VERSION 2.11 LANGUAGES C)
 # I need to check with Mojca of the compile farm can handle this. 
 
 set(CMAKE_C_STANDARD 11)
-# set(CMAKE_C_STANDARD 17) # needs 3.21
+# set(CMAKE_C_STANDARD 17)
+# set(CMAKE_C_STANDARD 23)
 
 # https://sourceforge.net/p/predef/wiki/OperatingSystems/
 # https://sourceforge.net/p/predef/wiki/Architectures/
@@ -41,6 +42,11 @@ set(LMT_STRIP 1)
 # so we won't look into issues that could result from that. Getting a matching library is upto 
 # the user. Keep in mind that we might have set a different bytecode (luac) version during the 
 # alpha/beta stages of a Lua development version. 
+
+if (EXISTS "${CMAKE_SOURCE_DIR}/source/lua/lmthelperlib.c") 
+    set(luametatex_use_helpers 1)
+    add_definitions(-DLUAMETATEX_USE_HELPERS=1)
+endif()
 
 # set(LMT_PERMIT_LUA_LIBRARIES 1)
 
@@ -163,6 +169,11 @@ if (MSVC)
       # add_compile_options(-pg)
       # add_link_options(-pg)
 
+      # e.g. mp crashes when we have > 4K currentpicture clips in a row 
+
+    # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,stack-size=1000000")
+      set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,stack-size=2621440")
+
     endif()
 
     add_compile_options(
@@ -170,6 +181,12 @@ if (MSVC)
 
         -Wcast-align
         -Wcast-qual
+
+        # we need to check for zeros anyway as not all compiles have this 
+
+      # -fno-signed-zeros
+      # -fno-trapping-math
+      # -fno-math-errno
 
         -Wno-unknown-pragmas
         -Wno-unused-result
@@ -258,8 +275,8 @@ endif()
 # When the old osx version is dropped and armhf is upgraded we can enable unix except solaris which
 # fails. So, only osx 10.6 and rpi 32 fail. But we will probably drop 32 bit in the future anyway.
 #
-# At the beginning of 2025 the gain is some 5 percent on the 650 page luametate manual over the 
-# default memory allocator. 
+# At the beginning of 2025 on Windows 10 the gain is some 5 percent on the 650 page luametatex 
+# manual over the default memory allocator. 
 
 # CMAKE_HOST_SYSTEM_PROCESSOR arm64 x86_64
 
@@ -303,5 +320,7 @@ include(cmake/pplib.cmake)
 include(cmake/miniz.cmake)
 include(cmake/softposit.cmake)
 include(cmake/potrace.cmake)
+include(cmake/qrcodegen.cmake)
+include(cmake/triangles.cmake)
 
 include(cmake/luametatex.cmake)

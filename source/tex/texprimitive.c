@@ -21,7 +21,7 @@
     hash table is empty, we have |text(p)=0|; if position |p| is either empty or the end of a
     coalesced hash list, we have |next(p) = 0|. An auxiliary pointer variable called |hash_used| is
     maintained in such a way that all locations |p >= hash_used| are nonempty. The global variable
-    |cs_count| tells how many multiletter control sequences have been defined, if statistics are
+    |cs_count| tells how many multi-letter control sequences have been defined, if statistics are
     being kept.
 
     A boolean variable called |no_new_control_sequence| is set to |true| during the time that new
@@ -195,7 +195,7 @@ static inline halfword tex_aux_compute_hash(const char *j, unsigned l)
     return h;
 }
 
-static inline halfword tex_aux_compute_prim(const char *j, unsigned l)
+static inline halfword tex_aux_compute_primitive(const char *j, unsigned l)
 {
     halfword h = (unsigned const char) j[0];
     for (unsigned k = 1; k < l; k++) {
@@ -204,14 +204,14 @@ static inline halfword tex_aux_compute_prim(const char *j, unsigned l)
     return h;
 }
 
-halfword tex_prim_lookup(strnumber s)
+halfword tex_primitive_lookup(strnumber s)
 {
     /*tex The index in the |hash| array: */
     if (s >= cs_offset_value) {
         unsigned char *j = str_string(s);
      // unsigned l = (unsigned) str_length(s);
         halfword l = (halfword) str_length(s);
-        halfword h = tex_aux_compute_prim((char *) j, l);
+        halfword h = tex_aux_compute_primitive((char *) j, l);
         /*tex We start searching here; note that |0 <= h < hash_prime|. */
         halfword p = h + 1;
         while (1) {
@@ -286,6 +286,7 @@ void tex_dump_primitives(dumpstream f)
         dump_int(f, lmt_primitive_state.prim_data[p].subids);
         for (int q = 0; q < lmt_primitive_state.prim_data[p].subids; q++) {
             dump_int(f, lmt_primitive_state.prim_data[p].names[q]);
+            dump_uchar(f, lmt_primitive_state.prim_data[p].permissions[q]);
         }
     }
 }
@@ -299,14 +300,17 @@ void tex_undump_primitives(dumpstream f)
         undump_int(f, lmt_primitive_state.prim_data[p].subids);
         if (lmt_primitive_state.prim_data[p].subids > 0) {
             int size = lmt_primitive_state.prim_data[p].subids;
-            strnumber *names = aux_allocate_clear_array(sizeof(strnumber *), size, 1);
-            if (names) {
+            strnumber *names = aux_allocate_clear_array(sizeof(strnumber), size, 1);
+            unsigned char *permissions = aux_allocate_clear_array(sizeof(unsigned char), size, 1);
+            if (names && permissions) {
                 lmt_primitive_state.prim_data[p].names = names;
+                lmt_primitive_state.prim_data[p].permissions = permissions;
                 for (int q = 0; q < lmt_primitive_state.prim_data[p].subids; q++) {
                     undump_int(f, names[q]);
+                    undump_uchar(f, permissions[q]);
                 }
             } else {
-                tex_overflow_error("primitives", size * sizeof(strnumber *));
+                tex_overflow_error("primitives", size * sizeof(strnumber));
             }
         }
     }
@@ -404,20 +408,32 @@ void tex_primitive_def(const char *str, size_t length, singleword cmd, halfword 
 
 */
 
+/* 
+    Todo: allocate all subids at the same time. Not that important because this only happens when 
+    making the format file. 
+*/
+
 static void tex_aux_store_primitive_name(strnumber s, singleword cmd, halfword chr, halfword offset)
 {
     lmt_primitive_state.prim_data[cmd].offset = offset;
     if (lmt_primitive_state.prim_data[cmd].subids < (chr + 1)) {
         /*tex Not that efficient as each primitive triggers this now but only at ini time so ... */
-        strnumber *newstr = aux_allocate_clear_array(sizeof(strnumber *), chr + 1, 1);
+        strnumber *names = aux_allocate_clear_array(sizeof(strnumber), chr + 1, 1);
+        unsigned char *permissions = aux_allocate_clear_array(sizeof(unsigned char), chr + 1, 1);
         if (lmt_primitive_state.prim_data[cmd].names) {
-            memcpy(newstr, lmt_primitive_state.prim_data[cmd].names, (unsigned) (lmt_primitive_state.prim_data[cmd].subids) * sizeof(strnumber));
+            memcpy(names, lmt_primitive_state.prim_data[cmd].names, (unsigned) (lmt_primitive_state.prim_data[cmd].subids) * sizeof(strnumber));
             aux_deallocate_array(lmt_primitive_state.prim_data[cmd].names);
         }
-        lmt_primitive_state.prim_data[cmd].names = newstr;
+        if (lmt_primitive_state.prim_data[cmd].permissions) {
+            memcpy(permissions, lmt_primitive_state.prim_data[cmd].permissions, (unsigned) (lmt_primitive_state.prim_data[cmd].subids) * sizeof(unsigned char));
+            aux_deallocate_array(lmt_primitive_state.prim_data[cmd].permissions);
+        }
+        lmt_primitive_state.prim_data[cmd].names = names;
+        lmt_primitive_state.prim_data[cmd].permissions = permissions;
         lmt_primitive_state.prim_data[cmd].subids = chr + 1;
     }
     lmt_primitive_state.prim_data[cmd].names[chr] = s;
+    lmt_primitive_state.prim_data[cmd].permissions[chr] = primitive_permitted;
 }
 
 /*tex
@@ -432,19 +448,21 @@ static void tex_aux_store_primitive_name(strnumber s, singleword cmd, halfword c
 
 */
 
-void tex_primitive(int cmd_origin, const char *str, singleword cmd, halfword chr, halfword offset)
+void tex_primitive(int origin, int legacy, const char *str, singleword cmd, halfword chr, halfword offset)
 {
     int prim_val;
     strnumber ss;
-    if (cmd_origin != no_command) {
+    if (origin != no_command) {
         tex_primitive_def(str, strlen(str), cmd, offset + chr);
         /*tex Indeed, |cur_val| has the latest primitive. */
         ss = cs_text(cur_val);
     } else {
         ss = tex_maketexstring(str);
     }
-    prim_val = tex_prim_lookup(ss);
-    prim_origin(prim_val) = (quarterword) cmd_origin;
+    prim_val = tex_primitive_lookup(ss);
+ // prim_origin(prim_val) = (quarterword) cmd_origin;
+    prim_origin(prim_val) = (singleword) origin;
+    prim_legacy(prim_val) = (singleword) legacy;
     prim_eq_type(prim_val) = cmd;
     prim_equiv(prim_val) = offset + chr;
     tex_aux_store_primitive_name(ss, cmd, chr, offset);
@@ -639,7 +657,7 @@ static void tex_aux_print_chr_cmd(const char *s, halfword cmd, halfword chr)
         tex_print_char(' ');
         /*
             By using the the unicode (ascii) names for some we can better support syntax
-            highlighting (which often involves parsing). The names are enclused in single
+            highlighting (which often involves parsing). The names are enclosed in single
             quotes. For the chr codes above 128 we assume \UNICODE\ support.
         */
         /*tex
@@ -1008,4 +1026,44 @@ case dimension_reference_cmd:
             tex_aux_prim_cmd_chr(cmd, chr, 1);
             break;
     }
+}
+
+int tex_primitive_found(const char *name, halfword *cmd, halfword *chr) 
+{
+    if (name) { 
+        strnumber str = tex_maketexstring(name);
+        halfword prm = tex_primitive_lookup(str);
+        tex_flush_str(str);
+        if (prm != undefined_primitive && get_prim_origin(prm) != no_command) {
+            *cmd = get_prim_eq_type(prm);
+            *chr = get_prim_equiv(prm);
+            if (*cmd != undefined_cs_cmd) { 
+                return 1;
+            }
+        }
+    }
+    *cmd = 0;
+    *chr = 0;
+    return 0;
+}
+
+int tex_inhibit_primitive(halfword cmd, halfword chr, int permanent)
+{
+    if (cmd >= first_cmd && cmd <= last_cmd && cmd != undefined_cs_cmd) {
+        if (chr >= 0 && chr <= lmt_primitive_state.prim_data[cmd].subids) {
+            lmt_primitive_state.prim_data[cmd].permissions[chr] = (unsigned char)
+                permanent 
+              ? (primitive_inhibited | primitive_permanent)
+              :  primitive_inhibited;
+            return 1;
+        } 
+    }
+    return 0;
+}
+
+strnumber tex_primitive_name(halfword cmd, halfword chr)
+{
+    return chr < lmt_primitive_state.prim_data[cmd].subids 
+        ? lmt_primitive_state.prim_data[cmd].names[chr]
+        : null_cs;
 }

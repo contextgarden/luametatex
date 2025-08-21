@@ -1,4 +1,4 @@
-/*
+﻿/*
     See license.txt in the root of this project.
 */
 
@@ -10,7 +10,7 @@
 /*tex
 
     These are constants that can be added to a chr value and then give a token with the right cmd
-    and chr combination, whichs is then equivalent to |token_val (cmd, chr)|. The cmd results from
+    and chr combination, which is then equivalent to |token_val (cmd, chr)|. The cmd results from
     shifting right 21 bits. The following tokens therefore should match the order of the (first
     bunch) of cmd codes!
 
@@ -89,7 +89,7 @@ typedef enum catcode_table_presets {
     functions now keep track of head and tail). This makes sense because in \LUAMETATEX\ we often
     go between \TEX\ and \LUA\ and this keeps it kind of simple. This also makes clear when we
     are scanning (the global head is used) and doing something simple with a list. The same is
-    true for |match_token_head| thatmoved to the expand state. The |backup_head| variable is gone
+    true for |match_token_head| that moved to the expand state. The |backup_head| variable is gone
     because we now use locals.
 
 */
@@ -130,7 +130,8 @@ extern token_state_info lmt_token_state;
 typedef enum macro_preamble_states { 
     macro_without_preamble = 0x0, 
     macro_with_preamble    = 0x1, 
-    macro_is_packed        = 0x2, /* not yet, maybe some day array instead of list */
+    macro_with_simple      = 0x2, /* just a thought, a faster path with less variables set */    
+    macro_is_packed        = 0x4, /* not yet, maybe some day array instead of list */
 } macro_preamble_states;
 
 # define max_match_count 15
@@ -233,6 +234,8 @@ typedef enum macro_preamble_states {
 # define right_bracket_token     (other_token  + ']')
 # define left_angle_token        (other_token  + '<')
 # define right_angle_token       (other_token  + '>')
+# define left_brace_token_o      (other_token  + '{')
+# define right_brace_token_o     (other_token  + '}')
 # define one_token               (other_token  + '1') 
 # define two_token               (other_token  + '2') 
 # define three_token             (other_token  + '3') 
@@ -569,7 +572,7 @@ extern void       tex_get_x_or_protected          (void);
 extern halfword   tex_str_toks                    (lstring s, halfword *tail); /* returns head */
 extern halfword   tex_cur_str_toks                (halfword *tail);            /* returns head */
 extern halfword   tex_str_scan_toks               (int c, lstring b);          /* returns head */
-extern void       tex_run_combine_the_toks        (void);
+extern void       tex_run_combine_the_toks        (int force);
 extern void       tex_run_convert_tokens          (halfword code);
 extern strnumber  tex_the_convert_string          (halfword c, int i);
 extern strnumber  tex_tokens_to_string            (halfword p);
@@ -584,16 +587,16 @@ extern halfword   tex_get_tex_attribute_register  (int j, int internal);
 extern halfword   tex_get_tex_box_register        (int j, int internal);
 extern halfword   tex_get_tex_toks_register       (int j, int internal);
 
-extern void       tex_set_tex_dimension_register  (int j, halfword v, int flags, int internal);
-extern void       tex_set_tex_skip_register       (int j, halfword v, int flags, int internal);
-extern void       tex_set_tex_muskip_register     (int j, halfword v, int flags, int internal);
-extern void       tex_set_tex_count_register      (int j, halfword v, int flags, int internal);
-extern void       tex_set_tex_posit_register      (int j, halfword v, int flags, int internal);
-extern void       tex_set_tex_attribute_register  (int j, halfword v, int flags, int internal);
-extern void       tex_set_tex_box_register        (int j, halfword v, int flags, int internal);
+extern int        tex_set_tex_dimension_register  (int j, halfword v, int flags, int internal);
+extern int        tex_set_tex_skip_register       (int j, halfword v, int flags, int internal);
+extern int        tex_set_tex_muskip_register     (int j, halfword v, int flags, int internal);
+extern int        tex_set_tex_count_register      (int j, halfword v, int flags, int internal);
+extern int        tex_set_tex_posit_register      (int j, halfword v, int flags, int internal);
+extern int        tex_set_tex_attribute_register  (int j, halfword v, int flags, int internal);
+extern int        tex_set_tex_box_register        (int j, halfword v, int flags, int internal);
 
-extern void       tex_set_tex_toks_register       (int j,        lstring s, int flags, int internal);
-extern void       tex_scan_tex_toks_register      (int j, int c, lstring s, int flags, int internal);
+extern int        tex_set_tex_toks_register       (int j,        lstring s, int flags, int internal);
+extern int        tex_scan_tex_toks_register      (int j, int c, lstring s, int flags, int internal);
 
 extern halfword   tex_copy_token_list             (halfword h, halfword *t);
 

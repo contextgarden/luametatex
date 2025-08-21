@@ -320,8 +320,14 @@ static inline int tokenlib_aux_valid_chr(int cmd, int chr)
                     return item.base + chr;
                 }
         }
-    } else if (chr == item.fixedvalue) {
-        return chr;
+    } else if (chr < 0) {
+        /* invalid */
+    } else if (chr == item.fixedvalue) { /* both zero */
+// if (item.min != ignore_entry && chr >= item.min && chr <= item.max) {
+         return chr;
+// } else { 
+//    /* some commands start at 1 like fences */
+//}
     }
     return 0;
 }
@@ -331,7 +337,30 @@ static inline int tokenlib_aux_valid_cs(int cs)
     return (cs >= 0 && cs <= lmt_token_memory_state.tokens_data.allocated) ? cs : -1;
 }
 
-// not ok
+static void tokenlib_aux_warn_inhibited(int cmd, int chr, int permissions, int quit)
+{
+     if (permissions & primitive_warned) { 
+         return; 
+     } else if (quit) { 
+        tex_handle_error(
+            normal_error_type,
+            permissions & primitive_permanent 
+          ? "token (%i,%i) (%T) is permanently inhibited" 
+          : "token (%i,%i) (%T) is inhibited by \\overloadmode", 
+            cmd, chr, tex_primitive_name(cmd, chr),
+            "This primitive is inhibited so we play safe and quit."
+        );
+     } else { 
+        tex_formatted_warning(
+            "tokens", 
+            "token (%i,%i) (%s) is inhibited",
+            cmd, chr, str_string(tex_primitive_name(cmd, chr))
+        );
+    }
+    lmt_primitive_state.prim_data[cmd].permissions[chr] |= primitive_warned; 
+}
+
+/* todo: strick checking ! */
 
 static inline int tokenlib_aux_valid_token(int cmd, int chr, int cs)
 {
@@ -343,6 +372,26 @@ static inline int tokenlib_aux_valid_token(int cmd, int chr, int cs)
     } if (cmd >= first_cmd && cmd <= last_cmd) {
         chr = tokenlib_aux_valid_chr(cmd, chr);
         if (chr >= 0) {
+            int permissions = 
+                lmt_primitive_state.prim_data[cmd].names && chr <= lmt_primitive_state.prim_data[cmd].subids 
+              ? lmt_primitive_state.prim_data[cmd].permissions[chr] 
+              : primitive_permitted;
+            if (permissions & primitive_permanent) { 
+                /*tex We can't use a permanently inhibited primitive. */
+                tokenlib_aux_warn_inhibited(cmd, chr, permissions, 1);
+                return -1; 
+            } else if (permissions & primitive_inhibited) { 
+                if (overload_mode_par) {
+                    if (overload_error_type(overload_mode_par) == normal_error_type) { 
+                        /*tex We can't use an inhibited primitive. */
+                        tokenlib_aux_warn_inhibited(cmd, chr, permissions, 1);
+                        return -1; 
+                    } else {
+                        /*tex We can use a permanently inhibited primitive but one has to be careful. */
+                         tokenlib_aux_warn_inhibited(cmd, chr, permissions, 0);
+                    }
+                }
+            }
             return token_val(cmd, chr);
         }
     }
@@ -517,8 +566,6 @@ halfword lmt_token_code_from_lua(lua_State *L, int slot)
 # define DEFAULT_SCAN_CODE_SET (2048 + 4096) /*tex default: letter and other */
 
 /*tex two core helpers .. todo: combine active*/
-
-# define is_active_string(s) (strlen(s) > 3 && *s == 0xEF && *(s+1) == 0xBF && *(s+2) == 0xBF)
 
 static unsigned char *tokenlib_aux_get_cs_text(int cs, int *allocated)
 {
@@ -886,6 +933,7 @@ static int tokenlib_scancsname(lua_State *L)
         int allocated = 0;
         unsigned char *s = tokenlib_aux_get_cs_text(t - cs_token_flag, &allocated);
         if (s) {
+            /*tex We stay below the threshold for long string so no gain in external. */
             if (tex_is_active_cs(cs_text(t - cs_token_flag))) {
                 lua_pushstring(L, (char *) (s + 3));
             } else {
@@ -1555,6 +1603,7 @@ static int tokenlib_scanstring(lua_State *L)
     switch (cur_cmd) {
         case left_brace_cmd:
             {
+                /*tex So we expand by default! */
                 halfword defref = lmt_input_state.def_ref;
                 halfword result = tex_scan_toks_expand(1, NULL, 0, 0);
                 lmt_token_list_to_luastring(L, result, 0, 0, 1);
@@ -1569,7 +1618,10 @@ static int tokenlib_scanstring(lua_State *L)
         case tolerant_protected_call_cmd:
         case tolerant_semi_protected_call_cmd:
             {
-                /*tex It is pretty unlikely to end up here, because we expand. */
+                /*tex 
+                    It is pretty unlikely to end up here, because we expand. Beware: the rest 
+                    of the token list is wiped. The argument scanner below is more reliable. 
+                */
                 halfword t = token_link(cur_chr);
                 lmt_token_list_to_luastring(L, t, 0, 0, 1);
                 break;
@@ -1582,8 +1634,8 @@ static int tokenlib_scanstring(lua_State *L)
                 while (1) {
                     tokenlib_aux_add_utf_char_to_buffer(&b, cur_chr);
                     tex_get_x_token();
-                    if (cur_cmd != letter_cmd && cur_cmd != other_char_cmd ) {
-                        break ;
+                    if (cur_cmd != letter_cmd && cur_cmd != other_char_cmd) {
+                        break;
                     }
                 }
                 tex_back_input(cur_tok);
@@ -1657,16 +1709,10 @@ static int tokenlib_scanargument(lua_State *L)
         case letter_cmd:
         case other_char_cmd:
             {
+                /*tex Contrary to |scanstring| we only grab one \UTF\ character. */
                 luaL_Buffer b;
                 luaL_buffinit(L, &b);
-             //  while (1) {
-                    tokenlib_aux_add_utf_char_to_buffer(&b, cur_chr);
-             //      get_x_token();
-             //      if (cur_cmd != letter_cmd && cur_cmd != other_char_cmd ) {
-             //          break ;
-             //      }
-             //  }
-             // back_input(cur_tok);
+                tokenlib_aux_add_utf_char_to_buffer(&b, cur_chr);
                 luaL_pushresult(&b);
                 break;
             }
@@ -1998,6 +2044,104 @@ static int tokenlib_grab_until(lua_State *L)
     return 1;
 }
 
+ /*tex 
+    This one is just an experiment and not yet official. It avoids building the token list so in 
+    principle it should be more efficient (although we now have a \LUA\ buffer that also adds a 
+    little overhead).
+*/
+
+static const char *token_cmd_to_string[15] = {
+    "\\", /*  0 escape_cmd        */
+    "{",  /*  1 left_brace_cmd    */
+    "}",  /*  2 right_brace_cmd   */
+    "$",  /*  3 math_shift_cmd    */
+    "&",  /*  4 alignment_tab_cmd */
+    "\n", /*  5 end_line_cmd      */
+    "#",  /*  6 parameter_cmd     */
+    "^",  /*  7 superscript_cmd   */
+    "_",  /*  8 subscript_cmd     */
+    "",   /*  9 ignore_cmd        */
+    " ",  /* 10 spacer_cmd        */
+    "",   /* 11 letter_cmd        */
+    "",   /* 12 other_char_cmd    */
+    "",   /* 13 active_char_cmd   */
+    "%"   /* 14 comment_cmd       */
+};
+
+static int tokenlib_grab_string_until(lua_State *L)
+{
+    lua_token *left = tokenlib_aux_check_istoken(L, 1);
+    lua_token *right = tokenlib_aux_check_istoken(L, 2);
+    int l = token_info(left->token);
+    int r = token_info(right->token);
+    int lstr = 0;
+    int rstr = 0;
+    if (l >= cs_token_flag) {
+        lstr = cs_text(l - cs_token_flag);
+    }
+    if (r >= cs_token_flag) {
+        rstr = cs_text(r - cs_token_flag);
+    }
+    if (lstr && rstr) {
+        saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+        halfword defref = lmt_input_state.def_ref;
+        int level = 1;
+        luaL_Buffer b;
+        luaL_buffinit(L, &b);
+        while (1) {
+            tex_get_token();
+            switch (cur_cmd) {
+                case escape_cmd:
+                case left_brace_cmd:
+                case right_brace_cmd:
+                case math_shift_cmd:
+                case alignment_tab_cmd:
+                case end_line_cmd:
+                case parameter_cmd:
+                case superscript_cmd:
+                case subscript_cmd:
+                case ignore_cmd:
+                case spacer_cmd:
+                case comment_cmd:
+                    luaL_addlstring(&b, token_cmd_to_string[cur_cmd], 1);
+                    break;
+                case letter_cmd:
+                case other_char_cmd:
+                case active_char_cmd:
+                    tokenlib_aux_add_utf_char_to_buffer(&b, cur_chr);
+                    break;
+                default:
+                    if (cur_tok >= cs_token_flag) {
+                        int str = cs_text(cur_tok - cs_token_flag);
+                        if (str == lstr) {
+                            ++level;
+                        } else if (str == rstr) {
+                            --level;
+                            if (level == 0) {
+                                goto DONE;
+                            }
+                        }
+                        if (tex_is_active_cs(str)) {
+                            luaL_addlstring(&b, ((char *) str_string(str)) + 3, str_length(str) - 3);
+                        } else { 
+                            luaL_addchar(&b, '\\');
+                            luaL_addlstring(&b, (char *) str_string(str), str_length(str));
+                        }
+                    } else { 
+                        /* */
+                    }
+            }
+        }
+      DONE:
+        tokenlib_aux_unsave_tex_scanner(texstate);
+        lmt_input_state.def_ref = defref;
+        luaL_pushresult(&b);
+    } else {
+        lua_pushnil(L);
+    }
+    return 1;
+}
+
 static int tokenlib_scanword(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
@@ -2070,24 +2214,6 @@ static int tokenlib_scanchar(lua_State *L)
     return 1;
 }
 
-static const char *token_cmd_to_string[15] = {
-    "\\", /*  0 escape_cmd        */
-    "{",  /*  1 left_brace_cmd    */
-    "}",  /*  2 right_brace_cmd   */
-    "$",  /*  3 math_shift_cmd    */
-    "&",  /*  4 alignment_tab_cmd */
-    "\n", /*  5 end_line_cmd      */
-    "#",  /*  6 parameter_cmd     */
-    "^",  /*  7 superscript_cmd   */
-    "_",  /*  8 subscript_cmd     */
-    "",   /*  9 ignore_cmd        */
-    " ",  /* 10 spacer_cmd        */
-    "",   /* 11 letter_cmd        */
-    "",   /* 12 other_char_cmd    */
-    "",   /* 13 active_char_cmd   */
-    "%"   /* 14 comment_cmd       */
-};
-
 static int tokenlib_scannextchar(lua_State *L)
 {
     saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
@@ -2111,6 +2237,7 @@ static int tokenlib_scannextchar(lua_State *L)
         case other_char_cmd:
         case active_char_cmd: /* needs testing */
             {
+                /* see elsewhere, we can make a shared helper */
                 char buffer[6];
                 char *uindex = aux_uni2string((char *) buffer, (unsigned int) cur_chr);
                 *uindex = '\0';
@@ -2299,6 +2426,7 @@ static int tokenlib_scanvalue(lua_State *L)
                                     int allocated = 0;
                                     unsigned char *s = tokenlib_aux_get_cs_text(t - cs_token_flag, &allocated);
                                     if (s) {
+                                        /* we can add a string to the buffer */
                                         if (tex_is_active_cs(cs_text(t - cs_token_flag))) {
                                             lua_pushstring(L, (char *) (s + 3));
                                             luaL_addvalue(&b);
@@ -2448,6 +2576,52 @@ static int tokenlib_isdefined(lua_State *L)
     }
     lua_pushboolean(L, b);
     return 1;
+}
+
+/*tex 
+    We need a way to protect token abuse because it can interfere badly when used without some 
+    kind of control by the macro package. An example in \CONTEXT\ is |\left| along with other 
+    old math primitives. We want to be sure that they alias persistently so that we don't need 
+    to intercept them. Other examples are some internal dimensions that we definitely don't want 
+    to check in callbacks and such. Of course the likelyhood that users will actually create
+    tokens themselves is low. 
+
+*/
+
+static void tokenlib_aux_inhibit(lua_State *L, int index, int permanent)
+{
+    const char *name = lua_tostring(L, index);
+    if (name) { 
+        halfword cmd, chr;
+        if (tex_primitive_found(name, &cmd, &chr)) {
+            tex_inhibit_primitive(cmd, chr, permanent);
+        }
+    }
+}
+
+static int tokenlib_inhibit(lua_State *L)
+{
+    int top = (int) lua_gettop(L);
+    int permanent = (top && lua_type(L, top) == LUA_TBOOLEAN) ? lua_toboolean(L, top--) : 0;
+    switch (lua_type(L, 1)) {
+        case LUA_TNUMBER:
+            tex_inhibit_primitive(lmt_tohalfword(L, 1), lmt_tohalfword(L, 2), permanent);
+            break;
+        case LUA_TSTRING: 
+            for (int i = 1; i <= top; i++) { 
+                tokenlib_aux_inhibit(L, i, permanent);
+            }
+            break;
+        case LUA_TTABLE: 
+            for (int i = 1; i <= lua_rawlen(L, 1); i++) { 
+                if (lua_rawgeti(L, -1, i) == LUA_TSTRING) { 
+                    tokenlib_aux_inhibit(L, -1, permanent);
+                }
+                lua_pop(L, 1);
+            }
+            break;
+    }
+    return 0;
 }
 
 /*tex
@@ -2619,8 +2793,10 @@ static int tokenlib_getprimitives(lua_State *L)
             lua_rawseti(L, -2, 2);
             lua_pushstring(L, ss);
             lua_rawseti(L, -2, 3);
-            lua_pushinteger(L, prim_origin(cs));
+            lua_pushinteger(L, get_prim_origin(cs));
             lua_rawseti(L, -2, 4);
+            lua_pushinteger(L, get_prim_legacy(cs));
+            lua_rawseti(L, -2, 5);
             lua_rawseti(L, -2, ++nt);
         }
         cs++;
@@ -2788,6 +2964,22 @@ static inline int tokenlib_getactive(lua_State *L)
     return 1;
 }
 
+# define is_active_string(s,l) (l > 3 && *s == 0xEF && *(s+1) == 0xBF && *(s+2) == 0xBF)
+
+static int tokenlib_isactivestring(lua_State *L)
+{
+    size_t l = 0;
+    const unsigned char *s = (const unsigned char *) lua_tolstring(L, 1, &l);
+    int isactive = is_active_string(s,l);
+    lua_pushboolean(L, isactive);
+    if (isactive) { 
+        lua_pushinteger(L, aux_str2uni(s + 3));
+        return 2;
+    } else {
+        return 1;
+    }
+}
+
 static inline int tokenlib_getexpandable(lua_State *L)
 {
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
@@ -2909,7 +3101,7 @@ static inline int tokenlib_getparameters(lua_State *L)
         }
     }
     lua_pushnil(L);
-    return 0;
+    return 1;
 }
 
 static inline int tokenlib_getconstant(lua_State *L)
@@ -2917,6 +3109,26 @@ static inline int tokenlib_getconstant(lua_State *L)
     lua_token *n = tokenlib_aux_check_istoken(L, 1);
     halfword tok = token_info(n->token);
     lua_pushboolean(L, tok >= cs_token_flag && (eq_type(tok - cs_token_flag) == constant_call_cmd));
+    return 1;
+}
+
+static inline int tokenlib_getsize(lua_State *L)
+{
+    lua_token *n = tokenlib_aux_check_istoken(L, 1);
+    halfword tok = token_info(n->token);
+    if (tok >= cs_token_flag && is_call_cmd(eq_type(tok - cs_token_flag))) {
+        halfword v = eq_value(tok - cs_token_flag);
+        int size = 0;
+        while (v) { 
+            v = token_link(v);
+            if (v) { 
+                ++size;
+            }
+        }
+        lua_pushinteger(L, size);
+    } else { 
+        lua_pushnil(L);
+    }
     return 1;
 }
 
@@ -2967,6 +3179,8 @@ static int tokenlib_getfield(lua_State *L)
         return tokenlib_getparameters(L);
     } else if (lua_key_eq(s, constant)) {
         return tokenlib_getconstant(L);
+    } else if (lua_key_eq(s, size)) {
+        return tokenlib_getsize(L);
     } else {
         lua_pushnil(L);
     }
@@ -3230,7 +3444,7 @@ static int tokenlib_getmeaning(lua_State *L)
         halfword cs = tex_string_locate_only(name, lname);
         halfword cmd = eq_type(cs);
         if (is_call_cmd(cmd)) {
-            int chr = eq_value(cs);
+            halfword chr = eq_value(cs);
             if (lua_toboolean(L, 2)) {
                 if (lua_toboolean(L, 3)) {
                     lmt_token_list_to_lua(L, token_link(chr)); /* makes table sub tables */
@@ -3245,6 +3459,46 @@ static int tokenlib_getmeaning(lua_State *L)
                 char *str = tex_tokenlist_to_tstring(chr, 1, NULL, 0, 0, 0, 0, 0); /* double hashes */
                 lua_pushstring(L, str ? str : "");
             }
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int tokenlib_getlength(lua_State *L)
+{
+    if (lua_type(L, 1) == LUA_TSTRING) {
+        size_t lname = 0;
+        const char *name = lua_tolstring(L, 1, &lname);
+        halfword cs = tex_string_locate_only(name, lname);
+        halfword cmd = eq_type(cs);
+        if (is_call_cmd(cmd)) {
+            halfword chr = eq_value(cs);
+            int preamble = 0;
+            int body = 0;
+            while (chr) { 
+                chr = token_link(chr);
+                if (! chr) { 
+                    break;
+                } else if (get_token_preamble(chr)) {
+                    ++preamble;
+                } else { 
+                    ++body;
+                }
+            }
+            lua_pushinteger(L, preamble);
+            lua_pushinteger(L, body);
+            return 2;
+        } else if (cmd == internal_toks_cmd || cmd == register_toks_cmd) {
+            halfword chr = eq_value(cs);
+            int list = 0;
+            while (chr) { 
+                chr = token_link(chr);
+                if (chr) { 
+                    ++list;
+                }
+            }
+            lua_pushinteger(L, list);
             return 1;
         }
     }
@@ -3469,6 +3723,8 @@ static int tokenlib_setlua(lua_State *L)
                 } else {
                     tex_define(flags, cs, lua_call_cmd, funct);
                 }
+                lua_pushinteger(L, flags);
+                return 1;
             }
         }
     }
@@ -3483,15 +3739,36 @@ static int tokenlib_locatemacro(lua_State *L)
     return 1;
 }
 
-static int tokenlib_undefinemacro(lua_State *L) /* todo: protected */
+static int tokenlib_aux_macro_okay(lua_State *L, halfword *cs, halfword *flags)
 {
     size_t lname = 0;
     const char *name = lua_tolstring(L, 1, &lname);
     if (name) {
-        halfword cs = tex_string_locate(name, lname, 1);
-        int flags = 0;
-        lmt_check_for_flags(L, 2, &flags, 1, 1);
+        *cs = tex_string_locate(name, lname, 1);
+        *flags = 0;
+        lmt_check_for_flags(L, 2, flags, 1, 1);
+        if (tex_define_permitted(*cs, *flags)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int tokenlib_undefinemacro(lua_State *L) /* todo: protected */
+{
+    halfword cs, flags;
+    if (tokenlib_aux_macro_okay(L, &cs, &flags)) {
         tex_define(flags, cs, undefined_cs_cmd, null);
+    }
+    return 0;
+}
+
+static int tokenlib_setmacrotonothing(lua_State *L)
+{
+    halfword cs, flags;
+    if (tokenlib_aux_macro_okay(L, &cs, &flags)) {
+        halfword empty = lmt_token_state.empty;
+        tex_define(flags, cs, tex_flags_to_cmd(flags), empty);
     }
     return 0;
 }
@@ -3728,7 +4005,9 @@ static int tokenlib_set_constant_value(lua_State *L, singleword cmd, halfword mi
                 if (top > 2) {
                     lmt_check_for_flags(L, 3, &flags, 1, 0);
                 }
-                tex_define(flags, cs, cmd, value);
+                if (tex_define_permitted(cs, flags)) {
+                    tex_define(flags, cs, cmd, value);
+                }
             }
         }
     }
@@ -3810,12 +4089,40 @@ static int tokenlib_serialize(lua_State *L)
 
 static int tokenlib_getcommandvalues(lua_State *L)
 {
-    lua_createtable(L, number_tex_commands, 1);
-    for (int i = 0; i < number_tex_commands; i++) {
-        lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.command_names[i].lua);
-        lua_rawseti(L, -2, lmt_interface.command_names[i].id);
+    int cmd = -1;
+    switch (lua_type(L, 1)) { 
+        case LUA_TSTRING:
+            cmd = (int) tokenlib_aux_get_command_id(lua_tostring(L, 1));
+            break;
+        case LUA_TNUMBER:
+            cmd = lmt_tointeger(L, 1);
+            break;
+        default:
+            lua_createtable(L, number_tex_commands, 1);
+            for (int i = 0; i < number_tex_commands; i++) {
+                lua_rawgeti(L, LUA_REGISTRYINDEX, lmt_interface.command_names[i].lua);
+                lua_rawseti(L, -2, lmt_interface.command_names[i].id);
+            }
+            return 1;
     }
-    return 1;
+    if (cmd >= first_cmd && cmd <= last_cmd) {
+        if (lmt_primitive_state.prim_data[cmd].subids > 0) {
+            lua_createtable(L, lmt_primitive_state.prim_data[cmd].subids - 1, 1);
+            for (int idx = 0; idx < lmt_primitive_state.prim_data[cmd].subids; idx++) {
+                if (lmt_primitive_state.prim_data[cmd].names[idx]) {
+                    strnumber s = lmt_primitive_state.prim_data[cmd].names[idx];
+                    if (s) {
+                        lua_pushlstring(L, (const char *) str_string(s), (size_t) str_length(s));
+                        lua_rawseti(L, -2, idx);
+                    }
+                } else { 
+                    /* sort of an error */
+                }
+            }
+            return 1;
+        }
+    }
+    return 0;
 }
 
 static int tokenlib_getfunctionvalues(lua_State *L)
@@ -3827,6 +4134,7 @@ static const struct luaL_Reg tokenlib_function_list[] = {
     { "type",                  tokenlib_type                  },
     { "create",                tokenlib_create                },
     { "new",                   tokenlib_new                   },
+    { "inhibit",               tokenlib_inhibit               }, /* experiment */
     /* */
     { "istoken",               tokenlib_istoken               },
     { "isdefined",             tokenlib_isdefined             },
@@ -3896,6 +4204,7 @@ static const struct luaL_Reg tokenlib_function_list[] = {
     { "getid",                 tokenlib_getid                 },
     { "gettok",                tokenlib_gettok                }, /* obsolete */
     { "getactive",             tokenlib_getactive             },
+    { "isactivestring",        tokenlib_isactivestring        },
    /* these are not really needs as we can check flags   */      /* maybe obsolete */
     { "getexpandable",         tokenlib_getexpandable         },
     { "getprotected",          tokenlib_getprotected          },
@@ -3915,11 +4224,13 @@ static const struct luaL_Reg tokenlib_function_list[] = {
     { "getcmdchrcs",           tokenlib_getcmdchrcs           },
     { "getcstoken",            tokenlib_getcstoken            },
     { "getfields",             tokenlib_getfields             },
+    { "getlength",             tokenlib_getlength             },
     /* */
     { "locatemacro",           tokenlib_locatemacro           },
     { "setmacro",              tokenlib_setmacro              },
     { "setmacrofrommark",      tokenlib_setmacrofrommark      },
     { "undefinemacro",         tokenlib_undefinemacro         },
+    { "setmacrotonothing",     tokenlib_setmacrotonothing     },
     { "expandmacro",           tokenlib_expandmacro           },
  // { "setchar",               tokenlib_setchar               },
     { "setlua",                tokenlib_setlua                },
@@ -3932,6 +4243,7 @@ static const struct luaL_Reg tokenlib_function_list[] = {
     { "gobbledimension",       tokenlib_gobbledimension       },
     { "gobble",                tokenlib_gobble_until          },
     { "grab",                  tokenlib_grab_until            },
+    { "grabstring",            tokenlib_grab_string_until     },
     /* */
     { "futureexpand",          tokenlib_future_expand         },
     { "pushmacro",             tokenlib_pushmacro             },

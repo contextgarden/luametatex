@@ -31,7 +31,8 @@
 
 
 /*
-** Computes ceil(log2(x))
+** Computes ceil(log2(x)), which is the smallest integer n such that
+** x <= (1 << n).
 */
 lu_byte luaO_ceillog2 (unsigned int x) {
   static const lu_byte log_2[256] = {  /* log_2[i - 1] = ceil(log2(i)) */
@@ -247,7 +248,7 @@ static lua_Number lua_strx2number (const char *s, char **endptr) {
         nosigdig++;
       else if (++sigdig <= MAXSIGDIG)  /* can read it without overflow? */
           r = (r * l_mathop(16.0)) + luaO_hexavalue(*s);
-      else e++; /* too many digits; ignore, but still count for exponent */
+      else e++;  /* too many digits; ignore, but still count for exponent */
       if (hasdot) e--;  /* decimal digit? correct exponent */
     }
     else break;  /* neither a dot nor a digit */
@@ -382,10 +383,10 @@ size_t luaO_str2num (const char *s, TValue *o) {
 }
 
 
-int luaO_utf8esc (char *buff, unsigned long x) {
+int luaO_utf8esc (char *buff, l_uint32 x) {
   int n = 1;  /* number of bytes put in buffer (backwards) */
   lua_assert(x <= 0x7FFFFFFFu);
-  if (x < 0x80)  /* ascii? */
+  if (x < 0x80)  /* ASCII? */
     buff[UTF8BUFFSZ - 1] = cast_char(x);
   else {  /* need continuation bytes */
     unsigned int mfb = 0x3f;  /* maximum that fits in first byte */
@@ -512,18 +513,18 @@ static void initbuff (lua_State *L, BuffFS *buff) {
 static void pushbuff (lua_State *L, void *ud) {
   BuffFS *buff = cast(BuffFS*, ud);
   switch (buff->err) {
-    case 1:
+    case 1:  /* memory error */
       luaD_throw(L, LUA_ERRMEM);
       break;
     case 2:  /* length overflow: Add "..." at the end of result */
       if (buff->buffsize - buff->blen < 3)
-        strcpy(buff->b + buff->blen - 3, "..."); /* 'blen' must be > 3 */
+        strcpy(buff->b + buff->blen - 3, "...");  /* 'blen' must be > 3 */
       else {  /* there is enough space left for the "..." */
         strcpy(buff->b + buff->blen, "...");
         buff->blen += 3;
       }
       /* FALLTHROUGH */
-    default: {  /* no errors */
+    default: {  /* no errors, but it can raise one creating the new string */
       TString *ts = luaS_newlstr(L, buff->b, buff->blen);
       setsvalue2s(L, L->top.p, ts);
       L->top.p++;
@@ -618,7 +619,7 @@ const char *luaO_pushvfstring (lua_State *L, const char *fmt, va_list argp) {
       }
       case 'I': {  /* a 'lua_Integer' */
         TValue num;
-        setivalue(&num, cast(lua_Integer, va_arg(argp, l_uacInt)));
+        setivalue(&num, cast_Integer(va_arg(argp, l_uacInt)));
         addnum2buff(&buff, &num);
         break;
       }
@@ -637,7 +638,8 @@ const char *luaO_pushvfstring (lua_State *L, const char *fmt, va_list argp) {
       }
       case 'U': {  /* an 'unsigned long' as a UTF-8 sequence */
         char bf[UTF8BUFFSZ];
-        int len = luaO_utf8esc(bf, va_arg(argp, unsigned long));
+        unsigned long arg = va_arg(argp, unsigned long);
+        int len = luaO_utf8esc(bf, cast(l_uint32, arg));
         addstr2buff(&buff, bf + UTF8BUFFSZ - len, cast_uint(len));
         break;
       }

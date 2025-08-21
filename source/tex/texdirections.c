@@ -16,8 +16,8 @@
     model (with rotation and offsets) that can help implementing vertical rendering, but that code
     is not here.
 
-    Todo: |\tracingdirections| but costly so not really. The tracinglist is a middleground but I 
-    might comment it at some point. 
+    Todo: |\tracingdirections| but costly so not really. The |\tracinglists| is a middle ground but
+    I might comment it at some point. 
 
 */
 
@@ -84,7 +84,7 @@ halfword tex_sanitize_dir_state(halfword first, halfword last, halfword initial)
 }
 
 /*tex
-    Here we inject the nodes that inititialize and cancel the direction states as stored in the 
+    Here we inject the nodes that initialize and cancel the direction states as stored in the 
     (reverse) stack into the list, after |tail|. 
 */
 
@@ -238,6 +238,22 @@ void tex_set_line_dir(halfword d)
 void tex_set_box_dir(halfword b, singleword d)
 {
     if (valid_direction(d)) {
-        box_dir(box_register(b)) = (singleword) d;
+        box_direction(box_register(b)) = (singleword) d;
     }
+}
+
+halfword tex_get_direction_from_list(halfword l)
+{
+    while (l) {
+        switch (node_type(l)) {
+            case dir_node:
+                return dir_direction(l);
+            case hlist_node:
+            case vlist_node:
+                return box_direction(l);
+            default:
+                l = node_next(l);
+        }
+    }
+    return dir_lefttoright;
 }

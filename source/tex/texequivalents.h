@@ -114,7 +114,7 @@
     right commmand code etc.\ bur for now we just use the ranges as traditional \TEX\ does.
 
     Most of the symbolic names and hard codes numbers are not enumerations. There is still room for
-    improvement and occasionally I enter a new round of doing that. However, it talkes a lot of time
+    improvement and occasionally I enter a new round of doing that. However, it takes a lot of time
     and checking (more than writing from scratch) as we need to make sure it all behaves like \TEX\
     does. Quite some code went through several stages of reaching this abstraction, just to make sure
     that it kept working. These intermediate versions ended up in the \CONTEXT\ distribution to that
@@ -132,7 +132,7 @@
 
 /*
     For practical reasons we have the regions a bit different. For instance, we also have attributes, local
-    boxes, no math characters here, etc. Maybe specification codes sould get their own region.
+    boxes, no math characters here, etc. Maybe specification codes could get their own region.
 
     HASH FROZEN
     [I|R]FONTS
@@ -363,21 +363,22 @@ typedef enum muglue_codes {
 # define last_muglue_code   thick_muskip_code
 
 typedef enum tok_codes {
-    output_routine_code,          /*tex points to token list for |\output| */
-    every_par_code,               /*tex points to token list for |\everypar| */
-    every_math_code,              /*tex points to token list for |\everymath| */
-    every_display_code,           /*tex points to token list for |\everydisplay| */
-    every_hbox_code,              /*tex points to token list for |\everyhbox| */
-    every_vbox_code,              /*tex points to token list for |\everyvbox| */
-    every_math_atom_code,         /*tex points to token list for |\everymathatom| */
-    every_job_code,               /*tex points to token list for |\everyjob|*/
-    every_cr_code,                /*tex points to token list for |\everycr| */
-    every_tab_code,               /*tex points to token list for |\everytab| */
-    error_help_code,              /*tex points to token list for |\errhelp|*/
-    every_before_par_code,        /*tex points to token list for |\everybeforepar| */
-    every_eof_code,               /*tex points to token list for |\everyeof| */
-    end_of_group_code,            /*tex collects end-of-group tokens, internal register */
- // end_of_par_code,
+    output_routine_code,          /*tex aka |\output| */
+    every_par_code,               /*tex aka |\everypar| */
+    every_par_begin_code,         /*tex aka |\everyparbegin| */
+    every_par_end_code,           /*tex aka |\everyparend| */
+    every_math_code,              /*tex aka |\everymath| */
+    every_display_code,           /*tex aka |\everydisplay| */
+    every_hbox_code,              /*tex aka |\everyhbox| */
+    every_vbox_code,              /*tex aka |\everyvbox| */
+    every_math_atom_code,         /*tex aka |\everymathatom| */
+    every_job_code,               /*tex aka |\everyjob|*/
+    every_cr_code,                /*tex aka |\everycr| */
+    every_tab_code,               /*tex aka |\everytab| */
+    error_help_code,              /*tex aka |\errhelp|*/
+    every_before_par_code,        /*tex aka |\everybeforepar| */
+    every_eof_code,               /*tex aka |\everyeof| */
+    end_of_group_code,            /*tex aka |\endgroup| internal register */
     /*tex total number of token parameters */
     number_tok_pars,
 } tok_codes;
@@ -442,6 +443,7 @@ typedef enum page_property_codes {
     insert_line_depth_code,
     insert_stretch_code,
     insert_shrink_code,
+    insert_direction_code,
     /*tex These can't be set: */
     page_stretch_code,
     page_fistretch_code,
@@ -590,7 +592,7 @@ typedef enum int_codes {
     output_penalty_code,                /*tex penalty found at current page break */
     max_dead_cycles_code,               /*tex bound on consecutive dead cycles of output */
     hang_after_code,                    /*tex hanging indentation changes after this many lines */
-    floating_penalty_code,              /*tex penalty for insertions heldover after a split */
+    floating_penalty_code,              /*tex penalty for insertions held over after a split */
     global_defs_code,                   /*tex override |\global| specifications */
     family_code,                        /*tex current family */
     escape_char_code,                   /*tex escape character for token output */
@@ -642,7 +644,8 @@ typedef enum int_codes {
     math_display_skip_mode_code,
     math_scripts_mode_code,
     math_limits_mode_code,
-    math_nolimits_mode_code,
+    math_options_code,
+ // math_nolimits_mode_code,
     math_rules_mode_code,
     math_rules_fam_code,
     math_penalties_mode_code,
@@ -675,6 +678,7 @@ typedef enum int_codes {
     math_inline_penalty_factor_code,
     math_display_penalty_factor_code,
     sup_mark_mode_code,
+ /* comment_mode_code, */ /* experiment: maybe some day when ther eis demand for it */
  // par_direction_code,
  // text_direction_code,
  // math_direction_code,
@@ -1222,6 +1226,8 @@ extern void tex_save_stack_catch_up    (void);
 
 */
 
+# define overload_error_type(overload) (overload & 1 ? warning_error_type : normal_error_type)
+
 typedef enum flag_bit {
     /* properties and prefixes */
     frozen_flag_bit        = 0x000001,
@@ -1356,13 +1362,18 @@ static inline singleword tex_flags_to_cmd(int flags)
 */
 
 extern int  tex_define_permitted   (halfword cs, halfword prefixes);
+extern int  tex_mutation_permitted (halfword cs);
+extern int  tex_register_permitted (halfword cs, halfword index, halfword cmd);
 extern void tex_define             (int g, halfword p, singleword cmd, halfword chr);
+extern void tex_define_mutated     (int g, halfword p, singleword cmd, halfword chr);
 extern void tex_define_again       (int g, halfword p, singleword cmd, halfword chr);
 extern void tex_define_inherit     (int g, halfword p, singleword flag, singleword cmd, halfword chr);
 extern void tex_define_swapped     (int g, halfword p1, halfword p2, int force);
 extern void tex_forced_define      (int g, halfword p, singleword flag, singleword cmd, halfword chr);
 extern void tex_word_define        (int g, halfword p, halfword w);
 /*     void tex_forced_word_define (int g, halfword p, singleword flag, halfword w); */
+
+extern int  tex_overload_permitted (halfword flags);
 
 /*tex
 
@@ -1536,7 +1547,8 @@ extern void tex_word_define        (int g, halfword p, halfword w);
 # define math_inline_penalty_factor_par   integer_parameter(math_inline_penalty_factor_code)
 # define math_left_class_par              integer_parameter(math_left_class_code)
 # define math_limits_mode_par             integer_parameter(math_limits_mode_code)
-# define math_nolimits_mode_par           integer_parameter(math_nolimits_mode_code)
+# define math_options_par                 integer_parameter(math_options_code)
+/*       math_nolimits_mode_par           integer_parameter(math_nolimits_mode_code) */
 # define math_penalties_mode_par          integer_parameter(math_penalties_mode_code)
 # define math_pre_display_gap_factor_par  integer_parameter(math_pre_display_gap_factor_code)
 # define math_pre_tolerance_par           integer_parameter(math_pre_tolerance_code)
@@ -1591,6 +1603,7 @@ extern void tex_word_define        (int g, halfword p, halfword w);
 # define space_factor_shrink_limit_par    integer_parameter(space_factor_shrink_limit_code)
 # define space_factor_stretch_limit_par   integer_parameter(space_factor_stretch_limit_code)
 # define sup_mark_mode_par                integer_parameter(sup_mark_mode_code)
+/*       comment_mode_par                 integer_parameter(comment_mode_code) */ /* experiment */
 # define text_direction_par               integer_parameter(text_direction_code)
 # define time_par                         integer_parameter(time_code)
 # define tolerance_par                    integer_parameter(tolerance_code)
@@ -1652,6 +1665,8 @@ extern void tex_word_define        (int g, halfword p, halfword w);
 # define every_math_atom_par              toks_parameter(every_math_atom_code)
 # define every_math_par                   toks_parameter(every_math_code)
 # define every_par_par                    toks_parameter(every_par_code)
+# define every_par_begin_par              toks_parameter(every_par_begin_code)
+# define every_par_end_par                toks_parameter(every_par_end_code)
 # define every_tab_par                    toks_parameter(every_tab_code)
 # define every_vbox_par                   toks_parameter(every_vbox_code)
 # define output_routine_par               toks_parameter(output_routine_code)
@@ -1999,5 +2014,8 @@ typedef enum badness_modes {
     badness_mode_overfull  = 0x08,
     badness_mode_all       = 0x0F,
 } badness_modes;
+
+extern int tex_report_overload          (halfword cs, int overload);
+extern int tex_report_overload_register (halfword cs, int overload, halfword index, const char *str);
 
 # endif

@@ -3,13 +3,14 @@
 */
 
 /*tex 
-    This is an experiment using the posit (unum) implementation from https://gitlab.com/cerlane/SoftPosit#known, which is 
-    afaiks the standard. At some point it migh tbe interesting to have this as MetaPost number plugin too, but first I need 
-    to figure out some helpers (sin, cos, pow etc). 
+    This is an experiment using the posit implementation https://gitlab.com/cerlane/SoftPosit#known, 
+    which is afaiks the standard. The posit (unum) number system is also available in mplib so that 
+    we can play with it (no specific gains there). We need to figure out some helpers (sin, cos, 
+    pow etc). 
 
-    Watch out: this is just a playground for me and a few others. There are \CONTEXT\ interfaces but these are also quite 
-    experimental. For instance we might move to 64 bit posits. And how about quires.  It all depends on developments in 
-    this area. 
+    Watch out: this is just a playground for me and a few others. There are \CONTEXT\ interfaces but 
+    these are also quite experimental. For instance we might move to 64 bit posits. And how about 
+    quires.  It all depends on developments in this area. 
 
     The standard is at: 
 
@@ -19,8 +20,8 @@
 
         https://gitlab.com/cerlane/SoftPosit
 
-    However, the implementation lags behind the standard: no posit64 and no functions except from a few that add, subtract, 
-    multiply, divide etc. But I will keep an eye in it.  
+    However, the implementation lags behind the standard: no posit64 and no functions except from a 
+    few that add, subtract, multiply, divide etc. But I will keep an eye in it.  
 
     Todo: check if we used the right functions (also in auxposit).
 
@@ -520,7 +521,64 @@ static int positlib_xor(lua_State *L)
     p->v = (a->v) ^ (b->v); 
     return 1;
 }
- 
+
+/* experiment */
+
+static int positlib_to_byte(lua_State *L)
+{
+    posit8_t p = convertDoubleToP8(lua_tonumber(L, 1));
+    lua_pushinteger(L, (lua_Integer) p.v);
+    return 1;
+}
+
+static int positlib_from_byte(lua_State *L)
+{
+    posit8_t p = { .v = (uint8_t) lua_tointeger(L, 1) };
+    lua_pushnumber(L, convertP8ToDouble(p));
+    return 1;
+}
+
+static int positlib_to_char(lua_State *L)
+{
+    posit8_t p = convertDoubleToP8(lua_tonumber(L, 1));
+    char c[1] = { (char) p.v }; 
+    lua_pushlstring(L, c, 1);
+    return 1;
+}
+
+static int positlib_from_char(lua_State *L)
+{
+    size_t l; 
+    const char *s = lua_tolstring(L, 1, &l);
+    if (l == 1) {
+        posit8_t p = { .v = (uint8_t) s[0] };
+        lua_pushnumber(L, convertP8ToDouble(p));
+    } else { 
+        lua_pushnil(L);
+    }
+    return 1;
+}
+
+static int positlib_expand(lua_State *L)
+{
+    size_t size;
+    const char *data = lua_tolstring(L, 1, &size);
+    if (size > 0) {
+        char *temp = lmt_memory_malloc(size);
+        if (temp) {
+            int expansion = lmt_optinteger(L, 2, 255);
+            for (size_t i = 0; i < size; i++) {
+                posit8_t b = { .v = (unsigned char) data[i] };
+                temp[i] = (unsigned char) lround(convertP8ToDouble(b) * expansion);
+            } 
+            lua_pushlstring(L, (const char *) temp, size);
+            lmt_memory_free(temp);
+            return 1;
+        }
+    } 
+    return 0;
+}
+
 static const luaL_Reg positlib_function_list[] =
 {
     /* management */
@@ -626,6 +684,12 @@ static const luaL_Reg positlib_function_list[] =
  // { "y0",           positlib_y0        },
  // { "y1",           positlib_y1        },
  // { "yn",           positlib_yn        },
+    /* */
+    { "tobyte",       positlib_to_byte   },
+    { "frombyte",     positlib_from_byte },
+    { "tochar",       positlib_to_char   },
+    { "fromchar",     positlib_from_char },
+    { "expand",       positlib_expand    },
     /* */
     { NULL,           NULL               },
 };

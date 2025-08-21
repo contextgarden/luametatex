@@ -55,7 +55,7 @@
     the less code we have, the better. In the early days of \LUATEX\ it really did improve the
     overall performance but computers (as well as compilers) have become better. But still, it
     could be that \LUATEX\ has a better performance here; so be it. A performance hit can also be
-    one of the side effects of the some more rigourous testing of direct node validity introduced
+    one of the side effects of the some more rigorous testing of direct node validity introduced
     here.
 
     Attribute nodes are special as their prev and subtype fields are used for other purposes.
@@ -78,6 +78,55 @@
 */
 
 # include "luametatex.h"
+
+// typedef struct glyph_node_data { 
+//     /* */
+//     quarterword type       ; // memone0(a,0)
+//     quarterword subtype    ; // memone1(a,0) 
+//     halfword    next       ; // memtwo(a,0)
+//     halfword    attr       ; // memone(a,1)
+//     halfword    prev       ; // memtwo(a,1)
+//     /* */
+//     halfword    character  ; // memone(a,2)
+//     halfword    font       ; // memtwo(a,2)   /*tex can be quarterword */
+//     halfword    data       ; // memone(a,3)   /*tex handy in context */
+//     halfword    state      ; // memtwo(a,3)   /*tex handy in context */
+//     quarterword language   ; // memone0(a,4)
+//     quarterword script     ; // memone1(a,4)
+//     quarterword control    ; // memtwo0(a,4)  /*tex we store 0xXXXX in the |\cccode| */
+//     singleword  disccode   ; // memtwo02(a,4)
+//     singleword  processing ; // memtwo03(a,4)
+//     halfword    options    ; // memone(a,5)
+//     halfword    hyphenate  ; // memtwo(a,5)
+//     singleword  protected  ; // memone00(a,6)
+//     singleword  lhmin      ; // memone01(a,6)
+//     singleword  rhmin      ; // memone02(a,6)
+//     singleword  discpart   ; // memone03(a,6)
+//     halfword    expansion  ; // memtwo(a,6)
+//     halfword    x_scale    ; // memone(a,7)
+//     halfword    y_scale    ; // memtwo(a,7)
+//     halfword    scale      ; // memone(a,8)
+//     halfword    raise      ; // memtwo(a,8)
+//     halfword    left       ; // memone(a,9)
+//     halfword    right      ; // memtwo(a,9)
+//     halfword    x_offset   ; // memone(a,10)
+//     halfword    y_offset   ; // memtwo(a,10)
+//     halfword    weight     ; // memone(a,11)
+//     halfword    slant      ; // memtwo(a,11)
+//     quarterword properties ; // memone0(a,12)  /*tex for math */
+//     quarterword group      ; // memone1(a,12)  /*tex for math */
+//     halfword    index      ; // memtwo(a,12)   /*tex for math */
+//     halfword    input_file ; // memone(a,13)
+//     halfword    input_line ; // memtwo(a,13)
+// } glyph_node_data;
+// 
+// typedef glyph_node_data *glyph_node_blob;
+// 
+// static inline glyph_node_blob nodelib_valid_blob_from_index(lua_State *L, int i)
+// {
+//     halfword n = lmt_tohalfword(L, i);
+//     return n && _valid_node_(n) ? (glyph_node_blob) &lmt_node_memory_state.nodes[n] : NULL;
+// }
 
 /* # define NODE_METATABLE_INSTANCE   "node.instance" */
 /* # define NODE_PROPERTIES_DIRECT    "node.properties" */
@@ -207,7 +256,6 @@ halfword lmt_optional_isnode(lua_State *L, int i)
 {
     return lmt_maybe_isnode(L, i);
 }
-
 
 /* helpers */
 
@@ -419,27 +467,10 @@ int lmt_get_math_parameter(lua_State *L, int n, int dflt)
 
     Creates a userdata object for a number found at the stack top, if it is representing a node
     (i.e. an pointer into |varmem|). It replaces the stack entry with the new userdata, or pushes
-    |nil| if the number is |null|, or if the index is definately out of range. This test could be
+    |nil| if the number is |null|, or if the index is definitely out of range. This test could be
     improved.
 
 */
-
-// void lmt_push_node(lua_State *L)
-// {
-//     halfword n = null;
-//     if (lua_type(L, -1) == LUA_TNUMBER) {
-//         n = lmt_tohalfword(L, -1);
-//     }
-//     lua_pop(L, 1);
-//     if ((! n) || (n > lmt_node_memory_state.nodes_data.allocated)) {
-//         lua_pushnil(L);
-//     } else {
-//         halfword *a = lua_newuserdatauv(L, sizeof(halfword), 0);
-//         *a = n;
-//         lua_get_metatablelua(node_instance);
-//         lua_setmetatable(L, -2);
-//     }
-// }
 
 void lmt_push_node(lua_State *L)
 {
@@ -527,8 +558,12 @@ static int nodelib_direct_getid(lua_State *L)
 }
 
 /* node.direct.getidsubtype */
+/* node.direct.hasidsubtype */
+/* node.direct.getidsubtypenext */
 
-# define getidsubtype_usage common_usage
+# define getidsubtype_usage     common_usage
+# define hasidsubtype_usage     common_usage
+# define getidsubtypenext_usage common_usage
 
 static int nodelib_direct_getidsubtype(lua_State *L)
 {
@@ -541,6 +576,38 @@ static int nodelib_direct_getidsubtype(lua_State *L)
         lua_pushnil(L);
     }
     return 2;
+}
+
+static int nodelib_direct_hasidsubtype(lua_State *L)
+{
+    halfword n = nodelib_valid_direct_from_index(L, 1);
+    if (n) { /* no check for subtype */
+        if (lua_type(L, 2) == LUA_TNUMBER && lua_tointeger(L, 2) == node_type(n)) {
+            if (lua_type(L, 3) == LUA_TNUMBER) {
+                lua_pushboolean(L, lua_tointeger(L, 3) == node_subtype(n));
+            } else { 
+                lua_pushinteger(L, node_subtype(n)); /* bonus */
+            }
+            return 1;
+        }
+    }
+    lua_pushboolean(L, 0);
+    return 1;
+}
+
+static int nodelib_direct_getidsubtypenext(lua_State *L)
+{
+    halfword n = nodelib_valid_direct_from_index(L, 1);
+    if (n) { /* no check for subtype */
+        lua_pushinteger(L, node_type(n));
+        lua_pushinteger(L, node_subtype(n));
+        lua_pushinteger(L, node_next(n));
+    } else {
+        lua_pushnil(L);
+        lua_pushnil(L);
+        lua_pushnil(L);
+    }
+    return 3;
 }
 
 /* node.direct.getsubtype */
@@ -1611,10 +1678,10 @@ static int nodelib_direct_getdirection(lua_State *L)
                 return 2;
             case hlist_node:
             case vlist_node:
-                lua_pushinteger(L, checked_direction_value(box_dir(n)));
+                lua_pushinteger(L, checked_direction_value(box_direction(n)));
                 break;
             case par_node:
-                lua_pushinteger(L, par_dir(n));
+                lua_pushinteger(L, par_direction(n));
                 break;
             default:
                 lua_pushnil(L);
@@ -1641,10 +1708,10 @@ static int nodelib_direct_setdirection(lua_State *L)
                 break;
             case hlist_node:
             case vlist_node:
-                box_dir(n) = (singleword) nodelib_getdirection(L, 2);
+                box_direction(n) = (singleword) nodelib_getdirection(L, 2);
                 break;
             case par_node:
-                par_dir(n) = nodelib_getdirection(L, 2);
+                par_direction(n) = nodelib_getdirection(L, 2);
                 break;
         }
     }
@@ -2571,7 +2638,7 @@ static int nodelib_direct_setreplace(lua_State *L)
 /* node.direct.getwidth  */
 /* node.direct.setwidth  */
 
-/* split ifs for clearity .. compiler will optimize */
+/* split ifs for clarity .. compiler will optimize */
 
 # define getwidth_usage (hlist_usage | vlist_usage | unset_usage | align_record_usage | rule_usage | glue_usage | glue_spec_usage | glyph_usage | kern_usage | math_usage)
 
@@ -2654,6 +2721,7 @@ static int nodelib_direct_setwidth(lua_State *L)
                 kern_amount(n) = lua_type(L, 2) == LUA_TNUMBER ? lmt_roundnumber(L, 2) : 0;
                 break;
             case math_node:
+                /*tex So not |math_surround|! */
                 math_amount(n) = lua_type(L, 2) == LUA_TNUMBER ? lmt_roundnumber(L, 2) : 0;
                 break;
         }
@@ -3002,7 +3070,7 @@ static int nodelib_direct_getgeometry(lua_State* L)
                         lua_pushboolean(L, tex_has_box_geometry(n, offset_geometry));
                         lua_pushboolean(L, tex_has_box_geometry(n, orientation_geometry));
                         lua_pushboolean(L, tex_has_box_geometry(n, anchor_geometry));
-                        lua_pushinteger(L, checked_direction_value(box_dir(n)));
+                        lua_pushinteger(L, checked_direction_value(box_direction(n)));
                         return 5;
                     } else {
                         return 1;
@@ -3012,7 +3080,7 @@ static int nodelib_direct_getgeometry(lua_State* L)
                     lua_pushboolean(L, 0);
                     lua_pushboolean(L, 0);
                     lua_pushboolean(L, 0);
-                    lua_pushinteger(L, checked_direction_value(box_dir(n)));
+                    lua_pushinteger(L, checked_direction_value(box_direction(n)));
                     return 5;
                 }
                 break;
@@ -3150,7 +3218,7 @@ static int nodelib_direct_setorientation(lua_State *L)
 /* node.direct.setoptions */
 /* node.direct.getoptions */
 
-# define setoptions_usage (glyph_usage | disc_usage | glue_usage | rule_usage | math_usage | penalty_usage | simple_usage | radical_usage | fraction_usage | accent_usage | math_char_usage | math_text_char_usage)
+# define setoptions_usage (hlist_usage | vlist_usage | glyph_usage | disc_usage | glue_usage | rule_usage | math_usage | penalty_usage | simple_usage | radical_usage | fraction_usage | accent_usage | math_char_usage | math_text_char_usage)
 # define getoptions_usage setoptions_usage
 
 static int nodelib_direct_getoptions(lua_State *L)
@@ -3158,6 +3226,10 @@ static int nodelib_direct_getoptions(lua_State *L)
     halfword n = nodelib_valid_direct_from_index(L, 1);
     if (n) {
         switch (node_type(n)) {
+            case hlist_node:
+            case vlist_node:
+                lua_pushinteger(L, box_options(n));
+                return 1;
             case glyph_node:
                 lua_pushinteger(L, glyph_options(n));
                 return 1;
@@ -3197,6 +3269,10 @@ static int nodelib_direct_setoptions(lua_State *L)
     halfword n = nodelib_valid_direct_from_index(L, 1);
     if (n) {
         switch (node_type(n)) {
+            case hlist_node:
+            case vlist_node:
+                tex_add_box_option(n, lmt_tohalfword(L, 2));
+                return 1;
             case glyph_node:
                 set_glyph_options(n, lmt_tohalfword(L, 2) & glyph_option_valid);
                 break;
@@ -3207,7 +3283,7 @@ static int nodelib_direct_setoptions(lua_State *L)
                 tex_add_glue_option(n, lmt_tohalfword(L, 2));
                 return 1;
             case rule_node:
-                set_rule_options(n, lmt_tohalfword(L, 2) & rule_option_valid);
+                tex_add_rule_option(n, lmt_tohalfword(L, 2) & rule_option_valid);
                 break;
             case math_node:
                 tex_add_math_option(n, lmt_tohalfword(L, 2));
@@ -3692,7 +3768,8 @@ static int nodelib_direct_getdata(lua_State *L)
                 return 1;
             case glue_node:
                 lua_pushinteger(L, glue_data(n));
-                return 1;
+                lua_pushinteger(L, glue_reserved(n));
+                return 2;
             case boundary_node:
                 lua_pushinteger(L, boundary_data(n));
                 lua_pushinteger(L, boundary_reserved(n));
@@ -3742,6 +3819,7 @@ static int nodelib_direct_setdata(lua_State *L) /* data and value */
                 break;
             case glue_node:
                 glue_data(n) = lmt_tohalfword(L, 2);
+                glue_reserved(n) = lmt_opthalfword(L, 3, 0);
                 break;
             case boundary_node:
                 boundary_data(n) = lmt_tohalfword(L, 2);
@@ -4878,22 +4956,43 @@ static int nodelib_direct_removefromlist(lua_State *L)
     halfword head = nodelib_valid_direct_from_index(L, 1);
     int count = 0;
     if (head) {
-        halfword id = lmt_tohalfword(L, 2);
-        halfword subtype = lmt_opthalfword(L, 3, -1);
-        halfword current = head;
-        while (current) {
-            halfword next = node_next(current);
-            if (node_type(current) == id && (subtype < 0 || node_subtype(current) == subtype)) {
-                if (current == head) {
-                    head = next;
-                    node_prev(next) = null;
-                } else {
-                    tex_try_couple_nodes(node_prev(current), next);
+        if (lua_type(L, 2) == LUA_TTABLE) { 
+            lua_Unsigned l = lua_rawlen(L, 2);
+            for (lua_Unsigned i = 1; i <= l; i++) {
+                lua_rawgeti(L, 2, i);
+                { 
+                    halfword current = nodelib_valid_direct_from_index(L, -1);
+                    if (current) { 
+                        halfword next = node_next(current);
+                        if (current == head) {
+                            head = next;
+                            node_prev(next) = null;
+                        } else {
+                            tex_try_couple_nodes(node_prev(current), next);
+                        }
+                        tex_flush_node(current);
+                        ++count;
+                    }
                 }
-                tex_flush_node(current);
-                ++count;
             }
-            current = next;
+        } else {
+            halfword id = lmt_tohalfword(L, 2);
+            halfword subtype = lmt_opthalfword(L, 3, -1);
+            halfword current = head;
+            while (current) {
+                halfword next = node_next(current);
+                if (node_type(current) == id && (subtype < 0 || node_subtype(current) == subtype)) {
+                    if (current == head) {
+                        head = next;
+                        node_prev(next) = null;
+                    } else {
+                        tex_try_couple_nodes(node_prev(current), next);
+                    }
+                    tex_flush_node(current);
+                    ++count;
+                }
+                current = next;
+            }
         }
     }
     nodelib_push_direct_or_nil(L, head);
@@ -6096,7 +6195,7 @@ static int nodelib_userdata_hasattribute(lua_State *L)
     return 1;
 }
 
-/* node.direct.has_attribute */
+/* node.direct.hasattribute */
 
 # define hasattribute_usage common_usage
 
@@ -6115,7 +6214,7 @@ static int nodelib_direct_hasattribute(lua_State *L)
     return 1;
 }
 
-/* node.get_attribute */
+/* node.getattribute */
 
 static int nodelib_userdata_getattribute(lua_State *L)
 {
@@ -6639,15 +6738,17 @@ static int nodelib_aux_nil(lua_State *L)
 /* node.direct.traverseleader */
 /* node.direct.traverseitalic */
 /* node.direct.traversecontent */
+/* node.direct.traversepossible */
 
-# define traverse_usage        common_usage
-# define traverseid_usage      common_usage
-# define traversechar_usage    common_usage
-# define traverseglyph_usage   common_usage
-# define traverselist_usage    common_usage
-# define traverseleader_usage  common_usage
-# define traverseitalic_usage  common_usage
-# define traversecontent_usage common_usage
+# define traverse_usage         common_usage
+# define traverseid_usage       common_usage
+# define traversechar_usage     common_usage
+# define traverseglyph_usage    common_usage
+# define traverselist_usage     common_usage
+# define traverseleader_usage   common_usage
+# define traverseitalic_usage   common_usage
+# define traversecontent_usage  common_usage
+# define traversepossible_usage common_usage
 
 static int nodelib_direct_aux_next(lua_State *L)
 {
@@ -7273,6 +7374,74 @@ static int nodelib_direct_traversecontent(lua_State *L)
     }
 }
 
+/* We might move this to the context specific optimizer module instead. */
+
+static int nodelib_direct_aux_next_possible(lua_State *L)
+{
+    halfword t;
+    halfword l = null;
+    if (lua_isnil(L, 2)) {
+        t = lmt_tohalfword(L, 1) ;
+        lua_settop(L, 1);
+    } else {
+        t = lmt_tohalfword(L, 2) ;
+        t = node_next(t);
+        lua_settop(L, 2);
+    }
+    while (t) {
+        switch (node_type(t)) {
+            case glyph_node:
+            case disc_node:
+            case rule_node:
+                goto FOUND;
+            case glue_node:
+                if (is_leader(t)) {
+                    l = glue_leader_ptr(t);
+                    goto FOUND;
+                } else {
+                    break;
+                }
+            case hlist_node:
+            case vlist_node:
+                l = box_list(t);
+                goto FOUND;
+        }
+        t = node_next(t);
+    }
+    lua_pushnil(L);
+    return 1;
+  FOUND:
+    lua_pushinteger(L, t);
+    lua_pushinteger(L, node_type(t));
+    lua_pushinteger(L, node_subtype(t));
+    if (l) {
+        nodelib_push_direct_or_nil(L, l);
+        return 4;
+    } else {
+        return 3;
+    }
+}
+
+static int nodelib_direct_traversepossible(lua_State *L)
+{
+    if (lua_isnil(L, 1)) {
+        lua_pushcclosure(L, nodelib_aux_nil, 0);
+        return 1;
+    } else {
+        halfword n = nodelib_valid_direct_from_index(L, 1);
+        if (n) {
+            lua_pushcclosure(L, nodelib_direct_aux_next_possible, 0);
+            lua_pushinteger(L, n);
+            lua_pushnil(L);
+            return 3;
+        } else {
+            lua_pushcclosure(L, nodelib_aux_nil, 0);
+            return 1;
+        }
+    }
+}
+
+
 /* node.traverse */
 /* node.traverseid */
 /* node.traversechar */
@@ -7508,6 +7677,13 @@ static inline void nodelib_setattribute_value(lua_State *L, halfword n, int kind
 
 */
 
+/* tex
+
+    In the meantime we have some more fields so I need to check this in |getfield| and |setfield|
+    but in due time. 
+
+*/
+
 typedef enum lua_field_errors {
     lua_no_field_error,
     lua_set_field_error,
@@ -7640,7 +7816,7 @@ static int nodelib_common_getfield(lua_State *L, int direct, halfword n)
                             } else if (lua_key_eq(s, total)) {
                                 lua_pushinteger(L, box_total(n));
                             } else if (lua_key_eq(s, direction)) {
-                                lua_pushinteger(L, checked_direction_value(box_dir(n)));
+                                lua_pushinteger(L, checked_direction_value(box_direction(n)));
                             } else if (lua_key_eq(s, shift)) {
                                 lua_pushinteger(L, box_shift_amount(n));
                             } else if (lua_key_eq(s, glueorder)) {
@@ -7717,6 +7893,8 @@ static int nodelib_common_getfield(lua_State *L, int direct, halfword n)
                                 lua_pushinteger(L, glue_font(n));
                             } else if (lua_key_eq(s, data)) {
                                 lua_pushinteger(L, glue_data(n));
+                            } else if (lua_key_eq(s, reserved)) {
+                                lua_pushinteger(L, glue_reserved(n));
                             } else if (lua_key_eq(s, options)) {
                                 lua_pushinteger(L, glue_options(n));
                             } else {
@@ -7790,7 +7968,13 @@ static int nodelib_common_getfield(lua_State *L, int direct, halfword n)
                             goto CANTGET;
                         case par_node:
                             /* not all of them here */
-                            if (lua_key_eq(s, interlinepenalty)) {
+                            if (lua_key_eq(s, direction)) {
+                                lua_pushinteger(L, par_direction(n));
+                            } else if (lua_key_eq(s, shapingpenalty)) {
+                                lua_push_integer(L, par_shaping_penalty(n));
+                            } else if (lua_key_eq(s, shapingpenaltiesmode)) {
+                                lua_push_integer(L, par_shaping_penalties_mode(n));
+                            } else if (lua_key_eq(s, interlinepenalty)) {
                                 lua_pushinteger(L, tex_get_local_interline_penalty(n));
                             } else if (lua_key_eq(s, brokenpenalty)) {
                                 lua_pushinteger(L, tex_get_local_broken_penalty(n));
@@ -7798,8 +7982,6 @@ static int nodelib_common_getfield(lua_State *L, int direct, halfword n)
                                 lua_pushinteger(L, tex_get_local_tolerance(n));
                             } else if (lua_key_eq(s, pretolerance)) {
                                 lua_pushinteger(L, tex_get_local_pre_tolerance(n));
-                            } else if (lua_key_eq(s, direction)) {
-                                lua_pushinteger(L, par_dir(n));
                             } else if (lua_key_eq(s, leftbox)) {
                                 nodelib_push_direct_or_node(L, direct, par_box_left(n));
                             } else if (lua_key_eq(s, leftboxwidth)) {
@@ -8124,7 +8306,7 @@ static int nodelib_common_getfield(lua_State *L, int direct, halfword n)
                             } else if (lua_key_eq(s, total)) {
                                 lua_pushinteger(L, box_total(n));
                             } else if (lua_key_eq(s, direction)) {
-                                lua_pushinteger(L, checked_direction_value(box_dir(n)));
+                                lua_pushinteger(L, checked_direction_value(box_direction(n)));
                             } else if (lua_key_eq(s, shrink)) {
                                 lua_pushinteger(L, box_glue_shrink(n));
                             } else if (lua_key_eq(s, glueorder)) {
@@ -8355,7 +8537,7 @@ static int nodelib_common_setfield(lua_State *L, int direct, halfword n)
                             } else if (lua_key_eq(s, depth)) {
                                 box_depth(n) = (halfword) lmt_roundnumber(L, 3);
                             } else if (lua_key_eq(s, direction)) {
-                                box_dir(n) = (singleword) nodelib_getdirection(L, 3);
+                                box_direction(n) = (singleword) nodelib_getdirection(L, 3);
                             } else if (lua_key_eq(s, shift)) {
                                 box_shift_amount(n) = (halfword) lmt_roundnumber(L, 3);
                             } else if (lua_key_eq(s, glueorder)) {
@@ -8441,6 +8623,8 @@ static int nodelib_common_setfield(lua_State *L, int direct, halfword n)
                                 glue_font(n) = tex_checked_font(lmt_tohalfword(L, 3));
                             } else if (lua_key_eq(s, data)) {
                                 glue_data(n) = (halfword) lmt_roundnumber(L, 3);
+                            } else if (lua_key_eq(s, reserved)) {
+                                glue_reserved(n) = (halfword) lmt_roundnumber(L, 3);
                             } else if (lua_key_eq(s, options)) {
                                 glue_options(n) |= lmt_tohalfword(L, 3);
                             } else {
@@ -8511,7 +8695,13 @@ static int nodelib_common_setfield(lua_State *L, int direct, halfword n)
                             return 0;
                         case par_node:
                             /* not all of them here */
-                            if (lua_key_eq(s, interlinepenalty)) {
+                            if (lua_key_eq(s, direction)) {
+                                par_direction(n) = nodelib_getdirection(L, 3);
+                            } else if (lua_key_eq(s, shapingpenalty)) {
+                                par_shaping_penalty(n) = lmt_roundnumber(L, 3);
+                            } else if (lua_key_eq(s, shapingpenaltiesmode)) {
+                                par_shaping_penalties_mode(n) = lmt_roundnumber(L, 3);
+                            } else if (lua_key_eq(s, interlinepenalty)) {
                                 tex_set_local_interline_penalty(n, lmt_tohalfword(L, 3));
                             } else if (lua_key_eq(s, brokenpenalty)) {
                                 tex_set_local_broken_penalty(n, lmt_tohalfword(L, 3));
@@ -8519,8 +8709,6 @@ static int nodelib_common_setfield(lua_State *L, int direct, halfword n)
                                 tex_set_local_tolerance(n, lmt_tohalfword(L, 3));
                             } else if (lua_key_eq(s, pretolerance)) {
                                 tex_set_local_pre_tolerance(n, lmt_tohalfword(L, 3));
-                            } else if (lua_key_eq(s, direction)) {
-                                par_dir(n) = nodelib_getdirection(L, 3);
                             } else if (lua_key_eq(s, leftbox)) {
                                 par_box_left(n) = nodelib_getlist(L, 3);
                             } else if (lua_key_eq(s, leftboxwidth)) {
@@ -8532,6 +8720,7 @@ static int nodelib_common_setfield(lua_State *L, int direct, halfword n)
                             } else if (lua_key_eq(s, middlebox)) {
                                 par_box_middle(n) = nodelib_getlist(L, 3);
                             } else {
+                                /*tex We will add some more in due time. */
                                 goto CANTSET;
                             }
                             return 0;
@@ -8837,7 +9026,7 @@ static int nodelib_common_setfield(lua_State *L, int direct, halfword n)
                             } else if (lua_key_eq(s, depth)) {
                                 box_depth(n) = (halfword) lmt_roundnumber(L, 3);
                             } else if (lua_key_eq(s, direction)) {
-                                box_dir(n) = (singleword) nodelib_getdirection(L, 3);
+                                box_direction(n) = (singleword) nodelib_getdirection(L, 3);
                             } else if (lua_key_eq(s, shrink)) {
                                 box_glue_shrink(n) = (halfword) lmt_roundnumber(L, 3);
                             } else if (lua_key_eq(s, glueorder)) {
@@ -9297,6 +9486,57 @@ static int nodelib_direct_protectglyphsnone(lua_State *L)
     return 0;
 }
 
+/*tex This is an experiment. */
+
+static inline void nodelib_aux_protect_all_base(halfword h)
+{
+    while (h) {
+        if (node_type(h) == glyph_node) {
+            halfword f =  glyph_font(h);
+            if (f >= 0 && f <= lmt_font_state.font_data.ptr && lmt_font_state.fonts[f] && (has_font_text_control(f, text_control_base_ligaturing) || has_font_text_control(f, text_control_base_kerning))) {
+                glyph_protected(h) = glyph_protected_text_code;
+            }
+        }
+        h = node_next(h);
+    }
+}
+
+static inline void nodelib_aux_protect_node_base(halfword n)
+{
+    switch (node_type(n)) {
+        case glyph_node:
+            {
+                halfword f =  glyph_font(n);
+                if (f >= 0 && f <= lmt_font_state.font_data.ptr && lmt_font_state.fonts[f] && (has_font_text_control(f, text_control_base_ligaturing) || has_font_text_control(f, text_control_base_kerning))) {
+                    glyph_protected(n) = glyph_protected_text_code;
+                }
+            }
+            break;
+        case disc_node:
+            nodelib_aux_protect_all_base(disc_no_break_head(n));
+            nodelib_aux_protect_all_base(disc_pre_break_head(n));
+            nodelib_aux_protect_all_base(disc_post_break_head(n));
+            break;
+    }
+}
+
+static int nodelib_direct_protectglyphsbase(lua_State *L)
+{
+    halfword head = nodelib_valid_direct_from_index(L, 1);
+    halfword tail = nodelib_valid_direct_from_index(L, 2);
+    if (head) {
+        while (head) {
+            nodelib_aux_protect_node_base(head);
+            if (head == tail) {
+                break;
+            } else {
+                head = node_next(head);
+            }
+        }
+    }
+    return 0;
+}
+
 /* node.direct.first_glyphnode */
 /* node.direct.first_glyph */
 /* node.direct.first_char */
@@ -9636,7 +9876,13 @@ static int nodelib_shared_tonode(lua_State* L)
         *a = n;
         lua_get_metatablelua(node_instance);
         lua_setmetatable(L, -2);
-    } /* else assume node and return argument */
+    } else {
+        /*tex
+            We tested for an integer and got one but not a valid node, e.g. a reserved one or a 
+            |temp_node| or so. 
+        */
+        lua_pushnil(L);
+    }
     return 1;
 }
 
@@ -10193,6 +10439,8 @@ static int nodelib_userdata_getpropertiestable(lua_State *L)
 
 /* extra helpers */
 
+/* todo: use effective helper that returns double */
+
 static void nodelib_direct_effect_done(lua_State *L, halfword amount, halfword stretch, halfword shrink, halfword stretch_order, halfword shrink_order)
 {
     halfword parent = nodelib_valid_direct_from_index(L, 2);
@@ -10240,7 +10488,7 @@ static int nodelib_direct_effectiveglue(lua_State *L)
                 nodelib_direct_effect_done(L, glue_amount(n), glue_stretch(n), glue_shrink(n), glue_stretch_order(n), glue_shrink_order(n));
                 break;
             case math_node:
-                if (math_surround(n)) {
+                if (tex_math_glue_is_zero(n) || tex_ignore_math_skip(n)) {
                     lua_pushinteger(L, math_surround(n));
                 } else {
                     nodelib_direct_effect_done(L, math_amount(n), math_stretch(n), math_shrink(n), math_stretch_order(n), math_shrink_order(n));
@@ -10262,8 +10510,8 @@ static int nodelib_direct_effectiveglue(lua_State *L)
     a special node that has status info of which head and tail are part. Normally when proper
     set/get functions are used this status node is all right but if a macro package permits
     arbitrary messing around, then it can at some point call the following cleaner, just before
-    linebreaking kicks in. This one is not called automatically because if significantly slows down
-    the line break routing.
+    line breaking kicks in. This one is not called automatically because if significantly slows 
+    down the line break routing.
 
 */
 
@@ -10286,12 +10534,7 @@ static int nodelib_direct_checkdiscretionaries(lua_State *L) {
 static int nodelib_direct_checkdiscretionary(lua_State *L) {
     halfword n = nodelib_valid_direct_from_index(L, 1);
     if (n && node_type(n) == disc_node) {
-        halfword p = disc_pre_break_head(n);
-        disc_pre_break_tail(n) = p ? tex_tail_of_node_list(p) : null;
-        p = disc_post_break_head(n);
-        disc_post_break_tail(n) = p ? tex_tail_of_node_list(p) : null;
-        p = disc_no_break_head(n);
-        disc_no_break_tail(n) = p ? tex_tail_of_node_list(p) : null;
+        tex_check_disc_field(n);
     }
     return 0;
 }
@@ -10380,7 +10623,7 @@ static int nodelib_direct_setinputfields(lua_State *L)
 }
 
 /*tex
-    Likely we pas the wrong |chr| here as we're after the analysis phase. Buit we don't use this
+    Likely we pas the wrong |chr| here as we're after the analysis phase. But we don't use this
     helper any longer (it seems).
 */
 
@@ -10709,6 +10952,17 @@ static int nodelib_direct_hasglyphoption(lua_State *L)
             case glyph_option_math_italics_too:
                 result = tex_has_glyph_option(current, option);
                 break;
+            case glyph_option_math_artifact:
+            case glyph_option_weight_less:
+            case glyph_option_space_factor_overload:
+            case glyph_option_check_toddler:
+            case glyph_option_check_twin:
+            case glyph_option_is_toddler:
+            case glyph_option_is_continuation:
+            case glyph_option_keep_spacing:
+         // case glyph_option_snapping:
+                /* todo */
+                break;
             default:
                 /* user options */
                 result = tex_has_glyph_option(current, option);
@@ -10957,6 +11211,15 @@ static int nodelib_direct_updatemarks(lua_State *L)
 //     return 0;
 // }
 
+# define getfirstdirectioninlist_usage common_usage
+
+static int nodelib_direct_getfirstdirectioninlist(lua_State *L)
+{ 
+    halfword n = nodelib_valid_direct_from_index(L, 1);
+    lua_pushinteger(L, tex_get_direction_from_list(n));
+    return 1;
+}
+
 /*tex
     This is just an experiment, so it might go away. Using a list can be a bit faster that traverse
     (2-4 times) but you only see a difference on very last lists and even then one need some 10K
@@ -11100,6 +11363,81 @@ static int nodelib_hybrid_gluetostring(lua_State *L)
     return 0;
 }
 
+/* not yet documented */
+
+static int nodelib_direct_getcurrenttail(lua_State *L)
+{
+    if (cur_list.head == cur_list.tail) {
+        lua_pushnil(L);
+    } else {    
+        lua_pushinteger(L, cur_list.tail);
+    }
+    lua_pushinteger(L, cur_list.mode);
+    return 2;
+}
+
+static int nodelib_direct_setcurrenttail(lua_State *L) /* also accepts normal node so hybrid */
+{
+    if (cur_list.tail) {
+        halfword n = lua_type(L, 1) == LUA_TNUMBER ? nodelib_valid_direct_from_index(L, 1): lmt_maybe_isnode(L, 1);
+        if (n) {
+            if (cur_list.head == cur_list.tail && n != cur_list.head && n != cur_list.tail) {
+                tex_couple_nodes(cur_list.tail, n);
+            }
+            cur_list.tail = tex_tail_of_node_list(n);
+        }
+    }
+    return 0;
+}
+
+static int nodelib_direct_insertcurrenthead(lua_State *L) /* also accepts normal node so hybrid */
+{
+    if (cur_list.tail) {
+        halfword n = lua_type(L, 1) == LUA_TNUMBER ? nodelib_valid_direct_from_index(L, 1): lmt_maybe_isnode(L, 1);
+        if (n && n != cur_list.head && n != cur_list.tail) {
+            if (cur_list.tail == cur_list.head) {
+                tex_couple_nodes(cur_list.tail, n);
+                cur_list.tail = tex_tail_of_node_list(n);
+            } else { 
+                tex_couple_nodes(tex_tail_of_node_list(n), node_next(cur_list.head));
+                tex_couple_nodes(cur_list.head, n);
+            }
+        }
+    }
+    return 0;
+}
+
+static int nodelib_direct_appendcurrenttail(lua_State *L) /* also accepts normal node so hybrid */
+{
+    if (cur_list.tail) {
+        halfword n = lua_type(L, 1) == LUA_TNUMBER ? nodelib_valid_direct_from_index(L, 1): lmt_maybe_isnode(L, 1);
+        if (n && n != cur_list.head && n != cur_list.tail) {
+            tex_couple_nodes(cur_list.tail, n);
+            cur_list.tail = tex_tail_of_node_list(n);
+        }
+    }
+    return 0;
+}
+
+static int nodelib_direct_prependcurrenttail(lua_State *L) /* also accepts normal node so hybrid */
+{
+    if (cur_list.tail) {
+        halfword n = lua_type(L, 1) == LUA_TNUMBER ? nodelib_valid_direct_from_index(L, 1): lmt_maybe_isnode(L, 1);
+        if (n && n != cur_list.head && n != cur_list.tail) {
+            if (cur_list.tail == cur_list.head) {
+                tex_couple_nodes(cur_list.tail, n);
+                cur_list.tail = tex_tail_of_node_list(n);
+            } else { 
+                tex_couple_nodes(node_next(node_prev(cur_list.tail)), n);
+                tex_couple_nodes(tex_tail_of_node_list(n), node_prev(cur_list.tail));
+            }
+        }
+    }
+    return 0;
+}
+
+/* */
+
 static const struct luaL_Reg nodelib_p[] = {
     { "__index",    nodelib_get_property_t },
     { "__newindex", nodelib_set_property_t },
@@ -11169,305 +11507,309 @@ typedef struct usage_record {
 } usage_record;
 
 static const usage_record usage_data[] = {
-    { .name = "addmargins",             .target = direct_usage_target,   .usage = addmargins_usage             },
-    { .name = "addxoffset",             .target = direct_usage_target,   .usage = addxoffset_usage             },
-    { .name = "addxymargins",           .target = direct_usage_target,   .usage = addxymargins_usage           },
-    { .name = "addyoffset",             .target = direct_usage_target,   .usage = addyoffset_usage             },
-    { .name = "appendaftertail",        .target = direct_usage_target,   .usage = appendaftertail_usage        },
-    { .name = "beginofmath",            .target = direct_usage_target,   .usage = beginofmath_usage            },
-    { .name = "checkdiscretionaries",   .target = direct_usage_target,   .usage = checkdiscretionaries_usage   },
-    { .name = "checkdiscretionary",     .target = direct_usage_target,   .usage = checkdiscretionary_usage     },
-    { .name = "collapsing",             .target = direct_usage_target,   .usage = collapsing_usage             },
-    { .name = "copy",                   .target = separate_usage_target, .usage = copy_usage                   },
-    { .name = "copylist",               .target = separate_usage_target, .usage = copylist_usage               },
-    { .name = "copyonly",               .target = direct_usage_target,   .usage = copyonly_usage               },
-    { .name = "count",                  .target = direct_usage_target,   .usage = count_usage                  },
-    { .name = "currentattributes",      .target = separate_usage_target, .usage = currentattributes_usage      },
-    { .name = "dimensions",             .target = direct_usage_target,   .usage = dimensions_usage             },
-    { .name = "effectiveglue",          .target = direct_usage_target,   .usage = effectiveglue_usage          },
-    { .name = "endofmath",              .target = direct_usage_target,   .usage = endofmath_usage              },
-    { .name = "exchange",               .target = direct_usage_target,   .usage = exchange_usage               },
-    { .name = "fields",                 .target = general_usage_target,  .usage = fields_usage                 },
-    { .name = "findattribute",          .target = direct_usage_target,   .usage = findattribute_usage          },
-    { .name = "findattributerange",     .target = direct_usage_target,   .usage = findattributerange_usage     },
-    { .name = "findnode",               .target = direct_usage_target,   .usage = findnode_usage               },
-    { .name = "firstchar",              .target = direct_usage_target,   .usage = firstchar_usage              },
-    { .name = "firstglyph",             .target = direct_usage_target,   .usage = firstglyph_usage             },
-    { .name = "firstglyphnode",         .target = direct_usage_target,   .usage = firstglyphnode_usage         },
-    { .name = "firstitalicglyph",       .target = direct_usage_target,   .usage = firstitalicglyph_usage       },
-    { .name = "flattendiscretionaries", .target = direct_usage_target,   .usage = flattendiscretionaries_usage },
-    { .name = "flattenleaders",         .target = direct_usage_target,   .usage = flattenleaders_usage         },
-    { .name = "flushlist",              .target = separate_usage_target, .usage = flushlist_usage              },
-    { .name = "flushnode",              .target = separate_usage_target, .usage = flushnode_usage              },
-    { .name = "free",                   .target = separate_usage_target, .usage = free_usage                   },
-    { .name = "freeze",                 .target = direct_usage_target,   .usage = freeze_usage                 },
-    { .name = "getanchors",             .target = direct_usage_target,   .usage = getanchors_usage             },
-    { .name = "getattribute",           .target = separate_usage_target, .usage = getattribute_usage           },
-    { .name = "getattributelist",       .target = direct_usage_target,   .usage = getattributelist_usage       },
-    { .name = "getattributes",          .target = direct_usage_target,   .usage = getattributes_usage          },
-    { .name = "getboth",                .target = direct_usage_target,   .usage = getboth_usage                },
-    { .name = "getbottom",              .target = direct_usage_target,   .usage = getbottom_usage              },
-    { .name = "getbottomdelimiter",     .target = direct_usage_target,   .usage = getbottomdelimiter_usage     },
-    { .name = "getbox",                 .target = direct_usage_target,   .usage = getbox_usage                 },
-    { .name = "getcachestate",          .target = general_usage_target,  .usage = common_usage                 }, /* todo */
-    { .name = "getchar",                .target = direct_usage_target,   .usage = getchar_usage                },
-    { .name = "getchardict",            .target = direct_usage_target,   .usage = getchardict_usage            },
-    { .name = "getcharspec",            .target = direct_usage_target,   .usage = getcharspec_usage            },
-    { .name = "getchoice",              .target = direct_usage_target,   .usage = getchoice_usage              },
-    { .name = "getclass",               .target = direct_usage_target,   .usage = getclass_usage               },
-    { .name = "getcontrol",             .target = direct_usage_target,   .usage = getcontrol_usage             },
-    { .name = "getcornerkerns",         .target = direct_usage_target,   .usage = getcornerkerns_usage         },
-    { .name = "getdata",                .target = direct_usage_target,   .usage = getdata_usage                },
-    { .name = "getdegree",              .target = direct_usage_target,   .usage = getdegree_usage              },
-    { .name = "getdelimiter",           .target = direct_usage_target,   .usage = getdelimiter_usage           },
-    { .name = "getdenominator",         .target = direct_usage_target,   .usage = getdenominator_usage         },
-    { .name = "getdepth",               .target = direct_usage_target,   .usage = getdepth_usage               },
-    { .name = "getdirection",           .target = direct_usage_target,   .usage = getdirection_usage           },
-    { .name = "getdisc",                .target = direct_usage_target,   .usage = getdisc_usage                },
-    { .name = "getdiscpart",            .target = direct_usage_target,   .usage = getdiscpart_usage            },
-    { .name = "getexcept",              .target = direct_usage_target,   .usage = getexcept_usage              },
-    { .name = "getexpansion",           .target = direct_usage_target,   .usage = getexpansion_usage           },
-    { .name = "getfam",                 .target = direct_usage_target,   .usage = getfam_usage                 },
-    { .name = "getfield",               .target = separate_usage_target, .usage = getfield_usage               },
-    { .name = "getfont",                .target = direct_usage_target,   .usage = getfont_usage                },
-    { .name = "getgeometry",            .target = direct_usage_target,   .usage = getgeometry_usage            },
-    { .name = "getglue",                .target = direct_usage_target,   .usage = getglue_usage                },
-    { .name = "getglyphdata",           .target = direct_usage_target,   .usage = getglyphdata_usage           },
-    { .name = "getglyphdimensions",     .target = direct_usage_target,   .usage = getglyphdimensions_usage     },
-    { .name = "getheight",              .target = direct_usage_target,   .usage = getheight_usage              },
-    { .name = "getid",                  .target = direct_usage_target,   .usage = getid_usage                  },
-    { .name = "getidsubtype",           .target = direct_usage_target,   .usage = getidsubtype_usage           },
-    { .name = "getindex",               .target = direct_usage_target,   .usage = getindex_usage               },
-    { .name = "getinputfields",         .target = direct_usage_target,   .usage = getinputfields_usage         },
-    { .name = "getkern",                .target = direct_usage_target,   .usage = getkern_usage                },
-    { .name = "getkerndimension",       .target = direct_usage_target,   .usage = getkerndimension_usage       },
-    { .name = "getlanguage",            .target = direct_usage_target,   .usage = getlanguage_usage            },
-    { .name = "getleader",              .target = direct_usage_target,   .usage = getleader_usage              },
-    { .name = "getleftdelimiter",       .target = direct_usage_target,   .usage = getleftdelimiter_usage       },
-    { .name = "getlist",                .target = direct_usage_target,   .usage = getlist_usage                },
-    { .name = "getlistdimensions",      .target = direct_usage_target,   .usage = getlistdimensions_usage      },
-    { .name = "getmvllist",             .target = direct_usage_target,   .usage = getmvllist_usage             },
-    { .name = "getnext",                .target = direct_usage_target,   .usage = getnext_usage                },
-    { .name = "getnodes",               .target = direct_usage_target,   .usage = getnodes_usage               },
-    { .name = "getnormalizedline",      .target = direct_usage_target,   .usage = getnormalizedline_usage      },
-    { .name = "getnucleus",             .target = direct_usage_target,   .usage = getnucleus_usage             },
-    { .name = "getnumerator",           .target = direct_usage_target,   .usage = getnumerator_usage           },
-    { .name = "getoffsets",             .target = direct_usage_target,   .usage = getoffsets_usage             },
-    { .name = "getoptions",             .target = direct_usage_target,   .usage = getoptions_usage             },
-    { .name = "getorientation",         .target = direct_usage_target,   .usage = getorientation_usage         },
-    { .name = "getparstate",            .target = direct_usage_target,   .usage = getparstate_usage            },
-    { .name = "getpenalty",             .target = direct_usage_target,   .usage = getpenalty_usage             },
-    { .name = "getpost",                .target = direct_usage_target,   .usage = getpost_usage                },
-    { .name = "getpre",                 .target = direct_usage_target,   .usage = getpre_usage                 },
-    { .name = "getprev",                .target = direct_usage_target,   .usage = getprev_usage                },
-    { .name = "getprime",               .target = direct_usage_target,   .usage = getprime_usage               },
-    { .name = "getpropertiestable",     .target = separate_usage_target, .usage = common_usage                 }, /* todo */
-    { .name = "getproperty",            .target = separate_usage_target, .usage = getproperty_usage            },
-    { .name = "getreplace",             .target = direct_usage_target,   .usage = getreplace_usage             },
-    { .name = "getrightdelimiter",      .target = direct_usage_target,   .usage = getrightdelimiter_usage      },
-    { .name = "getruledimensions",      .target = direct_usage_target,   .usage = getruledimensions_usage      },
-    { .name = "getscale",               .target = direct_usage_target,   .usage = getscale_usage               },
-    { .name = "getscales",              .target = direct_usage_target,   .usage = getscales_usage              },
-    { .name = "getscript",              .target = direct_usage_target,   .usage = getscript_usage              },
-    { .name = "getscripts",             .target = direct_usage_target,   .usage = getscripts_usage             },
-    { .name = "getshift",               .target = direct_usage_target,   .usage = getshift_usage               },
-    { .name = "getslant",               .target = direct_usage_target,   .usage = getslant_usage               },
-    { .name = "getspeciallist",         .target = direct_usage_target,   .usage = getspeciallist_usage         },
-    { .name = "getstate",               .target = direct_usage_target,   .usage = getstate_usage               },
-    { .name = "getsub",                 .target = direct_usage_target,   .usage = getsub_usage                 },
-    { .name = "getsubpre",              .target = direct_usage_target,   .usage = getsubpre_usage              },
-    { .name = "getsubtype",             .target = direct_usage_target,   .usage = getsubtype_usage             },
-    { .name = "getsup",                 .target = direct_usage_target,   .usage = getsup_usage                 },
-    { .name = "getsuppre",              .target = direct_usage_target,   .usage = getsuppre_usage              },
-    { .name = "gettop",                 .target = direct_usage_target,   .usage = gettop_usage                 },
-    { .name = "gettopdelimiter",        .target = direct_usage_target,   .usage = gettopdelimiter_usage        },
-    { .name = "gettotal",               .target = direct_usage_target,   .usage = gettotal_usage               },
-    { .name = "getweight",              .target = direct_usage_target,   .usage = getweight_usage              },
-    { .name = "getwhd",                 .target = direct_usage_target,   .usage = getwhd_usage                 },
-    { .name = "getwidth",               .target = direct_usage_target,   .usage = getwidth_usage               },
-    { .name = "getwordrange",           .target = direct_usage_target,   .usage = getwordrange_usage           },
-    { .name = "getxscale",              .target = direct_usage_target,   .usage = getxscale_usage              },
-    { .name = "getxyscales",            .target = direct_usage_target,   .usage = getxyscales_usage            },
-    { .name = "getyscale",              .target = direct_usage_target,   .usage = getyscale_usage              },
-    { .name = "gluetostring" ,          .target = hybrid_usage_target,   .usage = gluetostring_usage           },
-    { .name = "hasattribute",           .target = separate_usage_target, .usage = hasattribute_usage           },
-    { .name = "hasdimensions",          .target = direct_usage_target,   .usage = hasdimensions_usage          },
-    { .name = "hasdiscoption",          .target = direct_usage_target,   .usage = hasdiscoption_usage          },
-    { .name = "hasfield",               .target = separate_usage_target, .usage = hasfield_usage               },
-    { .name = "hasgeometry",            .target = direct_usage_target,   .usage = hasgeometry_usage            },
-    { .name = "hasglyph",               .target = direct_usage_target,   .usage = hasglyph_usage               },
-    { .name = "hasglyphoption",         .target = direct_usage_target,   .usage = hasglyphoption_usage         },
-    { .name = "hpack",                  .target = direct_usage_target,   .usage = hpack_usage                  },
-    { .name = "hyphenating",            .target = direct_usage_target,   .usage = hyphenating_usage            },
-    { .name = "id",                     .target = general_usage_target,  .usage = id_usage                     },
-    { .name = "ignoremathskip",         .target = direct_usage_target,   .usage = ignoremathskip_usage         },
-    { .name = "insertafter",            .target = separate_usage_target, .usage = insertafter_usage            },
-    { .name = "insertbefore",           .target = separate_usage_target, .usage = insertbefore_usage           },
-    { .name = "instock",                .target = userdata_usage_target, .usage = common_usage                 }, /* todo */
-    { .name = "inuse",                  .target = userdata_usage_target, .usage = common_usage                 }, /* todo */
-    { .name = "isboth",                 .target = direct_usage_target,   .usage = isboth_usage                 },
-    { .name = "ischar",                 .target = direct_usage_target,   .usage = ischar_usage                 },
-    { .name = "isdirect",               .target = direct_usage_target,   .usage = isdirect_usage               },
-    { .name = "isglyph",                .target = direct_usage_target,   .usage = isglyph_usage                },
-    { .name = "isitalicglyph",          .target = direct_usage_target,   .usage = isitalicglyph_usage          },
-    { .name = "isloop",                 .target = direct_usage_target,   .usage = isloop_usage                 },
-    { .name = "isnext",                 .target = direct_usage_target,   .usage = isnext_usage                 },
-    { .name = "isnextchar",             .target = direct_usage_target,   .usage = isnextchar_usage             },
-    { .name = "isnextglyph",            .target = direct_usage_target,   .usage = isnextglyph_usage            },
-    { .name = "isnode",                 .target = separate_usage_target, .usage = isnode_usage                 },
-    { .name = "isprev",                 .target = direct_usage_target,   .usage = isprev_usage                 },
-    { .name = "isprevchar",             .target = direct_usage_target,   .usage = isnextchar_usage             },
-    { .name = "isprevglyph",            .target = direct_usage_target,   .usage = isprevglyph_usage            },
-    { .name = "issimilarglyph",         .target = direct_usage_target,   .usage = issimilarglyph_usage         },
-    { .name = "isspeciallist",          .target = direct_usage_target,   .usage = isspeciallist_usage          },
-    { .name = "isvalid",                .target = direct_usage_target,   .usage = isvalid_usage                },
-    { .name = "iszeroglue",             .target = direct_usage_target,   .usage = iszeroglue_usage             },
-    { .name = "kerning",                .target = direct_usage_target,   .usage = kerning_usage                },
-    { .name = "lastnode",               .target = direct_usage_target,   .usage = lastnode_usage               },
-    { .name = "length",                 .target = direct_usage_target,   .usage = length_usage                 },
-    { .name = "ligaturing",             .target = direct_usage_target,   .usage = ligaturing_usage             },
-    { .name = "migrate",                .target = direct_usage_target,   .usage = migrate_usage                },
-    { .name = "mlisttohlist",           .target = direct_usage_target,   .usage = mlisttohlist_usage           },
-    { .name = "naturalhsize",           .target = direct_usage_target,   .usage = naturalhsize_usage           },
-    { .name = "naturalwidth",           .target = direct_usage_target,   .usage = naturalwidth_usage           },
-    { .name = "new",                    .target = separate_usage_target, .usage = new_usage                    },
-    { .name = "newcontinuationatom",    .target = direct_usage_target,   .usage = newcontinuationatom_usage    },
-    { .name = "newmathglyph",           .target = direct_usage_target,   .usage = newmathglyph_usage           },
-    { .name = "newtextglyph",           .target = direct_usage_target,   .usage = newtextglyph_usage           },
-    { .name = "patchattributes",        .target = direct_usage_target,   .usage = patchattributes_usage        },
-    { .name = "patchparshape",          .target = direct_usage_target,   .usage = patchparshape_usage          },
-    { .name = "prependbeforehead",      .target = direct_usage_target,   .usage = prependbeforehead_usage      },
-    { .name = "protectglyph",           .target = direct_usage_target,   .usage = protectglyph_usage           },
-    { .name = "protectglyphs",          .target = direct_usage_target,   .usage = protectglyphs_usage          },
-    { .name = "protectglyphsnone",      .target = direct_usage_target,   .usage = protectglyphsnone_usage      },
-    { .name = "protrusionskippable",    .target = direct_usage_target,   .usage = protrusionskippable_usage    },
-    { .name = "rangedimensions",        .target = direct_usage_target,   .usage = rangedimensions_usage        },
-    { .name = "remove",                 .target = separate_usage_target, .usage = remove_usage                 },
-    { .name = "removefromlist",         .target = direct_usage_target,   .usage = removefromlist_usage         },
-    { .name = "repack",                 .target = direct_usage_target,   .usage = repack_usage                 },
-    { .name = "reverse",                .target = direct_usage_target,   .usage = reverse_usage                },
-    { .name = "serialized",             .target = separate_usage_target, .usage = serialized_usage             },
-    { .name = "setanchors",             .target = direct_usage_target,   .usage = setanchors_usage             },
-    { .name = "setattribute",           .target = separate_usage_target, .usage = setattribute_usage           },
-    { .name = "setattributelist",       .target = direct_usage_target,   .usage = setattributelist_usage       },
-    { .name = "setattributes",          .target = direct_usage_target,   .usage = setattributes_usage          },
-    { .name = "setboth",                .target = direct_usage_target,   .usage = setboth_usage                },
-    { .name = "setbottom",              .target = direct_usage_target,   .usage = setbottom_usage              },
-    { .name = "setbottomdelimiter",     .target = direct_usage_target,   .usage = setbottomdelimiter_usage     },
-    { .name = "setbox",                 .target = direct_usage_target,   .usage = setbox_usage                 },
-    { .name = "setchar",                .target = direct_usage_target,   .usage = setchar_usage                },
-    { .name = "setchardict",            .target = direct_usage_target,   .usage = setchardict_usage            },
-    { .name = "setcharspec",            .target = direct_usage_target,   .usage = setcharspec_usage            },
-    { .name = "setchoice",              .target = direct_usage_target,   .usage = setchoice_usage              },
-    { .name = "setclass",               .target = direct_usage_target,   .usage = setclass_usage               },
-    { .name = "setcontrol",             .target = direct_usage_target,   .usage = setcontrol_usage             },
-    { .name = "setdata",                .target = direct_usage_target,   .usage = setdata_usage                },
-    { .name = "setdegree",              .target = direct_usage_target,   .usage = setdegree_usage              },
-    { .name = "setdelimiter",           .target = direct_usage_target,   .usage = setdelimiter_usage           },
-    { .name = "setdenominator",         .target = direct_usage_target,   .usage = setdenominator_usage         },
-    { .name = "setdepth",               .target = direct_usage_target,   .usage = setdepth_usage               },
-    { .name = "setdirection",           .target = direct_usage_target,   .usage = setdirection_usage           },
-    { .name = "setdisc",                .target = direct_usage_target,   .usage = setdisc_usage                },
-    { .name = "setdiscpart",            .target = direct_usage_target,   .usage = setdiscpart_usage            },
-    { .name = "setexcept",              .target = direct_usage_target,   .usage = setexcept_usage              },
-    { .name = "setexpansion",           .target = direct_usage_target,   .usage = setexpansion_usage           },
-    { .name = "setfam",                 .target = direct_usage_target,   .usage = setfam_usage                 },
-    { .name = "setfield",               .target = separate_usage_target, .usage = setfield_usage               },
-    { .name = "setfont",                .target = direct_usage_target,   .usage = setfont_usage                },
-    { .name = "setgeometry",            .target = direct_usage_target,   .usage = setgeometry_usage            },
-    { .name = "setglue",                .target = direct_usage_target,   .usage = setglue_usage                },
-    { .name = "setglyphdata",           .target = direct_usage_target,   .usage = setglyphdata_usage           },
-    { .name = "setheight",              .target = direct_usage_target,   .usage = setheight_usage              },
-    { .name = "setindex",               .target = direct_usage_target,   .usage = setindex_usage               },
-    { .name = "setinputfields",         .target = direct_usage_target,   .usage = setinputfields_usage         },
-    { .name = "setkern",                .target = direct_usage_target,   .usage = setkern_usage                },
-    { .name = "setlanguage",            .target = direct_usage_target,   .usage = setlanguage_usage            },
-    { .name = "setleader",              .target = direct_usage_target,   .usage = setleader_usage              },
-    { .name = "setleftdelimiter",       .target = direct_usage_target,   .usage = setleftdelimiter_usage       },
-    { .name = "setlink",                .target = direct_usage_target,   .usage = setlink_usage                },
-    { .name = "setlist",                .target = direct_usage_target,   .usage = setlist_usage                },
-    { .name = "setnext",                .target = direct_usage_target,   .usage = setnext_usage                },
-    { .name = "setnucleus",             .target = direct_usage_target,   .usage = setnucleus_usage             },
-    { .name = "setnumerator",           .target = direct_usage_target,   .usage = setnumerator_usage           },
-    { .name = "setoffsets",             .target = direct_usage_target,   .usage = setoffsets_usage             },
-    { .name = "setoptions",             .target = direct_usage_target,   .usage = setoptions_usage             },
-    { .name = "setorientation",         .target = direct_usage_target,   .usage = setorientation_usage         },
-    { .name = "setpenalty",             .target = direct_usage_target,   .usage = setpenalty_usage             },
-    { .name = "setpost",                .target = direct_usage_target,   .usage = setpost_usage                },
-    { .name = "setpre",                 .target = direct_usage_target,   .usage = setpre_usage                 },
-    { .name = "setprev",                .target = direct_usage_target,   .usage = setprev_usage                },
-    { .name = "setprime",               .target = direct_usage_target,   .usage = setprime_usage               },
-    { .name = "setproperty",            .target = separate_usage_target, .usage = setproperty_usage            },
-    { .name = "setreplace",             .target = direct_usage_target,   .usage = setreplace_usage             },
-    { .name = "setrightdelimiter",      .target = direct_usage_target,   .usage = setrightdelimiter_usage      },
-    { .name = "setruledimensions",      .target = direct_usage_target,   .usage = setruledimensions_usage      },
-    { .name = "setruledimensions",      .target = direct_usage_target,   .usage = setruledimensions_usage      },
-    { .name = "setscale",               .target = direct_usage_target,   .usage = setscale_usage               },
-    { .name = "setscales",              .target = direct_usage_target,   .usage = setscales_usage              },
-    { .name = "setscript",              .target = direct_usage_target,   .usage = setscript_usage              },
-    { .name = "setscripts",             .target = direct_usage_target,   .usage = setscripts_usage             },
-    { .name = "setshift",               .target = direct_usage_target,   .usage = setshift_usage               },
-    { .name = "setslant",               .target = direct_usage_target,   .usage = setslant_usage               },
-    { .name = "setspeciallist",         .target = direct_usage_target,   .usage = setspeciallist_usage         },
-    { .name = "setsplit",               .target = direct_usage_target,   .usage = setsplit_usage               },
-    { .name = "setstate",               .target = direct_usage_target,   .usage = setstate_usage               },
-    { .name = "setsub",                 .target = direct_usage_target,   .usage = setsub_usage                 },
-    { .name = "setsubpre",              .target = direct_usage_target,   .usage = setsubpre_usage              },
-    { .name = "setsubtype",             .target = direct_usage_target,   .usage = setsubtype_usage             },
-    { .name = "setsup",                 .target = direct_usage_target,   .usage = setsup_usage                 },
-    { .name = "setsuppre",              .target = direct_usage_target,   .usage = setsuppre_usage              },
-    { .name = "settop",                 .target = direct_usage_target,   .usage = settop_usage                 },
-    { .name = "settopdelimiter",        .target = direct_usage_target,   .usage = settopdelimiter_usage        },
-    { .name = "settotal",               .target = direct_usage_target,   .usage = settotal_usage               },
-    { .name = "setweight",              .target = direct_usage_target,   .usage = setweight_usage              },
-    { .name = "setwhd",                 .target = direct_usage_target,   .usage = setwhd_usage                 },
-    { .name = "setwidth",               .target = direct_usage_target,   .usage = setwidth_usage               },
-    { .name = "setxyscales",            .target = direct_usage_target,   .usage = setxyscales_usage            },
-    { .name = "show",                   .target = separate_usage_target, .usage = show_usage                   },
-    { .name = "showlist",               .target = direct_usage_target,   .usage = showlist_usage               },
-    { .name = "size",                   .target = direct_usage_target,   .usage = size_usage                   },
-    { .name = "size",                   .target = general_usage_target,  .usage = common_usage                 }, /* todo */
-    { .name = "slide",                  .target = direct_usage_target,   .usage = slide_usage                  },
-    { .name = "softenhyphens",          .target = direct_usage_target,   .usage = softenhyphens_usage          },
-    { .name = "startofpar",             .target = direct_usage_target,   .usage = startofpar_usage             },
-    { .name = "subtypes",               .target = general_usage_target,  .usage = common_usage                 }, /* todo */
-    { .name = "tail",                   .target = separate_usage_target, .usage = tail_usage                   },
-    { .name = "todirect",               .target = userdata_usage_target, .usage = todirect_usage               },
-    { .name = "tonode",                 .target = direct_usage_target,   .usage = tonode_usage                 },
-    { .name = "tostring",               .target = separate_usage_target, .usage = common_usage                 }, /* todo */
-    { .name = "tovaliddirect",          .target = direct_usage_target,   .usage = tovaliddirect_usage          },
-    { .name = "traverse",               .target = separate_usage_target, .usage = traverse_usage               },
-    { .name = "traversechar",           .target = direct_usage_target,   .usage = traversechar_usage           },
-    { .name = "traversecontent",        .target = direct_usage_target,   .usage = traversecontent_usage        },
-    { .name = "traverseglyph",          .target = direct_usage_target,   .usage = traverseglyph_usage          },
-    { .name = "traverseid",             .target = separate_usage_target, .usage = traverseid_usage             },
-    { .name = "traverseitalic",         .target = direct_usage_target,   .usage = traverseitalic_usage         },
-    { .name = "traverseleader",         .target = direct_usage_target,   .usage = traverseleader_usage         },
-    { .name = "traverselist",           .target = direct_usage_target,   .usage = traverselist_usage           },
-    { .name = "type",                   .target = hybrid_usage_target,   .usage = type_usage                   },
-    { .name = "types",                  .target = general_usage_target,  .usage = common_usage                 }, /* todo */
-    { .name = "unprotectglyph",         .target = direct_usage_target,   .usage = unprotectglyph_usage         },
-    { .name = "unprotectglyphs",        .target = direct_usage_target,   .usage = unprotectglyphs_usage        },
-    { .name = "unprotectglyphsnone",    .target = direct_usage_target,   .usage = unprotectglyphsnone_usage    },
-    { .name = "unsetattribute",         .target = separate_usage_target, .usage = unsetattribute_usage         },
-    { .name = "unsetattributes",        .target = direct_usage_target,   .usage = unsetattributes_usage        },
-    { .name = "usedlist",               .target = separate_usage_target, .usage = usedlist_usage               },
-    { .name = "usesfont",               .target = direct_usage_target,   .usage = usesfont_usage               },
-    { .name = "validpar",               .target = direct_usage_target,   .usage = validpar_usage               },
-    { .name = "verticalbreak",          .target = direct_usage_target,   .usage = verticalbreak_usage          },
-    { .name = "vpack",                  .target = direct_usage_target,   .usage = vpack_usage                  },
-    { .name = "write",                  .target = separate_usage_target, .usage = write_usage                  },
-    { .name = "xscaled",                .target = direct_usage_target,   .usage = xscaled_usage                },
-    { .name = "yscaled",                .target = direct_usage_target,   .usage = yscaled_usage                },
+    { .name = "addmargins",              .target = direct_usage_target,   .usage = addmargins_usage              },
+    { .name = "addxoffset",              .target = direct_usage_target,   .usage = addxoffset_usage              },
+    { .name = "addxymargins",            .target = direct_usage_target,   .usage = addxymargins_usage            },
+    { .name = "addyoffset",              .target = direct_usage_target,   .usage = addyoffset_usage              },
+    { .name = "appendaftertail",         .target = direct_usage_target,   .usage = appendaftertail_usage         },
+    { .name = "beginofmath",             .target = direct_usage_target,   .usage = beginofmath_usage             },
+    { .name = "checkdiscretionaries",    .target = direct_usage_target,   .usage = checkdiscretionaries_usage    },
+    { .name = "checkdiscretionary",      .target = direct_usage_target,   .usage = checkdiscretionary_usage      },
+    { .name = "collapsing",              .target = direct_usage_target,   .usage = collapsing_usage              },
+    { .name = "copy",                    .target = separate_usage_target, .usage = copy_usage                    },
+    { .name = "copylist",                .target = separate_usage_target, .usage = copylist_usage                },
+    { .name = "copyonly",                .target = direct_usage_target,   .usage = copyonly_usage                },
+    { .name = "count",                   .target = direct_usage_target,   .usage = count_usage                   },
+    { .name = "currentattributes",       .target = separate_usage_target, .usage = currentattributes_usage       },
+    { .name = "dimensions",              .target = direct_usage_target,   .usage = dimensions_usage              },
+    { .name = "effectiveglue",           .target = direct_usage_target,   .usage = effectiveglue_usage           },
+    { .name = "endofmath",               .target = direct_usage_target,   .usage = endofmath_usage               },
+    { .name = "exchange",                .target = direct_usage_target,   .usage = exchange_usage                },
+    { .name = "fields",                  .target = general_usage_target,  .usage = fields_usage                  },
+    { .name = "findattribute",           .target = direct_usage_target,   .usage = findattribute_usage           },
+    { .name = "findattributerange",      .target = direct_usage_target,   .usage = findattributerange_usage      },
+    { .name = "findnode",                .target = direct_usage_target,   .usage = findnode_usage                },
+    { .name = "firstchar",               .target = direct_usage_target,   .usage = firstchar_usage               },
+    { .name = "firstglyph",              .target = direct_usage_target,   .usage = firstglyph_usage              },
+    { .name = "firstglyphnode",          .target = direct_usage_target,   .usage = firstglyphnode_usage          },
+    { .name = "firstitalicglyph",        .target = direct_usage_target,   .usage = firstitalicglyph_usage        },
+    { .name = "flattendiscretionaries",  .target = direct_usage_target,   .usage = flattendiscretionaries_usage  },
+    { .name = "flattenleaders",          .target = direct_usage_target,   .usage = flattenleaders_usage          },
+    { .name = "flushlist",               .target = separate_usage_target, .usage = flushlist_usage               },
+    { .name = "flushnode",               .target = separate_usage_target, .usage = flushnode_usage               },
+    { .name = "free",                    .target = separate_usage_target, .usage = free_usage                    },
+    { .name = "freeze",                  .target = direct_usage_target,   .usage = freeze_usage                  },
+    { .name = "getanchors",              .target = direct_usage_target,   .usage = getanchors_usage              },
+    { .name = "getattribute",            .target = separate_usage_target, .usage = getattribute_usage            },
+    { .name = "getattributelist",        .target = direct_usage_target,   .usage = getattributelist_usage        },
+    { .name = "getattributes",           .target = direct_usage_target,   .usage = getattributes_usage           },
+    { .name = "getboth",                 .target = direct_usage_target,   .usage = getboth_usage                 },
+    { .name = "getbottom",               .target = direct_usage_target,   .usage = getbottom_usage               },
+    { .name = "getbottomdelimiter",      .target = direct_usage_target,   .usage = getbottomdelimiter_usage      },
+    { .name = "getbox",                  .target = direct_usage_target,   .usage = getbox_usage                  },
+    { .name = "getcachestate",           .target = general_usage_target,  .usage = common_usage                  }, /* todo */
+    { .name = "getchar",                 .target = direct_usage_target,   .usage = getchar_usage                 },
+    { .name = "getchardict",             .target = direct_usage_target,   .usage = getchardict_usage             },
+    { .name = "getcharspec",             .target = direct_usage_target,   .usage = getcharspec_usage             },
+    { .name = "getchoice",               .target = direct_usage_target,   .usage = getchoice_usage               },
+    { .name = "getclass",                .target = direct_usage_target,   .usage = getclass_usage                },
+    { .name = "getcontrol",              .target = direct_usage_target,   .usage = getcontrol_usage              },
+    { .name = "getcornerkerns",          .target = direct_usage_target,   .usage = getcornerkerns_usage          },
+    { .name = "getdata",                 .target = direct_usage_target,   .usage = getdata_usage                 },
+    { .name = "getdegree",               .target = direct_usage_target,   .usage = getdegree_usage               },
+    { .name = "getdelimiter",            .target = direct_usage_target,   .usage = getdelimiter_usage            },
+    { .name = "getdenominator",          .target = direct_usage_target,   .usage = getdenominator_usage          },
+    { .name = "getdepth",                .target = direct_usage_target,   .usage = getdepth_usage                },
+    { .name = "getdirection",            .target = direct_usage_target,   .usage = getdirection_usage            },
+    { .name = "getdisc",                 .target = direct_usage_target,   .usage = getdisc_usage                 },
+    { .name = "getdiscpart",             .target = direct_usage_target,   .usage = getdiscpart_usage             },
+    { .name = "getexcept",               .target = direct_usage_target,   .usage = getexcept_usage               },
+    { .name = "getexpansion",            .target = direct_usage_target,   .usage = getexpansion_usage            },
+    { .name = "getfam",                  .target = direct_usage_target,   .usage = getfam_usage                  },
+    { .name = "getfield",                .target = separate_usage_target, .usage = getfield_usage                },
+    { .name = "getfont",                 .target = direct_usage_target,   .usage = getfont_usage                 },
+    { .name = "getgeometry",             .target = direct_usage_target,   .usage = getgeometry_usage             },
+    { .name = "getglue",                 .target = direct_usage_target,   .usage = getglue_usage                 },
+    { .name = "getglyphdata",            .target = direct_usage_target,   .usage = getglyphdata_usage            },
+    { .name = "getglyphdimensions",      .target = direct_usage_target,   .usage = getglyphdimensions_usage      },
+    { .name = "getheight",               .target = direct_usage_target,   .usage = getheight_usage               },
+    { .name = "getid",                   .target = direct_usage_target,   .usage = getid_usage                   },
+    { .name = "getidsubtype",            .target = direct_usage_target,   .usage = getidsubtype_usage            },
+    { .name = "getidsubtypenext",        .target = direct_usage_target,   .usage = getidsubtypenext_usage        },
+    { .name = "getindex",                .target = direct_usage_target,   .usage = getindex_usage                },
+    { .name = "getinputfields",          .target = direct_usage_target,   .usage = getinputfields_usage          },
+    { .name = "getkern",                 .target = direct_usage_target,   .usage = getkern_usage                 },
+    { .name = "getkerndimension",        .target = direct_usage_target,   .usage = getkerndimension_usage        },
+    { .name = "getlanguage",             .target = direct_usage_target,   .usage = getlanguage_usage             },
+    { .name = "getleader",               .target = direct_usage_target,   .usage = getleader_usage               },
+    { .name = "getleftdelimiter",        .target = direct_usage_target,   .usage = getleftdelimiter_usage        },
+    { .name = "getlist",                 .target = direct_usage_target,   .usage = getlist_usage                 },
+    { .name = "getlistdimensions",       .target = direct_usage_target,   .usage = getlistdimensions_usage       },
+    { .name = "getmvllist",              .target = direct_usage_target,   .usage = getmvllist_usage              },
+    { .name = "getnext",                 .target = direct_usage_target,   .usage = getnext_usage                 },
+    { .name = "getnodes",                .target = direct_usage_target,   .usage = getnodes_usage                },
+    { .name = "getfirstdirectioninlist", .target = direct_usage_target,   .usage = getfirstdirectioninlist_usage },
+    { .name = "getnormalizedline",       .target = direct_usage_target,   .usage = getnormalizedline_usage       },
+    { .name = "getnucleus",              .target = direct_usage_target,   .usage = getnucleus_usage              },
+    { .name = "getnumerator",            .target = direct_usage_target,   .usage = getnumerator_usage            },
+    { .name = "getoffsets",              .target = direct_usage_target,   .usage = getoffsets_usage              },
+    { .name = "getoptions",              .target = direct_usage_target,   .usage = getoptions_usage              },
+    { .name = "getorientation",          .target = direct_usage_target,   .usage = getorientation_usage          },
+    { .name = "getparstate",             .target = direct_usage_target,   .usage = getparstate_usage             },
+    { .name = "getpenalty",              .target = direct_usage_target,   .usage = getpenalty_usage              },
+    { .name = "getpost",                 .target = direct_usage_target,   .usage = getpost_usage                 },
+    { .name = "getpre",                  .target = direct_usage_target,   .usage = getpre_usage                  },
+    { .name = "getprev",                 .target = direct_usage_target,   .usage = getprev_usage                 },
+    { .name = "getprime",                .target = direct_usage_target,   .usage = getprime_usage                },
+    { .name = "getpropertiestable",      .target = separate_usage_target, .usage = common_usage                  }, /* todo */
+    { .name = "getproperty",             .target = separate_usage_target, .usage = getproperty_usage             },
+    { .name = "getreplace",              .target = direct_usage_target,   .usage = getreplace_usage              },
+    { .name = "getrightdelimiter",       .target = direct_usage_target,   .usage = getrightdelimiter_usage       },
+    { .name = "getruledimensions",       .target = direct_usage_target,   .usage = getruledimensions_usage       },
+    { .name = "getscale",                .target = direct_usage_target,   .usage = getscale_usage                },
+    { .name = "getscales",               .target = direct_usage_target,   .usage = getscales_usage               },
+    { .name = "getscript",               .target = direct_usage_target,   .usage = getscript_usage               },
+    { .name = "getscripts",              .target = direct_usage_target,   .usage = getscripts_usage              },
+    { .name = "getshift",                .target = direct_usage_target,   .usage = getshift_usage                },
+    { .name = "getslant",                .target = direct_usage_target,   .usage = getslant_usage                },
+    { .name = "getspeciallist",          .target = direct_usage_target,   .usage = getspeciallist_usage          },
+    { .name = "getstate",                .target = direct_usage_target,   .usage = getstate_usage                },
+    { .name = "getsub",                  .target = direct_usage_target,   .usage = getsub_usage                  },
+    { .name = "getsubpre",               .target = direct_usage_target,   .usage = getsubpre_usage               },
+    { .name = "getsubtype",              .target = direct_usage_target,   .usage = getsubtype_usage              },
+    { .name = "getsup",                  .target = direct_usage_target,   .usage = getsup_usage                  },
+    { .name = "getsuppre",               .target = direct_usage_target,   .usage = getsuppre_usage               },
+    { .name = "gettop",                  .target = direct_usage_target,   .usage = gettop_usage                  },
+    { .name = "gettopdelimiter",         .target = direct_usage_target,   .usage = gettopdelimiter_usage         },
+    { .name = "gettotal",                .target = direct_usage_target,   .usage = gettotal_usage                },
+    { .name = "getweight",               .target = direct_usage_target,   .usage = getweight_usage               },
+    { .name = "getwhd",                  .target = direct_usage_target,   .usage = getwhd_usage                  },
+    { .name = "getwidth",                .target = direct_usage_target,   .usage = getwidth_usage                },
+    { .name = "getwordrange",            .target = direct_usage_target,   .usage = getwordrange_usage            },
+    { .name = "getxscale",               .target = direct_usage_target,   .usage = getxscale_usage               },
+    { .name = "getxyscales",             .target = direct_usage_target,   .usage = getxyscales_usage             },
+    { .name = "getyscale",               .target = direct_usage_target,   .usage = getyscale_usage               },
+    { .name = "gluetostring" ,           .target = hybrid_usage_target,   .usage = gluetostring_usage            },
+    { .name = "hasattribute",            .target = separate_usage_target, .usage = hasattribute_usage            },
+    { .name = "hasdimensions",           .target = direct_usage_target,   .usage = hasdimensions_usage           },
+    { .name = "hasdiscoption",           .target = direct_usage_target,   .usage = hasdiscoption_usage           },
+    { .name = "hasfield",                .target = separate_usage_target, .usage = hasfield_usage                },
+    { .name = "hasgeometry",             .target = direct_usage_target,   .usage = hasgeometry_usage             },
+    { .name = "hasglyph",                .target = direct_usage_target,   .usage = hasglyph_usage                },
+    { .name = "hasglyphoption",          .target = direct_usage_target,   .usage = hasglyphoption_usage          },
+    { .name = "hasidsubtype",            .target = direct_usage_target,   .usage = hasidsubtype_usage            },
+    { .name = "hpack",                   .target = direct_usage_target,   .usage = hpack_usage                   },
+    { .name = "hyphenating",             .target = direct_usage_target,   .usage = hyphenating_usage             },
+    { .name = "id",                      .target = general_usage_target,  .usage = id_usage                      },
+    { .name = "ignoremathskip",          .target = direct_usage_target,   .usage = ignoremathskip_usage          },
+    { .name = "insertafter",             .target = separate_usage_target, .usage = insertafter_usage             },
+    { .name = "insertbefore",            .target = separate_usage_target, .usage = insertbefore_usage            },
+    { .name = "instock",                 .target = userdata_usage_target, .usage = common_usage                  }, /* todo */
+    { .name = "inuse",                   .target = userdata_usage_target, .usage = common_usage                  }, /* todo */
+    { .name = "isboth",                  .target = direct_usage_target,   .usage = isboth_usage                  },
+    { .name = "ischar",                  .target = direct_usage_target,   .usage = ischar_usage                  },
+    { .name = "isdirect",                .target = direct_usage_target,   .usage = isdirect_usage                },
+    { .name = "isglyph",                 .target = direct_usage_target,   .usage = isglyph_usage                 },
+    { .name = "isitalicglyph",           .target = direct_usage_target,   .usage = isitalicglyph_usage           },
+    { .name = "isloop",                  .target = direct_usage_target,   .usage = isloop_usage                  },
+    { .name = "isnext",                  .target = direct_usage_target,   .usage = isnext_usage                  },
+    { .name = "isnextchar",              .target = direct_usage_target,   .usage = isnextchar_usage              },
+    { .name = "isnextglyph",             .target = direct_usage_target,   .usage = isnextglyph_usage             },
+    { .name = "isnode",                  .target = separate_usage_target, .usage = isnode_usage                  },
+    { .name = "isprev",                  .target = direct_usage_target,   .usage = isprev_usage                  },
+    { .name = "isprevchar",              .target = direct_usage_target,   .usage = isnextchar_usage              },
+    { .name = "isprevglyph",             .target = direct_usage_target,   .usage = isprevglyph_usage             },
+    { .name = "issimilarglyph",          .target = direct_usage_target,   .usage = issimilarglyph_usage          },
+    { .name = "isspeciallist",           .target = direct_usage_target,   .usage = isspeciallist_usage           },
+    { .name = "isvalid",                 .target = direct_usage_target,   .usage = isvalid_usage                 },
+    { .name = "iszeroglue",              .target = direct_usage_target,   .usage = iszeroglue_usage              },
+    { .name = "kerning",                 .target = direct_usage_target,   .usage = kerning_usage                 },
+    { .name = "lastnode",                .target = direct_usage_target,   .usage = lastnode_usage                },
+    { .name = "length",                  .target = direct_usage_target,   .usage = length_usage                  },
+    { .name = "ligaturing",              .target = direct_usage_target,   .usage = ligaturing_usage              },
+    { .name = "migrate",                 .target = direct_usage_target,   .usage = migrate_usage                 },
+    { .name = "mlisttohlist",            .target = direct_usage_target,   .usage = mlisttohlist_usage            },
+    { .name = "naturalhsize",            .target = direct_usage_target,   .usage = naturalhsize_usage            },
+    { .name = "naturalwidth",            .target = direct_usage_target,   .usage = naturalwidth_usage            },
+    { .name = "new",                     .target = separate_usage_target, .usage = new_usage                     },
+    { .name = "newcontinuationatom",     .target = direct_usage_target,   .usage = newcontinuationatom_usage     },
+    { .name = "newmathglyph",            .target = direct_usage_target,   .usage = newmathglyph_usage            },
+    { .name = "newtextglyph",            .target = direct_usage_target,   .usage = newtextglyph_usage            },
+    { .name = "patchattributes",         .target = direct_usage_target,   .usage = patchattributes_usage         },
+    { .name = "patchparshape",           .target = direct_usage_target,   .usage = patchparshape_usage           },
+    { .name = "prependbeforehead",       .target = direct_usage_target,   .usage = prependbeforehead_usage       },
+    { .name = "protectglyph",            .target = direct_usage_target,   .usage = protectglyph_usage            },
+    { .name = "protectglyphs",           .target = direct_usage_target,   .usage = protectglyphs_usage           },
+    { .name = "protectglyphsnone",       .target = direct_usage_target,   .usage = protectglyphsnone_usage       },
+    { .name = "protrusionskippable",     .target = direct_usage_target,   .usage = protrusionskippable_usage     },
+    { .name = "rangedimensions",         .target = direct_usage_target,   .usage = rangedimensions_usage         },
+    { .name = "remove",                  .target = separate_usage_target, .usage = remove_usage                  },
+    { .name = "removefromlist",          .target = direct_usage_target,   .usage = removefromlist_usage          },
+    { .name = "repack",                  .target = direct_usage_target,   .usage = repack_usage                  },
+    { .name = "reverse",                 .target = direct_usage_target,   .usage = reverse_usage                 },
+    { .name = "serialized",              .target = separate_usage_target, .usage = serialized_usage              },
+    { .name = "setanchors",              .target = direct_usage_target,   .usage = setanchors_usage              },
+    { .name = "setattribute",            .target = separate_usage_target, .usage = setattribute_usage            },
+    { .name = "setattributelist",        .target = direct_usage_target,   .usage = setattributelist_usage        },
+    { .name = "setattributes",           .target = direct_usage_target,   .usage = setattributes_usage           },
+    { .name = "setboth",                 .target = direct_usage_target,   .usage = setboth_usage                 },
+    { .name = "setbottom",               .target = direct_usage_target,   .usage = setbottom_usage               },
+    { .name = "setbottomdelimiter",      .target = direct_usage_target,   .usage = setbottomdelimiter_usage      },
+    { .name = "setbox",                  .target = direct_usage_target,   .usage = setbox_usage                  },
+    { .name = "setchar",                 .target = direct_usage_target,   .usage = setchar_usage                 },
+    { .name = "setchardict",             .target = direct_usage_target,   .usage = setchardict_usage             },
+    { .name = "setcharspec",             .target = direct_usage_target,   .usage = setcharspec_usage             },
+    { .name = "setchoice",               .target = direct_usage_target,   .usage = setchoice_usage               },
+    { .name = "setclass",                .target = direct_usage_target,   .usage = setclass_usage                },
+    { .name = "setcontrol",              .target = direct_usage_target,   .usage = setcontrol_usage              },
+    { .name = "setdata",                 .target = direct_usage_target,   .usage = setdata_usage                 },
+    { .name = "setdegree",               .target = direct_usage_target,   .usage = setdegree_usage               },
+    { .name = "setdelimiter",            .target = direct_usage_target,   .usage = setdelimiter_usage            },
+    { .name = "setdenominator",          .target = direct_usage_target,   .usage = setdenominator_usage          },
+    { .name = "setdepth",                .target = direct_usage_target,   .usage = setdepth_usage                },
+    { .name = "setdirection",            .target = direct_usage_target,   .usage = setdirection_usage            },
+    { .name = "setdisc",                 .target = direct_usage_target,   .usage = setdisc_usage                 },
+    { .name = "setdiscpart",             .target = direct_usage_target,   .usage = setdiscpart_usage             },
+    { .name = "setexcept",               .target = direct_usage_target,   .usage = setexcept_usage               },
+    { .name = "setexpansion",            .target = direct_usage_target,   .usage = setexpansion_usage            },
+    { .name = "setfam",                  .target = direct_usage_target,   .usage = setfam_usage                  },
+    { .name = "setfield",                .target = separate_usage_target, .usage = setfield_usage                },
+    { .name = "setfont",                 .target = direct_usage_target,   .usage = setfont_usage                 },
+    { .name = "setgeometry",             .target = direct_usage_target,   .usage = setgeometry_usage             },
+    { .name = "setglue",                 .target = direct_usage_target,   .usage = setglue_usage                 },
+    { .name = "setglyphdata",            .target = direct_usage_target,   .usage = setglyphdata_usage            },
+    { .name = "setheight",               .target = direct_usage_target,   .usage = setheight_usage               },
+    { .name = "setindex",                .target = direct_usage_target,   .usage = setindex_usage                },
+    { .name = "setinputfields",          .target = direct_usage_target,   .usage = setinputfields_usage          },
+    { .name = "setkern",                 .target = direct_usage_target,   .usage = setkern_usage                 },
+    { .name = "setlanguage",             .target = direct_usage_target,   .usage = setlanguage_usage             },
+    { .name = "setleader",               .target = direct_usage_target,   .usage = setleader_usage               },
+    { .name = "setleftdelimiter",        .target = direct_usage_target,   .usage = setleftdelimiter_usage        },
+    { .name = "setlink",                 .target = direct_usage_target,   .usage = setlink_usage                 },
+    { .name = "setlist",                 .target = direct_usage_target,   .usage = setlist_usage                 },
+    { .name = "setnext",                 .target = direct_usage_target,   .usage = setnext_usage                 },
+    { .name = "setnucleus",              .target = direct_usage_target,   .usage = setnucleus_usage              },
+    { .name = "setnumerator",            .target = direct_usage_target,   .usage = setnumerator_usage            },
+    { .name = "setoffsets",              .target = direct_usage_target,   .usage = setoffsets_usage              },
+    { .name = "setoptions",              .target = direct_usage_target,   .usage = setoptions_usage              },
+    { .name = "setorientation",          .target = direct_usage_target,   .usage = setorientation_usage          },
+    { .name = "setpenalty",              .target = direct_usage_target,   .usage = setpenalty_usage              },
+    { .name = "setpost",                 .target = direct_usage_target,   .usage = setpost_usage                 },
+    { .name = "setpre",                  .target = direct_usage_target,   .usage = setpre_usage                  },
+    { .name = "setprev",                 .target = direct_usage_target,   .usage = setprev_usage                 },
+    { .name = "setprime",                .target = direct_usage_target,   .usage = setprime_usage                },
+    { .name = "setproperty",             .target = separate_usage_target, .usage = setproperty_usage             },
+    { .name = "setreplace",              .target = direct_usage_target,   .usage = setreplace_usage              },
+    { .name = "setrightdelimiter",       .target = direct_usage_target,   .usage = setrightdelimiter_usage       },
+    { .name = "setruledimensions",       .target = direct_usage_target,   .usage = setruledimensions_usage       },
+    { .name = "setruledimensions",       .target = direct_usage_target,   .usage = setruledimensions_usage       },
+    { .name = "setscale",                .target = direct_usage_target,   .usage = setscale_usage                },
+    { .name = "setscales",               .target = direct_usage_target,   .usage = setscales_usage               },
+    { .name = "setscript",               .target = direct_usage_target,   .usage = setscript_usage               },
+    { .name = "setscripts",              .target = direct_usage_target,   .usage = setscripts_usage              },
+    { .name = "setshift",                .target = direct_usage_target,   .usage = setshift_usage                },
+    { .name = "setslant",                .target = direct_usage_target,   .usage = setslant_usage                },
+    { .name = "setspeciallist",          .target = direct_usage_target,   .usage = setspeciallist_usage          },
+    { .name = "setsplit",                .target = direct_usage_target,   .usage = setsplit_usage                },
+    { .name = "setstate",                .target = direct_usage_target,   .usage = setstate_usage                },
+    { .name = "setsub",                  .target = direct_usage_target,   .usage = setsub_usage                  },
+    { .name = "setsubpre",               .target = direct_usage_target,   .usage = setsubpre_usage               },
+    { .name = "setsubtype",              .target = direct_usage_target,   .usage = setsubtype_usage              },
+    { .name = "setsup",                  .target = direct_usage_target,   .usage = setsup_usage                  },
+    { .name = "setsuppre",               .target = direct_usage_target,   .usage = setsuppre_usage               },
+    { .name = "settop",                  .target = direct_usage_target,   .usage = settop_usage                  },
+    { .name = "settopdelimiter",         .target = direct_usage_target,   .usage = settopdelimiter_usage         },
+    { .name = "settotal",                .target = direct_usage_target,   .usage = settotal_usage                },
+    { .name = "setweight",               .target = direct_usage_target,   .usage = setweight_usage               },
+    { .name = "setwhd",                  .target = direct_usage_target,   .usage = setwhd_usage                  },
+    { .name = "setwidth",                .target = direct_usage_target,   .usage = setwidth_usage                },
+    { .name = "setxyscales",             .target = direct_usage_target,   .usage = setxyscales_usage             },
+    { .name = "show",                    .target = separate_usage_target, .usage = show_usage                    },
+    { .name = "showlist",                .target = direct_usage_target,   .usage = showlist_usage                },
+    { .name = "size",                    .target = direct_usage_target,   .usage = size_usage                    },
+    { .name = "size",                    .target = general_usage_target,  .usage = common_usage                  }, /* todo */
+    { .name = "slide",                   .target = direct_usage_target,   .usage = slide_usage                   },
+    { .name = "softenhyphens",           .target = direct_usage_target,   .usage = softenhyphens_usage           },
+    { .name = "startofpar",              .target = direct_usage_target,   .usage = startofpar_usage              },
+    { .name = "subtypes",                .target = general_usage_target,  .usage = common_usage                  }, /* todo */
+    { .name = "tail",                    .target = separate_usage_target, .usage = tail_usage                    },
+    { .name = "todirect",                .target = userdata_usage_target, .usage = todirect_usage                },
+    { .name = "tonode",                  .target = direct_usage_target,   .usage = tonode_usage                  },
+    { .name = "tostring",                .target = separate_usage_target, .usage = common_usage                  }, /* todo */
+    { .name = "tovaliddirect",           .target = direct_usage_target,   .usage = tovaliddirect_usage           },
+    { .name = "traverse",                .target = separate_usage_target, .usage = traverse_usage                },
+    { .name = "traversechar",            .target = direct_usage_target,   .usage = traversechar_usage            },
+    { .name = "traversecontent",         .target = direct_usage_target,   .usage = traversecontent_usage         },
+    { .name = "traversepossible",        .target = direct_usage_target,   .usage = traversepossible_usage        },
+    { .name = "traverseglyph",           .target = direct_usage_target,   .usage = traverseglyph_usage           },
+    { .name = "traverseid",              .target = separate_usage_target, .usage = traverseid_usage              },
+    { .name = "traverseitalic",          .target = direct_usage_target,   .usage = traverseitalic_usage          },
+    { .name = "traverseleader",          .target = direct_usage_target,   .usage = traverseleader_usage          },
+    { .name = "traverselist",            .target = direct_usage_target,   .usage = traverselist_usage            },
+    { .name = "type",                    .target = hybrid_usage_target,   .usage = type_usage                    },
+    { .name = "types",                   .target = general_usage_target,  .usage = common_usage                  }, /* todo */
+    { .name = "unprotectglyph",          .target = direct_usage_target,   .usage = unprotectglyph_usage          },
+    { .name = "unprotectglyphs",         .target = direct_usage_target,   .usage = unprotectglyphs_usage         },
+    { .name = "unprotectglyphsnone",     .target = direct_usage_target,   .usage = unprotectglyphsnone_usage     },
+    { .name = "unsetattribute",          .target = separate_usage_target, .usage = unsetattribute_usage          },
+    { .name = "unsetattributes",         .target = direct_usage_target,   .usage = unsetattributes_usage         },
+    { .name = "usedlist",                .target = separate_usage_target, .usage = usedlist_usage                },
+    { .name = "usesfont",                .target = direct_usage_target,   .usage = usesfont_usage                },
+    { .name = "validpar",                .target = direct_usage_target,   .usage = validpar_usage                },
+    { .name = "verticalbreak",           .target = direct_usage_target,   .usage = verticalbreak_usage           },
+    { .name = "vpack",                   .target = direct_usage_target,   .usage = vpack_usage                   },
+    { .name = "write",                   .target = separate_usage_target, .usage = write_usage                   },
+    { .name = "xscaled",                 .target = direct_usage_target,   .usage = xscaled_usage                 },
+    { .name = "yscaled",                 .target = direct_usage_target,   .usage = yscaled_usage                 },
 
-    { .name = "vbalance",               .target = direct_usage_target,   .usage = vbalance_usage               },
+    { .name = "vbalance",                .target = direct_usage_target,   .usage = vbalance_usage                },
 
-    { .name = "updatetopmarks",         .target = no_usage_target,       .usage = updatetopmarks_usage         },
-    { .name = "updatemarks",            .target = direct_usage_target,   .usage = updatemarks_usage            },
-    { .name = "updatefirstmarks",       .target = no_usage_target,       .usage = updatefirstmarks_usage       },
-    { .name = "updatefirstandbotmark",  .target = direct_usage_target,   .usage = updatefirstandbotmark_usage  },
+    { .name = "updatetopmarks",          .target = no_usage_target,       .usage = updatetopmarks_usage          },
+    { .name = "updatemarks",             .target = direct_usage_target,   .usage = updatemarks_usage             },
+    { .name = "updatefirstmarks",        .target = no_usage_target,       .usage = updatefirstmarks_usage        },
+    { .name = "updatefirstandbotmark",   .target = direct_usage_target,   .usage = updatefirstandbotmark_usage   },
 
-    { .name = NULL,                     .target = no_usage_target,       .usage = 0                            },
+    { .name = NULL,                      .target = no_usage_target,       .usage = 0                             },
 } ;
 
 static int nodelib_direct_hasusage(lua_State *L)
@@ -11541,308 +11883,319 @@ static int nodelib_direct_getusage(lua_State *L)
 
 static const struct luaL_Reg nodelib_direct_function_list[] = {
 
-    { "addmargins",              nodelib_direct_addmargins             },
-    { "addxoffset",              nodelib_direct_addxoffset             },
-    { "addxymargins",            nodelib_direct_addxymargins           },
-    { "addyoffset",              nodelib_direct_addyoffset             },
-    { "appendaftertail",         nodelib_direct_appendaftertail        },
-    { "beginofmath",             nodelib_direct_beginofmath            },
-    { "checkdiscretionaries",    nodelib_direct_checkdiscretionaries   },
-    { "checkdiscretionary",      nodelib_direct_checkdiscretionary     },
-    { "collapsing",              nodelib_direct_collapsing             }, /*tex A funny name but like |ligaturing| and |hyphenating|. */
-    { "copy",                    nodelib_direct_copy                   },
-    { "copylist",                nodelib_direct_copylist               },
-    { "copyonly",                nodelib_direct_copyonly               },
-    { "count",                   nodelib_direct_count                  },
-    { "currentattributes",       nodelib_direct_currentattributes      },
-    { "dimensions",              nodelib_direct_dimensions             },
-    { "effectiveglue",           nodelib_direct_effectiveglue          },
-    { "endofmath",               nodelib_direct_endofmath              },
-    { "exchange",                nodelib_direct_exchange               },
-    { "findattribute",           nodelib_direct_findattribute          },
-    { "findattributerange",      nodelib_direct_findattributerange     },
-    { "findnode",                nodelib_direct_findnode               },
-    { "firstchar",               nodelib_direct_firstchar              },
-    { "firstglyph",              nodelib_direct_firstglyph             },
-    { "firstglyphnode",          nodelib_direct_firstglyphnode         },
-    { "firstitalicglyph",        nodelib_direct_firstitalicglyph       },
-    { "flattendiscretionaries",  nodelib_direct_flattendiscretionaries },
-    { "flattenleaders",          nodelib_direct_flattenleaders         },
-    { "flushlist",               nodelib_direct_flushlist              },
-    { "flushnode",               nodelib_direct_flushnode              },
-    { "free",                    nodelib_direct_free                   },
-    { "freeze",                  nodelib_direct_freeze                 },
-    { "getanchors",              nodelib_direct_getanchors             },
-    { "getattribute",            nodelib_direct_getattribute           },
-    { "getattributelist",        nodelib_direct_getattributelist       },
-    { "getattributes",           nodelib_direct_getattributes          },
-    { "getboth",                 nodelib_direct_getboth                },
-    { "getbottom",               nodelib_direct_getbottom              },
-    { "getbottomdelimiter",      nodelib_direct_getbottomdelimiter     },
-    { "getbox",                  nodelib_direct_getbox                 },
-    { "getchar",                 nodelib_direct_getchar                },
-    { "getchardict",             nodelib_direct_getchardict            },
-    { "getcharspec",             nodelib_direct_getcharspec            },
-    { "getchoice",               nodelib_direct_getchoice              },
-    { "getclass",                nodelib_direct_getclass               },
-    { "getcontrol",              nodelib_direct_getcontrol             },
-    { "getcornerkerns",          nodelib_direct_getcornerkerns         },
-    { "getdata",                 nodelib_direct_getdata                },
-    { "getdegree",               nodelib_direct_getdegree              },
-    { "getdelimiter",            nodelib_direct_getdelimiter           },
-    { "getdenominator",          nodelib_direct_getdenominator         },
-    { "getdepth",                nodelib_direct_getdepth               },
-    { "getdirection",            nodelib_direct_getdirection           },
-    { "getdisc",                 nodelib_direct_getdisc                },
-    { "getdiscpart",             nodelib_direct_getdiscpart            },
-    { "getexcept",               nodelib_direct_getexcept              },
-    { "getexpansion",            nodelib_direct_getexpansion           },
-    { "getfam",                  nodelib_direct_getfam                 },
-    { "getfield",                nodelib_direct_getfield               },
-    { "getfont",                 nodelib_direct_getfont                },
-    { "getgeometry",             nodelib_direct_getgeometry            },
-    { "getglue",                 nodelib_direct_getglue                },
-    { "getglyphdata",            nodelib_direct_getglyphdata           },
-    { "getglyphdimensions",      nodelib_direct_getglyphdimensions     },
-    { "getheight",               nodelib_direct_getheight              },
-    { "getid",                   nodelib_direct_getid                  },
-    { "getidsubtype",            nodelib_direct_getidsubtype           },
-    { "getindex",                nodelib_direct_getindex               },
-    { "getinputfields",          nodelib_direct_getinputfields         },
-    { "getkern",                 nodelib_direct_getkern                },
-    { "getkerndimension",        nodelib_direct_getkerndimension       },
-    { "getlanguage",             nodelib_direct_getlanguage            },
-    { "getleader",               nodelib_direct_getleader              },
-    { "getleftdelimiter",        nodelib_direct_getleftdelimiter       },
-    { "getlist",                 nodelib_direct_getlist                },
-    { "getlistdimensions",       nodelib_direct_getlistdimensions      },
-    { "getnext",                 nodelib_direct_getnext                },
-    { "getmvllist",              nodelib_direct_getmvllist             },
-    { "getnodes",                nodelib_direct_getnodes               },
-    { "getnormalizedline",       nodelib_direct_getnormalizedline      },
-    { "getnucleus",              nodelib_direct_getnucleus             },
-    { "getnumerator",            nodelib_direct_getnumerator           },
-    { "getoffsets",              nodelib_direct_getoffsets             },
-    { "getoptions",              nodelib_direct_getoptions             },
-    { "getorientation",          nodelib_direct_getorientation         },
-    { "getparstate",             nodelib_direct_getparstate            },
-    { "getpenalty",              nodelib_direct_getpenalty             },
-    { "getpost",                 nodelib_direct_getpost                },
-    { "getpre",                  nodelib_direct_getpre                 },
-    { "getprev",                 nodelib_direct_getprev                },
-    { "getprime",                nodelib_direct_getprime               },
-    { "getpropertiestable",      nodelib_direct_getpropertiestable     },
-    { "getproperty",             nodelib_direct_getproperty            },
-    { "getreplace",              nodelib_direct_getreplace             },
-    { "getrightdelimiter",       nodelib_direct_getrightdelimiter      },
-    { "getruledimensions",       nodelib_direct_getruledimensions      },
-    { "getscale",                nodelib_direct_getscale               },
-    { "getscales",               nodelib_direct_getscales              },
-    { "getscript",               nodelib_direct_getscript              },
-    { "getscripts",              nodelib_direct_getscripts             },
-    { "getshift",                nodelib_direct_getshift               },
-    { "getslant",                nodelib_direct_getslant               },
-    { "getspeciallist",          nodelib_direct_getspeciallist         },
-    { "getstate",                nodelib_direct_getstate               },
-    { "getsub",                  nodelib_direct_getsub                 },
-    { "getsubpre",               nodelib_direct_getsubpre              },
-    { "getsubtype",              nodelib_direct_getsubtype             },
-    { "getsup",                  nodelib_direct_getsup                 },
-    { "getsuppre",               nodelib_direct_getsuppre              },
-    { "gettop",                  nodelib_direct_gettop                 },
-    { "gettopdelimiter",         nodelib_direct_gettopdelimiter        },
-    { "gettotal" ,               nodelib_direct_gettotal               },
-    { "getusage",                nodelib_direct_getusage               },
-    { "getusedattributes",       nodelib_direct_getusedattributes      },
-    { "getweight",               nodelib_direct_getweight              },
-    { "getwhd",                  nodelib_direct_getwhd                 },
-    { "getwidth",                nodelib_direct_getwidth               },
-    { "getwordrange",            nodelib_direct_getwordrange           },
-    { "getxscale",               nodelib_direct_getxscale              },
-    { "getxyscales",             nodelib_direct_getxyscales            },
-    { "getyscale",               nodelib_direct_getyscale              },
-    { "hasattribute",            nodelib_direct_hasattribute           },
-    { "hasdimensions",           nodelib_direct_hasdimensions          },
-    { "hasdiscoption",           nodelib_direct_hasdiscoption          },
-    { "hasfield",                nodelib_direct_hasfield               },
-    { "hasgeometry",             nodelib_direct_hasgeometry            },
-    { "hasglyph",                nodelib_direct_hasglyph               },
-    { "hasglyphoption",          nodelib_direct_hasglyphoption         },
-    { "hasusage",                nodelib_direct_hasusage               },
-    { "hpack",                   nodelib_direct_hpack                  },
-    { "hyphenating",             nodelib_direct_hyphenating            },
-    { "ignoremathskip",          nodelib_direct_ignoremathskip         },
-    { "insertafter",             nodelib_direct_insertafter            },
-    { "insertbefore",            nodelib_direct_insertbefore           },
-    { "isboth",                  nodelib_direct_isboth                 },
-    { "ischar",                  nodelib_direct_ischar                 },
-    { "isdirect",                nodelib_direct_isdirect               },
-    { "isglyph",                 nodelib_direct_isglyph                },
-    { "isitalicglyph",           nodelib_direct_isitalicglyph          },
-    { "isloop",                  nodelib_direct_isloop                 },
-    { "isnext",                  nodelib_direct_isnext                 },
-    { "isnextchar",              nodelib_direct_isnextchar             },
-    { "isnextglyph",             nodelib_direct_isnextglyph            },
-    { "isnode",                  nodelib_direct_isnode                 },
-    { "isprev",                  nodelib_direct_isprev                 },
-    { "isprevchar",              nodelib_direct_isprevchar             },
-    { "isprevglyph",             nodelib_direct_isprevglyph            },
-    { "issimilarglyph",          nodelib_direct_issimilarglyph         },
-    { "isspeciallist",           nodelib_direct_isspeciallist          },
-    { "isvalid",                 nodelib_direct_isvalid                },
-    { "iszeroglue",              nodelib_direct_iszeroglue             },
-    { "kerning",                 nodelib_direct_kerning                },
-    { "lastnode",                nodelib_direct_lastnode               },
-    { "length",                  nodelib_direct_length                 },
-    { "ligaturing",              nodelib_direct_ligaturing             },
-    { "makeextensible",          nodelib_direct_makeextensible         },
-    { "migrate",                 nodelib_direct_migrate                },
-    { "mlisttohlist",            nodelib_direct_mlisttohlist           },
-    { "naturalhsize",            nodelib_direct_naturalhsize           },
-    { "naturalwidth",            nodelib_direct_naturalwidth           },
-    { "new",                     nodelib_direct_new                    },
-    { "newcontinuationatom",     nodelib_direct_newcontinuationatom    },
-    { "newmathglyph",            nodelib_direct_newmathglyph           },
-    { "newtextglyph",            nodelib_direct_newtextglyph           },
-    { "patchattributes",         nodelib_direct_patchattributes        },
-    { "patchparshape",           nodelib_direct_patchparshape          },
-    { "prependbeforehead",       nodelib_direct_prependbeforehead      },
-    { "protectglyph",            nodelib_direct_protectglyph           },
-    { "protectglyphs",           nodelib_direct_protectglyphs          },
-    { "protectglyphsnone",       nodelib_direct_protectglyphsnone      },
-    { "protrusionskippable",     nodelib_direct_protrusionskipable     },
-    { "rangedimensions",         nodelib_direct_rangedimensions        }, /* maybe get... */
-    { "remove",                  nodelib_direct_remove                 },
-    { "removefromlist",          nodelib_direct_removefromlist         },
-    { "repack",                  nodelib_direct_repack                 },
-    { "reverse",                 nodelib_direct_reverse                },
-    { "serialized",              nodelib_direct_serialized             },
-    { "setanchors",              nodelib_direct_setanchors             },
-    { "setattribute",            nodelib_direct_setattribute           },
-    { "setattributelist",        nodelib_direct_setattributelist       },
-    { "setattributes",           nodelib_direct_setattributes          },
-    { "setboth",                 nodelib_direct_setboth                },
-    { "setbottom",               nodelib_direct_setbottom              },
-    { "setbottomdelimiter",      nodelib_direct_setbottomdelimiter     },
-    { "setbox",                  nodelib_direct_setbox                 },
-    { "setchar",                 nodelib_direct_setchar                },
-    { "setchardict",             nodelib_direct_setchardict            },
-    { "setchoice",               nodelib_direct_setchoice              },
-    { "setclass",                nodelib_direct_setclass               },
-    { "setcontrol",              nodelib_direct_setcontrol             },
-    { "setdata",                 nodelib_direct_setdata                },
-    { "setdegree",               nodelib_direct_setdegree              },
-    { "setdelimiter",            nodelib_direct_setdelimiter           },
-    { "setdenominator",          nodelib_direct_setdenominator         },
-    { "setdepth",                nodelib_direct_setdepth               },
-    { "setdirection",            nodelib_direct_setdirection           },
-    { "setdisc",                 nodelib_direct_setdisc                },
-    { "setdiscpart",             nodelib_direct_setdiscpart            },
-    { "setexcept",               nodelib_direct_setexcept              },
-    { "setexpansion",            nodelib_direct_setexpansion           },
-    { "setfam",                  nodelib_direct_setfam                 },
-    { "setfield",                nodelib_direct_setfield               },
-    { "setfont",                 nodelib_direct_setfont                },
-    { "setgeometry",             nodelib_direct_setgeometry            },
-    { "setglue",                 nodelib_direct_setglue                },
-    { "setglyphdata",            nodelib_direct_setglyphdata           },
-    { "setheight",               nodelib_direct_setheight              },
-    { "setindex",                nodelib_direct_setindex               },
-    { "setinputfields",          nodelib_direct_setinputfields         },
-    { "setkern",                 nodelib_direct_setkern                },
-    { "setlanguage",             nodelib_direct_setlanguage            },
-    { "setleader",               nodelib_direct_setleader              },
-    { "setleftdelimiter",        nodelib_direct_setleftdelimiter       },
-    { "setlink",                 nodelib_direct_setlink                },
-    { "setlist",                 nodelib_direct_setlist                },
-    { "setnext",                 nodelib_direct_setnext                },
-    { "setnucleus",              nodelib_direct_setnucleus             },
-    { "setnumerator",            nodelib_direct_setnumerator           },
-    { "setoffsets",              nodelib_direct_setoffsets             },
-    { "setoptions",              nodelib_direct_setoptions             },
-    { "setorientation",          nodelib_direct_setorientation         },
-    { "setpenalty",              nodelib_direct_setpenalty             },
-    { "setpost",                 nodelib_direct_setpost                },
-    { "setpre",                  nodelib_direct_setpre                 },
-    { "setprev",                 nodelib_direct_setprev                },
-    { "setprime" ,               nodelib_direct_setprime               },
-    { "setproperty",             nodelib_direct_setproperty            },
-    { "setreplace",              nodelib_direct_setreplace             },
-    { "setrightdelimiter",       nodelib_direct_setrightdelimiter      },
-    { "setruledimensions",       nodelib_direct_setruledimensions      },
-    { "setscale",                nodelib_direct_setscale               },
-    { "setscales",               nodelib_direct_setscales              },
-    { "setscript",               nodelib_direct_setscript              },
-    { "setscripts",              nodelib_direct_setscripts             },
-    { "setshift",                nodelib_direct_setshift               },
-    { "setslant",                nodelib_direct_setslant               },
-    { "setspeciallist",          nodelib_direct_setspeciallist         },
-    { "setsplit",                nodelib_direct_setsplit               },
-    { "setstate",                nodelib_direct_setstate               },
-    { "setsub",                  nodelib_direct_setsub                 },
-    { "setsubpre",               nodelib_direct_setsubpre              },
-    { "setsubtype",              nodelib_direct_setsubtype             },
-    { "setsup",                  nodelib_direct_setsup                 },
-    { "setsuppre",               nodelib_direct_setsuppre              },
-    { "settop" ,                 nodelib_direct_settop                 },
-    { "settopdelimiter",         nodelib_direct_settopdelimiter        },
-    { "settotal" ,               nodelib_direct_settotal               },
-    { "setweight",               nodelib_direct_setweight              },
-    { "setwhd",                  nodelib_direct_setwhd                 },
-    { "setwidth",                nodelib_direct_setwidth               },
-    { "show",                    nodelib_direct_show                   },
-    { "slide",                   nodelib_direct_slide                  },
-    { "softenhyphens",           nodelib_direct_softenhyphens          },
-    { "startofpar",              nodelib_direct_startofpar             },
-    { "tail",                    nodelib_direct_tail                   },
-    { "tostring",                nodelib_direct_tostring               },
-    { "tovaliddirect",           nodelib_direct_tovaliddirect          },
-    { "traverse",                nodelib_direct_traverse               },
-    { "traversechar",            nodelib_direct_traversechar           },
-    { "traversecontent",         nodelib_direct_traversecontent        },
-    { "traverseglyph",           nodelib_direct_traverseglyph          },
-    { "traverseid",              nodelib_direct_traverseid             },
-    { "traverseitalic",          nodelib_direct_traverseitalic         },
-    { "traverseleader",          nodelib_direct_traverseleader         },
-    { "traverselist",            nodelib_direct_traverselist           },
-    { "unprotectglyph",          nodelib_direct_unprotectglyph         },
-    { "unprotectglyphs",         nodelib_direct_unprotectglyphs        },
-    { "unsetattribute",          nodelib_direct_unsetattribute         },
-    { "unsetattributes",         nodelib_direct_unsetattributes        },
-    { "usedlist",                nodelib_direct_usedlist               },
-    { "usesfont",                nodelib_direct_usesfont               },
-    { "verticalbreak",           nodelib_direct_verticalbreak          },
-    { "vpack",                   nodelib_direct_vpack                  },
-    { "write",                   nodelib_direct_write                  },
-    { "xscaled",                 nodelib_direct_xscaled                },
-    { "yscaled",                 nodelib_direct_yscaled                },
+    { "addmargins",              nodelib_direct_addmargins              },
+    { "addxoffset",              nodelib_direct_addxoffset              },
+    { "addxymargins",            nodelib_direct_addxymargins            },
+    { "addyoffset",              nodelib_direct_addyoffset              },
+    { "appendaftertail",         nodelib_direct_appendaftertail         },
+    { "beginofmath",             nodelib_direct_beginofmath             },
+    { "checkdiscretionaries",    nodelib_direct_checkdiscretionaries    },
+    { "checkdiscretionary",      nodelib_direct_checkdiscretionary      },
+    { "collapsing",              nodelib_direct_collapsing              }, /*tex A funny name but like |ligaturing| and |hyphenating|. */
+    { "copy",                    nodelib_direct_copy                    },
+    { "copylist",                nodelib_direct_copylist                },
+    { "copyonly",                nodelib_direct_copyonly                },
+    { "count",                   nodelib_direct_count                   },
+    { "currentattributes",       nodelib_direct_currentattributes       },
+    { "dimensions",              nodelib_direct_dimensions              },
+    { "effectiveglue",           nodelib_direct_effectiveglue           },
+    { "endofmath",               nodelib_direct_endofmath               },
+    { "exchange",                nodelib_direct_exchange                },
+    { "findattribute",           nodelib_direct_findattribute           },
+    { "findattributerange",      nodelib_direct_findattributerange      },
+    { "findnode",                nodelib_direct_findnode                },
+    { "firstchar",               nodelib_direct_firstchar               },
+    { "firstglyph",              nodelib_direct_firstglyph              },
+    { "firstglyphnode",          nodelib_direct_firstglyphnode          },
+    { "firstitalicglyph",        nodelib_direct_firstitalicglyph        },
+    { "flattendiscretionaries",  nodelib_direct_flattendiscretionaries  },
+    { "flattenleaders",          nodelib_direct_flattenleaders          },
+    { "flushlist",               nodelib_direct_flushlist               },
+    { "flushnode",               nodelib_direct_flushnode               },
+    { "free",                    nodelib_direct_free                    },
+    { "freeze",                  nodelib_direct_freeze                  },
+    { "getanchors",              nodelib_direct_getanchors              },
+    { "getattribute",            nodelib_direct_getattribute            },
+    { "getattributelist",        nodelib_direct_getattributelist        },
+    { "getattributes",           nodelib_direct_getattributes           },
+    { "getboth",                 nodelib_direct_getboth                 },
+    { "getbottom",               nodelib_direct_getbottom               },
+    { "getbottomdelimiter",      nodelib_direct_getbottomdelimiter      },
+    { "getbox",                  nodelib_direct_getbox                  },
+    { "getchar",                 nodelib_direct_getchar                 },
+    { "getchardict",             nodelib_direct_getchardict             },
+    { "getcharspec",             nodelib_direct_getcharspec             },
+    { "getchoice",               nodelib_direct_getchoice               },
+    { "getclass",                nodelib_direct_getclass                },
+    { "getcontrol",              nodelib_direct_getcontrol              },
+    { "getcornerkerns",          nodelib_direct_getcornerkerns          },
+    { "getdata",                 nodelib_direct_getdata                 },
+    { "getdegree",               nodelib_direct_getdegree               },
+    { "getdelimiter",            nodelib_direct_getdelimiter            },
+    { "getdenominator",          nodelib_direct_getdenominator          },
+    { "getdepth",                nodelib_direct_getdepth                },
+    { "getdirection",            nodelib_direct_getdirection            },
+    { "getdisc",                 nodelib_direct_getdisc                 },
+    { "getdiscpart",             nodelib_direct_getdiscpart             },
+    { "getexcept",               nodelib_direct_getexcept               },
+    { "getexpansion",            nodelib_direct_getexpansion            },
+    { "getfam",                  nodelib_direct_getfam                  },
+    { "getfield",                nodelib_direct_getfield                },
+    { "getfirstdirectioninlist", nodelib_direct_getfirstdirectioninlist },
+    { "getfont",                 nodelib_direct_getfont                 },
+    { "getgeometry",             nodelib_direct_getgeometry             },
+    { "getglue",                 nodelib_direct_getglue                 },
+    { "getglyphdata",            nodelib_direct_getglyphdata            },
+    { "getglyphdimensions",      nodelib_direct_getglyphdimensions      },
+    { "getheight",               nodelib_direct_getheight               },
+    { "getid",                   nodelib_direct_getid                   },
+    { "getidsubtype",            nodelib_direct_getidsubtype            },
+    { "getidsubtypenext",        nodelib_direct_getidsubtypenext        },
+    { "getindex",                nodelib_direct_getindex                },
+    { "getinputfields",          nodelib_direct_getinputfields          },
+    { "getkern",                 nodelib_direct_getkern                 },
+    { "getkerndimension",        nodelib_direct_getkerndimension        },
+    { "getlanguage",             nodelib_direct_getlanguage             },
+    { "getleader",               nodelib_direct_getleader               },
+    { "getleftdelimiter",        nodelib_direct_getleftdelimiter        },
+    { "getlist",                 nodelib_direct_getlist                 },
+    { "getlistdimensions",       nodelib_direct_getlistdimensions       },
+    { "getnext",                 nodelib_direct_getnext                 },
+    { "getmvllist",              nodelib_direct_getmvllist              },
+    { "getnodes",                nodelib_direct_getnodes                },
+    { "getnormalizedline",       nodelib_direct_getnormalizedline       },
+    { "getnucleus",              nodelib_direct_getnucleus              },
+    { "getnumerator",            nodelib_direct_getnumerator            },
+    { "getoffsets",              nodelib_direct_getoffsets              },
+    { "getoptions",              nodelib_direct_getoptions              },
+    { "getorientation",          nodelib_direct_getorientation          },
+    { "getparstate",             nodelib_direct_getparstate             },
+    { "getpenalty",              nodelib_direct_getpenalty              },
+    { "getpost",                 nodelib_direct_getpost                 },
+    { "getpre",                  nodelib_direct_getpre                  },
+    { "getprev",                 nodelib_direct_getprev                 },
+    { "getprime",                nodelib_direct_getprime                },
+    { "getpropertiestable",      nodelib_direct_getpropertiestable      },
+    { "getproperty",             nodelib_direct_getproperty             },
+    { "getreplace",              nodelib_direct_getreplace              },
+    { "getrightdelimiter",       nodelib_direct_getrightdelimiter       },
+    { "getruledimensions",       nodelib_direct_getruledimensions       },
+    { "getscale",                nodelib_direct_getscale                },
+    { "getscales",               nodelib_direct_getscales               },
+    { "getscript",               nodelib_direct_getscript               },
+    { "getscripts",              nodelib_direct_getscripts              },
+    { "getshift",                nodelib_direct_getshift                },
+    { "getslant",                nodelib_direct_getslant                },
+    { "getspeciallist",          nodelib_direct_getspeciallist          },
+    { "getstate",                nodelib_direct_getstate                },
+    { "getsub",                  nodelib_direct_getsub                  },
+    { "getsubpre",               nodelib_direct_getsubpre               },
+    { "getsubtype",              nodelib_direct_getsubtype              },
+    { "getsup",                  nodelib_direct_getsup                  },
+    { "getsuppre",               nodelib_direct_getsuppre               },
+    { "gettop",                  nodelib_direct_gettop                  },
+    { "gettopdelimiter",         nodelib_direct_gettopdelimiter         },
+    { "gettotal" ,               nodelib_direct_gettotal                },
+    { "getusage",                nodelib_direct_getusage                },
+    { "getusedattributes",       nodelib_direct_getusedattributes       },
+    { "getweight",               nodelib_direct_getweight               },
+    { "getwhd",                  nodelib_direct_getwhd                  },
+    { "getwidth",                nodelib_direct_getwidth                },
+    { "getwordrange",            nodelib_direct_getwordrange            },
+    { "getxscale",               nodelib_direct_getxscale               },
+    { "getxyscales",             nodelib_direct_getxyscales             },
+    { "getyscale",               nodelib_direct_getyscale               },
+    { "hasattribute",            nodelib_direct_hasattribute            },
+    { "hasdimensions",           nodelib_direct_hasdimensions           },
+    { "hasdiscoption",           nodelib_direct_hasdiscoption           },
+    { "hasfield",                nodelib_direct_hasfield                },
+    { "hasgeometry",             nodelib_direct_hasgeometry             },
+    { "hasglyph",                nodelib_direct_hasglyph                },
+    { "hasglyphoption",          nodelib_direct_hasglyphoption          },
+    { "hasidsubtype",            nodelib_direct_hasidsubtype            },
+    { "hasusage",                nodelib_direct_hasusage                },
+    { "hpack",                   nodelib_direct_hpack                   },
+    { "hyphenating",             nodelib_direct_hyphenating             },
+    { "ignoremathskip",          nodelib_direct_ignoremathskip          },
+    { "insertafter",             nodelib_direct_insertafter             },
+    { "insertbefore",            nodelib_direct_insertbefore            },
+    { "isboth",                  nodelib_direct_isboth                  },
+    { "ischar",                  nodelib_direct_ischar                  },
+    { "isdirect",                nodelib_direct_isdirect                },
+    { "isglyph",                 nodelib_direct_isglyph                 },
+    { "isitalicglyph",           nodelib_direct_isitalicglyph           },
+    { "isloop",                  nodelib_direct_isloop                  },
+    { "isnext",                  nodelib_direct_isnext                  },
+    { "isnextchar",              nodelib_direct_isnextchar              },
+    { "isnextglyph",             nodelib_direct_isnextglyph             },
+    { "isnode",                  nodelib_direct_isnode                  },
+    { "isprev",                  nodelib_direct_isprev                  },
+    { "isprevchar",              nodelib_direct_isprevchar              },
+    { "isprevglyph",             nodelib_direct_isprevglyph             },
+    { "issimilarglyph",          nodelib_direct_issimilarglyph          },
+    { "isspeciallist",           nodelib_direct_isspeciallist           },
+    { "isvalid",                 nodelib_direct_isvalid                 },
+    { "iszeroglue",              nodelib_direct_iszeroglue              },
+    { "kerning",                 nodelib_direct_kerning                 },
+    { "lastnode",                nodelib_direct_lastnode                },
+    { "length",                  nodelib_direct_length                  },
+    { "ligaturing",              nodelib_direct_ligaturing              },
+    { "makeextensible",          nodelib_direct_makeextensible          },
+    { "migrate",                 nodelib_direct_migrate                 },
+    { "mlisttohlist",            nodelib_direct_mlisttohlist            },
+    { "naturalhsize",            nodelib_direct_naturalhsize            },
+    { "naturalwidth",            nodelib_direct_naturalwidth            },
+    { "new",                     nodelib_direct_new                     },
+    { "newcontinuationatom",     nodelib_direct_newcontinuationatom     },
+    { "newmathglyph",            nodelib_direct_newmathglyph            },
+    { "newtextglyph",            nodelib_direct_newtextglyph            },
+    { "patchattributes",         nodelib_direct_patchattributes         },
+    { "patchparshape",           nodelib_direct_patchparshape           },
+    { "prependbeforehead",       nodelib_direct_prependbeforehead       },
+    { "protectglyph",            nodelib_direct_protectglyph            },
+    { "protectglyphs",           nodelib_direct_protectglyphs           },
+    { "protectglyphsnone",       nodelib_direct_protectglyphsnone       },
+    { "protectglyphsbase",       nodelib_direct_protectglyphsbase       },
+    { "protrusionskippable",     nodelib_direct_protrusionskipable      },
+    { "rangedimensions",         nodelib_direct_rangedimensions         }, /* maybe get... */
+    { "remove",                  nodelib_direct_remove                  },
+    { "removefromlist",          nodelib_direct_removefromlist          },
+    { "repack",                  nodelib_direct_repack                  },
+    { "reverse",                 nodelib_direct_reverse                 },
+    { "serialized",              nodelib_direct_serialized              },
+    { "setanchors",              nodelib_direct_setanchors              },
+    { "setattribute",            nodelib_direct_setattribute            },
+    { "setattributelist",        nodelib_direct_setattributelist        },
+    { "setattributes",           nodelib_direct_setattributes           },
+    { "setboth",                 nodelib_direct_setboth                 },
+    { "setbottom",               nodelib_direct_setbottom               },
+    { "setbottomdelimiter",      nodelib_direct_setbottomdelimiter      },
+    { "setbox",                  nodelib_direct_setbox                  },
+    { "setchar",                 nodelib_direct_setchar                 },
+    { "setchardict",             nodelib_direct_setchardict             },
+    { "setchoice",               nodelib_direct_setchoice               },
+    { "setclass",                nodelib_direct_setclass                },
+    { "setcontrol",              nodelib_direct_setcontrol              },
+    { "setdata",                 nodelib_direct_setdata                 },
+    { "setdegree",               nodelib_direct_setdegree               },
+    { "setdelimiter",            nodelib_direct_setdelimiter            },
+    { "setdenominator",          nodelib_direct_setdenominator          },
+    { "setdepth",                nodelib_direct_setdepth                },
+    { "setdirection",            nodelib_direct_setdirection            },
+    { "setdisc",                 nodelib_direct_setdisc                 },
+    { "setdiscpart",             nodelib_direct_setdiscpart             },
+    { "setexcept",               nodelib_direct_setexcept               },
+    { "setexpansion",            nodelib_direct_setexpansion            },
+    { "setfam",                  nodelib_direct_setfam                  },
+    { "setfield",                nodelib_direct_setfield                },
+    { "setfont",                 nodelib_direct_setfont                 },
+    { "setgeometry",             nodelib_direct_setgeometry             },
+    { "setglue",                 nodelib_direct_setglue                 },
+    { "setglyphdata",            nodelib_direct_setglyphdata            },
+    { "setheight",               nodelib_direct_setheight               },
+    { "setindex",                nodelib_direct_setindex                },
+    { "setinputfields",          nodelib_direct_setinputfields          },
+    { "setkern",                 nodelib_direct_setkern                 },
+    { "setlanguage",             nodelib_direct_setlanguage             },
+    { "setleader",               nodelib_direct_setleader               },
+    { "setleftdelimiter",        nodelib_direct_setleftdelimiter        },
+    { "setlink",                 nodelib_direct_setlink                 },
+    { "setlist",                 nodelib_direct_setlist                 },
+    { "setnext",                 nodelib_direct_setnext                 },
+    { "setnucleus",              nodelib_direct_setnucleus              },
+    { "setnumerator",            nodelib_direct_setnumerator            },
+    { "setoffsets",              nodelib_direct_setoffsets              },
+    { "setoptions",              nodelib_direct_setoptions              },
+    { "setorientation",          nodelib_direct_setorientation          },
+    { "setpenalty",              nodelib_direct_setpenalty              },
+    { "setpost",                 nodelib_direct_setpost                 },
+    { "setpre",                  nodelib_direct_setpre                  },
+    { "setprev",                 nodelib_direct_setprev                 },
+    { "setprime" ,               nodelib_direct_setprime                },
+    { "setproperty",             nodelib_direct_setproperty             },
+    { "setreplace",              nodelib_direct_setreplace              },
+    { "setrightdelimiter",       nodelib_direct_setrightdelimiter       },
+    { "setruledimensions",       nodelib_direct_setruledimensions       },
+    { "setscale",                nodelib_direct_setscale                },
+    { "setscales",               nodelib_direct_setscales               },
+    { "setscript",               nodelib_direct_setscript               },
+    { "setscripts",              nodelib_direct_setscripts              },
+    { "setshift",                nodelib_direct_setshift                },
+    { "setslant",                nodelib_direct_setslant                },
+    { "setspeciallist",          nodelib_direct_setspeciallist          },
+    { "setsplit",                nodelib_direct_setsplit                },
+    { "setstate",                nodelib_direct_setstate                },
+    { "setsub",                  nodelib_direct_setsub                  },
+    { "setsubpre",               nodelib_direct_setsubpre               },
+    { "setsubtype",              nodelib_direct_setsubtype              },
+    { "setsup",                  nodelib_direct_setsup                  },
+    { "setsuppre",               nodelib_direct_setsuppre               },
+    { "settop" ,                 nodelib_direct_settop                  },
+    { "settopdelimiter",         nodelib_direct_settopdelimiter         },
+    { "settotal" ,               nodelib_direct_settotal                },
+    { "setweight",               nodelib_direct_setweight               },
+    { "setwhd",                  nodelib_direct_setwhd                  },
+    { "setwidth",                nodelib_direct_setwidth                },
+    { "show",                    nodelib_direct_show                    },
+    { "slide",                   nodelib_direct_slide                   },
+    { "softenhyphens",           nodelib_direct_softenhyphens           },
+    { "startofpar",              nodelib_direct_startofpar              },
+    { "tail",                    nodelib_direct_tail                    },
+    { "tostring",                nodelib_direct_tostring                },
+    { "tovaliddirect",           nodelib_direct_tovaliddirect           },
+    { "traverse",                nodelib_direct_traverse                },
+    { "traversechar",            nodelib_direct_traversechar            },
+    { "traversecontent",         nodelib_direct_traversecontent         },
+    { "traversepossible",        nodelib_direct_traversepossible        },
+    { "traverseglyph",           nodelib_direct_traverseglyph           },
+    { "traverseid",              nodelib_direct_traverseid              },
+    { "traverseitalic",          nodelib_direct_traverseitalic          },
+    { "traverseleader",          nodelib_direct_traverseleader          },
+    { "traverselist",            nodelib_direct_traverselist            },
+    { "unprotectglyph",          nodelib_direct_unprotectglyph          },
+    { "unprotectglyphs",         nodelib_direct_unprotectglyphs         },
+    { "unsetattribute",          nodelib_direct_unsetattribute          },
+    { "unsetattributes",         nodelib_direct_unsetattributes         },
+    { "usedlist",                nodelib_direct_usedlist                },
+    { "usesfont",                nodelib_direct_usesfont                },
+    { "verticalbreak",           nodelib_direct_verticalbreak           },
+    { "vpack",                   nodelib_direct_vpack                   },
+    { "write",                   nodelib_direct_write                   },
+    { "xscaled",                 nodelib_direct_xscaled                 },
+    { "yscaled",                 nodelib_direct_yscaled                 },
 
-    { "vbalance",                nodelib_direct_vbalance               },
+    { "vbalance",                nodelib_direct_vbalance                },
 
-    { "updatetopmarks",          nodelib_direct_updatetopmarks         },
-    { "updatefirstmarks",        nodelib_direct_updatefirstmarks       },
-    { "updatefirstandbotmark",   nodelib_direct_updatefirstandbotmark  },
-    { "updatemarks",             nodelib_direct_updatemarks            },
+    { "updatetopmarks",          nodelib_direct_updatetopmarks          },
+    { "updatefirstmarks",        nodelib_direct_updatefirstmarks        },
+    { "updatefirstandbotmark",   nodelib_direct_updatefirstandbotmark   },
+    { "updatemarks",             nodelib_direct_updatemarks             },
 
- /* { "appendtocurrentlist",     nodelib_direct_appendtocurrentlist    }, */ /* beware, we conflict in ctx */
+ /* { "appendtocurrentlist",     nodelib_direct_appendtocurrentlist     }, */ /* beware, we conflict in ctx */
 
-    { "gluetostring",            nodelib_hybrid_gluetostring           },
-    { "type",                    nodelib_hybrid_type                   },
+    { "gluetostring",            nodelib_hybrid_gluetostring            },
+    { "type",                    nodelib_hybrid_type                    },
 
-    { "fields",                  nodelib_shared_fields                 },
-    { "getcachestate",           nodelib_shared_getcachestate          },
-    { "id",                      nodelib_shared_id                     },
-    { "size",                    nodelib_shared_size                   },
-    { "subtypes",                nodelib_shared_subtypes               },
-    { "todirect",                nodelib_shared_todirect               },
-    { "tonode",                  nodelib_shared_tonode                 },
-    { "types",                   nodelib_shared_types                  },
- /* { "values",                  nodelib_shared_values                 }, */ /* finally all are now in tex. */
+    { "fields",                  nodelib_shared_fields                  },
+    { "getcachestate",           nodelib_shared_getcachestate           },
+    { "id",                      nodelib_shared_id                      },
+    { "size",                    nodelib_shared_size                    },
+    { "subtypes",                nodelib_shared_subtypes                },
+    { "todirect",                nodelib_shared_todirect                },
+    { "tonode",                  nodelib_shared_tonode                  },
+    { "types",                   nodelib_shared_types                   },
+ /* { "values",                  nodelib_shared_values                  }, */ /* finally all are now in tex. */
 
-    { "setfielderror",            nodelib_shared_setfielderror         }, /* private */
-    { "getfielderror",            nodelib_shared_getfielderror         }, /* private */
+    { "setfielderror",           nodelib_shared_setfielderror           }, /* private */
+    { "getfielderror",           nodelib_shared_getfielderror           } , /* private */
 
-    { NULL,                      NULL                                  },
+    { "getcurrenttail",          nodelib_direct_getcurrenttail          },
+    { "setcurrenttail",          nodelib_direct_setcurrenttail          },
+    { "insertcurrenthead",       nodelib_direct_insertcurrenthead       },
+    { "appendcurrenttail",       nodelib_direct_appendcurrenttail       },
+    { "prependcurrenttail",      nodelib_direct_prependcurrenttail      },
+
+    { NULL,                      NULL                                   },
 
 };
 
@@ -11927,6 +12280,13 @@ int luaopen_node(lua_State *L)
     return 1;
 }
 
+/*tex 
+
+    These callbacks will eventually support direct nodes. We can consider a flag that controls if 
+    we use direct of userdata nodes. 
+
+*/
+
 void lmt_node_list_to_lua(lua_State *L, halfword n)
 {
     lmt_push_node_fast(L, n);
@@ -11934,11 +12294,35 @@ void lmt_node_list_to_lua(lua_State *L, halfword n)
 
 halfword lmt_node_list_from_lua(lua_State *L, int n)
 {
-    if (lua_isnil(L, n)) {
-        return null;
-    } else {
-        halfword list = lmt_check_isnode(L, n);
-        return list ? list : null;
+    return lua_isnil(L, n) ? null : lmt_check_isnode(L, n);
+}
+
+void lmt_push_head_to_callback(lua_State *L, halfword n)
+{
+    if (lmt_callback_state.options & callback_option_direct) {
+        nodelib_push_direct_or_nil_node_prev(L, n);
+    } else { 
+        lmt_push_node_fast(L, n);
+    }
+}
+
+void lmt_push_node_to_callback(lua_State *L, halfword n)
+{
+    if (lmt_callback_state.options & callback_option_direct) {
+        nodelib_push_direct_or_nil(L, n);
+    } else { 
+        lmt_push_node_fast(L, n);
+    }
+}
+
+halfword lmt_pop_node_from_callback(lua_State *L, int index)
+{
+    switch (lua_type(L, index)) {
+        case LUA_TNIL:
+        case LUA_TBOOLEAN:
+            return null;
+        default:
+            return (lmt_callback_state.options & callback_option_direct) ? lmt_tohalfword (L, index) : lmt_check_isnode(L, index);
     }
 }
 
@@ -12002,55 +12386,139 @@ void lmt_paragraph_context_callback(
     }
 }
 
-void lmt_page_filter_callback(
+/*tex 
+
+    This one is (already) only direct. One needs to be real careful in adapting the mvl that gets 
+    passed because various properties are set already elsewhere and there can be references to 
+    nodes in use. 
+
+    in : context contributionhead pagehead pagetail boundary 
+    out: contributionhead
+
+*/
+
+void lmt_buildpage_callback(
     int      context,
     halfword boundary
 )
 {
-    int callback_id = lmt_callback_defined(buildpage_filter_callback);
+    int callback_id = lmt_callback_defined(buildpage_callback);
     if (callback_id > 0) {
         lua_State *L = lmt_lua_state.lua_instance;
         int top = 0;
         if (lmt_callback_okay(L, callback_id, &top)) {
-            int i;
+            int i; 
             lmt_push_page_context(L, context);
-            lua_push_halfword(L, boundary);
-            i = lmt_callback_call(L, 2, 0, top);
+            lmt_push_head_to_callback(L, node_next(contribute_head));
+            lmt_push_node_to_callback(L, page_head == page_tail ? null : node_next(page_head));
+            lmt_push_node_to_callback(L, page_head == page_tail ? null : page_tail);
+            lmt_push_node_to_callback(L, boundary);
+            i = lmt_callback_call(L, 5, 1, top);
             if (i) {
                 lmt_callback_error(L, top, i);
             } else {
+                tex_set_special_node_list(contribute_list_type, lmt_pop_node_from_callback(L, -1));
                 lmt_callback_wrapup(L, top);
             }
         }
     }
 }
 
-/*tex This one gets |tail| and optionally gets back |head|. */
+/*tex 
+    These ones gets |tail| and optionally gets back |head|. They originally were one callback
+    but are now split. A bit waste of code but cleaner. 
+*/
 
-void lmt_append_line_filter_callback(
-    halfword context,
-    halfword index /* class */
+void lmt_append_pre_line_callback(
+    void /* dummy function */
+)
+{
+    /*tex This one is gone as part of combined callback but it might come back. */
+}
+
+void lmt_append_line_callback(
+    void
 )
 {
     if (cur_list.tail) {
-        int callback_id = lmt_callback_defined(append_line_filter_callback);
+        int callback_id = lmt_callback_defined(append_line_callback);
         if (callback_id > 0) {
             lua_State *L = lmt_lua_state.lua_instance;
             int top = 0;
             if (lmt_callback_okay(L, callback_id, &top)) {
                 int i;
-                lmt_node_list_to_lua(L, node_next(cur_list.head));
-                lmt_node_list_to_lua(L, cur_list.tail);
-                lmt_push_append_line_context(L, context);
+                lmt_push_node_to_callback(L, node_next(cur_list.head));
+                lmt_push_node_to_callback(L, cur_list.tail);
+                i = lmt_callback_call(L, 2, 1, top);
+                if (i) {
+                    lmt_callback_error(L, top, i);
+                } else {
+                    halfword n = lmt_pop_node_from_callback(L, -1);
+                    if (n) {
+                        node_next(cur_list.head) = n;
+                        cur_list.tail = tex_tail_of_node_list(n);
+                    }
+                    lmt_callback_wrapup(L, top);
+                }
+            }
+        }
+    }
+}
+
+void lmt_append_adjust_callback(
+    halfword context,
+    halfword index
+)
+{
+    if (cur_list.tail) {
+        int callback_id = lmt_callback_defined(append_adjust_callback);
+        if (callback_id > 0) {
+            lua_State *L = lmt_lua_state.lua_instance;
+            int top = 0;
+            if (lmt_callback_okay(L, callback_id, &top)) {
+                int i;
+                lmt_push_node_to_callback(L, node_next(cur_list.head));
+                lmt_push_node_to_callback(L, cur_list.tail);
+                lmt_push_append_adjust_context(L, context);
                 lua_push_halfword(L, index);
                 i = lmt_callback_call(L, 4, 1, top);
                 if (i) {
                     lmt_callback_error(L, top, i);
                 } else {
-                    if (lua_type(L, -1) == LUA_TUSERDATA) {
-                        int a = lmt_node_list_from_lua(L, -1);
-                        node_next(cur_list.head) = a;
-                        cur_list.tail = tex_tail_of_node_list(a);
+                    halfword n = lmt_pop_node_from_callback(L, -1);
+                    if (n) {
+                        node_next(cur_list.head) = n;
+                        cur_list.tail = tex_tail_of_node_list(n);
+                    }
+                    lmt_callback_wrapup(L, top);
+                }
+            }
+        }
+    }
+}
+
+void lmt_append_migrate_callback(
+    halfword context
+)
+{
+    if (cur_list.tail) {
+        int callback_id = lmt_callback_defined(append_migrate_callback);
+        if (callback_id > 0) {
+            lua_State *L = lmt_lua_state.lua_instance;
+            int top = 0;
+            if (lmt_callback_okay(L, callback_id, &top)) {
+                int i;
+                lmt_push_node_to_callback(L, node_next(cur_list.head));
+                lmt_push_node_to_callback(L, cur_list.tail);
+                lmt_push_append_migrate_context(L, context);
+                i = lmt_callback_call(L, 3, 1, top);
+                if (i) {
+                    lmt_callback_error(L, top, i);
+                } else {
+                    halfword n = lmt_pop_node_from_callback(L, -1);
+                    if (n) {
+                        node_next(cur_list.head) = n;
+                        cur_list.tail = tex_tail_of_node_list(n);
                     }
                     lmt_callback_wrapup(L, top);
                 }
@@ -12067,8 +12535,12 @@ void lmt_append_line_filter_callback(
 
 */
 
-void lmt_node_filter_callback(
-    int       filterid,
+/*tex 
+    This one served |pre_linebreak_callback| and |post_linebreak_callback|. 
+*/
+
+void lmt_around_linebreak_callback(
+    int       callback,
     int       extrainfo,
     halfword  head,
     halfword *tail
@@ -12078,7 +12550,7 @@ void lmt_node_filter_callback(
         /*tex We start after head (temp). */
         halfword start = node_next(head);
         if (start) {
-            int callback_id = lmt_callback_defined(filterid);
+            int callback_id = lmt_callback_defined(callback);
             if (callback_id > 0) {
                 lua_State *L = lmt_lua_state.lua_instance;
                 int top = 0;
@@ -12087,14 +12559,14 @@ void lmt_node_filter_callback(
                     /*tex We make sure we have no prev */
                     node_prev(start) = null;
                     /*tex the action */
-                    lmt_node_list_to_lua(L, start);
+                    lmt_push_node_to_callback(L, start);
                     lmt_push_group_code(L, extrainfo);
                     i = lmt_callback_call(L, 2, 1, top);
                     if (i) {
                         lmt_callback_error(L, top, i);
                     } else {
                         /*tex append to old head */
-                        halfword list = lmt_node_list_from_lua(L, -1);
+                        halfword list = lmt_pop_node_from_callback(L, -1);
                         tex_try_couple_nodes(head, list);
                         /*tex redundant as we set top anyway */
                         lua_pop(L, 2);
@@ -12119,10 +12591,10 @@ int lmt_linebreak_callback(
     halfword *newhead
 )
 {
-    if (head) {
+    if (head) { /* head is temp head so always true anyway */
         halfword start = node_next(head);
         if (start) {
-            int callback_id = lmt_callback_defined(linebreak_filter_callback);
+            int callback_id = lmt_callback_defined(linebreak_callback);
             if (callback_id > 0) {
                 lua_State *L = lmt_lua_state.lua_instance;
                 int top = 0;
@@ -12130,16 +12602,15 @@ int lmt_linebreak_callback(
                     int i;
                     int ret = 0;
                     node_prev(start) = null;
-                    lmt_node_list_to_lua(L, start);
+                    lmt_push_node_to_callback(L, start);
                     lua_pushboolean(L, isbroken);
                     i = lmt_callback_call(L, 2, 1, top);
                     if (i) {
                         lmt_callback_error(L, top, i);
                     } else {
-                        halfword *result = lua_touserdata(L, -1);
+                        halfword result = lmt_pop_node_from_callback(L, -1);
                         if (result) {
-                            halfword list = lmt_node_list_from_lua(L, -1);
-                            tex_try_couple_nodes(*newhead, list);
+                            tex_try_couple_nodes(*newhead, result);
                             ret = 1;
                         }
                         lmt_callback_wrapup(L, top);
@@ -12161,17 +12632,17 @@ void lmt_alignment_callback(
 )
 {
     if (head || preamble) {
-        int callback_id = lmt_callback_defined(alignment_filter_callback);
+        int callback_id = lmt_callback_defined(alignment_callback);
         if (callback_id > 0) {
             lua_State *L = lmt_lua_state.lua_instance;
             int top = 0;
             if (lmt_callback_okay(L, callback_id, &top)) {
                 int i;
-                lmt_node_list_to_lua(L, head);
+                lmt_push_node_to_callback(L, head);
                 lmt_push_alignment_context(L, context);
                 lua_pushinteger(L, callback);
-                lmt_node_list_to_lua(L, attrlist);
-                lmt_node_list_to_lua(L, preamble);
+                lmt_push_node_to_callback(L, attrlist);
+                lmt_push_node_to_callback(L, preamble);
                 i = lmt_callback_call(L, 5, 0, top);
                 if (i) {
                     lmt_callback_error(L, top, i);
@@ -12203,16 +12674,16 @@ void lmt_local_box_callback(
 )
 {
     if (linebox) {
-        int callback_id = lmt_callback_defined(local_box_filter_callback);
+        int callback_id = lmt_callback_defined(local_box_callback);
         if (callback_id > 0) {
             lua_State *L = lmt_lua_state.lua_instance;
             int top = 0;
             if (lmt_callback_okay(L, callback_id, &top)) {
                 int i;
-                lmt_node_list_to_lua(L, linebox);
-                lmt_node_list_to_lua(L, leftbox);
-                lmt_node_list_to_lua(L, rightbox);
-                lmt_node_list_to_lua(L, middlebox);
+                lmt_push_node_to_callback(L, linebox);
+                lmt_push_node_to_callback(L, leftbox);
+                lmt_push_node_to_callback(L, rightbox);
+                lmt_push_node_to_callback(L, middlebox);
                 lua_pushinteger(L, linenumber);
                 lua_pushinteger(L, leftskip);
                 lua_pushinteger(L, rightskip);
@@ -12252,30 +12723,20 @@ int lmt_append_to_vlist_callback(
 )
 {
     if (box) {
-        int callback_id = lmt_callback_defined(append_to_vlist_filter_callback);
+        int callback_id = lmt_callback_defined(append_to_vlist_callback);
         if (callback_id > 0) {
             lua_State *L = lmt_lua_state.lua_instance;
             int top = 0;
             if (lmt_callback_okay(L, callback_id, &top)) {
                 int i;
-                lmt_node_list_to_lua(L, box);
+                lmt_push_node_to_callback(L, box);
                 lua_push_key_by_index(location);
                 lua_pushinteger(L, (int) prevdepth);
                 i = lmt_callback_call(L, 3, 3, top);
                 if (i) {
                     lmt_callback_error(L, top, i);
                 } else {
-                    switch (lua_type(L, -3)) {
-                        case LUA_TUSERDATA:
-                            *result = lmt_check_isnode(L, -3);
-                            break;
-                        case LUA_TNIL:
-                            *result = null;
-                            break;
-                        default:
-                            tex_normal_warning("append to vlist callback", "node or nil expected");
-                            break;
-                    }
+                    *result = lmt_pop_node_from_callback(L, -3);
                     if (lua_type(L, -2) == LUA_TNUMBER) {
                         *nextdepth = lmt_roundnumber(L, -2);
                         *prevset = 1;
@@ -12293,11 +12754,10 @@ int lmt_append_to_vlist_callback(
 }
 
 /*tex
-    Here we keep the directions although they play no real role in the
-    packing process.
+    Here we keep the directions although they play no real role in the packing process.
  */
 
-halfword lmt_hpack_filter_callback(
+halfword lmt_hpack_callback(
     halfword head,
     scaled   size,
     int      packtype,
@@ -12307,14 +12767,14 @@ halfword lmt_hpack_filter_callback(
 )
 {
     if (head) {
-        int callback_id = lmt_callback_defined(hpack_filter_callback);
+        int callback_id = lmt_callback_defined(hpack_callback);
         if (callback_id > 0) {
             lua_State *L = lmt_lua_state.lua_instance;
             int top = 0;
             if (lmt_callback_okay(L, callback_id, &top)) {
                 int i;
                 node_prev(head) = null;
-                lmt_node_list_to_lua(L, head);
+                lmt_push_node_to_callback(L, head);
                 lmt_push_group_code(L, extrainfo);
                 lua_pushinteger(L, size);
                 lmt_push_pack_type(L, packtype);
@@ -12323,13 +12783,12 @@ halfword lmt_hpack_filter_callback(
                 } else {
                     lua_pushnil(L);
                 }
-                /* maybe: (attr && attr != cache_disabled) */
-                lmt_node_list_to_lua(L, attr);
+                lmt_push_node_to_callback(L, attr);
                 i = lmt_callback_call(L, 6, 1, top);
                 if (i) {
                     lmt_callback_error(L, top, i);
                 } else {
-                    head = lmt_node_list_from_lua(L, -1);
+                    head = lmt_pop_node_from_callback(L, -1);
                     lmt_callback_wrapup(L, top);
                 }
             }
@@ -12338,25 +12797,25 @@ halfword lmt_hpack_filter_callback(
     return head;
 }
 
-extern halfword lmt_packed_vbox_filter_callback(
+extern halfword lmt_packed_vbox_callback(
     halfword box,
     int      extrainfo
 )
 {
     if (box) {
-        int callback_id = lmt_callback_defined(packed_vbox_filter_callback);
+        int callback_id = lmt_callback_defined(packed_vbox_callback);
         if (callback_id > 0) {
             lua_State *L = lmt_lua_state.lua_instance;
             int top = 0;
             if (lmt_callback_okay(L, callback_id, &top)) {
                 int i;
-                lmt_node_list_to_lua(L, box);
+                lmt_push_node_to_callback(L, box);
                 lmt_push_group_code(L, extrainfo);
                 i = lmt_callback_call(L, 2, 1, top);
                 if (i) {
                     lmt_callback_error(L, top, i);
                 } else {
-                    box = lmt_node_list_from_lua(L, -1);
+                    box = lmt_pop_node_from_callback(L, -1);
                     lmt_callback_wrapup(L, top);
                 }
             }
@@ -12365,7 +12824,7 @@ extern halfword lmt_packed_vbox_filter_callback(
     return box;
 }
 
-halfword lmt_vpack_filter_callback(
+halfword lmt_vpack_callback(
     halfword head,
     scaled   size,
     int      packtype,
@@ -12376,14 +12835,13 @@ halfword lmt_vpack_filter_callback(
 )
 {
     if (head) {
-        int callback_id = lmt_callback_defined(extrainfo == output_group ? pre_output_filter_callback : vpack_filter_callback);
+        int callback_id = lmt_callback_defined(extrainfo == output_group ? pre_output_callback : vpack_callback);
         if (callback_id > 0) {
             lua_State *L = lmt_lua_state.lua_instance;
             int top = 0;
             if (lmt_callback_okay(L, callback_id, &top)) {
                 int i;
-                node_prev(head) = null;
-                lmt_node_list_to_lua(L, head);
+                lmt_push_head_to_callback(L, head);
                 lmt_push_group_code(L, extrainfo);
                 lua_pushinteger(L, size);
                 lmt_push_pack_type(L, packtype);
@@ -12393,12 +12851,12 @@ halfword lmt_vpack_filter_callback(
                 } else {
                     lua_pushnil(L);
                 }
-                lmt_node_list_to_lua(L, attr);
+                lmt_push_node_to_callback(L, attr);
                 i = lmt_callback_call(L, 7, 1, top);
                 if (i) {
                     lmt_callback_error(L, top, i);
                 } else {
-                    head = lmt_node_list_from_lua(L, -1);
+                    head = lmt_pop_node_from_callback(L, -1);
                     lmt_callback_wrapup(L, top);
                 }
             }
@@ -12409,15 +12867,15 @@ halfword lmt_vpack_filter_callback(
 
 /* watch the -3 here, we skip over the repeat boolean  */
 
-# define get_dimension_par(P,A,B) \
+# define get_dimension_par_pass(P,A,B) \
     lua_push_key(A); \
     P = (lua_rawget(L, -3) == LUA_TNUMBER) ? lmt_roundnumber(L, -1) : B; \
-    lua_pop(L, 1);
+    lua_pop_one(L);
 
-# define get_integer_par(P,A,B) \
+# define get_integer_par_pass(P,A,B) \
     lua_push_key(A); \
     P = (lua_rawget(L, -3) == LUA_TNUMBER) ? lmt_tohalfword(L, -1) : B; \
-    lua_pop(L, 1);
+    lua_pop_one(L);
 
 int lmt_par_pass_callback(
     halfword               head,
@@ -12445,7 +12903,7 @@ int lmt_par_pass_callback(
             int result = 0;
             if (lmt_callback_okay(L, callback_id, &top)) {
                 int i;
-                lmt_node_list_to_lua(L, head);
+                lmt_push_node_to_callback(L, head);
                 lua_push_integer(L, identifier);
                 lua_push_integer(L, subpass);
                 lua_push_integer(L, callback);
@@ -12471,26 +12929,26 @@ int lmt_par_pass_callback(
                                 /*tex
                                     This is untested and might go away at some point.
                                 */
-                                get_integer_par(properties->tolerance, tolerance, properties->tolerance);
+                                get_integer_par_pass(properties->tolerance, tolerance, properties->tolerance);
                                 lmt_linebreak_state.threshold = properties->tolerance;
                                 lmt_linebreak_state.global_threshold = lmt_linebreak_state.threshold;
-                                get_integer_par(properties->line_penalty, linepenalty, properties->line_penalty);
-                                get_integer_par(properties->left_twin_demerits, lefttwindemerits, properties->left_twin_demerits);
-                                get_integer_par(properties->right_twin_demerits, righttwindemerits, properties->right_twin_demerits);
-                                get_integer_par(properties->extra_hyphen_penalty, extrahyphenpenalty, properties->extra_hyphen_penalty);
-                                get_integer_par(properties->double_hyphen_demerits, doublehyphendemerits, properties->double_hyphen_demerits);
-                                get_integer_par(properties->final_hyphen_demerits, finalhyphendemerits, properties->final_hyphen_demerits);
-                                get_integer_par(properties->adj_demerits, adjdemerits, properties->adj_demerits);
-                                get_dimension_par(properties->emergency_stretch, emergencystretch, properties->emergency_stretch);
-                                get_integer_par(properties->adjust_spacing_step, adjustspacingstep, properties->adjust_spacing_step);
-                                get_integer_par(properties->adjust_spacing_shrink, adjustspacingshrink, properties->adjust_spacing_shrink);
-                                get_integer_par(properties->adjust_spacing_stretch, adjustspacingstretch, properties->adjust_spacing_stretch);
-                                get_integer_par(properties->adjust_spacing, adjustspacing, properties->adjust_spacing);
-                                get_integer_par(properties->line_break_optional, optional, properties->line_break_optional);
-                                get_integer_par(properties->line_break_checks, linebreakchecks, properties->line_break_checks);
-                                get_integer_par(properties->math_penalty_factor, mathpenaltyfactor, properties->math_penalty_factor);
-                                get_integer_par(properties->sf_factor, sffactor, properties->sf_factor);
-                                get_integer_par(properties->sf_stretch_factor, sfstretchfactor, properties->sf_stretch_factor);
+                                get_integer_par_pass(properties->line_penalty, linepenalty, properties->line_penalty);
+                                get_integer_par_pass(properties->left_twin_demerits, lefttwindemerits, properties->left_twin_demerits);
+                                get_integer_par_pass(properties->right_twin_demerits, righttwindemerits, properties->right_twin_demerits);
+                                get_integer_par_pass(properties->extra_hyphen_penalty, extrahyphenpenalty, properties->extra_hyphen_penalty);
+                                get_integer_par_pass(properties->double_hyphen_demerits, doublehyphendemerits, properties->double_hyphen_demerits);
+                                get_integer_par_pass(properties->final_hyphen_demerits, finalhyphendemerits, properties->final_hyphen_demerits);
+                                get_integer_par_pass(properties->adj_demerits, adjdemerits, properties->adj_demerits);
+                                get_dimension_par_pass(properties->emergency_stretch, emergencystretch, properties->emergency_stretch);
+                                get_integer_par_pass(properties->adjust_spacing_step, adjustspacingstep, properties->adjust_spacing_step);
+                                get_integer_par_pass(properties->adjust_spacing_shrink, adjustspacingshrink, properties->adjust_spacing_shrink);
+                                get_integer_par_pass(properties->adjust_spacing_stretch, adjustspacingstretch, properties->adjust_spacing_stretch);
+                                get_integer_par_pass(properties->adjust_spacing, adjustspacing, properties->adjust_spacing);
+                                get_integer_par_pass(properties->line_break_optional, optional, properties->line_break_optional);
+                                get_integer_par_pass(properties->line_break_checks, linebreakchecks, properties->line_break_checks);
+                                get_integer_par_pass(properties->math_penalty_factor, mathpenaltyfactor, properties->math_penalty_factor);
+                                get_integer_par_pass(properties->sf_factor, sffactor, properties->sf_factor);
+                                get_integer_par_pass(properties->sf_stretch_factor, sfstretchfactor, properties->sf_stretch_factor);
                                 /*tex
                                     These are not properties (yet, but we could just add these as hidden fields):
 
@@ -12542,17 +13000,17 @@ halfword lmt_uleader_callback(
             int top = 0;
             if (lmt_callback_okay(L, callback_id, &top)) {
                 int i;
-                lmt_node_list_to_lua(L, head);
+                lmt_push_node_to_callback(L, head);
              // lua_pushinteger(L, context);
                 lmt_push_group_code(L, context);
                 lua_pushinteger(L, index);
-                lmt_node_list_to_lua(L, box);
+                lmt_push_node_to_callback(L, box);
                 lua_pushinteger(L, location); /* maybe also string */
                 i = lmt_callback_call(L, 5, 1, top);
                 if (i) {
                     lmt_callback_error(L, top, i);
                 } else {
-                    head = lmt_node_list_from_lua(L, -1);
+                    head = lmt_pop_node_from_callback(L, -1);
                     lmt_callback_wrapup(L, top);
                 }
             }
@@ -12580,14 +13038,14 @@ halfword lmt_uinsert_callback(
                 lua_pushinteger(L, callback);
                 lua_pushinteger(L, index);
                 lua_pushinteger(L, order);
-                lmt_node_list_to_lua(L, packed);
+                lmt_push_node_to_callback(L, packed);
                 lua_pushinteger(L, height);
                 lua_pushinteger(L, amount);
                 i = lmt_callback_call(L, 6, 1, top);
                 if (i) {
                     lmt_callback_error(L, top, i);
                 } else {
-                    halfword result = lmt_node_list_from_lua(L, -1); 
+                    halfword result = lmt_pop_node_from_callback(L, -1); 
                     if (result) { 
                         packed = result; 
                     }
@@ -12610,7 +13068,7 @@ void lmt_insert_par_callback(
         int top = 0;
         if (lmt_callback_okay(L, callback_id, &top)) {
             int i;
-            lmt_node_list_to_lua(L, node);
+            lmt_push_node_to_callback(L, node);
             lmt_push_par_mode(L, mode);
             i = lmt_callback_call(L, 2, 0, top);
             if (i) {
@@ -12634,7 +13092,7 @@ scaled lmt_italic_correction_callback(
         int top = 0;
         if (lmt_callback_okay(L, callback_id, &top)) {
             int i;
-            lmt_node_list_to_lua(L, glyph);
+            lmt_push_node_to_callback(L, glyph);
             lua_pushinteger(L, kern);
             lua_pushinteger(L, subtype);
             i = lmt_callback_call(L, 3, 1, top);

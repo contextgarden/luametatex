@@ -75,6 +75,9 @@ static void tex_aux_pass_text(void)
         tex_get_next();
         if (cur_cmd == if_test_cmd) {
             switch (cur_chr) {
+                case if_code:
+                   ++level;
+                   break;
                 case fi_code:
                     if (level == 0) {
                         lmt_input_state.scanner_status = status;
@@ -240,9 +243,9 @@ static void tex_aux_push_condition_stack(int code, int unless)
     if_limit_stepunless(p) = (singleword) lmt_condition_state.if_unless;
     if_limit_line(p) = lmt_condition_state.if_line;
     lmt_condition_state.cond_ptr = p;
-    lmt_condition_state.cur_if = cur_chr;
-    lmt_condition_state.cur_unless = unless;
-    lmt_condition_state.if_step = code;
+    lmt_condition_state.cur_if = (quarterword) cur_chr;
+    lmt_condition_state.cur_unless = (singleword) unless;
+    lmt_condition_state.if_step = (singleword) code;
     lmt_condition_state.if_limit = if_code;
     lmt_condition_state.if_line = lmt_input_state.input_line;
     ++lmt_condition_state.if_nesting;
@@ -285,7 +288,7 @@ static void tex_aux_pop_condition_stack(void)
 static inline void tex_aux_change_if_limit(int l, halfword p)
 {
     if (p == lmt_condition_state.cond_ptr) {
-        lmt_condition_state.if_limit = l;
+        lmt_condition_state.if_limit = (quarterword) l;
     } else {
         halfword q = lmt_condition_state.cond_ptr;
         while (q) {
@@ -708,8 +711,8 @@ void tex_conditional_if(halfword code, int unless)
     /*tex Either process |\ifcase| or set |b| to the value of a boolean condition. */
   HERE:
     /*tex We can get back here so we need to make sure result is always set! */
-    lmt_condition_state.if_step = code;
-    lmt_condition_state.if_unless = unless;
+    lmt_condition_state.if_step = (singleword) code;
+    lmt_condition_state.if_unless = (singleword) unless;
     switch (code) {
         case if_char_code:
         case if_cat_code:
@@ -1097,6 +1100,11 @@ void tex_conditional_if(halfword code, int unless)
             lmt_error_state.intercept = 0;
             lmt_error_state.last_intercept = 0;
             goto CASECHECK;
+        /* too messy as it expects a { } so best use \ifchkdimension 
+         case if_chk_dimexpression_code:
+         case if_chk_dimensionexpr_code: // alias
+          // lmt_condition_state.chk_dimension = tex_scanned_expression(dimension_val_level);
+        */
         case if_val_dim_code:
             {
                 lmt_error_state.intercept = 1;

@@ -53,7 +53,7 @@
     stack when it is handy to do so. These all have an explicit |save_type|, and they are:
 
     \starttabulate
-        \NC |saved_adjust|     \NC signifies an adjustment is beging scanned \NC\NR
+        \NC |saved_adjust|     \NC signifies an adjustment is being scanned \NC\NR
         \NC |saved_insert|     \NC an insertion is being scanned \NC\NR
         \NC |saved_disc|       \NC the |\discretionary| sublist we are working on right now \NC\NR
         \NC |saved_boxtype|    \NC whether a |\localbox| is |\left| or |\right| \NC\NR
@@ -101,7 +101,7 @@ save_state_info lmt_save_state = {
 /*tex
 
     The comments below are (of course) coming from \LUATEX's ancestor and are still valid! However,
-    in \LUATEX\ we use \UTF\ instead of \ASCII, have attributes, have more primites, etc. But the
+    in \LUATEX\ we use \UTF\ instead of \ASCII, have attributes, have more primitives, etc. But the
     principles remain the same. We are not 100\% compatible in output and will never be.
 
 */
@@ -136,7 +136,7 @@ static void tex_aux_diagnostic_trace(halfword p, const char *s)
     \stopitem
 
     \startitem
-        |eqtb[hash_base..(glue_base-1)]| holds the current equivalents of single- and multiletter
+        |eqtb[hash_base..(glue_base-1)]| holds the current equivalents of single- and multi-letter
         control sequences.
     \stopitem
 
@@ -317,7 +317,7 @@ static void tex_dump_equivalents_mem_extra(dumpstream f)
 static void tex_dump_equivalents_mem_specials(dumpstream f)
 {
     dump_int(f, lmt_token_state.par_loc);
- /* dump_int(f, lmt_token_state.line_par_loc); */ /*tex See note in textoken.c|. */
+ /* dump_int(f, lmt_token_state.line_par_loc); */ /*tex See note in |textoken.c|. */
     dump_int(f, lmt_token_state.empty);
 }
 
@@ -558,7 +558,7 @@ static void tex_aux_group_trace(int g)
 
     Per end 2023 the decision was made to use the two halfwords in the memory word that is used for
     saving eq values for other purposes too. It meant for instance that instead if every new group
-    needing 3 stack entries, it now needs just one. Actually there are not that meny mechanism that
+    needing 3 stack entries, it now needs just one. Actually there are not that many mechanism that
     need the stack. For instance alignments have their own stack, math needs it for multi argument
     mechanism and the most demanding one is box handling. In addition to the two extra |value_2| and
     |value_3| fields we also use |options| and |extra| as alias for |level| (these are quarterwords).
@@ -610,7 +610,7 @@ static void tex_aux_group_warning(void)
     We store the line number and attribute state in the memory word part for the save entry and
     then we need only one slot instead of three. Each slot is 16 bytes so we're also a bit nicer to
     caching memory (if it happens at all). Because in practice we don't group that much (400.000
-    times in the luametatex manual and a similar amount in the primitives manual) there is no real
+    times in the \LUAMETATEX\ manual and a similar amount in the primitives manual) there is no real
     significant (positive) impact on performance. It's all about abstraction.
 */
 
@@ -805,7 +805,7 @@ void tex_show_save_groups(void)
             case math_display_group:
                 tex_print_char('$');
                 goto FOUND2;
-            case math_number_group:
+            case math_equation_number_group:
                 tex_show_math_number_group();
                 goto FOUND2;
             case math_fence_group:
@@ -1044,7 +1044,22 @@ static void tex_aux_handle_overload(const char *s, halfword cs, int overload, in
     }
 }
 
-static int tex_aux_report_overload(halfword cs, int overload)
+static void tex_aux_handle_overload_register(const char *s, halfword cs, int overload, int error_type, halfword index, const char *reg)
+{
+    int callback_id = lmt_callback_defined(handle_overload_callback);
+    if (callback_id > 0) {
+        lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "bdSdd->", error_type == normal_error_type, overload, reg, eq_flag(cs), index);
+    } else {
+        tex_handle_error(
+            error_type,
+            "You can't redefine %s %s %i.",
+            s, reg, index,
+            NULL
+        );
+    }
+}
+
+int tex_report_overload(halfword cs, int overload)
 {
     int error_type = overload & 1 ? warning_error_type : normal_error_type;
     if (has_eq_flag_bits(cs, immutable_flag_bit)) {
@@ -1062,7 +1077,14 @@ static int tex_aux_report_overload(halfword cs, int overload)
     return error_type == warning_error_type;
 }
 
-# define overload_error_type(overload) (overload & 1 ? warning_error_type : normal_error_type)
+int tex_report_overload_register(halfword cs, int overload, halfword index, const char *str)
+{
+    int error_type = overload & 1 ? warning_error_type : normal_error_type;
+    if (has_eq_flag_bits(cs, immutable_flag_bit)) {
+        tex_aux_handle_overload_register("immutable", cs, overload, error_type, index, str);
+    }
+    return error_type == warning_error_type;
+}
 
 int tex_define_permitted(halfword cs, halfword prefixes)
 {
@@ -1071,27 +1093,60 @@ int tex_define_permitted(halfword cs, halfword prefixes)
         return 1;
     } else if (is_overloaded(prefixes)) {
         if (overload > 2 && has_eq_flag_bits(cs, immutable_flag_bit | permanent_flag_bit | primitive_flag_bit)) {
-            return tex_aux_report_overload(cs, overload);
+            return tex_report_overload(cs, overload);
         }
     } else if (overload > 4) {
         if (has_eq_flag_bits(cs, immutable_flag_bit | permanent_flag_bit | primitive_flag_bit | frozen_flag_bit | instance_flag_bit)) {
-            return tex_aux_report_overload(cs, overload);
+            return tex_report_overload(cs, overload);
         }
     } else if (overload > 2) {
         if (has_eq_flag_bits(cs, immutable_flag_bit | permanent_flag_bit | primitive_flag_bit | frozen_flag_bit)) {
-            return tex_aux_report_overload(cs, overload);
+            return tex_report_overload(cs, overload);
         }
     } else if (has_eq_flag_bits(cs, immutable_flag_bit)) {
-        return tex_aux_report_overload(cs, overload);
+        return tex_report_overload(cs, overload);
     }
     return 1;
 }
 
-static int tex_aux_mutation_permitted(halfword cs)
+int tex_overload_permitted(halfword flags)
+{
+    halfword overload = overload_mode_par;
+    if (! overload || has_flag_bits(flags, mutable_flag_bit)) {
+        return 1;
+    } else if (is_overloaded(flags)) {
+        if (overload > 2 && has_flag_bits(flags, immutable_flag_bit | permanent_flag_bit | primitive_flag_bit)) {
+            return tex_report_overload(flags, overload);
+        }
+    } else if (overload > 4) {
+        if (has_flag_bits(flags, immutable_flag_bit | permanent_flag_bit | primitive_flag_bit | frozen_flag_bit | instance_flag_bit)) {
+            return tex_report_overload(flags, overload);
+        }
+    } else if (overload > 2) {
+        if (has_flag_bits(flags, immutable_flag_bit | permanent_flag_bit | primitive_flag_bit | frozen_flag_bit)) {
+            return tex_report_overload(flags, overload);
+        }
+    } else if (has_flag_bits(flags, immutable_flag_bit)) {
+        return tex_report_overload(flags, overload);
+    }
+    return 1;
+}
+
+int tex_mutation_permitted(halfword cs)
 {
     halfword overload = overload_mode_par;
     if (cs && overload && has_eq_flag_bits(cs, immutable_flag_bit)) {
-        return tex_aux_report_overload(cs, overload);
+        return tex_report_overload(cs, overload);
+    } else {
+        return 1;
+    }
+}
+
+int tex_register_permitted(halfword cs, halfword index, halfword cmd)
+{
+    halfword overload = overload_mode_par;
+    if (cs && overload && has_eq_flag_bits(cs, immutable_flag_bit)) {
+        return tex_report_overload_register(cs, overload, index, lmt_interface.command_names[cmd].name);
     } else {
         return 1;
     }
@@ -1147,11 +1202,11 @@ static int tex_aux_mutation_permitted(halfword cs)
 //     return eq_value_field(w) ? lmt_hash_state.destructors[eq_type_field(w)] : 0;
 // }
 
-static inline void tex_aux_eq_destroy(memoryword w)
+static inline void tex_aux_eq_destroy(memoryword *w)
 {
-    halfword p = eq_value_field(w);
+    halfword p = eq_value_field(*w);
     if (p) {
-        switch (lmt_hash_state.destructors[eq_type_field(w)]) {
+        switch (lmt_hash_state.destructors[eq_type_field(*w)]) {
             case eq_token_list:
                 tex_delete_token_reference(p);
                 break;
@@ -1346,7 +1401,7 @@ void tex_eq_define(halfword p, singleword cmd, halfword chr)
             tex_aux_diagnostic_trace(p, "changing");
         }
         if (eq_level(p) == cur_level) {
-            tex_aux_eq_destroy(lmt_hash_state.eqtb[p]);
+            tex_aux_eq_destroy(&lmt_hash_state.eqtb[p]);
         } else if (cur_level > level_one) {
             tex_aux_eq_save(p, eq_level(p));
         }
@@ -1404,7 +1459,7 @@ void tex_geq_define(halfword p, singleword cmd, halfword chr) /* not used */
     if (trace) {
         tex_aux_diagnostic_trace(p, "globally changing");
     }
-    tex_aux_eq_destroy(lmt_hash_state.eqtb[p]);
+    tex_aux_eq_destroy(&lmt_hash_state.eqtb[p]);
     set_eq_level(p, level_one);
     set_eq_type(p, cmd);
     set_eq_flag(p, 0);
@@ -1431,7 +1486,7 @@ void tex_geq_word_define(halfword p, int w) /* not used */
     Instead of a macro that distinguishes between global or not we now use a few normal functions.
     That way we don't need to define a bogus variable |a| in some cases. This is typically one of
     those changes that happened after other bits and pieces got redone. (One can also consider it
-    a side effect of looking at the code through a visual studio lense.)
+    a side effect of looking at the code through a visual studio lens.)
 */
 
 static inline void tex_aux_set_eq_data(halfword p, singleword t, halfword e, singleword f, quarterword l)
@@ -1459,7 +1514,7 @@ void tex_define(int g, halfword p, singleword t, halfword e) /* int g -> singlew
      // if (tex_aux_equal_eq(p, t, f, e) && (eq_level(p) == level_one)) {
      //     return; /* we can save some stack */
      // }
-        tex_aux_eq_destroy(lmt_hash_state.eqtb[p]);
+        tex_aux_eq_destroy(&lmt_hash_state.eqtb[p]);
         tex_aux_set_eq_data(p, t, e, f, level_one);
     } else if (! is_constrained(g) && tex_aux_equal_eq(p, t, f, e)) {
         /* hm, we tweak the ref ! */
@@ -1472,7 +1527,7 @@ void tex_define(int g, halfword p, singleword t, halfword e) /* int g -> singlew
             tex_aux_diagnostic_trace(p, "changing");
         }
         if (eq_level(p) == cur_level) {
-            tex_aux_eq_destroy(lmt_hash_state.eqtb[p]);
+            tex_aux_eq_destroy(&lmt_hash_state.eqtb[p]);
         } else if (is_retained(g)) {
             /* nothing */
         } else if (cur_level > level_one) {
@@ -1482,6 +1537,82 @@ void tex_define(int g, halfword p, singleword t, halfword e) /* int g -> singlew
     }
     if (trace) {
         tex_aux_diagnostic_trace(p, "into");
+    }
+}
+
+/*tex
+    This one is nasty. An |\integerdef| can be permanent and when we assign to a value that results
+    from that, we need to retain that property in which case we also keep the rest. When it's an 
+    immutable (constant) we don't change the value. This one is basically just |tex_define| with a 
+    mutable check and flag retain. 
+    
+    There is some redundant checking for destruction that we can consider bypassing with an extra 
+    parameter. Aggressively optimizing makes sense for the plenty of usage but not now. Actually 
+    the less setting variant is not faster. 
+
+    As we error, we don't need to free but we could check earlier if needed. 
+*/
+
+# define mutated_experiment 0
+
+void tex_define_mutated(int g, halfword p, singleword t, halfword e) /* int g -> singleword g */
+{
+    if (tex_mutation_permitted(p)) { 
+        bool trace = tracing_assigns_par > 0;
+        singleword csflags = eq_flag(p);
+        singleword f = make_eq_flag_bits(is_permanent(csflags) ? csflags : g);
+        if (is_global(g)) {
+            /* what if already global */
+            if (trace) {
+                tex_aux_diagnostic_trace(p, "globally changing");
+            }
+         // if (tex_aux_equal_eq(p, t, f, e) && (eq_level(p) == level_one)) {
+         //     return; /* we can save some stack */
+         // }
+# if (mutated_experiment)
+            tex_aux_eq_destroy(&lmt_hash_state.eqtb[p]);
+            if (is_permanent(csflags)) {
+                set_eq_level(p, level_one);
+                set_eq_value(p, e);
+            } else {
+                tex_aux_set_eq_data(p, t, e, f, level_one);
+            }
+# else 
+            tex_aux_eq_destroy(&lmt_hash_state.eqtb[p]);
+            tex_aux_set_eq_data(p, t, e, f, level_one);
+# endif 
+        } else if (! is_constrained(g) && tex_aux_equal_eq(p, t, f, e)) {
+            /* hm, we tweak the ref ! */
+            if (trace) {
+                tex_aux_diagnostic_trace(p, "reassigning");
+                return;
+            }
+        } else {
+            if (trace) {
+                tex_aux_diagnostic_trace(p, "changing");
+            }
+            if (eq_level(p) == cur_level) {
+                tex_aux_eq_destroy(&lmt_hash_state.eqtb[p]); /* no need for integers and such */
+            } else if (is_retained(g)) {
+                /* nothing */
+            } else if (cur_level > level_one) {
+                tex_aux_eq_save(p, eq_level(p));
+            }
+# if (mutated_experiment)
+            if (is_permanent(csflags)) {
+                set_eq_level(p, cur_level);
+                set_eq_value(p, e);
+            } else {
+                tex_aux_set_eq_data(p, t, e, f, cur_level);
+            }
+# else 
+
+            tex_aux_set_eq_data(p, t, e, f, cur_level);
+# endif 
+        }
+        if (trace) {
+            tex_aux_diagnostic_trace(p, "into");
+        }
     }
 }
 
@@ -1500,7 +1631,7 @@ void tex_define_again(int g, halfword p, singleword t, halfword e) /* int g -> s
          // if (tex_aux_equal_eq(p, t, f, e) && (eq_level(p) == level_one)) {
          //     return; /* we can save some stack */
          // }
-            tex_aux_eq_destroy(lmt_hash_state.eqtb[p]);
+            tex_aux_eq_destroy(&lmt_hash_state.eqtb[p]);
             tex_aux_set_eq_data(p, t, e, f, level_one);
         } else if (! is_constrained(g) && tex_aux_equal_eq(p, t, f, e)) {
             /* hm, we tweak the ref ! */
@@ -1508,7 +1639,7 @@ void tex_define_again(int g, halfword p, singleword t, halfword e) /* int g -> s
         } else {
             tex_aux_diagnostic_trace(p, is_retained(g) ? "retained changing": "changing");
             if (eq_level(p) == cur_level) {
-                tex_aux_eq_destroy(lmt_hash_state.eqtb[p]);
+                tex_aux_eq_destroy(&lmt_hash_state.eqtb[p]);
             } else if (is_retained(g)) {
                 /* nothing */
             } else if (cur_level > level_one) {
@@ -1538,7 +1669,7 @@ void tex_define_inherit(int g, halfword p, singleword f, singleword t, halfword 
      // if (equal_eq(p, t, f, e) && (eq_level(p) == level_one)) {
      //    return; /* we can save some stack */
      // }
-        tex_aux_eq_destroy(lmt_hash_state.eqtb[p]);
+        tex_aux_eq_destroy(&lmt_hash_state.eqtb[p]);
         tex_aux_set_eq_data(p, t, e, f, level_one);
     } else if (! is_constrained(g) && tex_aux_equal_eq(p, t, f, e)) {
         if (trace) {
@@ -1550,7 +1681,7 @@ void tex_define_inherit(int g, halfword p, singleword f, singleword t, halfword 
             tex_aux_diagnostic_trace(p, is_retained(g) ? "retained changing" : "changing");
         }
         if (eq_level(p) == cur_level) {
-            tex_aux_eq_destroy(lmt_hash_state.eqtb[p]);
+            tex_aux_eq_destroy(&lmt_hash_state.eqtb[p]);
         } else if (is_retained(g)) {
             /* nothing */
         } else if (cur_level > level_one) {
@@ -1575,13 +1706,13 @@ static void tex_aux_just_define(int g, halfword p, halfword e)
         if (trace) {
             tex_aux_diagnostic_trace(p, "globally changing");
         }
-        tex_aux_eq_destroy(lmt_hash_state.eqtb[p]);
+        tex_aux_eq_destroy(&lmt_hash_state.eqtb[p]);
     } else {
         if (trace) {
             tex_aux_diagnostic_trace(p, "changing");
         }
         if (eq_level(p) == cur_level) {
-            tex_aux_eq_destroy(lmt_hash_state.eqtb[p]);
+            tex_aux_eq_destroy(&lmt_hash_state.eqtb[p]);
         } else if (cur_level > level_one) {
             tex_aux_eq_save(p, eq_level(p));
         }
@@ -1682,7 +1813,6 @@ void tex_define_swapped(int g, halfword p1, halfword p2, int force)
                             "\\swapcsvalues not (yet) implemented for commands (%C, %C)",
                             t1, v1, t2, v2, NULL
                         );
-
                     }
                     return;
             }
@@ -1707,14 +1837,14 @@ void tex_forced_define(int g, halfword p, singleword f, singleword t, halfword e
         if (trace) {
             tex_aux_diagnostic_trace(p, "globally changing");
         }
-        tex_aux_eq_destroy(lmt_hash_state.eqtb[p]);
+        tex_aux_eq_destroy(&lmt_hash_state.eqtb[p]);
         set_eq_level(p, level_one);
     } else {
         if (trace) {
             tex_aux_diagnostic_trace(p, "changing");
         }
         if (eq_level(p) == cur_level) {
-            tex_aux_eq_destroy(lmt_hash_state.eqtb[p]);
+            tex_aux_eq_destroy(&lmt_hash_state.eqtb[p]);
         } else if (cur_level > level_one) {
             tex_aux_eq_save(p, eq_level(p));
         }
@@ -1734,50 +1864,48 @@ void tex_forced_define(int g, halfword p, singleword f, singleword t, halfword e
 
 void tex_word_define(int g, halfword p, halfword w)
 {
-    if (tex_aux_mutation_permitted(p)) {
-        bool trace = tracing_assigns_par > 0;
-        if (is_global(g)) {
-            if (trace) {
-                tex_aux_diagnostic_trace(p, "globally changing");
-            }
-            eq_value(p) = w;
-            set_eq_level(p, level_one);
-        } else if (! is_constrained(g) && eq_value(p) == w) {
-            if (trace) {
-                tex_aux_diagnostic_trace(p, "reassigning");
-                return;
-            }
-        } else if (is_retained(g)) {
-            if (trace) {
-                tex_aux_diagnostic_trace(p, "retained changing");
-                set_eq_level(p, cur_level);
-            }
-            eq_value(p) = w;
-        } else {
-            if (trace) {
-                tex_aux_diagnostic_trace(p, "changing");
-            }
-            if (eq_level(p) != cur_level) {
-                tex_aux_eq_save(p, eq_level(p));
-                set_eq_level(p, cur_level);
-            }
-            eq_value(p) = w;
-        }
+    bool trace = tracing_assigns_par > 0;
+    if (is_global(g)) {
         if (trace) {
-            tex_aux_diagnostic_trace(p, "into");
+            tex_aux_diagnostic_trace(p, "globally changing");
         }
-        if (is_immutable(g)) {
-            eq_flag(p) |= immutable_flag_bit;
-        } else if (is_mutable(g)) {
-            eq_flag(p) |= mutable_flag_bit;
+        eq_value(p) = w;
+        set_eq_level(p, level_one);
+    } else if (! is_constrained(g) && eq_value(p) == w) {
+        if (trace) {
+            tex_aux_diagnostic_trace(p, "reassigning");
+            return;
         }
+    } else if (is_retained(g)) {
+        if (trace) {
+            tex_aux_diagnostic_trace(p, "retained changing");
+            set_eq_level(p, cur_level);
+        }
+        eq_value(p) = w;
+    } else {
+        if (trace) {
+            tex_aux_diagnostic_trace(p, "changing");
+        }
+        if (eq_level(p) != cur_level) {
+            tex_aux_eq_save(p, eq_level(p));
+            set_eq_level(p, cur_level);
+        }
+        eq_value(p) = w;
+    }
+    if (trace) {
+        tex_aux_diagnostic_trace(p, "into");
+    }
+    if (is_immutable(g)) {
+        eq_flag(p) |= immutable_flag_bit;
+    } else if (is_mutable(g)) {
+        eq_flag(p) |= mutable_flag_bit;
     }
 }
 
 /*
 void tex_forced_word_define(int g, halfword p, singleword f, halfword w)
 {
-    if (tex_aux_mutation_permitted(p)) {
+    if (tex_mutation_permitted(p)) {
         bool trace = tracing_assigns_par > 0;
         if (is_global(g)) {
             if (trace) {
@@ -1908,12 +2036,12 @@ void tex_unsave(void)
                      // if (p < internal_integer_base || p > eqtb_size) {
                         if (p < internal_integer_base || p >= internal_specification_base) {
                             if (eq_level(p) == level_one) {
-                                tex_aux_eq_destroy(save_word(lmt_save_state.save_stack_data.ptr));
+                                tex_aux_eq_destroy(&(save_word(lmt_save_state.save_stack_data.ptr)));
                                 if (trace) {
                                     tex_aux_diagnostic_trace(p, "retaining");
                                 }
                             } else {
-                                tex_aux_eq_destroy(lmt_hash_state.eqtb[p]);
+                                tex_aux_eq_destroy(&lmt_hash_state.eqtb[p]);
                                 lmt_hash_state.eqtb[p] = save_word(lmt_save_state.save_stack_data.ptr);
                                 if (trace) {
                                     tex_aux_diagnostic_trace(p, "restoring");
@@ -1971,7 +2099,7 @@ void tex_unsave(void)
                             }
                         } else {
                             if (p < internal_integer_base || p > eqtb_size) {
-                                tex_aux_eq_destroy(lmt_hash_state.eqtb[p]);
+                                tex_aux_eq_destroy(&lmt_hash_state.eqtb[p]);
                             }
                             lmt_hash_state.eqtb[p] = lmt_hash_state.eqtb[undefined_control_sequence];
                             if (trace) {
@@ -2011,7 +2139,7 @@ void tex_unsave(void)
     current magnification whenever it becomes necessary to \quote {freeze} it at a particular value.
 
     The |prepare_mag| subroutine is called whenever \TEX\ wants to use |mag| for magnification. If
-    nonzero, this magnification should be used henceforth. We might drop magnifaction at some point.
+    nonzero, this magnification should be used henceforth. We might drop magnification at some point.
 
     {\em NB: As we delegate the backend to \LUA\ we have no mag.}
 
@@ -2059,7 +2187,7 @@ void tex_unsave(void)
     translate these algorithms into low-level languages that do not support recursion.
 
     In general, |cur_cmd| is the current command as set by |get_next|, while |cur_chr| is the operand
-    of the current command. The control sequence found here is registsred in |cur_cs| and is zero if
+    of the current command. The control sequence found here is registered in |cur_cs| and is zero if
     none found. The |cur_tok| variable contains the packed representative of |cur_cmd| and |cur_chr|
     and like the other ones is global.
 

@@ -555,7 +555,7 @@ static int strlib_format_f6(lua_State *L)
                 if (s[l - 1] == '.') {
                     break;
                 } else if (s[l] == '0') {
-                    s[l] = '\0'; /* redundant */
+                 // s[l] = '\0'; /* redundant */
                     --i;
                 } else {
                     break;
@@ -1155,11 +1155,11 @@ static const luaL_Reg strlib_function_list[] = {
     }
 
     static const luaL_Reg strlib_function_list_buffer[] = {
-        { "newbuffer",         strlib_buffer_new         },
-        { "addtobuffer",       strlib_buffer_add         },
-        { "getbufferdata",     strlib_buffer_get_data    },
-        { "getbuffersize",     strlib_buffer_get_size    },
-        { NULL,                NULL                      },
+        { "newbuffer",     strlib_buffer_new      },
+        { "addtobuffer",   strlib_buffer_add      },
+        { "getbufferdata", strlib_buffer_get_data },
+        { "getbuffersize", strlib_buffer_get_size },
+        { NULL,            NULL                   },
     };
 
     static int luaextend_string_buffer(lua_State *L)

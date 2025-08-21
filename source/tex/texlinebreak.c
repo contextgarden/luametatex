@@ -7,7 +7,7 @@
 /*tex
 
     TODO: Check |[get|set]field| for recent (new) fields.
-    TODO: Maybe we can lock glue nodes so that a calback can't mess with them.
+    TODO: Maybe we can lock glue nodes so that a callback can't mess with them.
 
 */
 
@@ -54,7 +54,7 @@
 
     We have an additional parameter |\parfillleftskip| and below we cheat a bit. We add two glue
     nodes so that the par builder will work the same and doesn't need to be adapted, but when we're
-    done we move the leftbound node to the beginning of the (last) line.
+    done we move the left bound node to the beginning of the (last) line.
 
     Remark for myself: the \LUA\ variant that I use(d) for playing around occasionally is no longer
     in sync with the code here so it's abandoned.
@@ -72,7 +72,7 @@
 
 /*tex
 
-    A in-depth explanation abotu multiple par passes can be found in articles and wrapups by Mikael
+    A in-depth explanation about multiple par passes can be found in articles and wrap-ups by Mikael
     and Hans. Here is enough to know that as an alternative to the (upto) three passes that regular
     \TEX\ has, we can have many more. When no criteria are set the first two passes are regular
     passes, otherwise we only have what are called \quote {specification} passes.
@@ -263,7 +263,7 @@ void tex_line_break(int group_context, int par_context, int display_math)
         /*tex Hyphenate, driven by callback or fallback to normal \TEX. */
         if (tex_list_has_glyph(head)) {
             tex_handle_hyphenation(head, tail);
-            head = tex_handle_glyphrun(head, group_context, par_dir(head));
+            head = tex_handle_glyphrun(head, group_context, par_direction(head));
             tail = tex_tail_of_node_list(head);
             tex_try_couple_nodes(cur_list.head, head);
             cur_list.tail = tail;
@@ -297,7 +297,7 @@ void tex_line_break(int group_context, int par_context, int display_math)
                 We start with a prepared list. If you mess with that the linebreak routine might not
                 work well especially if the pointers are messed up. So be it.
             */
-            lmt_node_filter_callback(pre_linebreak_filter_callback, group_context, temp_head, &(cur_list.tail));
+            lmt_around_linebreak_callback(pre_linebreak_callback, group_context, temp_head, &(cur_list.tail));
             /*tex
                 We assume that the list is still okay.
             */
@@ -308,7 +308,7 @@ void tex_line_break(int group_context, int par_context, int display_math)
             if (lmt_linebreak_callback(temp_head, display_math, &(cur_list.tail))) {
                 /*tex
                     When we end up here we have a prepared list so we need to make sure that when
-                    the callback usaes that list with the built in break routine we don't do that
+                    the callback uses that list with the built in break routine we don't do that
                     twice. One should work on copies! Afterwards we need to find the correct value
                     for the |just_box|.
                 */
@@ -325,7 +325,7 @@ void tex_line_break(int group_context, int par_context, int display_math)
                 if (! lmt_linebreak_state.just_box) {
                     tex_handle_error(
                         succumb_error_type,
-                        "Invalid linebreak_filter",
+                        "Invalid linebreak callback",
                         "A linebreaking routine should return a non-empty list of nodes and at least one\n"
                         "of those has to be a \\hbox. Sorry, I cannot recover from this."
                     );
@@ -340,7 +340,7 @@ void tex_line_break(int group_context, int par_context, int display_math)
                     .tracing_passes          = tracing_passes_par,
                     .tracing_toddlers        = tracing_toddlers_par,
                     .tracing_orphans         = tracing_orphans_par,
-                    .paragraph_dir           = par_dir(par),
+                    .paragraph_direction     = par_direction(par),
                     .paragraph_options       = par_options(par),
                     .parfill_left_skip       = parfill_left_skip_glue,
                     .parfill_right_skip      = parfill_right_skip_glue,
@@ -412,7 +412,7 @@ void tex_line_break(int group_context, int par_context, int display_math)
                 */
             }
             lmt_linebreak_state.calling_back = 0;
-            lmt_node_filter_callback(post_linebreak_filter_callback, group_context, start_of_par, &(cur_list.tail));
+            lmt_around_linebreak_callback(post_linebreak_callback, group_context, start_of_par, &(cur_list.tail));
             lmt_packaging_state.pack_begin_line = 0;
             return;
         }
@@ -455,7 +455,7 @@ static scaled tex_aux_checked_shrink(halfword p)
 /*tex
 
     A pointer variable |cur_p| runs through the given horizontal list as we look for breakpoints.
-    This variable is global, since it is used both by |line_break| and by its subprocedure
+    This variable is global, since it is used both by |line_break| and by its sub-procedure
     |try_break|.
 
     Another global variable called |threshold| is used to determine the feasibility of individual
@@ -658,8 +658,8 @@ static halfword tex_aux_find_protchar_right(halfword l, halfword r)
     \startitemize[n]
 
         \startitem
-            |vlink| points to the next node in the list of active nodes; the last active node has
-            |vlink=active|.
+            |node_next| points to the next node in the list of active nodes; the last active node
+            has a value |active|.
         \stopitem
 
         \startitem
@@ -686,7 +686,7 @@ static halfword tex_aux_find_protchar_right(halfword l, halfword r)
 
     \stopitemize
 
-    The value of |node_next(active)| points to the first active node on a vlinked list of all currently
+    The value of |node_next(active)| points to the first active node on a linked list of all currently
     active nodes. This list is in order by |line_number|, except that nodes with |line_number >
     easy_line| may be in any order relative to each other.
 
@@ -711,8 +711,8 @@ void tex_initialize_active(void)
     \startitemize
 
         \startitem
-            |vlink| points to the passive node created just before this one, if any, otherwise it
-            is |null|.
+            |node_next| points to the passive node created just before this one, if any, otherwise
+            it is |null|.
         \stopitem
 
         \startitem
@@ -751,7 +751,7 @@ void tex_initialize_active(void)
     The active list also contains \quote {delta} nodes that help the algorithm compute the badness
     of individual lines. Such nodes appear only between two active nodes, and they have |type =
     delta_node|. If |p| and |r| are active nodes and if |q| is a delta node between them, so that
-    |vlink (p) = q| and |vlink (q) = r|, then |q| tells the space difference between lines in the
+    |node_next(p) = q| and |node_next(q) = r|, then |q| tells the space difference between lines in the
     horizontal list that start after breakpoint |p| and lines that start after breakpoint |r|. In
     other words, if we know the length of the line that starts after |p| and ends at our current
     position, then the corresponding length of the line that starts after |r| is obtained by adding
@@ -852,8 +852,8 @@ void tex_initialize_active(void)
     |minimum_demerits|, keeps track of the smallest value in the |minimal_demerits| array.
 
     The length of lines depends on whether the user has specified |\parshape| or |\hangindent|. If
-    |par_shape_ptr| is not null, it points to a $(2n+1)$-word record in |mem|, where the |vinfo|
-    in the first word contains the value of |n|, and the other $2n$ words contain the left margins
+    |par_shape_ptr| is not null, it points to a $(2n+1)$-word record in |mem|, where the the first
+    memory word also stores the value of |n|, and the other $2n$ words contain the left margins
     and line lengths for the first |n| lines of the paragraph; the specifications for line |n|
     apply to all subsequent lines. If |par_shape_ptr = null|, the shape of the paragraph depends on
     the value of |n = hang_after|; if |n >= 0|, hanging indentation takes place on lines |n + 1|,
@@ -1267,7 +1267,7 @@ static void tex_aux_compute_break_width(int break_type, int adjust_spacing, int 
                         /*tex no |post_break|: skip any whitespace following */
                         s = node_next(p);
                     }
-                } else { 
+                } else {
                     tex_confusion("line breaking 3");
                 }
                 break;
@@ -1296,6 +1296,7 @@ static void tex_aux_compute_break_width(int break_type, int adjust_spacing, int 
                     return;
                 }
             case math_node:
+             // if (tex_math_glue_is_zero(s) || tex_ignore_math_skip(s)) {
                 if (tex_math_glue_is_zero(s)) {
                     lmt_linebreak_state.break_width[total_advance_amount] -= math_surround(s);
                 } else {
@@ -1553,7 +1554,7 @@ static void tex_aux_post_line_break (
     very_loose_fit  semi_loose_fit  loose_fit  decent_fit  semi_tight_fit  tight_fit
     \stoptyping
 
-    Watch how we keep the assymetrical nature of this sequence: there is basicaly one tight
+    Watch how we keep the asymmetrical nature of this sequence: there is basically one tight
     step less than loose steps. Adding these steps took hardly any code so it was a cheap
     experiment. However, the result is not that spectacular: I'm pretty sure that users will
     not be able to choose consistently what result looks better, but who knows. For the moment
@@ -1561,9 +1562,9 @@ static void tex_aux_post_line_break (
     is done with |\linebreakcriterion| which gets split into 4 parts (2 bytes per criterion).
 
     It is probably hard to explain to users what a different setting does and although one can
-    force different output in narrow raggedright text it would probbably enough to just make
+    force different output in narrow ragged right text it would probably enough to just make
 
-    the |decent_criterion| configureable. Anyway, because we're talking heuristics and pretty
+    the |decent_criterion| configurable. Anyway, because we're talking heuristics and pretty
     good estimates from Don Knuth here, it would be pretentious to suggest that I really did
     research this fuzzy topic (if it was worth the effort at all).
 
@@ -1575,7 +1576,7 @@ static void tex_aux_post_line_break (
 
     Around 2023-05-24 Mikael Sundqvist and I did numerous tests with the badness function below in
     comparison with the variant mentioned in Digital Typography (DEK) and we observed that indeed
-    both functions behave pretty close (emulations with lua, mathematica etc). In practice one can
+    both functions behave pretty close (emulations with \LUA, \MATHEMATICA\ etc). In practice one can
     get different badness values (especially low numbers). We ran some test on documents and on
     hundreds of pages one can get a few different decisions. The main reason for looking into this
     was that we were exploring a bit more visual approach to deciding on what penalties to use in
@@ -1632,7 +1633,7 @@ void tex_check_fitness_classes(halfword fitnessclasses)
     if (! fitnessclasses) {
         tex_normal_error("linebreak", "unknown fitnessclasses");
         return;
-    } else { 
+    } else {
         halfword max = tex_get_specification_count(fitnessclasses);
         halfword med = 0;
         if (max >= max_n_of_fitness_values) {
@@ -1680,7 +1681,7 @@ static inline halfword tex_get_demerits(const line_break_properties *properties,
             /*tex
                 Traditional \TEX\ only adds these demerits when the distance is more than one. We're
                 not sure about the rationale but it kin dof makes sense not to punish a tight vs decent
-                line because after all shrink is limited and normally reasonable (in spaces) whiel on
+                line because after all shrink is limited and normally reasonable (in spaces) while on
                 the other hand loose can get out hand, so here a distance more than one is kind of bad
                 while loose vs very loose is probably already bad enough.
             */
@@ -1691,7 +1692,7 @@ static inline halfword tex_get_demerits(const line_break_properties *properties,
 }
 
 /*tex
-    Watch out: here we map from indices to inbetween (zero based) categories.
+    Watch out: here we map from indices to in-between (zero based) categories.
 */
 
 static inline halfword tex_normalized_loose_badness(halfword b, halfword fitnessclasses)
@@ -1810,8 +1811,8 @@ static void tex_aux_set_quality(halfword active, halfword passive, scaled shrt, 
     In a 2024 article for the TUG meeting Dedier describes some performance measurements with
     his (lisp based) framework but we already know that the par builder is not that critical
     in the whole picture. Here we distinguish between a left and right edge twin (repeated word)
-    and we also look into discretionaries because we can assume that more complex opentype
-    features can give more complex discretionaries than a single hyphen. One can condider a
+    and we also look into discretionaries because we can assume that more complex \OPENTYPE\
+    features can give more complex discretionaries than a single hyphen. One can consider a
     configurable size of comparison.
 
     Using a Lua approach is quite flexible and permits nice tracing but, as said, it abuses a
@@ -1822,7 +1823,7 @@ static void tex_aux_set_quality(halfword active, halfword passive, scaled shrt, 
     that callback.
 
     The reference implementation is still done in Lua where we then also have twin tracing. In
-    principle that one is fast enough. The native C implementation works sligthly different but
+    principle that one is fast enough. The native C implementation works slightly different but
     is still based on the Lua code. We also have some constraints, like the maximum size of a
     snippet.
 
@@ -2234,8 +2235,8 @@ static scaled tex_aux_try_break(
                 if (no_break_yet) {
                     /*tex
 
-                        If we have a |hyphenated_node|, |delta_node| or |passive_node| the |cur_p| 
-                        has to be a disc node! Look at the next emergency adaptions, we've actually 
+                        If we have a |hyphenated_node|, |delta_node| or |passive_node| the |cur_p|
+                        has to be a disc node! Look at the next emergency adaptions, we've actually
                         set them elsewhere. So, when we end up here we have to be pretty sure that
                         these threesome are okay as there was no test for node type!
 
@@ -2347,7 +2348,7 @@ static scaled tex_aux_try_break(
                             before and after snippets.
 
                             We could check the second snippet immediately but the savings can be
-                            neglected as we seldom enter this branch. It also measn two helpers
+                            neglected as we seldom enter this branch. It also means two helpers
                             with the checking on also having to track the size. Messy and ugly
                             code for no gain so we just grab the whole second snippet and then
                             compare fast.
@@ -2553,12 +2554,12 @@ static scaled tex_aux_try_break(
                             /*tex No finite stretch and no shrink. */
                             goto NOT_FOUND;
                         }
-                        lmt_scanner_state.arithmic_error = 0;
+                        lmt_scanner_state.arithmetic_error = 0;
                         glue = tex_fract(glue, active_short(current), active_glue(current), max_dimension);
                         if (properties->last_line_fit < 1000) {
                             glue = tex_fract(glue, properties->last_line_fit, 1000, max_dimension);
                         }
-                        if (lmt_scanner_state.arithmic_error) {
+                        if (lmt_scanner_state.arithmetic_error) {
                             glue = (active_short(current) > 0) ? max_dimension : -max_dimension;
                         }
                         if (glue > 0) {
@@ -2764,7 +2765,7 @@ static scaled tex_aux_try_break(
             Deactivate node |r|. When an active node disappears, we must delete an adjacent delta
             node if the active node was at the beginning or the end of the active list, or if it
             was surrounded by delta nodes. We also must preserve the property that |cur_active_width|
-            represents the length of material from |vlink (prev_r)| to~|cur_p|.
+            represents the length of material from |node_next(prev_r)| to |cur_p|.
 
         */
         {
@@ -2773,7 +2774,7 @@ static scaled tex_aux_try_break(
             if (passive) {
                 passive_ref_count(passive) -= 1;
                 if (callback_id) {
-                    /*tex Not that usefull, basically every passive is touched. */
+                    /*tex Not that useful, basically every passive is touched. */
                     switch (node_type(current)) {
                         case unhyphenated_node:
                         case hyphenated_node:
@@ -2908,8 +2909,8 @@ static inline halfword tex_aux_upcoming_math_penalty(halfword p, halfword factor
 
     I played a bit with a height driven hanging indentation. One can store |cur_p| in the active
     node and progressively calculate the height + depth and then act on that but in the end
-    interline space, adjustsm etc. also have to be taken into account and that all happens later
-    so in the end it makes no sense. There are valdi reasons why \TEX\ can't do some things
+    interline space, adjusts etc. also have to be taken into account and that all happens later
+    so in the end it makes no sense. There are valid reasons why \TEX\ can't do some things
     reliable: user demands are unpredictable.
 
 */
@@ -2918,8 +2919,8 @@ static inline halfword tex_aux_upcoming_math_penalty(halfword p, halfword factor
 
     Here we pickup the line number from |prev_graf| which relates to display math inside a
     paragraph. A display formula is then considered to span three lines. Of course this also
-    assume a constant baseline distance with lines heigths not exceeding that amount. It also
-    assumes that the shape and hang are not reset. We check the prevgraf for a large value
+    assume a constant baseline distance with lines heights not exceeding that amount. It also
+    assumes that the shape and hang are not reset. We check |\prevgraf| for a large value
     because when we're close to |max_integer| we can wrap around due to addition beyond that
     and negative values has side effects (see musings-sideffects) but it's optional so that we
     can actually use these side effects.
@@ -2928,12 +2929,12 @@ static inline halfword tex_aux_upcoming_math_penalty(halfword p, halfword factor
 
 # define max_prev_graf (max_integer/2)
 
-static inline int tex_aux_short_math(halfword m) 
+static inline int tex_aux_short_math(halfword m)
 {
     return m && node_subtype(m) == begin_inline_math && math_penalty(m) > 0 && tex_has_math_option(m, math_option_short);
 }
 
-static inline void tex_aux_adapt_short_math_penalty(halfword m, halfword p1, halfword p2, int orphaned) 
+static inline void tex_aux_adapt_short_math_penalty(halfword m, halfword p1, halfword p2, int orphaned)
 {
     if (p1 > math_penalty(m)) {
         math_penalty(m) = p1;
@@ -3189,7 +3190,7 @@ static void tex_aux_apply_special_factors(const line_break_properties *propertie
 /*tex
     We could act upon a callback if needed. We could also have a flag in the hc property
     but then we also need to carry that in glyph options (glyph_option_text or so). One could
-    also argue for uppercase only in which case we shopuld have a uppercase flag in the glyph
+    also argue for uppercase only in which case we should have a uppercase flag in the glyph
     state.
 
     An alternative is to delay this till we check a break and add to the demerits as we do with
@@ -3494,20 +3495,24 @@ static void tex_aux_set_orphan_penalties(const line_break_properties *properties
                 while (current) {
                     switch (node_type(current)) {
                         case glue_node:
-                            switch (node_subtype(current)) {
-                                case space_skip_glue:
-                                case xspace_skip_glue:
-                                case zero_space_skip_glue:
-                                    if (skip) {
-                                        skip = 0;
-                                    } else {
-                                        current = tex_aux_inject_orphan_penalty(properties, current, tex_get_specification_penalty(properties->orphan_penalties, ++i), 0);
-                                    }
-                                    if (i == n) {
-                                        return;
-                                    } else {
-                                        break;
-                                    }
+                            if (tex_has_glue_option(current, glue_option_no_auto_break)) {
+                                skip = 0;
+                            } else {
+                                switch (node_subtype(current)) {
+                                    case space_skip_glue:
+                                    case xspace_skip_glue:
+                                    case zero_space_skip_glue:
+                                        if (skip) {
+                                            skip = 0;
+                                        } else {
+                                            current = tex_aux_inject_orphan_penalty(properties, current, tex_get_specification_penalty(properties->orphan_penalties, ++i), 0);
+                                        }
+                                        if (i == n) {
+                                            return;
+                                        } else {
+                                            break;
+                                        }
+                                }
                             }
                             break;
                         case math_node:
@@ -4196,13 +4201,13 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
     Advance |cur_p| to the node following the present string of characters. The code that passes
     over the characters of words in a paragraph is part of \TEX's inner loop, so it has been
     streamlined for speed. We use the fact that |\parfillskip| glue appears at the end of each
-    paragraph; it is therefore unnecessary to check if |vlink (cur_p) = null| when |cur_p| is a
+    paragraph; it is therefore unnecessary to check if |node_next (cur_p) = null| when |cur_p| is a
     character node.
 
     Advance |cur_p| to the node following the present string of characters. The code that passes
     over the characters of words in a paragraph is part of \TEX's inner loop, so it has been
     streamlined for speed. We use the fact that |\parfillskip| glue appears at the end of each
-    paragraph; it is therefore unnecessary to check if |vlink (cur_p) = null| when |cur_p| is
+    paragraph; it is therefore unnecessary to check if |node_next (cur_p) = null| when |cur_p| is
     a character node. (This is no longer true because we've split the hyphenation and font
     processing steps.)
 
@@ -4259,7 +4264,7 @@ static void tex_aux_show_threshold(const char *what, halfword value)
 
 /*tex
     In most cases (90\percent\ or more) we have only one pass so then it makes sense to just use
-    that pass and accept some redundant stat echecking later on.
+    that pass and accept some redundant state checking later on.
 */
 
 /*
@@ -4333,7 +4338,7 @@ static inline halfword tex_aux_break_list(const line_break_properties *propertie
                 break;
             case dir_node:
                 /*tex Adjust the dir stack for the |line_break| routine. */
-                lmt_linebreak_state.line_break_dir = tex_update_dir_state(current, properties->paragraph_dir);
+                lmt_linebreak_state.line_break_dir = tex_update_dir_state(current, properties->paragraph_direction);
                 break;
             case par_node:
                 /*tex Advance past a |par| node. */
@@ -4486,7 +4491,7 @@ static inline halfword tex_aux_break_list(const line_break_properties *propertie
 
                                 Another more realistic example of required control is when we use
                                 discretionaries for optional content, where we actually might want to
-                                favour either the replacement or the prepost pair. We're still talking
+                                favor either the replacement or the pre-post pair. We're still talking
                                 or rare situations (that showed up in test loops that triggered these
                                 border cases).
                             */
@@ -4760,9 +4765,9 @@ static void tex_aux_set_indentation(const line_break_properties *properties)
             }
             lmt_linebreak_state.second_indent = tex_get_specification_indent(properties->par_shape, n);
             lmt_linebreak_state.second_width = tex_get_specification_width(properties->par_shape, n);
-            lmt_linebreak_state.second_indent = swap_parshape_indent(properties->paragraph_dir, lmt_linebreak_state.second_indent, lmt_linebreak_state.second_width);
+            lmt_linebreak_state.second_indent = swap_parshape_indent(properties->paragraph_direction, lmt_linebreak_state.second_indent, lmt_linebreak_state.second_width);
         } else {
-            lmt_linebreak_state.last_special_line = 0; 
+            lmt_linebreak_state.last_special_line = 0;
             lmt_linebreak_state.second_width = properties->hsize;
             lmt_linebreak_state.second_indent = 0;
         }
@@ -4771,7 +4776,7 @@ static void tex_aux_set_indentation(const line_break_properties *properties)
         lmt_linebreak_state.second_width = properties->hsize;
         lmt_linebreak_state.second_indent = 0;
     } else {
-        halfword used_hang_indent = swap_hang_indent(properties->paragraph_dir, properties->hang_indent);
+        halfword used_hang_indent = swap_hang_indent(properties->paragraph_direction, properties->hang_indent);
         /*tex
 
             Set line length parameters in preparation for hanging indentation. We compute the
@@ -4895,8 +4900,8 @@ static void tex_aux_set_extra_stretch(line_break_properties *properties)
     }
 }
 
-/*tex 
-    Find an active node with fewest demerits. 
+/*tex
+    Find an active node with fewest demerits.
 */
 
 static int tex_aux_quit_linebreak(const line_break_properties *properties, int pass)
@@ -5003,7 +5008,7 @@ void tex_do_line_break(line_break_properties *properties)
         them around.
     */
     lmt_linebreak_state.force_check_hyphenation = hyphenation_permitted(properties->hyphenation_mode, force_check_hyphenation_mode);
-    lmt_linebreak_state.callback_id = properties->line_break_checks ? lmt_callback_defined(line_break_callback) : 0;
+    lmt_linebreak_state.callback_id = properties->line_break_checks ? lmt_callback_defined(linebreak_check_callback) : 0;
     lmt_linebreak_state.fewest_demerits = 0;
     lmt_linebreak_state.checked_expansion = -1;
     lmt_linebreak_state.no_shrink_error_yet = 1;
@@ -5036,14 +5041,14 @@ void tex_do_line_break(line_break_properties *properties)
         lmt_linebreak_state.minimal_demerits[i] = awful_bad;
     }
 
-    lmt_linebreak_state.line_break_dir = properties->paragraph_dir;
+    lmt_linebreak_state.line_break_dir = properties->paragraph_direction;
     if (lmt_linebreak_state.dir_ptr) {
         tex_flush_node_list(lmt_linebreak_state.dir_ptr);
         lmt_linebreak_state.dir_ptr = null;
     }
     /*tex
-        This is a bit terrible hack butif we want to inject something it has to be done after we
-        are done with the left and right protrusion as we are redetecing in the post line break
+        This is a bit terrible hack but if we want to inject something it has to be done after we
+        are done with the left and right protrusion as we are re-detecting in the post line break
         routine too.
     */
     if (lmt_linebreak_state.inject_after_par) {
@@ -5398,7 +5403,7 @@ void tex_do_line_break(line_break_properties *properties)
     /*tex
         Break the paragraph at the chosen breakpoints. Once the best sequence of breakpoints has been
         found (hurray), we call on the procedure |post_line_break| to finish the remainder of the
-        work. By introducing this subprocedure, we are able to keep |line_break| from getting
+        work. By introducing this sub-procedure, we are able to keep |line_break| from getting
         extremely long. The first thing |ext_post_line_break| does is reset |dir_ptr|.
 
         Here we still have a temp node as head.
@@ -5432,7 +5437,7 @@ void tex_get_linebreak_info(int *f, int *a)
     So far we have gotten a little way into the |line_break| routine, having covered its important
     |try_break| subroutine. Now let's consider the rest of the process.
 
-    The main loop of |line_break| traverses the given hlist, starting at |vlink (temp_head)|, and
+    The main loop of |line_break| traverses the given hlist, starting at |node_next (temp_head)|, and
     calls |try_break| at each legal breakpoint. A variable called |auto_breaking| is set to true
     except within math formulas, since glue nodes are not legal breakpoints when they appear in
     formulas.
@@ -5547,6 +5552,7 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
     int first_line = 0;
     int math_nesting = 0;
     int math_attr = null;
+    int math_opts = 0;
     /*tex the current direction: */
     lmt_linebreak_state.dir_ptr = cur_list.direction_stack;
     /*tex
@@ -5593,7 +5599,7 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
             Justify the line ending at breakpoint |cur_p|, and append it to the current vertical
             list, together with associated penalties and other insertions.
 
-            The current line to be justified appears in a horizontal list starting at |vlink
+            The current line to be justified appears in a horizontal list starting at |node_next
             (temp_head)| and ending at |cur_break (cur_p)|. If |cur_break (cur_p)| is a glue node,
             we reset the glue to equal the |right_skip| glue; otherwise we append the |right_skip|
             glue at the right. If |cur_break (cur_p)| is a discretionary node, we modify the list
@@ -5743,7 +5749,7 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
             /*tex |r| refers to the node after which the dir nodes should be closed */
         }
         /*tex Adjust the dir stack based on dir nodes in this line. */
-        line_break_dir = tex_sanitize_dir_state(node_next(temp_head), passive_cur_break(cur_p), properties->paragraph_dir);
+        line_break_dir = tex_sanitize_dir_state(node_next(temp_head), passive_cur_break(cur_p), properties->paragraph_direction);
         /*tex Insert dir nodes at the end of the current line. */
         r = tex_complement_dir_state(r);
         /*tex
@@ -5752,7 +5758,7 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
             detach this line.
 
             The following code begins with |q| at the end of the list to be justified. It ends with
-            |q| at the beginning of that list, and with |node_next(temp_head)| pointing to the remainder
+            |q| at the beginning of that list, and with |node_next (temp_head)| pointing to the remainder
             of the paragraph, if any.
 
             Now [q] refers to the last node on the line and therefore the rightmost breakpoint. The
@@ -5947,7 +5953,7 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
         /*tex
             Fix a possible mess up.
         */
-        if (node_type(q) == par_node ) {
+        if (node_type(q) == par_node) {
             if (! tex_is_start_of_par_node(q)) {
                 node_subtype(q) = hmode_par_par_subtype;
             }
@@ -5962,16 +5968,16 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
             subroutine, setting |just_box| to the justified box. Now|q| points to the hlist that
             represents the current line of the paragraph. We need to compute the appropriate line
             width, pack the line into a box of this size, and shift the box by the appropriate
-            amount of indentation. In \LUAMETATEX\ we always add the leftskip.
+            amount of indentation. In \LUAMETATEX\ we always add the |\leftskip|.
         */
         ls = tex_new_glue_node(properties->left_skip, left_skip_glue);
         tex_attach_attribute_list_copy(ls, q);
         tex_couple_nodes(ls, q);
         q = ls;
         /*tex
-            We have these |par| nodes that, when we have callbacks, kind of polute the list. Let's
+            We have these |par| nodes that, when we have callbacks, kind of pollute the list. Let's
             get rid of them now. We could have done this in previous loops but for the sake of
-            clearity we do it here. That way we keep the existing code as it is in older engines.
+            clarity we do it here. That way we keep the existing code as it is in older engines.
             Okay, I might collapse it eventually. This is code that has been prototyped using \LUA.
         */
         if (cur_line > lmt_linebreak_state.last_special_line) { //  && (! (properties->par_shape && specification_repeat(properties->par_shape)))) {
@@ -5981,7 +5987,7 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
             if (specification_count(properties->par_shape)) {
                 cur_indent = tex_get_specification_indent(properties->par_shape, cur_line);
                 cur_width = tex_get_specification_width(properties->par_shape, cur_line);
-                cur_indent = swap_parshape_indent(properties->paragraph_dir, cur_indent, cur_width);
+                cur_indent = swap_parshape_indent(properties->paragraph_direction, cur_indent, cur_width);
             } else {
                 cur_width = lmt_linebreak_state.first_width;
                 cur_indent = lmt_linebreak_state.first_indent;
@@ -6070,10 +6076,10 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
         lmt_packaging_state.pre_adjust_tail = pre_adjust_head;
         lmt_packaging_state.post_migrate_tail = post_migrate_head;
         lmt_packaging_state.pre_migrate_tail = pre_migrate_head;
-        /*tex   
-            A bonus feature. However, we still have them in hboxes, som maybe we also 
+        /*tex
+            A bonus feature. However, we still have them in hboxes, som maybe we also
             need to move then there. And also set a flag in the box options in order
-            to avoid redundant operations. 
+            to avoid redundant operations.
         */
         if (normalize_line_mode_option(flatten_discretionaries_mode)) {
             int count = 0;
@@ -6085,7 +6091,18 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
                 tex_end_diagnostic();
             }
         }
-        /*tex Finally we pack the lot. */
+        /*tex
+            Append the new box to the current vertical list, followed by the list of special nodes
+            taken out of the box by the packager. Append a penalty node, if a nonzero penalty is
+            appropriate. Penalties between the lines of a paragraph come from club and widow lines,
+            from the |inter_line_penalty| parameter, and from lines that end at discretionary breaks.
+            Breaking between lines of a two-line paragraph gets both club-line and widow-line
+            penalties. The local variable |pen| will be set to the sum of all relevant penalties for
+            the current line, except that the final line is never penalized.
+
+            Compared to traditional \TEX\ much more goes on, like normalization and moving more into
+            the list.
+        */
         shaping = 0;
         if (normalize_line_mode_option(normalize_line_mode)) {
             halfword head = q;
@@ -6126,7 +6143,7 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
                 }
             }
             shaping = (lefthang || righthang);
-            lmt_linebreak_state.just_box = tex_hpack(head, cur_width, properties->adjust_spacing ? packing_linebreak : packing_exactly, (singleword) properties->paragraph_dir, holding_none_option, box_limit_line);
+            lmt_linebreak_state.just_box = tex_hpack(head, cur_width, properties->adjust_spacing ? packing_linebreak : packing_exactly, (singleword) properties->paragraph_direction, holding_none_option, box_limit_line);
          // attach_attribute_list_copy(linebreak_state.just_box, properties->initial_par);
 // if (cur_line == 1 && (properties->paragraph_options & par_option_synchronize)) {
 //     tex_add_box_option(lmt_linebreak_state.just_box, box_option_synchronize);
@@ -6177,6 +6194,8 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
                             case begin_inline_math:
                                 inmath = 1;
                                 math_attr = current;
+                                math_opts = math_options(current);
+                                set_box_content_state(lmt_linebreak_state.just_box, math_content_state);
                                 break;
                             case end_inline_math:
                                 if (inmath) {
@@ -6185,6 +6204,7 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
                                     begin_needed = 1;
                                 }
                                 math_nesting = 0;
+                                set_box_content_state(lmt_linebreak_state.just_box, math_content_state);
                                 break;
                             default:
                                 /* error */
@@ -6201,6 +6221,7 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
                         begin_needed = 1;
                     }
                     end_needed = 1;
+                    set_box_content_state(lmt_linebreak_state.just_box, math_content_state);
                 }
                 if (begin_needed || end_needed) {
                     halfword first = null;
@@ -6208,12 +6229,14 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
                     tex_get_line_content_range(head, tail, &first, &last);
                     if (begin_needed && first) {
                         halfword m = tex_new_node(math_node, begin_broken_math);
+                        math_options(m) = math_opts;
                         tex_attach_attribute_list_copy(m, math_attr);
                         tex_try_couple_nodes(m, node_next(first));
                         tex_couple_nodes(first, m);
                     }
                     if (end_needed && last) {
                         halfword m = tex_new_node(math_node, end_broken_math);
+                        math_options(m) = math_opts;
                         tex_attach_attribute_list_copy(m, math_attr);
                         tex_try_couple_nodes(node_prev(last), m);
                         tex_couple_nodes(m, last);
@@ -6225,21 +6248,23 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
             /*tex So only callback when we normalize. */
             if (leftbox || rightbox || middlebox) {
                 halfword linebox = lmt_linebreak_state.just_box;
-                lmt_local_box_callback(
-                    linebox, leftbox, rightbox, middlebox, cur_line,
-                    tex_effective_glue(linebox, properties->left_skip),
-                    tex_effective_glue(linebox, properties->right_skip),
-                    lefthang, righthang, cur_indent,
-                    (first_line && properties->parinit_left_skip) ? tex_effective_glue(linebox, properties->parinit_left_skip) : null,
-                    (first_line && properties->parinit_right_skip) ? tex_effective_glue(linebox, properties->parinit_right_skip) : null,
-                    (last_line && properties->parfill_left_skip) ? tex_effective_glue(linebox, properties->parfill_left_skip) : null,
-                    (last_line && properties->parfill_right_skip) ? tex_effective_glue(linebox, properties->parfill_right_skip) : null,
-                    lmt_packaging_state.last_overshoot
-                );
+                if (linebox) {
+                    lmt_local_box_callback(
+                        linebox, leftbox, rightbox, middlebox, cur_line,
+                        tex_effective_glue(linebox, properties->left_skip),
+                        tex_effective_glue(linebox, properties->right_skip),
+                        lefthang, righthang, cur_indent,
+                        (first_line && properties->parinit_left_skip) ? tex_effective_glue(linebox, properties->parinit_left_skip) : null,
+                        (first_line && properties->parinit_right_skip) ? tex_effective_glue(linebox, properties->parinit_right_skip) : null,
+                        (last_line && properties->parfill_left_skip) ? tex_effective_glue(linebox, properties->parfill_left_skip) : null,
+                        (last_line && properties->parfill_right_skip) ? tex_effective_glue(linebox, properties->parfill_right_skip) : null,
+                        lmt_packaging_state.last_overshoot
+                    );
+                }
             }
         } else {
             /*tex Here we can have a right skip way to the right due to an overshoot! */
-            lmt_linebreak_state.just_box = tex_hpack(q, cur_width, properties->adjust_spacing ? packing_linebreak : packing_exactly, (singleword) properties->paragraph_dir, holding_none_option, box_limit_line);
+            lmt_linebreak_state.just_box = tex_hpack(q, cur_width, properties->adjust_spacing ? packing_linebreak : packing_exactly, (singleword) properties->paragraph_direction, holding_none_option, box_limit_line);
          // attach_attribute_list_copy(linebreak_state.just_box, properties->initial_par);
             box_shift_amount(lmt_linebreak_state.just_box) = cur_indent;
         }
@@ -6252,21 +6277,21 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
             tex_aux_line_break_callback_line(callback_id, checks, cur_line, cur_p);
         }
         /*tex Pending content (callback). */
-        if (node_next(contribute_head)) {
-            if (! lmt_page_builder_state.output_active) {
-                lmt_append_line_filter_callback(pre_box_append_line_context, 0);
-            }
-        }
+     // if (node_next(contribute_head)) {
+     //     if (! lmt_page_builder_state.output_active) {
+     //         lmt_append_pre_line_callback();
+     //     }
+     // }
         /* Pre-adjust content (no callback). */
         if (pre_adjust_head != lmt_packaging_state.pre_adjust_tail) {
-            tex_inject_adjust_list(pre_adjust_head, 1, lmt_linebreak_state.just_box, properties);
+            tex_inject_adjust_list(pre_adjust_head, pre_append_adjust_context, 1, lmt_linebreak_state.just_box, properties);
         }
         lmt_packaging_state.pre_adjust_tail = null;
         /* Pre-migrate content (callback). */
         if (pre_migrate_head != lmt_packaging_state.pre_migrate_tail) {
             tex_append_list(pre_migrate_head, lmt_packaging_state.pre_migrate_tail);
             if (! lmt_page_builder_state.output_active) {
-                lmt_append_line_filter_callback(pre_migrate_append_line_context, 0);
+                lmt_append_migrate_callback(pre_append_migrate_context);
             }
         }
         lmt_packaging_state.pre_migrate_tail = null;
@@ -6281,34 +6306,25 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
         tex_append_to_vlist(lmt_linebreak_state.just_box, lua_key_index(post_linebreak), properties);
         if (! lmt_page_builder_state.output_active) {
             /* Here we could use the par specific baselineskip and lineskip. */
-            lmt_append_line_filter_callback(box_append_line_context, 0);
+            lmt_append_line_callback();
         }
         /* Post-migrate content (callback). */
         if (post_migrate_head != lmt_packaging_state.post_migrate_tail) {
             tex_append_list(post_migrate_head, lmt_packaging_state.post_migrate_tail);
             if (! lmt_page_builder_state.output_active) {
-                lmt_append_line_filter_callback(post_migrate_append_line_context, 0);
+                lmt_append_migrate_callback(post_append_migrate_context);
             }
         }
         lmt_packaging_state.post_migrate_tail = null;
         /* Post-adjust content (callback). */
         if (post_adjust_head != lmt_packaging_state.post_adjust_tail) {
-            tex_inject_adjust_list(post_adjust_head, 1, null, properties);
+            tex_inject_adjust_list(post_adjust_head, post_append_adjust_context, 1, null, properties);
         }
         if (lmt_packaging_state.except) {
             box_exdepth(lmt_linebreak_state.just_box) = lmt_packaging_state.except;
         }
         lmt_packaging_state.post_adjust_tail = null;
         lmt_packaging_state.except = 0;
-        /*tex
-            Append the new box to the current vertical list, followed by the list of special nodes
-            taken out of the box by the packager. Append a penalty node, if a nonzero penalty is
-            appropriate. Penalties between the lines of a paragraph come from club and widow lines,
-            from the |inter_line_penalty| parameter, and from lines that end at discretionary breaks.
-            Breaking between lines of a two-line paragraph gets both club-line and widow-line
-            penalties. The local variable |pen| will be set to the sum of all relevant penalties for
-            the current line, except that the final line is never penalized.
-        */
         if (cur_line + 1 != lmt_linebreak_state.best_line) {
             /*tex
                 When we end up here we have multiple lines so we need to add penalties between them
@@ -6571,7 +6587,7 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
             }
         }
         if (cur_disc) {
-            tex_try_couple_nodes(node_prev(cur_disc),node_next(cur_disc));
+            tex_try_couple_nodes(node_prev(cur_disc), node_next(cur_disc));
             tex_flush_node(cur_disc);
         }
         /* We can clean up the par nodes. */

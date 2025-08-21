@@ -1,3 +1,7 @@
+if (DEFINED luametatex_use_helpers)
+    set(tex_sources_helpers source/lua/lmthelperlib.c)
+endif()
+
 set(tex_sources
 
     source/utilities/auxmemory.c
@@ -24,6 +28,9 @@ set(tex_sources
     source/lua/lmtfontlib.c
     source/lua/lmtstatuslib.c
 
+  # source/lua/lmthelperlib.c
+    ${tex_sources_helpers}
+
     source/luaoptional/lmtoptional.c
 
     source/luarest/lmtfilelib.c
@@ -43,6 +50,9 @@ set(tex_sources
     source/luarest/lmtsparselib.c
     source/luarest/lmtposit.c
     source/luarest/lmtpotrace.c
+    source/luarest/lmtqrcodegen.c
+    source/luarest/lmtserial.c
+    source/luarest/lmtvectorlib.c
 
     source/tex/texalign.c
     source/tex/texarithmetic.c
@@ -50,6 +60,7 @@ set(tex_sources
     source/tex/texcommands.c
     source/tex/texconditional.c
     source/tex/texdirections.c
+    source/tex/texdiscretionaries.c
     source/tex/texdumpdata.c
     source/tex/texequivalents.c
     source/tex/texerrors.c
@@ -65,6 +76,7 @@ set(tex_sources
     source/tex/texmathcodes.c
     source/tex/texmlist.c
     source/tex/texnesting.c
+    source/tex/texsnapping.c
     source/tex/texpackaging.c
     source/tex/texprimitive.c
     source/tex/texprinting.c
@@ -104,4 +116,6 @@ target_include_directories(tex PRIVATE
     source/libraries/mimalloc/include
     source/libraries/softposit/source/include
     source/libraries/potrace/src
+    source/libraries/qrcodegen
+    source/libraries/triangles
 )

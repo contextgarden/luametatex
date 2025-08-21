@@ -617,6 +617,9 @@ void tex_expand_current_token(void)
                         case token_input_code:
                             tex_tex_string_start(io_token_eof_input_code, cat_code_table_par);
                             break;
+                        case ignore_input_code:
+                            tex_scan_toks_dropped(0);
+                            break;
                         case tex_token_input_code:
                             tex_tex_string_start(io_token_input_code, cat_code_table_par);
                             break;
@@ -635,7 +638,7 @@ void tex_expand_current_token(void)
                                 full_scanner_status saved_full_status = tex_save_full_scanner_status();
                                 strnumber u = tex_save_cur_string();
                                 halfword s = tex_scan_toks_expand(0, NULL, 0, 0);
-                                tex_unsave_full_scanner_status(saved_full_status);
+                                tex_unsave_full_scanner_status(&saved_full_status);
                                 if (token_link(s)) {
                                      tex_begin_inserted_list(tex_wrapped_token_list(s));
                                      tex_tex_string_start(io_token_input_code, cattable);
@@ -940,10 +943,10 @@ static inline halfword tex_aux_get_cs_name(void)
     lmt_expand_state.cs_name_level += 1;
     if (tex_aux_collect_cs_tokens(&p, &n)) {
         /*tex
-            Here we have to make a choice wrt duplicating hashes. In pdftex the hashes are
+            Here we have to make a choice wrt duplicating hashes. In \PDFTEX\ the hashes are
             duplicated when we csname a meaning of a macro with |#1| and |##1| or just |##|
             but in the token list these are actually references of single hashes. Therefore
-            we do as in luatex: we go single hash. In the end it doesn't matter much as such
+            we do as in \LUATEX: we go single hash. In the end it doesn't matter much as such
             weird control sequences are less likely to happen than embedded hashes (with
             catcode parameter) so single is then more natural.
         */
@@ -1309,7 +1312,7 @@ static void tex_aux_macro_call(halfword cs, halfword cmd, halfword chr)
         halfword save_warning_index = lmt_input_state.warning_index;
         int nofscanned = 0;
         int nofarguments = 0;
-        halfword pstack[max_match_count] = { null };
+        halfword pstack[max_match_count] = { null }; /* no need for initialization */
         /*tex
             Scan the parameters and make |link(r)| point to the macro body; but |return| if an
             illegal |\par| is detected.
@@ -1351,7 +1354,7 @@ static void tex_aux_macro_call(halfword cs, halfword cmd, halfword chr)
         halfword leftangle = null;
         halfword rightangle = null;
         /*tex
-             One day I will check the next code for too many tests, no that much branching that it.
+             One day I will check the next code for too many tests, not that much branching that it.
              The numbers in |#n| are match tokens except the last one, which is has a different
              token info.
         */
@@ -1404,7 +1407,9 @@ static void tex_aux_macro_call(halfword cs, halfword cmd, halfword chr)
                         } else if (tolerant) {
                             last = false;
                             nofarguments = nofscanned;
-                            tex_back_input(cur_tok);
+                            if (! (cur_cmd == relax_cmd && cur_chr == no_arguments_relax_code)) {
+                                tex_back_input(cur_tok);
+                            }
                             goto QUITTING;
                         } else {
                             last = false;
@@ -1508,17 +1513,17 @@ static void tex_aux_macro_call(halfword cs, halfword cmd, halfword chr)
                      // match = match_token;
                         goto AGAIN;
 # if (match_experiment)
-/* 
+/*
     This is a proof of concept that kind of works but we need a storage model that permits the
-    larger values. But that is currently not worth the trouble because we seldom need this. Think 
-    of dimension_value_cmd and integer_value_cmd where the next token pointed too is the value 
-    but that is actually also kind of alien to tex (not really a token list then). Typing the 
+    larger values. But that is currently not worth the trouble because we seldom need this. Think
+    of dimension_value_cmd and integer_value_cmd where the next token pointed too is the value
+    but that is actually also kind of alien to tex (not really a token list then). Typing the
     stack is overkill too. We can do the same as node_cmd: have a lsb/msb in a folow up ignore_cmd
-    token. 
+    token.
 */
 case dimension_match_token:
     {
-        if (last) { 
+        if (last) {
             tex_back_input(cur_tok);
         }
         halfword v = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
@@ -1538,7 +1543,7 @@ case dimension_match_token:
     }
 case integer_match_token:
     {
-        if (last) { 
+        if (last) {
             tex_back_input(cur_tok);
         }
         halfword v = tex_scan_integer(0, NULL, NULL);
@@ -1548,7 +1553,7 @@ case integer_match_token:
             tex_store_new_token(p, token_val(ignore_cmd, node_token_lsb(v)));
         } else {
             p = tex_store_new_token(null, token_val(integer_reference_cmd, v));
-        }       
+        }
         pstack[nofscanned] = p;
         ++nofscanned;
         matchpointer = token_link(matchpointer);
@@ -1556,7 +1561,7 @@ case integer_match_token:
         last = false;
         goto OEPS;
     }
-# endif 
+# endif
                     default:
                         match = matchtoken - match_token;
                         break;
@@ -1671,7 +1676,9 @@ case integer_match_token:
               BAD:
                 if (tolerant) {
                     quitting = nofscanned ? 1 : count ? 2 : 3;
-                    tex_back_input(cur_tok);
+                    if (! (cur_cmd == relax_cmd && cur_chr == no_arguments_relax_code)) {
+                        tex_back_input(cur_tok);
+                    }
                  // last = false;
                     goto FOUND;
                 } else if (s) {
@@ -1933,7 +1940,7 @@ case integer_match_token:
             }
 # if (match_experiment)
   OEPS:
-# endif 
+# endif
         } while (matchtoken != end_match_token);
         nofarguments = nofscanned;
       QUITDONE:
@@ -1950,6 +1957,16 @@ case integer_match_token:
             We don't really start a list, it's more housekeeping. The starting point is the body and
             the later set |loc| reflects that.
         */
+    # if (0) 
+        /*tex 
+            There is very little gain on documents, so I need a good example first. A simple gobble 
+            two arguments goes down from 0.275 to 0.200 for 5 million calls  but then, maybe a more
+            dedicated gobbles might be even better (but of course it's less general wrt delimiters). 
+        */
+        if (! matchpointer && ! tracing) {
+            goto EXIT;
+        }
+    # endif 
         tex_begin_macro_list(chr);
         /*tex
             Beware: here the |name| is used for symbolic locations but also for macro indices but these

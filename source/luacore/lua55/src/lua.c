@@ -303,7 +303,8 @@ static int collectargs (char **argv, int *first) {
       case '-':  /* '--' */
         if (argv[i][2] != '\0')  /* extra characters after '--'? */
           return has_error;  /* invalid option */
-        *first = i + 1;
+        /* if there is a script name, it comes after '--' */
+        *first = (argv[i + 1] != NULL) ? i + 1 : 0;
         return args;
       case '\0':  /* '-' */
         return args;  /* script "name" is '-' */
@@ -432,32 +433,41 @@ static int handle_luainit (lua_State *L) {
 
 
 /*
-** lua_readline defines how to show a prompt and then read a line from
-** the standard input.
-** lua_saveline defines how to "save" a read line in a "history".
-** lua_freeline defines how to free a line read by lua_readline.
+** * lua_initreadline initializes the readline system.
+** * lua_readline defines how to show a prompt and then read a line from
+**   the standard input.
+** * lua_saveline defines how to "save" a read line in a "history".
+** * lua_freeline defines how to free a line read by lua_readline.
 */
 
-#if defined(LUA_USE_READLINE)
+#if !defined(lua_readline)	/* { */
+/* Otherwise, all previously listed functions should be defined. */
+
+#if defined(LUA_USE_READLINE)	/* { */
+/* Lua will be linked with '-lreadline' */
 
 #include <readline/readline.h>
 #include <readline/history.h>
+
 #define lua_initreadline(L)	((void)L, rl_readline_name="lua")
-#define lua_readline(b,p)	((void)b, readline(p))
+#define lua_readline(buff,prompt)	((void)buff, readline(prompt))
 #define lua_saveline(line)	add_history(line)
-#define lua_freeline(b)		free(b)
+#define lua_freeline(line)	free(line)
 
-#endif
+#else		/* }{ */
+/* use dynamically loaded readline (or nothing) */
 
+/* pointer to 'readline' function (if any) */
+typedef char *(*l_readlineT) (const char *prompt);
+static l_readlineT l_readline = NULL;
 
-#if !defined(lua_readline)	/* { */
+/* pointer to 'add_history' function (if any) */
+typedef void (*l_addhistT) (const char *string);
+static l_addhistT l_addhist = NULL;
 
-/* pointer to dynamically loaded 'readline' function (if any) */
-typedef char *(*l_readline_t) (const char *prompt);
-static l_readline_t l_readline = NULL;
 
 static char *lua_readline (char *buff, const char *prompt) {
-  if (l_readline != NULL)  /* is there a dynamic 'readline'? */
+  if (l_readline != NULL)  /* is there a 'readline'? */
     return (*l_readline)(prompt);  /* use it */
   else {  /* emulate 'readline' over 'buff' */
     fputs(prompt, stdout);
@@ -467,32 +477,24 @@ static char *lua_readline (char *buff, const char *prompt) {
 }
 
 
-/* pointer to dynamically loaded 'add_history' function (if any) */
-typedef void (*l_addhist_t) (const char *string);
-static l_addhist_t l_addhist = NULL;
-
 static void lua_saveline (const char *line) {
-  if (l_addhist != NULL)  /* is there a dynamic 'add_history'? */
+  if (l_addhist != NULL)  /* is there an 'add_history'? */
     (*l_addhist)(line);  /* use it */
   /* else nothing to be done */
 }
 
 
 static void lua_freeline (char *line) {
-  if (l_readline != NULL)  /* is there a dynamic 'readline'? */
+  if (l_readline != NULL)  /* is there a 'readline'? */
     free(line);  /* free line created by it */
   /* else 'lua_readline' used an automatic buffer; nothing to free */
 }
 
 
-#if !defined(LUA_USE_DLOPEN) || !defined(LUA_READLINELIB)
-
-#define lua_initreadline(L)  ((void)L)
-
-#else /* { */
+#if defined(LUA_USE_DLOPEN) && defined(LUA_READLINELIB)		/* { */
+/* try to load 'readline' dynamically */
 
 #include <dlfcn.h>
-
 
 static void lua_initreadline (lua_State *L) {
   void *lib = dlopen(LUA_READLINELIB, RTLD_NOW | RTLD_LOCAL);
@@ -501,16 +503,23 @@ static void lua_initreadline (lua_State *L) {
   else {
     const char **name = cast(const char**, dlsym(lib, "rl_readline_name"));
     if (name != NULL)
-      *name = "Lua";
-    l_readline = cast(l_readline_t, cast_func(dlsym(lib, "readline")));
+      *name = "lua";
+    l_readline = cast(l_readlineT, cast_func(dlsym(lib, "readline")));
+    l_addhist = cast(l_addhistT, cast_func(dlsym(lib, "add_history")));
     if (l_readline == NULL)
       lua_warning(L, "unable to load 'readline'", 0);
-    else
-      l_addhist = cast(l_addhist_t, cast_func(dlsym(lib, "add_history")));
   }
 }
 
-#endif	/* } */
+#else		/* }{ */
+/* no dlopen or LUA_READLINELIB undefined */
+
+/* Leave pointers with NULL */
+#define lua_initreadline(L)	((void)L)
+
+#endif		/* } */
+
+#endif				/* } */
 
 #endif				/* } */
 

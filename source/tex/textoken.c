@@ -35,7 +35,7 @@ static inline int tex_aux_the_cat_code(halfword b)
     used for allocation in this array.
 
     One can make an argument to switch to standard \CCODE\ allocation but the current approach is
-    very efficient in memory usage and performence so we stay with it. On the average memory
+    very efficient in memory usage and performance so we stay with it. On the average memory
     consumption of \TEX| is not that large, definitely not compared to other programs that deal
     with text.
 
@@ -98,7 +98,7 @@ token_state_info lmt_token_state = {
 
 /*tex Some properties are dumped in the format so these are aet already! */
 
-# define reserved_token_mem_slots 2 // play safe for slight overuns
+# define reserved_token_mem_slots 2 // play safe for slight overruns
 
 void tex_initialize_token_mem(void)
 {
@@ -303,7 +303,7 @@ halfword tex_store_new_token(halfword p, halfword t)
 
 /*tex
 
-    The procedure |flush_list (p)| frees an entire linked list of oneword nodes that starts at
+    The procedure |flush_list (p)| frees an entire linked list of one word nodes that starts at
     position |p|. It makes list of single word nodes available. The second variant in principle
     is faster but in practice this goes unnoticed. Of course there is a little price to pay for
     keeping track of memory usage.
@@ -584,7 +584,7 @@ void tex_print_meaning(halfword code)
     In \LUAMETATEX\ we have some more node types and token types so we also have additional tracing.
     Because there is some more granularity in for instance nodes (subtypes) more detail is reported.
 
-    It made sense to split the |tex_show_token_list| funciton in two, ine specialized for showing
+    It made sense to split the |tex_show_token_list| function in two, ine specialized for showing
     the context. That saves some testing and passing arguments.
 
 */
@@ -757,7 +757,7 @@ void tex_show_token_list_context(halfword p, halfword q)
                         break;
                     case parameter_cmd:
                         /*tex
-                            When we show a context we alwasy duplicate the hashes.
+                            When we show a context we always duplicate the hashes.
                         */
                         tex_print_tex_str(chr);
                         tex_print_tex_str(chr);
@@ -872,8 +872,8 @@ static void tex_aux_invalid_character_error(void)
     );
 }
 
-static int tex_aux_process_sup_mark(void);
-
+static int tex_aux_process_sup_mark     (void);
+/*     int tex_aux_process_comment      (void); */
 static int tex_aux_scan_control_sequence(void);
 
 typedef enum next_line_retval {
@@ -889,7 +889,7 @@ static inline next_line_retval tex_aux_next_line(void);
     In case you are getting bored, here is a slightly less trivial routine: Given a string of
     lowercase letters, like |pt| or |plus| or |width|, the |scan_keyword| routine checks to see
     whether the next tokens of input match this string. The match must be exact, except that
-    ppercase letters will match their lowercase counterparts; uppercase equivalents are determined
+    uppercase letters will match their lowercase counterparts; uppercase equivalents are determined
     by subtracting |"a" - "A"|, rather than using the |uc_code| table, since \TEX\ uses this
     routine only for its own limited set of keywords.
 
@@ -1118,7 +1118,7 @@ int tex_scan_keyword(const char *s)
         cur_cs = save_cur_cs;
         return 1;
     } else {
-        /*tex but not with newtokenlib zero keyword simply doesn't match  */
+        /*tex but not with |tokenlib| zero keyword simply doesn't match  */
         return 0 ;
     }
 }
@@ -1278,7 +1278,7 @@ halfword tex_active_to_cs(int c, int force)
     This gives as many prediction errors. So, we can indeed assume that the compiler does the right
     job, or that there is simply no other way.
 
-    When a line is finished a space is emited. When a character of type |spacer| gets through, its
+    When a line is finished a space is emitted. When a character of type |spacer| gets through, its
     character code is changed to |\ =040|. This means that the \ASCII\ codes for tab and space, and
     for the space inserted at the end of a line, will be treated alike when macro parameters are
     being matched. We do this since such characters are indistinguishable on most computer terminal
@@ -1300,7 +1300,7 @@ halfword tex_active_to_cs(int c, int force)
 /*tex
 
     This trick has been dropped when the wrapup mechanism had proven to be useful. The idea was
-    to backport this to \LUATEX\ but some other \PDFTEX\ compatible parstuff made it there and
+    to backport this to \LUATEX\ but some other \PDFTEX\ compatible par stuff made it there and
     backporting par related features becomes too messy.
 
     \starttyping
@@ -1313,6 +1313,30 @@ halfword tex_active_to_cs(int c, int force)
     }
     cur_chr = eq_value(cur_cs);
     \stoptyping
+
+*/
+
+/*tex
+
+    The commented |comment_cmd| with |\commentmode| primitive experiment is not enabled. The two
+    values (1 and 2) either make two comment tokens into an escape or make it into a comment  
+    trigger. Comment tokens at the beginning of the line always trigger a comment. Anything more 
+    advanced interferes badly. 
+
+    \starttyping 
+    test 10%  single
+
+    test 10%% double
+
+    test 10%  %% single and double
+
+    test 10%% % double and single
+
+    % single begin of line
+    \stoptyping 
+
+    In the end it just remained an experiment but we keep the code around as reminder (so that we
+    don't try the same again because we forgot about it).
 
 */
 
@@ -1380,7 +1404,7 @@ static int tex_aux_get_next_file(void)
                     goto RESWITCH;
                 } else {
                     /*tex
-                        We provide prescripts and shifted script in math mode and avoid fance |^|
+                        We provide prescripts and shifted script in math mode and avoid fence |^|
                         processing in text mode (which is what we do in \CONTEXT).
                     */
                 }
@@ -1408,9 +1432,38 @@ static int tex_aux_get_next_file(void)
             case mid_line_state    + comment_cmd:
             case new_line_state    + comment_cmd:
             case skip_blanks_state + comment_cmd:
-                /*tex Finish line, |goto switch|; */
+                /*tex Finish line, |goto switch|. */
                 lmt_input_state.cur_input.loc = lmt_input_state.cur_input.limit + 1;
                 goto SWITCH;
+        # if (0) /*tex Experiment, see commented in |texequivalents.h| and |texcommands.c|. */
+            case mid_line_state    + comment_cmd:
+                switch (comment_mode_par) { 
+                    case 0: 
+                        /*tex Explicit zero test. */
+                      OBEY_COMMENT:
+                        /*tex Finish line, |goto switch|. */
+                        lmt_input_state.cur_input.loc = lmt_input_state.cur_input.limit + 1;
+                        goto SWITCH;
+                    case 1: 
+                        if (tex_aux_process_comment()) {
+                            goto OBEY_COMMENT;
+                        } else { 
+                            break;
+                        }
+                    case 2: 
+                        if (! tex_aux_process_comment()) {
+                            goto OBEY_COMMENT;
+                        } else { 
+                            break;
+                        }
+                    default:
+                        goto OBEY_COMMENT;
+                }
+                /*tex Assume an other character category and continue. */
+                cur_tok = other_token + cur_chr;
+                cur_cmd = other_char_cmd;
+                break;
+        # endif 
             case new_line_state + end_line_cmd:
                 if (! auto_paragraph_mode(auto_paragraph_go_on)) {
                     lmt_input_state.cur_input.loc = lmt_input_state.cur_input.limit + 1;
@@ -1607,10 +1660,10 @@ static int tex_aux_process_sup_mark(void)
                 int c1 = lmt_fileio_state.io_buffer[lmt_input_state.cur_input.loc + 1];
                 if (c1 < 0x80) {
                     lmt_input_state.cur_input.loc = lmt_input_state.cur_input.loc + 2;
-                 // if (is_hex(c1) && (iloc <= ilimit)) {
-                 //     int c2 = fileio_state.io_buffer[iloc];
+                 // if (is_hex(c1) && (lmt_input_state.cur_input.loc <= lmt_input_state.cur_input.limit)) {
+                 //     int c2 = fileio_state.io_buffer[lmt_input_state.cur_input.loc];
                  //     if (is_hex(c2)) {
-                 //         ++iloc;
+                 //         ++loc;
                  //         cur_chr = two_hex_to_cur_chr(c1, c2);
                  //         return 1;
                  //     }
@@ -1625,6 +1678,19 @@ static int tex_aux_process_sup_mark(void)
     return 0;
 }
 
+# if (0) /* experiment */ 
+
+static int tex_aux_process_comment(void)
+{
+    if (cur_chr == lmt_fileio_state.io_buffer[lmt_input_state.cur_input.loc]) {
+        lmt_input_state.cur_input.loc += 1;
+        return 1; 
+    }
+    return 0;
+}
+
+# endif 
+
 /*tex
 
     Control sequence names are scanned only when they appear in some line of a file. Once they have
@@ -1634,7 +1700,7 @@ static int tex_aux_process_sup_mark(void)
 
     The program that scans a control sequence has been written carefully in order to avoid the
     blowups that might otherwise occur if a malicious user tried something like |\catcode'15 = 0|.
-    The algorithm might look at |buffer[ilimit + 1]|, but it never looks at |buffer[ilimit + 2]|.
+    The algorithm might look at |buffer[limit + 1]|, but it never looks at |buffer[limit + 2]|.
 
     If expanded characters like |^^A| or |^^df| appear in or just following a control sequence name,
     they are converted to single characters in the buffer and the process is repeated, slowly but
@@ -1645,7 +1711,7 @@ static int tex_aux_process_sup_mark(void)
 /*tex
 
     Whenever we reach the following piece of code, we will have |cur_chr = buffer[k - 1]| and |k <=
-    ilimit + 1| and |cat = get_cat_code(cat_code_table, cur_chr)|. If an expanded code like |^^A| or
+    limit + 1| and |cat = get_cat_code(cat_code_table, cur_chr)|. If an expanded code like |^^A| or
     |^^df| appears in |buffer[(k - 1) .. (k + 1)]| or |buffer[(k - 1) .. (k + 2)]|, we will store
     the corresponding code in |buffer[k - 1]| and shift the rest of the buffer left two or three
     places.
@@ -1994,7 +2060,7 @@ static inline next_line_retval tex_aux_next_line(void)
              /* case io_file_input_code: */
                 default:
                     if (tex_lua_input_ln()) {
-                        /*tex Not end of file, set |ilimit|. */
+                        /*tex Not end of file, set |limit|. */
                         lmt_input_state.cur_input.limit = lmt_fileio_state.io_last;
                         lmt_input_state.cur_input.cattable = default_catcode_table_preset;
                         break;
@@ -2110,8 +2176,8 @@ static int tex_aux_get_next_tokenlist(void)
 
                 Get the next token, suppressing expansion. The present point in the program is
                 reached only when the |expand| routine has inserted a special marker into the
-                input. In this special case, |token_info(iloc)| is known to be a control sequence
-                token, and |token_link(iloc) = null|.
+                input. In this special case, |token_info(loc)| is known to be a control sequence
+                token, and |token_link(loc) = null|.
 
             */
             cur_cs = token_info(lmt_input_state.cur_input.loc) - cs_token_flag;
@@ -2661,12 +2727,13 @@ typedef enum combine_operations {
     combine_prepend,
 } combine_operations;
 
-void tex_run_combine_the_toks(void)
+void tex_run_combine_the_toks(int force)
 {
     halfword source = null;
     halfword target = null;
     halfword append, expand, global;
     halfword nt, ns;
+    halfword slot; 
     singleword cmd;
     /* */
     switch (cur_chr) {
@@ -2685,169 +2752,175 @@ void tex_run_combine_the_toks(void)
     /*tex The target. */
     tex_get_x_token();
     if (cur_cmd == register_toks_cmd || cur_cmd == internal_toks_cmd) {
+        slot = 0;
         nt = eq_value(cur_cs);
         cmd = (singleword) cur_cmd;
     } else {
         /*tex Maybe a number. */
         tex_back_input(cur_tok);
-        nt = register_toks_location(tex_scan_toks_register_number());
+        slot = tex_scan_toks_register_number();
+        nt = register_toks_location(slot);
         cmd = register_toks_cmd;
     }
     target = eq_value(nt);
-    /*tex The source. */
-    do {
-        tex_get_x_token();
-    } while (cur_cmd == spacer_cmd);
-    if (cur_cmd == left_brace_cmd) {
-        source = expand ? tex_scan_toks_expand(1, NULL, 0, 0) : tex_scan_toks_normal(1, NULL);
-        /*tex The action. */
-        if (source) {
-            if (target) {
-                halfword s = token_link(source);
-                if (s) {
-                    halfword t = token_link(target);
-                    if (! t) {
-                        /*tex Can this happen? */
-                        set_token_link(target, s);
-                        token_link(source) = null;
-                    } else {
+    if (force || ((cmd == register_toks_cmd && tex_register_permitted(nt, slot, register_toks_cmd)) || tex_mutation_permitted(nt))) {
+        /*tex The source. */
+        do {
+            tex_get_x_token();
+        } while (cur_cmd == spacer_cmd);
+        if (cur_cmd == left_brace_cmd) {
+            source = expand ? tex_scan_toks_expand(1, NULL, 0, 0) : tex_scan_toks_normal(1, NULL);
+            /*tex The action. */
+            if (source) {
+                if (target) {
+                    halfword s = token_link(source);
+                    if (s) {
+                        halfword t = token_link(target);
+                        if (! t) {
+                            /*tex Can this happen? */
+                            set_token_link(target, s);
+                            token_link(source) = null;
+                        } else {
+                            switch (append) {
+                                case combine_assign:
+                                    goto ASSIGN_1;
+                                case 1:
+                                    /*append */
+                                    if (immediate_permitted(nt,target)) {
+                                     // halfword p = tex_tail_of_node_list(t);
+                                        halfword p = t; 
+                                        while (token_link(p)) {
+                                            p = token_link(p);
+                                        }
+                                        token_link(p) = s;
+                                        token_link(source) = null;
+                                    } else {
+                                        tex_aux_append_copied_toks_list(nt, cmd, global, t, s, NULL);
+                                    }
+                                    break;
+                                case 2:
+                                    /* prepend */
+                                    if (immediate_permitted(nt,target)) {
+                                     // halfword p = tex_tail_of_node_list(s);
+                                        halfword p = s;
+                                        while (token_link(p)) {
+                                            p = token_link(p);
+                                        }
+                                        token_link(source) = null;
+                                        set_token_link(p, t);
+                                        set_token_link(target, s);
+                                    } else {
+                                        tex_aux_append_copied_toks_list(nt, cmd, global, s, t, NULL);
+                                    }
+                                    break;
+                            }
+                        }
+                    }
+                } else {
+                    ASSIGN_1:
+                    tex_aux_set_toks_register(nt, cmd, token_link(source), global);
+                    token_link(source) = null;
+                }
+                tex_flush_token_list(source);
+            }
+        } else {
+            /* cf luatex we don't handle expand here */
+            if (cur_cmd == register_toks_cmd) {
+                ns = register_toks_number(eq_value(cur_cs));
+            } else if (cur_cmd == internal_toks_cmd) {
+                ns = internal_toks_number(eq_value(cur_cs));
+            } else {
+                ns = tex_scan_toks_register_number();
+            }
+            /*tex The action. */
+            source = toks_register(ns);
+            if (source) {
+                if (target) {
+                    if (expand) {
+                        halfword defref = lmt_input_state.def_ref;
+                        tex_back_input(right_brace_token + '}');
+                        tex_begin_token_list(source, token_text);
+                        source = tex_scan_toks_expand(1, NULL, 0, 1);
+                        lmt_input_state.def_ref = defref;
                         switch (append) {
                             case combine_assign:
-                                goto ASSIGN_1;
-                            case 1:
-                                /*append */
-                                if (immediate_permitted(nt,target)) {
-                                    halfword p = t;
-                                    while (token_link(p)) {
-                                        p = token_link(p);
+                                eq_value(nt) = source;
+                                break;
+                            case combine_append:
+                                if (immediate_permitted(nt, target)) {
+                                    halfword p = tex_tail_of_token_list(token_link(target));
+                                    token_link(p) = token_link(source);
+                                } else {
+                                    halfword tail;
+                                    tex_aux_append_copied_toks_list(nt, cmd, global, target, null, &tail);
+                                    token_link(tail) = token_link(source);
+                                }
+                                tex_put_available_token(source);
+                                break;
+                            case combine_prepend:
+                                if (immediate_permitted(nt, target)) {
+                                    halfword p = tex_tail_of_token_list(token_link(source));
+                                    token_link(p) = token_link(target);
+                                    token_link(target) = token_link(source);
+                                } else {
+                                    halfword head = tex_aux_append_copied_toks_list(nt, cmd, global, target, null, NULL);
+                                    halfword tail = tex_tail_of_token_list(token_link(source));
+                                    token_link(tail) = token_link(head);
+                                    token_link(head) = token_link(source);
+                                }
+                                tex_put_available_token(source);
+                                break;
+                        }
+                    } else {
+                        halfword t = token_link(target);
+                        halfword s = token_link(source);
+                        switch (append) {
+                            case combine_assign:
+                                tex_add_token_reference(source);
+                                eq_value(nt) = source;
+                                break;
+                            case combine_append:
+                                if (immediate_permitted(nt, target)) {
+                                    halfword p = tex_tail_of_token_list(t);
+                                    while (s) {
+                                        p = tex_store_new_token(p, token_info(s));
+                                        s = token_link(s);
                                     }
-                                    token_link(p) = s;
-                                    token_link(source) = null;
                                 } else {
                                     tex_aux_append_copied_toks_list(nt, cmd, global, t, s, NULL);
                                 }
                                 break;
-                            case 2:
-                                /* prepend */
-                                if (immediate_permitted(nt,target)) {
-                                    halfword p = s;
-                                    while (token_link(p)) {
-                                        p = token_link(p);
+                            case combine_prepend:
+                                if (immediate_permitted(nt, target)) {
+                                    halfword h = null;
+                                    halfword p = null;
+                                    while (s) {
+                                        p = tex_store_new_token(p, token_info(s));
+                                        if (! h) {
+                                            h = p;
+                                        }
+                                        s = token_link(s);
                                     }
-                                    token_link(source) = null;
                                     set_token_link(p, t);
-                                    set_token_link(target, s);
+                                    set_token_link(target, h);
                                 } else {
                                     tex_aux_append_copied_toks_list(nt, cmd, global, s, t, NULL);
                                 }
                                 break;
                         }
                     }
-                }
-            } else {
-                ASSIGN_1:
-                tex_aux_set_toks_register(nt, cmd, token_link(source), global);
-                token_link(source) = null;
-            }
-            tex_flush_token_list(source);
-        }
-    } else {
-        /* cf luatex we don't handle expand here */
-        if (cur_cmd == register_toks_cmd) {
-            ns = register_toks_number(eq_value(cur_cs));
-        } else if (cur_cmd == internal_toks_cmd) {
-            ns = internal_toks_number(eq_value(cur_cs));
-        } else {
-            ns = tex_scan_toks_register_number();
-        }
-        /*tex The action. */
-        source = toks_register(ns);
-        if (source) {
-            if (target) {
-                if (expand) {
+                } else if (expand) {
                     halfword defref = lmt_input_state.def_ref;
                     tex_back_input(right_brace_token + '}');
                     tex_begin_token_list(source, token_text);
                     source = tex_scan_toks_expand(1, NULL, 0, 1);
+                    eq_value(nt) = source;
                     lmt_input_state.def_ref = defref;
-                    switch (append) {
-                        case combine_assign:
-                            eq_value(nt) = source;
-                            break;
-                        case combine_append:
-                            if (immediate_permitted(nt, target)) {
-                                halfword p = tex_tail_of_token_list(token_link(target));
-                                token_link(p) = token_link(source);
-                            } else {
-                                halfword tail;
-                                tex_aux_append_copied_toks_list(nt, cmd, global, target, null, &tail);
-                                token_link(tail) = token_link(source);
-                            }
-                            tex_put_available_token(source);
-                            break;
-                        case combine_prepend:
-                            if (immediate_permitted(nt, target)) {
-                                halfword p = tex_tail_of_token_list(token_link(source));
-                                token_link(p) = token_link(target);
-                                token_link(target) = token_link(source);
-                            } else {
-                                halfword head = tex_aux_append_copied_toks_list(nt, cmd, global, target, null, NULL);
-                                halfword tail = tex_tail_of_token_list(token_link(source));
-                                token_link(tail) = token_link(head);
-                                token_link(head) = token_link(source);
-                            }
-                            tex_put_available_token(source);
-                            break;
-                    }
                 } else {
-                    halfword t = token_link(target);
-                    halfword s = token_link(source);
-                    switch (append) {
-                        case combine_assign:
-                            tex_add_token_reference(source);
-                            eq_value(nt) = source;
-                            break;
-                        case combine_append:
-                            if (immediate_permitted(nt, target)) {
-                                halfword p = tex_tail_of_token_list(t);
-                                while (s) {
-                                    p = tex_store_new_token(p, token_info(s));
-                                    s = token_link(s);
-                                }
-                            } else {
-                                tex_aux_append_copied_toks_list(nt, cmd, global, t, s, NULL);
-                            }
-                            break;
-                        case combine_prepend:
-                            if (immediate_permitted(nt, target)) {
-                                halfword h = null;
-                                halfword p = null;
-                                while (s) {
-                                    p = tex_store_new_token(p, token_info(s));
-                                    if (! h) {
-                                        h = p;
-                                    }
-                                    s = token_link(s);
-                                }
-                                set_token_link(p, t);
-                                set_token_link(target, h);
-                            } else {
-                                tex_aux_append_copied_toks_list(nt, cmd, global, s, t, NULL);
-                            }
-                            break;
-                    }
+                    // set_toks_register(nt, source, global);
+                    tex_add_token_reference(source);
+                    eq_value(nt) = source;
                 }
-            } else if (expand) {
-                halfword defref = lmt_input_state.def_ref;
-                tex_back_input(right_brace_token + '}');
-                tex_begin_token_list(source, token_text);
-                source = tex_scan_toks_expand(1, NULL, 0, 1);
-                eq_value(nt) = source;
-                lmt_input_state.def_ref = defref;
-            } else {
-                // set_toks_register(nt, source, global);
-                tex_add_token_reference(source);
-                eq_value(nt) = source;
             }
         }
     }
@@ -2969,6 +3042,15 @@ void tex_run_convert_tokens(halfword code)
                 pop_selector;
                 break;
             }
+        case to_limited_float_code:
+            {
+                int saved_selector;
+                halfword v = tex_scan_posit(0);
+                push_selector;
+                tex_print_posit_5(v);
+                pop_selector;
+                break;
+            }
         case to_mathstyle_code:
             {
                 int saved_selector;
@@ -3016,7 +3098,7 @@ void tex_run_convert_tokens(halfword code)
                 full_scanner_status saved_full_status = tex_save_full_scanner_status();
                 strnumber u = tex_save_cur_string();
                 halfword s = tex_scan_toks_expand(0, NULL, 0, 1); // maybe expandconstant
-                tex_unsave_full_scanner_status(saved_full_status);
+                tex_unsave_full_scanner_status(&saved_full_status);
                 lmt_token_state.luacstrings = 0;
                 lmt_token_call(s);
                 tex_delete_token_reference(s); /* boils down to flush_list */
@@ -3033,7 +3115,7 @@ void tex_run_convert_tokens(halfword code)
                 full_scanner_status saved_full_status = tex_save_full_scanner_status();
                 strnumber u = tex_save_cur_string();
                 halfword s = tex_scan_toks_expand(0, NULL, code == semi_expanded_code, 0);
-                tex_unsave_full_scanner_status(saved_full_status);
+                tex_unsave_full_scanner_status(&saved_full_status);
                 if (token_link(s)) {
                     tex_begin_inserted_list(token_link(s));
                     token_link(s) = null;
@@ -3292,7 +3374,7 @@ void tex_run_convert_tokens(halfword code)
              /* lmt_token_state.in_lua_escape = saved_in_lua_escape; */
                 escape_char_par = saved_escape_char;
                 tex_delete_token_reference(result); /* boils down to flush_list */
-                tex_unsave_full_scanner_status(saved_full_status);
+                tex_unsave_full_scanner_status(&saved_full_status);
                 if (str.l) {
                     result = lmt_str_toks(str);
                     tex_begin_inserted_list(result);
@@ -3396,6 +3478,9 @@ strnumber tex_the_convert_string(halfword c, int i)
         case to_sparse_dimension_code:
             tex_print_sparse_dimension(i, pt_unit);
             break;
+       case to_limited_float_code:
+            tex_print_posit_5(i);
+            break;
         case roman_numeral_code:
             tex_print_roman_int(i);
             break;
@@ -3452,11 +3537,11 @@ strnumber tex_tokens_to_string(halfword p)
     The actual token conversion in this function is now functionally equivalent to |show_token_list|,
     except that it always prints the whole token list. Often the result is not that large, for
     instance |\directlua| is seldom large. However, this converter is also used for patterns
-    and exceptions where size is mnore an issue. For that reason we used to have three variants,
+    and exceptions where size is more an issue. For that reason we used to have three variants,
     one of which (experimentally) used a buffer. At some point, in the manual we were talking of
     millions of allocations but times have changed.
 
-    Macros were used to inline the appending code (in the thre variants), but in the end I decided
+    Macros were used to inline the appending code (in the three variants), but in the end I decided
     to just merge all into one function, with a bit more overhead because we need to optionally
     skip a macro preamble.
 
@@ -3768,113 +3853,132 @@ halfword tex_get_tex_posit_register     (int j, int internal) { return internal 
 halfword tex_get_tex_attribute_register (int j, int internal) { return internal ? attribute_parameter(j) : attribute_register(j) ; }
 halfword tex_get_tex_box_register       (int j, int internal) { return internal ? box_parameter(j) : box_register(j) ; }
 
-void tex_set_tex_dimension_register(int j, halfword v, int flags, int internal)
-{
  // if (global_defs_par) {
  //     flags = add_global_flag(flags);
  // }
-    if (internal) {
-        tex_assign_internal_dimension_value(flags, internal_dimension_location(j), v);
+
+int tex_set_tex_dimension_register(int j, halfword v, int flags, int internal)
+{
+    halfword p = internal ? internal_dimension_location(j) : register_dimension_location(j);
+    if (tex_mutation_permitted(p)) {
+        if (internal) {
+            tex_assign_internal_dimension_value(flags, p, v);
+        } else {
+            tex_word_define(flags, p, v);
+        }
+        return 1;
     } else {
-        tex_word_define(flags, register_dimension_location(j), v);
+        return 0;
     }
 }
 
-void tex_set_tex_skip_register(int j, halfword v, int flags, int internal)
+int tex_set_tex_skip_register(int j, halfword v, int flags, int internal)
 {
- // if (global_defs_par) {
- //     flags = add_global_flag(flags);
- // }
-    if (internal) {
-        tex_assign_internal_skip_value(flags, internal_glue_location(j), v);
+    halfword p = internal ? internal_glue_location(j) : register_glue_location(j);
+    if (tex_mutation_permitted(p)) {
+        if (internal) {
+            tex_assign_internal_skip_value(flags, p, v);
+        } else {
+            tex_word_define(flags, p, v);
+        }
+        return 1;
     } else {
-        tex_word_define(flags, register_glue_location(j), v);
+        return 0;
     }
 }
 
-void tex_set_tex_muskip_register(int j, halfword v, int flags, int internal)
+int tex_set_tex_muskip_register(int j, halfword v, int flags, int internal)
 {
- // if (global_defs_par) {
- //     flags = add_global_flag(flags);
- // }
-    tex_word_define(flags, internal ? internal_muglue_location(j) : register_muglue_location(j), v);
-}
-
-void tex_set_tex_count_register(int j, halfword v, int flags, int internal)
-{
- // if (global_defs_par) {
- //     flags = add_global_flag(flags);
- // }
-    if (internal) {
-        tex_assign_internal_integer_value(flags, internal_integer_location(j), v);
+    halfword p = internal ? internal_muglue_location(j) : register_muglue_location(j);
+    if (tex_mutation_permitted(p)) {
+        tex_word_define(flags, p, v);
+        return 1;
     } else {
-        tex_word_define(flags, register_integer_location(j), v);
-    }
-}
-void tex_set_tex_posit_register(int j, halfword v, int flags, int internal)
-{
- // if (global_defs_par) {
- //     flags = add_global_flag(flags);
- // }
-    if (internal) {
-        tex_assign_internal_posit_value(flags, internal_posit_location(j), v);
-    } else {
-        tex_word_define(flags, register_posit_location(j), v);
+        return 0;
     }
 }
 
-
-void tex_set_tex_attribute_register(int j, halfword v, int flags, int internal)
+int tex_set_tex_count_register(int j, halfword v, int flags, int internal)
 {
- // if (global_defs_par) {
- //     flags = add_global_flag(flags);
- // }
-    if (j > lmt_node_memory_state.max_used_attribute) {
-        lmt_node_memory_state.max_used_attribute = j;
-    }
-    tex_change_attribute_register(flags, register_attribute_location(j), v);
-    tex_word_define(flags, internal ? internal_attribute_location(j) : register_attribute_location(j), v);
-}
-
-void tex_set_tex_box_register(int j, halfword v, int flags, int internal)
-{
- // if (global_defs_par) {
- //     flags = add_global_flag(flags);
- // }
-    if (internal) {
-        tex_define(flags, internal_box_location(j), internal_box_reference_cmd, v);
+    halfword p = internal ? internal_integer_location(j) : register_integer_location(j);
+    if (tex_mutation_permitted(p)) {
+        if (internal) {
+            tex_assign_internal_integer_value(flags, p, v);
+        } else {
+            tex_word_define(flags, p, v);
+        }
+        return 1;
     } else {
-        tex_define(flags, register_box_location(j), register_box_reference_cmd, v);
+        return 0;
     }
 }
 
-void tex_set_tex_toks_register(int j, lstring s, int flags, int internal)
+int tex_set_tex_posit_register(int j, halfword v, int flags, int internal)
 {
-    halfword ref = get_reference_token();
-    halfword head = tex_str_toks(s, NULL);
-    set_token_link(ref, head);
- // if (global_defs_par) {
- //     flags = add_global_flag(flags);
- // }
-    if (internal) {
-        tex_define(flags, internal_toks_location(j), internal_toks_reference_cmd, ref);
+    halfword p = internal ? internal_posit_location(j) : register_posit_location(j);
+    if (tex_mutation_permitted(p)) {
+        if (internal) {
+            tex_assign_internal_posit_value(flags, p, v);
+        } else {
+            tex_word_define(flags, p, v);
+        }
+        return 1;
     } else {
-        tex_define(flags, register_toks_location(j), register_toks_reference_cmd, ref);
+        return 0;
     }
 }
 
-void tex_scan_tex_toks_register(int j, int c, lstring s, int flags, int internal)
+int tex_set_tex_attribute_register(int j, halfword v, int flags, int internal)
 {
-    halfword ref = get_reference_token();
-    halfword head = tex_str_scan_toks(c, s);
-    set_token_link(ref, head);
- // if (global_defs_par) {
- //     flags = add_global_flag(flags);
- // }
-    if (internal) {
-        tex_define(flags, internal_toks_location(j), internal_toks_reference_cmd, ref);
+    halfword p = internal ? internal_attribute_location(j) : register_attribute_location(j);
+    if (tex_mutation_permitted(p)) {
+        if (j > lmt_node_memory_state.max_used_attribute) {
+            lmt_node_memory_state.max_used_attribute = j;
+        }
+        tex_change_attribute_register(flags, p, v);
+        tex_word_define(flags, p, v);
+        return 1;
     } else {
-        tex_define(flags, register_toks_location(j), register_toks_reference_cmd, ref);
+        return 0;
+    }
+}
+
+int tex_set_tex_box_register(int j, halfword v, int flags, int internal)
+{
+    halfword p = internal ? internal_box_location(j) : register_box_location(j);
+    if (tex_mutation_permitted(p)) {
+        tex_define(flags, p, internal ? internal_box_reference_cmd : register_box_reference_cmd, v);
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+int tex_set_tex_toks_register(int j, lstring s, int flags, int internal)
+{
+    halfword p = internal ? internal_toks_location(j) : register_toks_location(j);
+    if (tex_mutation_permitted(p)) {
+        halfword ref = get_reference_token();
+        halfword head = tex_str_toks(s, NULL);
+        set_token_link(ref, head);
+        tex_define(flags, p, internal ? internal_toks_reference_cmd : register_toks_reference_cmd, ref);
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+int tex_scan_tex_toks_register(int j, int c, lstring s, int flags, int internal)
+{
+    halfword p = internal ? internal_toks_location(j) : register_toks_location(j);
+    if (tex_mutation_permitted(p)) {
+        halfword ref = get_reference_token();
+        halfword head = tex_str_scan_toks(c, s);
+        set_token_link(ref, head);
+        tex_define(flags, p, internal ? internal_toks_reference_cmd : register_toks_reference_cmd, ref);
+        return 1;
+    } else {
+        return 0;
     }
 }
 

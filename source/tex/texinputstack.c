@@ -208,13 +208,13 @@ void tex_copy_to_parameter_stack(halfword *pstack, int n)
     called |open_parens| because it relates to the way files are reported), the |input_file| and
     the current line number in the current source file |line|. Furthermore some stacks:
     |line_stack|. |source_filename_stack| and |full_source_filename_stack|. The |scanner_status|
-    tells if we can a end a subfile now. There is an obscure identifier relevant to non-|normal|
+    tells if we can a end a sub-file now. There is an obscure identifier relevant to non-|normal|
     scanner status |warning_index|. Then there is the often used reference count pointer of token
     list being defined: |def_ref|.
 
-    Here is a procedure that uses |scanner_status| to print a warning message when a subfile has
+    Here is a procedure that uses |scanner_status| to print a warning message when a sub-file has
     ended, and at certain other crucial times. Actually it is only called when we run out of
-    token memory. Because memory errors can be of any kind, we normall will not use the \TEX\
+    token memory. Because memory errors can be of any kind, we normally will not use the \TEX\
     error handler (but we do have a callback).
 
     Similar code is is us in |texerrors.c| for use with the error callback. Maybe some day that
@@ -319,99 +319,224 @@ static void tex_aux_print_indent(void)
     }
 }
 
+/* This can be an array: */ 
+
+static const char *token_types_texts[n_of_token_types] = {
+    [parameter_text]          = "argument",
+    [template_pre_text]       = "templatepre",
+    [template_post_text]      = "templatepost",
+    [associated_text]         = "associated",
+    [backed_up_text]          = "backedup",
+    [inserted_text]           = "inserted text",
+    [macro_text]              = "macro",
+    [output_text]             = "output",
+    [every_par_text]          = "everypar",
+    [every_par_begin_text]    = "everyparbegin",
+    [every_par_end_text]      = "everyparend",
+    [every_math_text]         = "everymath",
+    [every_display_text]      = "everydisplay",
+    [every_hbox_text]         = "everyhbox",
+    [every_vbox_text]         = "everyvbox",
+    [every_math_atom_text]    = "everymathatom",
+    [every_job_text]          = "everyjob",
+    [every_cr_text]           = "everycr",
+    [every_tab_text]          = "everytab",
+    [end_of_group_text]       = "endofgroup",
+    [mark_text]               = "mark",
+    [token_text]              = "token",
+    [loop_text]               = "loop",
+    [every_eof_text]          = "everyeof",
+    [every_before_par_text]   = "everybeforepar",
+    [end_paragraph_text]      = "endpar",
+    [end_file_text]           = "endfile",
+    [write_text]              = "write",
+    [local_text]              = "local",
+    [local_loop_text]         = "localloop",
+};
+
+static const unsigned char token_types_verbose[n_of_token_types] = {
+    [parameter_text]          = 0,
+    [template_pre_text]       = 0,
+    [template_post_text]      = 0,
+    [associated_text]         = 0,
+    [backed_up_text]          = 0,
+    [inserted_text]           = 0,
+    [macro_text]              = 0,
+    [output_text]             = 0,
+    [every_par_text]          = 0,
+    [every_par_begin_text]    = 0,
+    [every_par_end_text]      = 0,
+    [every_math_text]         = 0,
+    [every_display_text]      = 0,
+    [every_hbox_text]         = 0,
+    [every_vbox_text]         = 0,
+    [every_math_atom_text]    = 0,
+    [every_job_text]          = 0,
+    [every_cr_text]           = 0,
+    [every_tab_text]          = 0,
+    [end_of_group_text]       = 1,
+    [mark_text]               = 1,
+    [token_text]              = 1,
+    [loop_text]               = 1,
+    [every_eof_text]          = 0,
+    [every_before_par_text]   = 0,
+    [end_paragraph_text]      = 1,
+    [end_file_text]           = 1,
+    [write_text]              = 1,
+    [local_text]              = 1,
+    [local_loop_text]         = 1,
+};
+
+// static void tex_aux_print_current_input_state(void)
+// {
+//     int macro = 0;
+//     tex_print_str("<");
+//     if (lmt_input_state.cur_input.state == token_list_state) {
+//         switch (lmt_input_state.cur_input.token_type) {
+//             case parameter_text:
+//                 tex_print_str("argument");
+//                 break;
+//             case template_pre_text:
+//                 tex_print_str("templatepre");
+//                 break;
+//             case template_post_text:
+//                 tex_print_str("templatepost");
+//                 break;
+//             case associated_text:
+//                 tex_print_str("associated");
+//                 break;
+//             case backed_up_text:
+//                 tex_print_str(lmt_input_state.cur_input.loc ? "to be read again" : "recently read");
+//                 break;
+//             case inserted_text:
+//                 tex_print_str("inserted text");
+//                 break;
+//             case macro_text:
+//                 tex_print_str("macro");
+//                 macro = lmt_input_state.cur_input.name;
+//                 break;
+//             case output_text:
+//                 tex_print_str("output");
+//                 break;
+//             case every_par_text:
+//                 tex_print_str("everypar");
+//                 break;
+//             case every_end_of_par_text:
+//                 tex_print_str("everyendofpar");
+//                 break;
+//             case every_math_text:
+//                 tex_print_str("everymath");
+//                 break;
+//             case every_display_text:
+//                 tex_print_str("everydisplay");
+//                 break;
+//             case every_hbox_text:
+//                 tex_print_str("everyhbox");
+//                 break;
+//             case every_vbox_text:
+//                 tex_print_str("everyvbox");
+//                 break;
+//             case every_math_atom_text:
+//                 tex_print_str("everymathatom");
+//                 break;
+//             case every_job_text:
+//                 tex_print_str("everyjob");
+//                 break;
+//             case every_cr_text:
+//                 tex_print_str("everycr");
+//                 break;
+//             case every_tab_text:
+//                 tex_print_str("everytab");
+//                 break;
+//             case end_of_group_text:
+//                 tex_print_str("endofgroup");
+//                 break;
+//             case mark_text:
+//                 tex_print_str("mark");
+//                 break;
+//             case token_text:
+//                 tex_print_str("token");
+//                 break;
+//             case loop_text:
+//                 tex_print_str("loop");
+//                 break;
+//             case every_eof_text:
+//                 tex_print_str("everyeof");
+//                 break;
+//             case every_before_par_text:
+//                 tex_print_str("everybeforepar");
+//                 break;
+//             case end_paragraph_text:
+//                 tex_print_str("endpar");
+//                 break;
+//             case end_file_text:
+//                 tex_print_str("endfile");
+//                 break;
+//             case write_text:
+//                 tex_print_str("write");
+//                 break;
+//             case local_text:
+//                 tex_print_str("local");
+//                 break;
+//             case local_loop_text:
+//                 tex_print_str("localloop");
+//                 break;
+//             default:
+//                 tex_print_str("unknown");
+//                 break;
+//         }
+//     } else {
+//         switch (lmt_input_state.cur_input.name) {
+//             case io_initial_input_code:
+//                 tex_print_str("initial input");
+//                 break;
+//             case io_lua_input_code:
+//                 tex_print_str("lua input");
+//                 break;
+//             case io_token_input_code:
+//                 tex_print_str("token input");
+//                 break;
+//             case io_token_eof_input_code:
+//                 tex_print_str("token eof input");
+//                 break;
+//             case io_tex_macro_code:
+//             case io_file_input_code:
+//             default:
+//                 {
+//                     /* Todo : figure out what the weird line is when we have a premature file end. */
+//                     tex_print_str("line ");
+//                     tex_print_int(lmt_input_state.cur_input.index);
+//                     tex_print_char('.');
+//                     tex_print_int(lmt_input_state.cur_input.index == lmt_input_state.in_stack_data.ptr ? lmt_input_state.input_line : lmt_input_state.in_stack[lmt_input_state.cur_input.index + 1].line);
+//                 }
+//                 break;
+//         }
+//     }
+//     tex_print_str("> ");
+//     if (macro) {
+//         tex_print_cs_checked(macro);
+//     }
+// }
+
 static void tex_aux_print_current_input_state(void)
 {
     int macro = 0;
     tex_print_str("<");
     if (lmt_input_state.cur_input.state == token_list_state) {
         switch (lmt_input_state.cur_input.token_type) {
-            case parameter_text:
-                tex_print_str("argument");
-                break;
-            case template_pre_text:
-                tex_print_str("templatepre");
-                break;
-            case template_post_text:
-                tex_print_str("templatepost");
-                break;
-            case associated_text:
-                tex_print_str("associated");
-                break;
             case backed_up_text:
                 tex_print_str(lmt_input_state.cur_input.loc ? "to be read again" : "recently read");
                 break;
-            case inserted_text:
-                tex_print_str("inserted text");
-                break;
             case macro_text:
-                tex_print_str("macro");
+                tex_print_str(token_types_texts[macro_text]);
                 macro = lmt_input_state.cur_input.name;
                 break;
-            case output_text:
-                tex_print_str("output");
-                break;
-            case every_par_text:
-                tex_print_str("everypar");
-                break;
-            case every_math_text:
-                tex_print_str("everymath");
-                break;
-            case every_display_text:
-                tex_print_str("everydisplay");
-                break;
-            case every_hbox_text:
-                tex_print_str("everyhbox");
-                break;
-            case every_vbox_text:
-                tex_print_str("everyvbox");
-                break;
-            case every_math_atom_text:
-                tex_print_str("everymathatom");
-                break;
-            case every_job_text:
-                tex_print_str("everyjob");
-                break;
-            case every_cr_text:
-                tex_print_str("everycr");
-                break;
-            case every_tab_text:
-                tex_print_str("everytab");
-                break;
-            case end_of_group_text:
-                tex_print_str("endofgroup");
-                break;
-            case mark_text:
-                tex_print_str("mark");
-                break;
-            case token_text:
-                tex_print_str("token");
-                break;
-            case loop_text:
-                tex_print_str("loop");
-                break;
-            case every_eof_text:
-                tex_print_str("everyeof");
-                break;
-            case every_before_par_text:
-                tex_print_str("everybeforepar");
-                break;
-            case end_paragraph_text:
-                tex_print_str("endpar");
-                break;
-            case end_file_text:
-                tex_print_str("endfile");
-                break;
-            case write_text:
-                tex_print_str("write");
-                break;
-            case local_text:
-                tex_print_str("local");
-                break;
-            case local_loop_text:
-                tex_print_str("localloop");
-                break;
             default:
-                tex_print_str("unknown");
+                if (lmt_input_state.cur_input.token_type < n_of_token_types) {
+                    tex_print_str(token_types_texts[lmt_input_state.cur_input.token_type]);
+                } else {
+                    tex_print_str("unknown");
+                }
                 break;
         }
     } else {
@@ -452,13 +577,13 @@ static void tex_aux_print_current_input_state(void)
     Here it is necessary to explain a little trick. We don't want to store a long string that
     corresponds to a token list, because that string might take up lots of memory; and we are
     printing during a time when an error message is being given, so we dare not do anything that
-    might overflow one of \TEX's tables. So \quote {pseudoprinting} is the answer: We enter a mode
+    might overflow one of \TEX's tables. So \quote {pseudo printing} is the answer: We enter a mode
     of printing that stores characters into a buffer of length |error_line|, where character $k +
     1$ is placed into |trick_buf [k mod error_line]| if |k < trick_count|, otherwise character |k|
     is dropped. Initially we set |tally := 0| and |trick_count := 1000000|; then when we reach the
     point where transition from line 1 to line 2 should occur, we set |first_count := tally| and
     |trick_count := tmax > (error_line, tally + 1 + error_line - half_error_line)|. At the end
-    of the pseudoprinting, the values of |first_count|, |tally|, and |trick_count| give us all the
+    of the pseudo printing, the values of |first_count|, |tally|, and |trick_count| give us all the
     information we need to print the two lines, and all of the necessary text is in |trick_buf|.
 
     Namely, let |l| be the length of the descriptive information that appears on the first line.
@@ -585,7 +710,7 @@ void tex_show_context(void)
                     }
                     lmt_print_state.selector = saved_selector;
                 }
-                /*tex Print two lines using the tricky pseudoprinted information. */
+                /*tex Print two lines using the tricky pseudo printed information. */
                 if (! skip) {
                     int p; /*tex Starting or ending place in |trick_buf|. */
                     int m; /*tex Context information gathered for line 2. */
@@ -705,38 +830,11 @@ void tex_begin_token_list(halfword t, quarterword kind)
         lmt_input_state.cur_input.loc = token_link(t);
         if (tracing_macros_par > 0) {
             tex_begin_diagnostic();
-            switch (kind) {
-                case end_of_group_text:
-                    tex_print_str("endgroup");
-                    break;                    
-                case mark_text:
-                    tex_print_str("mark");
-                    break;
-                case token_text:
-                    tex_print_str("token");
-                    break;
-                case loop_text:
-                    tex_print_str("loop");
-                    break;
-                case end_paragraph_text:
-                    tex_print_str("endpar");
-                    break;
-                case end_file_text:
-                    tex_print_str("endfile");
-                    break;
-                case write_text:
-                    tex_print_str("write");
-                    break;
-                case local_text:
-                    tex_print_str("local");
-                    break;
-                case local_loop_text:
-                    tex_print_str("localloop");
-                    break;
-                default:
-                    /* messy offsets */
-                    tex_print_cmd_chr(internal_toks_cmd, kind - output_text + internal_toks_location(output_routine_code));
-                    break;
+            if (kind < n_of_token_types && token_types_verbose[kind]) {
+                tex_print_str(token_types_texts[kind]);
+            } else { 
+                /* messy offsets */
+                tex_print_cmd_chr(internal_toks_cmd, kind - output_text + internal_toks_location(output_routine_code));
             }
             tex_print_str("->");
             if (kind == loop_text || kind == local_loop_text) { 

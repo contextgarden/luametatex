@@ -132,27 +132,31 @@ static int str_upper (lua_State *L) {
 }
 
 
+/*
+** MAX_SIZE is limited both by size_t and lua_Integer.
+** When x <= MAX_SIZE, x can be safely cast to size_t or lua_Integer.
+*/
 static int str_rep (lua_State *L) {
-  size_t l, lsep;
-  const char *s = luaL_checklstring(L, 1, &l);
+  size_t len, lsep;
+  const char *s = luaL_checklstring(L, 1, &len);
   lua_Integer n = luaL_checkinteger(L, 2);
   const char *sep = luaL_optlstring(L, 3, "", &lsep);
   if (n <= 0)
     lua_pushliteral(L, "");
-  else if (l_unlikely(l + lsep < l || l + lsep > MAX_SIZE / cast_sizet(n)))
+  else if (l_unlikely(len > MAX_SIZE - lsep ||
+               cast_st2S(len + lsep) > cast_st2S(MAX_SIZE) / n))
     return luaL_error(L, "resulting string too large");
   else {
-    size_t totallen = ((size_t)n * (l + lsep)) - lsep;
+    size_t totallen = (cast_sizet(n) * (len + lsep)) - lsep;
     luaL_Buffer b;
     char *p = luaL_buffinitsize(L, &b, totallen);
     while (n-- > 1) {  /* first n-1 copies (followed by separator) */
-      memcpy(p, s, l * sizeof(char)); p += l;
+      memcpy(p, s, len * sizeof(char)); p += len;
       if (lsep > 0) {  /* empty 'memcpy' is not that cheap */
-        memcpy(p, sep, lsep * sizeof(char));
-        p += lsep;
+        memcpy(p, sep, lsep * sizeof(char)); p += lsep;
       }
     }
-    memcpy(p, s, l * sizeof(char));  /* last copy (not followed by separator) */
+    memcpy(p, s, len * sizeof(char));  /* last copy without separator */
     luaL_pushresultsize(&b, totallen);
   }
   return 1;
@@ -1544,8 +1548,10 @@ static KOption getdetails (Header *h, size_t totalsize, const char **fmt,
   else {
     if (align > h->maxalign)  /* enforce maximum alignment */
       align = h->maxalign;
-    if (l_unlikely(!ispow2(align)))  /* not a power of 2? */
+    if (l_unlikely(!ispow2(align))) {  /* not a power of 2? */
+      *ntoalign = 0;  /* to avoid warnings */
       luaL_argerror(h->L, 1, "format asks for alignment not power of 2");
+    }
     else {
       /* 'szmoda' = totalsize % align */
       unsigned szmoda = cast_uint(totalsize & (align - 1));
@@ -1809,8 +1815,8 @@ static int str_unpack (lua_State *L) {
         lua_Unsigned len = (lua_Unsigned)unpackint(L, data + pos,
                                           h.islittle, cast_int(size), 0);
         luaL_argcheck(L, len <= ld - pos - size, 2, "data string too short");
-        lua_pushlstring(L, data + pos + size, len);
-        pos += len;  /* skip string */
+        lua_pushlstring(L, data + pos + size, cast_sizet(len));
+        pos += cast_sizet(len);  /* skip string */
         break;
       }
       case Kzstr: {

@@ -1,4 +1,4 @@
-/*
+﻿/*
     See license.txt in the root of this project.
 */
 
@@ -15,7 +15,8 @@ static void tex_aux_scan_dimension_expression (int braced);
 
 static inline void tex_push_back(halfword tok, halfword cmd, halfword chr)
 {
-    if (cmd != spacer_cmd && tok != deep_frozen_relax_token && ! (cmd == relax_cmd && chr == no_relax_code)) {
+    if (cmd != spacer_cmd && tok != deep_frozen_relax_token && 
+     ! (cmd == relax_cmd && (chr == no_relax_code || chr == no_arguments_relax_code))) {
         tex_back_input(tok);
     }
 }
@@ -154,7 +155,7 @@ scanner_state_info lmt_scanner_state = {
     .current_val_level = 0,
     .current_box       = 0,
     .last_cs_name      = 0,
-    .arithmic_error    = 0,
+    .arithmetic_error  = 0,
     .expression_depth  = 0,
 };
 
@@ -1295,6 +1296,10 @@ static void tex_aux_set_cur_val_by_page_property_cmd(int code)
             cur_val = tex_get_insert_line_depth(tex_scan_integer(0, NULL, NULL));
             cur_val_level = dimension_val_level;
             break;
+        case insert_direction_code:
+            cur_val = tex_get_insert_direction(tex_scan_integer(0, NULL, NULL));
+            cur_val_level = integer_val_level;
+            break;
         case insert_stretch_code:
             cur_val = tex_get_insert_stretch(tex_scan_integer(0, NULL, NULL));
             cur_val_level = dimension_val_level;
@@ -1404,7 +1409,7 @@ static void tex_aux_set_cur_val_by_math_style_cmd(halfword code)
 
     OK, we're ready for |scan_something_internal| itself. A second parameter, |negative|, is set
     |true| if the value that is found should be negated. It is assumed that |cur_cmd| and |cur_chr|
-    represent the first token of the internal quantity to be scanned; an error will be signalled if
+    represent the first token of the internal quantity to be scanned; an error will be signaled if
     |cur_cmd < min_internal| or |cur_cmd > max_internal|.
 
 */
@@ -1638,7 +1643,7 @@ static void tex_aux_set_cur_val_by_box_property_cmd(halfword chr)
             cur_val_level = dimension_val_level;
             break;
         case box_direction_code:
-            cur_val = b ? box_dir(b) : 0;
+            cur_val = b ? box_direction(b) : 0;
             cur_val_level = integer_val_level;
             break;
         case box_geometry_code:
@@ -1825,8 +1830,15 @@ static void tex_aux_set_cur_val_by_font_property_cmd(halfword chr)
                 break;
             }
         case scaled_font_dimension_code:
+        case scaled_font_slant_per_point_code:
+        case scaled_font_interword_space_code:
+        case scaled_font_interword_stretch_code:
+        case scaled_font_interword_shrink_code:
+        case scaled_font_ex_height_code:
+        case scaled_font_em_width_code:
+        case scaled_font_extra_space_code:
             {
-                cur_val = tex_get_scaled_font_dimension();
+                cur_val = tex_get_scaled_font_dimension(chr - scaled_font_dimension_code);
                 cur_val_level = dimension_val_level;
                 break;
             }
@@ -2349,7 +2361,7 @@ halfword   tex_scan_math_class_number(int optional_equal)
     |cur_val| cannot simply be replaced. For that reason we do return the value but also set
     |cur_val|, just in case. I might sort this out some day when other stuff has been reworked.
 
-    The routine has been optimnized a bit (equal scanning and such) and after a while I decided to
+    The routine has been optimized a bit (equal scanning and such) and after a while I decided to
     split the three cases. It makes for a bit nicer code.
 
     If we backport the checking code to \LUATEX, a pre May 24 2020 copy has to be taken, because
@@ -3448,7 +3460,7 @@ halfword tex_scan_dimension(int mu, int inf, int shortcut, int optional_equal, h
     scaled v = 0;
     int save_cur_val;
     halfword cur_order = normal_glue_order;
-    lmt_scanner_state.arithmic_error = 0;
+    lmt_scanner_state.arithmetic_error = 0;
     if (! shortcut) {
         while (1) {
             tex_get_x_token();
@@ -3546,7 +3558,7 @@ halfword tex_scan_dimension(int mu, int inf, int shortcut, int optional_equal, h
             case normal_unit_scanned:
                 /* cm mm pt bp dd cc in dk */
                 if (mu) {
-                    tex_aux_scan_dimension_unknown_unit_error();
+                    tex_aux_scan_dimension_mu_error();
                 } else if (num) {
                     int remainder = 0;
                     cur_val = tex_xn_over_d_r(cur_val, num, denom, &remainder);
@@ -3558,20 +3570,20 @@ halfword tex_scan_dimension(int mu, int inf, int shortcut, int optional_equal, h
             case scaled_point_scanned:
                 /* sp */
                 if (mu) {
-                    tex_aux_scan_dimension_unknown_unit_error();
+                    tex_aux_scan_dimension_unknown_unit_error(); /* maybe some mu error instead */
                 }
                 goto DONE;
             case relative_unit_scanned:
                 /* ex em px */
                 if (mu) {
-                    tex_aux_scan_dimension_unknown_unit_error();
+                    tex_aux_scan_dimension_unknown_unit_error(); /* maybe some mu error instead */
                 }
                 cur_val = tex_nx_plus_y(save_cur_val, v, tex_xn_over_d(v, fraction, unity));
                 goto DONE;
             case math_unit_scanned:
                 /* mu (slightly different but an error anyway */
                 if (! mu) {
-                    tex_aux_scan_dimension_mu_error();
+                    tex_aux_scan_dimension_unknown_unit_error();
                 }
                 goto ATTACH_FRACTION;
             case flexible_unit_scanned:
@@ -3602,7 +3614,7 @@ halfword tex_scan_dimension(int mu, int inf, int shortcut, int optional_equal, h
     }
   ATTACH_FRACTION:
     if (cur_val >= 040000) { // 0x4000
-        lmt_scanner_state.arithmic_error = 1;
+        lmt_scanner_state.arithmetic_error = 1;
     } else {
         cur_val = cur_val * unity + fraction;
     }
@@ -3610,14 +3622,14 @@ halfword tex_scan_dimension(int mu, int inf, int shortcut, int optional_equal, h
     tex_get_x_token();
     tex_push_back(cur_tok, cur_cmd, cur_chr);
   ATTACH_SIGN:
-    if (lmt_scanner_state.arithmic_error || (abs(cur_val) >= 010000000000)) { // 0x40000000
+    if (lmt_scanner_state.arithmetic_error || (abs(cur_val) >= 010000000000)) { // 0x40000000
         if (lmt_error_state.intercept) {
             lmt_error_state.last_intercept = 1;
         } else {
             tex_aux_scan_dimension_out_of_range_error(1);
         }
         cur_val = max_dimension;
-        lmt_scanner_state.arithmic_error = 0;
+        lmt_scanner_state.arithmetic_error = 0;
     }
   THATSIT:
     if (order) {
@@ -3631,7 +3643,7 @@ halfword tex_scan_dimension(int mu, int inf, int shortcut, int optional_equal, h
 
 void tex_scan_dimension_validate(void)
 {
-    lmt_scanner_state.arithmic_error = 0;
+    lmt_scanner_state.arithmetic_error = 0;
     while (1) {
         tex_get_x_token();
         if (cur_cmd == spacer_cmd || cur_tok == minus_token) {
@@ -4147,7 +4159,9 @@ strnumber tex_the_scanned_result(void)
 
 static halfword tex_aux_scan_font_id_and_parameter(halfword *fnt, halfword *n)
 {
-    *n = tex_scan_integer(0, NULL, NULL);
+    if (! *n) {
+        *n = tex_scan_integer(0, NULL, NULL);   
+    }
     *fnt = tex_scan_font_identifier(NULL);
     if (*n <= 0 || *n > max_integer) {
         tex_handle_error(
@@ -4164,7 +4178,8 @@ static halfword tex_aux_scan_font_id_and_parameter(halfword *fnt, halfword *n)
 
 void tex_set_font_dimension(void)
 {
-    halfword fnt, n;
+    halfword fnt = null;
+    int n = 0;
     if (tex_aux_scan_font_id_and_parameter(&fnt, &n)) {
         tex_set_font_parameter(fnt, n, tex_scan_dimension(0, 0, 0, 1, NULL, NULL));
     }
@@ -4172,22 +4187,23 @@ void tex_set_font_dimension(void)
 
 halfword tex_get_font_dimension(void)
 {
-    halfword fnt, n;
+    halfword fnt = null;
+    int n = 0;
     return tex_aux_scan_font_id_and_parameter(&fnt, &n) ? tex_get_font_parameter(fnt, n) : null;
 }
 
-void tex_set_scaled_font_dimension(void)
+void tex_set_scaled_font_dimension(int n)
 {
-    halfword fnt, n;
+    halfword fnt = null;
     if (tex_aux_scan_font_id_and_parameter(&fnt, &n)) {
         tex_set_scaled_parameter(fnt, n, tex_scan_dimension(0, 0, 0, 1, NULL, NULL));
     }
 }
 
-halfword tex_get_scaled_font_dimension(void)
+halfword tex_get_scaled_font_dimension(int n)
 {
-    halfword fnt, n;
-    return tex_aux_scan_font_id_and_parameter(&fnt, &n) ? tex_get_scaled_parameter(fnt, n) : null;
+    halfword fnt = null;
+    return (tex_aux_scan_font_id_and_parameter(&fnt, &n)) ? tex_get_scaled_parameter(fnt, n) : null;
 }
 
 /*tex Declare procedures that scan font-related stuff. */
@@ -4405,9 +4421,9 @@ halfword tex_scan_general_text(halfword *tail)
     If the next character is a parameter number, make |cur_tok| a |match| token; but if it is a
     left brace, store |left_brace|, |end_match|, set |hash_brace|, and |goto done|.
 
-    For practical reasone, we have split the |scan_toks| function up in four smaller dedicated
+    For practical reasons, we have split the |scan_toks| function up in four smaller dedicated
     functions. When we add features it makes no sense to clutter the code even more. Keep in mind
-    that compared to the reference \TEX\ inplementation we have to support |\expanded| token lists
+    that compared to the reference \TEX\ implementation we have to support |\expanded| token lists
     but also |\protected| and friends. There is of course some overlap now but that's a small
     price to pay for readability.
 
@@ -4590,6 +4606,38 @@ halfword tex_scan_toks_expand(int left_brace_found, halfword *tail, int expandco
     }
     return result;
 }
+
+void tex_scan_toks_dropped(int left_brace_found)
+{
+    halfword unbalance = 0;
+    lmt_input_state.scanner_status = scanner_is_absorbing;
+    lmt_input_state.warning_index = cur_cs;
+    if (! left_brace_found) {
+        tex_scan_left_brace();
+    }
+    while (1) {
+        tex_get_token();
+        switch (cur_cmd) {
+            case left_brace_cmd:
+                if (! cur_cs) {
+                    ++unbalance;
+                }
+                break;
+            case right_brace_cmd:
+                if (! cur_cs) {
+                    if (unbalance) {
+                        --unbalance;
+                    } else {
+                        goto DONE;
+                    }
+                }
+                break;
+        }
+    }
+  DONE:
+    lmt_input_state.scanner_status = scanner_is_normal;
+}
+
 
 static void tex_aux_too_many_parameters_error(void)
 {
@@ -4810,8 +4858,21 @@ case i_token_o:
     }
   DONE:
     if (h != *p) {
+// halfword c = token_link(h);
+// int simple = 1;
+// while (c) { 
+//     halfword t = token_info(c) - match_token;
+//     /* also - and 0 */
+//     if ((t >= '1' && t <= '9') || (t >= 'A' && t <= 'E')) {
+//         c = token_link(c);
+//     } else { 
+//         simple = 0;
+//         break;
+//     }
+// }
         *p = tex_store_new_token(*p, end_match_token);
         set_token_preamble(h, macro_with_preamble);
+// set_token_preamble(h, simple ? macro_with_simple : macro_with_preamble);
         set_token_parameters(h, *counter);
     }
     if (cur_cmd == right_brace_cmd) {
@@ -4947,11 +5008,13 @@ halfword tex_scan_macro_expand(void)
                         goto PICKUP;
                     }
                 case relax_cmd:
-                    if (cur_chr == no_relax_code) {
-                        /*tex Think of |\ifdim\dimen0=\dimen2\norelax| inside an |\edef|. */
-                        goto PICKUP;
-                    } else {
-                        goto DONEEXPANDING;
+                    switch (cur_chr) { 
+                        case no_relax_code:
+                        case no_arguments_relax_code:
+                            /*tex Think of |\ifdim\dimen0=\dimen2\norelax| inside an |\edef|. */
+                            goto PICKUP;
+                        default:
+                            goto DONEEXPANDING;
                     }
                 case prefix_cmd:
                     if (cur_chr == enforced_code && (! overload_mode_par || lmt_main_state.run_state != production_state)) {
@@ -5123,7 +5186,7 @@ static inline void tex_aux_normalize_glue(halfword g)
 
     Parenthesized subexpressions can be inside expressions, and this nesting has a stack. Seven
     local variables represent the top of the expression stack: |p| points to pushed-down entries,
-    if any; |l| specifies the type of expression currently beeing evaluated; |e| is the expression
+    if any; |l| specifies the type of expression currently being evaluated; |e| is the expression
     so far and |r| is the state of its evaluation; |t| is the term so far and |s| is the state of
     its evaluation; finally |n| is the numerator for a combined multiplication and division, if any.
 
@@ -5144,12 +5207,12 @@ static inline int tex_aux_add_or_sub(int x, int y, int max_answer, int operation
                 if (y <= max_answer - x) {
                     return x + y;
                 } else {
-                    lmt_scanner_state.arithmic_error = 1;
+                    lmt_scanner_state.arithmetic_error = 1;
                 }
             } else if (y >= -max_answer - x) {
                 return x + y;
             } else {
-                lmt_scanner_state.arithmic_error = 1;
+                lmt_scanner_state.arithmetic_error = 1;
             }
             break;
     }
@@ -5202,7 +5265,7 @@ static inline int tex_aux_add_or_sub(int x, int y, int max_answer, int operation
 static inline int tex_aux_quotient(int n, int d, int rounded)
 {
     if (d == 0) {
-        lmt_scanner_state.arithmic_error = 1;
+        lmt_scanner_state.arithmetic_error = 1;
         return 0;
     } else if (rounded) {
         return lround((double) n / (double) d);
@@ -5214,7 +5277,7 @@ static inline int tex_aux_quotient(int n, int d, int rounded)
 static inline int tex_aux_modulo(int n, int d)
 {
     if (d == 0) {
-        lmt_scanner_state.arithmic_error = 1;
+        lmt_scanner_state.arithmetic_error = 1;
         return 0;
     } else {
         return n % d;
@@ -5233,7 +5296,7 @@ int tex_quotient(int n, int d, int round)
     |max_answer|. We can't use floating point arithmetic since the routine must produce identical
     results in all cases; and it would be too dangerous to multiply by~|n| and then divide by~|d|,
     in separate operations, since overflow might well occur. Hence this subroutine simulates double
-    precision arithmetic, somewhat analogous to Metafont's |make_fraction| and |take_fraction|
+    precision arithmetic, somewhat analogous to \METAFONT's |make_fraction| and |take_fraction|
     routines.
 
 */
@@ -5348,7 +5411,7 @@ int tex_fract(int x, int n, int d, int max_answer)
     }
     goto DONE;
   TOO_BIG:
-    lmt_scanner_state.arithmic_error = 1;
+    lmt_scanner_state.arithmetic_error = 1;
     a = 0;
   DONE:
     return a;
@@ -5435,7 +5498,7 @@ static void tex_aux_scan_expr(halfword level, int braced)
     /*tex numerator of combined multiplication and division */
     int numerator;
     /*tex saved values of |arith_error| */
-    int error_a = lmt_scanner_state.arithmic_error;
+    int error_a = lmt_scanner_state.arithmetic_error;
     int error_b = 0;
     /*tex top of expression stack */
     halfword top = null;
@@ -5485,9 +5548,9 @@ static void tex_aux_scan_expr(halfword level, int braced)
         }
     }
     /*tex
-        In these expressions we use the integer scanner which itself accepts 
-        |{expressions}| so |-{...}| actally works here. Hoewver, as regular expr 
-        we don't handle a |-(...)| unless we add that to the integer scanner. 
+        In these expressions we use the integer scanner which itself accepts |{expressions}| so 
+        |-{...}| actually works here. However, as regular expression we don't handle a |-(...)| 
+        unless we add that to the integer scanner. 
 
     */
     switch (operation) {
@@ -5567,38 +5630,38 @@ static void tex_aux_scan_expr(halfword level, int braced)
             }
             break;
     }
-    lmt_scanner_state.arithmic_error = error_b;
+    lmt_scanner_state.arithmetic_error = error_b;
     /*tex Make sure that |f| is in the proper range. */
     switch (level) {
         case integer_val_level:
         case attribute_val_level:
             if ((factor > max_integer) || (factor < min_integer)) {
-                lmt_scanner_state.arithmic_error = 1;
+                lmt_scanner_state.arithmetic_error = 1;
                 factor = 0;
             }
             break;
         case posit_val_level:
             if ((factor > max_integer) || (factor < min_integer)) {
-                lmt_scanner_state.arithmic_error = 1;
+                lmt_scanner_state.arithmetic_error = 1;
                 factor = 0;
             }
             break;
         case dimension_val_level:
             if (abs(factor) > max_dimension) {
-                lmt_scanner_state.arithmic_error = 1;
+                lmt_scanner_state.arithmetic_error = 1;
                 factor = 0;
             }
             break;
         case glue_val_level:
         case muglue_val_level:
             if ((abs(glue_amount(factor)) > max_dimension) || (abs(glue_stretch(factor)) > max_dimension) || (abs(glue_shrink(factor)) > max_dimension)) {
-                lmt_scanner_state.arithmic_error = 1;
+                lmt_scanner_state.arithmetic_error = 1;
                 tex_reset_glue_to_zero(factor);
             }
             break;
         default:
             if ((state > expression_subtract) && ((factor > max_integer) || (factor < min_integer))) {
-                lmt_scanner_state.arithmic_error = 1;
+                lmt_scanner_state.arithmetic_error = 1;
                 factor = 0;
             }
     }
@@ -5657,7 +5720,7 @@ static void tex_aux_scan_expr(halfword level, int braced)
                     break;
                 case posit_val_level:
                     if (factor == 0) {
-                        lmt_scanner_state.arithmic_error = 1;
+                        lmt_scanner_state.arithmetic_error = 1;
                         term = 0;
                     } else {
                         term = tex_posit_div(term, factor);
@@ -5679,7 +5742,7 @@ static void tex_aux_scan_expr(halfword level, int braced)
                     break;
                 case posit_val_level:
                     if (numerator == 0) {
-                        lmt_scanner_state.arithmic_error = 1;
+                        lmt_scanner_state.arithmetic_error = 1;
                         term = 0;
                     } else {
                         term = tex_posit_div(tex_posit_mul(term, factor), numerator);
@@ -5771,7 +5834,7 @@ static void tex_aux_scan_expr(halfword level, int braced)
         }
         result = operation;
     }
-    error_b = lmt_scanner_state.arithmic_error;
+    error_b = lmt_scanner_state.arithmetic_error;
     if (operation != expression_none) {
         goto CONTINUE;
     } else if (top) {
@@ -5803,7 +5866,7 @@ static void tex_aux_scan_expr(halfword level, int braced)
                 break;
         }
     }
-    lmt_scanner_state.arithmic_error = error_a;
+    lmt_scanner_state.arithmetic_error = error_a;
     lmt_scanner_state.expression_depth--;
     cur_val_level = level;
     cur_val = expression;
@@ -5832,7 +5895,7 @@ static halfword tex_aux_scan_unit_applied(halfword value, halfword fraction, int
             }
             *has_unit = 1;
             if (value >= 040000) { // 0x4000
-                lmt_scanner_state.arithmic_error = 1;
+                lmt_scanner_state.arithmetic_error = 1;
                 value = 040000; 
             }
             return value * unity + fraction;
@@ -6002,7 +6065,7 @@ static halfword tex_scan_bit_dimension(int *has_fraction, int *has_unit)
     int fraction = 0;
     *has_fraction = 0;
     *has_unit = 0;
-    lmt_scanner_state.arithmic_error = 0;
+    lmt_scanner_state.arithmetic_error = 0;
     while (1) {
         if (cur_tok == minus_token) {
             negative = ! negative;
@@ -6058,10 +6121,10 @@ static halfword tex_scan_bit_dimension(int *has_fraction, int *has_unit)
     }
     cur_val = tex_aux_scan_unit_applied(cur_val, fraction, has_unit, *has_fraction);
   ATTACH_SIGN:
-    if (lmt_scanner_state.arithmic_error || (abs(cur_val) >= 010000000000)) { // 0x40000000
+    if (lmt_scanner_state.arithmetic_error || (abs(cur_val) >= 010000000000)) { // 0x40000000
         tex_aux_scan_dimension_out_of_range_error(3);
         cur_val = max_dimension;
-        lmt_scanner_state.arithmic_error = 0;
+        lmt_scanner_state.arithmetic_error = 0;
     }
   NEARLY_DONE:
     if (negative) {
@@ -6078,7 +6141,7 @@ static halfword tex_scan_bit_dimension(int *has_fraction, int *has_unit)
     helpers for it so it's best to avoid the extra overhead in other expressions.
 
     However, occasionally, when I check the manual I came back to this. I wondered about some more
-    that just extra bitwise operators. However, prcedence makes it a bit tricky. Also, we can't use
+    that just extra bitwise operators. However, precedence makes it a bit tricky. Also, we can't use
     some characters because they can be letter, other, active or have special meaning in math or
     alignments. Then I played with verbose operators: mod (instead of a percent sign), and
     |and|, |or|, |band|, |bor| and |bxor| (cf the \LUA\ bit32 library).
@@ -6113,7 +6176,7 @@ int tex_scanned_expression(int level)
 halfword tex_scan_scale(int optional_equal)
 {
     bool negative = false;
-    lmt_scanner_state.arithmic_error = 0;
+    lmt_scanner_state.arithmetic_error = 0;
     do {
         while (1) {
             tex_get_x_token();
@@ -6169,10 +6232,10 @@ halfword tex_scan_scale(int optional_equal)
     if (negative) {
         cur_val = -cur_val;
     }
-    if (lmt_scanner_state.arithmic_error || (abs(cur_val) >= 0x40000000)) {
+    if (lmt_scanner_state.arithmetic_error || (abs(cur_val) >= 0x40000000)) {
      // scan_dimension_out_of_range_error();
         cur_val = max_dimension;
-        lmt_scanner_state.arithmic_error = 0;
+        lmt_scanner_state.arithmetic_error = 0;
     }
     return cur_val;
 }
@@ -6821,7 +6884,7 @@ static void tex_aux_scan_integer_expression(int braced)
     long long term;
     long long factor = 0;
     long long numerator;
-    int error_a = lmt_scanner_state.arithmic_error;
+    int error_a = lmt_scanner_state.arithmetic_error;
     int error_b = 0;
     halfword top = null;
     int alreadygotten = 0;
@@ -7046,10 +7109,10 @@ static void tex_aux_scan_integer_expression(int braced)
             }
             break;
     }
-    lmt_scanner_state.arithmic_error = error_b;
+    lmt_scanner_state.arithmetic_error = error_b;
     if (state > expression_subtract) { 
         if (factor > max_integer || factor < min_integer) {
-            lmt_scanner_state.arithmic_error = 1;
+            lmt_scanner_state.arithmetic_error = 1;
             factor = 0;
         }
     }
@@ -7123,7 +7186,7 @@ static void tex_aux_scan_integer_expression(int braced)
         }
         result = operation;
     }
-    error_b = lmt_scanner_state.arithmic_error;
+    error_b = lmt_scanner_state.arithmetic_error;
     if (operation != expression_none) {
         goto CONTINUE;
     } else if (top) {
@@ -7181,7 +7244,7 @@ static void tex_aux_scan_integer_expression(int braced)
         expression = 0;
     }
   DONE:
-    lmt_scanner_state.arithmic_error = error_a;
+    lmt_scanner_state.arithmetic_error = error_a;
     lmt_scanner_state.expression_depth--;
  // cur_val_level = level;
     cur_val_level = integer_val_level;
@@ -7441,7 +7504,7 @@ static void tex_aux_scan_dimension_expression(int braced)
     long long term; 
     long long factor = 0;
     long long numerator;
-    int error_a = lmt_scanner_state.arithmic_error;
+    int error_a = lmt_scanner_state.arithmetic_error;
     int error_b = 0;
     halfword top = null;
     int alreadygotten = 0;
@@ -7660,9 +7723,9 @@ static void tex_aux_scan_dimension_expression(int braced)
             }
             break;
     }
-    lmt_scanner_state.arithmic_error = error_b;
+    lmt_scanner_state.arithmetic_error = error_b;
     if (llabs(factor) > max_dimension) {
-        lmt_scanner_state.arithmic_error = 1;
+        lmt_scanner_state.arithmetic_error = 1;
         factor = 0;
     }
     switch (state) {
@@ -7681,7 +7744,7 @@ static void tex_aux_scan_dimension_expression(int braced)
             break;
         case expression_divide:
             if (factor == 0) {
-                lmt_scanner_state.arithmic_error = 1;
+                lmt_scanner_state.arithmetic_error = 1;
                 term = 0;
                 termtype = expression_type_integer;
             } else {
@@ -7690,7 +7753,7 @@ static void tex_aux_scan_dimension_expression(int braced)
             break;
         case expression_scale:
             if (factor == 0) {
-                lmt_scanner_state.arithmic_error = 1;
+                lmt_scanner_state.arithmetic_error = 1;
                 term = 0;
                 termtype = expression_type_integer;
             } else { 
@@ -7701,7 +7764,7 @@ static void tex_aux_scan_dimension_expression(int braced)
             break;
         case expression_idivide:
             if (factor == 0) {
-                lmt_scanner_state.arithmic_error = 1;
+                lmt_scanner_state.arithmetic_error = 1;
                 term = 0;
                 termtype = expression_type_integer;
             } else {
@@ -7710,7 +7773,7 @@ static void tex_aux_scan_dimension_expression(int braced)
             break;
         case expression_imodulo:
             if (factor == 0) {
-                lmt_scanner_state.arithmic_error = 1;
+                lmt_scanner_state.arithmetic_error = 1;
                 term = 0;
                 termtype = expression_type_integer;
             } else {
@@ -7813,7 +7876,7 @@ static void tex_aux_scan_dimension_expression(int braced)
         }
         result = operation;
     }
-    error_b = lmt_scanner_state.arithmic_error;
+    error_b = lmt_scanner_state.arithmetic_error;
     if (operation != expression_none) {
         goto CONTINUE;
     } else if (top) {
@@ -7872,7 +7935,7 @@ static void tex_aux_scan_dimension_expression(int braced)
         expression = 0;
     }
   DONE:
-    lmt_scanner_state.arithmic_error = error_a;
+    lmt_scanner_state.arithmetic_error = error_a;
     lmt_scanner_state.expression_depth--;
     cur_val_level = dimension_val_level;
     if (expression < min_dimension) {
@@ -8081,7 +8144,7 @@ static const char *bit_expression_names[bit_expression_last+1] = {
     "*", "/", 
     "div", "mod", 
     "not",
-    "±", "∓"
+    "±", "∓",
     "or", "and", 
     "cor", "cand",
     "open (", "close )", "open {", "close }", 
@@ -8229,7 +8292,7 @@ static void tex_aux_print_expression_entry(halfword type, long long value)
             tex_print_dimension(e_v(value), pt_unit);
             break;
         default:
-            if (value >= 0 && value <= 38) {
+            if (value >= 0 && value <= bit_expression_last) {
                 tex_print_str(bit_expression_names[value]);
             }
             break;
@@ -9095,12 +9158,13 @@ static void tex_aux_scan_expression(int level, int braced)
                                         /* */
                                         case bit_expression_bleft    : v = va << vb; break;
                                         case bit_expression_bright   : v = va >> vb; break;
-                                        case bit_expression_less     : v = va <  vb; break;
-                                        case bit_expression_lessequal: v = va <= vb; break;
-                                        case bit_expression_equal    : v = va == vb; break;
-                                        case bit_expression_moreequal: v = va >= vb; break;
-                                        case bit_expression_more     : v = va >  vb; break;
-                                        case bit_expression_unequal  : v = va != vb; break;
+                                        /* */
+                                        case bit_expression_less     : v = va <  vb; node_subtype(stack.tail) = bit_expression_number; break;
+                                        case bit_expression_lessequal: v = va <= vb; node_subtype(stack.tail) = bit_expression_number; break;
+                                        case bit_expression_equal    : v = va == vb; node_subtype(stack.tail) = bit_expression_number; break;
+                                        case bit_expression_moreequal: v = va >= vb; node_subtype(stack.tail) = bit_expression_number; break;
+                                        case bit_expression_more     : v = va >  vb; node_subtype(stack.tail) = bit_expression_number; break;
+                                        case bit_expression_unequal  : v = va != vb; node_subtype(stack.tail) = bit_expression_number; break;
                                         /* */
                                         case bit_expression_add      : v = va +  vb; break;
                                         case bit_expression_subtract : v = va -  vb; break;
@@ -9147,11 +9211,11 @@ static void tex_aux_scan_expression(int level, int braced)
                                         case bit_expression_mod : v =  va % vb; break;
                                         case bit_expression_div : v =  va / vb; break;
                                         /* */
-                                        case bit_expression_or  : v = (va || vb) ? 1 : 0 ; break;
-                                        case bit_expression_and : v = (va && vb) ? 1 : 0 ; break;
+                                        case bit_expression_or  : v = (va || vb) ? 1 : 0 ; node_subtype(stack.tail) = bit_expression_number; break;
+                                        case bit_expression_and : v = (va && vb) ? 1 : 0 ; node_subtype(stack.tail) = bit_expression_number; break;
                                         /* */
                                         case bit_expression_cor : v = va         ? va : (vb ? vb : 0); break;
-                                        case bit_expression_cand: v = (va && vb) ? vb            : 0 ; break;
+                                        case bit_expression_cand: v = (va && vb) ? vb : 0            ; break;
                                         /* */
                                         default:
                                             v = 0;

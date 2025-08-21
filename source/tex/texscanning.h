@@ -34,7 +34,7 @@ typedef struct scanner_state_info {
     int      current_val_level; /*tex the level of this value */
     halfword current_box;       /*tex the box to be placed into its context */
     halfword last_cs_name;      /*tex used in |\csname| and |\ifcsname| */
-    int      arithmic_error;
+    int      arithmetic_error;
     int      expression_depth;
 } scanner_state_info;
 
@@ -68,11 +68,11 @@ static inline full_scanner_status tex_save_full_scanner_status(void)
     return a;
 }
 
-static inline void tex_unsave_full_scanner_status(full_scanner_status a)
+static inline void tex_unsave_full_scanner_status(full_scanner_status *a)
 {
-    lmt_input_state.warning_index  = a.save_warning_index;
-    lmt_input_state.def_ref        = a.save_def_ref;
-    lmt_input_state.scanner_status = a.save_scanner_status;
+    lmt_input_state.warning_index  = a->save_warning_index;
+    lmt_input_state.def_ref        = a->save_def_ref;
+    lmt_input_state.scanner_status = a->save_scanner_status;
 }
 
 extern void        tex_scan_something_simple          (halfword cmd, halfword code);
@@ -93,6 +93,7 @@ extern halfword    tex_scan_general_text              (halfword *tail);
 /*     halfword    tex_scan_toks                      (int macrodef, int xpand, int left_brace_found); */
 extern halfword    tex_scan_toks_normal               (int left_brace_found, halfword *tail);
 extern halfword    tex_scan_toks_expand               (int left_brace_found, halfword *tail, int expandconstant, int keepparameters);
+extern void        tex_scan_toks_dropped              (int left_brace_found);
 extern halfword    tex_scan_macro_normal              (void); // (int tolerant);
 extern halfword    tex_scan_macro_expand              (void); // (int tolerant);
 extern halfword    tex_scan_font_identifier           (halfword *spec);
@@ -149,8 +150,8 @@ extern strnumber   tex_the_scanned_result             (void);
 
 extern void        tex_set_font_dimension             (void);
 extern halfword    tex_get_font_dimension             (void);
-extern void        tex_set_scaled_font_dimension      (void);
-extern halfword    tex_get_scaled_font_dimension      (void);
+extern void        tex_set_scaled_font_dimension      (int n);
+extern halfword    tex_get_scaled_font_dimension      (int n);
 
 extern int         tex_get_unit_class                 (halfword index);
 

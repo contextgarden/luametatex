@@ -84,41 +84,41 @@ void lmt_initialize_interface(void)
 
     # define set_group_code_value(n,k) lmt_interface.group_code_values[n] = (value_info) { .lua = lua_key_index(k), .name = lua_key(k), .id = n }
 
-    set_group_code_value(bottom_level_group,   bottomlevel);
-    set_group_code_value(simple_group,         simple);
-    set_group_code_value(hbox_group,           hbox);
-    set_group_code_value(adjusted_hbox_group,  adjustedhbox);
-    set_group_code_value(vbox_group,           vbox);
-    set_group_code_value(vtop_group,           vtop);
-    set_group_code_value(dbox_group,           dbox);
-    set_group_code_value(align_group,          align);
-    set_group_code_value(no_align_group,       noalign);
-    set_group_code_value(output_group,         output);
-    set_group_code_value(math_group,           mathsubformula);
-    set_group_code_value(math_component_group, mathcomponent);
-    set_group_code_value(math_stack_group,     mathstack);
-    set_group_code_value(discretionary_group,  discretionary);
-    set_group_code_value(insert_group,         insert);
-    set_group_code_value(vadjust_group,        vadjust);
-    set_group_code_value(vcenter_group,        vcenter);
-    set_group_code_value(math_fraction_group,  mathfraction);
-    set_group_code_value(math_radical_group,   mathradical);
-    set_group_code_value(math_operator_group,  mathoperator);
-    set_group_code_value(math_choice_group,    mathchoice);
-    set_group_code_value(also_simple_group,    alsosimple);
-    set_group_code_value(semi_simple_group,    semisimple);
-    set_group_code_value(math_simple_group,    mathsimple);
-    set_group_code_value(math_inline_group,    mathinline);
-    set_group_code_value(math_display_group,   mathdisplay);
-    set_group_code_value(math_number_group,    mathnumber);
-    set_group_code_value(math_fence_group,     mathfence);
-    set_group_code_value(local_box_group,      localbox);
-    set_group_code_value(split_off_group,      splitoff);
-    set_group_code_value(split_keep_group,     splitkeep);
-    set_group_code_value(preamble_group,       preamble);
-    set_group_code_value(align_set_group,      alignset);
-    set_group_code_value(finish_row_group,     finishrow);
-    set_group_code_value(lua_group,            lua);
+    set_group_code_value(bottom_level_group,         bottomlevel);
+    set_group_code_value(simple_group,               simple);
+    set_group_code_value(hbox_group,                 hbox);
+    set_group_code_value(adjusted_hbox_group,        adjustedhbox);
+    set_group_code_value(vbox_group,                 vbox);
+    set_group_code_value(vtop_group,                 vtop);
+    set_group_code_value(dbox_group,                 dbox);
+    set_group_code_value(align_group,                align);
+    set_group_code_value(no_align_group,             noalign);
+    set_group_code_value(output_group,               output);
+    set_group_code_value(math_group,                 mathsubformula);
+    set_group_code_value(math_component_group,       mathcomponent);
+    set_group_code_value(math_stack_group,           mathstack);
+    set_group_code_value(discretionary_group,        discretionary);
+    set_group_code_value(insert_group,               insert);
+    set_group_code_value(vadjust_group,              vadjust);
+    set_group_code_value(vcenter_group,              vcenter);
+    set_group_code_value(math_fraction_group,        mathfraction);
+    set_group_code_value(math_radical_group,         mathradical);
+    set_group_code_value(math_operator_group,        mathoperator);
+    set_group_code_value(math_choice_group,          mathchoice);
+    set_group_code_value(also_simple_group,          alsosimple);
+    set_group_code_value(semi_simple_group,          semisimple);
+    set_group_code_value(math_simple_group,          mathsimple);
+    set_group_code_value(math_inline_group,          mathinline);
+    set_group_code_value(math_display_group,         mathdisplay);
+    set_group_code_value(math_equation_number_group, mathequationnumber);
+    set_group_code_value(math_fence_group,           mathfence);
+    set_group_code_value(local_box_group,            localbox);
+    set_group_code_value(split_off_group,            splitoff);
+    set_group_code_value(split_keep_group,           splitkeep);
+    set_group_code_value(preamble_group,             preamble);
+    set_group_code_value(align_set_group,            alignset);
+    set_group_code_value(finish_row_group,           finishrow);
+    set_group_code_value(lua_group,                  lua);
 
     lmt_interface.par_context_values = lmt_aux_allocate_value_info(reset_par_context);
 
@@ -159,16 +159,30 @@ void lmt_initialize_interface(void)
     set_page_context_value(alignment_page_context,       alignment);
     set_page_context_value(triggered_page_context,       triggered);
 
-    lmt_interface.append_line_context_values = lmt_aux_allocate_value_info(post_migrate_append_line_context);
+ // lmt_interface.append_line_context_values = lmt_aux_allocate_value_info(box_append_line_context);
+ //
+ // # define set_append_line_context_value(n,k) lmt_interface.append_line_context_values[n] = (value_info) { .lua = lua_key_index(k), .name = lua_key(k), .id = n }
+ //
+ // set_append_line_context_value(pre_box_append_line_context, prebox);
+ // set_append_line_context_value(box_append_line_context,     box);
 
-    # define set_append_line_context_value(n,k) lmt_interface.append_line_context_values[n] = (value_info) { .lua = lua_key_index(k), .name = lua_key(k), .id = n }
+    lmt_interface.append_adjust_context_values = lmt_aux_allocate_value_info(post_append_adjust_context);
 
-    set_append_line_context_value(box_append_line_context,          box);
-    set_append_line_context_value(pre_box_append_line_context,      prebox);
-    set_append_line_context_value(pre_adjust_append_line_context,   preadjust);
-    set_append_line_context_value(post_adjust_append_line_context,  postadjust);
-    set_append_line_context_value(pre_migrate_append_line_context,  premigrate);
-    set_append_line_context_value(post_migrate_append_line_context, postmigrate);
+    # define set_append_adjust_context_value(n,k) lmt_interface.append_adjust_context_values[n] = (value_info) { .lua = lua_key_index(k), .name = lua_key(k), .id = n }
+
+    set_append_adjust_context_value(pre_append_adjust_context,  preadjust);
+    set_append_adjust_context_value(post_append_adjust_context, postadjust);
+
+    lmt_interface.append_migrate_context_values = lmt_aux_allocate_value_info(post_append_migrate_context);
+
+    # define set_append_migrate_context_value(n,k) lmt_interface.append_migrate_context_values[n] = (value_info) { .lua = lua_key_index(k), .name = lua_key(k), .id = n }
+
+    set_append_migrate_context_value(pre_append_migrate_context,  premigrate);
+    set_append_migrate_context_value(post_append_migrate_context, postmigrate);
+
+
+
+
 
     lmt_interface.alignment_context_values = lmt_aux_allocate_value_info(wrapup_pass_alignment_context);
 

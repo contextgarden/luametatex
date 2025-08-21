@@ -68,7 +68,7 @@ static environment_state_info lmt_environment_state = {
     .padding           = 0,
 };
 
-/*tex todo: make helpers in loslibext which has similar code */
+/*tex todo: make helpers in |lmtoslibext| which has similar code */
 
 static void enginelib_splitnames(void)
 {
@@ -153,12 +153,12 @@ static char *enginelib_normalize_quotes(const char* name, const char* mesg)
 
     We support a minimum set of options but more can be supported by supplying an (startup)
     initialization script and/or by setting values in the |texconfig| table. At some point we might
-    provide some default initiazation script but that's for later. In fact, a bug in \LUATEX\ <
+    provide some default initialization script but that's for later. In fact, a bug in \LUATEX\ <
     1.10 made some of the command line options get lost anyway due to setting their values before
     checking the config table (probably introduced at some time). As no one noticed that anyway,
-    removing these from the commandline is okay.
+    removing these from the command line is okay.
 
-    Part of the commandline handler is providing (minimal) help information and reporting credits
+    Part of the command line handler is providing (minimal) help information and reporting credits
     (more credits can be found in the source file). Here comes the basic help.
 
     At some point I will likely add a |--permitloadlib| flag and block loading of libraries when
@@ -167,7 +167,7 @@ static char *enginelib_normalize_quotes(const char* name, const char* mesg)
     but we can control that in the runners so it's no big deal because we will never depend on
     external code for the \CONTEXT\ core features.
 
-    Commandline options that block |os.execute|, |io.popen|, the debugger and socket libraries etc.
+    Command line options that block |os.execute|, |io.popen|, the debugger and socket libraries etc.
     will not make it into \LUAMETATEX. If security is a concern there are always ways around it
     (not that I'll be too public about unplugged holes in engines). One can deal with most issues 
     in \LUA\ anyway. 
@@ -250,7 +250,7 @@ static void enginelib_show_version_info(void)
 
 /*tex
 
-    We only mention the most relevelant credits here. The first part is there to indicate a bit of
+    We only mention the most relevant credits here. The first part is there to indicate a bit of
     history. A very large part of the code, of course, comes from Don Knuths original \TEX, and the
     same is true for most documentation!
 
@@ -331,6 +331,8 @@ static void enginelib_show_credits(void)
         "  hjn        : Raph Levien (derived from TeX's hyphenator, but adapted again)\n"
         "  softposit  : S. H. Leong (Cerlane)\n"
         "  potrace    : Peter Selinger\n"
+        "  qrcodegen  : Project Nayuki\n"
+     // "  triangles  : Moller, Guigue and Devillers\n"
         "\n"
         "The code base contains more names and references. Some libraries are partially adapted or\n"
         "have been replaced. The MetaPost library has additional functionality, some of which is\n"
@@ -648,7 +650,7 @@ void tex_engine_initialize(int ac, char **av)
         Some options must be initialized before options are parsed. We don't need that many as we
         can delegate to \LUA.
     */
-    /*tex Parse the commandline. */
+    /*tex Parse the command line. */
     enginelib_parse_options();
     /*tex Forget about locales. */
     enginelib_set_locale();
@@ -712,8 +714,8 @@ void tex_engine_initialize(int ac, char **av)
 
 /*tex
 
-    For practical and historical reasons some of the initalization and checking is split. The
-    mainbody routine call out to these functions. The timing is sort of tricky: we can use a start
+    For practical and historical reasons some of the initialization and checking is split. The
+    |mainbody| routine call out to these functions. The timing is sort of tricky: we can use a start
     up script, that sets some configuration parameters, and for sure some callbacks, and these, in
     turn, are then responsible for follow up actions like telling where to find the format file
     (when a dump is loaded) or startup file (when we're in virgin mode). When we are in neither of
@@ -864,6 +866,17 @@ void lmt_make_table(
     Quite some reallocs happen in \LUA. We often see size 4 bumped to some larger size (strings) 
     but we also see realloc that go from 8 to 7 (kind of weird). We also see 0 coming by. We see 
     doubling from 24 to 48 (very popular) to 96. 
+
+    There is no real gain in pooling and it actually seems a bit slower and using some heap 
+    approach only complicates matter. Using mimalloc makes more sense but that library becomes
+    more complex over time and might need a platform configuration which is not what we want. On 
+    the LuaMetaTeX manual in Windows 10 we gain some 5-7 percent with mimalloc, also in the Linux 
+    subsystem. 
+
+    So the question is: when will (I) be (willing to) sacrifice a bit of performance at the cost 
+    of less dependencies and code. In \TEX\ we manage memory mostly ourselves, although there are
+    strings being allocated. In \LUA\ we depend on the allocator. In \METAPOST\ we have some 
+    pooling which indeed gives a bit better performance. 
 */
 
 # if (1) 
@@ -872,6 +885,11 @@ static void enginelib_initialize_memory_pool(void)
 {
     /* dummy */
 }
+
+// static void enginelib_cleanup_memory_pool(void) 
+// {
+//     /* dummy */
+// }
 
 static void *enginelib_aux_luaalloc(
     void   *ud,    /*tex Not used, but passed by \LUA. */
@@ -902,6 +920,7 @@ static void *enginelib_aux_luaalloc(
 
 # define max_memory_pool 96
 # define max_memory_slot (8*1024)
+# define use_memory_size 1024
 
 typedef struct memory_pool_entry { 
     unsigned     size; 
@@ -913,7 +932,7 @@ static memory_pool_entry memory_pool[max_memory_pool+1];
 
 static void enginelib_initialize_memory_pool(void) 
 {
-    for (int i = 0; i < max_memory_pool; i++) {
+    for (int i = 0; i <= max_memory_pool; i++) {
         switch (i) { 
             case 4: case 8: case 12: case 24: case 48: case 96:
                 memory_pool[i].data = lmt_memory_calloc(max_memory_slot, sizeof(void *));
@@ -923,6 +942,11 @@ static void enginelib_initialize_memory_pool(void)
         }
     }
 }
+
+// static void enginelib_cleanup_memory_pool(void) 
+// {
+//     /* dummy */
+// }
 
 static void *enginelib_aux_luaalloc(
     void   *ud,    /*tex Not used, but passed by \LUA. */
@@ -937,6 +961,7 @@ static void *enginelib_aux_luaalloc(
         lmt_lua_state.used_bytes_max = lmt_lua_state.used_bytes;
     }
     if (nsize == 0) {
+        /* free */
         if (ptr) { 
             switch (osize) { 
                 case 4: case 8: case 12: case 24: case 48: case 96:
@@ -951,17 +976,25 @@ static void *enginelib_aux_luaalloc(
                           // printf("full pool: size %d\n",s);
                          }
                     }
-                 default: 
+                default: 
                  // printf("free %i\n", (int) osize); 
                     lmt_memory_free(ptr);
             }
         }
         return NULL;
     } else if (osize == 0) {
+        /* malloc */
         switch (nsize) { 
             case 4: case 8: case 12: case 24: case 48: case 96:
                 {
                     unsigned s = (unsigned) nsize;
+                    if (use_memory_size && memory_pool[s].size == 0) {
+                        /* assume near by allocations */
+                        for  (int i = 0; i < use_memory_size; i++) { 
+                            memory_pool[s].data[i] = lmt_memory_malloc(nsize);
+                        }
+                        memory_pool[s].size = use_memory_size;
+                    }
                     if (memory_pool[s].size > 0) {
                         memory_pool[s].size--;
                         void * p = memory_pool[s].data[memory_pool[s].size];
@@ -976,11 +1009,19 @@ static void *enginelib_aux_luaalloc(
                 return lmt_memory_malloc(nsize);
         } 
     } else {
+        /* realloc */
         if (ptr && nsize && nsize > osize) { 
             switch (nsize) { 
                 case 4: case 8: case 12: case 24: case 48: case 96:
                     {
                         unsigned s = (unsigned) nsize;
+                        if (use_memory_size && memory_pool[s].size == 0) {
+                            /* assume near by allocations */
+                            for  (int i = 0; i < use_memory_size; i++) { 
+                                memory_pool[s].data[i] = lmt_memory_malloc(nsize);
+                            }
+                            memory_pool[s].size = use_memory_size;
+                        }
                         if (memory_pool[s].size > 0) {
                             memory_pool[s].size--;
                             void * p = memory_pool[s].data[memory_pool[s].size];
@@ -1039,21 +1080,24 @@ static const luaL_Reg lmt_libs_lua_function_list[] = {
 };
 
 static const luaL_Reg lmt_libs_extra_function_list[] = {
-    { "md5",      luaopen_md5      },
-    { "sha2",     luaopen_sha2     },
-    { "aes",      luaopen_aes      },
-    { "basexx",   luaopen_basexx   },
-    { "lfs",      luaopen_filelib  }, /* for practical reasons we keep this namespace */
-    { "fio",      luaopen_fio      },
-    { "sio",      luaopen_sio      },
-    { "sparse",   luaopen_sparse   },
-    { "xzip",     luaopen_xzip     },
-    { "xmath",    luaopen_xmath    },
-    { "xcomplex", luaopen_xcomplex },
-    { "xdecimal", luaopen_xdecimal },
-    { "posit",    luaopen_posit    },
-    { "potrace",  luaopen_potrace  },
-    { NULL,       NULL             },
+    { "md5",       luaopen_md5       },
+    { "sha2",      luaopen_sha2      },
+    { "aes",       luaopen_aes       },
+    { "basexx",    luaopen_basexx    },
+    { "lfs",       luaopen_filelib   }, /* for practical reasons we keep this namespace */
+    { "fio",       luaopen_fio       },
+    { "sio",       luaopen_sio       },
+    { "sparse",    luaopen_sparse    },
+    { "xzip",      luaopen_xzip      },
+    { "xmath",     luaopen_xmath     },
+    { "xcomplex",  luaopen_xcomplex  },
+    { "xdecimal",  luaopen_xdecimal  },
+    { "posit",     luaopen_posit     },
+    { "vector",    luaopen_vector    },
+    { "potrace",   luaopen_potrace   },
+    { "qrcodegen", luaopen_qrcodegen },
+    { "serial",    luaopen_serial    },
+    { NULL,        NULL              },
 };
 
 static const luaL_Reg lmt_libs_socket_function_list[] = {
@@ -1074,6 +1118,9 @@ static const luaL_Reg lmt_libs_tex_function_list[] = {
     { "tex",      luaopen_tex      },
     { "token",    luaopen_token    },
     { "node",     luaopen_node     },
+# if defined(LUAMETATEX_USE_HELPERS)
+    { "helper",   luaopen_helper   },
+# endif 
     { "callback", luaopen_callback },
     { "font",     luaopen_font     },
     { "language", luaopen_language },
@@ -1095,7 +1142,7 @@ static const luaL_Reg lmt_libs_pdf_function_list[] = {
 /*tex
 
     So, we have different library initialization lists for the the two \TEX\ modes (ini and normal)
-    and \LUA\ mode (interpeter). It's not pretty yet but it might become better over time.
+    and \LUA\ mode (interpreter). It's not pretty yet but it might become better over time.
 
  */
 
@@ -1111,7 +1158,7 @@ static void enginelib_luaopen_liblist(lua_State *L, const luaL_Reg *lib)
 
     In order to overcome (expected) debates about security we disable loading libraries unless
     explicitly enabled (as in \LUATEX). An exception are the optional libraries, but as these
-    interfaces are rather bound to the cannonical \LUAMETATEX\ source code we can control these
+    interfaces are rather bound to the canonical \LUAMETATEX\ source code we can control these
     from \CONTEXT\ of needed because before users can run code, we can block support of these
     libraries. On the other hand, we have no reason to distrust the few that can (optionally) be
     used (they also cannot clash with different \LUA\ versions).
@@ -1162,7 +1209,7 @@ void lmt_initialize(void)
     lua_State *L = NULL;
     int seed = luaL_makeseed(L); /* maybe we will default to the luametatex version number */
     L = lua_newstate(enginelib_aux_luaalloc, NULL, seed);
-enginelib_initialize_memory_pool();
+    enginelib_initialize_memory_pool();
     if (L) {
         /*tex By default we use the generational garbage collector. */
         lua_gc(L, LUA_GCGEN, 0, 0);

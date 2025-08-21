@@ -37,7 +37,7 @@ typedef struct {
   const char *name;
   Table *h;  /* list for string reuse */
   size_t offset;  /* current position relative to beginning of dump */
-  lua_Integer nstr;  /* number of strings in the list */
+  lua_Unsigned nstr;  /* number of strings in the list */
   lu_byte fixed;  /* dump is fixed in memory */
 } LoadState;
 
@@ -52,7 +52,7 @@ static l_noret error (LoadState *S, const char *why) {
 ** All high-level loads go through loadVector; you can change it to
 ** adapt to the endianness of the input
 */
-#define loadVector(S,b,n)	loadBlock(S,b,(n)*sizeof((b)[0]))
+#define loadVector(S,b,n)	loadBlock(S,b,cast_sizet(n)*sizeof((b)[0]))
 
 static void loadBlock (LoadState *S, void *b, size_t size) {
   if (luaZ_read(S->Z, b, size) != 0)
@@ -71,7 +71,7 @@ static void loadAlign (LoadState *S, unsigned align) {
 }
 
 
-#define getaddr(S,n,t)	cast(t *, getaddr_(S,(n) * sizeof(t)))
+#define getaddr(S,n,t)	cast(t *, getaddr_(S,cast_sizet(n) * sizeof(t)))
 
 static const void *getaddr_ (LoadState *S, size_t size) {
   const void *block = luaZ_getaddr(S->Z, size);
@@ -94,8 +94,8 @@ static lu_byte loadByte (LoadState *S) {
 }
 
 
-static size_t loadVarint (LoadState *S, size_t limit) {
-  size_t x = 0;
+static lua_Unsigned loadVarint (LoadState *S, lua_Unsigned limit) {
+  lua_Unsigned x = 0;
   int b;
   limit >>= 7;
   do {
@@ -109,14 +109,7 @@ static size_t loadVarint (LoadState *S, size_t limit) {
 
 
 static size_t loadSize (LoadState *S) {
-  return loadVarint(S, MAX_SIZE);
-}
-
-
-/*
-** Read an non-negative int */
-static unsigned loadUint (LoadState *S) {
-  return cast_uint(loadVarint(S, cast_sizet(INT_MAX)));
+  return cast_sizet(loadVarint(S, MAX_SIZE));
 }
 
 
@@ -134,9 +127,12 @@ static lua_Number loadNumber (LoadState *S) {
 
 
 static lua_Integer loadInteger (LoadState *S) {
-  lua_Integer x;
-  loadVar(S, x);
-  return x;
+  lua_Unsigned cx = loadVarint(S, LUA_MAXUNSIGNED);
+  /* decode unsigned to signed */
+  if ((cx & 1) != 0)
+    return l_castU2S(~(cx >> 1));
+  else
+    return l_castU2S(cx >> 1);
 }
 
 
@@ -156,10 +152,11 @@ static void loadString (LoadState *S, Proto *p, TString **sl) {
     return;
   }
   else if (size == 1) {  /* previously saved string? */
-    lua_Integer idx = cast(lua_Integer, loadSize(S));  /* get its index */
+    lua_Unsigned idx = loadVarint(S, LUA_MAXUNSIGNED);  /* get its index */
     TValue stv;
-    luaH_getint(S->h, idx, &stv);  /* get its value */
-    *sl = ts = tsvalue(&stv);
+    if (novariant(luaH_getint(S->h, l_castU2S(idx), &stv)) != LUA_TSTRING)
+      error(S, "invalid string index");
+    *sl = ts = tsvalue(&stv);  /* get its value */
     luaC_objbarrier(L, p, ts);
     return;  /* do not save it again */
   }
@@ -182,21 +179,21 @@ static void loadString (LoadState *S, Proto *p, TString **sl) {
   /* add string to list of saved strings */
   S->nstr++;
   setsvalue(L, &sv, ts);
-  luaH_setint(L, S->h, S->nstr, &sv);
+  luaH_setint(L, S->h, l_castU2S(S->nstr), &sv);
   luaC_objbarrierback(L, obj2gco(S->h), ts);
 }
 
 
 static void loadCode (LoadState *S, Proto *f) {
-  unsigned n = loadUint(S);
+  int n = loadInt(S);
   loadAlign(S, sizeof(f->code[0]));
   if (S->fixed) {
     f->code = getaddr(S, n, Instruction);
-    f->sizecode = cast_int(n);
+    f->sizecode = n;
   }
   else {
     f->code = luaM_newvectorchecked(S->L, n, Instruction);
-    f->sizecode = cast_int(n);
+    f->sizecode = n;
     loadVector(S, f->code, n);
   }
 }
@@ -206,10 +203,10 @@ static void loadFunction(LoadState *S, Proto *f);
 
 
 static void loadConstants (LoadState *S, Proto *f) {
-  unsigned i;
-  unsigned n = loadUint(S);
+  int i;
+  int n = loadInt(S);
   f->k = luaM_newvectorchecked(S->L, n, TValue);
-  f->sizek = cast_int(n);
+  f->sizek = n;
   for (i = 0; i < n; i++)
     setnilvalue(&f->k[i]);
   for (i = 0; i < n; i++) {
@@ -241,17 +238,17 @@ static void loadConstants (LoadState *S, Proto *f) {
         f->source = NULL;
         break;
       }
-      default: lua_assert(0);
+      default: error(S, "invalid constant");
     }
   }
 }
 
 
 static void loadProtos (LoadState *S, Proto *f) {
-  unsigned i;
-  unsigned n = loadUint(S);
+  int i;
+  int n = loadInt(S);
   f->p = luaM_newvectorchecked(S->L, n, Proto *);
-  f->sizep = cast_int(n);
+  f->sizep = n;
   for (i = 0; i < n; i++)
     f->p[i] = NULL;
   for (i = 0; i < n; i++) {
@@ -269,10 +266,10 @@ static void loadProtos (LoadState *S, Proto *f) {
 ** in that case all prototypes must be consistent for the GC.
 */
 static void loadUpvalues (LoadState *S, Proto *f) {
-  unsigned i;
-  unsigned n = loadUint(S);
+  int i;
+  int n = loadInt(S);
   f->upvalues = luaM_newvectorchecked(S->L, n, Upvaldesc);
-  f->sizeupvalues = cast_int(n);
+  f->sizeupvalues = n;
   for (i = 0; i < n; i++)  /* make array valid for GC */
     f->upvalues[i].name = NULL;
   for (i = 0; i < n; i++) {  /* following calls can raise errors */
@@ -284,33 +281,33 @@ static void loadUpvalues (LoadState *S, Proto *f) {
 
 
 static void loadDebug (LoadState *S, Proto *f) {
-  unsigned i;
-  unsigned n = loadUint(S);
+  int i;
+  int n = loadInt(S);
   if (S->fixed) {
     f->lineinfo = getaddr(S, n, ls_byte);
-    f->sizelineinfo = cast_int(n);
+    f->sizelineinfo = n;
   }
   else {
     f->lineinfo = luaM_newvectorchecked(S->L, n, ls_byte);
-    f->sizelineinfo = cast_int(n);
+    f->sizelineinfo = n;
     loadVector(S, f->lineinfo, n);
   }
-  n = loadUint(S);
+  n = loadInt(S);
   if (n > 0) {
     loadAlign(S, sizeof(int));
     if (S->fixed) {
       f->abslineinfo = getaddr(S, n, AbsLineInfo);
-      f->sizeabslineinfo = cast_int(n);
+      f->sizeabslineinfo = n;
     }
     else {
       f->abslineinfo = luaM_newvectorchecked(S->L, n, AbsLineInfo);
-      f->sizeabslineinfo = cast_int(n);
+      f->sizeabslineinfo = n;
       loadVector(S, f->abslineinfo, n);
     }
   }
-  n = loadUint(S);
+  n = loadInt(S);
   f->locvars = luaM_newvectorchecked(S->L, n, LocVar);
-  f->sizelocvars = cast_int(n);
+  f->sizelocvars = n;
   for (i = 0; i < n; i++)
     f->locvars[i].varname = NULL;
   for (i = 0; i < n; i++) {
@@ -318,9 +315,9 @@ static void loadDebug (LoadState *S, Proto *f) {
     f->locvars[i].startpc = loadInt(S);
     f->locvars[i].endpc = loadInt(S);
   }
-  n = loadUint(S);
+  n = loadInt(S);
   if (n != 0)  /* does it have debug information? */
-    n = cast_uint(f->sizeupvalues);  /* must be this many */
+    n = f->sizeupvalues;  /* must be this many */
   for (i = 0; i < n; i++)
     loadString(S, f, &f->upvalues[i].name);
 }
@@ -352,13 +349,29 @@ static void checkliteral (LoadState *S, const char *s, const char *msg) {
 }
 
 
-static void fchecksize (LoadState *S, size_t size, const char *tname) {
-  if (loadByte(S) != size)
-    error(S, luaO_pushfstring(S->L, "%s size mismatch", tname));
+static l_noret numerror (LoadState *S, const char *what, const char *tname) {
+  const char *msg = luaO_pushfstring(S->L, "%s %s mismatch", tname, what);
+  error(S, msg);
 }
 
 
-#define checksize(S,t)	fchecksize(S,sizeof(t),#t)
+static void checknumsize (LoadState *S, int size, const char *tname) {
+  if (size != loadByte(S))
+    numerror(S, "size", tname);
+}
+
+
+static void checknumformat (LoadState *S, int eq, const char *tname) {
+  if (!eq)
+    numerror(S, "format", tname);
+}
+
+
+#define checknum(S,tvar,value,tname)  \
+  { tvar i; checknumsize(S, sizeof(i), tname); \
+    loadVar(S, i); \
+    checknumformat(S, i == value, tname); }
+
 
 static void checkHeader (LoadState *S) {
   /* skip 1st char (already read and checked) */
@@ -368,13 +381,10 @@ static void checkHeader (LoadState *S) {
   if (loadByte(S) != LUAC_FORMAT)
     error(S, "format mismatch");
   checkliteral(S, LUAC_DATA, "corrupted chunk");
-  checksize(S, Instruction);
-  checksize(S, lua_Integer);
-  checksize(S, lua_Number);
-  if (loadInteger(S) != LUAC_INT)
-    error(S, "integer format mismatch");
-  if (loadNumber(S) != LUAC_NUM)
-    error(S, "float format mismatch");
+  checknum(S, int, LUAC_INT, "int");
+  checknum(S, Instruction, LUAC_INST, "instruction");
+  checknum(S, lua_Integer, LUAC_INT, "Lua integer");
+  checknum(S, lua_Number, LUAC_NUM, "Lua number");
 }
 
 
@@ -385,11 +395,10 @@ LClosure *luaU_undump (lua_State *L, ZIO *Z, const char *name, int fixed) {
   LoadState S;
   LClosure *cl;
   if (*name == '@' || *name == '=')
-    S.name = name + 1;
+    name = name + 1;
   else if (*name == LUA_SIGNATURE[0])
-    S.name = "binary string";
-  else
-    S.name = name;
+    name = "binary string";
+  S.name = name;
   S.L = L;
   S.Z = Z;
   S.fixed = cast_byte(fixed);
@@ -405,7 +414,8 @@ LClosure *luaU_undump (lua_State *L, ZIO *Z, const char *name, int fixed) {
   cl->p = luaF_newproto(L);
   luaC_objbarrier(L, cl, cl->p);
   loadFunction(&S, cl->p);
-  lua_assert(cl->nupvalues == cl->p->sizeupvalues);
+  if (cl->nupvalues != cl->p->sizeupvalues)
+    error(&S, "corrupted chunk");
   luai_verifycode(L, cl->p);
   L->top.p--;  /* pop table */
   return cl;

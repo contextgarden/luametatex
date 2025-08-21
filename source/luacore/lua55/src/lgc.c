@@ -78,7 +78,7 @@
 	((*getArrTag(t,i) & BIT_ISCOLLECTABLE) ? getArrVal(t,i)->gc : NULL)
 
 
-#define markvalue(g,o) { checkliveness(g->mainthread,o); \
+#define markvalue(g,o) { checkliveness(mainthread(g),o); \
   if (valiswhite(o)) reallymarkobject(g,gcvalue(o)); }
 
 #define markkey(g, n)	{ if keyiswhite(n) reallymarkobject(g,gckey(n)); }
@@ -125,7 +125,6 @@ static l_mem objsize (GCObject *o) {
     case LUA_VCCL: {
       CClosure *cl = gco2ccl(o);
       res = sizeCclosure(cl->nupvalues);
-      break;
       break;
     }
     case LUA_VUSERDATA: {
@@ -441,7 +440,7 @@ static void cleargraylists (global_State *g) {
 static void restartcollection (global_State *g) {
   cleargraylists(g);
   g->GCmarked = 0;
-  markobject(g, g->mainthread);
+  markobject(g, mainthread(g));
   markvalue(g, &g->l_registry);
   markmt(g);
   markbeingfnz(g);  /* mark any finalizing object left from previous cycle */
@@ -465,6 +464,8 @@ static void restartcollection (global_State *g) {
 ** TOUCHED1 objects need to be in the list. TOUCHED2 doesn't need to go
 ** back to a gray list, but then it must become OLD. (That is what
 ** 'correctgraylist' does when it finds a TOUCHED2 object.)
+** This function is a no-op in incremental mode, as objects cannot be
+** marked as touched in that mode.
 */
 static void genlink (global_State *g, GCObject *o) {
   lua_assert(isblack(o));
@@ -480,7 +481,8 @@ static void genlink (global_State *g, GCObject *o) {
 ** Traverse a table with weak values and link it to proper list. During
 ** propagate phase, keep it in 'grayagain' list, to be revisited in the
 ** atomic phase. In the atomic phase, if table has any white value,
-** put it in 'weak' list, to be cleared.
+** put it in 'weak' list, to be cleared; otherwise, call 'genlink'
+** to check table age in generational mode.
 */
 static void traverseweakvalue (global_State *g, Table *h) {
   Node *n, *limit = gnodelast(h);
@@ -497,10 +499,12 @@ static void traverseweakvalue (global_State *g, Table *h) {
         hasclears = 1;  /* table will have to be cleared */
     }
   }
-  if (g->gcstate == GCSatomic && hasclears)
-    linkgclist(h, g->weak);  /* has to be cleared later */
-  else
+  if (g->gcstate == GCSpropagate)
     linkgclist(h, g->grayagain);  /* must retraverse it in atomic phase */
+  else if (hasclears)
+      linkgclist(h, g->weak);  /* has to be cleared later */
+  else
+    genlink(g, obj2gco(h));
 }
 
 
@@ -585,25 +589,41 @@ static void traversestrongtable (global_State *g, Table *h) {
 }
 
 
-static l_mem traversetable (global_State *g, Table *h) {
-  const char *weakkey, *weakvalue;
+/*
+** (result & 1) iff weak values; (result & 2) iff weak keys.
+*/
+static int getmode (global_State *g, Table *h) {
   const TValue *mode = gfasttm(g, h->metatable, TM_MODE);
-  TString *smode;
-  markobjectN(g, h->metatable);
-  if (mode && ttisshrstring(mode) &&  /* is there a weak mode? */
-      (cast_void(smode = tsvalue(mode)),
-       cast_void(weakkey = strchr(getshrstr(smode), 'k')),
-       cast_void(weakvalue = strchr(getshrstr(smode), 'v')),
-       (weakkey || weakvalue))) {  /* is really weak? */
-    if (!weakkey)  /* strong keys? */
-      traverseweakvalue(g, h);
-    else if (!weakvalue)  /* strong values? */
-      traverseephemeron(g, h, 0);
-    else  /* all weak */
-      linkgclist(h, g->allweak);  /* nothing to traverse now */
+  if (mode == NULL || !ttisshrstring(mode))
+    return 0;  /* ignore non-(short)string modes */
+  else {
+    const char *smode = getshrstr(tsvalue(mode));
+    const char *weakkey = strchr(smode, 'k');
+    const char *weakvalue = strchr(smode, 'v');
+    return ((weakkey != NULL) << 1) | (weakvalue != NULL);
   }
-  else  /* not weak */
-    traversestrongtable(g, h);
+}
+
+
+static l_mem traversetable (global_State *g, Table *h) {
+  markobjectN(g, h->metatable);
+  switch (getmode(g, h)) {
+    case 0:  /* not weak */
+      traversestrongtable(g, h);
+      break;
+    case 1:  /* weak values */
+      traverseweakvalue(g, h);
+      break;
+    case 2:  /* weak keys */
+      traverseephemeron(g, h, 0);
+      break;
+    case 3:  /* all weak; nothing to traverse */
+      if (g->gcstate == GCSpropagate)
+        linkgclist(h, g->grayagain);  /* must visit again its metatable */
+      else
+        linkgclist(h, g->allweak);  /* must clear collected entries */
+      break;
+  }
   return 1 + 2*sizenode(h) + h->asize;
 }
 
@@ -953,7 +973,7 @@ static void GCTM (lua_State *L) {
   setgcovalue(L, &v, udata2finalize(g));
   tm = luaT_gettmbyobj(L, &v, TM_GC);
   if (!notm(tm)) {  /* is there a finalizer? */
-    int status;
+    TStatus status;
     lu_byte oldah = L->allowhook;
     lu_byte oldgcstp  = g->gcstp;
     g->gcstp |= GCSTPGC;  /* avoid GC steps */
@@ -1513,7 +1533,7 @@ void luaC_freeallobjects (lua_State *L) {
   separatetobefnz(g, 1);  /* separate all objects with finalizers */
   lua_assert(g->finobj == NULL);
   callallpendingfinalizers(L);
-  deletelist(L, g->allgc, obj2gco(g->mainthread));
+  deletelist(L, g->allgc, obj2gco(mainthread(g)));
   lua_assert(g->finobj == NULL);  /* no new finalizers */
   deletelist(L, g->fixedgc, NULL);  /* collect fixed objects */
   lua_assert(g->strt.nuse == 0);
@@ -1526,7 +1546,7 @@ static void atomic (lua_State *L) {
   GCObject *grayagain = g->grayagain;  /* save original list */
   g->grayagain = NULL;
   lua_assert(g->ephemeron == NULL && g->weak == NULL);
-  lua_assert(!iswhite(g->mainthread));
+  lua_assert(!iswhite(mainthread(g)));
   g->gcstate = GCSatomic;
   markobject(g, L);  /* mark running thread */
   /* registry and global metatables may be changed by API */
