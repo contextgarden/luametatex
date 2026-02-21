@@ -16,6 +16,7 @@ typedef enum  contribution_codes {
     contribute_insert,  /*tex An insert node has been contributed, but no boxes. */
     contribute_box,     /*tex A box has been contributed. */
     contribute_rule,    /*tex A rule has been contributed. */
+    contribute_kern,    /*tex A line snapping kern is seen. */
 } contribution_codes;
 
 typedef enum page_property_states { 
@@ -35,14 +36,14 @@ typedef struct page_builder_state_info {
     scaled   max_depth;  /*tex The maximum box depth on page being built. */
     halfword best_break; /*tex Break here to get the best page known so far. */
     int      least_cost; /*tex The score for this currently best page. */
-    scaled   best_size;  /*tex Its |page_goal| so it can go away. */
+    scaled   best_size;  /*tex It's |page_goal| so it can go away. */
     scaled   goal; 
     scaled   vsize; 
     scaled   total; 
     scaled   depth; 
     scaled   excess;
     scaled   except; 
-    scaled   padding; 
+    scaled   inserted;
     scaled   last_height;
     scaled   last_depth;
     union { 
@@ -74,6 +75,7 @@ typedef struct page_builder_state_info {
         };
     };
     int      insert_penalties;  /*tex The sum of the penalties for held-over insertions. */
+    int      insert_only_count; /*tex The number of inserts when we have only inserts on a page. */
     halfword insert_heights;
     halfword last_glue;         /*tex Used to implement |\lastskip|. */
     halfword last_penalty;      /*tex Used to implement |\lastpenalty|. */

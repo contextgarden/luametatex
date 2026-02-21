@@ -91,7 +91,7 @@ typedef enum saved_box_entries {
     saved_box_axis_entry        = 6, 
     saved_box_retain_entry      = 7,  
     saved_box_options_entry     = 7,
-    saved_box_reserved_1_entry  = 7,
+    saved_box_snapping_entry    = 7,
     saved_box_callback_entry    = 8, /* leaders related */
     saved_box_leaders_entry     = 8, /* leaders related */
     saved_box_reserved_2_entry  = 8, /* leaders related */
@@ -109,6 +109,7 @@ typedef enum saved_box_options {
     saved_box_snapping_option     = 0x080,
     saved_box_no_snapping_option  = 0x100,
     saved_box_no_profiling_option = 0x200,
+    saved_box_align_split_option  = 0x400,
 } saved_box_options;
 
 static inline void saved_box_initialize(void)
@@ -156,7 +157,7 @@ static inline void saved_box_initialize(void)
 # define saved_box_axis        saved_value_3(saved_box_axis_entry)
 # define saved_box_retain      saved_value_1(saved_box_retain_entry)
 # define saved_box_options     saved_value_2(saved_box_options_entry)
-# define saved_box_reserved_1  saved_value_3(saved_box_reserved_1_entry)
+# define saved_box_snapping    saved_value_3(saved_box_snapping_entry)
 # define saved_box_callback    saved_value_1(saved_box_callback_entry)
 # define saved_box_leaders     saved_value_2(saved_box_leaders_entry)
 # define saved_box_reserved_2  saved_value_3(saved_box_reserved_2_entry)
@@ -194,7 +195,7 @@ int tex_show_packaging_record(void)
             tex_print_format("class %i, state %i, axis %i", saved_value_1(0), saved_value_2(0), saved_value_3(0));
             break;
         case saved_record_7:
-            tex_print_format("retain %i, options %i", saved_value_1(0), saved_value_2(0));
+            tex_print_format("retain %i, options %i, snapping %i", saved_value_1(0), saved_value_2(0), saved_value_3(0));
             break;
         case saved_record_8:
             tex_print_format("callback %i, leaders %i", saved_value_1(0), saved_value_2(0));
@@ -227,6 +228,7 @@ static void tex_aux_scan_full_spec(halfword context, quarterword c, quarterword 
     halfword retain = 0;
     halfword mainclass = unset_noad_class;
     halfword options = 0;
+    halfword snapping = null;
     int brace = 0;
     while (1) {
         /*tex Maybe |migrate <int>| makes sense here. */
@@ -250,7 +252,7 @@ static void tex_aux_scan_full_spec(halfword context, quarterword c, quarterword 
                 }
                 break;
             case 'a': case 'A':
-                switch (tex_scan_character("dntxDNTX", 0, 0, 0)) {
+                switch (tex_scan_character("dlntxDLNTX", 0, 0, 0)) {
                     case 'd': case 'D':
                         if (tex_scan_mandate_keyword("adapt", 2)) {
                             spec_packing = packing_adapted;
@@ -274,13 +276,18 @@ static void tex_aux_scan_full_spec(halfword context, quarterword c, quarterword 
                             }
                         }
                         break;
+                    case 'l': case 'L':
+                        if (tex_scan_mandate_keyword("alignsplit", 2)) { /* or maybe just split */
+                            options |= saved_box_align_split_option;
+                        }
+                        break;
                     case 'x': case 'X':
                         if (tex_scan_mandate_keyword("axis", 2)) {
                             axis = tex_scan_box_axis();
                         }
                         break;
                     default:
-                        tex_aux_show_keyword_error("adapt|attr|anchor|axis");
+                        tex_aux_show_keyword_error("adapt|attr|anchor|axis|alignsplit");
                         goto DONE;
                 }
                 break;
@@ -458,8 +465,22 @@ static void tex_aux_scan_full_spec(halfword context, quarterword c, quarterword 
                 }
                 break;
             case 'l': case 'L':
-                if (tex_scan_mandate_keyword("limit", 1)) {
-                    options |= saved_box_limit_option;
+                if (tex_scan_character("iI", 0, 0, 0)) {
+                    switch (tex_scan_character("nmNM", 0, 0, 0)) {
+                        case 'n': case 'N' :
+                            if (tex_scan_mandate_keyword("linesnapping", 3)) {
+                                snapping = tex_snapping_scan();
+                            }
+                            break;
+                        case 'm': case 'M' :
+                            if (tex_scan_mandate_keyword("limit", 3)) {
+                                options |= saved_box_limit_option;
+                            }
+                            break;
+                        default:
+                            tex_aux_show_keyword_error("linesnapping|limit");
+                            goto DONE;
+                    }
                 }
                 break;
             case 'm': case 'M':
@@ -548,6 +569,9 @@ static void tex_aux_scan_full_spec(halfword context, quarterword c, quarterword 
     saved_box_retain = retain;
     saved_box_callback = callback;
     saved_box_leaders = leaders;
+    /* isn't this already a copy: needs checking */
+ // saved_box_snapping = tex_copy_specification_node(snapping);
+    saved_box_snapping = snapping;
     lmt_save_state.save_stack_data.ptr += saved_box_n_of_records;
     tex_new_save_level(c);
     if (! brace) {
@@ -588,7 +612,6 @@ packaging_state_info lmt_packaging_state = {
     .last_rightmost_char    = null,
     .pack_begin_line        = 0,
  /* .active_height          = { 0 }, */
-    .best_height_plus_depth = 0,
     .previous_char_ptr      = null,
     .font_expansion_ratio   = 0,
     .except                 = 0,
@@ -1703,25 +1726,30 @@ halfword tex_hpack(halfword p, scaled target, int method, singleword pack_direct
                     }
                     if (is_leader(p)) {
                         halfword gl = glue_leader_ptr(p);
-                        scaled ht = 0;
-                        scaled dp = 0;
+                        scaledwhd whd;
                         switch (node_type(gl)) {
                             case hlist_node:
                             case vlist_node:
-                                ht = box_height(gl);
-                                dp = box_depth(gl);
+                                whd.ht = box_height(gl);
+                                whd.dp = box_depth(gl);
                                 break;
                             case rule_node:
-                                ht = rule_height(gl);
-                                dp = rule_depth(gl);
+                                whd.ht = rule_height(gl);
+                                whd.dp = rule_depth(gl);
                                 break;
-                            /* how about glyph_node */
+                            case glyph_node: 
+                                whd = tex_glyph_dimensions(gl);
+                                break;
+                            default:
+                                whd.ht = 0;
+                                whd.dp = 0;
+                                break;
                         }
-                        if (ht > height) {
-                            height = ht;
+                        if (whd.ht > height) {
+                            height = whd.ht;
                         }
-                        if (dp > depth) {
-                            depth = dp;
+                        if (whd.dp > depth) {
+                            depth = whd.dp;
                         }
                         if (node_subtype(p) == u_leaders) {
                             has_uleader = 1;
@@ -2048,6 +2076,7 @@ halfword tex_hpack(halfword p, scaled target, int method, singleword pack_direct
         tex_short_display(box_list(result));
         tex_print_ln();
         tex_begin_diagnostic();
+        tex_print_levels();
         tex_show_box(result);
         tex_end_diagnostic();
         show_node_details_par = detail;
@@ -2176,25 +2205,30 @@ scaledwhd tex_natural_hsizes(halfword p, halfword pp, glueratio g_mult, int g_si
                 }
                 if (is_leader(p)) {
                     halfword gl = glue_leader_ptr(p);
-                    halfword ht = 0;
-                    halfword dp = 0;
+                    scaledwhd whd;
                     switch (node_type(gl)) {
                         case hlist_node:
                         case vlist_node:
-                            ht = box_height(gl);
-                            dp = box_depth(gl);
+                            whd.ht = box_height(gl);
+                            whd.dp = box_depth(gl);
                             break;
                         case rule_node:
-                            ht = rule_height(gl);
-                            dp = rule_depth(gl);
+                            whd.ht = rule_height(gl);
+                            whd.dp = rule_depth(gl);
                             break;
-                        /* how about glyph_node */
+                        case glyph_node: 
+                            whd = tex_glyph_dimensions(gl);
+                            break;
+                        default:
+                            whd.ht = 0;
+                            whd.dp = 0;
+                            break;
                     }
-                    if (ht) {
-                        siz.ht = ht;
+                    if (whd.ht > siz.ht) {
+                        siz.ht = whd.ht;
                     }
-                    if (dp > siz.dp) {
-                        siz.dp = dp;
+                    if (whd.dp > siz.dp) {
+                        siz.dp = whd.dp;
                     }
                 }
                 break;
@@ -2238,7 +2272,7 @@ scaledwhd tex_natural_hsizes(halfword p, halfword pp, glueratio g_mult, int g_si
             case sub_mlist_node:
                 {
                     /* hack */
-                    scaledwhd whd = tex_natural_hsizes(kernel_math_list(p), null, normal_glue_multiplier, normal_glue_sign, normal_glue_sign);
+                    scaledwhd whd = tex_natural_hsizes(math_kernel_list(p), null, normal_glue_multiplier, normal_glue_sign, normal_glue_sign);
                     siz.wd += whd.wd;
                     if (whd.ht > siz.ht) {
                         siz.ht = whd.ht;
@@ -2327,25 +2361,31 @@ scaledwhd tex_natural_msizes(halfword p, int ignoreprime)
                 siz.wd += glue_amount(p);
                 if (is_leader(p)) {
                     halfword gl = glue_leader_ptr(p);
-                    halfword ht = 0;
-                    halfword dp = 0;
+                    scaledwhd whd;
                     switch (node_type(gl)) {
                         case hlist_node:
                         case vlist_node:
-                            ht = box_height(gl);
-                            dp = box_depth(gl);
+                            whd.ht = box_height(gl);
+                            whd.dp = box_depth(gl);
                             break;
                         case rule_node:
-                            ht = rule_height(gl);
-                            dp = rule_depth(gl);
+                            whd.ht = rule_height(gl);
+                            whd.dp = rule_depth(gl);
                             break;
-                        /* how about glyph_node */
+                        case glyph_node: 
+                            whd = tex_glyph_dimensions(gl);
+                            break;
+                        default:
+                            whd.ht = 0;
+                            whd.dp = 0;
+                            break;
+
                     }
-                    if (ht) {
-                        siz.ht = ht;
+                    if (whd.ht> siz.ht) {
+                        siz.ht = whd.ht;
                     }
-                    if (dp > siz.dp) {
-                        siz.dp = dp;
+                    if (whd.dp > siz.dp) {
+                        siz.dp = whd.dp;
                     }
                 }
                 break;
@@ -2375,7 +2415,7 @@ scaledwhd tex_natural_msizes(halfword p, int ignoreprime)
                 break;
             case sub_mlist_node:
                 {
-                    scaledwhd whd = tex_natural_msizes(kernel_math_list(p), ignoreprime);
+                    scaledwhd whd = tex_natural_msizes(math_kernel_list(p), ignoreprime);
                     siz.wd += whd.wd;
                     if (whd.ht > siz.ht) {
                         siz.ht = whd.ht;
@@ -2753,6 +2793,9 @@ halfword tex_vpack(halfword p, scaled targetheight, int m, scaled targetdepth, s
                         case rule_node:
                             wd = rule_width(gl);
                             break;
+                     // case glyph_node:
+                     //     /* can't happen */
+                     //     break;
                     }
                     if (wd > width) {
                         width = wd;
@@ -2942,6 +2985,7 @@ halfword tex_vpack(halfword p, scaled targetheight, int m, scaled targetdepth, s
     }
     tex_print_ln();
     tex_begin_diagnostic();
+    tex_print_levels();
     tex_show_box(box);
     tex_end_diagnostic();
   EXIT:
@@ -3120,6 +3164,7 @@ void tex_package(singleword nature)
         scaled yoffset = saved_box_yoffset;
         scaled xmove = saved_box_xmove;
         scaled ymove = saved_box_ymove;
+        halfword snapping = saved_box_snapping;
         if (cur_list.mode == restricted_hmode) {
             boxnode = tex_filtered_hpack(
                 cur_list.head, cur_list.tail, 
@@ -3240,6 +3285,9 @@ void tex_package(singleword nature)
         if (options & saved_box_no_profiling_option) {
             box_options(boxnode) = box_option_no_profiling;
         }
+        if (options & saved_box_align_split_option) {
+            box_options(boxnode) = box_option_align_split;
+        }
         if (options & saved_box_swap_htdp_option) {
             halfword ht = box_height(boxnode);
             box_height(boxnode) = box_depth(boxnode);
@@ -3247,6 +3295,10 @@ void tex_package(singleword nature)
         }        
         box_package_state(boxnode) |= (singleword) state;
         tex_pop_nest();
+        if (snapping) {
+            tex_snapping_line(boxnode, snapping);
+         // tex_flush_specification_node(snapping);
+        }
         tex_box_end(context, boxnode, shift, mainclass, slot, callback, leaders);
     }
 }
@@ -3338,7 +3390,7 @@ void tex_run_unpackage(void)
                                 }
                                 if (pre_adjusted && tracing_adjusts_par > 1) {
                                     tex_begin_diagnostic();
-                                    tex_print_format("[adjust: topskip moved]");
+                                    tex_print_format("%l[adjust: topskip moved]");
                                     tex_end_diagnostic();
                                 }
                             }
@@ -3491,12 +3543,16 @@ static halfword tex_aux_depth_correction(halfword b, const line_break_properties
     halfword height = has_box_package_state(b, dbox_package_state) ? tex_aux_first_height(b) : box_height(b);
     halfword depth = cur_list.prev_depth;
     if (properties) {
-        scaled d = glue_amount(properties->baseline_skip) - depth - height;
-        if (d < properties->line_skip_limit) {
-            p = tex_new_glue_node(properties->line_skip, line_skip_glue);
+        if (properties->line_snapping) {
+            p = tex_new_glue_node(zero_glue, baseline_skip_glue);
         } else {
-            p = tex_new_glue_node(properties->baseline_skip, baseline_skip_glue);
-            glue_amount(p) = d;
+            scaled d = glue_amount(properties->baseline_skip) - depth - height;
+            if (d < properties->line_skip_limit) {
+                p = tex_new_glue_node(properties->line_skip, line_skip_glue);
+            } else {
+                p = tex_new_glue_node(properties->baseline_skip, baseline_skip_glue);
+                glue_amount(p) = d;
+            }
         }
     } else {
         scaled d = glue_amount(baseline_skip_par) - depth - height;
@@ -3753,7 +3809,7 @@ static void tex_aux_vsplit_callback_wrapup(int callback_id, halfword checks, hal
     );
 }
 
-halfword tex_vert_break(halfword current, scaled height, scaled depth, int callback, scaled extra)
+halfword tex_vert_break(halfword current, scaled height, scaled depth, int callback, scaled extra, scaled *best_height_plus_depth)
 {
     /*tex
         If |p| is a glue node, |type(prev_p)| determines whether |p| is a legal breakpoint, an
@@ -3775,7 +3831,7 @@ halfword tex_vert_break(halfword current, scaled height, scaled depth, int callb
     /*tex For experiments: */
     int checks = callback ? vsplit_checks_par : 0;
     int callbackid = checks ? lmt_callback_defined(show_vsplit_callback) : 0;
-    if (callbackid) { 
+    if (callbackid > 0) { 
         tex_aux_vsplit_callback_initialize(callbackid, checks, current, height, depth, extra);
     }
     while (1) {
@@ -3885,13 +3941,15 @@ halfword tex_vert_break(halfword current, scaled height, scaled depth, int callb
                 for (int i = total_advance_amount; i <= total_stretch_amount; i++) {
                     passive_height[i] = active_height[i];
                 }
-                lmt_packaging_state.best_height_plus_depth = passive_height[total_advance_amount];
-                /*tex 
-                    Here's a patch suggested by DEK related to glue in inserts that needs to be taken 
-                    into account. That patch is not applied to regular \TEX\ for compatibility reasons.
-                */
-                if (lmt_packaging_state.best_height_plus_depth > (height + previous_depth) && costs < awful_bad) { 
-                    lmt_packaging_state.best_height_plus_depth = height + previous_depth;
+                if (best_height_plus_depth) {
+                    *best_height_plus_depth = passive_height[total_advance_amount];
+                    /*tex
+                        Here's a patch suggested by DEK related to glue in inserts that needs to be taken
+                        into account. That patch is not applied to regular \TEX\ for compatibility reasons.
+                    */
+                    if (*best_height_plus_depth > (height + previous_depth) && costs < awful_bad) {
+                        *best_height_plus_depth = height + previous_depth;
+                    }
                 }
             } else { 
                     /* do we need to adapt h plus d */
@@ -3933,7 +3991,7 @@ halfword tex_vert_break(halfword current, scaled height, scaled depth, int callb
                         however, if really needed, make it |warning_error_type|. 
                     */
                     tex_handle_error(
-                        normal_error_type,
+                        infinite_shrink_error_type,
                         "Infinite glue shrinkage found in box being split",
                         "The box you are \\vsplitting contains some infinitely shrinkable glue, e.g.,\n"
                         "'\\vss' or '\\vskip 0pt minus 1fil'. Such glue doesn't belong there; but you can\n"
@@ -4007,7 +4065,7 @@ halfword tex_vsplit(halfword n, scaled h, int m)
         return null;
     } else {
         /*tex points to where the break occurs */
-        halfword q = tex_vert_break(box_list(v), h, split_max_depth_par, 1, split_extra_height_par);
+        halfword q = tex_vert_break(box_list(v), h, split_max_depth_par, 1, split_extra_height_par, NULL);
         /*tex
 
             Look at all the marks in nodes before the break, and set the final link to |null| at
@@ -4467,7 +4525,7 @@ void tex_begin_box(int boxcontext, scaled shift, halfword slot, halfword callbac
 /*tex
 
     0x0001 : non data par nodes
-    0x0002 : direction noded
+    0x0002 : direction nodes
     0x0004 : indentation nodes
 
 */

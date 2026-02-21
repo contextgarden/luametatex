@@ -6,14 +6,14 @@
 # include "mpmathscaled.h"
 # include "mpstrings.h"
 
-# define  coef_bound               0x25555555
-# define  fraction_threshold       2685
-# define  half_fraction_threshold  1342
-# define  scaled_threshold         8
-# define  half_scaled_threshold    4
-# define  near_zero_angle          26844
-# define  p_over_v_threshold       0x80000
-# define  equation_threshold       64
+# define coef_bound               0x25555555
+# define fraction_threshold       2685
+# define half_fraction_threshold  1342
+# define scaled_threshold         8
+# define half_scaled_threshold    4
+# define near_zero_angle          26844
+# define p_over_v_threshold       0x80000
+# define equation_threshold       64
 
 /*tex
     Fixed-point arithmetic is done on {\sl scaled integers} that are multiples of $2^{-16}$. In 
@@ -21,25 +21,25 @@
     binary computer word.
 */
 
-# define  unity                    0x10000
-# define  two                      (2*unity)
-# define  three                    (3*unity)
-# define  half_unit                (unity/2)
-# define  three_quarter_unit       (3*(unity/4))
-# define  EL_GORDO                 0x7FFFFFFF
-# define  negative_EL_GORDO        (-EL_GORDO)
-# define  one_third_EL_GORDO       0x2AAAAAAA
+# define unity                    0x10000
+# define two                      (2*unity)
+# define three                    (3*unity)
+# define half_unit                (unity / 2)
+# define three_quarter_unit       (3*(unity / 4))
+# define EL_GORDO                 0x7FFFFFFF
+# define negative_EL_GORDO        (-EL_GORDO)
+# define one_third_EL_GORDO       0x2AAAAAAA
 
 /*tex We need these preprocessor values */
 
-# define  TWEXP31                  2147483648.0
-# define  TWEXP28                  268435456.0
-# define  TWEXP16                  65536.0
-# define  TWEXP_16                 (1.0/65536.0)
-# define  TWEXP_28                 (1.0/268435456.0)
-# define  no_crossing              (fraction_one + 1)
-# define  one_crossing             fraction_one
-# define  zero_crossing            0
+# define TWEXP31                  2147483648.0
+# define TWEXP28                  268435456.0
+# define TWEXP16                  65536.0
+# define TWEXP_16                 (1.0 / 65536.0)
+# define TWEXP_28                 (1.0 / 268435456.0)
+# define no_crossing              (fraction_one + 1)
+# define one_crossing             fraction_one
+# define zero_crossing            0
 
 /*tex
     The |scaled| quantities in \MP\ programs are generally supposed to be less than $2^{12}$ in 
@@ -48,37 +48,38 @@
     positions from the right.
 */
 
-# define  fraction_half            0x08000000
-# define  fraction_one             0x10000000
-# define  fraction_two             0x20000000
-# define  fraction_three           0x30000000
-# define  fraction_four            0x40000000
+# define fraction_half            0x08000000
+# define fraction_one             0x10000000
+# define fraction_two             0x20000000
+# define fraction_three           0x30000000
+# define fraction_four            0x40000000
 
 /*tex
     Octants are represented in a \quote {Gray code,} since that turns out to be computationally 
     simplest.
 */
 
-# define  negate_x                 1
-# define  negate_y                 2
-# define  switch_x_and_y           4
-# define  first_octant             1
-# define  second_octant            (first_octant + switch_x_and_y)
-# define  third_octant             (first_octant + switch_x_and_y + negate_x)
-# define  fourth_octant            (first_octant                  + negate_x)
-# define  fifth_octant             (first_octant                  + negate_x + negate_y)
-# define  sixth_octant             (first_octant + switch_x_and_y + negate_x + negate_y)
-# define  seventh_octant           (first_octant + switch_x_and_y + negate_y)
-# define  eighth_octant            (first_octant                  + negate_y)
-# define  forty_five_deg           0x02D00000
-# define  ninety_deg               0x05A00000
-# define  one_eighty_deg           0x0B400000
-# define  negative_one_eighty_deg -0x0B400000
-# define  three_sixty_deg          0x16800000
-# define  odd(A)                   (abs(A)%2==1)
-# define  two_to_the(A)            (1<<(unsigned)(A))
-# define  set_cur_cmd(A)           mp->cur_mod_->command = (A)
-# define  set_cur_mod(A)           mp->cur_mod_->data.n.data.val = (A)
+# define negate_x                 1
+# define negate_y                 2
+# define switch_x_and_y           4
+# define first_octant             1
+# define second_octant            (first_octant + switch_x_and_y)
+# define third_octant             (first_octant + switch_x_and_y + negate_x)
+# define fourth_octant            (first_octant                  + negate_x)
+# define fifth_octant             (first_octant                  + negate_x + negate_y)
+# define sixth_octant             (first_octant + switch_x_and_y + negate_x + negate_y)
+# define seventh_octant           (first_octant + switch_x_and_y + negate_y)
+# define eighth_octant            (first_octant                  + negate_y)
+# define forty_five_deg           0x02D00000
+# define ninety_deg               0x05A00000
+# define one_eighty_deg           0x0B400000
+# define negative_one_eighty_deg -0x0B400000
+# define three_sixty_deg          0x16800000
+
+# define odd(A)                   (labs(A) % 2 == 1)
+# define two_to_the(A)            (1 << (unsigned)(A))
+# define set_cur_cmd(A)           mp->cur_mod_->command = (A)
+# define set_cur_mod(A)           mp->cur_mod_->data.n.data.val = (A)
 
 static const int mp_m_spec_log[29] = {
     0, 93032640, 38612034, 17922280, 8662214, 4261238, 2113709, 1052693, 525315,
@@ -92,9 +93,9 @@ static const int mp_m_spec_atan[27] = {
     14, 7, 4, 2, 1
 };
 
-static int mp_scaled_aux_take_fraction (MP mp, int p, int q);
-static int mp_scaled_aux_make_fraction (MP mp, int p, int q);
-static int mp_scaled_round_unscaled    (mp_number *x_orig);
+static mp_scaled_t mp_scaled_aux_take_fraction (MP mp, int p, mp_scaled_t q);
+static mp_scaled_t mp_scaled_aux_make_fraction (MP mp, int p, mp_scaled_t q);
+static mp_scaled_t mp_scaled_round_unscaled    (mp_number *x_orig);
 
 static void mp_scaled_allocate_number(MP mp, mp_number *n, mp_number_type t)
 {
@@ -114,7 +115,7 @@ static void mp_scaled_allocate_abs(MP mp, mp_number *n, mp_number_type t, mp_num
 {
     (void) mp;
     n->type = t;
-    n->data.val = abs(v->data.val);
+    n->data.val = labs(v->data.val);
 }
 
 static void mp_scaled_allocate_div(MP mp, mp_number *n, mp_number_type t, mp_number *a, mp_number *b)
@@ -149,7 +150,7 @@ static void mp_scaled_allocate_double(MP mp, mp_number *n, double v)
 {
     (void) mp;
     n->type = mp_scaled_type;
-    n->data.val = (int) (v * 65536.0);
+    n->data.val = (mp_scaled_t) (v * 65536.0);
 }
 
 static void mp_scaled_free_number(MP mp, mp_number *n)
@@ -158,24 +159,24 @@ static void mp_scaled_free_number(MP mp, mp_number *n)
     n->type = mp_nan_type;
 }
 
-static void mp_scaled_set_from_int(mp_number *A, int B)
+static void mp_scaled_set_from_int(mp_number *A, mp_scaled_t B)
 {
     A->data.val = B * 65536;
 }
 
-static void mp_scaled_set_from_boolean(mp_number *A, int B)
+static void mp_scaled_set_from_boolean(mp_number *A, mp_scaled_t B)
 {
     A->data.val = B;
 }
 
-static void mp_scaled_set_from_scaled(mp_number *A, int B)
+static void mp_scaled_set_from_scaled(mp_number *A, mp_scaled_t B)
 {
     A->data.val = B;
 }
 
 static void mp_scaled_set_from_double(mp_number *A, double B)
 {
-    A->data.val = (int) (B * 65536.0);
+    A->data.val = (mp_scaled_t) (B * 65536.0);
 }
 
 static void mp_scaled_set_from_addition(mp_number *A, mp_number *B, mp_number *C)
@@ -208,12 +209,12 @@ static void mp_scaled_set_from_mul(mp_number *A, mp_number *B, mp_number *C)
     A->data.val = B->data.val * C->data.val;
 }
 
-static void mp_scaled_set_from_int_div(mp_number *A, mp_number *B, int C)
+static void mp_scaled_set_from_int_div(mp_number *A, mp_number *B, mp_scaled_t C)
 {
     A->data.val = B->data.val / C;
 }
 
-static void mp_scaled_set_from_int_mul(mp_number *A, mp_number *B, int C)
+static void mp_scaled_set_from_int_mul(mp_number *A, mp_number *B, mp_scaled_t C)
 {
     A->data.val = B->data.val * C;
 }
@@ -249,25 +250,25 @@ static void mp_scaled_double(mp_number *A)
     A->data.val = A->data.val + A->data.val;
 }
 
-static void mp_scaled_add_scaled(mp_number *A, int B)
+static void mp_scaled_add_scaled(mp_number *A, mp_scaled_t B)
 {
     /* also for negative B */
     A->data.val = A->data.val + B;
 }
 
-static void mp_scaled_multiply_int(mp_number *A, int B)
+static void mp_scaled_multiply_int(mp_number *A, mp_scaled_t B)
 {
     A->data.val = B * A->data.val;
 }
 
-static void mp_scaled_divide_int(mp_number *A, int B)
+static void mp_scaled_divide_int(mp_number *A, mp_scaled_t B)
 {
     A->data.val = A->data.val / B;
 }
 
 static void mp_scaled_abs(mp_number *A)
 {
-    A->data.val = abs(A->data.val);
+    A->data.val = labs(A->data.val);
 }
 
 static void mp_scaled_clone(mp_number *A, mp_number *B)
@@ -282,12 +283,12 @@ static void mp_scaled_negated_clone(mp_number *A, mp_number *B)
 
 static void mp_scaled_abs_clone(mp_number *A, mp_number *B)
 {
-    A->data.val = abs(B->data.val);
+    A->data.val = labs(B->data.val);
 }
 
 static void mp_scaled_swap(mp_number *A, mp_number *B)
 {
-    int swap_tmp = A->data.val;
+    mp_scaled_t swap_tmp = A->data.val;
     A->data.val = B->data.val;
     B->data.val = swap_tmp;
 }
@@ -320,17 +321,17 @@ static void mp_scaled_scaled_to_angle(mp_number *A)
     A->data.val = A->data.val * 16;
 }
 
-static int mp_scaled_to_int(mp_number *A)
+static mp_scaled_t mp_scaled_to_int(mp_number *A)
 {
     return A->data.val;
 }
 
-static int mp_scaled_to_scaled(mp_number *A)
+static mp_scaled_t mp_scaled_to_scaled(mp_number *A)
 {
     return A->data.val;
 }
 
-static int mp_scaled_to_boolean(mp_number *A)
+static mp_scaled_t mp_scaled_to_boolean(mp_number *A)
 {
     return A->data.val;
 }
@@ -361,7 +362,7 @@ static int mp_scaled_less(mp_number *A, mp_number *B)
 
 static int mp_scaled_non_equal_abs(mp_number *A, mp_number *B)
 {
-    return abs(A->data.val) != abs(B->data.val);
+    return labs(A->data.val) != labs(B->data.val);
 }
 
 /*tex 
@@ -392,7 +393,7 @@ static int mp_scaled_non_equal_abs(mp_number *A, mp_number *B)
 
 /*tex Todo: check if we can replace this: */
 
-static char *mp_string_scaled(MP mp, int s)
+static char *mp_string_scaled(MP mp, mp_scaled_t s)
 {
     static char scaled_string[32];
     int i = 0;
@@ -432,8 +433,8 @@ static char *mp_string_scaled(MP mp, int s)
 
 static void mp_scaled_slow_add(MP mp, mp_number *ret, mp_number *x_orig, mp_number *y_orig)
 {
-    int x = x_orig->data.val;
-    int y = y_orig->data.val;
+    mp_scaled_t x = x_orig->data.val;
+    mp_scaled_t y = y_orig->data.val;
     if (x >= 0) {
         if (y <= EL_GORDO - x) {
             ret->data.val = x + y;
@@ -485,7 +486,7 @@ static void mp_scaled_slow_add(MP mp, mp_number *ret, mp_number *x_orig, mp_numb
     Todo: check if we can replace this (see mpmathdouble): 
 */
 
-static int mp_scaled_aux_make_fraction(MP mp, int p, int q)
+static mp_scaled_t mp_scaled_aux_make_fraction(MP mp, int p, mp_scaled_t q)
 {
     if (q == 0) {
         mp_confusion (mp, "division by zero");
@@ -498,7 +499,7 @@ static int mp_scaled_aux_make_fraction(MP mp, int p, int q)
                 mp->arithmic_error = 1;
                 return EL_GORDO;
             } else {
-                int i = (int) d;
+                mp_scaled_t i = (mp_scaled_t) d;
                 if (d == (double) i && (((q > 0 ? -q : q) & 0x7FFF) * (((i & 0x3FFF) << 1) - 1) & 0x800) != 0) {
                     --i;
                 }
@@ -510,7 +511,7 @@ static int mp_scaled_aux_make_fraction(MP mp, int p, int q)
                 mp->arithmic_error = 1;
                 return -negative_EL_GORDO;
             } else {
-                int i = (int) d;
+                mp_scaled_t i = (mp_scaled_t) d;
                 if (d == (double) i && (((q > 0 ? q : -q) & 0x7FFF) * (((i & 0x3FFF) << 1) + 1) & 0x800) != 0) {
                     ++i;
                 }
@@ -535,7 +536,7 @@ static void mp_scaled_make_fraction(MP mp, mp_number *ret, mp_number *p, mp_numb
     substitute is advisable.
 */
 
-static int mp_scaled_aux_take_fraction(MP mp, int p, int q)
+static mp_scaled_t mp_scaled_aux_take_fraction(MP mp, int p, mp_scaled_t q)
 {
     double d = (double) p *(double) q *TWEXP_28;
     if ((p ^ q) >= 0) {
@@ -546,7 +547,7 @@ static int mp_scaled_aux_take_fraction(MP mp, int p, int q)
             }
             return EL_GORDO;
         } else {
-            int i = (int) d;
+            mp_scaled_t i = (int) d;
             if (d == (double) i && (((p & 0x7FFF) * (q & 0x7FFF)) & 0x4000) != 0) {
                 --i;
             }
@@ -560,7 +561,7 @@ static int mp_scaled_aux_take_fraction(MP mp, int p, int q)
             }
             return -negative_EL_GORDO;
         } else {
-            int i = (int) d;
+            mp_scaled_t i = (mp_scaled_t) d;
             if (d == (double) i && ((-(p & 0x7FFF) * (q & 0x7FFF)) & 0x4000) != 0) {
                 ++i;
             }
@@ -586,7 +587,7 @@ static void mp_scaled_take_fraction(MP mp, mp_number *ret, mp_number *p_orig, mp
 
 */
 
-static int mp_take_scaled(MP mp, int p, int q)
+static mp_scaled_t mp_take_scaled(MP mp, int p, mp_scaled_t q)
 { 
     /* q = scaled */
     double d = (double) p * (double) q * TWEXP_16;
@@ -598,7 +599,7 @@ static int mp_take_scaled(MP mp, int p, int q)
             }
             return EL_GORDO;
         } else {
-            int i = (int) d;
+            mp_scaled_t i = (mp_scaled_t) d;
             if (d == (double) i && (((p & 0x7FFF) * (q & 0x7FFF)) & 0x4000) != 0) {
                 --i;
             }
@@ -612,7 +613,7 @@ static int mp_take_scaled(MP mp, int p, int q)
             }
             return -negative_EL_GORDO;
         } else {
-            int i = (int) d;
+            mp_scaled_t i = (mp_scaled_t) d;
             if (d == (double) i && ((-(p & 0x7FFF) * (q & 0x7FFF)) & 0x4000) != 0) {
                 ++i;
             }
@@ -635,7 +636,7 @@ static void mp_scaled_take_scaled(MP mp, mp_number *ret, mp_number *p_orig, mp_n
 
 */
 
-static int mp_make_scaled(MP mp, int p, int q)
+static mp_scaled_t mp_make_scaled(MP mp, mp_scaled_t p, mp_scaled_t q)
 {
     if (q == 0) {
         mp_confusion(mp, "division by zero");
@@ -648,7 +649,7 @@ static int mp_make_scaled(MP mp, int p, int q)
                 mp->arithmic_error = 1;
                 return EL_GORDO;
             } else {
-                int i = (int) d;
+                mp_scaled_t i = (mp_scaled_t) d;
                 if (d == (double) i && (((q > 0 ? -q : q) & 0x7FFF) * (((i & 0x3FFF) << 1) - 1) & 0x800) != 0) {
                     --i;
                 }
@@ -660,7 +661,7 @@ static int mp_make_scaled(MP mp, int p, int q)
                 mp->arithmic_error = 1;
                 return -negative_EL_GORDO;
             } else {
-                int i = (int) d;
+                mp_scaled_t i = (mp_scaled_t) d;
                 if (d == (double) i && (((q > 0 ? q : -q) & 0x7FFF) * (((i & 0x3FFF) << 1) + 1) & 0x800) != 0) {
                     ++i;
                 }
@@ -699,15 +700,15 @@ static int mp_round_decimals(MP mp, unsigned char *b, int k)
     checking. Also because signs are hard checked.
 */
 
-static void mp_scaled_wrapup_numeric_token(MP mp, int n, int f)
+static void mp_scaled_wrapup_numeric_token(MP mp, mp_scaled_t n, mp_scaled_t f)
 {
     if (n < 32768) {
-        int mod = (n * unity + f); /* scaled */
-        set_cur_mod(mod);
+        mp_scaled_t mod = (n * unity + f);
+        set_cur_mod((int) mod);
         if (mod >= fraction_one) {
             if (internal_value(mp_warning_check_internal).data.val > 0 && (mp->scanner_status != mp_tex_flushing_state)) {
                 char msg[256];
-                snprintf(msg, 256, "Number is too large (%s)", mp_string_scaled(mp,mod));
+                snprintf(msg, 256, "Number is too large (%s)", mp_string_scaled(mp, mod));
                 mp_error(
                     mp,
                     msg,
@@ -728,10 +729,9 @@ static void mp_scaled_wrapup_numeric_token(MP mp, int n, int f)
     set_cur_cmd(mp_numeric_command);
 }
 
-static void mp_scaled_scan_fractional_token(MP mp, int n)
+static void mp_scaled_scan_fractional_token(MP mp, mp_scaled_t n)
 { 
-    /* n: scaled */
-    int f; /* scaled */
+    mp_scaled_t f;
     int k = 0;
     do {
         k++;
@@ -745,7 +745,7 @@ static void mp_scaled_scan_fractional_token(MP mp, int n)
     mp_scaled_wrapup_numeric_token(mp, n, f);
 }
 
-static void mp_scaled_scan_numeric_token(MP mp, int n)
+static void mp_scaled_scan_numeric_token(MP mp, mp_scaled_t n)
 {
     while (mp->char_class[mp->buffer[mp->cur_input.loc_field]] == mp_digit_class) {
         if (n < 32768) {
@@ -792,7 +792,7 @@ static void mp_scaled_scan_numeric_token(MP mp, int n)
 
 static void mp_scaled_velocity(MP mp, mp_number *ret, mp_number *st, mp_number *ct, mp_number *sf, mp_number *cf, mp_number *t)
 {
-    int acc, num, denom; 
+    mp_scaled_t acc, num, denom;
     acc = mp_scaled_aux_take_fraction(mp, st->data.val - (sf->data.val / 16), sf->data.val - (st->data.val / 16));
     acc = mp_scaled_aux_take_fraction(mp, acc, ct->data.val - cf->data.val);
     num = fraction_two + mp_scaled_aux_take_fraction(mp, acc, 379625062);
@@ -825,10 +825,10 @@ static void mp_scaled_velocity(MP mp, mp_number *ret, mp_number *st, mp_number *
 
 static int mp_scaled_ab_vs_cd(mp_number *a_orig, mp_number *b_orig, mp_number *c_orig, mp_number *d_orig)
 {
-    int a = a_orig->data.val;
-    int b = b_orig->data.val;
-    int c = c_orig->data.val;
-    int d = d_orig->data.val;
+    mp_scaled_t a = a_orig->data.val;
+    mp_scaled_t b = b_orig->data.val;
+    mp_scaled_t c = c_orig->data.val;
+    mp_scaled_t d = d_orig->data.val;
     if (a < 0) {
         a = -a;
         b = -b;
@@ -847,7 +847,7 @@ static int mp_scaled_ab_vs_cd(mp_number *a_orig, mp_number *b_orig, mp_number *c
         } else if (d == 0) {
             return a == 0 ? 0 : -1;
         } else {
-            int q = a;
+            mp_scaled_t q = a;
             a = c;
             c = q;
             q = -b;
@@ -862,8 +862,8 @@ static int mp_scaled_ab_vs_cd(mp_number *a_orig, mp_number *b_orig, mp_number *c
         }
     }
     while (1) {
-        int q = a / d;
-        int r = c / b;
+        mp_scaled_t q = a / d;
+        mp_scaled_t r = c / b;
         if (q != r) {
             return q > r ? 1 : -1;
         } else {
@@ -911,11 +911,11 @@ static int mp_scaled_ab_vs_cd(mp_number *a_orig, mp_number *b_orig, mp_number *c
 
 static void mp_scaled_crossing_point(MP mp, mp_number *ret, mp_number *aa, mp_number *bb, mp_number *cc)
 {
-    int x, xx, x0, x1, x2; /* temporary registers for bisection */
-    int a = aa->data.val;
-    int b = bb->data.val;
-    int c = cc->data.val;
-    int d;                 /* recursive counter */
+    mp_scaled_t x, xx, x0, x1, x2; /* temporary registers for bisection */
+    mp_scaled_t a = aa->data.val;
+    mp_scaled_t b = bb->data.val;
+    mp_scaled_t c = cc->data.val;
+    mp_scaled_t d;                 /* recursive counter */
     (void) mp;
     if (a < 0) {
         ret->data.val = zero_crossing;
@@ -977,9 +977,9 @@ static void mp_scaled_crossing_point(MP mp, mp_number *ret, mp_number *aa, mp_nu
     operations; |round_unscaled| rounds a |scaled| and converts it to |int|
 */
 
-static int mp_scaled_round_unscaled(mp_number *x_orig)
+static mp_scaled_t mp_scaled_round_unscaled(mp_number *x_orig)
 {
-    int x = x_orig->data.val;
+    mp_scaled_t x = x_orig->data.val;
     if (x >= 32768) {
         return 1 + ((x-32768) / 65536);
     } else if (x >= -32768) {
@@ -995,9 +995,9 @@ static void mp_scaled_floor(mp_number *i)
 
 static void mp_scaled_fraction_to_round_scaled(mp_number *x_orig)
 {
-    int x = x_orig->data.val;
+    mp_scaled_t x = x_orig->data.val;
     x_orig->type = mp_scaled_type;
-    x_orig->data.val = (x>=2048 ? 1+((x-2048) / 4096)  : ( x>=-2048 ? 0 : -(1+((-(x+1)-2048) / 4096))));
+    x_orig->data.val = (x >= 2048 ? 1 + ((x - 2048) / 4096) : ( x >= -2048 ? 0 : -(1 + ((-(x + 1) - 2048) / 4096))));
 }
 
 /*tex
@@ -1014,7 +1014,7 @@ static void mp_scaled_fraction_to_round_scaled(mp_number *x_orig)
 
 static void mp_scaled_sqrt(MP mp, mp_number *ret, mp_number *x_orig)
 {
-    int x = x_orig->data.val;
+    mp_scaled_t x = x_orig->data.val;
     if (x <= 0) {
         if (x < 0) {
             char msg[256];
@@ -1066,7 +1066,7 @@ static void mp_scaled_sqrt(MP mp, mp_number *ret, mp_number *x_orig)
             };
             k--;
         } while (k != 0);
-        ret->data.val = (int) (q/2);
+        ret->data.val = (mp_scaled_t) (q/2);
     }
 }
 
@@ -1079,8 +1079,8 @@ static void mp_scaled_sqrt(MP mp, mp_number *ret, mp_number *x_orig)
 
 static void mp_scaled_pyth_add(MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig)
 {
-    int a = abs(a_orig->data.val);
-    int b = abs(b_orig->data.val);
+    mp_scaled_t a = labs(a_orig->data.val);
+    mp_scaled_t b = labs(b_orig->data.val);
     if (a < b) {
         int r = b;
         b = a;
@@ -1102,7 +1102,7 @@ static void mp_scaled_pyth_add(MP mp, mp_number *ret, mp_number *a_orig, mp_numb
             to $\psqrt{a^2+b^2}:$ 
         */
         while (1) {
-            int r = mp_scaled_aux_make_fraction(mp, b, a);
+            mp_scaled_t r = mp_scaled_aux_make_fraction(mp, b, a);
             r = mp_scaled_aux_take_fraction(mp, r, r);
             /*tex Now $r\approx b^2/a^2$: */
             if (r == 0) {
@@ -1133,8 +1133,8 @@ static void mp_scaled_pyth_add(MP mp, mp_number *ret, mp_number *a_orig, mp_numb
 
 static void mp_scaled_pyth_sub(MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig)
 {
-    int a = abs(a_orig->data.val);
-    int b = abs(b_orig->data.val);
+    mp_scaled_t a = labs(a_orig->data.val);
+    mp_scaled_t b = labs(b_orig->data.val);
     if (a <= b) {
         /*tex Handle erroneous |pyth_sub| and set |a:=0|: */
         if (a < b) {
@@ -1223,7 +1223,7 @@ static void mp_scaled_power_of(MP mp, mp_number *ret, mp_number *a_orig, mp_numb
 
 static void mp_scaled_m_log(MP mp, mp_number *ret, mp_number *x_orig)
 {
-    int x = x_orig->data.val;
+    mp_scaled_t x = x_orig->data.val;
     if (x <= 0) {
         /* Handle non-positive logarithm: */
         char msg[256];
@@ -1236,9 +1236,9 @@ static void mp_scaled_m_log(MP mp, mp_number *ret, mp_number *x_orig)
         );
         ret->data.val = 0;
     } else {
-        int k = 2;                    /* iteration counter, starts at 2 */
-        int y = 1302456956 + 4 - 100; /* $14\times2^{27}\ln2\approx1302456956.421063$ */
-        int z = 27595 + 6553600;      /* and $2^{16}\times .421063\approx 27595$ */
+        mp_scaled_t k = 2;                    /* iteration counter, starts at 2 */
+        mp_scaled_t y = 1302456956 + 4 - 100; /* $14\times2^{27}\ln2\approx1302456956.421063$ */
+        mp_scaled_t z = 27595 + 6553600;      /* and $2^{16}\times .421063\approx 27595$ */
         /* $2^{27}\ln2\approx 93032639.74436163$ and $2^{16}\times.74436163\approx 48782$ */
         while (x < fraction_four) {
             x = 2*x;
@@ -1272,8 +1272,8 @@ static void mp_scaled_m_log(MP mp, mp_number *ret, mp_number *x_orig)
 
 static void mp_scaled_m_exp(MP mp, mp_number *ret, mp_number *x_orig)
 {
-    int y, z;  /* auxiliary registers */
-    int x = x_orig->data.val;
+    mp_scaled_t y, z;  /* auxiliary registers */
+    mp_scaled_t x = x_orig->data.val;
     if (x > 174436200) {
         /* $2^{24}\ln((2^{31}-1)/2^{16})\approx 174436199.51$ */
         mp->arithmic_error = 1;
@@ -1335,8 +1335,8 @@ static void mp_scaled_m_exp(MP mp, mp_number *ret, mp_number *x_orig)
 static void mp_scaled_n_arg(MP mp, mp_number *ret, mp_number *x_orig, mp_number *y_orig)
 {
     int octant; /* octant code */
-    int x = x_orig->data.val;
-    int y = y_orig->data.val;
+    mp_scaled_t x = x_orig->data.val;
+    mp_scaled_t y = y_orig->data.val;
     if (x >= 0) {
         octant = first_octant;
     } else {
@@ -1348,7 +1348,7 @@ static void mp_scaled_n_arg(MP mp, mp_number *ret, mp_number *x_orig, mp_number 
         octant = octant + negate_y;
     }
     if (x < y) {
-        int t = y;
+        mp_scaled_t t = y;
         y = x;
         x = t;
         octant = octant + switch_x_and_y;
@@ -1366,7 +1366,7 @@ static void mp_scaled_n_arg(MP mp, mp_number *ret, mp_number *x_orig, mp_number 
             ret->data.val = internal_value(mp_default_zero_angle_internal).data.val;
         }
     } else {
-        int z = 0; /* auxiliary register */
+        mp_scaled_t z = 0; /* auxiliary register */
         ret->type = mp_angle_type;
         /* Set variable |z| to the arg of $(x,y)$: */
         while (x >= fraction_two) {
@@ -1374,7 +1374,7 @@ static void mp_scaled_n_arg(MP mp, mp_number *ret, mp_number *x_orig, mp_number 
             y = y/2;
         }
         if (y > 0) {
-            int k= 0; /* loop counter */
+            int k = 0; /* loop counter */
             while (x < fraction_one) {
                 x += x;
                 y += y;
@@ -1443,10 +1443,10 @@ static void mp_scaled_n_arg(MP mp, mp_number *ret, mp_number *x_orig, mp_number 
 
 static void mp_scaled_n_sin_cos(MP mp, mp_number *z_orig, mp_number *n_cos, mp_number *n_sin)
 {
-    int k;                    /* loop control variable */
-    int q;                    /* specifies the quadrant */
-    int x, y, t;              /* temporary registers */
-    int z = z_orig->data.val; /* scaled */
+    int k;                          /* loop control variable */
+    mp_scaled_t q;                    /* specifies the quadrant */
+    mp_scaled_t x, y, t;              /* temporary registers */
+    mp_scaled_t z = z_orig->data.val; /* scaled */
     mp_number x_n, y_n, ret;
     mp_scaled_allocate_number(mp, &ret, mp_scaled_type);
     mp_scaled_allocate_number(mp, &x_n, mp_scaled_type);
@@ -1512,7 +1512,7 @@ static void mp_scaled_n_sin_cos(MP mp, mp_number *z_orig, mp_number *n_cos, mp_n
 static void mp_scaled_init_randoms(MP mp, int seed)
 {
     int k = 1; /* more or less random integers */
-    int j = abs(seed);
+    int j = labs(seed);
     while (j >= fraction_one) {
         j = j/2;
     }

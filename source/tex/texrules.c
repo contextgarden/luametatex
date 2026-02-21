@@ -30,11 +30,12 @@
 
 */
 
-halfword tex_aux_scan_rule_spec(rule_types type, halfword code)
+halfword tex_aux_scan_rule_spec(rule_types type, halfword code, int maysnap)
 {
     /*tex |width|, |depth|, and |height| all equal |null_flag| now */
     halfword rule = tex_new_rule_node((quarterword) code); /* here code == subtype */
-    halfword attr = node_attr(rule);
+    halfword attrlist = null;
+    halfword snapping = null;
     if (code == strut_rule_code) { 
         rule_width(rule) = 0;
         switch (type) {
@@ -64,12 +65,13 @@ halfword tex_aux_scan_rule_spec(rule_types type, halfword code)
         }
     }
     while (1) {
+        /* maybe also three in one go but what keyword */
         switch (tex_scan_character("awhdkpxylrtbcfonsAWHDPKXYLRTBCFONS", 0, 1, 0)) {
             case 0:
                 goto DONE;
             case 'a': case 'A':
                 if (tex_scan_mandate_keyword("attr", 1)) {
-                    attr = tex_scan_attribute(attr);
+                    attrlist = tex_scan_attribute(attrlist);
                 }
                 break;
             case 'w': case 'W':
@@ -119,12 +121,22 @@ halfword tex_aux_scan_rule_spec(rule_types type, halfword code)
                 }
                 break;
             case 'l': case 'L':
-                if (code != virtual_rule_code) { 
-                    if (tex_scan_mandate_keyword("left", 1)) {
-                        rule_left(rule) = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                if (code != virtual_rule_code) {
+                    switch (tex_scan_character("eiEI", 0, 0, 0)) {
+                        case 'i': case 'I' :
+                            if (tex_scan_mandate_keyword("linesnapping", 2)) {
+                                snapping = tex_snapping_scan();
+                            }
+                            break;
+                        case 'n': case 'N' :
+                            if (tex_scan_mandate_keyword("left", 2)) {
+                                rule_left(rule) = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                            }
+                            break;
+                        default:
+                            tex_aux_show_keyword_error("left|linesnapping");
+                            goto DONE;
                     }
-                } else { 
-                    goto DONE;
                 }
                 break;
             case 'r': case 'R':
@@ -256,11 +268,12 @@ halfword tex_aux_scan_rule_spec(rule_types type, halfword code)
         }
     }
   DONE:
-  //  if (! attr) {
-    if (attr) {
-        /* Also bumps reference and replaces the one set. */
-        tex_attach_attribute_list_attribute(rule, attr);
-    }    
+    if (! attrlist) {
+        /* this alse sets the reference when not yet set */
+        attrlist = tex_current_attribute_list();
+    }
+    add_attribute_reference(attrlist);
+    node_attr(rule) = attrlist;
     switch (code) {
         case strut_rule_code:
             if (type == v_rule_type) {
@@ -285,12 +298,37 @@ halfword tex_aux_scan_rule_spec(rule_types type, halfword code)
             rule_options(rule) |= rule_option_running;
         }
     }
+    /* snapping */
+ // tex_flush_specification_node(snapping); // needs checking
+    if (snapping) {
+        if (maysnap && type == h_rule_type) {
+            scaled oldht = rule_height(rule);
+            scaled olddp = rule_depth(rule);
+            scaled newht = oldht;
+            scaled newdp = olddp;
+            tex_snapping_done(&newht, &newdp, snapping);
+            newht -= oldht;
+            newdp -= olddp;
+            if (newht) {
+                halfword kern = tex_new_kern_node(newht, line_snapping_kern_subtype);
+                tex_attach_attribute_list_copy(kern, rule);
+                tex_tail_append(kern);
+                rule_snapping(rule) = newht;
+            }
+            if (newdp) {
+                halfword kern = tex_new_kern_node(newdp, line_snapping_kern_subtype);
+                tex_attach_attribute_list_copy(kern, rule);
+                tex_tail_append(rule);
+                rule = kern;
+            }
+        }
+    }
     return rule;
 }
 
 void tex_aux_run_vrule(void)
 {
-    tex_tail_append(tex_aux_scan_rule_spec(v_rule_type, cur_chr));
+    tex_tail_append(tex_aux_scan_rule_spec(v_rule_type, cur_chr, 0));
     if (! (rule_options(cur_list.tail) & rule_option_keep_spacing)) {
         cur_list.space_factor = default_space_factor;
     }
@@ -298,13 +336,14 @@ void tex_aux_run_vrule(void)
 
 void tex_aux_run_hrule(void)
 {
-    tex_tail_append(tex_aux_scan_rule_spec(h_rule_type, cur_chr));
+    tex_delayed_glue_check(delayed_glue_target_current, delayed_glue_location_rule);
+    tex_tail_append(tex_aux_scan_rule_spec(h_rule_type, cur_chr, 1));
     cur_list.prev_depth = ignore_depth_criterion_par;
 }
 
 void tex_aux_run_mrule(void)
 {
-    tex_tail_append(tex_aux_scan_rule_spec(m_rule_type, cur_chr));
+    tex_tail_append(tex_aux_scan_rule_spec(m_rule_type, cur_chr, 0));
 }
 
 void tex_aux_check_math_strut_rule(halfword rule, halfword style)
@@ -330,7 +369,7 @@ void tex_aux_check_math_strut_rule(halfword rule, halfword style)
                     dp = tex_get_math_y_parameter(style, math_parameter_rule_depth);
                 }
             }
-                rule_height(rule) = ht;
+            rule_height(rule) = ht;
             rule_depth(rule) = dp;
         }
     }

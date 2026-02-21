@@ -249,10 +249,6 @@ struct CallInfo {
 #define CIST_HOOKYIELD	(CIST_TAIL << 1)
 /* function "called" a finalizer */
 #define CIST_FIN	(CIST_HOOKYIELD << 1)
-#if defined(LUA_COMPAT_LT_LE)
-/* using __lt for __le */
-#define CIST_LEQ	(CIST_FIN << 1)
-#endif
 
 
 #define get_nresults(cs)  (cast_int((cs) & CIST_NRESULTS) - 1)
@@ -430,9 +426,9 @@ union GCUnion {
 
 /*
 ** macro to convert a Lua object into a GCObject
-** (The access to 'tt' tries to ensure that 'v' is actually a Lua object.)
 */
-#define obj2gco(v)	check_exp((v)->tt >= LUA_TSTRING, &(cast_u(v)->gc))
+#define obj2gco(v)  \
+	check_exp(novariant((v)->tt) >= LUA_TSTRING, &(cast_u(v)->gc))
 
 
 /* actual number of total memory allocated */
@@ -442,7 +438,7 @@ union GCUnion {
 LUAI_FUNC void luaE_setdebt (global_State *g, l_mem debt);
 LUAI_FUNC void luaE_freethread (lua_State *L, lua_State *L1);
 LUAI_FUNC lu_mem luaE_threadsize (lua_State *L);
-LUAI_FUNC CallInfo *luaE_extendCI (lua_State *L);
+LUAI_FUNC CallInfo *luaE_extendCI (lua_State *L, int err);
 LUAI_FUNC void luaE_shrinkCI (lua_State *L);
 LUAI_FUNC void luaE_checkcstack (lua_State *L);
 LUAI_FUNC void luaE_incCstack (lua_State *L);

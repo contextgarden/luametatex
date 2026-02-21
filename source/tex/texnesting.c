@@ -217,55 +217,70 @@ static int tex_aux_room_on_nest_stack(void) /* quite similar to save_stack check
     We start out with the page, that is, the main vertical list. 
 */
 
+static inline void tex_aux_nesting_reset_state(void)
+{
+ // cur_list.last_state.line_width        = 0;
+ // cur_list.last_state.line_count        = 0;
+ // cur_list.last_state.hang_indent       = 0;
+ // cur_list.last_state.hang_left_indent  = 0;
+ // cur_list.last_state.hang_right_indent = 0;
+ // cur_list.last_state.hang_slack        = 0;
+ // cur_list.last_state.hang_left_slack   = 0;
+ // cur_list.last_state.hang_right_slack  = 0;
+    memset(&cur_list.last_state, 0, sizeof(cur_list.last_state));
+}
+
 void tex_initialize_nesting(void)
 {
+    /*tex |ignore_depth_criterion_par| is not yet available! */
     lmt_nest_state.nest_data.ptr = 0;
     lmt_nest_state.nest_data.top = 0;
+    lmt_nest_state.shown_mode    = 0;
+    lmt_nest_state.math_mode     = 0;
 # if 1
-    lmt_nest_state.shown_mode = 0;
-    lmt_nest_state.math_mode = 0;
-    cur_list.mode = vmode;
-    cur_list.head = contribute_head;
-    cur_list.tail = contribute_head;
-    cur_list.delimiter = null;
-    cur_list.prev_graf = 0;
-    cur_list.mode_line = 0;
-    cur_list.prev_depth = ignore_depth; /*tex |ignore_depth_criterion_par| is not yet available! */
-    cur_list.space_factor = default_space_factor;
-    cur_list.incomplete_noad = null;
-    cur_list.direction_stack = null;
-    cur_list.math_dir = 0;
-    cur_list.math_style = -1;
-    cur_list.math_main_style = -1;
-    cur_list.math_parent_style = -1;
-    cur_list.math_flatten = 1;
-    cur_list.math_begin = unset_noad_class;
-    cur_list.math_end = unset_noad_class;
-    cur_list.math_mode = 0;
-    cur_list.options = 0;
+    cur_list.mode               = vmode;
+    cur_list.head               = contribute_head;
+    cur_list.tail               = contribute_head;
+    cur_list.delimiter          = null;
+    cur_list.prev_graf          = 0;
+    cur_list.mode_line          = 0;
+    cur_list.prev_depth         = ignore_depth;
+    cur_list.space_factor       = default_space_factor;
+    cur_list.incomplete_noad    = null;
+    cur_list.direction_stack    = null;
+    cur_list.math_dir           = 0;
+    cur_list.math_style         = -1;
+    cur_list.math_main_style    = -1;
+    cur_list.math_parent_style  = -1;
+    cur_list.math_flatten       = 1;
+    cur_list.math_begin         = unset_noad_class;
+    cur_list.math_end           = unset_noad_class;
+    cur_list.math_mode          = 0;
+    cur_list.options            = 0;
 # else 
     cur_list = (list_state_record) {
-        .mode              = vmode,
-        .head              = contribute_head,
-        .tail              = contribute_head,
-        .delimiter         = null,
-        .prev_graf         = 0,
-        .mode_line         = 0,
-        .prev_depth        = ignore_depth, /*tex |ignore_depth_criterion_par| is not yet available! */
-        .space_factor      = default_space_factor,
-        .incomplete_noad   = null,
-        .direction_stack   = null,
-        .math_dir          = 0,
-        .math_style        = -1,
-        .math_main_style   = -1,
-        .math_parent_style = -1,
-        .math_flatten      = 1,
-        .math_begin        = unset_noad_class,
-        .math_end          = unset_noad_class,
-        .math_mode         = 0,
-        .options           = 0,
+        .mode               = vmode,
+        .head               = contribute_head,
+        .tail               = contribute_head,
+        .delimiter          = null,
+        .prev_graf          = 0,
+        .mode_line          = 0,
+        .prev_depth         = ignore_depth,
+        .space_factor       = default_space_factor,
+        .incomplete_noad    = null,
+        .direction_stack    = null,
+        .math_dir           = 0,
+        .math_style         = -1,
+        .math_main_style    = -1,
+        .math_parent_style  = -1,
+        .math_flatten       = 1,
+        .math_begin         = unset_noad_class,
+        .math_end           = unset_noad_class,
+        .math_mode          = 0,
+        .options            = 0,
     };
 # endif 
+    tex_aux_nesting_reset_state();
 }
 
 halfword tex_pop_tail(void)
@@ -304,55 +319,55 @@ void tex_push_nest(void)
     lmt_nest_state.math_mode = 0;
     if (tex_aux_room_on_nest_stack()) {
 # if 1
-            cur_list.mode = top->mode;
-            cur_list.head = tex_new_temp_node();
-            cur_list.tail = cur_list.head;
-            cur_list.delimiter = null;
-            cur_list.prev_graf = 0;
-            cur_list.mode_line = lmt_input_state.input_line;
-            cur_list.prev_depth = top->prev_depth;
-            cur_list.space_factor = top->space_factor;
-            cur_list.incomplete_noad = top->incomplete_noad;
-            cur_list.direction_stack = null;
-            cur_list.math_dir = 0;
-            cur_list.math_style = -1;
-            cur_list.math_main_style = top->math_main_style;
-            cur_list.math_parent_style = top->math_parent_style;
-            cur_list.math_flatten = 1;
-            cur_list.math_begin = unset_noad_class;
-            cur_list.math_end = unset_noad_class;
-         // cur_list.math_begin = top->math_begin;
-         // cur_list.math_end = top->math_end;
-            cur_list.math_mode = 0;
-            cur_list.options = 0;
+        cur_list.mode              = top->mode;
+        cur_list.head              = tex_new_temp_node();
+        cur_list.tail              = cur_list.head;
+        cur_list.delimiter         = null;
+        cur_list.prev_graf         = 0;
+        cur_list.mode_line         = lmt_input_state.input_line;
+        cur_list.prev_depth        = top->prev_depth;
+        cur_list.space_factor      = top->space_factor;
+        cur_list.incomplete_noad   = top->incomplete_noad;
+        cur_list.direction_stack   = null;
+        cur_list.math_dir          = 0;
+        cur_list.math_style        = -1;
+        cur_list.math_main_style   = top->math_main_style;
+        cur_list.math_parent_style = top->math_parent_style;
+        cur_list.math_flatten      = 1;
+        cur_list.math_begin        = unset_noad_class;
+        cur_list.math_end          = unset_noad_class;
+     // cur_list.math_begin        = top->math_begin;
+     // cur_list.math_end          = top->math_end;
+        cur_list.math_mode         = 0;
+        cur_list.options           = 0;
 # else
-            cur_list = (list_state_record) {
-                .mode              = top->mode,
-                .head              = null,
-                .tail              = null,
-                .delimiter         = null,
-                .prev_graf         = 0,
-                .mode_line         = lmt_input_state.input_line,
-                .prev_depth        = top->prev_depth,
-                .space_factor      = top->space_factor,
-                .incomplete_noad   = top->incomplete_noad,
-                .direction_stack   = null,
-                .math_dir          = 0,
-                .math_style        = -1,
-                .math_main_style   = top->math_main_style,
-                .math_parent_style = top->math_parent_style,
-                .math_flatten      = 1,
-                .math_begin        = unset_noad_class,
-                .math_end          = unset_noad_class,
-             // .math_begin        = top->math_begin,
-             // .math_end          = top->math_end,
-                .math_mode         = 0,
-                .options           = 0,
-            };
-            cur_list.head = tex_new_temp_node(),
-            cur_list.tail = cur_list.head;
+        cur_list = (list_state_record) {
+            .mode              = top->mode,
+            .head              = null,
+            .tail              = null,
+            .delimiter         = null,
+            .prev_graf         = 0,
+            .mode_line         = lmt_input_state.input_line,
+            .prev_depth        = top->prev_depth,
+            .space_factor      = top->space_factor,
+            .incomplete_noad   = top->incomplete_noad,
+            .direction_stack   = null,
+            .math_dir          = 0,
+            .math_style        = -1,
+            .math_main_style   = top->math_main_style,
+            .math_parent_style = top->math_parent_style,
+            .math_flatten      = 1,
+            .math_begin        = unset_noad_class,
+            .math_end          = unset_noad_class,
+         // .math_begin        = top->math_begin,
+         // .math_end          = top->math_end,
+            .math_mode         = 0,
+            .options           = 0,
+        };
+        cur_list.head = tex_new_temp_node(),
+        cur_list.tail = cur_list.head;
 # endif
-
+    tex_aux_nesting_reset_state();
     } else {
         tex_overflow_error("semantic nest size", lmt_nest_state.nest_data.size);
     }
@@ -401,7 +416,9 @@ void tex_show_activities(void)
                     while (r != page_insert_head) {
                         halfword index = insert_index(r);
                         halfword multiplier = tex_get_insert_multiplier(index);
-                        halfword size = multiplier == scaling_factor ? insert_total_height(r) : tex_x_over_n(insert_total_height(r), scaling_factor) * multiplier;
+                        halfword size = multiplier == scaling_factor ? insert_total_height(r) : tex_x_over_n_factor(insert_total_height(r)) * multiplier;
+                     // halfword size = multiplier == scaling_factor ? insert_total_height(r) : insert_total_height(r) * multiplier / scaling_factor;
+                     // halfword size = multiplier == scaling_factor ? insert_total_height(r) : scaledround(insert_total_height(r) * multiplier / scaling_factor_double) ;
                         if (node_type(r) == split_node && node_subtype(r) == insert_split_subtype) {
                             halfword q = page_head;
                             halfword n = 0;
@@ -484,6 +501,129 @@ void tex_tail_append(halfword p)
         node_prev(p) = cur_list.tail;
         cur_list.tail = p;
     }
+}
+
+/*tex
+
+    Splitting and some redundancy is cleaner than combining with several target checks, also
+    because we don't know what we'll add in the future. We migh talso add some more specific
+    tracing.
+
+    We assume that the callback manages the nodes and cleans up if needed.
+
+*/
+
+static void tex_aux_tail_cleanup(halfword current)
+{
+    while (current) {
+        if (node_type(current) == glue_node && (glue_options(current) & glue_option_delay)) {
+            tex_remove_glue_option(current, glue_option_delay);
+        }
+        current = node_next(current);
+    }
+}
+
+void tex_delayed_glue_check(int target, int location)
+{
+    switch (target) {
+        case delayed_glue_target_unknown:
+            if (lmt_nest_state.nest_data.ptr == 1) {
+                goto MVL;
+            } else {
+                goto CURRENT;
+            }
+        case delayed_glue_target_current:
+          CURRENT:
+            {
+                halfword current = cur_list.tail;
+                if (node_type(current) == temp_node) {
+                    return;
+                } else {
+                    int callback_id = lmt_callback_defined(delayed_glue_callback);
+                    if (callback_id > 0) {
+                        halfword tail = current;
+                        if (node_type(current) == glue_node && node_subtype(current) == par_skip_glue) {
+                            current = node_prev(current);
+                        }
+                        if (current && node_type(current) == glue_node && (glue_options(current) & glue_option_delay)) {
+                            halfword result = null;
+                            halfword head = current;
+                            while (1) {
+                                halfword prev = node_prev(head);
+                                if (node_type(prev) == glue_node && (glue_options(prev) & glue_option_delay)) {
+                                    head = prev;
+                                } else {
+                                    node_next(prev) = null;
+                                    node_prev(head) = null;
+                                    cur_list.tail = prev;
+                                    break;
+                                }
+                            }
+                            lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddNN->N", delayed_glue_target_current, location, head, tail, &result);
+                            if (result) {
+                                tex_aux_tail_cleanup(result);
+                                tex_tail_append(result);
+                                cur_list.tail = tex_tail_of_node_list(result);
+                            }
+                        }
+                    }
+                }
+            }
+            break;
+        case delayed_glue_target_mvl:
+          MVL:
+            {
+                halfword current = contribute_tail;
+                if (node_type(current) == temp_node) {
+                    return;
+                } else {
+                    int callback_id = lmt_callback_defined(delayed_glue_callback);
+                    if (callback_id > 0) {
+                        halfword tail = current;
+                        if (node_type(current) == glue_node && node_subtype(current) == par_skip_glue) {
+                            current = node_prev(current);
+                        }
+                        if (current && node_type(current) == glue_node && (glue_options(current) & glue_option_delay)) {
+                            halfword result = null;
+                            halfword head = current;
+                            while (1) {
+                                halfword prev = node_prev(head);
+                                if (node_type(prev) == glue_node && (glue_options(prev) & glue_option_delay)) {
+                                    head = prev;
+                                } else {
+                                    node_next(prev) = null;
+                                    node_prev(head) = null;
+                                    contribute_tail = prev;
+                                    break;
+                                }
+                            }
+                            lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddNN->N", delayed_glue_target_mvl, location, head, tail, &result);
+                            if (result) {
+                                tex_aux_tail_cleanup(result);
+                                tex_couple_nodes(contribute_tail, result);
+                                contribute_tail = tex_tail_of_node_list(result);
+                            }
+                        }
+                    }
+                }
+            }
+            break;
+    }
+}
+
+int tex_delayed_glue_par_skipped(void)
+{
+    halfword tail;
+    if (lmt_nest_state.nest_data.ptr > 1) {
+        tail = cur_list.tail;
+    } else if (node_type(contribute_tail) != temp_node) {
+        tail = contribute_tail;
+    } else if (node_type(page_tail) != temp_node) {
+        tail = page_tail;
+    } else {
+        return 0;
+    }
+    return node_type(tail) == glue_node && (glue_options(tail) & glue_option_has_parskip);
 }
 
 /*tex
@@ -701,7 +841,7 @@ void tex_start_mvl(void)
         }
         if (tracing_mvl_par) { 
             tex_begin_diagnostic();
-            tex_print_format("[mvl: index %i, options %x, prevdepth %p, %s]", index, options, prevdepth, start ? "start" : "restart");
+            tex_print_format("%l[mvl: index %i, options %x, prevdepth %p, %s]", index, options, prevdepth, start ? "start" : "restart");
             tex_end_diagnostic();
         }
         if (start) { 
@@ -723,7 +863,7 @@ void tex_stop_mvl(void)
         int something = mvl->tail != mvl->head;
         if (tracing_mvl_par) { 
             tex_begin_diagnostic();
-            tex_print_format("[mvl: index %i, options %x, stop with%s contributions]", index, mvl->options, something ? "" : "out");
+            tex_print_format("%l[mvl: index %i, options %x, stop with%s contributions]", index, mvl->options, something ? "" : "out");
             tex_end_diagnostic();
         }
         if (something && (mvl->options & mvl_discard_bottom)) {
@@ -773,7 +913,7 @@ halfword tex_flush_mvl(halfword index)
         tex_aux_reset_mvl(index);
         if (tracing_mvl_par) { 
             tex_begin_diagnostic();
-            tex_print_format("[mvl: index %i, %s]", index, "flush");
+            tex_print_format("%l[mvl: index %i, %s]", index, "flush");
             tex_end_diagnostic();
         }
         node_prev(head) = null;
@@ -821,7 +961,7 @@ int tex_appended_mvl(halfword context, halfword boundary)
             if (contribute_head != contribute_tail && first) {
                 if (tracing_mvl_par) { 
                     tex_begin_diagnostic();
-                    tex_print_format("[mvl: index %i, %s]", lmt_mvl_state.slot, assign ? "assign" : "append");
+                    tex_print_format("%l[mvl: index %i, %s]", lmt_mvl_state.slot, assign ? "assign" : "append");
                     tex_end_diagnostic();
                 }
                 if (assign) { 

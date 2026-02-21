@@ -189,6 +189,7 @@ halfword tex_get_insert_maxdepth(halfword i)
     }
 }
 
+
 halfword tex_get_insert_distance(halfword i)
 {
     if (tex_valid_insert_id(i)) {
@@ -388,7 +389,8 @@ void tex_set_insert_stretch(halfword i, scaled v)
     }
 }
 
-void tex_set_insert_shrink(halfword i, scaled v) {
+void tex_set_insert_shrink(halfword i, scaled v)
+{
     if (lmt_insert_state.mode == class_insert_mode && tex_valid_insert_id(i)) {
         lmt_insert_state.inserts[i].shrink = v;
     }
@@ -412,7 +414,8 @@ void tex_set_insert_storage(halfword i, halfword v)
     }
 }
 
-void tex_wipe_insert(halfword i) {
+void tex_wipe_insert(halfword i)
+{
     if (lmt_insert_state.mode == class_insert_mode && i >= 0 && i <= lmt_insert_state.insert_data.ptr) {
 //  if (lmt_insert_state.mode == class_insert_mode && tex_valid_insert_id(i)) {
         halfword b = lmt_insert_state.inserts[i].content;
@@ -423,32 +426,39 @@ void tex_wipe_insert(halfword i) {
     }
 }
 
-halfword lmt_get_insert_distance(halfword i, int slot)
+halfword lmt_get_insert_distance(halfword i, int first, int top, int dis)
 {
+    halfword distance = null;
     int callback_id = lmt_callback_defined(insert_distance_callback);
-    if (callback_id != 0) {
-        halfword replacement = null;
-        lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "dd->N", i, slot, &replacement);
-        if (replacement) {
-            return replacement;
-        } else {
-            halfword distance = null;
-            switch (lmt_insert_state.mode) {
-                case index_insert_mode:
-                    distance = insert_distance(i);
-                    break;
-                case class_insert_mode:
-                    if (tex_valid_insert_id(i)) {
-                        distance = lmt_insert_state.inserts[i].distance;
-                    }
-                    break;
-            }
-            if (distance) {
-                return tex_copy_node(distance);
-            }
+    if (callback_id > 0) {
+        lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddbb->N", i, 1, first, top, &distance);
+    }
+    if (dis && ! distance) {
+        switch (lmt_insert_state.mode) {
+            case index_insert_mode:
+                distance = insert_distance(i);
+                break;
+            case class_insert_mode:
+                if (tex_valid_insert_id(i)) {
+                    distance = lmt_insert_state.inserts[i].distance;
+                }
+                break;
         }
     }
-    return tex_new_glue_spec_node(null);
+    // maybe null
+    return distance ? tex_copy_node(distance) : tex_new_glue_spec_node(null);
+}
+
+halfword lmt_set_insert_distance(halfword i, halfword head)
+{
+    int callback_id = lmt_callback_defined(insert_distance_callback);
+    if (callback_id > 0) {
+        halfword newhead = null;
+        lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddN->N", i, 2, head, &newhead);
+        return head;
+    } else {
+        return head;
+    }
 }
 
 halfword tex_get_insert_progress(halfword i)
@@ -675,8 +685,7 @@ void tex_finish_insert_group(void)
             tex_flush_node(p);
             if (tracing_inserts_par > 0) {
                 tex_begin_diagnostic();
-                tex_print_levels();
-                tex_print_format("[insert: setting, index %i, height %p, depth %p, penalty %i, topskip %Q]",
+                tex_print_format("%l[insert: setting, index %i, height %p, depth %p, penalty %i, topskip %Q]",
                     index, insert_total_height(insert), insert_max_depth(insert), insert_float_cost(insert), q, pt_unit);
                 if (tracing_inserts_par > 1) {
                     tex_print_node_list(insert_list(insert), "insert", show_box_depth_par, show_box_breadth_par);
@@ -725,7 +734,7 @@ int tex_identify_inserts(halfword b, halfword cbk)
         while (current) { 
             if (node_type(current) == insert_node) {
                 int callback = lmt_callback_defined(balance_insert_callback);
-                if (callback) {
+                if (callback > 0) {
                     ++lmt_balance_state.n_of_callbacks;
                     lmt_run_callback(lmt_lua_state.lua_instance, callback, "Nddd->",
                         current, 
@@ -748,6 +757,43 @@ int tex_identify_inserts(halfword b, halfword cbk)
     return value;
 }
 
+void tex_insert_check_split(halfword index, halfword breaknode)
+{
+    if (breaknode) {
+        int callback = lmt_callback_defined(insert_check_split_callback);
+        if (callback > 0) {
+            halfword current = node_prev(breaknode);
+            int dummy = 0;
+            while (current) {
+                if (node_type(current) == hlist_node) {
+                    if (node_subtype(current) == dummy_list) {
+                        dummy = 1;
+                    }
+                    lmt_run_callback(lmt_lua_state.lua_instance, callback, "ddN->",
+                        dummy ? insert_split_actions_dummy_last : insert_split_actions_last,
+                        index,
+                        current
+                    );
+                    break;
+                }
+                current = node_prev(current);
+            }
+            current = breaknode;
+            while (current) {
+                if (node_type(current) == hlist_node) {
+                    lmt_run_callback(lmt_lua_state.lua_instance, callback, "ddN->",
+                        dummy ? insert_split_actions_dummy_first : insert_split_actions_first,
+                        index,
+                        current
+                    );
+                    break;
+                }
+                current = node_next(current);
+            }
+        }
+    }
+}
+
 scaled tex_insert_height(halfword node)
 {
     /*tex A redundant check but we do it anyway. */
@@ -755,7 +801,9 @@ scaled tex_insert_height(halfword node)
         halfword multiplier = tex_get_insert_multiplier(insert_index(node));
         halfword needed = insert_total_height(node);
         if (multiplier > 0 && needed > 0) {
-            return tex_x_over_n(needed, scaling_factor) * multiplier;
+         // return tex_x_over_n_factor(needed) * multiplier;
+         // return scaledround(needed * multiplier / scaling_factor_double)
+            return needed * multiplier / scaling_factor;
         }
     }
     return 0;
@@ -784,6 +832,7 @@ scaled tex_insert_distances(halfword first, halfword last, scaled *stretch, scal
     int isfirst = 1;
     scaled amount = 0;
     halfword c = first; 
+    /* TODO: isfirst / top / etc */
     while (c != last) {
         if (node_type(c) == insert_node && insert_total_height(c) > 0 && tex_get_insert_multiplier(insert_index(c)) > 0) { 
             halfword distance = null;
@@ -792,19 +841,19 @@ scaled tex_insert_distances(halfword first, halfword last, scaled *stretch, scal
                 if (lmt_insert_state.inserts[index].before) {
                     distance = lmt_insert_state.inserts[index].before;
                 } else { 
-                    distance = lmt_get_insert_distance(index, 1); /* first */
+                    distance = lmt_get_insert_distance(index, 1, 0, 1); /* first */
                     lmt_insert_state.inserts[index].before = distance;
                 }
                 isfirst = 0;
-                set_bit(bits,index);
+                set_bit(bits, index);
             } else if (insert_index(c) == index && ! get_bit(bits, index)) {
                 if (lmt_insert_state.inserts[index].inbetween) {
                     distance = lmt_insert_state.inserts[index].inbetween;
                 } else {
-                    distance = lmt_get_insert_distance(index, 2); /* inbetween */
+                    distance = lmt_get_insert_distance(index, 0, 1, 0); /* inbetween */
                     lmt_insert_state.inserts[index].inbetween = distance;
                 }
-                set_bit(bits,index);
+                set_bit(bits, index);
             }
             if (distance) { 
                 amount += glue_amount(distance);
@@ -819,4 +868,149 @@ scaled tex_insert_distances(halfword first, halfword last, scaled *stretch, scal
         c = node_next(c);
     }
     return amount;
+}
+
+void tex_set_insert_category(halfword i, halfword v)
+{
+    if (lmt_insert_state.mode == class_insert_mode && tex_valid_insert_id(i)) {
+        lmt_insert_state.inserts[i].category = v;
+    }
+}
+
+halfword tex_get_insert_category(halfword i)
+{
+    if (lmt_insert_state.mode == class_insert_mode && tex_valid_insert_id(i)) {
+        return lmt_insert_state.inserts[i].category;
+    } else {
+        return 0;
+    }
+}
+
+void tex_set_insert_maxplaced(halfword i, halfword v)
+{
+    if (lmt_insert_state.mode == class_insert_mode && tex_valid_insert_id(i)) {
+        lmt_insert_state.inserts[i].maxplaced = v;
+    }
+}
+
+halfword tex_get_insert_maxplaced(halfword i)
+{
+    if (lmt_insert_state.mode == class_insert_mode && tex_valid_insert_id(i)) {
+        return lmt_insert_state.inserts[i].maxplaced;
+    } else {
+        return 0;
+    }
+}
+
+void tex_set_insert_placed(halfword i, halfword v)
+{
+    if (lmt_insert_state.mode == class_insert_mode && tex_valid_insert_id(i)) {
+        lmt_insert_state.inserts[i].placed = v;
+    }
+}
+
+halfword tex_get_insert_placed(halfword i)
+{
+    if (lmt_insert_state.mode == class_insert_mode && tex_valid_insert_id(i)) {
+        return lmt_insert_state.inserts[i].placed;
+    } else {
+        return 0;
+    }
+}
+
+void tex_add_insert_placed(halfword i)
+{
+    if (lmt_insert_state.mode == class_insert_mode && tex_valid_insert_id(i)) {
+        lmt_insert_state.inserts[i].placed++;
+    }
+}
+
+int tex_can_insert_placed(halfword i)
+{
+    if (lmt_insert_state.mode == class_insert_mode && tex_valid_insert_id(i)) {
+        if (lmt_insert_state.inserts[i].maxplaced > 0) {
+            /* We set the limit but somehow there we're always one off. */
+            return lmt_insert_state.inserts[i].placed < lmt_insert_state.inserts[i].maxplaced;
+        }
+    }
+    return 1;
+}
+
+void tex_insert_reset_placed(void)
+{
+    for (int index = 0; index <= lmt_insert_state.insert_data.top; index++) {
+        lmt_insert_state.inserts[index].placed = 0;
+    }
+}
+
+int tex_insert_get_only_count(halfword current)
+{
+    int count = 0;
+    while (current) {
+        if (node_type(current) == insert_node) {
+            ++count;
+        } else {
+            count = 0;
+            break;
+        }
+        current = node_next(current);
+    }
+    return count;
+}
+
+void tex_insert_boundary_callback(halfword current)
+{
+    int callback = lmt_callback_defined(insert_boundary_callback);
+    if (callback > 0) {
+        lmt_run_callback(lmt_lua_state.lua_instance, callback, "dd->",
+            boundary_data(current),
+            boundary_reserved(current)
+        );
+    }
+}
+
+void tex_insert_prepend_dummy(halfword current)
+{
+    halfword list = tex_new_node(hlist_node, dummy_list);
+    halfword glue = tex_new_glue_node(zero_glue, user_skip_glue);
+    tex_attach_attribute_list_copy(list, current);
+    tex_attach_attribute_list_copy(glue, current);
+    tex_try_couple_nodes(list, glue);
+    tex_try_couple_nodes(glue, insert_list(current));
+    insert_list(current) = list;
+}
+
+int tex_insert_is_dummy(halfword current)
+{
+    return current && node_type(current) == hlist_node && node_subtype(current) == dummy_list;
+}
+
+// halfword tex_insert_remove_dummy(halfword current)
+// {
+//     halfword prev = node_prev(current);
+//     while (current && node_type(current) == hlist_node && node_subtype(current) == dummy_list) {
+//         halfword next = node_next(current);
+//         tex_flush_node(current);
+//         current = next;
+//         tex_try_couple_nodes(prev, current);
+//         if (current && node_type(current) == glue_node && node_subtype(current) == user_skip_glue && tex_glue_is_zero(current)) {
+//             next = node_next(current);
+//             tex_flush_node(current);
+//             current = next;
+//             tex_try_couple_nodes(prev, current);
+//         }
+//     }
+//     return current;
+// }
+
+int tex_insert_is_top(halfword index)
+{
+    for (int index = 0; index <= lmt_insert_state.insert_data.top; index++) {
+        if (lmt_insert_state.inserts[index].category & insert_category_page) {
+            if (lmt_insert_state.inserts[index].placed) {
+                return 0;
+            }
+        }
+    }
+    return 1;
 }

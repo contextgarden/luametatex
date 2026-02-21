@@ -96,7 +96,7 @@ void tex_append_dir_state(void)
     halfword last = null;
     if (tracing_paragraph_lists) {
         tex_begin_diagnostic();
-        tex_print_format("[paragraph: dirstate]");
+        tex_print_format("%l[paragraph: dirstate]");
         tex_show_box(dir);
         tex_end_diagnostic();
     }
@@ -115,7 +115,7 @@ void tex_append_dir_state(void)
     if (first) { 
         if (tracing_paragraph_lists) {
             tex_begin_diagnostic();
-            tex_print_format("[paragraph: injected dirs]");
+            tex_print_format("%l[paragraph: injected dirs]");
             tex_show_box(first);
             tex_end_diagnostic();
         }
@@ -159,7 +159,7 @@ void tex_push_text_dir_ptr(halfword val)
 {
     if (tracing_direction_lists) {
         tex_begin_diagnostic();
-        tex_print_format("[direction: push text, level %i, before]", cur_level);
+        tex_print_format("%l[direction: push text, level %i, before]", cur_level);
         tex_show_box(lmt_dir_state.text_dir_ptr);
         tex_end_diagnostic();
     }
@@ -174,7 +174,7 @@ void tex_push_text_dir_ptr(halfword val)
     }
     if (tracing_direction_lists) {
         tex_begin_diagnostic();
-        tex_print_format("[direction: push text, level %i, after]", cur_level);
+        tex_print_format("%l[direction: push text, level %i, after]", cur_level);
         tex_show_box(lmt_dir_state.text_dir_ptr);
         tex_end_diagnostic();
     }
@@ -185,7 +185,7 @@ void tex_pop_text_dir_ptr(void)
     halfword text_dir_ptr = lmt_dir_state.text_dir_ptr;
     if (tracing_direction_lists) {
         tex_begin_diagnostic();
-        tex_print_format("[direction: pop text, level %i, before]", cur_level);
+        tex_print_format("%l[direction: pop text, level %i, before]", cur_level);
         tex_show_box(lmt_dir_state.text_dir_ptr);
         tex_end_diagnostic();
     }
@@ -197,7 +197,7 @@ void tex_pop_text_dir_ptr(void)
     }
     if (tracing_direction_lists) {
         tex_begin_diagnostic();
-        tex_print_format("[direction: pop text, level %i, after]", cur_level);
+        tex_print_format("%l[direction: pop text, level %i, after]", cur_level);
         tex_show_box(lmt_dir_state.text_dir_ptr);
         tex_end_diagnostic();
     }

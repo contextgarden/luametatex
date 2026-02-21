@@ -61,7 +61,8 @@ callback_state_info lmt_callback_state = {
         { .value = 0, .state = callback_state_selective,   .name = "append_line"          },
      /* { .value = 0, .state = callback_state_selective,   .name = "pre_line"             }, */
         { .value = 0, .state = 0,                          .name = "insert_distance"      },
-     /* { .value = 0, .state = 0,                          .name = "fire_up_output"       }, */
+        { .value = 0, .state = 0,                          .name = "insert_boundary"      },
+        { .value = 0, .state = 0,                          .name = "insert_check_split"   },
         { .value = 0, .state = callback_state_fundamental, .name = "wrapup_run"           },
         { .value = 0, .state = 0,                          .name = "begin_paragraph"      },
         { .value = 0, .state = 0,                          .name = "paragraph_context"    },
@@ -87,6 +88,8 @@ callback_state_info lmt_callback_state = {
         { .value = 0, .state = callback_state_selective,   .name = "tail_append"          },
         { .value = 0, .state = 0,                          .name = "balance_boundary"     },
         { .value = 0, .state = 0,                          .name = "balance_insert"       },
+        { .value = 0, .state = 0,                          .name = "page_boundary"        },
+        { .value = 0, .state = 0,                          .name = "delayed_glue"         },
     } 
 };
 

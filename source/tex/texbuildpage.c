@@ -47,30 +47,31 @@
 */
 
 page_builder_state_info lmt_page_builder_state = {
-    .tail             = null,
-    .contents         = 0,
-    .max_depth        = 0,
-    .best_break       = null,
-    .least_cost       = 0,
-    .best_size        = 0,
-    .goal             = 0,
-    .vsize            = 0,
-    .total            = 0,
-    .depth            = 0,
-    .excess           = 0,
-    .page_so_far      = { 0 },
-    .insert_penalties = 0,
-    .insert_heights   = 0,
-    .last_glue        = max_halfword,
-    .last_penalty     = 0,
-    .last_kern        = 0,
-    .last_node_type   = unknown_node_type,
-    .last_node_subtype= unknown_node_subtype,
-    .last_extra_used  = 0,
-    .last_boundary    = 0,
-    .output_active    = 0,
-    .dead_cycles      = 0,
-    .current_state    = 0
+    .tail              = null,
+    .contents          = 0,
+    .max_depth         = 0,
+    .best_break        = null,
+    .least_cost        = 0,
+    .best_size         = 0,
+    .goal              = 0,
+    .vsize             = 0,
+    .total             = 0,
+    .depth             = 0,
+    .excess            = 0,
+    .page_so_far       = { 0 },
+    .insert_penalties  = 0,
+    .insert_only_count = 0,
+    .insert_heights    = 0,
+    .last_glue         = max_halfword,
+    .last_penalty      = 0,
+    .last_kern         = 0,
+    .last_node_type    = unknown_node_type,
+    .last_node_subtype = unknown_node_subtype,
+    .last_extra_used   = 0,
+    .last_boundary     = 0,
+    .output_active     = 0,
+    .dead_cycles       = 0,
+    .current_state     = 0
 };
 
 /*tex
@@ -79,6 +80,11 @@ page_builder_state_info lmt_page_builder_state = {
 */
 
 # define page_stretched(order) lmt_page_builder_state.page_so_far[page_stretch_state+order]
+
+static inline int tex_aux_catch_insert_overflow(void)
+{
+    return insert_options_par & insert_option_check_height;
+}
 
 static void tex_aux_fire_up (halfword c);
 
@@ -147,6 +153,7 @@ void tex_initialize_pagestate(void)
         lmt_page_builder_state.page_so_far[i] = 0;
     }
     lmt_page_builder_state.insert_penalties = 0;
+    lmt_page_builder_state.insert_only_count = 0;
     lmt_page_builder_state.insert_heights = 0;
     lmt_page_builder_state.last_glue = max_halfword;
     lmt_page_builder_state.last_penalty = 0;
@@ -192,6 +199,11 @@ void tex_initialize_buildpage(void)
     |inserts_only| or |box_there|.
 
 */
+
+static int tex_aux_count_only_inserts(void)
+{
+    return (page_head != page_tail) ? tex_insert_get_only_count(node_next(page_head)) : 0;
+}
 
 void tex_additional_page_skip(void)
 {
@@ -247,7 +259,7 @@ static void tex_aux_freeze_page_specs(int s)
     if (tracing_pages_par > 0) {
         tex_begin_diagnostic();
         tex_print_format(
-            "[page: frozen state, goal %p, maxdepth %p, contribution %s, insertheights %p]",
+            "%l[page: frozen state, goal %p, maxdepth %p, contribution %s, insertheights %p]",
             page_goal,
             lmt_page_builder_state.max_depth,
             lmt_interface.page_contribute_values[s].name,
@@ -257,18 +269,20 @@ static void tex_aux_freeze_page_specs(int s)
     }
 }
 
-static void update_page_goal(halfword index, scaled total, scaled delta)
+static void update_page_goal(const char *where, halfword index, scaled total, scaled delta)
 {
-    page_goal -= delta;
-    lmt_page_builder_state.insert_heights += total;
-    if (lmt_page_builder_state.insert_heights > max_dimension) {
-        lmt_page_builder_state.insert_heights = max_dimension;
+    if (delta || total) {
+        page_goal -= delta;
+        lmt_page_builder_state.insert_heights += total;
+        if (lmt_page_builder_state.insert_heights > max_dimension) {
+            lmt_page_builder_state.insert_heights = max_dimension;
+        }
     }
     if (tracing_inserts_par > 0) {
         tex_begin_diagnostic();
         tex_print_format(
-            "[page: update page goal for insert, index %i, total %p, insertheights %p, vsize %p, delta %p, goal %p]",
-            index, total, lmt_page_builder_state.insert_heights, page_vsize, delta, page_goal
+            "%l[page: insert %s, index %i, total %p, insertheights %p, vsize %p, delta %p, goal %p]",
+            where, index, total, lmt_page_builder_state.insert_heights, page_vsize, delta, page_goal
         );
         tex_end_diagnostic();
     }
@@ -280,10 +294,16 @@ static void update_page_goal(halfword index, scaled total, scaled delta)
     driving \TEX. The page builder is ready to start a fresh page if we initialize the following
     state variables. (However, the page insertion list is initialized elsewhere.)
 
+    When we start a new current pages |last_glue := max_halfword|, well we already did that
+    anyway.
+
 */
 
 static void tex_aux_start_new_page(void)
 {
+    if (lmt_page_builder_state.inserted) {
+        tex_insert_reset_placed();
+    }
     lmt_page_builder_state.contents = contribute_nothing;
     lmt_page_builder_state.tail = page_head;
     node_next(page_head) = null;
@@ -295,6 +315,7 @@ static void tex_aux_start_new_page(void)
     lmt_page_builder_state.last_node_subtype = unknown_node_subtype;
     page_depth = 0;
     lmt_page_builder_state.max_depth = 0;
+    lmt_page_builder_state.inserted = 0;
 }
 
 /*tex
@@ -309,7 +330,7 @@ static halfword tex_aux_delete_box_content(int n, const char *what, int where)
 {
     if (tracing_pages_par > 0) {
         tex_begin_diagnostic();
-        tex_print_format("[page: deleting %s box, case %i]", what, where);
+        tex_print_format("%l[page: deleting %s box, case %i]", what, where);
         tex_show_box(n);
         tex_end_diagnostic();
     }
@@ -354,7 +375,7 @@ static int tex_aux_valid_insert_content(halfword content)
 static void tex_aux_display_page_break_cost(int context, halfword badness, halfword penalty, halfword cost, int moveon, int fireup)
 {
     tex_begin_diagnostic();
-    tex_print_format("[page: break at %s, total %P, goal %p, badness %B, penalty %i, cost %B%s, moveon %s, fireup %s]",
+    tex_print_format("%l[page: break at %s, total %P, goal %p, badness %B, penalty %i, cost %B%s, moveon %s, fireup %s]",
         lmt_interface.page_context_values[context].name, 
         page_total, page_stretch, page_fistretch, page_filstretch, page_fillstretch, page_filllstretch, page_shrink,
         page_goal, badness, penalty, cost, cost < lmt_page_builder_state.least_cost ? "#" : "",
@@ -363,12 +384,12 @@ static void tex_aux_display_page_break_cost(int context, halfword badness, halfw
     tex_end_diagnostic();
 }
 
-static void tex_aux_display_insertion_split_cost(halfword index, scaled height, halfword penalty)
+static void tex_aux_display_insertion_split_cost(halfword index, scaled height, scaled best, halfword penalty)
 {
     /*tex Display the insertion split cost. */
     tex_begin_diagnostic();
-    tex_print_format("[page: split insert %i: height %p, depth %p, penalty %i]",
-        index, height, lmt_packaging_state.best_height_plus_depth, penalty
+    tex_print_format("%l[page: split insert %i: height %p, best htdp %p, penalty %i]",
+        index, height, best, penalty
     );
     tex_end_diagnostic();
 }
@@ -424,6 +445,9 @@ static halfword tex_aux_insert_topskip(halfword height, int contribution)
 /*tex
     Append an insertion to the current page and |goto contribute|. The insertion number (index) is
     registered in the subtype (not any more for a while).
+
+    Spacing can be a bit weird: it happens before we test if we have room so when we delay an
+    insert we might as well not add it and try to squeeze in a line or so.
 */
 
 static void tex_aux_append_insert(halfword current)
@@ -433,13 +457,31 @@ static void tex_aux_append_insert(halfword current)
     halfword multiplier = tex_get_insert_multiplier(index);
     halfword content = tex_get_insert_content(index);
     scaled limit = tex_get_insert_limit(index);
-    int slot = 1;
+    int first = 1;
+    int top = tex_insert_is_top(index);
+    int where = 0;
+    scaled advance = 0;
+    int ignore = 0;
+    /*tex
+        Do we have a problem here? Say we can't place it, then we still mess with the spacing while
+        actually we should just go on.
+    */
+    tex_add_insert_placed(index);
+    ignore = ! tex_can_insert_placed(index);
+    if (ignore) {
+        limit = 0;
+    }
+    /* */
     if (lmt_page_builder_state.contents == contribute_nothing) {
         tex_aux_freeze_page_specs(contribute_insert);
+     // update_page_goal("topskip", index, 0, 0);
     }
+    location = page_insert_head;
     while (index >= insert_index(node_next(location))) {
         location = node_next(location);
-        slot += 1 ;
+        if (index == insert_index(location)) {
+            first = 0;
+        }
     }
     if (insert_index(location) != index) {
         /*tex
@@ -464,8 +506,6 @@ static void tex_aux_append_insert(halfword current)
 
         */
         halfword splitnode = tex_new_node(split_node, normal_split_subtype);
-        scaled advance = 0;
-        halfword distance = lmt_get_insert_distance(index, slot); /*tex Callback: we get a copy! */
         split_insert_index(splitnode) = index;
         tex_try_couple_nodes(splitnode, node_next(location));
         tex_couple_nodes(location, splitnode);
@@ -474,35 +514,52 @@ static void tex_aux_append_insert(halfword current)
             content = tex_aux_delete_box_content(content, "insert", 1);
             tex_set_insert_content(index, content);
         };
-        if (content) {
-            box_height(location) = box_total(content);
-        } else {
-            box_height(location) = 0;
-        }
+        box_height(location) = content ? box_total(content) : 0;
         split_best_insert(location) = null;
+        /* no need to update when we ignore */
         if (multiplier == scaling_factor) {
-            advance = box_height(location);
+            advance += box_height(location);
         } else {
-            advance = tex_x_over_n(box_height(location), scaling_factor) * multiplier;
+            advance += tex_x_over_n_factor(box_height(location)) * multiplier;
         }
-        advance += glue_amount(distance);
-        update_page_goal(index, 0, advance); /*tex Here gets no height added! */
-        page_stretched(glue_stretch_order(distance)) += glue_stretch(distance);
-        page_shrink += glue_shrink(distance);
-        if (glue_shrink_order(distance) != normal_glue_order && glue_shrink(distance)) {
-            tex_handle_error(
-                normal_error_type,
-                "Infinite glue shrinkage inserted from \\skip%i",
-                index,
-                "The correction glue for page breaking with insertions must have finite\n"
-                "shrinkability. But you may proceed, since the offensive shrinkability has been\n"
-                "made finite."
-            );
-        }
-        tex_flush_node(distance);
+        where = 1;
     }
+    /*tex We also check in between so this has been moved out of the above branch. */
+    if (ignore) {
+        /* there is no need for spacing */
+    } else {
+        halfword distance = lmt_get_insert_distance(index, first, top, where); /*tex Callback: we get a copy! */
+        if (distance) {
+            if (! tex_glue_is_zero(distance)) {
+                advance += glue_amount(distance);
+                page_stretched(glue_stretch_order(distance)) += glue_stretch(distance);
+                page_shrink += glue_shrink(distance);
+                if (glue_shrink_order(distance) != normal_glue_order && glue_shrink(distance)) {
+                    tex_handle_error(
+                        infinite_shrink_error_type,
+                        "Infinite glue shrinkage inserted from \\skip%i",
+                        index,
+                        "The correction glue for page breaking with insertions must have finite\n"
+                        "shrinkability. But you may proceed, since the offensive shrinkability has been\n"
+                        "made finite."
+                    );
+                }
+                if (tracing_inserts_par > 0) {
+                 // %P : total, stretch, fistretch, filstretch, fillstretch, filllstretch, shrink
+                    tex_begin_diagnostic();
+                    tex_print_format("%l[inserts: index %i, first %i, top %i, distance %p]", index, first, top, glue_amount(distance));
+                    tex_end_diagnostic();
+                }
+            }
+            tex_flush_node(distance);
+        }
+        update_page_goal("spacing", index, 0, advance);
+    }
+    /* */
+    lmt_page_builder_state.inserted = 1;
     /*tex I really need to check this logic with the original \LUATEX\ code. */
     if (node_type(location) == split_node && node_subtype(location) == insert_split_subtype) {
+        update_page_goal("continue", index, 0, 0);
         lmt_page_builder_state.insert_penalties += insert_float_cost(current);
     } else {
         scaled delta = page_goal - page_total - page_depth + page_shrink;
@@ -511,10 +568,13 @@ static void tex_aux_append_insert(halfword current)
         /*tex This much room is left if we shrink the maximum. */
         if (multiplier != scaling_factor) {
             /*tex This much room is needed. */
-            needed = tex_x_over_n(needed, scaling_factor) * multiplier;
+         /* needed = needed * multiplier / scaling_factor; */ /* can overflow */
+         /* needed = scaledround(needed * multiplier / scaling_factor_double); */
+            needed = tex_x_over_n_factor(needed) * multiplier;
         }
+        /*tex Somehow with multiple notes we overflow. */
         if ((needed <= 0 || needed <= delta) && (insert_total_height(current) + box_height(location) <= limit)) {
-            update_page_goal(index, insert_total_height(current), needed);
+            update_page_goal("append", index, insert_total_height(current), needed);
             box_height(location) += insert_total_height(current);
         } else {
             /*tex
@@ -533,7 +593,7 @@ static void tex_aux_append_insert(halfword current)
                 |\vsplit| operation.
 
             */
-            scaled height;
+            scaled height, best_height_plus_depth;
             halfword breaknode, penalty;
             if (multiplier <= 0) {
                 height = max_dimension;
@@ -543,19 +603,69 @@ static void tex_aux_append_insert(halfword current)
                     height = tex_x_over_n(height, multiplier) * scaling_factor;
                 }
             }
+            /*tex How reliable is using limit 0 here? */
             if (height > limit - box_height(location)) {
                 height = limit - box_height(location);
             }
-            breaknode = tex_vert_break(insert_list(current), height, insert_max_depth(current), 0, 0);
-            box_height(location) += lmt_packaging_state.best_height_plus_depth;
+            /*tex
+                We always get at least a line because that's how a split works. This results in an
+                overflow with multiple notes when we have already filled up the page. So we need a
+                lot of slack at the top then. I tested quite some possible ways out but in the end
+                settled on an optional zero height line followed by a skip that triggers a break
+                because the algorithm expects something. Other tricks (keeping states, forcing a
+                break) are just unreliable and even kind of unpredictable. We can use an insert
+                boundary (callback) to deal with an expected change in conditions (like limit) when
+                we flush many pending notes. Knuth explicitly mentions in Digital Typography that
+                dealing with footnotes, let alone multiple classes, and various conditions had no
+                priority as notes should be use wisely (if at all). So the catch belwo is just
+                there because it was a challenge for critical editions, something that \CONTEXT\
+                users typeset. In the process some experimental features like regrouping pending
+                inserts were tested but never made it into the engine.
+            */
+            if (tex_aux_catch_insert_overflow()) {
+                if (height < 0) {
+                    if (tracing_inserts_par > 0) {
+                        tex_begin_diagnostic();
+                        tex_print_format("%l[page: insert overflow, index %i, prepend dummy, case %i]", index, 1);
+                        tex_end_diagnostic();
+                    }
+                    tex_insert_prepend_dummy(current);
+                    height = 0;
+                }
+            }
+            /*tex
+                The split routine sets |best_height_plus_depth|. This is no longer a global variable
+                in |lmt_packaging_state|.
+            */
+            breaknode = tex_vert_break(insert_list(current), height, height ? insert_max_depth(current) : 0, 0, 0, &best_height_plus_depth);
+            /*tex
+                We have these border cases to deal with, so:
+            */
+            if (tex_aux_catch_insert_overflow()) {
+                if (best_height_plus_depth > height) {
+                    if (tracing_inserts_par > 0) {
+                        tex_begin_diagnostic();
+                        tex_print_format("%l[page: insert overflow, index %i, prepend dummy, case %i]", index, 2);
+                        tex_end_diagnostic();
+                    }
+                    tex_insert_prepend_dummy(current);
+                    height = 0;
+                    breaknode = tex_vert_break(insert_list(current), height, height ? insert_max_depth(current) : 0, 0, 0, &best_height_plus_depth);
+                }
+            }
+            /* */ 
+            box_height(location) += best_height_plus_depth;
             penalty = breaknode ? (node_type(breaknode) == penalty_node ? penalty_amount(breaknode) : 0) : eject_penalty;
             if (tracing_pages_par > 0) {
-                tex_aux_display_insertion_split_cost(index, height, penalty);
+                tex_aux_display_insertion_split_cost(index, height, best_height_plus_depth, penalty);
             }
             if (multiplier != scaling_factor) {
-                lmt_packaging_state.best_height_plus_depth = tex_x_over_n(lmt_packaging_state.best_height_plus_depth, scaling_factor) * multiplier;
+             // best_height_plus_depth = tex_x_over_n_factor(best_height_plus_depth) * multiplier;
+             // best_height_plus_depth = scaledround(best_height_plus_depth * multiplier / scaling_factor_double)
+                best_height_plus_depth = best_height_plus_depth * multiplier / scaling_factor;
             }
-            update_page_goal(index, lmt_packaging_state.best_height_plus_depth, lmt_packaging_state.best_height_plus_depth);
+            /*tex No need to update when no room or ignore. */
+            update_page_goal("split", index, best_height_plus_depth, best_height_plus_depth);
             node_subtype(location) = insert_split_subtype;
             split_broken(location) = breaknode;
             split_broken_insert(location) = current;
@@ -577,14 +687,14 @@ static inline int tex_aux_get_penalty_option(halfword current)
                         if (tex_has_penalty_option(current, penalty_option_widowed)) {
                             if (tracing_pages_par > 1) {
                                 tex_begin_diagnostic();
-                                tex_print_format("[page: widowed]");
+                                tex_print_format("%l[page: widowed]");
                                 tex_end_diagnostic();
                             }
                             return penalty_option_widowed;
                         } else if (tex_has_penalty_option(current, penalty_option_clubbed)) {
                             if (tracing_pages_par > 1) {
                                 tex_begin_diagnostic();
-                                tex_print_format("[page: clubbed]");
+                                tex_print_format("%l[page: clubbed]");
                                 tex_end_diagnostic();
                             }
                             return penalty_option_clubbed;
@@ -687,7 +797,7 @@ static int tex_aux_topskip_restart(halfword current, int where, scaled height, s
             tex_couple_nodes(contribute_head, gluenode);
             if (tracing > 1) {
                 tex_begin_diagnostic();
-                tex_print_format("[page: initialize, topskip at %s]", where == contribute_box ? "box" : "rule");
+                tex_print_format("%l[page: initialize, topskip at %s]", where == contribute_box ? "box" : "rule");
                 tex_end_diagnostic();
             }
         }
@@ -716,7 +826,7 @@ static int tex_aux_migrating_restart(halfword current, int tracing)
             halfword tail = tex_tail_of_node_list(head);
             if (tracing > 1 || tracing_adjusts_par > 1) {
                 tex_begin_diagnostic();
-                tex_print_format("[adjust: post, mvl]");
+                tex_print_format("%l[adjust: post, mvl]");
                 tex_print_node_list(head, "post", show_box_depth_par, show_box_breadth_par);
                 tex_end_diagnostic();
             }
@@ -735,7 +845,7 @@ static int tex_aux_migrating_restart(halfword current, int tracing)
             halfword tail = tex_tail_of_node_list(head);
             if (tracing > 1 || tracing_adjusts_par > 1) {
                 tex_begin_diagnostic();
-                tex_print_format("[adjust: pre, mvl]");
+                tex_print_format("%l[adjust: pre, mvl]");
                 tex_print_node_list(head, "pre", show_box_depth_par, show_box_breadth_par);
                 tex_end_diagnostic();
             }
@@ -754,22 +864,64 @@ static int tex_aux_migrating_restart(halfword current, int tracing)
 /*tex
     We just triggered the page builder for which we needed a contribution. We fake a zero penalty
     so that all gets processed. The main rationale is that we get a better indication of what we
-    do. Of course a callback can remove this node  so that it is never seen. Triggering from the
+    do. Of course a callback can remove this node so that it is never seen. Triggering from the
     callback is not doable.
 */
 
-static halfword tex_aux_process_boundary(halfword current)
+
+typedef enum boundary_results {
+    boundary_penalty,
+    boundary_restart,
+    boundary_discard,
+} boundary_results;
+
+static int tex_aux_process_page_boundary(halfword *current)
 {
-    halfword penaltynode = tex_new_node(penalty_node, user_penalty_subtype);
-    /* todo: copy attributes */
-    tex_page_boundary_message("processed as penalty", 0);
-    tex_try_couple_nodes(node_prev(current), penaltynode);
-    tex_try_couple_nodes(penaltynode, node_next(current));
-    tex_flush_node(current);
-    penalty_amount(penaltynode) = boundary_data(current);
-    current = penaltynode;
-    node_next(contribute_head) = current;
-    return current;
+    halfword result = null;
+    int callback = lmt_callback_defined(page_boundary_callback);
+    int contributing = callback <= 0 || boundary_data(*current) == 0;
+    if (contributing) {
+        tex_page_boundary_message("contributing, in build", *current);
+        result = tex_new_node(penalty_node, user_penalty_subtype);
+        tex_try_couple_nodes(node_prev(*current), result);
+        tex_try_couple_nodes(result, node_next(*current));
+        tex_flush_node(*current);
+        penalty_amount(result) = boundary_reserved(*current);
+        *current = result;
+        node_next(contribute_head) = result;
+        return boundary_penalty;
+    } else {
+        tex_page_boundary_message("callback, in build", *current);
+        /* maybe pass attr template */
+        lmt_run_callback(lmt_lua_state.lua_instance, callback, "dd->N",
+            boundary_data(*current),
+            boundary_reserved(*current),
+            &result
+        );
+        if (result) {
+            halfword n = result;
+            halfword h = node_next(*current);
+            halfword t = tex_tail_of_node_list(result);
+            while (n) {
+                if (! node_attr(n)) {
+                    tex_attach_attribute_list_copy(n, *current);
+                }
+                n = node_next(n);
+            }
+            if (h) {
+                tex_try_couple_nodes(t, h);
+            } else {
+                contribute_tail = t;
+            }
+            tex_try_couple_nodes(contribute_head, result) ;
+         // node_next(contribute_head) = result;
+            tex_flush_node(*current);
+            *current = result; /* not needed */
+            return boundary_restart;
+        } else {
+            return boundary_discard;
+        }
+    }
 }
 
 static void tex_aux_reconsider_goal(halfword current, halfword *badness, halfword *costs, halfword *penalty, int tracing)
@@ -784,7 +936,7 @@ static void tex_aux_reconsider_goal(halfword current, halfword *badness, halfwor
                     if (tracing > 0) {
                         tex_begin_diagnostic();
                         tex_print_format(
-                            "[page: extra check, total %P, goal %p, extragoal %p, badness %B, costs %i, extrabadness %B, extracosts %i]",
+                            "%l[page: extra check, total %P, goal %p, extragoal %p, badness %B, costs %i, extrabadness %B, extracosts %i]",
                             page_total, page_stretch, page_filstretch, page_filstretch, page_fillstretch, page_filllstretch, page_shrink,
                             page_goal, page_extra_goal_par,
                             *badness, *costs, extrabadness, extracosts
@@ -798,7 +950,7 @@ static void tex_aux_reconsider_goal(halfword current, halfword *badness, halfwor
                     lmt_page_builder_state.last_extra_used = 1;
                     if (tracing > 1) {
                         tex_begin_diagnostic();
-                        tex_print_format("[page: widowed]");
+                        tex_print_format("%l[page: widowed]");
                         tex_end_diagnostic();
                     }
                 }
@@ -810,7 +962,7 @@ static void tex_aux_reconsider_goal(halfword current, halfword *badness, halfwor
                     /* */
                     if (tracing > 1) {
                         tex_begin_diagnostic();
-                        tex_print_format("[page: clubbed]");
+                        tex_print_format("%l[page: clubbed]");
                         tex_end_diagnostic();
                     }
                 }
@@ -825,7 +977,7 @@ static void tex_aux_contribute_glue(halfword current)
     page_shrink += glue_shrink(current);
     if (glue_shrink_order(current) != normal_glue_order && glue_shrink(current)) {
         tex_handle_error(
-            normal_error_type,
+            infinite_shrink_error_type,
             "Infinite glue shrinkage found on current page",
             "The page about to be output contains some infinitely shrinkable glue, e.g.,\n"
             "'\\vss' or '\\vskip 0pt minus 1fil'. Such glue doesn't belong there; but you can\n"
@@ -854,6 +1006,12 @@ static inline halfword tex_aux_used_penalty(halfword p)
 
 static void tex_process_mvl(halfword context, halfword boundary)
 {
+
+    if (node_type(contribute_tail) == glue_node && (glue_options(contribute_tail) & glue_option_delay)) {
+        return;
+    }
+    tex_delayed_glue_check(delayed_glue_target_mvl, delayed_glue_location_build);
+
     if (node_next(contribute_head) && ! lmt_page_builder_state.output_active) {
  // if (! lmt_page_builder_state.output_active) {
         lmt_buildpage_callback(context, boundary);
@@ -863,7 +1021,7 @@ static void tex_process_mvl(halfword context, halfword boundary)
         halfword penalty = 0;
         int callback_id = lmt_callback_defined(show_build_callback);
         int tracing = tracing_pages_par;
-        if (callback_id) {
+        if (callback_id > 0) {
             tex_aux_initialize_show_build_node(callback_id);
         }
         do {
@@ -930,6 +1088,12 @@ static void tex_process_mvl(halfword context, halfword boundary)
                 case rule_node:
                     switch (tex_aux_topskip_restart(current, contribute_rule, rule_height(current), rule_depth(current), 0, (rule_options(current) & rule_option_discardable), tracing)) {
                         case 1:
+                            if (rule_snapping(current)) {
+                                halfword kern = tex_new_kern_node(rule_snapping(current), line_snapping_kern_subtype);
+                                tex_attach_attribute_list_copy(kern, current);
+                                tex_couple_nodes(kern, current);
+                                tex_couple_nodes(contribute_head, kern);
+                            }
                             continue;
                         case 2:
                             /* todo: remove */
@@ -942,13 +1106,23 @@ static void tex_process_mvl(halfword context, halfword boundary)
                 case boundary_node:
                     if (subtype == page_boundary) {
                         lmt_page_builder_state.last_boundary = boundary_data(current);
+                    } else if (subtype == insert_boundary) {
+                        tex_insert_boundary_callback(current);
+                        goto DISCARD;
                     }
                     if (lmt_page_builder_state.contents < contribute_box) {
                         goto DISCARD;
                     } else if (subtype == page_boundary) {
-                        current = tex_aux_process_boundary(current);
-                        penalty = 0;
-                        break;
+                        int result = tex_aux_process_page_boundary(&current);
+                        if (result == boundary_restart) {
+                            continue;
+                        } else if (result == boundary_discard) {
+                            goto DISCARD;
+                     /* } else if (result == boundary_continue) { */
+                        } else {
+                            penalty = 0;
+                            break;
+                        }
                     } else {
                         goto DISCARD;
                     }
@@ -1008,7 +1182,7 @@ static void tex_process_mvl(halfword context, halfword boundary)
             */
             if (tracing > 1) {
                 tex_begin_diagnostic();
-                tex_print_format("[page: compute: %N, %d, penalty %i]", current, current, penalty);
+                tex_print_format("%l[page: compute: %N, %d, penalty %i]", current, current, penalty);
                 tex_end_diagnostic();
             }
             if (penalty < infinite_penalty) {
@@ -1021,7 +1195,7 @@ static void tex_process_mvl(halfword context, halfword boundary)
                 lmt_page_builder_state.last_extra_used = 0;
                 if (tracing > 1) {
                     tex_begin_diagnostic();
-                    tex_print_format("[page: calculate, %N, %d, total %P, goal %p, badness %B, costs %i]",
+                    tex_print_format("%l[page: calculate, %N, %d, total %P, goal %p, badness %B, costs %i]",
                         current, current,
                         page_total, page_stretch, page_fistretch, page_filstretch, page_fillstretch, page_filllstretch, page_shrink,
                         page_goal,
@@ -1044,6 +1218,7 @@ static void tex_process_mvl(halfword context, halfword boundary)
                         lmt_page_builder_state.best_break = current;
                         lmt_page_builder_state.best_size = page_goal;
                         lmt_page_builder_state.insert_penalties = 0;
+                        lmt_page_builder_state.insert_only_count = 0;
                         lmt_page_builder_state.least_cost = costs;
                         while (insert != page_insert_head) {
                             split_best_insert(insert) = split_last_insert(insert);
@@ -1057,7 +1232,7 @@ static void tex_process_mvl(halfword context, halfword boundary)
                     if (fireup) {
                         if (tracing > 1) {
                             tex_begin_diagnostic();
-                            tex_print_format("[page: fireup: %N, %d]", current, current);
+                            tex_print_format("%l[page: fireup: %N, %d]", current, current);
                             tex_end_diagnostic();
                         }
                         if (callback_id) {
@@ -1082,14 +1257,14 @@ static void tex_process_mvl(halfword context, halfword boundary)
                     tex_aux_skip_show_build_node(callback_id, current);
                 }
             }
-            UPDATEHEIGHTS:
+          UPDATEHEIGHTS:
             /*tex
                 Go here to record glue in the |active_height| table. Update the current page
                 measurements with respect to the glue or kern specified by node~|p|.
             */
             if (tracing > 1) {
                 tex_begin_diagnostic();
-                tex_print_format("[page: update, %N, %d]", current, current);
+                tex_print_format("%l[page: update, %N, %d]", current, current);
                 tex_end_diagnostic();
             }
             switch(node_type(current)) {
@@ -1116,24 +1291,24 @@ static void tex_process_mvl(halfword context, halfword boundary)
                     page_depth = 0;
                     goto APPEND;
             }
-            CONTRIBUTE:
+          CONTRIBUTE:
             /*tex
                 Go here to link a node into the current page. Make sure that |page_max_depth| is
                 not exceeded.
             */
             if (tracing > 1) {
                 tex_begin_diagnostic();
-                tex_print_format("[page: contribute, %N, %d]", current, current);
+                tex_print_format("%l[page: contribute, %N, %d]", current, current);
                 tex_end_diagnostic();
             }
             if (page_depth > lmt_page_builder_state.max_depth) {
                 page_total += page_depth - lmt_page_builder_state.max_depth;
                 page_depth = lmt_page_builder_state.max_depth;
             }
-            APPEND:
+          APPEND:
             if (tracing > 1) {
                 tex_begin_diagnostic();
-                tex_print_format("[page: append, %N, %d]", current, current);
+                tex_print_format("%l[page: append, %N, %d]", current, current);
                 tex_end_diagnostic();
             }
             /*tex Link node |p| into the current page and |goto done|. We assume a positive depth. */
@@ -1142,10 +1317,10 @@ static void tex_process_mvl(halfword context, halfword boundary)
             tex_try_couple_nodes(contribute_head, node_next(current));
             node_next(current) = null;
             continue; // or: break;
-            DISCARD:
+          DISCARD:
             if (tracing > 1) {
                 tex_begin_diagnostic();
-                tex_print_format("[page: discard, %N, %d]", current, current);
+                tex_print_format("%l[page: discard, %N, %d]", current, current);
                 tex_end_diagnostic();
             }
             /*tex Recycle node |p|. */
@@ -1191,324 +1366,109 @@ void tex_build_page(halfword context, halfword boundary)
 
 */
 
-static void tex_aux_fire_up(halfword c)
+/*tex
+
+    Prepare all the boxes involved in insertions to act as queues. If many insertions are
+    supposed to go into the same box, we want to know the position of the last node in that
+    box, so that we don't need to waste time when linking further information into it. The
+    |last_insert| fields of the page insertion nodes are therefore used for this purpose
+    during the packaging phase.
+
+    This is tricky: |last_insert| directly points to a \quote {address} in the node list,
+    that is: the row where |list_ptr| sits. The |raw_list_ptr| macro is just an offset to
+    the base index of the node. Then |node_next| will start out there and follow the list.
+    So, |last_insert| kind of points to a subnode (as in disc nodes) of size 1.
+
+        last_insert => [shift][list]
+
+    which fakes:
+
+        last_insert => [type|subtype][next] => [real node with next]
+
+    and with shift being zero this (when it would be queried) will be seen as a hlist node
+    of type zero with subtype zero, but ... it is not really such a node which means that
+    other properties are not valid! Normally this is ok, because \TEX\ only follows this
+    list and never looks at the parent. But, when accessing from \LUA\ this is asking for
+    troubles. However, as all happens in the page builder, we don't really expose this and
+    if we would (somehow, e.g. via a callback) then for sure we would need to make sure
+    that the node |last_insert(r)| points to is made into a new kind of node: one with
+    size 1 and type |fake_node| or so, just to be sure (so that at the \LUA\ end no
+    properties can be asked).
+
+    Of course I can be wrong here and changing the approach would involve patching some
+    code that I don't want to touch. I need a test case for \quote {following the chain}.
+
+*/
+
+static void tex_aux_package_inserts(void)
 {
-    /*tex nodes being examined and/or changed */
-    halfword current, previous, lastinsert;
-    /*tex Set the value of |output_penalty|. */
-    if (node_type(lmt_page_builder_state.best_break) == penalty_node) {
-        update_tex_output_penalty(penalty_amount(lmt_page_builder_state.best_break));
-        if (tracing_loners_par) {
-            int callback_id = lmt_callback_defined(show_loners_callback);
-            // this one should return the str
-            halfword n = tex_aux_get_last_penalty(lmt_page_builder_state.best_break);
-            if (n) {
-                halfword penalty = tex_aux_used_penalty(lmt_page_builder_state.best_break);
-                if (callback_id) {
-                    tex_aux_show_loner_penalty(callback_id, penalty_options(lmt_page_builder_state.best_break), penalty);
-                } else {
-                    unsigned char state[5] = { '.', '.', '.', '.', '\0' };
-                    if (tex_has_penalty_option(lmt_page_builder_state.best_break, penalty_option_widow  )) { state[0] = 'W'; }
-                    if (tex_has_penalty_option(lmt_page_builder_state.best_break, penalty_option_club   )) { state[1] = 'C'; }
-                    if (tex_has_penalty_option(lmt_page_builder_state.best_break, penalty_option_broken )) { state[2] = 'B'; }
-                    if (tex_has_penalty_option(lmt_page_builder_state.best_break, penalty_option_shaping)) { state[3] = 'S'; }
-                    tex_begin_diagnostic();
-                    tex_print_format("[page: loner: %s penalty %i]", state, penalty);
-                    tex_end_diagnostic();
-                }
+    halfword insert = node_next(page_insert_head);
+    while (insert != page_insert_head) {
+        if (split_best_insert(insert)) {
+            halfword index = insert_index(insert);
+            halfword content = tex_get_insert_content(index);
+            if (! tex_aux_valid_insert_content(content)) {
+                content = tex_aux_delete_box_content(content, "insert", 2);
             }
-        }
-        penalty_amount(lmt_page_builder_state.best_break) = infinite_penalty;
-        penalty_tnuoma(lmt_page_builder_state.best_break) = infinite_penalty;
-    } else {
-        update_tex_output_penalty(infinite_penalty);
-    }
-    tex_update_top_marks();
-    /*tex
-        Put the optimal current page into box |output_box|, update |first_mark| and |bot_mark|,
-        append insertions to their boxes, and put the remaining nodes back on the contribution
-        list.
-
-        As the page is finally being prepared for output, pointer |p| runs through the vlist, with
-        |prev_p| trailing behind; pointer |q| is the tail of a list of insertions that are being
-        held over for a subsequent page.
-    */
-    if (c == lmt_page_builder_state.best_break) {
-        /*tex |c| not yet linked in */
-        lmt_page_builder_state.best_break = null;
-    }
-    /*tex Ensure that box |output_box| is empty before output. */
-    if (box_register(output_box_par)) {
-        if (! ((no_output_box_error_par > 2) || (no_output_box_error_par & 1))) {
-            tex_handle_error(
-                normal_error_type,
-                "\\box%i is not void",
-                output_box_par,
-                "You shouldn't use \\box\\outputbox except in \\output routines. Proceed, and I'll\n"
-                "discard its present contents."
-            );
-        }
-        box_register(output_box_par) = tex_aux_delete_box_content(box_register(output_box_par), "output", 1);
-    }
-    /*
-    {
-        int callback_id = lmt_callback_defined(fire_up_output_callback);
-        if (callback_id != 0) {
-            halfword insert = node_next(page_insert_head);
-            lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "->");
-        }
-    }
-    */
-    /*tex This will count the number of insertions held over. */
-    {
-        halfword save_split_top_skip = split_top_skip_par;
-        lmt_page_builder_state.insert_penalties = 0;
-        if (holding_inserts_par <= 0) {
+            if (! content) {
+                /*tex
+                    So we package the content in a box. Originally this is a hlist which
+                    is somewhat strange because we're operating in vmode. The box is still
+                    empty!
+                */
+                content = tex_new_null_box_node(vlist_node, insert_result_list);
+                tex_set_insert_content(index, content);
+            }
             /*tex
-                Prepare all the boxes involved in insertions to act as queues. If many insertions are
-                supposed to go into the same box, we want to know the position of the last node in that
-                box, so that we don't need to waste time when linking further information into it. The
-                |last_insert| fields of the page insertion nodes are therefore used for this purpose
-                during the packaging phase.
-
-                This is tricky: |last_insert| directly points to a \quote {address} in the node list,
-                that is: the row where |list_ptr| sits. The |raw_list_ptr| macro is just an offset to
-                the base index of the node. Then |node_next| will start out there and follow the list.
-                So, |last_insert| kind of points to a subnode (as in disc nodes) of size 1.
-
-                    last_insert => [shift][list]
-
-                which fakes:
-
-                    last_insert => [type|subtype][next] => [real node with next]
-
-                and with shift being zero this (when it would be queried) will be seen as a hlist node
-                of type zero with subtype zero, but ... it is not really such a node which means that
-                other properties are not valid! Normally this is ok, because \TEX\ only follows this
-                list and never looks at the parent. But, when accessing from \LUA\ this is asking for
-                troubles. However, as all happens in the page builder, we don't really expose this and
-                if we would (somehow, e.g. via a callback) then for sure we would need to make sure
-                that the node |last_insert(r)| points to is made into a new kind of node: one with
-                size 1 and type |fake_node| or so, just to be sure (so that at the \LUA\ end no
-                properties can be asked).
-
-                Of course I can be wrong here and changing the approach would involve patching some
-                code that I don't want to touch. I need a test case for \quote {following the chain}.
+                We locate the place where we can add. We have an (unpackaged) list here so we
+                need to go to the end. Here we have this sort of hackery |box(n) + 5 == row of
+                list ptr, a fake node of size 1| trick.
             */
-            halfword insert = node_next(page_insert_head);
-            while (insert != page_insert_head) {
-                if (split_best_insert(insert)) {
-                    halfword index = insert_index(insert);
-                    halfword content = tex_get_insert_content(index);
-                    if (! tex_aux_valid_insert_content(content)) {
-                        content = tex_aux_delete_box_content(content, "insert", 2);
-                    }
-                    if (! content) {
-                        /*tex
-                            So we package the content in a box. Originally this is a hlist which
-                            is somewhat strange because we're operating in vmode. The box is still
-                            empty!
-                        */
-                        content = tex_new_null_box_node(vlist_node, insert_result_list);
-                        tex_set_insert_content(index, content);
-                    }
-                    /*tex
-                        We locate the place where we can add. We have an (unpackaged) list here so we
-                        need to go to the end. Here we have this sort of hackery |box(n) + 5 == row of
-                        list ptr, a fake node of size 1| trick.
-                    */
-                    split_last_insert(insert) = tex_tail_of_node_list(insert_first_box(content));
-                }
-                insert = node_next(insert);
-            }
+            split_last_insert(insert) = tex_tail_of_node_list(insert_first_box(content));
         }
-        previous = page_head;
-        current = node_next(previous);
-        lastinsert = hold_head;
-        node_next(lastinsert) = null;
-        while (current != lmt_page_builder_state.best_break) {
-            switch (node_type(current)) {
-                case insert_node:
-                    if (holding_inserts_par <= 0) {
-                        /*tex
-                            Either insert the material specified by node |p| into the appropriate box, or
-                            hold it for the next page; also delete node |p| from the current page.
+        insert = node_next(insert);
+    }
+}
 
-                            We will set |best_insert := null| and package the box corresponding to
-                            insertion node |r|, just after making the final insertion into that box. If
-                            this final insertion is |split_up_node|, the remainder after splitting and
-                            pruning (if any) will be carried over to the next page.
-                        */
-                        /*tex should the present insertion be held over? */
-                        int wait = 0;
-                        halfword insert = node_next(page_insert_head);
-                        while (insert_index(insert) != insert_index(current)) {
-                            insert = node_next(insert);
-                        }
-                        if (split_best_insert(insert)) {
-                            halfword split = split_last_insert(insert);
-                            tex_try_couple_nodes(split, insert_list(current));
-                            if (split_best_insert(insert) == current) {
-                                /*tex
-                                    Wrap up the box specified by node |r|, splitting node |p| if called
-                                    for and set |wait| if node |p| holds a remainder after splitting.
-                                */
-                                if (node_type(insert) == split_node && node_subtype(insert) == insert_split_subtype && (split_broken_insert(insert) == current) && split_broken(insert)) {
-                                    while (node_next(split) != split_broken(insert)) {
-                                        split = node_next(split);
-                                    }
-                                    node_next(split) = null;
-                                    split_top_skip_par = insert_split_top(current); /*tex The old value is saved and restored. */
-                                    insert_list(current) = tex_prune_page_top(split_broken(insert), 0);
-                                    if (insert_list(current)) {
-                                        /*tex
-                                            We only determine the total height of the list stored in
-                                            the insert node.
-                                         */
-                                        halfword list = insert_list(current);
-                                        halfword result = tex_vpack(list, 0, packing_additional, max_dimension, direction_unknown, holding_none_option, NULL);
-                                        insert_total_height(current) = box_total(result);
-                                        box_list(result) = null;
-                                        tex_flush_node(result);
-                                        wait = 1;
-                                    }
-                                }
-                                split_best_insert(insert) = null;
-                                {
-                                    /*tex
-                                        We need this juggling in order to also set the old school box
-                                        when we're in traditional mode.
-                                    */
-                                    halfword index = insert_index(insert);
-                                    halfword content = tex_get_insert_content(index);
-                                    halfword list = box_list(content);
-                                    halfword result = tex_vpack(list, 0, packing_additional, max_dimension, dir_lefttoright, holding_none_option, NULL);
-                                    tex_set_insert_content(index, result);
-                                    box_list(content) = null;
-                                    tex_flush_node(content);
-                                }
-                            } else {
-                                split_last_insert(insert) = tex_tail_of_node_list(split);
-                            }
-                        } else {
-                            wait = 1;
-                        }
-                        /*tex
-                            Either append the insertion node |p| after node |q|, and remove it from the
-                            current page, or delete |node(p)|.
-                        */
-                        tex_try_couple_nodes(previous, node_next(current));
-                        node_next(current) = null;
-                        if (wait) {
-                            tex_couple_nodes(lastinsert, current);
-                            lastinsert = current;
-                            ++lmt_page_builder_state.insert_penalties; /* todo: use a proper variable name instead */
-                        } else {
-                            insert_list(current) = null;
-                            tex_flush_node(current);
-                        }
-                        current = previous;
-                    }
-                    break;
-                case mark_node:
-                    tex_update_first_and_bot_mark(current);
-                    break;
-            }
-            previous = current;
-            current = node_next(current);
-        }
-        split_top_skip_par = save_split_top_skip;
+static int tex_aux_output_routine_done(void)
+{
+    if (! output_routine_par) {
+        return 0;
+    } else if (lmt_page_builder_state.dead_cycles >= max_dead_cycles_par) {
+        /*tex Explain that too many dead cycles have occurred in a row. */
+        tex_handle_error(
+            normal_error_type,
+            "Output loop --- %i consecutive dead cycles",
+            lmt_page_builder_state.dead_cycles,
+            "I've concluded that your \\output is awry; it never does a \\shipout, so I'm\n"
+            "shipping \\box\\outputbox out myself. Next time increase \\maxdeadcycles if you\n"
+            "want me to be more patient!"
+        );
+        return 0;
+    } else {
+        /*tex Fire up the users output routine and |return|. */
+        lmt_page_builder_state.output_active = 1;
+        ++lmt_page_builder_state.dead_cycles;
+        tex_push_nest();
+        cur_list.mode = internal_vmode;
+        cur_list.prev_depth = ignore_depth_criterion_par;
+        cur_list.mode_line = -lmt_input_state.input_line;
+        tex_begin_token_list(output_routine_par, output_text);
+        tex_new_save_level(output_group);
+        tex_normal_paragraph(output_par_context);
+        tex_scan_left_brace();
+        return 1;
     }
-    /*tex
-        Break the current page at node |p|, put it in box~|output_box|, and put the remaining nodes
-        on the contribution list.
+}
 
-        When the following code is executed, the current page runs from node |page_head| to node
-        |prev_p|, and the nodes from |p| to |page_tail| are to be placed back at the front of
-        the contribution list. Furthermore the held-over insertions appear in a list from
-        |hold_head| to |q|; we will put them into the current page list for safekeeping while the
-        user's output routine is active. We might have |q = hold_head|; and |p = null| if and only
-        if |prev_p = page_tail|. Error messages are suppressed within |vpackage|, since the box
-        might appear to be overfull or underfull simply because the stretch and shrink from the
-        |\skip| registers for inserts are not actually present in the box.
-    */
-    if (current) {
-        if (! node_next(contribute_head)) {
-            contribute_tail = lmt_page_builder_state.tail;
-        }
-        tex_couple_nodes(lmt_page_builder_state.tail, node_next(contribute_head));
-        tex_couple_nodes(contribute_head, current);
-        node_next(previous) = null;
-    }
-    /*tex When we pack the box we inhibit error messages. */
-    {
-        halfword save_vbadness = vbadness_par;
-        halfword save_vfuzz = vfuzz_par;
-        vbadness_par = infinite_bad;
-        vfuzz_par = max_dimension;
-        tex_show_marks();
-     // if (1) {
-            box_register(output_box_par) = tex_filtered_vpack(node_next(page_head), lmt_page_builder_state.best_size, packing_exactly, lmt_page_builder_state.max_depth, output_group, dir_lefttoright, 0, 0, 0, holding_none_option, &lmt_page_builder_state.excess);
-     // } else {
-     //     /* maybe an option one day */
-     //     box_register(output_box_par) = tex_filtered_vpack(node_next(page_head), 0, packing_additional, lmt_page_builder_state.max_depth, output_group, dir_lefttoright, 0, 0, 0, holding_none_option));
-     // }
-        vbadness_par = save_vbadness;
-        vfuzz_par = save_vfuzz;
-    }
-    if (lmt_page_builder_state.last_glue != max_halfword) {
-        tex_flush_node(lmt_page_builder_state.last_glue);
-        lmt_page_builder_state.last_glue = max_halfword;
-    }
-    /*tex Start a new current page. This sets |last_glue := max_halfword|, well we already did that. */
-    tex_aux_start_new_page();
-    /*tex So depth is now forgotten .. hm. */
-    if (lastinsert != hold_head) {
-        node_next(page_head) = node_next(hold_head);
-        lmt_page_builder_state.tail = lastinsert;
-    }
-    /*tex Delete the page-insertion nodes. */
-    {
-        halfword r = node_next(page_insert_head);
-        while (r != page_insert_head) {
-            lastinsert = node_next(r);
-            tex_flush_node(r);
-            r = lastinsert;
-        }
-    }
-    node_next(page_insert_head) = page_insert_head;
-    tex_update_first_marks();
-    if (output_routine_par) {
-        if (lmt_page_builder_state.dead_cycles >= max_dead_cycles_par) {
-            /*tex Explain that too many dead cycles have occurred in a row. */
-            tex_handle_error(
-                normal_error_type,
-                "Output loop --- %i consecutive dead cycles",
-                lmt_page_builder_state.dead_cycles,
-                "I've concluded that your \\output is awry; it never does a \\shipout, so I'm\n"
-                "shipping \\box\\outputbox out myself. Next time increase \\maxdeadcycles if you\n"
-                "want me to be more patient!"
-            );
-        } else {
-            /*tex Fire up the users output routine and |return|. */
-            lmt_page_builder_state.output_active = 1;
-            ++lmt_page_builder_state.dead_cycles;
-            tex_push_nest();
-            cur_list.mode = internal_vmode;
-            cur_list.prev_depth = ignore_depth_criterion_par;
-            cur_list.mode_line = -lmt_input_state.input_line;
-            tex_begin_token_list(output_routine_par, output_text);
-            tex_new_save_level(output_group);
-            tex_normal_paragraph(output_par_context);
-            tex_scan_left_brace();
-            return;
-        }
-    }
-    /*tex
-        Perform the default output routine. The list of held-over insertions, running from
-        |page_head| to |page_tail|, must be moved to the contribution list when the user has
-        specified no output routine.
-    */
+/*tex
+    Perform the default output routine. The list of held-over insertions, running from |page_head|
+    to |page_tail|,  must be moved to the contribution list when the user has specified no output
+    routine.
+*/
+
+static void tex_aux_default_output_routine(void)
+{
 
     /* todo: double link */
 
@@ -1531,6 +1491,286 @@ static void tex_aux_fire_up(halfword c)
         tex_flush_node_list(box_register(output_box_par));
         box_register(output_box_par) = null;
     }
+}
+
+/*tex Delete the page-insertion nodes. */
+
+static void tex_aux_update_insertion_nodes(halfword lastinsert)
+{
+    halfword insert;
+    if (lastinsert != hold_head) {
+        node_next(page_head) = node_next(hold_head);
+        lmt_page_builder_state.tail = lastinsert;
+    }
+    insert = node_next(page_insert_head);
+    while (insert != page_insert_head) {
+        lastinsert = node_next(insert);
+        tex_flush_node(insert);
+        insert = lastinsert;
+    }
+}
+
+static void tex_aux_show_loners(void)
+{
+    int callback_id = lmt_callback_defined(show_loners_callback);
+    // this one should return the str
+    halfword n = tex_aux_get_last_penalty(lmt_page_builder_state.best_break);
+    if (n) {
+        halfword penalty = tex_aux_used_penalty(lmt_page_builder_state.best_break);
+        if (callback_id > 0) {
+            tex_aux_show_loner_penalty(callback_id, penalty_options(lmt_page_builder_state.best_break), penalty);
+        } else {
+            unsigned char state[5] = { '.', '.', '.', '.', '\0' };
+            if (tex_has_penalty_option(lmt_page_builder_state.best_break, penalty_option_widow  )) { state[0] = 'W'; }
+            if (tex_has_penalty_option(lmt_page_builder_state.best_break, penalty_option_club   )) { state[1] = 'C'; }
+            if (tex_has_penalty_option(lmt_page_builder_state.best_break, penalty_option_broken )) { state[2] = 'B'; }
+            if (tex_has_penalty_option(lmt_page_builder_state.best_break, penalty_option_shaping)) { state[3] = 'S'; }
+            tex_begin_diagnostic();
+            tex_print_format("%l[page: loner: %s penalty %i]", state, penalty);
+            tex_end_diagnostic();
+        }
+    }
+}
+
+/*tex Ensure that box |output_box| is empty before output. */
+
+static void tex_aux_prepare_output_box(void)
+{
+    if (box_register(output_box_par)) {
+        if (! ((no_output_box_error_par > 2) || (no_output_box_error_par & 1))) {
+            tex_handle_error(
+                normal_error_type,
+                "\\box%i is not void",
+                output_box_par,
+                "You shouldn't use \\box\\outputbox except in \\output routines. Proceed, and I'll\n"
+                "discard its present contents."
+            );
+        }
+        box_register(output_box_par) = tex_aux_delete_box_content(box_register(output_box_par), "output", 1);
+    }
+}
+
+/*tex
+    We might decide to split this one. Here  we also count the number of insertions held over.
+*/
+
+static halfword tex_aux_assemble_output_box(void)
+{
+    halfword current, previous, lastinsert;
+    halfword save_split_top_skip = split_top_skip_par;
+    lmt_page_builder_state.insert_penalties = 0;
+    lmt_page_builder_state.insert_only_count = 0;
+    if (holding_inserts_par <= 0) {
+        tex_aux_package_inserts();
+    }
+    previous = page_head;
+    current = node_next(previous);
+    lastinsert = hold_head;
+    node_next(lastinsert) = null;
+    while (current != lmt_page_builder_state.best_break) {
+        switch (node_type(current)) {
+            case insert_node:
+                if (holding_inserts_par <= 0) {
+                    /*tex
+                        Either insert the material specified by node |p| into the appropriate box, or
+                        hold it for the next page; also delete node |p| from the current page.
+
+                        We will set |best_insert := null| and package the box corresponding to
+                        insertion node |r|, just after making the final insertion into that box. If
+                        this final insertion is |split_up_node|, the remainder after splittsplitting and
+                        pruning (if any) will be carried over to the next page.
+                    */
+                    /*tex Should the present insertion be held over? */
+                    int wait = 0;
+                    halfword insert = node_next(page_insert_head);
+                    while (insert_index(insert) != insert_index(current)) {
+                        insert = node_next(insert);
+                    }
+                    if (split_best_insert(insert)) {
+                        halfword split = split_last_insert(insert);
+                        tex_try_couple_nodes(split, insert_list(current));
+                        if (split_best_insert(insert) == current) {
+                            /*tex
+                                Wrap up the box specified by node |r|, splitting node |p| if called
+                                for and set |wait| if node |p| holds a remainder after splitting.
+                            */
+                            if (node_type(insert) == split_node && node_subtype(insert) == insert_split_subtype && (split_broken_insert(insert) == current) && split_broken(insert)) {
+                                tex_insert_check_split(insert_index(insert), split_broken(insert));
+                                while (node_next(split) != split_broken(insert)) {
+                                    split = node_next(split);
+                                }
+                                node_next(split) = null;
+                                split_top_skip_par = insert_split_top(current); /*tex The old value is saved and restored. */
+                                insert_list(current) = tex_prune_page_top(split_broken(insert), 0);
+                                if (insert_list(current)) {
+                                    /*tex
+                                        We only determine the total height of the list stored in
+                                        the insert node. Here we can remove the dummy list when
+                                        it is present but it is rather harmless.
+                                    */
+                                    halfword result = null;
+                                    halfword list = insert_list(current);
+                                 // if (list && tex_aux_catch_insert_overflow()) {
+                                 //     list = tex_insert_remove_dummy(list);
+                                 // }
+                                    result = tex_vpack(list, 0, packing_additional, max_dimension, direction_unknown, holding_none_option, NULL);
+                                    insert_total_height(current) = box_total(result);
+                                    box_list(result) = null;
+                                    tex_flush_node(result);
+                                    wait = 1;
+                                }
+                            }
+                            split_best_insert(insert) = null;
+                            {
+                                /*tex
+                                    We need this juggling in order to also set the old school box
+                                    when we're in traditional mode.
+                                */
+                                halfword index = insert_index(insert);
+                                halfword content = tex_get_insert_content(index);
+                                /* Here we should keep the dummy list if present. */
+                                halfword list = box_list(content);
+                                if (list) {
+                                    if (tex_aux_catch_insert_overflow() && tex_insert_is_dummy(list)) {
+                                        /*tex We have a bogus overflow one here. */
+                                    } else {
+                                        list = lmt_set_insert_distance(index, list);
+                                    }
+                                }
+                                if (list) {
+                                    halfword result = tex_vpack(list, 0, packing_additional, max_dimension, dir_lefttoright, holding_none_option, NULL);
+                                    tex_set_insert_content(index, result);
+                                }
+                                box_list(content) = null;
+                                tex_flush_node(content);
+                            }
+                        } else {
+                            split_last_insert(insert) = tex_tail_of_node_list(split);
+                        }
+                    } else {
+                        wait = 1;
+                    }
+                    /*tex
+                        Either append the insertion node |p| after node |q|, and remove it from the
+                        current page, or delete |node(p)|.
+                    */
+                    tex_try_couple_nodes(previous, node_next(current));
+                    node_next(current) = null;
+                    if (wait) {
+                        tex_couple_nodes(lastinsert, current);
+                        lastinsert = current;
+                        ++lmt_page_builder_state.insert_penalties; /* todo: use a proper variable name instead */
+                    } else {
+                        insert_list(current) = null;
+                        tex_flush_node(current);
+                    }
+                    current = previous;
+                }
+                break;
+            case mark_node:
+                tex_update_first_and_bot_mark(current);
+                break;
+        }
+        previous = current;
+        current = node_next(current);
+    }
+    split_top_skip_par = save_split_top_skip;
+    /*tex
+        Break the current page at node |p|, put it in box~|output_box|, and put the remaining nodes
+        on the contribution list.
+
+        When the following code is executed, the current page runs from node |page_head| to node
+        |prev_p|, and the nodes from |p| to |page_tail| are to be placed back at the front of
+        the contribution list. Furthermore the held-over insertions appear in a list from
+        |hold_head| to |q|; we will put them into the current page list for safekeeping while the
+        user's output routine is active. We might have |q = hold_head|; and |p = null| if and only
+        if |prev_p = page_tail|. Error messages are suppressed within |vpackage|, since the box
+        might appear to be overfull or underfull simply because the stretch and shrink from the
+        |\skip| registers for inserts are not actually present in the box.
+    */
+    if (current) {
+        if (! node_next(contribute_head)) {
+            contribute_tail = lmt_page_builder_state.tail;
+        }
+        tex_couple_nodes(lmt_page_builder_state.tail, node_next(contribute_head));
+        tex_couple_nodes(contribute_head, current);
+        node_next(previous) = null;
+    }
+    return lastinsert;
+}
+
+/*tex When we pack the box we inhibit error messages. */
+
+static void tex_aux_pack_output_box(void)
+{
+    halfword save_vbadness = vbadness_par;
+    halfword save_vfuzz = vfuzz_par;
+    vbadness_par = infinite_bad;
+    vfuzz_par = max_dimension;
+    tex_show_marks();
+ // if (1) {
+        box_register(output_box_par) = tex_filtered_vpack(node_next(page_head), lmt_page_builder_state.best_size, packing_exactly, lmt_page_builder_state.max_depth, output_group, dir_lefttoright, 0, 0, 0, holding_none_option, &lmt_page_builder_state.excess);
+ // } else {
+ //     /* maybe an option one day */
+ //     box_register(output_box_par) = tex_filtered_vpack(node_next(page_head), 0, packing_additional, lmt_page_builder_state.max_depth, output_group, dir_lefttoright, 0, 0, 0, holding_none_option));
+ // }
+    vbadness_par = save_vbadness;
+    vfuzz_par = save_vfuzz;
+}
+
+/*tex
+
+    Put the optimal current page into box |output_box|, update |first_mark| and |bot_mark|,
+    append insertions to their boxes, and put the remaining nodes back on the contribution
+    list.
+
+    As the page is finally being prepared for output, pointer |p| runs through the vlist, with
+    |prev_p| trailing behind; pointer |q| is the tail of a list of insertions that are being
+    held over for a subsequent page.
+
+    When we're done with all the housekeeping (content, inserts, marks) and wrapped up the page,
+    we call the output routine.
+
+*/
+
+static void tex_aux_update_output_penalty()
+{
+    if (node_type(lmt_page_builder_state.best_break) == penalty_node) {
+        update_tex_output_penalty(penalty_amount(lmt_page_builder_state.best_break));
+        if (tracing_loners_par) {
+            tex_aux_show_loners();
+        }
+        penalty_amount(lmt_page_builder_state.best_break) = infinite_penalty;
+        penalty_tnuoma(lmt_page_builder_state.best_break) = infinite_penalty;
+    } else {
+        update_tex_output_penalty(infinite_penalty);
+    }
+}
+
+static void tex_aux_fire_up(halfword c)
+{
+    halfword lastinsert = null;
+    tex_aux_update_output_penalty();
+    tex_update_top_marks();
+    if (c == lmt_page_builder_state.best_break) {
+        lmt_page_builder_state.best_break = null;
+    }
+    tex_aux_prepare_output_box();
+    lastinsert = tex_aux_assemble_output_box();
+    tex_aux_pack_output_box();
+    if (lmt_page_builder_state.last_glue != max_halfword) {
+        tex_flush_node(lmt_page_builder_state.last_glue);
+        lmt_page_builder_state.last_glue = max_halfword;
+    }
+    tex_aux_start_new_page();
+    /*tex So depth is now forgotten .. hm. */
+    tex_aux_update_insertion_nodes(lastinsert);
+    node_next(page_insert_head) = page_insert_head;
+    tex_update_first_marks();
+    if (! tex_aux_output_routine_done()) {
+        tex_aux_default_output_routine();
+    }
+    lmt_page_builder_state.insert_only_count = lastinsert ? tex_aux_count_only_inserts() : 0;
 }
 
 /*tex
@@ -1563,6 +1803,7 @@ void tex_resume_after_output(void)
     tex_unsave();
     lmt_page_builder_state.output_active = 0;
     lmt_page_builder_state.insert_penalties = 0;
+    lmt_page_builder_state.insert_only_count = 0;
     /*tex Ensure that box |output_box| is empty after output. */
     if (box_register(output_box_par)) {
         if (! ((no_output_box_error_par > 2) || (no_output_box_error_par & 2))) {
@@ -1577,8 +1818,7 @@ void tex_resume_after_output(void)
     }
     if (lmt_insert_state.storing == insert_storage_delay && tex_insert_stored()) {
         if (tracing_inserts_par > 0) {
-            tex_print_levels();
-            tex_print_str(lmt_insert_state.head ? "<delaying inserts>" : "<no inserts to delay>");
+            tex_print_format(lmt_insert_state.head ? "%l<delaying inserts>" : "%l<no inserts to delay>");
             if (lmt_insert_state.head && tracing_inserts_par > 1) {
                 tex_show_node_list(lmt_insert_state.head, max_integer, max_integer);
             }
@@ -1614,8 +1854,7 @@ void tex_resume_after_output(void)
             h = n;
         }
         if (tracing_inserts_par > 0) {
-            tex_print_levels();
-            tex_print_str(lmt_insert_state.head ? "<storing inserts>" : "<no inserts to store>");
+            tex_print_format(lmt_insert_state.head ? "%l<storing inserts>" : "%l<no inserts to store>");
             if (lmt_insert_state.head && tracing_inserts_par > 1) {
                 tex_show_node_list(lmt_insert_state.head, max_integer, max_integer);
             }
@@ -1625,5 +1864,10 @@ void tex_resume_after_output(void)
     tex_flush_node_list(lmt_packaging_state.page_discards_head);
     lmt_packaging_state.page_discards_head = null;
     tex_pop_nest();
+    /*
+        Here moved inserts gets added so we're a bit ahead of the pack and possibly |\pagegoal| is
+        now adapted. This conflicts with pruning. We don't want to hard code pruning here, nor do
+        we want some block for the next. So we assume the macro package does the right thing
+    */
     tex_build_page(after_output_page_context, 0);
 }

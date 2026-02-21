@@ -225,6 +225,8 @@ static int strlib_utfcharacters(lua_State *L)
     return 1;
 }
 
+/* a bit costly to push and replace what is just a integer as upvalue */
+
 static int strlib_aux_utfvalues(lua_State *L)
 {
     size_t l = 0;
@@ -443,6 +445,9 @@ static inline void strlib_aux_add_utftable(lua_State *L, luaL_Buffer *b, int ind
                 case LUA_TSTRING: 
                     strlib_aux_add_utfstring(L, b, -1);
                     break;
+                default: 
+                    /* we could just quit */
+                    break;
             }
             lua_pop(L, 1);
         }
@@ -537,12 +542,15 @@ static int strlib_format_f6(lua_State *L)
         lua_pushliteral(L, "0");
     } else if (n == 1.0) {
         lua_pushliteral(L, "1");
+ // } else if (n == 10.0) {
+ //     /* does happen in our use case but not worth it */
+ //     lua_pushliteral(L, "10");
     } else {
         char s[128];
         int i, l;
-        /* we could use sprintf here */
-        if (fmod(n, 1) == 0) {
-            i = snprintf(s, 128, "%i", (int) n);
+        /* this is really needed in order to get integers in pdf  */
+        if (fmod(n, 1) == 0 && n >= min_integer && n <= max_integer) {
+           i = snprintf(s, 128, "%i", (int) n);
         } else {
             if (lua_type(L, 2) == LUA_TSTRING) {
                 const char *f = lua_tostring(L, 2);
@@ -660,11 +668,11 @@ static int strlib_format_toutf8(lua_State *L) /* could be integrated into utfcha
     return 0;
 }
 
-/*
 static int strlib_format_toutf16(lua_State* L) {
     if (lua_type(L, 1) == LUA_TTABLE) {
         lua_Integer n = lua_rawlen(L, 1);
         if (n > 0) {
+            int addzero = lua_toboolean(L, 2);
             luaL_Buffer b;
             luaL_buffinitsize(L, &b, (n + 2) * 4);
             for (lua_Integer i = 0; i <= n; i++) {
@@ -686,8 +694,10 @@ static int strlib_format_toutf16(lua_State* L) {
                 }
                 lua_pop(L, 1);
             }
-            luaL_addchar(&b, 0);
-            luaL_addchar(&b, 0);
+            if (addzero) { 
+                luaL_addchar(&b, 0);
+                luaL_addchar(&b, 0);
+            }
             luaL_pushresult(&b);
         } else {
             lua_pushliteral(L, "");
@@ -696,13 +706,13 @@ static int strlib_format_toutf16(lua_State* L) {
     }
     return 0;
 }
-*/
 
 static int strlib_format_toutf32(lua_State *L)
 {
     if (lua_type(L, 1) == LUA_TTABLE) {
         lua_Integer n = lua_rawlen(L, 1);
         if (n > 0) {
+            int addzero = lua_toboolean(L, 2);
             luaL_Buffer b;
             luaL_buffinitsize(L, &b, (n + 2) * 4);
             for (lua_Integer i = 0; i <= n; i++) {
@@ -723,8 +733,10 @@ static int strlib_format_toutf32(lua_State *L)
                 }
                 lua_pop(L, 1);
             }
-            for (int i = 0; i <= 3; i++) {
-                luaL_addchar(&b, 0);
+            if (addzero) { 
+                for (int i = 0; i <= 3; i++) {
+                    luaL_addchar(&b, 0);
+                }
             }
             luaL_pushresult(&b);
         } else {
@@ -1017,6 +1029,82 @@ static int strlib_chrtointeger(lua_State *L)
     return 1; 
 }
 
+/*tex 
+    I considered a version where we |break| on a non-number but in that case we normally know where
+    the last useful slot is anyway so I removed that variant. 
+*/
+
+static int strlib_utftabletostring(lua_State *L)
+{
+    if (lua_type(L, 1) == LUA_TTABLE) {
+        lua_Integer n = lua_rawlen(L, 1);
+        if (n > 0) {
+            lua_Integer f = lmt_optinteger(L, 2, 1);
+            lua_Integer l = lmt_optinteger(L, 3, n);
+            if (f < 1) { f = 1; }
+            if (l > n) { l = n; }
+            if (l >= f) {
+                luaL_Buffer b;
+                luaL_buffinitsize(L, &b, (size_t) (l-f+1) * 4); 
+                for (lua_Integer i = f; i <= l; i++) {
+                    if (lua_rawgeti(L, 1, i) == LUA_TNUMBER) {
+                        strlib_aux_add_utfnumber(L, &b, -1);
+                        lua_pop(L, 1);
+                    }
+                }
+                luaL_pushresult(&b);
+                return 1;
+            }
+        }
+    }
+    lua_pushliteral(L, "");
+    return 1;
+}
+
+static int strlib_splitintolines(lua_State *L)
+{
+    size_t l = 0;
+    const char *s = lua_tolstring(L, 1, &l);
+    lua_newtable(L);
+    if (l > 0) {
+        lua_Integer n = 0;
+        lua_Integer i = 0;
+        const char *f = s;
+        while (*s) {
+            if (*s == 13) { 
+                /* cr */
+                lua_pushlstring(L, f, n);
+                lua_rawseti(L, -2, ++i);
+                f = ++s; 
+                if (*f == 10) { 
+                    f = ++s; 
+                }
+                if (! *f) {
+                    return 1; 
+                }
+                n = 0;
+            } else if (*s == 10) { 
+                /* lf */
+                lua_pushlstring(L, f, n);
+                lua_rawseti(L, -2, ++i);
+                f = ++s; 
+                if (! *f) {
+                    return 1; 
+                }
+                n = 0;
+            } else {
+                ++n;
+                ++s;
+            }
+        }
+        if (f) {
+            lua_pushlstring(L, f, n);
+            lua_rawseti(L, -2, ++i);
+        }
+    }
+    return 1; 
+}
+
 static const luaL_Reg strlib_function_list[] = {
     { "characters",        strlib_characters         },
     { "characterpairs",    strlib_characterpairs     },
@@ -1031,10 +1119,11 @@ static const luaL_Reg strlib_function_list[] = {
     { "utflength",         strlib_utflength          },
     { "utfvaluetable",     strlib_utfvaluetable      },
     { "utfcharactertable", strlib_utfcharactertable  },
+    { "utftabletostring",  strlib_utftabletostring   },
     { "f6",                strlib_format_f6          },
     { "tounicode16",       strlib_format_tounicode16 },
     { "toutf8",            strlib_format_toutf8      },
- /* { "toutf16",           strlib_format_toutf16     }, */ /* untested */
+    { "toutf16",           strlib_format_toutf16     }, /* untested */
     { "toutf32",           strlib_format_toutf32     },
     { "utf16toutf8",       strlib_utf16toutf8        },
     { "packrowscolumns",   strlib_pack_rows_columns  },
@@ -1043,6 +1132,7 @@ static const luaL_Reg strlib_function_list[] = {
     { "dectointeger",      strlib_dectointeger       },
     { "hextointeger",      strlib_hextointeger       },
     { "chrtointeger",      strlib_chrtointeger       },
+    { "splitintolines",    strlib_splitintolines     },
     { NULL,                NULL                      },
 };
 
@@ -1059,6 +1149,8 @@ static const luaL_Reg strlib_function_list[] = {
 */
 
 # if (0) 
+
+    /*tex See |lmtinterface.h| for |STRING_BUFFER_METATABLE_INSTANCE|. */
 
     typedef struct lmt_string_buffer {
         char   *buffer;
@@ -1170,7 +1262,7 @@ static const luaL_Reg strlib_function_list[] = {
             lua_setfield(L, -2, lib->name);
         }
         lua_pop(L, 1);
-        luaL_newmetatable(L, STRING_BUFFER_INSTANCE);
+        luaL_newmetatable(L, STRING_BUFFER_METATABLE_INSTANCE);
         lua_pushcfunction(L, strlib_buffer_gc);
         lua_setfield(L, -2, "__gc");
         lua_pop(L, 1);

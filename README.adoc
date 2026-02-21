@@ -47,6 +47,22 @@ by the compile farm. Normally that also comes with incrementing the version numb
 work is not kept local is because that way we can check if the compilation works, for which it has 
 to be public so that the compile farm can access it conveniently. 
 
+The code is maintained in Visual Studio and SciTE but we only use them as editors (where the first 
+one makes it easy to navigate and search over multiple files). We don't use any of the fancy features,
+so no code checking, debugging, analysis, artificial help and such. If I would need those features I
+just should not do this project. Now I can also safely claim that all errors are mine. Compilation is 
+done in WSL using cross compilers and on the ConTeXt garden build infrastructure (which is why we 
+often upload via git). We use git for historic snapshots and as storage hub between the build(s). We 
+don't use any of its communication and tracking features, we just mail among those involved and use 
+the ConTeXt mailing lists which is more efficient for those involved. 
+
+[Due to the more and more imposed ai features in VS, even if one doesn't use them, I'm moving away
+from it. It's only used for checking compilation of native binaries now. The VC variant is no option
+for similar reasons. There also is just too much in there that I don't need which still interferes
+and gets in the way. It's also too big. Currently I'm trying out sublime text which is fast and still
+mostly an editor with cross-source features that happens to run on all platforms that I use. We'll see
+how that goes.]
+
 All kind of aspects of the LuaMetaTeX engine, its development, experiment, ideas and implementation
 have been (and are) reported in user group publications as and in several documents in the ConTeXt
 distribution. The mailing list archives and contextgarden wiki are also a source of information.

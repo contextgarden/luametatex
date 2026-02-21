@@ -62,6 +62,15 @@ then
     cd       build/cygwin
     cmake $NINJA ../..
 
+elif [ "$1" = "aarch64" ] || [ "$1" = "--aarch64" ] || [ "$1" = "rpi" ] || [ "$1" = "--rpi" ]
+then
+
+    PLATFORM="aarch64"
+    SUFFIX="    "
+    mkdir -p build/aarch64
+    cd       build/aarch64
+    cmake $NINJA ../..
+
 elif [ "$1" = "osx-arm" ] || [ "$1" = "osxarm" ] || [ "$1" = "--osx-arm" ] || [ "$1" = "--osxarm" ]
 then
 
@@ -89,6 +98,15 @@ then
     cd       build/osx
     cmake $NINJA -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" ../..
 
+elif [ "$1" = "arm-64" ] || [ "$1" = "arm64" ] || [ "$1" = "--arm-64" ] || [ "$1" = "--arm64" ]
+then
+
+    PLATFORM="arm64"
+    SUFFIX=".exe"
+    mkdir -p build/arm64
+    cd       build/arm64
+    cmake $NINJA -DCMAKE_TOOLCHAIN_FILE=./cmake/arm64.cmake ../..
+
 elif [ "$1" = "help" ] || [ "$1" = "--help" ]
 then
 
@@ -99,6 +117,7 @@ echo "mingw-64"
 echo "mingw-32"
 echo "mingw-64-ucrt"
 echo "cygwin"
+echo "aarch64"
 echo "osx-arm"
 echo "osx-intel"
 echo "osx-universal"

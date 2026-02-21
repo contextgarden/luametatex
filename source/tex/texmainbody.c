@@ -368,6 +368,8 @@ void tex_main_body(void)
     par_passes_par = null;
     par_passes_exception_par = null;
 
+    line_snapping_par = null;
+
     {
         char *ptr = tex_engine_input_filename();
         char *fln = NULL;
@@ -614,7 +616,7 @@ static void final_cleanup(int dump)
             badrun = 4;
         }
     }
-    if (lmt_callback_defined(stop_run_callback)) {
+    if (lmt_callback_defined(stop_run_callback) > 0) {
         /*
             We don't issue the error callback here (yet), mainly because we don't really know what
             bad things happened. This might evolve as currently it is not seen as fatal error.

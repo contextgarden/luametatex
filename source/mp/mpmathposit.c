@@ -10,13 +10,14 @@
 
 # include "mpmathposit.h"
 
-# define  mp_fraction_multiplier 4096
-# define  mp_angle_multiplier    16
-# define  mp_warning_limit       pow(2.0,52)
-# define  odd(A)                 (abs(A)%2==1)
-# define  two_to_the(A)          (1<<(unsigned)(A))
-# define  set_cur_cmd(A)         mp->cur_mod_->command = (A)
-# define  set_cur_mod(A)         mp->cur_mod_->data.n.data.pval = (A)
+# define mp_fraction_multiplier 4096
+# define mp_angle_multiplier    16
+# define mp_warning_limit       pow(2.0,52)
+
+# define odd(A)                 (labs(A) %2 == 1)
+# define two_to_the(A)          (1 << (unsigned) (A))
+# define set_cur_cmd(A)         mp->cur_mod_->command = (A)
+# define set_cur_mod(A)         mp->cur_mod_->data.n.data.pval = (A)
 
 typedef struct mp_posit_info {
     posit_t unity;
@@ -158,17 +159,17 @@ static void mp_posit_free_number(MP mp, mp_number *n)
     n->type = mp_nan_type;
 }
 
-static void mp_posit_set_from_int(mp_number *A, int B)
+static void mp_posit_set_from_int(mp_number *A, mp_scaled_t B)
 {
     A->data.pval = integer_to_posit(B);
 }
 
-static void mp_posit_set_from_boolean(mp_number *A, int B)
+static void mp_posit_set_from_boolean(mp_number *A, mp_scaled_t B)
 {
     A->data.pval = integer_to_posit(B);
 }
 
-static void mp_posit_set_from_scaled(mp_number *A, int B)
+static void mp_posit_set_from_scaled(mp_number *A, mp_scaled_t B)
 {
     A->data.pval = posit_div(integer_to_posit(B), mp_posit_data.d65536);
 }
@@ -208,12 +209,12 @@ static void mp_posit_set_from_mul(mp_number *A, mp_number *B, mp_number *C)
     A->data.pval = posit_mul(B->data.pval, C->data.pval);
 }
 
-static void mp_posit_set_from_int_div(mp_number *A, mp_number *B, int C)
+static void mp_posit_set_from_int_div(mp_number *A, mp_number *B, mp_scaled_t C)
 {
     A->data.pval = posit_div(B->data.pval, integer_to_posit(C));
 }
 
-static void mp_posit_set_from_int_mul(mp_number *A, mp_number *B, int C)
+static void mp_posit_set_from_int_mul(mp_number *A, mp_number *B, mp_scaled_t C)
 {
     A->data.pval = posit_mul(B->data.pval, integer_to_posit(C));
 }
@@ -249,18 +250,18 @@ static void mp_posit_double(mp_number *A)
     A->data.pval = posit_mul(A->data.pval, mp_posit_data.two);
 }
 
-static void mp_posit_add_scaled(mp_number *A, int B)
+static void mp_posit_add_scaled(mp_number *A, mp_scaled_t B)
 {
     /* also for negative B */
     A->data.pval = posit_add(A->data.pval, posit_div(integer_to_posit(B), mp_posit_data.d65536));
 }
 
-static void mp_posit_multiply_int(mp_number *A, int B)
+static void mp_posit_multiply_int(mp_number *A, mp_scaled_t B)
 {
     A->data.pval = posit_mul(A->data.pval, integer_to_posit(B));
 }
 
-static void mp_posit_divide_int(mp_number *A, int B)
+static void mp_posit_divide_int(mp_number *A, mp_scaled_t B)
 {
     A->data.pval = posit_div(A->data.pval, integer_to_posit(B));
 }
@@ -316,17 +317,17 @@ static void mp_posit_scaled_to_angle(mp_number *A)
     A->data.pval = posit_mul(A->data.pval, mp_posit_data.angle_multiplier);
 }
 
-static int mp_posit_to_scaled(mp_number *A)
+static mp_scaled_t mp_posit_to_scaled(mp_number *A)
 {
-    return (int) posit_to_integer(posit_mul(A->data.pval, mp_posit_data.d65536));
+    return (mp_scaled_t) posit_to_integer(posit_mul(A->data.pval, mp_posit_data.d65536));
 }
 
-static int mp_posit_to_int(mp_number *A)
+static mp_scaled_t mp_posit_to_int(mp_number *A)
 {
-    return (int) posit_to_integer(A->data.pval);
+    return (mp_scaled_t) posit_to_integer(A->data.pval);
 }
 
-static int mp_posit_to_boolean(mp_number *A)
+static mp_scaled_t mp_posit_to_boolean(mp_number *A)
 {
     return posit_eq_zero(A->data.pval) ? 0 : 1;
 }
@@ -475,7 +476,7 @@ static void mp_posit_aux_find_exponent(MP mp)
     }
 }
 
-static void mp_posit_scan_fractional_token(MP mp, int n) /* n is scaled */
+static void mp_posit_scan_fractional_token(MP mp, mp_scaled_t n)
 {
     unsigned char *start = &mp->buffer[mp->cur_input.loc_field -1];
     unsigned char *stop;
@@ -488,7 +489,7 @@ static void mp_posit_scan_fractional_token(MP mp, int n) /* n is scaled */
     mp_posit_aux_wrapup_numeric_token(mp, start, stop);
 }
 
-static void mp_posit_scan_numeric_token(MP mp, int n) /* n is scaled */
+static void mp_posit_scan_numeric_token(MP mp, mp_scaled_t n)
 {
     unsigned char *start = &mp->buffer[mp->cur_input.loc_field -1];
     unsigned char *stop;
@@ -548,7 +549,7 @@ static void mp_posit_velocity(MP mp, mp_number *ret, mp_number *st, mp_number *c
     }
 }
 
-static int mp_posit_ab_vs_cd (mp_number *a_orig, mp_number *b_orig, mp_number *c_orig, mp_number *d_orig)
+static int mp_posit_ab_vs_cd(mp_number *a_orig, mp_number *b_orig, mp_number *c_orig, mp_number *d_orig)
 {
     posit_t ab = posit_mul(a_orig->data.pval, b_orig->data.pval);
     posit_t cd = posit_mul(c_orig->data.pval, d_orig->data.pval);
@@ -626,9 +627,9 @@ static void mp_posit_crossing_point(MP mp, mp_number *ret, mp_number *aa, mp_num
 
 /* See mpmathdouble for documentation. */
 
-static int mp_posit_round_unscaled(mp_number *x_orig)
+static mp_scaled_t mp_posit_round_unscaled(mp_number *x_orig)
 {
-    return posit_i_round(x_orig->data.pval);
+    return (mp_scaled_t) posit_i_round(x_orig->data.pval);
 }
 
 static void mp_posit_floor(mp_number *i)

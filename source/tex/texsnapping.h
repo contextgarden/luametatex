@@ -32,9 +32,19 @@ typedef struct snapping_specification {
     int method; 
 } snapping_specification;
 
-extern int  tex_snapping_needed  (snapping_specification *specification);
-extern void tex_snapping_reset   (snapping_specification *specification);
-extern int  tex_snapping_content (halfword first, halfword last, snapping_specification *specification);
-extern int  tex_snapping_indeed  (halfword first, halfword last, snapping_specification *specification);
+/*tex Some private snapping tests; at the \LUA\ end. */
+
+extern int      tex_snapping_needed  (snapping_specification *specification);
+extern void     tex_snapping_reset   (snapping_specification *specification);
+extern int      tex_snapping_content (halfword first, halfword last, snapping_specification *specification);
+extern int      tex_snapping_indeed  (halfword first, halfword last, snapping_specification *specification);
+
+/*tex Some private snapping tests; at the \TEX\ end. */
+
+extern halfword tex_snapping_scan    (void);
+extern void     tex_snapping_done    (scaled *ht, scaled *dp, halfword snapping);
+extern void     tex_snapping_line    (halfword box, halfword snapping);
+extern halfword tex_snapping_rule    (halfword rule, halfword snapping, quarterword subtype);
+extern halfword tex_snapping_list    (halfword head, halfword tail, halfword snapping);
 
 # endif 

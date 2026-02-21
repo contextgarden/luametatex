@@ -5,47 +5,58 @@
 
 # include "mpmathdecimal.h"
 
-# define  DECNUMDIGITS 1000
+# define DECNUMDIGITS 1000
+
 # include "decNumber.h"
 
-# define  E_STRING                "2.7182818284590452353602874713526624977572470936999595749669676277240766303535"
-# define  PI_STRING               "3.1415926535897932384626433832795028841971693993751058209749445923078164062862"
-# define  fraction_multiplier     4096
-# define  angle_multiplier        16
-# define  unity                   1
-# define  two                     2
-# define  three                   3
-# define  four                    4
-# define  half_unit               0.5
-# define  three_quarter_unit      0.75
-# define  coef_bound              ((7.0/3.0)*fraction_multiplier)
-# define  fraction_threshold      0.04096
-# define  half_fraction_threshold (fraction_threshold/2)
-# define  scaled_threshold        0.000122
-# define  half_scaled_threshold   (scaled_threshold/2)
-# define  near_zero_angle         (0.0256*angle_multiplier)
-# define  p_over_v_threshold      0x80000
-# define  equation_threshold      0.001
-# define  epsilon                 pow(2.0,-173.0)
-# define  epsilonf                pow(2.0,-52.0)
-# define  EL_GORDO                "1E1000000"
-# define  negative_EL_GORDO       "-1E1000000"
-# define  warning_limit           "1E1000000"
-# define  DECPRECISION_DEFAULT    34
-# define  FACTORIALS_CACHESIZE    50
-# define  too_precise(a)          (a == (DEC_Inexact+DEC_Rounded))
-# define  too_large(a)            (a & DEC_Overflow)
-# define  fraction_half           (fraction_multiplier/2)
-# define  fraction_one            (1*fraction_multiplier)
-# define  fraction_two            (2*fraction_multiplier)
-# define  fraction_three          (3*fraction_multiplier)
-# define  fraction_four           (4*fraction_multiplier)
-# define  no_crossing             mp_decimal_data.fraction_one_plus_decNumber
-# define  one_crossing            mp_decimal_data.fraction_one_decNumber
-# define  zero_crossing           mp_decimal_data.zero
-# define  odd(A)                  (abs(A) % 2 == 1)
-# define  set_cur_cmd(A)          mp->cur_mod_->type = (A)
-# define  set_cur_mod(A)          decNumberCopy((decNumber *) (mp->cur_mod_->data.n.data.num), A)
+# define E_STRING                "2.7182818284590452353602874713526624977572470936999595749669676277240766303535"
+# define PI_STRING               "3.1415926535897932384626433832795028841971693993751058209749445923078164062862"
+
+# define fraction_multiplier     4096
+# define angle_multiplier        16
+# define unity                   1
+# define two                     2
+# define three                   3
+# define four                    4
+
+# define half_unit               0.5
+# define three_quarter_unit      0.75
+
+# define coef_bound              ((7.0 / 3.0) * fraction_multiplier)
+# define fraction_threshold      0.04096
+# define half_fraction_threshold (fraction_threshold / 2)
+# define scaled_threshold        0.000122
+# define half_scaled_threshold   (scaled_threshold / 2)
+# define near_zero_angle         (0.0256*angle_multiplier)
+# define p_over_v_threshold      0x80000
+# define equation_threshold      0.001
+
+# define epsilon                 pow(2.0,-173.0)
+# define epsilonf                pow(2.0,-52.0)
+
+# define EL_GORDO                "1E1000000"
+# define negative_EL_GORDO       "-1E1000000"
+# define warning_limit           "1E1000000"
+
+# define DECPRECISION_DEFAULT    34
+# define FACTORIALS_CACHESIZE    50
+
+# define too_precise(a)          (a == (DEC_Inexact + DEC_Rounded))
+# define too_large(a)            (a & DEC_Overflow)
+
+# define fraction_half           (fraction_multiplier / 2)
+# define fraction_one            (1 * fraction_multiplier)
+# define fraction_two            (2 * fraction_multiplier)
+# define fraction_three          (3 * fraction_multiplier)
+# define fraction_four           (4 * fraction_multiplier)
+
+# define no_crossing             mp_decimal_data.fraction_one_plus_decNumber
+# define one_crossing            mp_decimal_data.fraction_one_decNumber
+# define zero_crossing           mp_decimal_data.zero
+
+# define odd(A)                  (abs(A) % 2 == 1)
+# define set_cur_cmd(A)          mp->cur_mod_->type = (A)
+# define set_cur_mod(A)          decNumberCopy((decNumber *) (mp->cur_mod_->data.n.data.num), A)
 
 /* This one saves some typing and also looks better: */
 
@@ -351,21 +362,21 @@ static void mp_decimal_free_number(MP mp, mp_number *n)
     }
 }
 
-static void mp_decimal_set_from_int(mp_number *A, int B)
+static void mp_decimal_set_from_int(mp_number *A, mp_scaled_t B)
 {
-    decNumberFromInt32(A->data.num, B);
+    decNumberFromScaled(A->data.num, B);
 }
 
-static void mp_decimal_set_from_boolean(mp_number *A, int B)
+static void mp_decimal_set_from_boolean(mp_number *A, mp_scaled_t B)
 {
-    decNumberFromInt32(A->data.num, B);
+    decNumberFromScaled(A->data.num, B);
 }
 
-static void mp_decimal_set_from_scaled(mp_number *A, int B)
+static void mp_decimal_set_from_scaled(mp_number *A, mp_scaled_t B)
 {
     decNumber c;
-    decNumberFromInt32(&c, 65536);
-    decNumberFromInt32(A->data.num,B);
+    decNumberFromScaled(&c, 65536);
+    decNumberFromScaled(A->data.num, B);
     decNumberDivide(A->data.num, A->data.num, &c, &mp_decimal_data.set);
 }
 
@@ -383,7 +394,7 @@ static void mp_decimal_set_half_from_addition(mp_number *A, mp_number *B, mp_num
 {
     decNumber c;
     decNumberAdd(A->data.num, B->data.num, C->data.num, &mp_decimal_data.set);
-    decNumberFromInt32(&c, 2);
+    decNumberFromScaled(&c, 2);
     decNumberDivide(A->data.num, A->data.num, &c, &mp_decimal_data.set);
 }
 
@@ -396,7 +407,7 @@ static void mp_decimal_set_half_from_subtraction(mp_number *A, mp_number *B, mp_
 {
     decNumber c;
     decNumberSubtract(A->data.num, B->data.num, C->data.num, &mp_decimal_data.set);
-    decNumberFromInt32(&c, 2);
+    decNumberFromScaled(&c, 2);
     decNumberDivide(A->data.num, A->data.num, &c, &mp_decimal_data.set);
 }
 
@@ -410,17 +421,17 @@ static void mp_decimal_set_from_mul(mp_number *A, mp_number *B, mp_number *C)
     decNumberMultiply(A->data.num, B->data.num, C->data.num, &mp_decimal_data.set);
 }
 
-static void mp_decimal_set_from_int_div(mp_number *A, mp_number *B, int C)
+static void mp_decimal_set_from_int_div(mp_number *A, mp_number *B, mp_scaled_t C)
 {
     decNumber c;
-    decNumberFromInt32(&c, C);
+    decNumberFromScaled(&c, C);
     decNumberDivide(A->data.num, B->data.num, &c, &mp_decimal_data.set);
 }
 
-static void mp_decimal_set_from_int_mul(mp_number *A, mp_number *B, int C)
+static void mp_decimal_set_from_int_mul(mp_number *A, mp_number *B, mp_scaled_t C)
 {
     decNumber c;
-    decNumberFromInt32(&c, C);
+    decNumberFromScaled(&c, C);
     decNumberMultiply(A->data.num, B->data.num, &c, &mp_decimal_data.set);
 }
 
@@ -453,37 +464,37 @@ static void mp_decimal_subtract(mp_number *A, mp_number *B)
 static void mp_decimal_half(mp_number *A)
 {
     decNumber c;
-    decNumberFromInt32(&c, 2);
+    decNumberFromScaled(&c, 2);
     decNumberDivide(A->data.num, A->data.num, &c, &mp_decimal_data.set);
 }
 
 static void mp_decimal_double(mp_number *A)
 {
     decNumber c;
-    decNumberFromInt32(&c, 2);
+    decNumberFromScaled(&c, 2);
     decNumberMultiply(A->data.num, A->data.num, &c, &mp_decimal_data.set);
 }
 
-static void mp_decimal_add_scaled(mp_number *A, int B)
+static void mp_decimal_add_scaled(mp_number *A, mp_scaled_t B)
 {
     decNumber b, c;
-    decNumberFromInt32(&c, 65536);
-    decNumberFromInt32(&b, B);
+    decNumberFromScaled(&c, 65536);
+    decNumberFromScaled(&b, B);
     decNumberDivide(&b, &b, &c, &mp_decimal_data.set);
     decNumberAdd(A->data.num, A->data.num, &b, &mp_decimal_data.set);
 }
 
-static void mp_decimal_multiply_int(mp_number *A, int B)
+static void mp_decimal_multiply_int(mp_number *A, mp_scaled_t B)
 {
     decNumber b;
-    decNumberFromInt32(&b, B);
+    decNumberFromScaled(&b, B);
     decNumberMultiply(A->data.num, A->data.num, &b, &mp_decimal_data.set);
 }
 
-static void mp_decimal_divide_int(mp_number *A, int B)
+static void mp_decimal_divide_int(mp_number *A, mp_scaled_t B)
 {
     decNumber b;
-    decNumberFromInt32(&b, B);
+    decNumberFromScaled(&b, B);
     decNumberDivide(A->data.num, A->data.num, &b, &mp_decimal_data.set);
 }
 
@@ -540,22 +551,22 @@ static void mp_decimal_scaled_to_angle(mp_number *A)
     decNumberMultiply(A->data.num, A->data.num, &mp_decimal_data.angle_multiplier_decNumber, &mp_decimal_data.set);
 }
 
-static int mp_decimal_to_scaled(mp_number *A)
+static mp_scaled_t mp_decimal_to_scaled(mp_number *A)
 {
-    int result;
+    mp_scaled_t result;
     decNumber corrected;
-    decNumberFromInt32(&corrected, 65536);
+    decNumberFromScaled(&corrected, 65536);
     decNumberMultiply(&corrected, &corrected, A->data.num, &mp_decimal_data.set);
     decNumberReduce(&corrected, &corrected, &mp_decimal_data.set);
-    result = lround(decNumberToDouble(&corrected));
+    result = mpscaledround(decNumberToDouble(&corrected));
     return result;
 }
 
-static int mp_decimal_to_int(mp_number *A)
+static mp_scaled_t mp_decimal_to_int(mp_number *A)
 {
-    int result;
+    mp_scaled_t result;
     mp_decimal_data.set.status = 0;
-    result = decNumberToInt32(A->data.num, &mp_decimal_data.set);
+    result = decNumberToScaled(A->data.num, &mp_decimal_data.set);
     if (mp_decimal_data.set.status == DEC_Invalid_operation) {
         mp_decimal_data.set.status = 0;
         /* |mp->arithmic_error = 1;| */
@@ -565,17 +576,17 @@ static int mp_decimal_to_int(mp_number *A)
     }
 }
 
-static int mp_decimal_to_boolean(mp_number *A)
+static mp_scaled_t mp_decimal_to_boolean(mp_number *A)
 {
-    unsigned int result;
+    mp_scaled_t result;
     mp_decimal_data.set.status = 0;
-    result = decNumberToUInt32(A->data.num, &mp_decimal_data.set);
+    result = decNumberToScaled(A->data.num, &mp_decimal_data.set);
     if (mp_decimal_data.set.status == DEC_Invalid_operation) {
         mp_decimal_data.set.status = 0;
         /* |mp->arithmic_error = 1;| */
-        return mp_false_operation;
+        return 0;
     } else {
-        return result ;
+        return result;
     }
 }
 
@@ -766,7 +777,7 @@ static void mp_decimal_aux_find_exponent(MP mp)
     }
 }
 
-static void mp_decimal_scan_fractional_token(MP mp, int n)
+static void mp_decimal_scan_fractional_token(MP mp, mp_scaled_t n)
 {
     unsigned char *start = &mp->buffer[mp->cur_input.loc_field -1];
     unsigned char *stop;
@@ -779,7 +790,7 @@ static void mp_decimal_scan_fractional_token(MP mp, int n)
     mp_decimal_aux_wrapup_numeric_token(mp, start, stop);
 }
 
-static void mp_decimal_scan_numeric_token(MP mp, int n)
+static void mp_decimal_scan_numeric_token(MP mp, mp_scaled_t n)
 {
     unsigned char *start = &mp->buffer[mp->cur_input.loc_field -1];
     unsigned char *stop;
@@ -804,11 +815,11 @@ static void mp_decimal_velocity(MP mp, mp_number *ret, mp_number *st, mp_number 
     decNumber r1, r2;
     decNumber arg1, arg2;
     decNumber i16, fone, fhalf, ftwo, sqrtfive;
-    decNumberFromInt32(&i16, 16);
-    decNumberFromInt32(&fone, fraction_one);
-    decNumberFromInt32(&fhalf, fraction_half);
-    decNumberFromInt32(&ftwo, fraction_two);
-    decNumberFromInt32(&sqrtfive, 5);
+    decNumberFromScaled(&i16, 16);
+    decNumberFromScaled(&fone, fraction_one);
+    decNumberFromScaled(&fhalf, fraction_half);
+    decNumberFromScaled(&ftwo, fraction_two);
+    decNumberFromScaled(&sqrtfive, 5);
     decNumberSquareRoot(&sqrtfive, &sqrtfive, &mp_decimal_data.set);
 
     decNumberDivide(&arg1, sf->data.num, &i16, &mp_decimal_data.set);   /* arg1 = sf / 16*/
@@ -836,7 +847,7 @@ static void mp_decimal_velocity(MP mp, mp_number *ret, mp_number *st, mp_number 
     mp_decimal_take_fraction(mp, &r1, ct->data.num, &arg1) ;                                    /* r1 = (ct * arg1) / fmul*/
     mp_decimal_take_fraction(mp, &r2, cf->data.num, &arg2);                                     /* r2 = (cf * arg2) / fmul*/
 
-    decNumberFromInt32(&denom, fraction_three);              /* denom = 3fmul*/
+    decNumberFromScaled(&denom, fraction_three);              /* denom = 3fmul*/
     decNumberAdd(&denom, &denom, &r1, &mp_decimal_data.set); /* denom = denom + r1*/
     decNumberAdd(&denom, &denom, &r2, &mp_decimal_data.set); /* denom = denom + r1*/
 
@@ -847,7 +858,7 @@ static void mp_decimal_velocity(MP mp, mp_number *ret, mp_number *st, mp_number 
     decNumberCopy(&r2, &num); /* r2 = num / 4*/
     decNumberDivide(&r2, &r2, &mp_decimal_data.four_decNumber, &mp_decimal_data.set);
     if (decNumberLess(&denom, &r2)) {
-        decNumberFromInt32(ret->data.num, fraction_four); /* num/4 >= denom => denom < num/4*/
+        decNumberFromScaled(ret->data.num, fraction_four); /* num/4 >= denom => denom < num/4*/
     } else {
         mp_decimal_make_fraction(mp, ret->data.num, &num, &denom);
     }
@@ -947,9 +958,9 @@ static void mp_decimal_crossing_point(MP mp, mp_number *ret, mp_number *aa, mp_n
     mp_decnumber_check(mp, ret->data.num, &mp_decimal_data.set);
 }
 
-static int mp_decimal_round_unscaled(mp_number *x_orig)
+static mp_scaled_t mp_decimal_round_unscaled(mp_number *x_orig)
 {
-    return (int) lround(mp_decimal_to_double(x_orig));
+    return mpscaledround(mp_decimal_to_double(x_orig));
 }
 
 static void mp_decimal_floor(mp_number *i)
@@ -1063,7 +1074,7 @@ static void mp_decimal_m_log(MP mp, mp_number *ret, mp_number *x_orig)
         decNumberZero(ret->data.num);
     } else {
         decNumber twofivesix;
-        decNumberFromInt32(&twofivesix, 256);
+        decNumberFromScaled(&twofivesix, 256);
         decNumberLn(ret->data.num, x_orig->data.num, &mp_decimal_data.limitedset);
         mp_decnumber_check(mp, ret->data.num, &mp_decimal_data.limitedset);
         decNumberMultiply(ret->data.num, ret->data.num, &twofivesix, &mp_decimal_data.set);
@@ -1074,7 +1085,7 @@ static void mp_decimal_m_log(MP mp, mp_number *ret, mp_number *x_orig)
 static void mp_decimal_m_exp(MP mp, mp_number *ret, mp_number *x_orig)
 {
     decNumber temp, twofivesix;
-    decNumberFromInt32(&twofivesix, 256);
+    decNumberFromScaled(&twofivesix, 256);
     decNumberDivide(&temp, x_orig->data.num, &twofivesix, &mp_decimal_data.set);
     mp_decimal_data.limitedset.status = 0;
     decNumberExp(ret->data.num, &temp, &mp_decimal_data.limitedset);
@@ -1107,7 +1118,7 @@ static void mp_decimal_n_arg(MP mp, mp_number *ret, mp_number *x_orig, mp_number
     } else {
         decNumber atan2val, oneeighty_angle;
         ret->type = mp_angle_type;
-        decNumberFromInt32(&oneeighty_angle, 180 * angle_multiplier);
+        decNumberFromScaled(&oneeighty_angle, 180 * angle_multiplier);
         decNumberDivide(&oneeighty_angle, &oneeighty_angle, &mp_decimal_data.PI_decNumber, &mp_decimal_data.set);
         checkZero(y_orig->data.num);
         checkZero(x_orig->data.num);
@@ -1129,8 +1140,8 @@ static void sinecosine(decNumber *theangle, decNumber *c, decNumber *s)
         prec = DECPRECISION_DEFAULT;
     }
     for (int n = 0; n < prec; n++) {
-        decNumberFromInt32(&p1, n);
-        decNumberFromInt32(&n1, 2*n);
+        decNumberFromScaled(&p1, n);
+        decNumberFromScaled(&n1, 2*n);
         decNumberPower(&p,  &mp_decimal_data.minusone, &p1, &mp_decimal_data.limitedset);
         if (n == 0) {
             decNumberCopy(&pxa, &mp_decimal_data.one);
@@ -1142,7 +1153,7 @@ static void sinecosine(decNumber *theangle, decNumber *c, decNumber *s)
         } else {
             decNumberCopy(&fac,mp_decimal_data.factorials[mp_decimal_data.last_cached_factorial]);
             for (int i = mp_decimal_data.last_cached_factorial+1; i <= 2*n; i++) {
-                decNumberFromInt32(&cc, i);
+                decNumberFromScaled(&cc, i);
                 decNumberMultiply (&fac, &fac, &cc, &mp_decimal_data.set);
                 if (i < FACTORIALS_CACHESIZE) {
                     mp_decimal_data.factorials[i] = mp_memory_allocate(sizeof(decNumber));
@@ -1154,7 +1165,7 @@ static void sinecosine(decNumber *theangle, decNumber *c, decNumber *s)
         decNumberDivide(&pxa, &pxa, &fac, &mp_decimal_data.set);
         decNumberMultiply(&pxa, &pxa, &p, &mp_decimal_data.set);
         decNumberAdd(s, s, &pxa, &mp_decimal_data.set);
-        decNumberFromInt32(&n2, 2*n+1);
+        decNumberFromScaled(&n2, 2*n+1);
         decNumberMultiply(&fac, &fac, &n2, &mp_decimal_data.set); /* fac = fac * (2*n+1)*/
         decNumberPower(&pxa, theangle, &n2, &mp_decimal_data.limitedset);
         decNumberDivide(&pxa, &pxa, &fac, &mp_decimal_data.set);
@@ -1178,7 +1189,7 @@ static void mp_decimal_sin_cos(MP mp, mp_number *z_orig, mp_number *n_cos, mp_nu
         decNumberCopyNegate(n_cos->data.num, &mp_decimal_data.fraction_multiplier_decNumber);
         decNumberZero(n_sin->data.num);
     } else {
-        decNumberFromInt32(&one_eighty, 180 * 16);
+        decNumberFromScaled(&one_eighty, 180 * 16);
         decNumberMultiply(&rad, z_orig->data.num, &mp_decimal_data.PI_decNumber, &mp_decimal_data.set);
         decNumberDivide(&rad, &rad, &one_eighty, &mp_decimal_data.set);
         sinecosine(&rad, n_sin->data.num, n_cos->data.num);
@@ -1308,7 +1319,7 @@ static void mp_decimal_init_randoms(MP mp, int seed)
         if (k < 0) {
             k += fraction_one;
         }
-        decNumberFromInt32(mp->randoms[(i * 21) % 55].data.num, j);
+        decNumberFromScaled(mp->randoms[(i * 21) % 55].data.num, j);
     }
     /* \quote {warm up} the array */
     mp_new_randoms(mp);
@@ -1328,8 +1339,8 @@ static void mp_next_unif_random(MP mp, mp_number *ret)
     decNumber b;
     unsigned long int op = (unsigned) (*mp_decimal_random_data.ptr>=0? *mp_decimal_random_data.ptr++: ran_arr_cycle());
     (void) mp;
-    decNumberFromInt32(&a, op);
-    decNumberFromInt32(&b, MM);
+    decNumberFromScaled(&a, op);
+    decNumberFromScaled(&b, MM);
     decNumberDivide(&a, &a, &b, &mp_decimal_data.set); /* a = a/b */
     decNumberCopy(ret->data.num, &a);
     mp_decnumber_check(mp, ret->data.num, &mp_decimal_data.set);
@@ -1459,16 +1470,16 @@ math_data *mp_initialize_decimal_math(MP mp)
     mp_decimal_data.limitedset.digits = DECPRECISION_DEFAULT;
     if (! mp_decimal_data.initialized) {
         mp_decimal_data.initialized = 1 ;
-        decNumberFromInt32(&mp_decimal_data.one, 1);
-        decNumberFromInt32(&mp_decimal_data.minusone, -1);
-        decNumberFromInt32(&mp_decimal_data.zero, 0);
-        decNumberFromInt32(&mp_decimal_data.two_decNumber, two);
-        decNumberFromInt32(&mp_decimal_data.three_decNumber, three);
-        decNumberFromInt32(&mp_decimal_data.four_decNumber, four);
-        decNumberFromInt32(&mp_decimal_data.fraction_multiplier_decNumber, fraction_multiplier);
-        decNumberFromInt32(&mp_decimal_data.fraction_one_decNumber, fraction_one);
-        decNumberFromInt32(&mp_decimal_data.fraction_one_plus_decNumber, (fraction_one+1));
-        decNumberFromInt32(&mp_decimal_data.angle_multiplier_decNumber, angle_multiplier);
+        decNumberFromScaled(&mp_decimal_data.one, 1);
+        decNumberFromScaled(&mp_decimal_data.minusone, -1);
+        decNumberFromScaled(&mp_decimal_data.zero, 0);
+        decNumberFromScaled(&mp_decimal_data.two_decNumber, two);
+        decNumberFromScaled(&mp_decimal_data.three_decNumber, three);
+        decNumberFromScaled(&mp_decimal_data.four_decNumber, four);
+        decNumberFromScaled(&mp_decimal_data.fraction_multiplier_decNumber, fraction_multiplier);
+        decNumberFromScaled(&mp_decimal_data.fraction_one_decNumber, fraction_one);
+        decNumberFromScaled(&mp_decimal_data.fraction_one_plus_decNumber, (fraction_one+1));
+        decNumberFromScaled(&mp_decimal_data.angle_multiplier_decNumber, angle_multiplier);
         decNumberFromString(&mp_decimal_data.PI_decNumber, PI_STRING, &mp_decimal_data.set);
         decNumberFromDouble(&mp_decimal_data.epsilon_decNumber, epsilon);
         decNumberFromString(&mp_decimal_data.EL_GORDO_decNumber, EL_GORDO, &mp_decimal_data.set);
@@ -1487,11 +1498,11 @@ math_data *mp_initialize_decimal_math(MP mp)
     math->md_allocate_sub    = mp_decimal_allocate_sub;
     math->md_allocate_double = mp_decimal_allocate_double;
     mp_decimal_allocate_number(mp, &math->md_precision_default, mp_scaled_type);
-    decNumberFromInt32(math->md_precision_default.data.num, DECPRECISION_DEFAULT);
+    decNumberFromScaled(math->md_precision_default.data.num, DECPRECISION_DEFAULT);
     mp_decimal_allocate_number(mp, &math->md_precision_max, mp_scaled_type);
-    decNumberFromInt32(math->md_precision_max.data.num, DECNUMDIGITS);
+    decNumberFromScaled(math->md_precision_max.data.num, DECNUMDIGITS);
     mp_decimal_allocate_number(mp, &math->md_precision_min, mp_scaled_type);
-    decNumberFromInt32(math->md_precision_min.data.num, 2);
+    decNumberFromScaled(math->md_precision_min.data.num, 2);
     /* here are the constants for scaled objects */
     mp_decimal_allocate_number(mp, &math->md_epsilon_t, mp_scaled_type);
     decNumberCopy(math->md_epsilon_t.data.num, &mp_decimal_data.epsilon_decNumber);
@@ -1506,9 +1517,9 @@ math_data *mp_initialize_decimal_math(MP mp)
     mp_decimal_allocate_number(mp, &math->md_unity_t, mp_scaled_type);
     decNumberCopy(math->md_unity_t.data.num, &mp_decimal_data.one);
     mp_decimal_allocate_number(mp, &math->md_two_t, mp_scaled_type);
-    decNumberFromInt32(math->md_two_t.data.num, two);
+    decNumberFromScaled(math->md_two_t.data.num, two);
     mp_decimal_allocate_number(mp, &math->md_three_t, mp_scaled_type);
-    decNumberFromInt32(math->md_three_t.data.num, three);
+    decNumberFromScaled(math->md_three_t.data.num, three);
     mp_decimal_allocate_number(mp, &math->md_half_unit_t, mp_scaled_type);
     decNumberFromString(math->md_half_unit_t.data.num, "0.5", &mp_decimal_data.set);
     mp_decimal_allocate_number(mp, &math->md_three_quarter_unit_t, mp_scaled_type);
@@ -1518,25 +1529,25 @@ math_data *mp_initialize_decimal_math(MP mp)
     /* fractions */
     {
         decNumber fourzeroninesix;
-        decNumberFromInt32(&fourzeroninesix, 4096);
+        decNumberFromScaled(&fourzeroninesix, 4096);
         mp_decimal_allocate_number(mp, &math->md_arc_tol_k, mp_fraction_type);
         decNumberDivide(math->md_arc_tol_k.data.num, &mp_decimal_data.one, &fourzeroninesix, &mp_decimal_data.set);         /* quit when change in arc length estimate reaches this */
     }
     mp_decimal_allocate_number(mp, &math->md_fraction_one_t, mp_fraction_type);
-    decNumberFromInt32(math->md_fraction_one_t.data.num, fraction_one);
+    decNumberFromScaled(math->md_fraction_one_t.data.num, fraction_one);
     mp_decimal_allocate_number(mp, &math->md_fraction_half_t, mp_fraction_type);
-    decNumberFromInt32(math->md_fraction_half_t.data.num, fraction_half);
+    decNumberFromScaled(math->md_fraction_half_t.data.num, fraction_half);
     mp_decimal_allocate_number(mp, &math->md_fraction_three_t, mp_fraction_type);
-    decNumberFromInt32(math->md_fraction_three_t.data.num, fraction_three);
+    decNumberFromScaled(math->md_fraction_three_t.data.num, fraction_three);
     mp_decimal_allocate_number(mp, &math->md_fraction_four_t, mp_fraction_type);
-    decNumberFromInt32(math->md_fraction_four_t.data.num, fraction_four);
+    decNumberFromScaled(math->md_fraction_four_t.data.num, fraction_four);
     /* angles */
     mp_decimal_allocate_number(mp, &math->md_three_sixty_deg_t, mp_angle_type);
-    decNumberFromInt32(math->md_three_sixty_deg_t.data.num, 360  * angle_multiplier);
+    decNumberFromScaled(math->md_three_sixty_deg_t.data.num, 360  * angle_multiplier);
     mp_decimal_allocate_number(mp, &math->md_one_eighty_deg_t, mp_angle_type);
-    decNumberFromInt32(math->md_one_eighty_deg_t.data.num, 180 * angle_multiplier);
+    decNumberFromScaled(math->md_one_eighty_deg_t.data.num, 180 * angle_multiplier);
     mp_decimal_allocate_number(mp, &math->md_negative_one_eighty_deg_t, mp_angle_type);
-    decNumberFromInt32(math->md_negative_one_eighty_deg_t.data.num, -180 * angle_multiplier);
+    decNumberFromScaled(math->md_negative_one_eighty_deg_t.data.num, -180 * angle_multiplier);
     /* various approximations */
     mp_decimal_allocate_number(mp, &math->md_one_k, mp_scaled_type);
     decNumberFromDouble(math->md_one_k.data.num, 1.0/64);

@@ -256,7 +256,12 @@ void tex_scan_local_boxes_keys(quarterword *options, halfword *index)
     *options = 0;
     *index = 0;
     while (1) {
-        switch (tex_scan_character("iklpIKLP", 0, 1, 0)) {
+        switch (tex_scan_character("aiklmpAIKLMP", 0, 1, 0)) {
+            case 'a': case 'A':
+                if (tex_scan_mandate_keyword("always", 1)) {
+                    *options |= local_box_always_option;
+                }
+                break;
             case 'i': case 'I':
                 if (tex_scan_mandate_keyword("index", 1)) {
                     *index = tex_scan_box_index();
@@ -277,10 +282,19 @@ void tex_scan_local_boxes_keys(quarterword *options, halfword *index)
                     *options |= local_box_par_option;
                 }
                 break;
+            case 'm': case 'M':
+                if (tex_scan_mandate_keyword("move", 1)) {
+                    *options |= local_box_move_option;
+                }
+                break;
             default:
                 return;
         }
     }
+}
+
+int tex_is_localbox_always(halfword p) {
+    return node_subtype(p) == hlist_node && box_anchoring(p) ? 1 : 0;
 }
 
 halfword tex_valid_box_index(halfword n)
@@ -294,13 +308,17 @@ halfword tex_get_local_interline_penalty (halfword p) { return par_inter_line_pe
 halfword tex_get_local_broken_penalty    (halfword p) { return par_broken_penalty(p); }
 halfword tex_get_local_tolerance         (halfword p) { return par_tolerance(p); }
 halfword tex_get_local_pre_tolerance     (halfword p) { return par_pre_tolerance(p); }
+scaled   tex_get_local_hang_indent       (halfword p) { return par_hang_indent(p); }
+halfword tex_get_local_hang_after        (halfword p) { return par_hang_after(p); }
 
-void     tex_set_local_left_width        (halfword p, scaled   width    ) { par_box_left_width(p) = width; }
-void     tex_set_local_right_width       (halfword p, scaled   width    ) { par_box_right_width(p) = width; }
-void     tex_set_local_interline_penalty (halfword p, halfword penalty  ) { par_inter_line_penalty(p) = penalty; }
-void     tex_set_local_broken_penalty    (halfword p, halfword penalty  ) { par_broken_penalty(p) = penalty; }
-void     tex_set_local_tolerance         (halfword p, halfword tolerance) { par_tolerance(p) = tolerance; }
-void     tex_set_local_pre_tolerance     (halfword p, halfword tolerance) { par_pre_tolerance(p) = tolerance; }
+void     tex_set_local_left_width        (halfword p, scaled   width    )  { par_box_left_width(p) = width; }
+void     tex_set_local_right_width       (halfword p, scaled   width    )  { par_box_right_width(p) = width; }
+void     tex_set_local_interline_penalty (halfword p, halfword penalty  )  { par_inter_line_penalty(p) = penalty; }
+void     tex_set_local_broken_penalty    (halfword p, halfword penalty  )  { par_broken_penalty(p) = penalty; }
+void     tex_set_local_tolerance         (halfword p, halfword tolerance)  { par_tolerance(p) = tolerance; }
+void     tex_set_local_pre_tolerance     (halfword p, halfword tolerance)  { par_pre_tolerance(p) = tolerance; }
+void     tex_set_local_hang_indent       (halfword p, halfword amount)     { par_hang_indent(p) = amount; }
+void     tex_set_local_hang_after        (halfword p, halfword amount)     { par_hang_after(p) = amount; }
 
 typedef enum saved_localbox_entries {
     saved_localbox_location_entry = 0,
@@ -364,7 +382,9 @@ void tex_aux_finish_local_box(void)
         halfword index = saved_localbox_index;
         int islocal = (options & local_box_local_option) == local_box_local_option;
         int keep = (options & local_box_keep_option) == local_box_keep_option;
+        int move = (options & local_box_move_option) == local_box_move_option;
         int atpar = (options & local_box_par_option) == local_box_par_option;
+        int always = (options & local_box_always_option) == local_box_always_option;
         halfword p = node_next(cur_list.head);
         tex_pop_nest();
         if (p) {
@@ -384,38 +404,120 @@ void tex_aux_finish_local_box(void)
             p = tex_hpack(p, 0, packing_additional, direction_unknown, holding_none_option, box_limit_none);
             node_subtype(p) = local_list;
             box_index(p) = index;
+            if (always) {
+                box_width(p) = 0; /*tex A safeguard. */
+            }
          // attach_current_attribute_list(p); // leaks
         } else { 
             /* well */
         }
-        // what to do with reset
-        if (islocal) {
-            /*tex There no copy needed either! */
-        } else {
-            tex_update_local_boxes(p, index, location);
-        }
-        if (cur_mode == hmode || cur_mode == mmode) {
-            if (atpar) {
-                halfword par = tex_find_par_par(cur_list.head);
-                if (par) {
-                    if (p && ! islocal) {
-                        p = tex_copy_node(p);
-                    }
-                    tex_replace_local_boxes(par, p, index, location);
+        if (always) {
+            if (cur_mode == hmode || cur_mode == mmode) {
+                halfword h = tex_hpack(p, 0, packing_additional, direction_unknown, holding_none_option, box_limit_none);
+                node_subtype(h) = local_list;
+                box_width(h) = 0;
+                box_height(h) = 0;
+                box_depth(h) = 0;
+                switch (location) {
+                    case local_left_box_code:
+                        box_anchoring(h) = box_anchoring_left | box_anchoring_hang | (move ? box_anchoring_move : 0);
+                        break;
+                    case local_right_box_code:
+                        box_anchoring(h) = box_anchoring_right | box_anchoring_hang | (move ? box_anchoring_move : 0);
+                        break;
+                    default:
+                        /* don't mark */
+                        break;
                 }
+                tex_tail_append(h);
             } else {
-                /*tex
-                    We had a null check here but we also want to be able to reset these boxes so we
-                    no longer check.
-                */
-                tex_tail_append(tex_new_par_node(local_box_par_subtype));
-                if (! keep) {
-                    /*tex So we can group and keep it. */
-                    update_tex_internal_par_state(internal_par_state_par + 1);
+                tex_flush_node(p);
+            }
+        } else {
+            // what to do with reset
+            if (islocal) {
+                /*tex There no copy needed either! */
+            } else {
+                tex_update_local_boxes(p, index, location);
+            }
+            if (cur_mode == hmode || cur_mode == mmode) {
+                if (atpar) {
+                    halfword par = tex_find_par_par(cur_list.head);
+                    if (par) {
+                        if (p && ! islocal) {
+                            p = tex_copy_node(p);
+                        }
+                        tex_replace_local_boxes(par, p, index, location);
+                    }
+                } else {
+                    /*tex
+                        We had a null check here but we also want to be able to reset these boxes so we
+                        no longer check.
+                    */
+                    halfword p = tex_new_par_node(local_box_par_subtype);
+                    tex_tail_append(p);
+                    if (! keep) {
+                        /*tex So we can group and keep it. */
+                        update_tex_internal_par_state(internal_par_state_par + 1);
+                    }
                 }
             }
         }
     } else {
         tex_confusion("build local box");
     }
+}
+
+/*tex
+    If this hurts performance I might pass a linked list of such nodes so that we don't need to
+    loop.
+*/
+
+int tex_aux_inject_local_always_box(halfword linebox, halfword head, halfword tail)
+{
+    halfword n = 0;
+    if (linebox) {
+        halfword q = box_list(linebox);
+        halfword h = head;
+        halfword t = tail;
+        while (q) {
+            if (node_type(q) == hlist_node && box_anchoring(q)) {
+                halfword box = box_list(q);
+                if (box && node_type(box) == hlist_node) {
+                    /*tex For now we always hang so we ignore (default to) |box_anchoring_hang|. */
+                    if (box_anchoring(q) & box_anchoring_left) {
+                        if (box_anchoring(q) & box_anchoring_move) {
+                            halfword nxt = node_next(head);
+                            tex_couple_nodes(head, box);
+                            tex_couple_nodes(box, nxt);
+                            box_width(box) = 0; /* safeguard */
+                            box_list(q) = null;
+                            head = box;
+                        } else {
+                            box_x_offset(q) -= tex_natural_width(node_next(h), q, box_glue_set(linebox), box_glue_sign(linebox), box_glue_order(linebox));
+                            box_geometry(q) = offset_geometry;
+                        }
+                    } else if (box_anchoring(q) & box_anchoring_right) {
+                        if (box_anchoring(q) & box_anchoring_move) {
+                            halfword prv = node_prev(tail);
+                            tex_couple_nodes(prv, box);
+                            tex_couple_nodes(box, tail);
+                            box_width(box) = 0; /* safeguard */
+                            box_list(q) = null;
+                         // tail = rightbox;
+                        } else {
+                            box_x_offset(q) += tex_natural_width(q, node_prev(t), box_glue_set(linebox), box_glue_sign(linebox), box_glue_order(linebox));
+                            box_geometry(q) = offset_geometry;
+                        }
+                    }
+                } else {
+                    /*tex Just accept the mess we ran into. */
+                }
+                /*tex For diagnostic purposes we keep the box node around. */
+                ++n;
+            }
+            q = node_next(q);
+        }
+    }
+    return n;
 }

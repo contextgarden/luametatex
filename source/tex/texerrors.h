@@ -109,7 +109,15 @@ typedef enum error_types {
     condition_error_type,
     runaway_error_type,
     warning_error_type,
+    /* these are recoverable */
+    alignment_tab_error_type,
+    infinite_shrink_error_type,
 } error_types;
+
+typedef enum error_recovery_types {
+    alignment_tab_recovery_type   = 0x01,
+    infinite_shrink_recovery_type = 0x02,
+} error_recovery_types;
 
 extern void tex_handle_error              (error_types type, const char *format, ...);
 extern void tex_handle_error_message_only (const char *message);

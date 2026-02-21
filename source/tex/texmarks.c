@@ -149,7 +149,7 @@ void tex_show_marks()
         tex_begin_diagnostic();
         for (halfword m = lmt_mark_state.min_used; m <= lmt_mark_state.max_used; m++) {
             if (tex_has_mark(m)) {
-                tex_print_format("[mark: class %i, page state]",m);
+                tex_print_format("%l[mark: class %i, page state]",m);
                 tex_aux_print_mark("top",         tex_get_mark(m, top_marks_code));
                 tex_aux_print_mark("first",       tex_get_mark(m, first_marks_code));
                 tex_aux_print_mark("bot",         tex_get_mark(m, bot_marks_code));
@@ -172,7 +172,7 @@ int tex_update_top_marks()
                 tex_set_mark(m, top_marks_code, bot);
                 if (tracing_marks_par > 1) {
                     tex_begin_diagnostic();
-                    tex_print_format("[mark: class %i, top becomes bot]", m);
+                    tex_print_format("%l[mark: class %i, top becomes bot]", m);
                     tex_aux_print_mark(NULL, bot);
                     tex_end_diagnostic();
                 }
@@ -192,7 +192,7 @@ void tex_update_first_and_bot_mark(halfword n)
         /*tex Work in progress. */
         if (tracing_marks_par > 1) {
             tex_begin_diagnostic();
-            tex_print_format("[mark: index %i, reset]", index);
+            tex_print_format("%l[mark: index %i, reset]", index);
             tex_end_diagnostic();
         }
         tex_reset_mark(index);
@@ -203,7 +203,7 @@ void tex_update_first_and_bot_mark(halfword n)
             tex_set_mark(index, first_marks_code, ptr);
             if (tracing_marks_par > 1) {
                 tex_begin_diagnostic();
-                tex_print_format("[mark: index %i, first becomes mark]", index);
+                tex_print_format("%l[mark: index %i, first becomes mark]", index);
                 tex_aux_print_mark(NULL, ptr);
                 tex_end_diagnostic();
             }
@@ -211,7 +211,7 @@ void tex_update_first_and_bot_mark(halfword n)
         tex_set_mark(index, bot_marks_code, ptr);
         if (tracing_marks_par > 1) {
             tex_begin_diagnostic();
-            tex_print_format("[mark: index %i, bot becomes mark]", index);
+            tex_print_format("%l[mark: index %i, bot becomes mark]", index);
             tex_aux_print_mark(NULL, ptr);
             tex_end_diagnostic();
         }
@@ -229,7 +229,7 @@ int tex_update_first_marks(void)
                 tex_set_mark(m, first_marks_code, top);
                 if (tracing_marks_par > 1) {
                     tex_begin_diagnostic();
-                    tex_print_format("[mark: class %i, first becomes top]", m);
+                    tex_print_format("%l[mark: class %i, first becomes top]", m);
                     tex_aux_print_mark(NULL, top);
                     tex_end_diagnostic();
                 }
@@ -268,7 +268,7 @@ void tex_update_split_mark(halfword n)
         tex_set_mark(index, split_bot_marks_code, ptr);
         if (tracing_marks_par > 1) {
             tex_begin_diagnostic();
-            tex_print_format("[mark: index %i, split bot becomes mark]", index);
+            tex_print_format("%l[mark: index %i, split bot becomes mark]", index);
             tex_aux_print_mark(NULL, tex_get_mark(index, split_bot_marks_code));
             tex_end_diagnostic();
         }
@@ -277,9 +277,9 @@ void tex_update_split_mark(halfword n)
         tex_set_mark(index, split_bot_marks_code, ptr);
         if (tracing_marks_par > 1) {
             tex_begin_diagnostic();
-            tex_print_format("[mark: index %i, split first becomes mark]", index);
+            tex_print_format("%l[mark: index %i, split first becomes mark]", index);
             tex_aux_print_mark(NULL, tex_get_mark(index, split_first_marks_code));
-            tex_print_format("[mark: index %i, split bot becomes split first]", index);
+            tex_print_format("%l[mark: index %i, split bot becomes split first]", index);
             tex_aux_print_mark(NULL, tex_get_mark(index, split_bot_marks_code));
             tex_end_diagnostic();
         }

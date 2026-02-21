@@ -66,7 +66,7 @@ hash_state_info lmt_hash_state = {
     .eqtb        = NULL,
     .no_new_cs   = 1,
     .padding     = 0,
-    .destructors = { eq_none}, 
+    .destructors = { eq_none }, 
 };
 
 /*tex
@@ -542,11 +542,12 @@ halfword tex_id_locate(int j, int l, int create)
             } else if (create) {
                 return tex_aux_insert_id(p, (lmt_fileio_state.io_buffer + j), (unsigned) l);
             } else {
-                break;
+                return undefined_control_sequence;
+             // break;
             }
         }
     }
-    return undefined_control_sequence;
+ // return undefined_control_sequence;
 }
 
 halfword tex_id_locate_only(int j, int l)
@@ -608,11 +609,12 @@ halfword tex_string_locate(const char *s, size_t l, int create)
             } else if (create) {
                 return tex_aux_insert_id(p, (const unsigned char *) s, (unsigned) l);
             } else {
-                break;
+             // break;
+                return undefined_control_sequence;
             }
         }
     }
-    return undefined_control_sequence;
+ // return undefined_control_sequence;
 }
 
 halfword tex_string_locate_only(const char *s, size_t l)
@@ -750,7 +752,7 @@ static void tex_aux_prim_cmd_chr(quarterword cmd, halfword idx, int is_chr)
 static void tex_aux_show_lua_call(const char *what, int slot)
 {
     int callback_id = lmt_callback_defined(show_lua_call_callback);
-    if (callback_id) {
+    if (callback_id > 0) {
         char *ss = NULL;
         int lua_retval = lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "Sd->S", what, slot, &ss);
         if (lua_retval && ss && strlen(ss) > 0) {

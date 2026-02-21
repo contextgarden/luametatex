@@ -591,7 +591,7 @@ static halfword tex_aux_insert_syllable_discretionary(halfword t, language_varia
     disc_penalty(n) = hyphen_penalty_par;
     tex_couple_nodes(n, node_next(t));
     tex_couple_nodes(t, n);
-    tex_attach_attribute_list_attribute(n, get_attribute_list(t));
+    tex_attach_attribute_list_attribute(n, node_attr(t));
     if (lan->pre_hyphen_char > 0) {
         halfword g = tex_new_glyph_node(glyph_unset_subtype, glyph_font(t), lan->pre_hyphen_char, t);
         tex_set_disc_field(n, pre_break_code, g);
@@ -998,7 +998,7 @@ static inline halfword tex_aux_is_hyphen_char(halfword chr)
 static halfword tex_aux_find_next_wordstart(halfword r, halfword first_language)
 {
     int start_ok = 1;
-    halfword lastglyph = r;
+    halfword lastglyph = null;
     while (r) {
         switch (node_type(r)) {
             case boundary_node:
@@ -1014,7 +1014,7 @@ static halfword tex_aux_find_next_wordstart(halfword r, halfword first_language)
             case rule_node:
             case dir_node:
             case whatsit_node:
-                if (hyphenation_permitted(glyph_hyphenate(lastglyph), strict_start_hyphenation_mode)) {
+                if (lastglyph && hyphenation_permitted(glyph_hyphenate(lastglyph), strict_start_hyphenation_mode)) {
                     start_ok = 0;
                 }
                 break;
@@ -1472,7 +1472,7 @@ void tex_hyphenate_list(halfword head, halfword tail)
                 halfword penalty = tex_new_penalty_node(0, word_penalty_subtype);
                 /* kind of curious hack, this addition that we later remove */
                 tex_attach_attribute_list_copy(penalty, r);
-                tex_couple_nodes(tail, penalty); /* todo: attrobute */
+                tex_couple_nodes(tail, penalty); /* todo: attribute */
                 while (r) {
                     halfword word_start = r;
                     int word_language = get_glyph_language(word_start);
@@ -1573,7 +1573,7 @@ void tex_hyphenate_list(halfword head, halfword tail)
                                     if (trace > 1) {
                                         *utf8ori = 0;
                                         tex_begin_diagnostic();
-                                        tex_print_format("[language: compound word break after %s]", utf8original);
+                                        tex_print_format("%l[language: compound word break after %s]", utf8original);
                                         tex_end_diagnostic();
                                     }
                                     if (hyphenation_permitted(glyph_hyphenate(g), compound_hyphenation_mode)) {
@@ -1610,13 +1610,13 @@ void tex_hyphenate_list(halfword head, halfword tail)
                             valid = tex_aux_valid_wordend(word_end, r);
                           MESSYCODE:
                             /*tex We have a word, r is at the next node. */
-                            if (word_font && word_language >= first_language) {
+                            if (word_font && word_language >= first_language) { // why no less test
                                 /*tex We have a language, actually we already tested that. */
                                 struct tex_language *lang = lmt_language_state.languages[word_language];
                                 if (lang) {
                                     char *replacement = NULL;
                                     halfword start = explicit_start ? explicit_start : word_start;
-                                    int okay = word_length >= lhmin + rhmin && (hmin <= 0 || word_length >= hmin) && hyphenation_permitted(glyph_hyphenate(start), syllable_hyphenation_mode);
+                                    int okay = (word_length >= lhmin + rhmin) && (hmin <= 0 || word_length >= hmin) && hyphenation_permitted(glyph_hyphenate(start), syllable_hyphenation_mode);
                                     *utf8ptr = '\0';
                                     *utf8ori = '\0';
                                     if (lang->wordhandler && hyphenation_permitted(glyph_hyphenate(start), force_handler_hyphenation_mode)) {
@@ -1666,7 +1666,8 @@ void tex_hyphenate_list(halfword head, halfword tail)
                                                         tex_normal_warning("language", "the hyphenation list is messed up, quitting");
                                                         goto ABORT;
                                                     } else {
-                                                        // tex_normal_error("language","the hyphenated tail is messed up, aborting");
+                                                     // tex_normal_warning("language", "the hyphenated tail is messed up, quitting");
+                                                     // tex_normal_error("language","the hyphenated tail is messed up, aborting");
                                                         return;
                                                     }
                                             }
@@ -1696,7 +1697,7 @@ void tex_hyphenate_list(halfword head, halfword tail)
                                         tex_aux_do_exception(start, r, replacement); // r == next_node(word_end)
                                         if (trace > 1) {
                                             tex_begin_diagnostic();
-                                            tex_print_format("[language: exception %s to %s]", utf8original, replacement);
+                                            tex_print_format("%l[language: exception %s to %s]", utf8original, replacement);
                                             if (trace > 2) {
                                                 tex_aux_hyphenate_show(node_next(beg), node_prev(r));
                                             }
@@ -1734,16 +1735,18 @@ void tex_hyphenate_list(halfword head, halfword tail)
                                                 if (trace > 1) {
                                                     tex_begin_diagnostic();
                                                     if (done) {
-                                                        tex_print_format("[language: hyphenated %s at %i positions]", utf8original, done);
+                                                        tex_print_format("%l[language: hyphenated %s at %i positions]", utf8original, done);
                                                         if (trace > 2) {
                                                             tex_aux_hyphenate_show(node_next(left), node_prev(right));
                                                         }
                                                     } else {
-                                                        tex_print_format("[language: not hyphenated %s]", utf8original);
+                                                        tex_print_format("%l[language: not hyphenated %s]", utf8original);
                                                     }
                                                     tex_end_diagnostic();
                                                 }
                                             }
+                                     // } else if (trace > 2) {
+                                     //     tex_print_format("[language: skipped %s]", utf8original);
                                         }
                                     }
                                 }

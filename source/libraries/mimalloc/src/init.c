@@ -71,13 +71,14 @@ const mi_page_t _mi_page_empty = {
 
 // Empty statistics
 #define MI_STATS_NULL  \
-  MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), \
-  MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), \
+  MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), \
+  { 0 }, { 0 }, \
+  MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), \
   MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), \
   { 0 }, { 0 }, { 0 }, { 0 }, \
   { 0 }, { 0 }, { 0 }, { 0 }, \
   \
-  { 0 }, { 0 }, { 0 }, { 0 }, { 0 }, \
+  { 0 }, { 0 }, { 0 }, { 0 }, { 0 }, { 0 }, \
   MI_INIT4(MI_STAT_COUNT_NULL), \
   { 0 }, { 0 }, { 0 }, { 0 },  \
   \
@@ -138,7 +139,7 @@ mi_decl_cache_align static const mi_tld_t tld_empty = {
   false,
   NULL, NULL,
   { MI_SEGMENT_SPAN_QUEUES_EMPTY, 0, 0, 0, 0, 0, &mi_subproc_default, tld_empty_stats }, // segments
-  { MI_STAT_VERSION, MI_STATS_NULL }       // stats
+  { sizeof(mi_stats_t), MI_STAT_VERSION, MI_STATS_NULL }       // stats
 };
 
 mi_threadid_t _mi_thread_id(void) mi_attr_noexcept {
@@ -154,7 +155,7 @@ static mi_decl_cache_align mi_tld_t tld_main = {
   0, false,
   &_mi_heap_main, & _mi_heap_main,
   { MI_SEGMENT_SPAN_QUEUES_EMPTY, 0, 0, 0, 0, 0, &mi_subproc_default, &tld_main.stats }, // segments
-  { MI_STAT_VERSION, MI_STATS_NULL }       // stats
+  { sizeof(mi_stats_t), MI_STAT_VERSION, MI_STATS_NULL }       // stats
 };
 
 mi_decl_cache_align mi_heap_t _mi_heap_main = {
@@ -180,7 +181,7 @@ mi_decl_cache_align mi_heap_t _mi_heap_main = {
 
 bool _mi_process_is_initialized = false;  // set to `true` in `mi_process_init`.
 
-mi_stats_t _mi_stats_main = { MI_STAT_VERSION, MI_STATS_NULL };
+mi_stats_t _mi_stats_main = { sizeof(mi_stats_t), MI_STAT_VERSION, MI_STATS_NULL };
 
 #if MI_GUARDED
 mi_decl_export void mi_heap_guarded_set_sample_rate(mi_heap_t* heap, size_t sample_rate, size_t seed) {
@@ -649,7 +650,7 @@ void mi_process_init(void) mi_attr_noexcept {
 
   if (mi_option_is_enabled(mi_option_reserve_huge_os_pages)) {
     size_t pages = mi_option_get_clamp(mi_option_reserve_huge_os_pages, 0, 128*1024);
-    long reserve_at = mi_option_get(mi_option_reserve_huge_os_pages_at);
+    int reserve_at  = (int)mi_option_get_clamp(mi_option_reserve_huge_os_pages_at, -1, INT_MAX);
     if (reserve_at != -1) {
       mi_reserve_huge_os_pages_at(pages, reserve_at, pages*500);
     } else {

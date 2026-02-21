@@ -52,7 +52,8 @@ typedef enum callback_types {
     append_line_callback,
  /* pre_line_callback, */
     insert_distance_callback,
- /* fire_up_output_callback, */
+    insert_boundary_callback,
+    insert_check_split_callback,
     wrapup_run_callback,
     begin_paragraph_callback,
     paragraph_context_callback,
@@ -78,6 +79,8 @@ typedef enum callback_types {
     tail_append_callback,
     balance_boundary_callback,
     balance_insert_callback,
+    page_boundary_callback,
+    delayed_glue_callback,
     total_callbacks,
 } callback_types;
 
@@ -150,7 +153,7 @@ static inline int lmt_callback_defined(
     int i
 ) { 
      /*tex There is no need to check |callback_state_disabled| because value can be used. */
-     return (lmt_callback_state.items[i].state & callback_state_disabled) ? 0 : lmt_callback_state.items[i].value; 
+     return (lmt_callback_state.items[i].state & callback_state_disabled) ? -1 : lmt_callback_state.items[i].value; 
 }
 
 static inline int lmt_callback_call(

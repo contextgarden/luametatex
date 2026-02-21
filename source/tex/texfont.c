@@ -14,7 +14,6 @@
             output of \LUATEX\ is incompatible with TeX after |fetch()| has detected an error
             condition.
         \stopitem
-
         \startitem
             Knuth also had a |font_glue()| optimization. This has been removed because it was a bit
             of dirty programming and it also was problematic |if 0 != null|.
@@ -50,9 +49,9 @@ static inline int tex_aux_same_font_properties(halfword a, halfword b) // also i
 {
     return node_type(a) == glyph_node && node_type(b) == glyph_node 
      && glyph_font(a)    == glyph_font(b)
+     && glyph_scale(a)   == glyph_scale(b)
      && glyph_x_scale(a) == glyph_x_scale(b)
-     && glyph_y_scale(a) == glyph_y_scale(b)
-     && glyph_scale(a)   == glyph_scale(b);
+     && glyph_y_scale(a) == glyph_y_scale(b);
 }
 
 static inline int tex_aux_apply_base_kerning(halfword n)
@@ -1587,20 +1586,20 @@ halfword tex_handle_glyphrun(halfword head, halfword group, halfword direction)
 {
     if (head) {
         int callback_id = lmt_callback_defined(glyph_run_callback);
-        if (callback_id) {
+        if (callback_id > 0) {
             return tex_aux_run_lua_ligkern_callback(lmt_lua_state.lua_instance, head, group, direction, callback_id);
         } else {
             callback_id = lmt_callback_defined(ligaturing_callback);
-            if (callback_id) {
+            if (callback_id > 0) {
                 head = tex_aux_run_lua_ligkern_callback(lmt_lua_state.lua_instance, head, group, direction, callback_id);
-            } else {
+            } else if (callback_id == 0) {
                 // what if disc at start 
                 tex_handle_ligaturing(head, null);
             }
             callback_id = lmt_callback_defined(kerning_callback);
-            if (callback_id) {
+            if (callback_id > 0) {
                 head = tex_aux_run_lua_ligkern_callback(lmt_lua_state.lua_instance, head, group, direction, callback_id);
-            } else {
+            } else if (callback_id == 0) {
                 halfword kern = tex_aux_do_handle_kerning(head, null, null);
                 if (kern) { 
                     head = kern; 
@@ -1720,7 +1719,7 @@ void tex_missing_character(halfword n, halfword f, halfword c, halfword where)
             tracing_online_par = 1;
         }
         tex_begin_diagnostic();
-        tex_print_format("[font: missing character, character %c (%U), font '%s', location %i]", c, c, font_name(f), where);
+        tex_print_format("%l[font: missing character, character %c (%U), font '%s', location %i]", c, c, font_name(f), where);
         tex_end_diagnostic();
         tracing_online_par = old_setting;
     }
@@ -1922,7 +1921,7 @@ extinfo *tex_char_extensible_recipe_front_last(halfword f, halfword c)
     while (ci) { 
         halfword next = ci->math ? ci->math->next : -1;
         if (next > 0) { // no zero 
-            ci = tex_aux_char_info(f, c);
+            ci = tex_aux_char_info(f, next);
         } else { 
             return ci->math ? ci->math->extensible_recipe : NULL;
         }
@@ -2251,52 +2250,32 @@ scaled tex_get_math_font_factor(halfword size)
     Experiment.
 */
 
-// void tex_run_font_spec(void)
-// {
-//     update_tex_font_identifier(font_spec_identifier(cur_chr));
-//     if (font_spec_scale(cur_chr) != unused_scale_value) {
-//         update_tex_glyph_scale(font_spec_scale(cur_chr));
-//     }
-//     if (font_spec_x_scale(cur_chr) != unused_scale_value) {
-//         update_tex_glyph_x_scale(font_spec_x_scale(cur_chr));
-//     }
-//     if (font_spec_y_scale(cur_chr) != unused_scale_value) {
-//         update_tex_glyph_y_scale(font_spec_y_scale(cur_chr));
-//     }
-//     if (font_spec_slant(cur_chr)) {
-//         update_tex_glyph_slant(font_spec_slant(cur_chr));
-//     }
-//     if (font_spec_weight(cur_chr)) {
-//         update_tex_glyph_weight(font_spec_weight(cur_chr));
-//     }
-// }
-
 void tex_run_font_spec(void)
 {
     update_tex_font_identifier(font_spec_identifier(cur_chr));
-if (font_spec_property_is_set(cur_chr,font_spec_scale_set)) {
-    if (font_spec_scale(cur_chr) != glyph_scale_par) {
-        update_tex_glyph_scale(font_spec_scale(cur_chr));
+    if (font_spec_property_is_set(cur_chr, font_spec_scale_set)) {
+        if (font_spec_scale(cur_chr) != glyph_scale_par) {
+            update_tex_glyph_scale(font_spec_scale(cur_chr));
+        }
     }
-}
-if (font_spec_property_is_set(cur_chr,font_spec_x_scale_set)) {
-    if (font_spec_x_scale(cur_chr) != glyph_x_scale_par) {
-        update_tex_glyph_x_scale(font_spec_x_scale(cur_chr));
+    if (font_spec_property_is_set(cur_chr, font_spec_x_scale_set)) {
+        if (font_spec_x_scale(cur_chr) != glyph_x_scale_par) {
+            update_tex_glyph_x_scale(font_spec_x_scale(cur_chr));
+        }
     }
-}
-if (font_spec_property_is_set(cur_chr,font_spec_y_scale_set)) {
-    if (font_spec_y_scale(cur_chr) != glyph_y_scale_par)  {
-        update_tex_glyph_y_scale(font_spec_y_scale(cur_chr));
+    if (font_spec_property_is_set(cur_chr, font_spec_y_scale_set)) {
+        if (font_spec_y_scale(cur_chr) != glyph_y_scale_par)  {
+            update_tex_glyph_y_scale(font_spec_y_scale(cur_chr));
+        }
     }
-}
-if (font_spec_property_is_set(cur_chr,font_spec_slant_set)) {
-    if (font_spec_y_scale(cur_chr) != glyph_slant_par) {
-        update_tex_glyph_slant(font_spec_slant(cur_chr));
+    if (font_spec_property_is_set(cur_chr, font_spec_slant_set)) {
+        if (font_spec_y_scale(cur_chr) != glyph_slant_par) {
+            update_tex_glyph_slant(font_spec_slant(cur_chr));
+        }
     }
-}
-if (font_spec_property_is_set(cur_chr,font_spec_weight_set)) {
-    if (font_spec_weight(cur_chr) != glyph_weight_par) {
-        update_tex_glyph_weight(font_spec_weight(cur_chr));
+    if (font_spec_property_is_set(cur_chr, font_spec_weight_set)) {
+        if (font_spec_weight(cur_chr) != glyph_weight_par) {
+            update_tex_glyph_weight(font_spec_weight(cur_chr));
+        }
     }
-}
 }

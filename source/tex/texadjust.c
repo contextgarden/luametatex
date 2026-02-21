@@ -68,7 +68,7 @@ void tex_show_adjust_group(void)
     }
 }
 
-int tex_show_adjust_record(void)
+bool tex_show_adjust_record(void)
 {
     tex_print_str("adjust ");
     switch (saved_type(0)) { 
@@ -82,9 +82,9 @@ int tex_show_adjust_record(void)
             tex_print_format("target %i", saved_value_1(0));
             break;
        default: 
-            return 0;
+            return false;
     }
-    return 1;
+    return true;
 }
 
 static void tex_scan_adjust_keys(adjust_properties *properties)
@@ -292,7 +292,7 @@ halfword tex_append_adjust_list(halfword head, halfword tail, halfword adjust, c
         }
         if (tracing_adjusts_par > 1) {
             tex_begin_diagnostic();
-            tex_print_format("[adjust: index %i, location %s, append, %s]", adjust_index(adjust), tex_aux_subtype_str(adjust), detail);
+            tex_print_format("%l[adjust: index %i, location %s, append, %s]", adjust_index(adjust), tex_aux_subtype_str(adjust), detail);
             tex_print_node_list(adjust_list(adjust), "adjust",show_box_depth_par, show_box_breadth_par);
             tex_end_diagnostic();
         }
@@ -315,7 +315,7 @@ halfword tex_prepend_adjust_list(halfword head, halfword tail, halfword adjust, 
         }
         if (tracing_adjusts_par > 1) {
             tex_begin_diagnostic();
-            tex_print_format("[adjust: index %i, location %s, prepend, %s]", adjust_index(adjust), tex_aux_subtype_str(adjust), detail);
+            tex_print_format("%l[adjust: index %i, location %s, prepend, %s]", adjust_index(adjust), tex_aux_subtype_str(adjust), detail);
             tex_print_node_list(adjust_list(adjust), "adjust", show_box_depth_par, show_box_breadth_par);
             tex_end_diagnostic();
         }
@@ -334,7 +334,7 @@ void tex_inject_adjust_list(halfword adjust, halfword context, int obeyoptions, 
         halfword list = adjust_list(adjust);
         if (tracing_adjusts_par > 1) {
             tex_begin_diagnostic();
-            tex_print_format("[adjust: index %i, location %s, inject]", adjust_index(adjust), tex_aux_subtype_str(adjust));
+            tex_print_format("%l[adjust: index %i, location %s, inject]", adjust_index(adjust), tex_aux_subtype_str(adjust));
             tex_print_node_list(adjust_list(adjust), "adjust", show_box_depth_par, show_box_breadth_par);
             tex_end_diagnostic();
         }
@@ -435,7 +435,7 @@ void tex_adjust_attach(halfword box, halfword adjust)
         node_next(adjust) = null;
         if (tracing_adjusts_par > 1) {
             tex_begin_diagnostic();
-            tex_print_format("[adjust: index %i, location %s, attach]", adjust_index(adjust), tex_aux_subtype_str(adjust));
+            tex_print_format("%l[adjust: index %i, location %s, attach]", adjust_index(adjust), tex_aux_subtype_str(adjust));
             tex_print_node_list(adjust_list(adjust), "attach",show_box_depth_par, show_box_breadth_par);
             tex_end_diagnostic();
         }
@@ -517,7 +517,7 @@ static void tex_aux_show_flush_adjust(halfword adjust, const char *what, const c
 {
     if (tracing_adjusts_par > 1) {
         tex_begin_diagnostic();
-        tex_print_format("[adjust: index %i, location %s, flush, %s]", adjust_index(adjust), tex_aux_subtype_str(adjust), detail);
+        tex_print_format("%l[adjust: index %i, location %s, flush, %s]", adjust_index(adjust), tex_aux_subtype_str(adjust), detail);
         tex_print_node_list(adjust_list(adjust), what, show_box_depth_par, show_box_breadth_par);
         tex_end_diagnostic();
     }

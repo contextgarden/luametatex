@@ -329,10 +329,10 @@ static void luaclib_aux_print_code(const Proto* f)
                 printf(COMMENT);
                 PrintConstant(f, c);
                 break;
-            case OP_SHRI:
+            case OP_SHLI:
                 printf("%d %d %d", a, b, sc);
                 break;
-            case OP_SHLI:
+            case OP_SHRI:
                 printf("%d %d %d", a, b, sc);
                 break;
             case OP_ADD:
@@ -520,6 +520,13 @@ static void luaclib_aux_print_code(const Proto* f)
                     printf("%d out", c-1);
                 }
                 break;
+            case OP_GETVARG:
+                printf("%d %d %d",a,b,c);
+                break;
+            case OP_ERRNNIL:
+                printf("%d %d",a,bx);
+                printf(COMMENT); PrintConstant(f,bx);
+                break;
             case OP_VARARGPREP:
                 printf("%d",a);
                 break;
@@ -556,7 +563,7 @@ static void luaclib_aux_print_header(const Proto* f)
     );
     printf("%d%s param%s, %d slot%s, %d upvalue%s, ",
 	    (int)(f->numparams),
-        (f->flag & PF_ISVARARG)?"+":"",
+        (f->flag & PF_VAHID)?"+":"", /* not ok yet, was PF_ISVARARG */
         SS(f->numparams),
     	S(f->maxstacksize),
         S(f->sizeupvalues)

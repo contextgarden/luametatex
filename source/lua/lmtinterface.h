@@ -30,6 +30,17 @@ extern void tex_emergency_message (const char *t, const char *fmt, ...);
 
 */
 
+typedef enum lua_node_errors {
+    lua_no_node_error,
+    lua_new_node_error,
+    lua_set_field_error,
+    lua_get_field_error,
+    lua_set_node_error,
+    lua_get_node_error,
+    lua_set_ignore_error,
+    lua_get_ignore_error,
+} lua_node_errors ;
+
 typedef struct lua_state_info {
     lua_State   *lua_instance;
     int          used_bytes;
@@ -50,6 +61,8 @@ typedef struct lua_state_info {
     int          release_number;
     luaL_Buffer *used_buffer;
     int          integer_size;
+    int          last_node_error;
+    int          ignore_node_error;
 } lua_state_info ;
 
 extern lua_state_info lmt_lua_state;
@@ -79,6 +92,9 @@ extern int  luaopen_pngdecode   (lua_State *L);
 extern int  luaopen_posit       (lua_State *L);
 extern int  luaopen_potrace     (lua_State *L);
 extern int  luaopen_qrcodegen   (lua_State *L);
+extern int  luaopen_nanojpeg    (lua_State *L);
+extern int  luaopen_effects     (lua_State *L);
+extern int  luaopen_bytemap     (lua_State *L);
 extern int  luaopen_sha2        (lua_State *L);
 extern int  luaopen_sio         (lua_State *L);
 extern int  luaopen_socket_core (lua_State *L);
@@ -273,7 +289,7 @@ extern int  luaextend_xcomplex  (lua_State *L);
 
 /*tex Maybe used in |lmtstrlibext| */
 
-# define STRING_BUFFER_INSTANCE "stringbuffer.instance"
+# define STRING_BUFFER_METATABLE_INSTANCE "stringbuffer.instance"
 
 /* Various */
 
@@ -282,6 +298,12 @@ extern int  luaextend_xcomplex  (lua_State *L);
 # define DECIMAL_METATABLE_INSTANCE "decimal"
 # define COMPLEX_METATABLE_INSTANCE "complex"
 # define POSIT_METATABLE_INSTANCE   "posit"
+# define BYTEMAP_METATABLE_INSTANCE "bytemap"
+# define SERIAL_METATABLE_INSTANCE  "serial"
+
+/*tex Directory scanner in |lmtfilelib|  */
+
+# define DIR_HANDLE_INSTANCE  "file.directory" 
 
 /*tex
     There are some more but for now we have no reason to alias them for performance reasons, so
@@ -289,7 +311,6 @@ extern int  luaextend_xcomplex  (lua_State *L);
 */
 
 /*
-# define DIR_METATABLE             "file.directory"
 
 # define LUA_BYTECODES_INDIRECT
 
@@ -332,6 +353,7 @@ typedef struct node_info {
     const char   *name;
     int           lua;
     int           visible;
+    int           definable;
     int           first;
     int           last;
 } node_info;
@@ -508,6 +530,7 @@ make_lua_key(L, afterdisplaypenalty);\
 make_lua_key(L, afteroutput);\
 make_lua_key(L, aliased);\
 make_lua_key(L, align);\
+make_lua_key(L, align_property);\
 make_lua_key(L, alignhead);\
 make_lua_key(L, alignment);\
 make_lua_key(L, alignment_tab);\
@@ -526,7 +549,7 @@ make_lua_key(L, attr);\
 make_lua_key(L, attribute);\
 make_lua_key(L, attribute_list);\
 make_lua_key(L, attributelist);\
-make_lua_key(L, auto);\
+make_lua_key_alias(L, key_auto, "auto");\
 make_lua_key(L, automatic);\
 make_lua_key(L, auxiliary);\
 make_lua_key(L, axis);\
@@ -550,7 +573,7 @@ make_lua_key(L, bestinsert);\
 make_lua_key(L, bestpagebreak);\
 make_lua_key(L, bestsize);\
 make_lua_key(L, binary);\
-make_lua_key(L, boolean);\
+make_lua_key_alias(L, key_boolean, "boolean");\
 make_lua_key(L, bothflexible);\
 make_lua_key(L, bottom);\
 make_lua_key(L, bottomaccent);\
@@ -565,6 +588,7 @@ make_lua_key(L, bottomskip);\
 make_lua_key(L, boundary);\
 make_lua_key(L, box);\
 make_lua_key(L, box_property);\
+make_lua_key(L, break_property);\
 make_lua_key(L, broken);\
 make_lua_key(L, brokeninsert);\
 make_lua_key(L, brokenpenalty);\
@@ -581,7 +605,7 @@ make_lua_key(L, catcode_table);\
 make_lua_key(L, category);\
 make_lua_key(L, cell);\
 make_lua_key(L, center);\
-make_lua_key(L, char);\
+make_lua_key_alias(L, key_char, "char");\
 make_lua_key(L, char_given);\
 make_lua_key(L, char_number);\
 make_lua_key(L, character);\
@@ -589,7 +613,7 @@ make_lua_key(L, characters);\
 make_lua_key(L, check);\
 make_lua_key(L, checks);\
 make_lua_key(L, choice);\
-make_lua_key(L, class);\
+make_lua_key_alias(L, key_class, "class");\
 make_lua_key(L, cleaders);\
 make_lua_key(L, close);\
 make_lua_key(L, clubpenalties);\
@@ -611,7 +635,7 @@ make_lua_key(L, connectoroverlapmin);\
 make_lua_key(L, constant);\
 make_lua_key(L, constant_call);\
 make_lua_key(L, container);\
-make_lua_key(L, continue);\
+make_lua_key_alias(L, key_continue, "continue");\
 make_lua_key(L, contributehead);\
 make_lua_key(L, control);\
 make_lua_key(L, convert);\
@@ -639,7 +663,7 @@ make_lua_key(L, define_font);\
 make_lua_key(L, define_lua_call);\
 make_lua_key(L, degree);\
 make_lua_key(L, degreevariant);\
-make_lua_key(L, delete);\
+make_lua_key_alias(L, key_delete, "delete");\
 make_lua_key(L, delimited);\
 make_lua_key(L, DelimitedSubFormulaMinHeight);\
 make_lua_key(L, delimiter);\
@@ -681,6 +705,7 @@ make_lua_key(L, displaywidowpenalty);\
 make_lua_key(L, doffset);\
 make_lua_key(L, doublehyphendemerits);\
 make_lua_key(L, doublesuperscript);\
+make_lua_key(L, dummy);\
 make_lua_key(L, emergencyextrastretch);\
 make_lua_key(L, emergencyleftskip);\
 make_lua_key(L, emergencyrightskip);\
@@ -716,7 +741,7 @@ make_lua_key(L, expandable);\
 make_lua_key(L, expanded);\
 make_lua_key(L, expansion);\
 make_lua_key(L, exhyphenpenalty);\
-make_lua_key(L, explicit);\
+make_lua_key_alias(L, key_explicit, "explicit");\
 make_lua_key(L, explicit_space);\
 make_lua_key(L, expression);\
 make_lua_key(L, extender);\
@@ -752,7 +777,7 @@ make_lua_key(L, fixedbottom);\
 make_lua_key(L, fixedsuperandsubscript);\
 make_lua_key(L, fixedsuperorsubscript);\
 make_lua_key(L, fixedtop);\
-make_lua_key(L, flags);\
+make_lua_key(L, key_flags);\
 make_lua_key(L, flataccent);\
 make_lua_key(L, FlattenedAccentBaseDepth);\
 make_lua_key(L, flattenedaccentbasedepth);\
@@ -762,7 +787,7 @@ make_lua_key(L, FlattenedAccentBottomShiftDown);\
 make_lua_key(L, flattenedaccentbottomshiftdown);\
 make_lua_key(L, flattenedaccenttopshiftup);\
 make_lua_key(L, FlattenedAccentTopShiftUp);\
-make_lua_key(L, float);\
+make_lua_key_alias(L, key_float, "float");\
 make_lua_key(L, font);\
 make_lua_key(L, font_property);\
 make_lua_key(L, fontkern);\
@@ -936,6 +961,8 @@ make_lua_key(L, lineheight);\
 make_lua_key(L, linepenalty);\
 make_lua_key(L, lineskip);\
 make_lua_key(L, lineskiplimit);\
+make_lua_key(L, linesnapping);\
+make_lua_key(L, linesnappingkern);\
 make_lua_key(L, list);\
 make_lua_key(L, lmtxexpression);\
 make_lua_key(L, local);\
@@ -944,12 +971,13 @@ make_lua_key(L, localbox);\
 make_lua_key(L, localbreak);\
 make_lua_key(L, log);\
 make_lua_key(L, logfile);\
+make_lua_key(L, loop);\
 make_lua_key(L, loopstate);\
 make_lua_key(L, looseness);\
 make_lua_key(L, LowerLimitBaselineDropMin);\
 make_lua_key(L, LowerLimitGapMin);\
 make_lua_key(L, lua);\
-make_lua_key(L, lua_call);\
+make_lua_key_alias(L, key_lua_call, "lua_call");\
 make_lua_key(L, lua_function_call);\
 make_lua_key(L, lua_local_call);\
 make_lua_key(L, lua_protected_call);\
@@ -1031,13 +1059,13 @@ make_lua_key(L, mrule);\
 make_lua_key(L, mskip);\
 make_lua_key(L, muglue);\
 make_lua_key(L, mugluespec);\
-make_lua_key(L, mutable);\
+make_lua_key_alias(L, key_mutable, "mutable");\
 make_lua_key(L, mvl);\
 make_lua_key(L, name);\
 make_lua_key(L, nepalty);\
 make_lua_key(L, nestedlist);\
 make_lua_key(L, nestingfactor);\
-make_lua_key(L, new);\
+make_lua_key_alias(L, key_new, "new");\
 make_lua_key(L, next);\
 make_lua_key(L, nil);\
 make_lua_key(L, no);\
@@ -1064,7 +1092,7 @@ make_lua_key(L, numeratorvariant);\
 make_lua_key(L, off);\
 make_lua_key(L, on);\
 make_lua_key(L, open);\
-make_lua_key(L, operator);\
+make_lua_key_alias(L, key_operator, "operator");\
 make_lua_key(L, operatorsize);\
 make_lua_key(L, optional);\
 make_lua_key(L, options);\
@@ -1123,7 +1151,7 @@ make_lua_key(L, pdfe);\
 make_lua_key(L, penalty);\
 make_lua_key(L, permanent);\
 make_lua_key(L, phantom);\
-make_lua_key(L, posit);\
+make_lua_key_alias(L, key_posit, "posit");\
 make_lua_key(L, post);\
 make_lua_key(L, post_linebreak);\
 make_lua_key(L, postadjust);\
@@ -1168,7 +1196,7 @@ make_lua_key(L, primewidth);\
 make_lua_key(L, PrimeWidthPercent);\
 make_lua_key(L, primitive);\
 make_lua_key(L, properties);\
-make_lua_key(L, protected);\
+make_lua_key_alias(L, key_protected, "protected");\
 make_lua_key(L, protected_call);\
 make_lua_key(L, protrudechars);\
 make_lua_key(L, protrusion);\
@@ -1195,9 +1223,9 @@ make_lua_key(L, RadicalRuleThickness);\
 make_lua_key(L, radicalvariant);\
 make_lua_key(L, RadicalVerticalGap);\
 make_lua_key(L, radicalvgap);\
-make_lua_key(L, raise);\
+make_lua_key_alias(L, key_raise, "raise");\
 make_lua_key(L, reader);\
-make_lua_key(L, register);\
+make_lua_key_alias(L, key_register, "register");\
 make_lua_key(L, register_attribute);\
 make_lua_key(L, register_attribute_reference);\
 make_lua_key(L, register_box);\
@@ -1301,7 +1329,7 @@ make_lua_key(L, SkewedFractionVerticalGap);\
 make_lua_key(L, skewedfractionvgap);\
 make_lua_key(L, skip);\
 make_lua_key(L, slant);\
-make_lua_key(L, small);\
+make_lua_key_alias(L, key_small, "small");\
 make_lua_key(L, smallchar);\
 make_lua_key(L, smaller);\
 make_lua_key(L, smallfamily);\
@@ -1444,6 +1472,7 @@ make_lua_key(L, tracingbalancing);\
 make_lua_key(L, tracingparagraphs);\
 make_lua_key(L, tracingpasses);\
 make_lua_key(L, tracingfitness);\
+make_lua_key(L, trace);\
 make_lua_key(L, trailer);\
 make_lua_key(L, Trailer);\
 make_lua_key(L, triggered);\
@@ -1493,12 +1522,12 @@ make_lua_key(L, verticalmathkern);\
 make_lua_key(L, vextensible);\
 make_lua_key(L, vextensiblevariant);\
 make_lua_key(L, vfactor);\
-make_lua_key(L, virtual);\
+make_lua_key_alias(L, key_virtual, "virtual");\
 make_lua_key(L, vlist);\
 make_lua_key(L, vmode);\
 make_lua_key(L, vmodepar);\
 make_lua_key(L, vmove);\
-make_lua_key(L, void);\
+make_lua_key_alias(L, key_void, "void");\
 make_lua_key(L, vrule);\
 make_lua_key(L, vsize);\
 make_lua_key(L, vskip);\
@@ -1543,10 +1572,13 @@ make_lua_key_alias(L, mesh_instance,            MESH_METATABLE_INSTANCE);\
 make_lua_key_alias(L, decimal_instance,         DECIMAL_METATABLE_INSTANCE);\
 make_lua_key_alias(L, complex_instance,         COMPLEX_METATABLE_INSTANCE);\
 make_lua_key_alias(L, posit_instance,           POSIT_METATABLE_INSTANCE);\
+make_lua_key_alias(L, bytemap_instance,         BYTEMAP_METATABLE_INSTANCE);\
+make_lua_key_alias(L, serial_instance,          SERIAL_METATABLE_INSTANCE);\
 /* */ \
 make_lua_key_alias(L, file_handle_instance,     LUA_FILEHANDLE);\
+make_lua_key_alias(L, dir_handle_instance,      DIR_HANDLE_INSTANCE);\
 /* */ \
-make_lua_key_alias(L, string_buffer_instance,   STRING_BUFFER_INSTANCE);\
+make_lua_key_alias(L, string_buffer_instance,   STRING_BUFFER_METATABLE_INSTANCE);\
 /* done */
 
 # define declare_metapost_lua_keys(L) \
@@ -1602,6 +1634,8 @@ make_lua_key(L, open_file);\
 make_lua_key(L, pairs);\
 make_lua_key(L, path);\
 make_lua_key(L, pen);\
+make_lua_key(L, pentype);\
+make_lua_key(L, peninfo);\
 make_lua_key(L, postscript);\
 make_lua_key(L, prescript);\
 make_lua_key(L, primary);\

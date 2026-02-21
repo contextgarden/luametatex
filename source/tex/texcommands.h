@@ -94,6 +94,16 @@
     Comment: experimental |string_cmd| has been removed, as we now have |\constant| flagged macros.
 */
 
+/*tex
+
+    We occasionally do some experiments, for instance on less powerful devices and often results
+    can be found in wrap-ups (in the \CONTEXT\ distribution).
+
+*/
+
+# define experiment_advance_by 0
+# define experiment_bitwise    0
+# define experiment_if_bitwise 0
 
 /*tex
     In the future we can add classifications that tell what to pick up in which case we can also
@@ -233,6 +243,8 @@ typedef enum tex_command_code {
     auxiliary_cmd,                    /*tex state info (|\spacefactor|, |\prevdepth|) */
     hyphenation_cmd,                  /*tex hyphenation data (|\hyphenation|, |\patterns|) */
     page_property_cmd,                /*tex page info (|\pagegoal|, etc.) */
+    align_property_cmd,
+    break_property_cmd,
     box_property_cmd,                 /*tex change property of box (|\wd|, |\ht|, |\dp|) */
     specification_cmd,                /*tex specifications (|\parshape|, |\interlinepenalties|, etc.) */
     define_char_code_cmd,             /*tex define a character code (|\catcode|, etc.) */
@@ -252,8 +264,8 @@ typedef enum tex_command_code {
     specificationspec_cmd,
     association_cmd,
 # if (match_experiment)
-integer_reference_cmd,
-dimension_reference_cmd,
+    integer_reference_cmd,
+    dimension_reference_cmd,
 # endif
     interaction_cmd,                  /*tex define level of interaction (|\batchmode|, etc.) */ /* valid after |\the|, see ** */
     register_cmd,                     /*tex internal register (|\count|, |\dimen|, etc.) */
@@ -405,12 +417,16 @@ typedef enum arithmic_codes {
     divide_by_code,
     e_divide_by_code,
     r_divide_by_code,
- /* bitwise_and_code, */
- /* bitwise_xor_code, */
- /* bitwise_or_code,  */
- /* bitwise_not_code, */
- /* advance_by_plus_one_code,  */
- /* advance_by_minus_one_code, */
+# if (experiment_bitwise)
+    bitwise_and_code,
+    bitwise_xor_code,
+    bitwise_or_code,
+    bitwise_not_code,
+# endif
+# if (experiment_advance_by)
+    advance_by_plus_one_code,
+    advance_by_minus_one_code,
+# endif
 } arithmic_codes;
 
 # define last_arithmic_code r_divide_code
@@ -461,14 +477,20 @@ typedef enum math_fraction_codes {
 
 /*tex
     These don't fit into the internal register model because they are for instance global or
-    bound to the current list.
+    bound to the current list. The first three could go to the |break_properties| class but
+    as they are historic we keep them here. The |\prevgraf| has a variant in the |\break...|
+    namespace, but keep in mind that that one is not adapted occasionally in the process of
+    breaking lines.
 */
 
 typedef enum auxiliary_codes {
+    /*tex These are traditional state commands: */
     space_factor_code,
     prev_depth_code,
     prev_graf_code,
+    /*tex Introduced were by \ETEX: */
     interaction_mode_code,
+    /*tex Added in \LUAMETATEX: */
     insert_mode_code,
 } auxiliary_codes;
 
@@ -613,38 +635,44 @@ typedef enum some_item_codes {
     scaled_math_axis_code,
     scaled_math_ex_height_code,
     scaled_math_em_width_code,
-    last_arguments_code,        /*tex |\lastarguments| */
-    parameter_count_code,       /*tex |\parametercount| */
-    parameter_index_code,       /*tex |\parametercount| */
- /* lua_value_function_code, */ /*tex |\luavaluefunction| */
-    insert_progress_code,       /*tex |\insertprogress| */
-    left_margin_kern_code,      /*tex |\leftmarginkern| */
-    right_margin_kern_code,     /*tex |\rightmarginkern| */
-    par_shape_length_code,      /*tex |\parshapelength| */
-    par_shape_indent_code,      /*tex |\parshapeindent| */
-    par_shape_width_code,       /*tex |\parshapewidth| */
+    last_arguments_code,           /*tex |\lastarguments| */
+    parameter_count_code,          /*tex |\parametercount| */
+    parameter_index_code,          /*tex |\parametercount| */
+ /* lua_value_function_code, */    /*tex |\luavaluefunction| */
+    insert_progress_code,          /*tex |\insertprogress| */
+    left_margin_kern_code,         /*tex |\leftmarginkern| */
+    specification_count_code,
+ /* specification_double_code,  */ /* not used */
+    specification_options_code,
+    specification_first_code,
+    specification_second_code,
+    right_margin_kern_code,        /*tex |\rightmarginkern| */
+    par_shape_length_code,         /*tex |\parshapelength| */
+    par_shape_indent_code,         /*tex |\parshapeindent| */
+    par_shape_width_code,          /*tex |\parshapewidth| */
     balance_shape_vsize_code,
     balance_shape_top_space_code,
     balance_shape_bottom_space_code,
-    glue_stretch_code,          /*tex |\gluestretch| */
-    glue_shrink_code,           /*tex |\glueshrink| */
-    mu_to_glue_code,            /*tex |\mutoglue| */
-    glue_to_mu_code,            /*tex |\gluetomu| */
-    numexpr_code,               /*tex |\numexpr| */
+ /* balance_current_height_code, */
+    glue_stretch_code,             /*tex |\gluestretch| */
+    glue_shrink_code,              /*tex |\glueshrink| */
+    mu_to_glue_code,               /*tex |\mutoglue| */
+    glue_to_mu_code,               /*tex |\gluetomu| */
+    numexpr_code,                  /*tex |\numexpr| */
     posexpr_code,
- /* attrexpr_code, */           /*tex not used */
-    dimexpr_code,               /*tex |\dimexpr| */
-    glueexpr_code,              /*tex |\glueexpr| */
-    muexpr_code,                /*tex |\muexpr| */
-    numexpression_code,         /*tex |\numexpression| */
-    dimexpression_code,         /*tex |\dimexpression| */
-    numexperimental_code,       /*tex |\numexperimental| */
-    dimexperimental_code,       /*tex |\dimexperimental| */
-    last_chk_integer_code,      /*tex |\ifchkinteger| */
-    last_chk_dimension_code,    /*tex |\ifchkdimension| */
- // dimen_to_scale_code,        /*tex |\dimentoscale| */
-    numeric_scale_code,         /*tex |\numericscale| */
-    numeric_scaled_code,        /*tex |\numericscaled| */
+ /* attrexpr_code, */              /*tex not used */
+    dimexpr_code,                  /*tex |\dimexpr| */
+    glueexpr_code,                 /*tex |\glueexpr| */
+    muexpr_code,                   /*tex |\muexpr| */
+    numexpression_code,            /*tex |\numexpression| */
+    dimexpression_code,            /*tex |\dimexpression| */
+    numexperimental_code,          /*tex |\numexperimental| */
+    dimexperimental_code,          /*tex |\dimexperimental| */
+    last_chk_integer_code,         /*tex |\ifchkinteger| */
+    last_chk_dimension_code,       /*tex |\ifchkdimension| */
+ // dimen_to_scale_code,           /*tex |\dimentoscale| */
+    numeric_scale_code,            /*tex |\numericscale| */
+    numeric_scaled_code,           /*tex |\numericscaled| */
     index_of_register_code,
     index_of_character_code,
     math_atom_glue_code,
@@ -659,9 +687,16 @@ typedef enum some_item_codes {
     last_par_trigger_code,
     last_par_context_code,
     last_page_extra_code,
+ // last_line_width_code,          /*tex |\lastlinewidth| */
+ // last_line_count_code,          /*tex |\lastlinecount| */
+    current_alignment_row_code,
+    current_alignment_column_code,
+    current_alignment_last_row_code,
+    current_alignment_last_column_code,
+    current_alignment_tabskip_code,
 } some_item_codes;
 
-extern const unsigned char some_item_classification[last_page_extra_code+1];
+extern const unsigned char some_item_classification[current_alignment_tabskip_code + 1];
 
 # define last_some_item_code last_page_extra_code
 
@@ -720,6 +755,7 @@ typedef enum box_property_codes {
     box_limit_code,
     box_stretch_code,
     box_shrink_code,
+    box_snapping_code,
     box_subtype_code,
     /* we actually need set_box_int_cmd, or set_box_property */
     box_attribute_code,
@@ -1168,9 +1204,11 @@ typedef enum local_box_codes {
 # define last_local_box_code  local_middle_box_code
 
 typedef enum local_box_options {
-    local_box_par_option   = 0x1,
-    local_box_local_option = 0x2,
-    local_box_keep_option  = 0x4,
+    local_box_par_option    = 0x01,
+    local_box_local_option  = 0x02,
+    local_box_keep_option   = 0x04,
+    local_box_always_option = 0x08,
+    local_box_move_option   = 0x10,
 } local_box_options;
 
 typedef enum skip_codes {

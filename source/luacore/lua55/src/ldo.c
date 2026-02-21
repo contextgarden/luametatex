@@ -57,10 +57,18 @@
 ** =======================================================
 */
 
+/* chained list of long jump buffers */
+typedef struct lua_longjmp {
+  struct lua_longjmp *previous;
+  jmp_buf b;
+  volatile TStatus status;  /* error code */
+} lua_longjmp;
+
+
 /*
 ** LUAI_THROW/LUAI_TRY define how Lua does exception handling. By
 ** default, Lua handles errors with exceptions when compiling as
-** C++ code, with _longjmp/_setjmp when asked to use them, and with
+** C++ code, with _longjmp/_setjmp when available (POSIX), and with
 ** longjmp/setjmp otherwise.
 */
 #if !defined(LUAI_THROW)				/* { */
@@ -69,36 +77,36 @@
 
 /* C++ exceptions */
 #define LUAI_THROW(L,c)		throw(c)
-#define LUAI_TRY(L,c,f,ud) \
-    try { (f)(L, ud); } catch(...) { if ((c)->status == 0) (c)->status = -1; }
-#define luai_jmpbuf		int  /* dummy field */
+
+static void LUAI_TRY (lua_State *L, lua_longjmp *c, Pfunc f, void *ud) {
+  try {
+    f(L, ud);  /* call function protected */
+  }
+  catch (lua_longjmp *c1) { /* Lua error */
+    if (c1 != c)  /* not the correct level? */
+      throw;  /* rethrow to upper level */
+  }
+  catch (...) {  /* non-Lua exception */
+    c->status = -1;  /* create some error code */
+  }
+}
+
 
 #elif defined(LUA_USE_POSIX)				/* }{ */
 
-/* in POSIX, try _longjmp/_setjmp (more efficient) */
+/* in POSIX, use _longjmp/_setjmp (more efficient) */
 #define LUAI_THROW(L,c)		_longjmp((c)->b, 1)
 #define LUAI_TRY(L,c,f,ud)	if (_setjmp((c)->b) == 0) ((f)(L, ud))
-#define luai_jmpbuf		jmp_buf
 
 #else							/* }{ */
 
 /* ISO C handling with long jumps */
 #define LUAI_THROW(L,c)		longjmp((c)->b, 1)
 #define LUAI_TRY(L,c,f,ud)	if (setjmp((c)->b) == 0) ((f)(L, ud))
-#define luai_jmpbuf		jmp_buf
 
 #endif							/* } */
 
 #endif							/* } */
-
-
-
-/* chain list of long jump buffers */
-struct lua_longjmp {
-  struct lua_longjmp *previous;
-  luai_jmpbuf b;
-  volatile TStatus status;  /* error code */
-};
 
 
 void luaD_seterrorobj (lua_State *L, TStatus errcode, StkId oldtop) {
@@ -151,7 +159,7 @@ l_noret luaD_throwbaselevel (lua_State *L, TStatus errcode) {
 
 TStatus luaD_rawrunprotected (lua_State *L, Pfunc f, void *ud) {
   l_uint32 oldnCcalls = L->nCcalls;
-  struct lua_longjmp lj;
+  lua_longjmp lj;
   lj.status = LUA_OK;
   lj.previous = L->errorJmp;  /* chain new error handler */
   L->errorJmp = &lj;
@@ -203,12 +211,31 @@ TStatus luaD_rawrunprotected (lua_State *L, Pfunc f, void *ud) {
 #define ERRORSTACKSIZE	(MAXSTACK + STACKERRSPACE)
 
 
-/* raise an error while running the message handler */
+/* raise a stack error while running the message handler */
 l_noret luaD_errerr (lua_State *L) {
   TString *msg = luaS_newliteral(L, "error in error handling");
   setsvalue2s(L, L->top.p, msg);
   L->top.p++;  /* assume EXTRA_STACK */
   luaD_throw(L, LUA_ERRERR);
+}
+
+
+/*
+** Check whether stacks have enough space to run a simple function (such
+** as a finalizer): At least BASIC_STACK_SIZE in the Lua stack, two
+** available CallInfos, and two "slots" in the C stack.
+*/
+int luaD_checkminstack (lua_State *L) {
+  if (getCcalls(L) >= LUAI_MAXCCALLS - 2)
+    return 0;  /* not enough C-stack slots */
+  if (L->ci->next == NULL && luaE_extendCI(L, 0) == NULL)
+    return 0;  /* unable to allocate first ci */
+  if (L->ci->next->next == NULL && luaE_extendCI(L, 0) == NULL)
+    return 0;  /* unable to allocate second ci */
+  if (L->stack_last.p - L->top.p >= BASIC_STACK_SIZE)
+    return 1;  /* enough (BASIC_STACK_SIZE) free slots in the Lua stack */
+  else  /* try to grow stack to a size with enough free slots */
+    return luaD_growstack(L, BASIC_STACK_SIZE, 0);
 }
 
 
@@ -339,7 +366,7 @@ int luaD_growstack (lua_State *L, int n, int raiseerror) {
        a stack error; cannot grow further than that. */
     lua_assert(stacksize(L) == ERRORSTACKSIZE);
     if (raiseerror)
-      luaD_errerr(L);  /* error inside message handler */
+      luaD_errerr(L);  /* stack error inside message handler */
     return 0;  /* if not 'raiseerror', just signal it */
   }
   else if (n < MAXSTACK) {  /* avoids arithmetic overflows */
@@ -479,7 +506,7 @@ static void rethook (lua_State *L, CallInfo *ci, int nres) {
     int ftransfer;
     if (isLua(ci)) {
       Proto *p = ci_func(ci)->p;
-      if (p->flag & PF_ISVARARG)
+      if (p->flag & PF_VAHID)
         delta = ci->u.l.nextraargs + p->numparams + 1;
     }
     ci->func.p += delta;  /* if vararg, back to virtual 'func' */
@@ -597,7 +624,7 @@ void luaD_poscall (lua_State *L, CallInfo *ci, int nres) {
 
 
 
-#define next_ci(L)  (L->ci->next ? L->ci->next : luaE_extendCI(L))
+#define next_ci(L)  (L->ci->next ? L->ci->next : luaE_extendCI(L, 1))
 
 
 /*

@@ -11,7 +11,7 @@ typedef enum rule_types {
     m_rule_type = 2,
 } rule_types;
 
-extern halfword tex_aux_scan_rule_spec        (rule_types t, halfword s);
+extern halfword tex_aux_scan_rule_spec        (rule_types t, halfword s, int maysnap);
 extern void     tex_aux_run_vrule             (void);
 extern void     tex_aux_run_hrule             (void);
 extern void     tex_aux_run_mrule             (void);

@@ -3,7 +3,7 @@
 # has a lot of dependencies - ssh related, compression, security, xml, etc), but maybe 
 # there is a lightweight version of CMake. 
 
-cmake_minimum_required(VERSION 3.9..3.28)
+cmake_minimum_required(VERSION 3.10..3.28)
 
 project(luametatex VERSION 2.11 LANGUAGES C)
 
@@ -27,8 +27,9 @@ include(GNUInstallDirs)
 set(LMT_KPSE_TOO 1) # In case we want to manage MKII scripts (etc) with mtxrun.
 set(LMT_HB_TOO   1) # Maybe handy for Idris' font development (old converted ffi stuff)
 
-# This triggere link time optimization, which adds to compile time and gains (at most) a few 
-# percent on runtime. When set, because we're sparse, we also strip the binary.
+# This triggers link time optimization, which adds to compile time and gains (at most) a few 
+# percent on runtime. When set, because we're sparse, we also strip the binary. On the manual
+# we gain 2-4 percent, so not that much.
 
 # set(LMT_OPTIMIZE 1)
 
@@ -198,7 +199,11 @@ if (MSVC)
     # add_definitions(-D__STDC_WANT_LIB_EXT2__=1)
 
     if ((DEFINED LMT_OPTIMIZE) OR (DEFINED LMT_STRIP))
-        if (NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
+        if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+            # skip
+        elseif (${CMAKE_SYSTEM_NAME} MATCHES "ARM64")
+            # skip
+        else()
             set(CMAKE_EXE_LINKER_FLAGS "-s")
         endif()
     endif()
@@ -298,6 +303,8 @@ else()
     set(luametatex_use_mimalloc 1)
 endif()
 
+# unset(luametatex_use_mimalloc)
+
 include_directories(${CMAKE_ROOT}/source)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/source)
 
@@ -321,6 +328,7 @@ include(cmake/miniz.cmake)
 include(cmake/softposit.cmake)
 include(cmake/potrace.cmake)
 include(cmake/qrcodegen.cmake)
+include(cmake/nanojpeg.cmake)
 include(cmake/triangles.cmake)
 
 include(cmake/luametatex.cmake)

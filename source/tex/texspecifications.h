@@ -2,39 +2,50 @@
     See license.txt in the root of this project.
 */
 
-# ifndef LMT_SPECIFICAITONS_H
-# define LMT_SPECIFICAITONS_H
+# ifndef LMT_SPECIFICATIONS_H
+# define LMT_SPECIFICATIONS_H
 
 typedef enum specification_option_flags {
-    specification_option_repeat  = 0x0001,
-    specification_option_double  = 0x0002,
-    specification_option_largest = 0x0004, /* of widow or club */
-    specification_option_presets = 0x0008, /* definition includes first and second pass */
-    specification_option_integer = 0x0010, /* integer first */
-    specification_option_final   = 0x0020, /* single value replacement, so no repeat */
-    specification_option_default = 0x0040, /* all default */
-    specification_option_ignore  = 0x0080, /* not yet: ignore a slot in shape */
-    specification_option_rotate  = 0x0100, /* when |index| exceeds |count| we use |index % count + 1| instead */
+    specification_option_repeat   = 0x0001,
+    specification_option_double   = 0x0002,
+    specification_option_largest  = 0x0004, /* of widow or club */
+    specification_option_presets  = 0x0008, /* definition includes first and second pass */
+    specification_option_integer  = 0x0010, /* integer first */
+    specification_option_final    = 0x0020, /* single value replacement, so no repeat */
+    specification_option_default  = 0x0040, /* all default */
+    specification_option_ignore   = 0x0080, /* not yet: ignore a slot in shape */
+    specification_option_rotate   = 0x0100, /* when |index| exceeds |count| we use |index % count + 1| instead */
+    specification_option_constant = 0x0200,
+    specification_option_factors  = 0x0400,
+    specification_option_global   = 0x0800,
 } specifications_options_flags;
 
 # define specification_index(a,n) ((memoryword *) specification_pointer(a))[n - 1]
 
-# define specification_repeat(a)  ((specification_options(a) & specification_option_repeat)  == specification_option_repeat)
-# define specification_double(a)  ((specification_options(a) & specification_option_double)  == specification_option_double)
-# define specification_largest(a) ((specification_options(a) & specification_option_largest) == specification_option_largest)
-# define specification_presets(a) ((specification_options(a) & specification_option_presets) == specification_option_presets)
-# define specification_integer(a) ((specification_options(a) & specification_option_integer) == specification_option_integer)
-# define specification_final(a)   ((specification_options(a) & specification_option_final)   == specification_option_final)
-# define specification_default(a) ((specification_options(a) & specification_option_default) == specification_option_default)
-# define specification_ignore(a)  ((specification_options(a) & specification_option_ignore)  == specification_option_ignore)
-# define specification_rotate(a)  ((specification_options(a) & specification_option_rotate)  == specification_option_rotate)
+# define specification_repeat(a)   ((specification_options(a) & specification_option_repeat)   == specification_option_repeat)
+# define specification_double(a)   ((specification_options(a) & specification_option_double)   == specification_option_double)
+# define specification_largest(a)  ((specification_options(a) & specification_option_largest)  == specification_option_largest)
+# define specification_presets(a)  ((specification_options(a) & specification_option_presets)  == specification_option_presets)
+# define specification_integer(a)  ((specification_options(a) & specification_option_integer)  == specification_option_integer)
+# define specification_final(a)    ((specification_options(a) & specification_option_final)    == specification_option_final)
+# define specification_default(a)  ((specification_options(a) & specification_option_default)  == specification_option_default)
+# define specification_ignore(a)   ((specification_options(a) & specification_option_ignore)   == specification_option_ignore)
+# define specification_rotate(a)   ((specification_options(a) & specification_option_rotate)   == specification_option_rotate)
+# define specification_constant(a) ((specification_options(a) & specification_option_constant) == specification_option_constant)
+# define specification_factors(a)  ((specification_options(a) & specification_option_factors)  == specification_option_factors)
+# define specification_global(a)   ((specification_options(a) & specification_option_global)   == specification_option_global)
 
-# define specification_option_double(o)  ((o & specification_option_double)  == specification_option_double)
-# define specification_option_integer(o) ((o & specification_option_integer) == specification_option_integer)
-# define specification_option_final(o)   ((o & specification_option_final)   == specification_option_final)  
-# define specification_option_default(o) ((o & specification_option_default) == specification_option_default)  
-# define specification_option_ignore(o)  ((o & specification_option_ignore)  == specification_option_ignore)  
-# define specification_option_rotate(o)  ((o & specification_option_rotate)  == specification_option_rotate)  
+/* bad names, same as enum */
+
+# define specification_option_double(o)   ((o & specification_option_double)   == specification_option_double)
+# define specification_option_integer(o)  ((o & specification_option_integer)  == specification_option_integer)
+# define specification_option_final(o)    ((o & specification_option_final)    == specification_option_final)  
+# define specification_option_default(o)  ((o & specification_option_default)  == specification_option_default)  
+# define specification_option_ignore(o)   ((o & specification_option_ignore)   == specification_option_ignore)  
+# define specification_option_rotate(o)   ((o & specification_option_rotate)   == specification_option_rotate)  
+# define specification_option_constant(o) ((o & specification_option_constant) == specification_option_constant)  
+# define specification_option_factors(o)  ((o & specification_option_factors)  == specification_option_factors)
+# define specification_option_global(o)   ((o & specification_option_global)   == specification_option_global)
 
 # define specification_n(a,n) (specification_repeat(a) ? ((n - 1) % specification_count(a) + 1) : (n > specification_count(a) ? specification_count(a) : n))
 
@@ -45,10 +56,12 @@ typedef enum specification_option_flags {
 # define par_passes_size     20
 # define balance_shape_size   5
 # define balance_passes_size  9
+# define line_snapping_size   4
 
 # define par_passes_slot(n,m)     ((n-1)*par_passes_size+m)
 # define balance_shape_slot(n,m)  ((n-1)*balance_shape_size+m)
 # define balance_passes_slot(n,m) ((n-1)*balance_passes_size+m)
+# define line_snapping_slot(n,m)  ((n-1)*line_snapping_size+m)
 
 extern void            tex_null_specification_list     (halfword a);
 extern void            tex_new_specification_list      (halfword a, halfword n);
@@ -57,9 +70,10 @@ extern void            tex_copy_specification_list     (halfword a, halfword b);
 extern void            tex_shift_specification_list    (halfword a, int n, int rotate);
 
 static inline int      tex_get_specification_count     (halfword a)                         { return a ? specification_count(a) : 0; }
-static inline void     tex_set_specification_option    (halfword a, int o)                  { specification_options(a) |= o; }
-static inline int      tex_has_specification_option    (halfword a, int o)                  { return (specification_options(a) & o) == o; }
 
+static inline void     tex_set_specification_option    (halfword a, int o)                  { specification_options(a) |= o; }
+static inline int      tex_get_specification_options   (halfword a)                         { return specification_options(a); }
+static inline int      tex_has_specification_option    (halfword a, int o)                  { return (specification_options(a) & o) == o; }
 static inline void     tex_add_specification_option    (halfword a, halfword o)             { specification_options(a) |= o; }
 static inline void     tex_remove_specification_option (halfword a, halfword o)             { specification_options(a) &= ~o; }
 
@@ -291,10 +305,11 @@ typedef enum passes_parameter_okay {
 
 /*tex The Microsoft compiler truncates to int, so: */
 
-# define passes_threshold_okay (uint64_t) 0x0000000100000000
-# define passes_demerits_okay  (uint64_t) 0x0000000200000000
-# define passes_tolerance_okay (uint64_t) 0x0000000400000000
-# define passes_classes_okay   (uint64_t) 0x0000000800000000
+# define passes_threshold_okay     (uint64_t) 0x0000000100000000
+# define passes_demerits_okay      (uint64_t) 0x0000000200000000
+# define passes_tolerance_okay     (uint64_t) 0x0000000400000000
+# define passes_classes_okay       (uint64_t) 0x0000000800000000
+# define passes_emergencyunit_okay (uint64_t) 0x0000001000000000
 
 static const uint64_t passes_basics_okay = 
     passes_hyphenation_okay 
@@ -302,7 +317,8 @@ static const uint64_t passes_basics_okay =
   | passes_emergencypercentage_okay
   | passes_emergencywidthextra_okay
   | passes_emergencyleftextra_okay
-  | passes_emergencyrightextra_okay;
+  | passes_emergencyrightextra_okay
+  | passes_emergencyunit_okay;
 
 static const uint64_t passes_expansion_okay = 
     passes_adjustspacingstep_okay 
@@ -366,6 +382,7 @@ static inline void     tex_set_passes_sfstretchfactor      (halfword a, halfword
 static inline void     tex_set_passes_looseness            (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,18)).half0    = v; }
 static inline void     tex_set_passes_orphanlinefactors    (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,18)).half1    = v; }
 static inline void     tex_set_passes_orphanpenalties      (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,19)).half0    = v; }
+static inline void     tex_set_passes_emergencyunit        (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,19)).half1    = v; }
 
 static inline uint64_t tex_get_passes_okay                 (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 1)).long0;   }
 static inline halfword tex_get_passes_features             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 2)).quart00; }
@@ -404,6 +421,7 @@ static inline halfword tex_get_passes_sfstretchfactor      (halfword a, halfword
 static inline halfword tex_get_passes_looseness            (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,18)).half0;   }
 static inline halfword tex_get_passes_orphanlinefactors    (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,18)).half1;   }
 static inline halfword tex_get_passes_orphanpenalties      (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,19)).half0;   }
+static inline halfword tex_get_passes_emergencyunit        (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,19)).half1;   }
 
 /* balance shape */
 
@@ -434,21 +452,21 @@ static inline halfword tex_get_balance_bottomdiscard (halfword a, halfword n) { 
 
 /* balance passes */
 
-static inline void tex_set_balance_passes_okay                (halfword a, halfword n, uint64_t v) { specification_index(a,balance_passes_slot(n,1)).long0   |= v; }
-static inline void tex_set_balance_passes_features            (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,2)).quart00 |= (v & 0xFFFF); }
-static inline void tex_set_balance_passes_classes             (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,2)).quart01 |= (v & 0xFFFF); }
-static inline void tex_set_balance_passes_threshold           (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,3)).half1 = v; };
-static inline void tex_set_balance_passes_demerits            (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,3)).half0 = v; };
-static inline void tex_set_balance_passes_tolerance           (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,4)).half1 = v; };
-static inline void tex_set_balance_passes_emergencyfactor     (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,4)).half0 = v; };
-static inline void tex_set_balance_passes_emergencypercentage (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,5)).half1 = v; };
-static inline void tex_set_balance_passes_emergencystretch    (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,5)).half0 = v; };
-static inline void tex_set_balance_passes_fitnessclasses      (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,6)).half1 = v; };
-static inline void tex_set_balance_passes_looseness           (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,6)).half0 = v; };
-static inline void tex_set_balance_passes_pagebreakchecks     (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,7)).half1 = v; };
-static inline void tex_set_balance_passes_pagepenalty         (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,7)).half0 = v; };
-static inline void tex_set_balance_passes_adjdemerits         (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,8)).half1 = v; };
-static inline void tex_set_balance_passes_reserved            (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,8)).half0 = v; };
+static inline void     tex_set_balance_passes_okay                (halfword a, halfword n, uint64_t v) { specification_index(a,balance_passes_slot(n,1)).long0   |= v; }
+static inline void     tex_set_balance_passes_features            (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,2)).quart00 |= (v & 0xFFFF); }
+static inline void     tex_set_balance_passes_classes             (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,2)).quart01 |= (v & 0xFFFF); }
+static inline void     tex_set_balance_passes_threshold           (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,3)).half1 = v; };
+static inline void     tex_set_balance_passes_demerits            (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,3)).half0 = v; };
+static inline void     tex_set_balance_passes_tolerance           (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,4)).half1 = v; };
+static inline void     tex_set_balance_passes_emergencyfactor     (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,4)).half0 = v; };
+static inline void     tex_set_balance_passes_emergencypercentage (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,5)).half1 = v; };
+static inline void     tex_set_balance_passes_emergencystretch    (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,5)).half0 = v; };
+static inline void     tex_set_balance_passes_fitnessclasses      (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,6)).half1 = v; };
+static inline void     tex_set_balance_passes_looseness           (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,6)).half0 = v; };
+static inline void     tex_set_balance_passes_pagebreakchecks     (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,7)).half1 = v; };
+static inline void     tex_set_balance_passes_pagepenalty         (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,7)).half0 = v; };
+static inline void     tex_set_balance_passes_adjdemerits         (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,8)).half1 = v; };
+static inline void     tex_set_balance_passes_reserved            (halfword a, halfword n, halfword v) { specification_index(a,balance_passes_slot(n,8)).half0 = v; };
 
 static inline uint64_t tex_get_balance_passes_okay                (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n,1)).long0;   };
 static inline halfword tex_get_balance_passes_features            (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n,2)).quart00; };
@@ -466,15 +484,40 @@ static inline halfword tex_get_balance_passes_pagepenalty         (halfword a, h
 static inline halfword tex_get_balance_passes_adjdemerits         (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n,8)).half1;   };
 static inline halfword tex_get_balance_passes_reserved            (halfword a, halfword n) { return specification_index(a,balance_passes_slot(n,8)).half0;   };
 
+/* line snapping */
+
+typedef enum line_snapping_options {
+    line_snapping_option_global = 0x0001,
+    line_snapping_option_top    = 0x0002,
+    line_snapping_option_bottom = 0x0004,
+    line_snapping_option_line   = 0x0008,
+} line_snapping_options;
+
+static inline void     tex_set_line_snapping_height        (halfword a, halfword n, halfword v) { specification_index(a,line_snapping_slot(n,1)).half0 = v; }
+static inline void     tex_set_line_snapping_depth         (halfword a, halfword n, halfword v) { specification_index(a,line_snapping_slot(n,1)).half1 = v; }
+static inline void     tex_set_line_snapping_httolerance   (halfword a, halfword n, halfword v) { specification_index(a,line_snapping_slot(n,2)).half0 = v; }
+static inline void     tex_set_line_snapping_dptolerance   (halfword a, halfword n, halfword v) { specification_index(a,line_snapping_slot(n,2)).half1 = v; }
+static inline void     tex_set_line_snapping_step          (halfword a, halfword n, halfword v) { specification_index(a,line_snapping_slot(n,3)).half0 = v; }
+static inline void     tex_set_line_snapping_options       (halfword a, halfword n, halfword v) { specification_index(a,line_snapping_slot(n,3)).half1 = v; }
+
+static inline void     tex_add_line_snapping_options       (halfword a, halfword n, halfword v) { specification_index(a,line_snapping_slot(n,3)).half1 |= v; }
+
+static inline halfword tex_get_line_snapping_height        (halfword a, halfword n) { return specification_index(a,line_snapping_slot(specification_n(a,n),1)).half0; }
+static inline halfword tex_get_line_snapping_depth         (halfword a, halfword n) { return specification_index(a,line_snapping_slot(specification_n(a,n),1)).half1; }
+static inline halfword tex_get_line_snapping_httolerance   (halfword a, halfword n) { return specification_index(a,line_snapping_slot(specification_n(a,n),2)).half0; }
+static inline halfword tex_get_line_snapping_dptolerance   (halfword a, halfword n) { return specification_index(a,line_snapping_slot(specification_n(a,n),2)).half1; }
+static inline halfword tex_get_line_snapping_step          (halfword a, halfword n) { return specification_index(a,line_snapping_slot(specification_n(a,n),3)).half0; }
+static inline halfword tex_get_line_snapping_options       (halfword a, halfword n) { return specification_index(a,line_snapping_slot(specification_n(a,n),3)).half1; }
+
 /* general */
 
-extern        halfword tex_new_specification_node          (halfword n, quarterword s, halfword options);
-extern        void     tex_dispose_specification_nodes     (void);
-extern        void     tex_run_specification_spec          (void);
-extern        halfword tex_scan_specifier                  (void);
-extern        void     tex_aux_set_specification           (int a, halfword target);
-extern        halfword tex_aux_get_specification_value     (int a, halfword code);
-
-extern        void     tex_specification_range_error       (halfword target);
+extern        halfword tex_new_specification_node       (halfword n, quarterword s, halfword options);
+extern        void     tex_dispose_specification_nodes  (void);
+extern        void     tex_run_specification_spec       (void);
+extern        halfword tex_scan_specifier               (void);
+extern        void     tex_specification_range_error    (halfword target);
+extern        void     tex_aux_set_specification        (int a, halfword target);
+extern        void     tex_aux_get_specification_value  (halfword specification);
+extern        void     tex_aux_get_specification_index  (halfword specification, int subindex);
 
 # endif

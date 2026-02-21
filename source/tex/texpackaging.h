@@ -103,7 +103,6 @@ typedef struct packaging_state_info {
     halfword last_leftmost_char;
     halfword last_rightmost_char;
     int      pack_begin_line;
-    scaled   best_height_plus_depth; /*tex The height of the best box, without stretching or shrinking: */
     halfword previous_char_ptr;
     scaled   font_expansion_ratio;
     halfword page_discards_tail;
@@ -163,7 +162,7 @@ extern void      tex_run_unpackage         (void);
 extern void      tex_append_to_vlist       (halfword b, int location, const line_break_properties *properties);
                                            
 extern halfword  tex_prune_page_top        (halfword p, int s);
-extern halfword  tex_vert_break            (halfword p, scaled height, scaled depth, int callback, scaled extra);
+extern halfword  tex_vert_break            (halfword p, scaled height, scaled depth, int callback, scaled extra, scaled *best_height_plus_depth);
 extern halfword  tex_vsplit                (halfword n, scaled h, int m);
                                            
 extern void      tex_finish_vcenter_group  (void);

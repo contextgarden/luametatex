@@ -40,4 +40,10 @@ ConTeXt Wiki. Binaries are available at:
 
 The first link shows the status, the second link is where the binaries can be downloaded.
 
+We can check for more with:
+
+  sudo apt info crossbuild-essential-*
+
+So far,
+
 Hans Hagen

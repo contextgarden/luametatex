@@ -366,7 +366,7 @@ LUA_API int lua_compare (lua_State *L, int index1, int index2, int op) {
 }
 
 
-LUA_API unsigned (lua_numbertocstring) (lua_State *L, int idx, char *buff) {
+LUA_API unsigned lua_numbertocstring (lua_State *L, int idx, char *buff) {
   const TValue *o = index2value(L, idx);
   if (ttisnumber(o)) {
     unsigned len = luaO_tostringbuff(o, buff);
@@ -440,7 +440,13 @@ LUA_API lua_Unsigned lua_rawlen (lua_State *L, int idx) {
     case LUA_VSHRSTR: return cast(lua_Unsigned, tsvalue(o)->shrlen);
     case LUA_VLNGSTR: return cast(lua_Unsigned, tsvalue(o)->u.lnglen);
     case LUA_VUSERDATA: return cast(lua_Unsigned, uvalue(o)->len);
-    case LUA_VTABLE: return luaH_getn(L, hvalue(o));
+    case LUA_VTABLE: {
+      lua_Unsigned res;
+      lua_lock(L);
+      res = luaH_getn(L, hvalue(o));
+      lua_unlock(L);
+      return res;
+    }
     default: return 0;
   }
 }
@@ -478,7 +484,7 @@ LUA_API lua_State *lua_tothread (lua_State *L, int idx) {
 
 /*
 ** Returns a pointer to the internal representation of an object.
-** Note that ANSI C does not allow the conversion of a pointer to
+** Note that ISO C does not allow the conversion of a pointer to
 ** function to a 'void*', so the conversion here goes through
 ** a 'size_t'. (As the returned pointer is only informative, this
 ** conversion should not be a problem.)
@@ -1195,11 +1201,16 @@ LUA_API int lua_gc (lua_State *L, int what, ...) {
     case LUA_GCSTEP: {
       lu_byte oldstp = g->gcstp;
       l_mem n = cast(l_mem, va_arg(argp, size_t));
+      l_mem newdebt;
       int work = 0;  /* true if GC did some work */
       g->gcstp = 0;  /* allow GC to run (other bits must be zero here) */
       if (n <= 0)
-        n = g->GCdebt;  /* force to run one basic step */
-      luaE_setdebt(g, g->GCdebt - n);
+        newdebt = 0;  /* force to run one basic step */
+      else if (g->GCdebt >= n - MAX_LMEM)  /* no overflow? */
+        newdebt = g->GCdebt - n;
+      else  /* overflow */
+        newdebt = -MAX_LMEM;  /* set debt to miminum value */
+      luaE_setdebt(g, newdebt);
       luaC_condGC(L, (void)0, work = 1);
       if (work && g->gcstate == GCSpause)  /* end of cycle? */
         res = 1;  /* signal it */

@@ -10,6 +10,17 @@
     end up with the same size. We also end up with plenty of casts elsewhere. 
 */
 
+typedef struct last_state_record {
+    scaled   line_width;
+    halfword line_count;
+    scaled   hang_indent;
+    scaled   hang_left_indent;
+    scaled   hang_right_indent;
+    halfword hang_slack;
+    halfword hang_left_slack;
+    halfword hang_right_slack;
+} last_state_record;
+
 typedef struct list_state_record {
     int      mode;                 // singleword 
     halfword head;                 
@@ -18,7 +29,10 @@ typedef struct list_state_record {
     int      mode_line;            
     halfword prev_depth;           // scaled
     halfword space_factor;         
-    halfword direction_stack;      
+    halfword direction_stack;
+    /* this could become:
+    math_state_record math_state;
+    */
     int      math_dir;             // singleword 
     int      math_style;           // singleword 
     int      math_main_style;      // singleword 
@@ -28,9 +42,12 @@ typedef struct list_state_record {
     halfword math_begin;           // singleword 
     halfword math_end;             // singleword 
     halfword math_mode;            // singleword 
+    /* */
     halfword delimiter;            // todo: get rid of these and use the stack 
     halfword incomplete_noad;      // todo: get rid of these and use the stack 
     int      options; 
+    /* */
+    last_state_record last_state;
 } list_state_record;
 
 typedef struct nest_state_info {
@@ -38,6 +55,8 @@ typedef struct nest_state_info {
     memory_data        nest_data;
     int                shown_mode; // singleword
     int                math_mode;  // singleword
+ // halfword           cur_list;   // todo: set when we push pop (more direct access)
+ // halfword           cur_mode;   // todo: set when we push pop (more direct access)
 } nest_state_info;
 
 extern nest_state_info lmt_nest_state;
@@ -101,5 +120,23 @@ extern void     tex_stop_mvl             (void);
 extern halfword tex_flush_mvl            (halfword n);
 extern int      tex_appended_mvl         (halfword context, halfword boundary);
 extern int      tex_current_mvl          (halfword *head, halfword *tail);
+
+typedef enum delayed_glue_targets {
+    delayed_glue_target_unknown = 0x0,
+    delayed_glue_target_current = 0x1,
+    delayed_glue_target_mvl     = 0x2,
+} delayed_glue_targets;
+
+typedef enum delayed_glue_locations {
+    delayed_glue_location_build     = 0x0,
+    delayed_glue_location_parskip   = 0x1,
+    delayed_glue_location_paragraph = 0x2,
+    delayed_glue_location_rule      = 0x3,
+    delayed_glue_location_lua       = 0x4,
+} delayed_glue_locations;
+
+extern void tex_delayed_glue_check       (int target, int location);
+extern int  tex_delayed_glue_par_skipped (void);
+
 
 # endif

@@ -69,7 +69,7 @@
     The |internal_font_number| type is now also a |halfword| so it's no longer used as such.
 
     We now use 64 memory words split into whatever pieces we need. This also means that we can use
-    a double as glueratio which us saves some casting.
+    a double as glue ratio which us saves some casting.
 
     In principle we can widen up the engine to use long instead of int because it is relatively easy 
     to adapt the nodes but it will take much more memory and we gain nothing. I might (re)introduce 
@@ -79,14 +79,14 @@
 
 */
 
-typedef int             strnumber;
-typedef int             halfword;
-typedef long long       fullword;
-typedef unsigned short  quarterword;   /*tex It really is an unsigned one! But \MPLIB| had it signed. */
-typedef unsigned char   singleword;
-typedef int             scaled;
-typedef double          glueratio;     /*tex This looks better in our (tex specific) syntax highlighting. */
-typedef int             pointer;       /*tex Maybe I'll replace halfwords that act as pointer some day. */
+typedef int             strnumber;   /*  int32_t */
+typedef int             halfword;    /*  int32_t */
+typedef long long       fullword;    /*  int64_t */
+typedef unsigned short  quarterword; /* uint32_t */ /*tex It really is an unsigned one! But \MPLIB| had it signed. */
+typedef unsigned char   singleword;  /*  int16_t */
+typedef int             scaled;      /*  int32_t */
+typedef double          glueratio;                    /*tex This looks better in our (tex specific) syntax highlighting. */
+typedef int             pointer;     /*  int32_t */ /*tex Maybe I'll replace halfwords that act as pointer some day. */
 typedef FILE           *dumpstream;
 
 /*      glueratio       glue_ratio; */ /*tex one-word representation of a glue expansion factor */
@@ -155,72 +155,72 @@ extern halfword tex_badness(
 
 # define max_cardinal                      0xFFFFFFFF
 # define min_cardinal                               0
-# define max_integer                       0x7FFFFFFF /*tex aka |infinity| */
-# define min_integer                      -0x7FFFFFFF /*tex aka |min_infinity| */
+# define max_integer                       0x7FFFFFFF  /*tex aka |infinity| */
+# define min_integer                     (-0x7FFFFFFF) /*tex aka |min_infinity| */
 # define max_longinteger             0x7FFFFFFFFFFFFF 
-# define min_longinteger            -0x7FFFFFFFFFFFFF 
+# define min_longinteger           (-0x7FFFFFFFFFFFFF)
 # define max_doubleinteger   (double) max_longinteger
 # define min_doubleinteger   (double) min_longinteger
 # define max_posit                       max_cardinal 
 # define min_posit                       min_cardinal 
 # define max_dimension                     0x3FFFFFFF
-# define min_dimension                    -0x3FFFFFFF
+# define min_dimension                   (-0x3FFFFFFF)
 # define max_dimen                      max_dimension
 # define min_dimen                      min_dimension
 # define min_data_value                             0
 # define max_data_value                 cs_offset_max
-# define max_half_value                         32767 /*tex For instance sf codes.*/
+# define max_half_value                         32767  /*tex For instance sf codes.*/
 
 # define one_bp                                 65781
 
-# define max_infinity                      0x7FFFFFFF /*tex the largest positive value that \TEX\ knows */
-# define min_infinity                     -0x7FFFFFFF
-# define awful_bad                         0x3FFFFFFF /*tex more than a billion demerits |07777777777| */ 
-# define infinite_bad                           10000 /*tex infinitely bad value */
-# define infinite_penalty                infinite_bad /*tex infinite penalty value */
-# define eject_penalty              -infinite_penalty /*tex negatively infinite penalty value */
-# define final_penalty                    -0x40000000 /*tex in the output routine */
-# define deplorable                            100000 /*tex more than |inf_bad|, but less than |awful_bad| */
+# define max_infinity                      0x7FFFFFFF  /*tex the largest positive value that \TEX\ knows */
+# define min_infinity                    (-0x7FFFFFFF)
+# define awful_bad                         0x3FFFFFFF  /*tex more than a billion demerits |07777777777| */
+# define infinite_bad                           10000  /*tex infinitely bad value */
+# define infinite_penalty                infinite_bad  /*tex infinite penalty value */
+# define eject_penalty             (-infinite_penalty) /*tex negatively infinite penalty value */
+# define final_penalty                   (-0x40000000) /*tex in the output routine */
+# define deplorable                            100000  /*tex more than |inf_bad|, but less than |awful_bad| */
 # define extremely_deplorable               100000000
 # define large_width_excess                   7230584
-# define large_height_excess                  7230584 /*tex same as |large_width_excess| */
+# define large_height_excess                  7230584  /*tex same as |large_width_excess| */
 # define small_stretchability                 1663497
 # define loose_criterion                           99 
 # define decent_criterion                          12 
-# define tight_criterion                           12 /*tex same as |decent_criterion| */
+# define tight_criterion                           12  /*tex same as |decent_criterion| */
 # define max_calculated_badness                  8189
 # define emergency_adj_demerits                 10000
 
-# define default_rule                           26214 /*tex 0.4pt */
-# define ignore_depth                       -65536000 /*tex The magic dimension value to mean \quote {ignore me}: -1000pt */
+# define default_rule                           26214  /*tex 0.4pt */
+# define ignore_depth                      (-65536000) /*tex The magic dimension value to mean \quote {ignore me}: -1000pt */
 
-# define min_quarterword                            0 /*tex The smallest allowable value in a |quarterword|. */
-# define max_quarterword                        65535 /*tex The largest allowable value in a |quarterword|. */
+# define min_quarterword                            0  /*tex The smallest allowable value in a |quarterword|. */
+# define max_quarterword                        65535  /*tex The largest allowable value in a |quarterword|. */
 
-# define min_halfword                     -0x3FFFFFFF /*tex The smallest allowable value in a |halfword|. */
-# define max_halfword                      0x3FFFFFFF /*tex The largest allowable value in a |halfword|. */
+# define min_halfword                    (-0x3FFFFFFF) /*tex The smallest allowable value in a |halfword|. */
+# define max_halfword                      0x3FFFFFFF  /*tex The largest allowable value in a |halfword|. */
 
-# define null_flag                        -0x40000000
+# define null_flag                       (-0x40000000)
 # define zero_glue                                  0
-# define unity                                0x10000 /*tex |0200000| or $2^{16}$, represents 1.00000 */
-# define two                                  0x20000 /*tex |0400000| or $2^{17}$, represents 2.00000 */
+# define unity                                0x10000  /*tex |0200000| or $2^{16}$, represents 1.00000 */
+# define two                                  0x20000  /*tex |0400000| or $2^{17}$, represents 2.00000 */
 # define null                                       0
 # define null_font                                  0
 
-# define unused_attribute_value           -0x7FFFFFFF /*tex as low as it goes */
-# define unused_state_value                         0 /*tex 0 .. 0xFFFF */
-# define unused_script_value                        0 /*tex 0 .. 0xFFFF */
+# define unused_attribute_value          (-0x7FFFFFFF) /*tex as low as it goes */
+# define unused_state_value                         0  /*tex 0 .. 0xFFFF */
+# define unused_script_value                        0  /*tex 0 .. 0xFFFF */
 # define unused_scale_value                      1000
 
 # define unused_math_style                       0xFF
 # define unused_math_family                      0xFF
 
-# define preset_rule_thickness             0x40000000 /*tex denotes |unset_rule_thickness|: |010000000000|. */
+# define preset_rule_thickness             0x40000000  /*tex denotes |unset_rule_thickness|: |010000000000|. */
 
-# define min_space_factor                           0 /*tex watch out: |\spacefactor| cannot be zero but the sf code can!*/
-# define max_space_factor                      0x7FFF /*tex |077777| */
+# define min_space_factor                           0  /*tex watch out: |\spacefactor| cannot be zero but the sf code can!*/
+# define max_space_factor                      0x7FFF  /*tex |077777| */
 # define min_scale_factor                           0 
-# define max_scale_factor                      100000 /*tex for now */
+# define max_scale_factor                      100000  /*tex for now */
 # define default_space_factor                    1000
 # define space_factor_threshold                  2000
 # define default_tolerance                      10000
@@ -242,9 +242,9 @@ extern halfword tex_badness(
 # define max_font_adjust_stretch_factor          1000
 # define max_font_adjust_shrink_factor            500
 
-# define math_default_penalty    (infinite_penalty+1)
+# define math_default_penalty   (infinite_penalty + 1)
 
-# define initial_alignment_state             -1000000
+# define initial_alignment_state            (-1000000)
 # define busy_alignment_state                 1000000
 # define interwoven_alignment_threshold        500000
 
@@ -258,9 +258,8 @@ extern halfword tex_badness(
     make some register ranges smaller. Keep in mind that we already have cheap integer, dimension,
     and glue shortcuts that can be used instead of registers for storing constant values.
 
-    large  : 7 * 64                           = 448   3.584 Kb
-    medium : 4 * 64 + 2 * 32 + 1 * 16         = 336   2.688 Kb
-    small  :          4 * 32          + 3 * 8 = 152   1.216 Kb
+    large  : 8 * 64                  = 512 entries 4096 Kbyte
+    small  : 1 * 32 + 5 * 8 + 2 * 4  =  80 entries  640 Kbyte
 
     The memory saving is not that large but keep in mind that we have these huge eqtb arrays and
     registers are accessed frequently so the more we have in the CPU cache the better. (We already
@@ -270,12 +269,41 @@ extern halfword tex_badness(
     At some point we might actually drop these maxima indeed as we really don't need that many 
     if these registers and if (say) 16K is not enough, then nothing is. 
 
+    The next define might become a compiler directive in which case it probably has to be more
+    verbose. We might set more constants to lower values using this directive. It's an experiment,
+    so don't depend on these values too much. I'll adapt them if \CONTEXT\ users complain. It does
+    not really influence performance but it's more about using a bit less memory which might be
+    nicer when a (shared) cache is small (or not). I enabled this early 2026 when I (and some
+    users) played with a RPI 5+ setup.
+
 */
 
-# if 1
+# ifndef memory_mode
 
-    # define max_toks_register_index      0xFFFF /* 0xFFFF 0xFFFF 0x7FFF */ /* 64 64 32 */
-    # define max_box_register_index       0xFFFF /* 0xFFFF 0xFFFF 0x7FFF */ /* 64 64 32 */
+    # define memory_mode 1
+
+# endif
+
+# if (memory_mode == 1)
+
+    /*tex
+        For \CONTEXT\ we need to keep in mind that we can use half these maxima because we also
+        provide local allocation, a proof of concept that stuck around.
+    */
+
+    # define max_toks_register_index      0x1FFF //  8K
+    # define max_box_register_index       0x7FFF // 32K /* less of we use a lua stack */
+    # define max_integer_register_index   0x1FFF //  8k
+    # define max_dimension_register_index 0x1FFF //  8k
+    # define max_posit_register_index     0x1FFF //  8k
+    # define max_attribute_register_index 0x1FFF //  8k
+    # define max_glue_register_index      0x0FFF //  4k
+    # define max_muglue_register_index    0x0FFF //  4k
+
+# else
+
+    # define max_toks_register_index      0xFFFF /* 0xFFFF 0xFFFF 0x7FFF */ /* 64 64 16 */
+    # define max_box_register_index       0xFFFF /* 0xFFFF 0xFFFF 0x7FFF */ /* 64 64 16 */
     # define max_integer_register_index   0xFFFF /* 0xFFFF 0xFFFF 0x3FFF */ /* 64 64 16 */
     # define max_dimension_register_index 0xFFFF /* 0xFFFF 0xFFFF 0x3FFF */ /* 64 64 16 */
     # define max_posit_register_index     0xFFFF /* 0xFFFF 0x7FFF 0x1FFF */ /* 64 32  8 */
@@ -283,20 +311,11 @@ extern halfword tex_badness(
     # define max_glue_register_index      0xFFFF /* 0xFFFF 0x7FFF 0x1FFF */ /* 64 32  8 */
     # define max_muglue_register_index    0xFFFF /* 0xFFFF 0x3FFF 0x1FFF */ /* 64 16  8 */
 
-# else
-
-    # define max_toks_register_index      0x1FFF //  8K
-    # define max_box_register_index       0x7FFF // 32K /* less of we use a lua stack */
-    # define max_integer_register_index   0x1FFF //  8k
-    # define max_dimension_register_index 0x1FFF //  8k  
-    # define max_posit_register_index     0x1FFF //  8k 
-    # define max_attribute_register_index 0x1FFF //  8k 
-    # define max_glue_register_index      0x0FFF //  4k 
-    # define max_muglue_register_index    0x0FFF //  4k 
-
 # endif
 
-# define max_unit_register_index       26*26
+# define default_tracked_attributes   0xFF
+
+# define max_unit_register_index      26*26
 
 # define max_n_of_toks_registers      (max_toks_register_index      + 1)
 # define max_n_of_box_registers       (max_box_register_index       + 1)
@@ -317,22 +336,26 @@ extern halfword tex_badness(
 # define min_n_list_stack_entries                 7 
 # define max_n_list_stack_entries                15 
 
-# define max_character_code                0x10FFFF /*tex 1114111, the largest allowed character number; must be |< max_halfword| */
-//define max_math_character_code           0x0FFFFF /*tex 1048575, for now this is plenty, otherwise we need to store differently */
-# define max_math_character_code max_character_code /*tex part gets clipped when we convert to a number */
+# define max_character_code                0x10FFFF  /*tex 1114111, the largest allowed character number; must be |< max_halfword| */
+//define max_math_character_code           0x0FFFFF  /*tex 1048575, for now this is plenty, otherwise we need to store differently */
+# define max_math_character_code max_character_code  /*tex part gets clipped when we convert to a number */
 # define max_function_reference       cs_offset_max
-# define min_iterator_value                -0xFFFFF /* When we decide to generalize it might become 0xFFFF0 with */
-# define max_iterator_value                 0xFFFFF /* 0x0000F being a classifier so that we save cmd's          */
+# define min_iterator_value               (-0xFFFFF) /* When we decide to generalize it might become 0xFFFF0 with */
+# define max_iterator_value                 0xFFFFF  /* 0x0000F being a classifier so that we save cmd's          */
 # define max_category_code                       15
-# define max_newline_character                  127 /*tex This is an old constraint but there is no reason to change it. */
-# define max_endline_character                  127 /*tex To keep it simple we stick to the maximum single UTF character. */
+# define max_newline_character                  127  /*tex This is an old constraint but there is no reason to change it. */
+# define max_endline_character                  127  /*tex To keep it simple we stick to the maximum single UTF character. */
 # define max_box_axis                           255
-# define max_size_of_word                      1000 /*tex More than enough (esp. since this can end up on the stack. Includes {}{}{} exception stuff. */
-# define min_limited_scale                        0 /*tex Zero is a signal too. */
+# define max_size_of_word                      1000  /*tex More than enough (esp. since this can end up on the stack. Includes {}{}{} exception stuff. */
+# define min_limited_scale                        0  /*tex Zero is a signal too. */
 # define max_limited_scale                     1000
-# define min_math_style_scale                     0 /*tex Zero is a signal too. */
+# define min_math_style_scale                     0  /*tex Zero is a signal too. */
 # define max_math_style_scale                  2000
 # define max_parameter_index                     15
+# define min_space_skip_factor                    0
+# define max_space_skip_factor                 5000 /*tex Maybe less */
+
+# define clipped_scale_factor(f) (f < min_scale_factor ? min_scale_factor : f > max_scale_factor ? max_scale_factor : f)
 
 # define max_size_of_word_buffer (4 * max_size_of_word + 2 + 1 + 2) /* utf + two_periods + sentinal_zero + some_slack */
 
@@ -355,6 +378,13 @@ extern halfword tex_badness(
 
 # define default_space_factor 1000
 # define special_space_factor  999
+
+# define min_local_hang_indent (-max_dimension)
+# define max_local_hang_indent   max_dimension
+# define min_local_hang_after    0
+# define max_local_hang_after    0x7FFF
+# define min_local_hang_index    0
+# define max_local_hang_index    0x7FFF
 
 /*tex 
     We started out with 32 but it makes no sense to initialize that many every time we need to do
@@ -473,11 +503,11 @@ typedef union memorysplit {
 } memorysplit;
 
 typedef union memoryalias {
-    halfword     H;
+    halfword     H;           // 0xFFFFFFFF
     unsigned int U;
  /* quarterword  Q[2]; */
  /* singleword   S[4]; */
-    memorysplit  X[2];
+    memorysplit  X[2];        // [0xFFFF][0xFFFF] | [[0xFF][0xFF]][[0xFF][0xFF]]
 } memoryalias;
 
 typedef union memoryword {
@@ -739,7 +769,7 @@ typedef union tokenword {
 # define max_half_error_line      255
 # define min_half_error_line       80      /* Good old \TEX\ uses a value of 50. */
 
-# define memory_data_unset         -1
+# define memory_data_unset        (-1)
 
 typedef struct memory_data {
     int ptr;       /* the current pointer */
@@ -856,6 +886,7 @@ typedef struct line_break_properties {
     halfword shaping_penalties_mode;
     halfword shaping_penalty;
     halfword par_passes;
+    halfword line_snapping;
     halfword line_break_checks;
     halfword extra_hyphen_penalty; 
     halfword line_break_optional;

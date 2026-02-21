@@ -7,11 +7,14 @@ set(mp_sources
     source/mp/mpmathbinary.c
     source/mp/mpmathdecimal.c
     source/mp/mpmathposit.c
+    source/mp/mpmathinterval.c
 
     source/libraries/decnumber/decContext.c
     source/libraries/decnumber/decNumber.c
 
     source/libraries/avl/avl.c
+
+    source/utilities/auxbytemaps.c
 
     source/lua/lmtmplib.c
 
