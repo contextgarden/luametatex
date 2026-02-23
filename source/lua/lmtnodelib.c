@@ -12370,6 +12370,22 @@ static int nodelib_hybrid_gluetostring(lua_State *L)
 
 /* not yet documented */
 
+# define getlocalparboxstate_usage common_usage
+
+static int nodelib_direct_getlocalparboxstate(lua_State *L)
+{
+    halfword p = nodelib_valid_direct_from_index(L, 1);
+    if (p && node_type(p) == par_node)  {
+        lua_pushboolean(L, par_box_left(p)   ? 1 : 0);
+        lua_pushboolean(L, par_box_middle(p) ? 1 : 0);
+        lua_pushboolean(L, par_box_right(p)  ? 1 : 0);
+        return 3;
+    }
+    return 0;
+}
+
+/* not yet documented */
+
 # define getcurrenttail_usage     common_usage
 # define setcurrenttail_usage     common_usage
 # define appendcurrenttail_usage  common_usage
@@ -12801,6 +12817,7 @@ static const usage_record usage_data[] = {
     { .name = "getlanguage",             .target = direct_usage_target,   .usage = getlanguage_usage             },
     { .name = "getleader",               .target = direct_usage_target,   .usage = getleader_usage               },
     { .name = "getleftdelimiter",        .target = direct_usage_target,   .usage = getleftdelimiter_usage        },
+    { .name = "getlocalparboxstate",     .target = direct_usage_target,   .usage = getlocalparboxstate_usage     },
     { .name = "getlist",                 .target = direct_usage_target,   .usage = getlist_usage                 },
     { .name = "getlistdimensions",       .target = direct_usage_target,   .usage = getlistdimensions_usage       },
     { .name = "getmvllist",              .target = direct_usage_target,   .usage = getmvllist_usage              },
@@ -13208,6 +13225,7 @@ static const struct luaL_Reg nodelib_direct_function_list[] = {
     { "getleftdelimiter",        nodelib_direct_getleftdelimiter        },
     { "getlist",                 nodelib_direct_getlist                 },
     { "getlistdimensions",       nodelib_direct_getlistdimensions       },
+    { "getlocalparboxstate",     nodelib_direct_getlocalparboxstate      },
     { "getnext",                 nodelib_direct_getnext                 },
     { "getmvllist",              nodelib_direct_getmvllist              },
     { "getnodes",                nodelib_direct_getnodes                },

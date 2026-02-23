@@ -11,9 +11,45 @@
     can change any time we like without notice till we like what we have.
 
     There is some redundancy due to the fact that we also have a bytemap library so at some point
-    we might combine some. It also deopends on combining some at the \CONTEXT\ end,
+    we might combine some. It also deopends on combining some at the \CONTEXT\ end.
 
 */
+
+/*
+    This can be done in a few more places and already gains quite a bit on a dozen extreme ones;
+    the smaller gray easier on the pdf zipping etc (so there we win back):
+
+    normal     : 8.9 (8.6 with conversion to gray)
+    experiment : 8.2 (7.9 with conversion to gray)
+*/
+
+static int experiment = 0;
+
+static int pnglib_setexperiment(lua_State *L)
+{
+    experiment = lmt_optinteger(L, 1, 0);
+    return 0;
+}
+
+static void * pnglib_memory_malloc(size_t size)
+{
+    if (experiment & 1) {
+        return lmt_memory_malloc(size + 1);
+    } else {
+        return lmt_memory_malloc(size);
+    }
+}
+
+static void pnglib_pushlstring(lua_State *L, char *s, size_t l)
+{
+    if (experiment & 1) {
+        s[l] = '\0';
+        lua_pushexternalstring(L, s, l, lua_getallocf(L, NULL), NULL);
+    } else {
+        lua_pushlstring(L, s, l);
+        lmt_memory_free(s);
+    }
+}
 
 /* t xsize ysize bpp (includes mask) */
 
@@ -34,7 +70,7 @@ static int pnglib_applyfilter(lua_State *L)
         tex_formatted_warning("png filter", "sizes don't match: %i expected, %i provided", ysize *len, size);
         return 0;
     }
-    t = lmt_memory_malloc(size);
+    t = pnglib_memory_malloc(size);
     if (! t) {
         tex_normal_warning("png filter", "not enough memory");
         return 0;
@@ -118,24 +154,13 @@ static int pnglib_applyfilter(lua_State *L)
         int j = 0; /* source */
         int m = 0; /* target */
         for (int i = 0; i < ysize; i++) {
-            // (void) memcpy(&t[m], &t[j+1], len-1); /* target source size */
-            (void) memmove(&t[m], &t[j+1], (size_t)len - 1); /* target source size */
+         // (void) memcpy(&t[m], &t[j+1], len-1); /* target source size */
+            (void) memmove(&t[m], &t[j+1], (size_t) len - 1); /* target source size */
             j += len;
             m += len - 1;
         }
-        lua_pushlstring(L, (char *) t, size-ysize);
-        /*
-        int j = 0;
-        luaL_Buffer b;
-        luaL_buffinit(L, &b);
-        for (int i = 0; i < ysize; i++) {
-            luaL_addlstring(&b, (const char *)&t[j+1], len-1);
-            j += len;
-        }
-        luaL_pushresult(&b);
-        */
+        pnglib_pushlstring(L, (char *) t, size - ysize);
     }
-    lmt_memory_free(t);
     return 1;
 }
 
@@ -161,7 +186,7 @@ static int pnglib_applyfilter(lua_State *L)
         tex_formatted_warning("png filter", "sizes don't match: %i expected, %i provided", ysize *len, size);
         return 0;
     }
-    t = lmt_memory_malloc(size);
+    t = pnglib_memory_malloc(size);
     if (! t) {
         tex_normal_warning("png filter", "not enough memory");
         return 0;
@@ -254,19 +279,8 @@ static int pnglib_applyfilter(lua_State *L)
             j += len;
             m += len - 1;
         }
-        lua_pushlstring(L, (char *) t, size-ysize);
-        /*
-        int j = 0;
-        luaL_Buffer b;
-        luaL_buffinit(L, &b);
-        for (int i = 0; i < ysize; i++) {
-            luaL_addlstring(&b, (const char *)&t[j+1], len-1);
-            j += len;
-        }
-        luaL_pushresult(&b);
-        */
+        pnglib_pushlstring(L, (char *) t, size - ysize);
     }
-    lmt_memory_free(t);
     return 1;
 }
 
@@ -297,8 +311,8 @@ static int pnglib_splitmask(lua_State *L)
         tex_formatted_warning("png split", "sizes don't match: %i expected, %i provided", ysize * len, size);
         return 0;
     }
-    b = lmt_memory_malloc(bsize);
-    m = lmt_memory_malloc(msize);
+    b = pnglib_memory_malloc(bsize);
+    m = pnglib_memory_malloc(msize);
     if (! (b && m)) {
         tex_normal_warning("png split mask", "not enough memory");
         return 0;
@@ -338,10 +352,8 @@ static int pnglib_splitmask(lua_State *L)
             }
             break;
     }
-    lua_pushlstring(L, b, bsize);
-    lmt_memory_free(b);
-    lua_pushlstring(L, m, msize);
-    lmt_memory_free(m);
+    pnglib_pushlstring(L, b, bsize);
+    pnglib_pushlstring(L, m, msize);
     return 2;
 }
 
@@ -400,7 +412,7 @@ static int pnglib_interlace(lua_State *L)
         }
     }
     /* todo: some more checking */
-    out = lmt_memory_malloc(size);
+    out = pnglib_memory_malloc(size);
     if (out) {
         if (pass == 0) {
             memset(out, 0, size);
@@ -453,8 +465,7 @@ static int pnglib_interlace(lua_State *L)
             }
             break;
     }
-    lua_pushlstring(L, out, size);
-    lmt_memory_free(out);
+    pnglib_pushlstring(L, out, size);
     return 1;
 }
 
@@ -482,7 +493,7 @@ static int pnglib_expand(lua_State *L)
         tex_formatted_warning("png expand","expand sizes don't match: %i expected, %i provided",size,parts*tsize);
         return 0;
     }
-    o = lmt_memory_malloc(extra);
+    o = pnglib_memory_malloc(extra);
     if (! o) {
         tex_normal_warning ("png expand", "not enough memory");
         return 0;
@@ -565,8 +576,7 @@ static int pnglib_expand(lua_State *L)
                 break;
         }
     }
-    lua_pushlstring(L, o, size);
-    lmt_memory_free(o);
+    pnglib_pushlstring(L, o, size);
     return 1;
 }
 
@@ -591,15 +601,14 @@ static int pnglib_palettemask(lua_State *L)
                         break;
                     default:
                         {
-                            char *mask = lmt_memory_malloc(csize);
+                            char *mask = pnglib_memory_malloc(csize);
                             if (mask) {
                                 unsigned char alphamap[256] = { 0x00 };
                                 memcpy(alphamap, transparent, tsize);
                                 for (size_t i = 0; i < csize; i++) {
                                     mask[i] = alphamap[(unsigned char) content[i]];
                                 }
-                                lua_pushlstring(L, mask, csize);
-                                lmt_memory_free(mask);
+                                pnglib_pushlstring(L, mask, csize);
                                 return 1;
                             }
                         }
@@ -611,7 +620,7 @@ static int pnglib_palettemask(lua_State *L)
     return 0;
 }
 
-/* content bytes depth transparent */ /* This is too messy and is obsolete anyway
+/* content bytes depth transparent */
 
 static int pnglib_transparentmask(lua_State *L)
 {
@@ -620,95 +629,143 @@ static int pnglib_transparentmask(lua_State *L)
     if (csize > 0) {
         size_t tsize;
         int depth = lua_tointeger(L, 3);
-        if (depth == 8 || depth == 16) {
+        if (depth == 1 || depth == 2 || depth == 4 || depth == 8 || depth == 16) {
             const char *transparent = lua_gettop(L) > 3 ? luaL_checklstring(L, 4, &tsize) : NULL;
             if (transparent) {
                 int bytes = lua_tointeger(L, 2);
                 char *mask = NULL;
+                int size = 8;
                 size_t msize = 0;
                 switch (bytes) {
                     case 1:
                         if (tsize == 2) {
-                            if (depth == 8) {
-                                unsigned char t = transparent[1];
-                                mask = lmt_memory_malloc(csize + 1);
-                                if (mask) {
-                                    for (size_t i = 0; i < csize; i += 1) {
-                                        mask[msize++] = ( t == (unsigned char) content[i] )
-                                                      ? 0xFF : 0x00;
+                            switch (depth) {
+                                case 1:
+                                    size = 1;
+                                    mask = pnglib_memory_malloc(csize + 1);
+                                    if (mask) {
+                                        unsigned char t = transparent[1] & 0x01;
+                                        for (size_t i = 0; i < csize; i += 1) {
+                                            unsigned char c = (unsigned char) content[i];
+                                            mask[msize++] = (unsigned char) ( (t == ((c >> 8) & 0x01) ? 0x00 : 0x80)
+                                                                            + (t == ((c >> 7) & 0x01) ? 0x00 : 0x40)
+                                                                            + (t == ((c >> 6) & 0x01) ? 0x00 : 0x20)
+                                                                            + (t == ((c >> 5) & 0x01) ? 0x00 : 0x10)
+                                                                            + (t == ((c >> 4) & 0x01) ? 0x00 : 0x08)
+                                                                            + (t == ((c >> 3) & 0x01) ? 0x00 : 0x04)
+                                                                            + (t == ((c >> 2) & 0x01) ? 0x00 : 0x02)
+                                                                            + (t == ( c       & 0x01) ? 0x00 : 0x01) );
+                                        }
                                     }
-                                }
-                            } else {
+                                    break;
+                                case 2:
+                                    size = 2;
+                                    mask = pnglib_memory_malloc(csize + 1);
+                                    if (mask) {
+                                        unsigned char t = transparent[1] & 0x07;
+                                        for (size_t i = 0; i < csize; i += 1) {
+                                            unsigned char c = (unsigned char) content[i];
+                                            mask[msize++] = (unsigned char) ( (t == ((c >> 6) & 0x07) ? 0x00 : 0xC0)
+                                                                            + (t == ((c >> 4) & 0x07) ? 0x00 : 0x30)
+                                                                            + (t == ((c >> 2) & 0x07) ? 0x00 : 0x0C)
+                                                                            + (t == ( c       & 0x07) ? 0x00 : 0x03) );
+                                        }
+                                    }
+                                    break;
+                                case 4:
+                                    size = 4;
+                                    mask = pnglib_memory_malloc(csize + 1);
+                                    if (mask) {
+                                        unsigned char t = transparent[1] & 0x0F;
+                                        for (size_t i = 0; i < csize; i += 1) {
+                                            unsigned char c = (unsigned char) content[i];
+                                            mask[msize++] = (unsigned char) ( (t == ((c >> 4) & 0x0F) ? 0x00 : 0xF0)
+                                                                            + (t == ( c       & 0x0F) ? 0x00 : 0x0F) );
+                                        }
+                                    }
+                                    break;
+                                case 8:
+                                    mask = pnglib_memory_malloc(csize + 1);
+                                    if (mask) {
+                                        unsigned char t = transparent[1];
+                                        for (size_t i = 0; i < csize; i += 1) {
+                                            mask[msize++] = ( t == (unsigned char) content[i] ) ? 0xFF : 0x00;
+                                        }
+                                    }
+                                    break;
+                            }
+                        }
+                        break;
+                    case 2:
+                        if (tsize == 2 && depth == 16) {
+                            mask = pnglib_memory_malloc(csize/2 + 1);
+                            if (mask) {
                                 unsigned char t1 = transparent[0];
                                 unsigned char t2 = transparent[1];
-                                mask = lmt_memory_malloc(csize/2 + 1);
-                                if (mask) {
-                                    for (size_t i = 0; i < csize; i += 2) {
-                                        if ( t1 == (unsigned char) content[i  ] &&
-                                             t2 == (unsigned char) content[i+1] ) {
-                                            mask[msize++] = 0xFF;
-                                            mask[msize++] = 0xFF;
-                                        } else {
-                                            mask[msize++] = 0x00;
-                                            mask[msize++] = 0x00;
-                                        }
+                                for (size_t i = 0; i < csize; i += 2) {
+                                    if ( t1 == (unsigned char) content[i  ] &&
+                                         t2 == (unsigned char) content[i+1] ) {
+                                        mask[msize++] = 0x00;
+                                    } else {
+                                        mask[msize++] = 0xFF;
                                     }
                                 }
                             }
                         }
                         break;
                     case 3:
-                        if (tsize == 6) {
-                            if (depth == 8) {
+                        if (tsize == 6 && depth == 8) {
+                            mask = pnglib_memory_malloc(csize/3 + 1);
+                            if (mask) {
                                 unsigned char tr = transparent[1];
                                 unsigned char tg = transparent[3];
                                 unsigned char tb = transparent[5];
-                                mask = lmt_memory_malloc(csize/3 + 1);
-                                if (mask) {
-                                    for (size_t i = 0; i < csize; i += 3) {
-                                        mask[msize++] = ( tr == (unsigned char) content[i  ] &&
-                                                          tg == (unsigned char) content[i+1] &&
-                                                          tb == (unsigned char) content[i+2] )
-                                                      ? 0x00 : 0xFF;
-                                    }
+                                for (size_t i = 0; i < csize; i += 3) {
+                                    mask[msize++] = ( tr == (unsigned char) content[i  ] &&
+                                                      tg == (unsigned char) content[i+1] &&
+                                                      tb == (unsigned char) content[i+2] )
+                                                  ? 0x00 : 0xFF;
                                 }
-                            } else {
+                            }
+                        }
+                        break;
+                    case 6:
+                        if (tsize == 6 && depth == 16) {
+                            mask = pnglib_memory_malloc(csize/6 + 1);
+                            if (mask) {
                                 unsigned char tr1 = transparent[0];
                                 unsigned char tr2 = transparent[1];
                                 unsigned char tg1 = transparent[2];
                                 unsigned char tg2 = transparent[3];
                                 unsigned char tb1 = transparent[4];
                                 unsigned char tb2 = transparent[5];
-                                mask = lmt_memory_malloc(csize/6 + 1);
-                                if (mask) {
-                                    for (size_t i = 0; i < csize; i += 6) {
-                                        if ( tr1 == (unsigned char) content[i  ] && tr2 == (unsigned char) content[i+1] &&
-                                             tg1 == (unsigned char) content[i+2] && tg2 == (unsigned char) content[i+3] &&
-                                             tb1 == (unsigned char) content[i+4] && tb2 == (unsigned char) content[i+5] ) {
-                                            mask[msize++] = 0xFF;
-                                            mask[msize++] = 0xFF;
-                                        } else {
-                                            mask[msize++] = 0x00;
-                                            mask[msize++] = 0x00;
-                                        }
+                                for (size_t i = 0; i < csize; i += 6) {
+                                    if ( tr1 == (unsigned char) content[i  ] && tr2 == (unsigned char) content[i+1] &&
+                                         tg1 == (unsigned char) content[i+2] && tg2 == (unsigned char) content[i+3] &&
+                                         tb1 == (unsigned char) content[i+4] && tb2 == (unsigned char) content[i+5] ) {
+                                        mask[msize++] = 0x00;
+                                    } else {
+                                        mask[msize++] = 0xFF;
                                     }
-                               }
-                            }
+                                }
+                           }
                         }
                         break;
                 }
                 if (mask) {
-                    lua_pushlstring(L, mask, msize);
-                    lmt_memory_free(mask);
-                    return 1;
+                    /*
+                        Actually we can pack as we have one bit only but this kind of transparency
+                        is seldom used so we don't bother now.
+                    */
+                    pnglib_pushlstring(L, mask, msize);
+                    lua_pushinteger(L, size);
+                    return 2;
                 }
             }
         }
     }
     return 0;
 }
-
-*/
 
 static int pnglib_frompalette(lua_State *L)
 {
@@ -729,7 +786,7 @@ static int pnglib_frompalette(lua_State *L)
                         break;
                     default:
                         if (psize <= (256 * 3)) {
-                            char *expand = lmt_memory_malloc(csize * 3);
+                            char *expand = pnglib_memory_malloc(csize * 3);
                             if (expand) {
                                 unsigned char indexmap[256 * 3] = { 0x00 };
                                 size_t esize = 0;
@@ -740,18 +797,16 @@ static int pnglib_frompalette(lua_State *L)
                                     expand[esize++] = indexmap[index++];
                                     expand[esize++] = indexmap[index  ];
                                 }
-                                lua_pushlstring(L, expand, esize);
-                                lmt_memory_free(expand);
+                                pnglib_pushlstring(L, expand, esize);
                                 if (transparent && tsize <= 256) {
-                                    char *mask = lmt_memory_malloc(csize);
+                                    char *mask = pnglib_memory_malloc(csize);
                                     if (mask) {
                                         unsigned char alphamap[256] = { 0x00 };
                                         memcpy(alphamap, transparent, tsize);
                                         for (size_t i = 0; i < csize; i++) {
                                             mask[i] = alphamap[(unsigned char) content[i]];
                                         }
-                                        lua_pushlstring(L, mask, csize);
-                                        lmt_memory_free(mask);
+                                        pnglib_pushlstring(L, mask, csize);
                                         return 2;
                                     }
                                 }
@@ -781,12 +836,12 @@ static int pnglib_tocmyk(lua_State *L)
         size_t osize = 0;
         char *o = NULL;
         if (depth == 8) {
-            o = lmt_memory_malloc(4 * (tfloor(tsize/3) + 1)); /*tex Plus some slack. */
+            o = pnglib_memory_malloc(4 * (tfloor(tsize/3) + 1)); /*tex Plus some slack. */
         } else {
-            o = lmt_memory_malloc(8 * (tfloor(tsize/6) + 1)); /*tex Plus some slack. */
+            o = pnglib_memory_malloc(8 * (tfloor(tsize/6) + 1)); /*tex Plus some slack. */
         }
         if (! o) {
-            tex_normal_warning ("png tocmyk", "not enough memory");
+            tex_normal_warning("png tocmyk", "not enough memory");
             return 0;
         } else if (depth == 8) {
             for (size_t i = 0; i < tsize; ) {
@@ -808,13 +863,16 @@ static int pnglib_tocmyk(lua_State *L)
                 o[osize++] = '\0';
             }
         }
-        lua_pushlstring(L, o, osize);
-        lmt_memory_free(o);
+        pnglib_pushlstring(L, o, osize);
     } else {
         lua_pushnil(L);
     }
     return 1;
 }
+
+// 0.2126 * r + 0.7152 * g + 0.0722 * b
+// 0.299  * r + 0.587  * g + 0.114  * b
+// 0.212  * r + 0.701  * g + 0.087  * b
 
 static int pnglib_togray(lua_State *L)
 {
@@ -822,16 +880,11 @@ static int pnglib_togray(lua_State *L)
     const char *t = luaL_checklstring(L, 1, &tsize);
     int depth = lmt_optinteger(L, 2, 0);
     if ((tsize > 0) && (depth == 8 || depth == 16)) {
-        int average = 0; // lua_toboolean(L, 3);
+        int average = lua_toboolean(L, 3);
         size_t osize = 0;
-        char *o = NULL;
-//        if (depth == 8) {
-            o = lmt_memory_malloc(tsize/3 + 1); /*tex Plus some slack. */
-//        } else {
-//            o = lmt_memory_malloc(tsize/3 + 1); /*tex Plus some slack. */
-//        }
+        char *o = pnglib_memory_malloc(tsize/3 + 1); /*tex Plus some slack. */
         if (! o) {
-            tex_normal_warning ("png tocmyk", "not enough memory");
+            tex_normal_warning("png tocmyk", "not enough memory");
             return 0;
         } else if (depth == 8) {
             if (average) {
@@ -870,8 +923,7 @@ static int pnglib_togray(lua_State *L)
                 }
             }
         }
-        lua_pushlstring(L, o, osize);
-        lmt_memory_free(o);
+        pnglib_pushlstring(L, o, osize);
     } else {
         lua_pushnil(L);
     }
@@ -890,8 +942,9 @@ static int pnglib_tomask(lua_State *L) /* for palette */
     int colordepth = lmt_tointeger(L, 5);
     size_t osize   = xsize * ysize;
     if (osize == tsize) {
-        char *o    = lmt_memory_malloc(osize);
-        char *v    = lmt_memory_calloc(256,1);
+        /* todo: v can be static array c[256] = { 0xFF } */
+        char *o    = pnglib_memory_malloc(osize);
+        char *v    = lmt_memory_malloc(256);
         size_t len = xsize * colordepth / 8; // ceil
         size_t k   = 0;
         memset(v, 0xFF, 256);
@@ -902,43 +955,43 @@ static int pnglib_tomask(lua_State *L) /* for palette */
             switch (colordepth) {
                 case 8:
                     for (size_t j = f; j < l; j++) {
-                        int c = t[j];
-                        o[k++] =  (unsigned char) v[c];
+                        unsigned char c = (unsigned char) t[j];
+                        o[k++] = (char) v[c];
                     }
                     break;
                 case 4:
                     for (size_t j = f; j < l; j++) {
-                        int c = t[j];
-                        o[k++] = (unsigned char) v[(c >> 4) & 0x0F];
-                        o[k++] = (unsigned char) v[(c >> 0) & 0x0F];
+                        unsigned char c = (unsigned char) t[j];
+                        o[k++] = (char) v[(c >> 4) & 0x0F];
+                        o[k++] = (char) v[(c >> 0) & 0x0F];
                     }
                     break;
                 case 2:
                     for (size_t j = f; j < l; j++) {
-                        int c = t[j];
-                        o[k++] = (unsigned char) v[(c >> 6) & 0x03];
-                        o[k++] = (unsigned char) v[(c >> 4) & 0x03];
-                        o[k++] = (unsigned char) v[(c >> 2) & 0x03];
-                        o[k++] = (unsigned char) v[(c >> 0) & 0x03];
+                        unsigned char c = (unsigned char) t[j];
+                        o[k++] = (char) v[(c >> 6) & 0x03];
+                        o[k++] = (char) v[(c >> 4) & 0x03];
+                        o[k++] = (char) v[(c >> 2) & 0x03];
+                        o[k++] = (char) v[(c >> 0) & 0x03];
                     }
                     break;
                 default:
                     for (size_t j = f; j < l; j++) {
-                        int c = t[j];
-                        o[k++] = (unsigned char) v[(c >> 7) & 0x01];
-                        o[k++] = (unsigned char) v[(c >> 6) & 0x01];
-                        o[k++] = (unsigned char) v[(c >> 5) & 0x01];
-                        o[k++] = (unsigned char) v[(c >> 4) & 0x01];
-                        o[k++] = (unsigned char) v[(c >> 3) & 0x01];
-                        o[k++] = (unsigned char) v[(c >> 2) & 0x01];
-                        o[k++] = (unsigned char) v[(c >> 1) & 0x01];
-                        o[k++] = (unsigned char) v[(c >> 0) & 0x01];
+                        unsigned char c = (unsigned char) t[j];
+                        o[k++] = (char) v[(c >> 7) & 0x01];
+                        o[k++] = (char) v[(c >> 6) & 0x01];
+                        o[k++] = (char) v[(c >> 5) & 0x01];
+                        o[k++] = (char) v[(c >> 4) & 0x01];
+                        o[k++] = (char) v[(c >> 3) & 0x01];
+                        o[k++] = (char) v[(c >> 2) & 0x01];
+                        o[k++] = (char) v[(c >> 1) & 0x01];
+                        o[k++] = (char) v[(c >> 0) & 0x01];
                     }
                     break;
             }
         }
-        lua_pushlstring(L, o, osize);
-        lmt_memory_free(o);
+        pnglib_pushlstring(L, o, osize);
+        lmt_memory_free(v);
     } else {
         lua_pushnil(L);
     }
@@ -950,7 +1003,7 @@ static int pnglib_makemask(lua_State *L) /* for palette */
     size_t size;
     const char *content  = luaL_checklstring(L, 1, &size);
     char mapping[256] = { 0x00 };
-    char *mask = lmt_memory_malloc(size);
+    char *mask = pnglib_memory_malloc(size);
     switch (lua_type(L, 2)) {
         case LUA_TNUMBER:
             {
@@ -1000,9 +1053,8 @@ static int pnglib_makemask(lua_State *L) /* for palette */
     for (int i = 0; i < (int) size; i++) {
         mask[i] = (unsigned char) mapping[(unsigned char) content[i]];
     }
-    lua_pushlstring(L, mask, size);
+    pnglib_pushlstring(L, mask, size);
     lua_pushlstring(L, mapping, 256);
-    lmt_memory_free(mask);
     return 2;
 }
 
@@ -1031,7 +1083,7 @@ static int pnglib_reduce(lua_State *L)
             } else { 
                 size = mx * ny;
             }
-            result = lmt_memory_malloc(size);
+            result = pnglib_memory_malloc(size);
             if (result) {
                 int accurate = lua_toboolean(L, 5);
                 int r = 0;
@@ -1067,8 +1119,7 @@ static int pnglib_reduce(lua_State *L)
                         }
                     }
                 }
-                lua_pushlstring(L, (const char *) result, size);
-                lmt_memory_free(result);
+                pnglib_pushlstring(L, (char *) result, size);
                 return 1;
             }
         }
@@ -1088,7 +1139,8 @@ static const struct luaL_Reg pngdecodelib_function_list[] = {
     { "reduce",          pnglib_reduce          },
     { "frompalette",     pnglib_frompalette     },
     { "palettemask",     pnglib_palettemask     },
- /* { "transparentmask", pnglib_transparentmask }, */
+    { "transparentmask", pnglib_transparentmask },
+    { "setexperiment",   pnglib_setexperiment   },
     { NULL,              NULL                   },
 };
 

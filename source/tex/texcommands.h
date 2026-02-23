@@ -1209,6 +1209,7 @@ typedef enum local_box_options {
     local_box_keep_option   = 0x04,
     local_box_always_option = 0x08,
     local_box_move_option   = 0x10,
+    local_box_retain_option = 0x20,
 } local_box_options;
 
 typedef enum skip_codes {
