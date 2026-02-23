@@ -456,6 +456,7 @@ void tex_initialize_commands(void)
         tex_primitive(luametatex_command, no_legacy,       "spacefactorstretchlimit",        internal_integer_cmd,   space_factor_stretch_limit_code,          internal_integer_base);
         tex_primitive(luametatex_command, no_legacy,       "spacefactoroverload",            internal_integer_cmd,   space_factor_overload_code,               internal_integer_base);
         tex_primitive(luametatex_command, no_legacy,       "spaceskipfactor",                internal_integer_cmd,   space_skip_factor_code,                   internal_integer_base);
+        tex_primitive(luametatex_command, no_legacy,       "spaceskipmode",                  internal_integer_cmd,   space_skip_mode_code,                     internal_integer_base);
         tex_primitive(luametatex_command, no_legacy,       "boxlimitmode",                   internal_integer_cmd,   box_limit_mode_code,                      internal_integer_base);
         tex_primitive(luametatex_command, no_legacy,       "supmarkmode",                    internal_integer_cmd,   sup_mark_mode_code,                       internal_integer_base);
      /* tex_primitive(luametatex_command, no_legacy,       "commentmode",                    internal_integer_cmd,   comment_mode_code,                        internal_integer_base); */ /* experiment */

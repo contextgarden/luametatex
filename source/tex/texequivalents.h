@@ -753,6 +753,7 @@ typedef enum int_codes {
     space_factor_stretch_limit_code,
     space_factor_overload_code,
     space_skip_factor_code,
+    space_skip_mode_code,
     box_limit_mode_code,
     script_space_before_factor_code,
     script_space_between_factor_code,
@@ -1652,6 +1653,7 @@ extern int  tex_overload_permitted (halfword flags);
 # define space_factor_shrink_limit_par    integer_parameter(space_factor_shrink_limit_code)
 # define space_factor_stretch_limit_par   integer_parameter(space_factor_stretch_limit_code)
 # define space_skip_factor_par            integer_parameter(space_skip_factor_code)
+# define space_skip_mode_par              integer_parameter(space_skip_mode_code)
 # define sup_mark_mode_par                integer_parameter(sup_mark_mode_code)
 /*       comment_mode_par                 integer_parameter(comment_mode_code) */ /* experiment */
 # define text_direction_par               integer_parameter(text_direction_code)

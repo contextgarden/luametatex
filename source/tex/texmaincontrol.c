@@ -566,10 +566,35 @@ static void tex_aux_run_space(void)
                 }
                 glue_font(p) = cur_font_par;
                 tex_tail_append(p);
-                if (space_skip_factor_par != scaling_factor) {
-                    glue_amount(p) = tex_xn_over_d_factor(glue_amount(p), space_skip_factor_par);
-                    glue_stretch(p) = tex_xn_over_d_factor(glue_stretch(p), space_skip_factor_par);
-                    glue_shrink(p) = tex_xn_over_d_factor(glue_shrink(p), space_skip_factor_par);
+                {
+                    halfword f1, f2;
+                    switch (space_skip_mode_par) {
+                        case 0:
+                            f1 = space_skip_factor_par;
+                            f2 = scaling_factor;
+                            break;
+                        case 1:
+                            f1 = glyph_scale_par;
+                            f2 = scaling_factor;
+                            break;
+                        case 2:
+                            f1 = glyph_x_scale_par;
+                            f2 = scaling_factor;
+                            break;
+                        case 3:
+                            f1 = glyph_scale_par * glyph_x_scale_par;
+                            f2 = scaling_factor * scaling_factor;
+                            break;
+                        default:
+                            f1 = 0;
+                            f2 = 0;
+                            break;
+                    }
+                    if (f1 && f1 != f2) {
+                        glue_amount(p) = tex_xn_over_d(glue_amount(p), f1, f2);
+                        glue_stretch(p) = tex_xn_over_d(glue_stretch(p), f1, f2);
+                        glue_shrink(p) = tex_xn_over_d(glue_shrink(p), f1, f2);
+                    }
                 }
             }
             break;
