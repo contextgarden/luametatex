@@ -748,7 +748,7 @@ typedef enum int_codes {
     math_pre_tolerance_code,
     math_tolerance_code,
     empty_paragraph_mode_code,
-    space_factor_mode,
+    space_factor_mode_code,
     space_factor_shrink_limit_code,
     space_factor_stretch_limit_code,
     space_factor_overload_code,
@@ -1648,7 +1648,7 @@ extern int  tex_overload_permitted (halfword flags);
 # define show_node_details_par            integer_parameter(show_node_details_code)
 # define single_line_penalty_par          integer_parameter(single_line_penalty_code)
 # define space_char_par                   integer_parameter(space_char_code)
-# define space_factor_mode_par            integer_parameter(space_factor_mode)
+# define space_factor_mode_par            integer_parameter(space_factor_mode_code)
 # define space_factor_overload_par        integer_parameter(space_factor_overload_code)
 # define space_factor_shrink_limit_par    integer_parameter(space_factor_shrink_limit_code)
 # define space_factor_stretch_limit_par   integer_parameter(space_factor_stretch_limit_code)
@@ -2080,5 +2080,27 @@ typedef enum badness_modes {
 
 extern int tex_report_overload          (halfword cs, int overload);
 extern int tex_report_overload_register (halfword cs, int overload, halfword index, const char *str);
+
+typedef enum no_spaces_modes {
+    no_spaces_discard_mode    = 0x01,
+    no_spaces_zero_mode       = 0x02,
+    no_spaces_char_mode       = 0x03,
+    no_spaces_font_mode       = 0x04,
+    no_spaces_font_fixed_mode = 0x05,
+    no_spaces_char_width_mode = 0x06,
+} no_spaces_modes;
+
+typedef enum space_skip_modes {
+    space_skip_no_amount_mode  = 0x01,
+    space_skip_no_stretch_mode = 0x02,
+    space_skip_no_shrink_mode  = 0x04,
+    space_skip_no_glue_mode    = 0x06, /* bonus */
+} space_skip_modes;
+
+typedef enum space_factor_modes {
+    space_factor_over_limit_mode      = 0x00,
+    space_limit_over_factor_mode      = 0x01,
+    space_factor_over_limit_half_mode = 0x02,
+} space_factor_modes;
 
 # endif

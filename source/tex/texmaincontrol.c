@@ -459,19 +459,19 @@ static void tex_aux_run_math_space(void)
 static void tex_aux_run_space(void) 
 {
     switch (no_spaces_par) {
-        case 1:
+        case no_spaces_discard_mode:
             /*tex Don't inject anything, not even zero skip. */
             return;
-        case 2:
+        case no_spaces_zero_mode:
             /*tex Inject nothing but zero glue. */
             tex_tail_append(tex_new_glue_node(zero_glue, zero_space_skip_glue)); /* todo: subtype, zero_space_glue? */
             glue_font(cur_list.tail) = cur_font_par;
             break;
-        case 3:
+        case no_spaces_char_mode:
             tex_aux_adjust_space_factor(cur_chr);
             tex_tail_append(tex_new_char_node(glyph_unset_subtype, cur_font_par, space_char_par, 1));
             break;
-        case 4: 
+        case no_spaces_font_mode:
             {
                 halfword p = tex_get_scaled_glue(cur_font_par);
                 glue_options(p) |= glue_option_no_auto_break;
@@ -479,7 +479,7 @@ static void tex_aux_run_space(void)
                 tex_tail_append(p);
             }
             break;
-        case 5: 
+        case no_spaces_font_fixed_mode:
             {
                 halfword p = tex_get_scaled_glue(cur_font_par);
                 glue_options(p) |= glue_option_no_auto_break;
@@ -489,7 +489,7 @@ static void tex_aux_run_space(void)
                 tex_tail_append(p);
             }
             break;
-        case 6: 
+        case no_spaces_char_width_mode:
             {
                 halfword p = tex_new_glue_node(zero_glue, space_skip_glue);
                 glue_amount(p) = tex_font_x_scaled(tex_char_width_from_font(cur_font_par, '0'));
@@ -533,24 +533,26 @@ static void tex_aux_run_space(void)
                         if (space_factor_shrink_limit_par >= scaling_factor && cur_list.space_factor > scaling_factor) {
                             glue_options(p) |= glue_option_is_limited;
                             switch (space_factor_mode_par) { 
-                                case 1: 
+                                case space_limit_over_factor_mode:
                                     glue_shrink(p) = tex_xn_over_d_factor(glue_shrink(p), space_factor_shrink_limit_par);
                                     break;
-                                case 2 :
+                                case space_factor_over_limit_half_mode:
                                     glue_shrink(p) = tex_xn_over_d(glue_shrink(p), 2*scaling_factor, space_factor_shrink_limit_par);
                                     break;
+                             // case space_factor_over_limit_mode:
                                 default:
                                     glue_shrink(p) = tex_xn_over_d(glue_shrink(p), scaling_factor, space_factor_shrink_limit_par);
                                     break;
                             }
                         } else {                   
                             switch (space_factor_mode_par) { 
-                                case 1: 
+                                case space_limit_over_factor_mode:
                                     glue_shrink(p) = tex_xn_over_d_factor(glue_shrink(p), cur_list.space_factor);
                                     break;
-                                case 2 :
+                                case space_factor_over_limit_half_mode:
                                     glue_shrink(p) = tex_xn_over_d(glue_shrink(p), 2*scaling_factor, cur_list.space_factor);
                                     break;
+                             // case space_factor_over_limit_mode:
                                 default:
                                     glue_shrink(p) = tex_xn_over_d(glue_shrink(p), scaling_factor, cur_list.space_factor);
                                     break;
@@ -566,34 +568,29 @@ static void tex_aux_run_space(void)
                 }
                 glue_font(p) = cur_font_par;
                 tex_tail_append(p);
-                {
-                    halfword f1, f2;
-                    switch (space_skip_mode_par) {
-                        case 0:
-                            f1 = space_skip_factor_par;
-                            f2 = scaling_factor;
-                            break;
-                        case 1:
-                            f1 = glyph_scale_par;
-                            f2 = scaling_factor;
-                            break;
-                        case 2:
-                            f1 = glyph_x_scale_par;
-                            f2 = scaling_factor;
-                            break;
-                        case 3:
-                            f1 = glyph_scale_par * glyph_x_scale_par;
-                            f2 = scaling_factor * scaling_factor;
-                            break;
-                        default:
-                            f1 = 0;
-                            f2 = 0;
-                            break;
+                if (space_skip_mode_par) {
+                    if (space_skip_mode_par & space_skip_no_amount_mode) {
+                        glue_amount(p) = 0;
                     }
-                    if (f1 && f1 != f2) {
-                        glue_amount(p) = tex_xn_over_d(glue_amount(p), f1, f2);
-                        glue_stretch(p) = tex_xn_over_d(glue_stretch(p), f1, f2);
-                        glue_shrink(p) = tex_xn_over_d(glue_shrink(p), f1, f2);
+                    if (space_skip_mode_par & space_skip_no_stretch_mode) { /*tex also |space_skip_no_stretch_mode| */
+                        glue_stretch(p) = 0;
+                    }
+                    if (space_skip_mode_par & space_skip_no_shrink_mode) { /*tex also |space_skip_no_stretch_mode| */
+                        glue_shrink(p) = 0;
+                    }
+                }
+                {
+                    halfword factor = space_skip_factor_par;
+                    if (factor && factor != scaling_factor) {
+                        if (glue_amount(p)) {
+                            glue_amount(p) = tex_xn_over_d_factor(glue_amount(p), factor);
+                        }
+                        if (glue_stretch(p)) {
+                            glue_stretch(p) = tex_xn_over_d_factor(glue_stretch(p), factor);
+                        }
+                        if (glue_shrink(p)) {
+                            glue_shrink(p) = tex_xn_over_d_factor(glue_shrink(p), factor);
+                        }
                     }
                 }
             }

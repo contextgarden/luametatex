@@ -6880,6 +6880,37 @@ static int texlib_getadjustoptionvalues(lua_State *L)
     return 1;
 }
 
+static int texlib_getnospacesmodevalues(lua_State *L)
+{
+    lua_createtable(L, 2, 4);
+    lua_set_string_by_index(L, no_spaces_discard_mode,    "discard");
+    lua_set_string_by_index(L, no_spaces_zero_mode,       "zero");
+    lua_set_string_by_index(L, no_spaces_char_mode,       "character");
+    lua_set_string_by_index(L, no_spaces_font_mode,       "font");
+    lua_set_string_by_index(L, no_spaces_font_fixed_mode, "fontfixed");
+    lua_set_string_by_index(L, no_spaces_char_width_mode, "characterwidth");
+    return 1;
+};
+
+static int texlib_getspaceskipvalues(lua_State *L)
+{
+    lua_createtable(L, 2, 2);
+    lua_set_string_by_index(L, space_skip_no_amount_mode,  "noamount");
+    lua_set_string_by_index(L, space_skip_no_stretch_mode, "nostretch");
+    lua_set_string_by_index(L, space_skip_no_shrink_mode,  "noshrink");
+    lua_set_string_by_index(L, space_skip_no_glue_mode,    "noglue");
+    return 1;
+};
+
+static int texlib_getspacefactorvalues(lua_State *L)
+{
+    lua_createtable(L, 2, 1);
+    lua_set_string_by_index(L, space_factor_over_limit_mode,      "factoroverlimit");
+    lua_set_string_by_index(L, space_limit_over_factor_mode,      "limitoverfactor");
+    lua_set_string_by_index(L, space_factor_over_limit_half_mode, "factoroverlimithalf");
+    return 1;
+};
+
 static int texlib_getemptyparagraphmodevalues(lua_State *L)
 {
     lua_createtable(L, 2, 2);
@@ -7453,6 +7484,9 @@ static const struct luaL_Reg texlib_function_list[] = {
     { "getpardataspecifications",     texlib_getpardataspecifications       },
     { "getprepoststatevalues",        texlib_getprepoststatevalues          },
     { "getadjustoptionvalues",        texlib_getadjustoptionvalues          },
+    { "getnospacesmodevalues",        texlib_getnospacesmodevalues          },
+    { "getspaceskipvalues",           texlib_getspaceskipvalues             },
+    { "getspacefactorvalues",         texlib_getspacefactorvalues           },
     { "getemptyparagraphmodevalues",  texlib_getemptyparagraphmodevalues    },
     { "getpacktypevalues",            texlib_getpacktypevalues              },
     { "getgroupvalues",               texlib_getgroupvalues                 },

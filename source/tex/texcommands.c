@@ -451,7 +451,7 @@ void tex_initialize_commands(void)
         tex_primitive(luametatex_command, no_legacy,       "singlelinepenalty",              internal_integer_cmd,   single_line_penalty_code,                 internal_integer_base);
         tex_primitive(luametatex_command, no_legacy,       "lefttwindemerits",               internal_integer_cmd,   left_twin_demerits_code,                  internal_integer_base);
         tex_primitive(luametatex_command, no_legacy,       "righttwindemerits",              internal_integer_cmd,   right_twin_demerits_code,                 internal_integer_base);
-        tex_primitive(luametatex_command, no_legacy,       "spacefactormode",                internal_integer_cmd,   space_factor_mode,                        internal_integer_base);
+        tex_primitive(luametatex_command, no_legacy,       "spacefactormode",                internal_integer_cmd,   space_factor_mode_code,                   internal_integer_base);
         tex_primitive(luametatex_command, no_legacy,       "spacefactorshrinklimit",         internal_integer_cmd,   space_factor_shrink_limit_code,           internal_integer_base);
         tex_primitive(luametatex_command, no_legacy,       "spacefactorstretchlimit",        internal_integer_cmd,   space_factor_stretch_limit_code,          internal_integer_base);
         tex_primitive(luametatex_command, no_legacy,       "spacefactoroverload",            internal_integer_cmd,   space_factor_overload_code,               internal_integer_base);
