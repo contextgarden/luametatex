@@ -420,6 +420,7 @@ void tex_initialize_commands(void)
         tex_primitive(luametatex_command, no_legacy,       "overloadmode",                   internal_integer_cmd,   overload_mode_code,                       internal_integer_base);
         tex_primitive(luametatex_command, no_legacy,       "parametermode",                  internal_integer_cmd,   parameter_mode_code,                      internal_integer_base);
         tex_primitive(luatex_command,     no_legacy,       "pardirection",                   internal_integer_cmd,   par_direction_code,                       internal_integer_base);
+        tex_primitive(luametatex_command, no_legacy,       "paroptions",                     internal_integer_cmd,   par_options_code,                         internal_integer_base);
         tex_primitive(tex_command,        no_legacy,       "pausing",                        internal_integer_cmd,   pausing_code,                             internal_integer_base);
         tex_primitive(tex_command,        display_legacy,  "postdisplaypenalty",             internal_integer_cmd,   post_display_penalty_code,                internal_integer_base);
         tex_primitive(luametatex_command, no_legacy,       "postinlinepenalty",              internal_integer_cmd,   post_inline_penalty_code,                 internal_integer_base);
@@ -1463,7 +1464,7 @@ void tex_initialize_commands(void)
         tex_primitive(tex_command,        no_legacy,       "indent",                         begin_paragraph_cmd,    indent_par_code,                                 0);
         tex_primitive(tex_command,        no_legacy,       "noindent",                       begin_paragraph_cmd,    noindent_par_code,                               0);
         tex_primitive(luametatex_command, no_legacy,       "parattribute",                   begin_paragraph_cmd,    attribute_par_code,                              0);
-        tex_primitive(luametatex_command, no_legacy,       "paroptions",                     begin_paragraph_cmd,    options_par_code,                                0); /* currently only used for experiments */
+        tex_primitive(luametatex_command, no_legacy,       "optionspar",                     begin_paragraph_cmd,    options_par_code,                                0); /* currently only used for experiments */
         tex_primitive(luatex_command,     no_legacy,       "quitvmode",                      begin_paragraph_cmd,    quitvmode_par_code,                              0);
         tex_primitive(luametatex_command, no_legacy,       "snapshotpar",                    begin_paragraph_cmd,    snapshot_par_code,                               0);
         tex_primitive(luametatex_command, no_legacy,       "undent",                         begin_paragraph_cmd,    undent_par_code,                                 0);

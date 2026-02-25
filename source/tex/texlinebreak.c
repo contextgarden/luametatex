@@ -6522,6 +6522,14 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
             have the information that we started with.
 
         */
+        if (ls && (properties-> paragraph_options & par_left_fill_option) && normalize_line_mode_option(normalize_line_mode)) {
+            glue_stretch(ls) = unity;
+            glue_stretch_order(ls) = fill_glue_order;
+        }
+        if (rs && (properties-> paragraph_options & par_right_fill_option) && normalize_line_mode_option(normalize_line_mode)) {
+            glue_stretch(rs) = unity;
+            glue_stretch_order(rs) = fill_glue_order;
+        }
         first_line = rs && (cur_line == 1) && properties->parinit_left_skip && properties->parinit_right_skip;
         last_line = ls && (cur_line + 1 == lmt_linebreak_state.best_line) && properties->parfill_left_skip && properties->parfill_right_skip;
         if (first_line) {

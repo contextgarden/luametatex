@@ -6036,10 +6036,13 @@ static int texlib_getbalancestepoptionvalues(lua_State *L)
 
 static int texlib_getparagraphoptionvalues(lua_State *L)
 {
-    lua_createtable(L, 2, 1);
+    lua_createtable(L, 2, 4);
     lua_set_string_by_index(L, par_hang_depth_option,  "hangdepth");
     lua_set_string_by_index(L, par_synchronize_option, "synchronize");
     lua_set_string_by_index(L, par_snap_option,        "snap");
+    lua_set_string_by_index(L, par_left_fill_option,   "leftfill");
+    lua_set_string_by_index(L, par_right_fill_option,  "rightfill");
+    lua_set_string_by_index(L, par_both_fill_option,   "bothfill");
     return 1;
 }
 

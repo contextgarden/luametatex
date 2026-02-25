@@ -2862,6 +2862,9 @@ typedef enum par_options {
     par_synchronize_option = 0x02,
     par_snap_option        = 0x04,
     par_always_option      = 0x08,
+    par_left_fill_option   = 0x10,
+    par_right_fill_option  = 0x20,
+    par_both_fill_option   = 0x30,
 } par_options;
 
 /*tex Make sure that |max_chain_size| is large enough to have this huge node! */
