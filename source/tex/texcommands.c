@@ -244,6 +244,8 @@ void tex_initialize_commands(void)
         tex_primitive(luametatex_command, no_legacy,       "emergencyrightskip",             internal_glue_cmd,      emergency_right_skip_code,                internal_glue_base);
         tex_primitive(luametatex_command, no_legacy,       "initialpageskip",                internal_glue_cmd,      initial_page_skip_code,                   internal_glue_base);
         tex_primitive(luametatex_command, no_legacy,       "initialtopskip",                 internal_glue_cmd,      initial_top_skip_code,                    internal_glue_base);
+        tex_primitive(luametatex_command, no_legacy,       "justleftskip",                   internal_glue_cmd,      just_left_skip_code,                      internal_glue_base);
+        tex_primitive(luametatex_command, no_legacy,       "justrightskip",                  internal_glue_cmd,      just_right_skip_code,                     internal_glue_base);
         tex_primitive(tex_command,        no_legacy,       "leftskip",                       internal_glue_cmd,      left_skip_code,                           internal_glue_base);
         tex_primitive(tex_command,        no_legacy,       "lineskip",                       internal_glue_cmd,      line_skip_code,                           internal_glue_base);
         tex_primitive(luatex_command,     no_legacy,       "mathsurroundskip",               internal_glue_cmd,      math_skip_code,                           internal_glue_base);

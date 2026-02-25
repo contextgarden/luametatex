@@ -6018,6 +6018,20 @@ static void tex_aux_trace_penalty(const char *what, int line, int index, long lo
     }
 }
 
+static void tex_aux_adapt_just_skip(halfword target, halfword source)
+{
+    if (tex_glue_is_zero(source)) {
+        glue_stretch(target) = unity;
+        glue_stretch_order(target) = fill_glue_order;
+    } else {
+        glue_stretch(target) = glue_stretch(source);
+        glue_shrink(target) = glue_shrink(source);
+        glue_stretch_order(target) = glue_stretch_order(source);
+        glue_shrink_order(target) = glue_shrink_order(source);
+        glue_amount(target) += glue_amount(source);
+    }
+}
+
 static void tex_aux_post_line_break(const line_break_properties *properties, halfword line_break_dir, int callback_id, halfword checks, int state)
 {
     /*tex temporary registers for list manipulation */
@@ -6523,12 +6537,10 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
 
         */
         if (ls && (properties-> paragraph_options & par_left_fill_option) && normalize_line_mode_option(normalize_line_mode)) {
-            glue_stretch(ls) = unity;
-            glue_stretch_order(ls) = fill_glue_order;
+            tex_aux_adapt_just_skip(ls, just_left_skip_par);
         }
         if (rs && (properties-> paragraph_options & par_right_fill_option) && normalize_line_mode_option(normalize_line_mode)) {
-            glue_stretch(rs) = unity;
-            glue_stretch_order(rs) = fill_glue_order;
+            tex_aux_adapt_just_skip(rs, just_right_skip_par);
         }
         first_line = rs && (cur_line == 1) && properties->parinit_left_skip && properties->parinit_right_skip;
         last_line = ls && (cur_line + 1 == lmt_linebreak_state.best_line) && properties->parfill_left_skip && properties->parfill_right_skip;
