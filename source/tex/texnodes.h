@@ -3032,8 +3032,8 @@ static inline int  tex_par_to_be_set        (halfword state, halfword what) { re
 # define active_total_demerits(a)          memtwo(a,2)   /*tex the quantity that \TEX\ minimizes */
 # define active_short(a)                   memone(a,3)   /*tex |shortfall| of this line */
 # define active_glue(a)                    memtwo(a,3)   /*tex corresponding glue stretch or shrink */
-# define active_deficiency(a)              memone(a,4)   /* last line related, normally we can use the passive one */
-# define active_quality(a)                 memtwo(a,4)   /* last line related, normally we can use the passive one */
+# define active_deficiency(a)              memone(a,4)   /*tex last line related, normally we can use the passive one */
+# define active_quality(a)                 memtwo(a,4)   /*tex last line related, normally we can use the passive one */
 # define active_n_of_fitness_classes(a)    memone(a,5)
 # define active_hang_l_index(a)            memtwo0(a,5)
 # define active_hang_r_index(a)            memtwo1(a,5)

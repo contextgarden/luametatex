@@ -6018,8 +6018,9 @@ static void tex_aux_trace_penalty(const char *what, int line, int index, long lo
     }
 }
 
-static void tex_aux_adapt_just_skip(halfword target, halfword source)
+static void tex_aux_adapt_just_skip(halfword target)
 {
+    halfword source = justification_skip_par;
     if (tex_glue_is_zero(source)) {
         glue_stretch(target) = unity;
         glue_stretch_order(target) = fill_glue_order;
@@ -6536,12 +6537,6 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
             have the information that we started with.
 
         */
-        if (ls && (properties-> paragraph_options & par_left_fill_option) && normalize_line_mode_option(normalize_line_mode)) {
-            tex_aux_adapt_just_skip(ls, just_left_skip_par);
-        }
-        if (rs && (properties-> paragraph_options & par_right_fill_option) && normalize_line_mode_option(normalize_line_mode)) {
-            tex_aux_adapt_just_skip(rs, just_right_skip_par);
-        }
         first_line = rs && (cur_line == 1) && properties->parinit_left_skip && properties->parinit_right_skip;
         last_line = ls && (cur_line + 1 == lmt_linebreak_state.best_line) && properties->parfill_left_skip && properties->parfill_right_skip;
         if (first_line) {
@@ -6700,6 +6695,12 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
                 local_hang_r_slack  = passive_hang_r_after(prv_p) - local_hang_r_after;
             }
             shaping = (lefthang || righthang);
+            if (ls && (properties-> paragraph_options & par_left_fill_option) && normalize_line_mode_option(normalize_line_mode)) {
+                tex_aux_adapt_just_skip(ls);
+            }
+            if (rs && (properties-> paragraph_options & par_right_fill_option) && normalize_line_mode_option(normalize_line_mode)) {
+                tex_aux_adapt_just_skip(rs);
+            }
             lmt_linebreak_state.just_box = tex_hpack(head, cur_width, properties->adjust_spacing ? packing_linebreak : packing_exactly, (singleword) properties->paragraph_direction, holding_none_option, box_limit_line);
          // attach_attribute_list_copy(linebreak_state.just_box, properties->initial_par);
          // if (cur_line == 1 && (properties->paragraph_options & par_option_synchronize)) {

@@ -314,8 +314,7 @@ typedef enum glue_codes {
  /* inter_math_skip_code,       */ /*tex internal, might go away here */
     math_skip_code,                /*tex glue before and after inline math */
     math_threshold_code,
-    just_left_skip_code,
-    just_right_skip_code,
+    justification_skip_code,
     /*tex total number of glue parameters */
     number_glue_pars,
 } glue_codes;
@@ -1481,8 +1480,7 @@ extern int  tex_overload_permitted (halfword flags);
 # define emergency_right_skip_par         glue_parameter(emergency_right_skip_code)
 # define initial_page_skip_par            glue_parameter(initial_page_skip_code)
 # define initial_top_skip_par             glue_parameter(initial_top_skip_code)
-# define just_left_skip_par               glue_parameter(just_left_skip_code)
-# define just_right_skip_par              glue_parameter(just_right_skip_code)
+# define justification_skip_par           glue_parameter(justification_skip_code)
 # define left_skip_par                    glue_parameter(left_skip_code)
 # define line_skip_par                    glue_parameter(line_skip_code)
 # define math_skip_par                    glue_parameter(math_skip_code)

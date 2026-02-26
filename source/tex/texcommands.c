@@ -244,8 +244,7 @@ void tex_initialize_commands(void)
         tex_primitive(luametatex_command, no_legacy,       "emergencyrightskip",             internal_glue_cmd,      emergency_right_skip_code,                internal_glue_base);
         tex_primitive(luametatex_command, no_legacy,       "initialpageskip",                internal_glue_cmd,      initial_page_skip_code,                   internal_glue_base);
         tex_primitive(luametatex_command, no_legacy,       "initialtopskip",                 internal_glue_cmd,      initial_top_skip_code,                    internal_glue_base);
-        tex_primitive(luametatex_command, no_legacy,       "justleftskip",                   internal_glue_cmd,      just_left_skip_code,                      internal_glue_base);
-        tex_primitive(luametatex_command, no_legacy,       "justrightskip",                  internal_glue_cmd,      just_right_skip_code,                     internal_glue_base);
+        tex_primitive(luametatex_command, no_legacy,       "justificationskip",              internal_glue_cmd,      justification_skip_code,                  internal_glue_base);
         tex_primitive(tex_command,        no_legacy,       "leftskip",                       internal_glue_cmd,      left_skip_code,                           internal_glue_base);
         tex_primitive(tex_command,        no_legacy,       "lineskip",                       internal_glue_cmd,      line_skip_code,                           internal_glue_base);
         tex_primitive(luatex_command,     no_legacy,       "mathsurroundskip",               internal_glue_cmd,      math_skip_code,                           internal_glue_base);
@@ -358,7 +357,7 @@ void tex_initialize_commands(void)
         tex_primitive(luametatex_command, no_legacy,       "holdingmigrations",              internal_integer_cmd,   holding_migrations_code,                  internal_integer_base);
         tex_primitive(luatex_command,     no_legacy,       "hyphenationmode",                internal_integer_cmd,   hyphenation_mode_code,                    internal_integer_base);
         tex_primitive(tex_command,        no_legacy,       "hyphenpenalty",                  internal_integer_cmd,   hyphen_penalty_code,                      internal_integer_base);
-        tex_primitive(luametatex_command, no_legacy,       "insertoptions",                  internal_integer_cmd,   insert_options_code,                        internal_integer_base);
+        tex_primitive(luametatex_command, no_legacy,       "insertoptions",                  internal_integer_cmd,   insert_options_code,                      internal_integer_base);
         tex_primitive(tex_command,        no_legacy,       "interlinepenalty",               internal_integer_cmd,   inter_line_penalty_code,                  internal_integer_base);
         tex_primitive(no_command,         no_legacy,       "internaldirstate",               internal_integer_cmd,   internal_dir_state_code,                  internal_integer_base);
         tex_primitive(no_command,         no_legacy,       "internalmathscale",              internal_integer_cmd,   internal_math_scale_code,                 internal_integer_base);
