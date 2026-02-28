@@ -994,42 +994,59 @@ void tex_initialize_active(void)
 
 static void tex_aux_clean_up_the_memory(void)
 {
-    halfword q = node_next(active_head);
-    while (q != active_head) {
-        halfword p = node_next(q);
-     // tex_flush_node(q);
-        tex_free_node(q, get_node_size(node_type(q))); // less overhead & testing
-        q = p;
-    }
-    node_next(active_head) = null;
-    q = lmt_linebreak_state.passive;
-    lmt_linebreak_state.min_short = 0;
-    lmt_linebreak_state.max_short = 0;
-    while (q) {
-        halfword p = node_next(q);
-        if (p) {
-            scaled width = passive_line_width(p);
-            if (width > 0) {
-                scaled shrt = passive_short(p);
-                if (shrt < 0) {
-                    shrt = - tex_round_xn_over_d(scaling_factor, shrt, width);
-                    if (shrt < lmt_linebreak_state.min_short) {
-                        lmt_linebreak_state.min_short = shrt;
-                    }
-                } else if (shrt > 0) {
-                    shrt = tex_round_xn_over_d(scaling_factor, shrt, width);
-                    if (shrt < lmt_linebreak_state.max_short) {
-                        lmt_linebreak_state.max_short = shrt;
+    /*tex Collect some statistics. */
+    {
+        halfword q = active_break_node(lmt_linebreak_state.best_bet);
+        lmt_linebreak_state.min_short = 0;
+        lmt_linebreak_state.max_short = 0;
+        do {
+            /*tex So we skip the last line. */
+            q = passive_prev_break(q);
+            if (q) {
+                scaled width = passive_line_width(q);
+                if (width > 0) {
+                    scaled shrt = passive_short(q);
+                    if (shrt < 0) {
+                        shrt = - tex_round_xn_over_d(scaling_factor, shrt, width);
+                        if (shrt > lmt_linebreak_state.min_short) {
+                            lmt_linebreak_state.min_short = shrt;
+                        }
+                    } else if (shrt > 0) {
+                        shrt = tex_round_xn_over_d(scaling_factor, shrt, width);
+                        if (shrt > lmt_linebreak_state.max_short) {
+                            lmt_linebreak_state.max_short = shrt;
+                        }
                     }
                 }
             }
-         // tex_flush_node(q);
-         // tex_free_node(q, get_node_size(node_type(q))); // less overhead & testing
-            tex_free_node(q, passive_node_size); // less overhead & testing
-        }
-        q = p;
+        } while (q);
+     // printf(">>> MIN %i MAX %i\n",lmt_linebreak_state.min_short,lmt_linebreak_state.max_short);
     }
-    lmt_linebreak_state.passive = null;
+    /*tex Wipe active nodes. */
+    {
+        halfword q = node_next(active_head);
+        while (q != active_head) {
+            halfword p = node_next(q);
+         // tex_flush_node(q);
+            tex_free_node(q, get_node_size(node_type(q))); // less overhead & testing
+            q = p;
+        }
+        node_next(active_head) = null;
+    }
+    /*tex Wipe passive nodes. */
+    {
+        halfword q = lmt_linebreak_state.passive;
+        while (q) {
+            halfword p = node_next(q);
+            if (p) {
+             // tex_flush_node(q);
+             // tex_free_node(q, get_node_size(node_type(q))); // less overhead & testing
+                tex_free_node(q, passive_node_size); // less overhead & testing
+            }
+            q = p;
+        }
+        lmt_linebreak_state.passive = null;
+    }
 }
 
 /*tex
@@ -4553,8 +4570,6 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
         }
         while (subpass < nofsubpasses) {
             subpass = tex_aux_next_subpass(properties, passes, subpass, nofsubpasses, state, tracing);
-            lmt_linebreak_state.min_short = 0;
-            lmt_linebreak_state.max_short = 0;
             if (subpass > nofsubpasses) {
                 return subpass;
             } else {
@@ -4572,8 +4587,8 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
                     int callback = features & passes_callback_set;
                     int success = 0;
                     int details = properties->tracing_passes > 1;
-// printf("%i %i >>> min %i\n",minshort,lmt_linebreak_state.min_short,minshort > lmt_linebreak_state.min_short);
-// printf("%i %i >>> max %i\n",maxshort,lmt_linebreak_state.max_short,maxshort > lmt_linebreak_state.max_short);
+                 // printf("%i %i >>> min %i\n",minshort,lmt_linebreak_state.min_short,minshort > lmt_linebreak_state.min_short);
+                 // printf("%i %i >>> max %i\n",maxshort,lmt_linebreak_state.max_short,maxshort > lmt_linebreak_state.max_short);
                     int retry = callback
                               ? 1
                               : overfull > threshold
@@ -5846,6 +5861,8 @@ void tex_do_line_break(line_break_properties *properties)
                         goto DONE;
                     } else if (subpass < subpasses) {
                         int found = tex_aux_check_sub_pass(properties, state, shortfall, passes, subpass, subpasses, first);
+                        lmt_linebreak_state.min_short = 0;
+                        lmt_linebreak_state.max_short = 0;
                         if (found > 0) {
                             subpass = found;
                             goto HERE;
