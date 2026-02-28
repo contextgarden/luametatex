@@ -53,7 +53,7 @@ typedef enum specification_option_flags {
 
 // static inline halfword specification_n(halfword a, halfword n) { return specification_repeat(a) ? ((n - 1) % specification_count(a) + 1) : (n > specification_count(a) ? specification_count(a) : n); }
 
-# define par_passes_size     20
+# define par_passes_size     21
 # define balance_shape_size   5
 # define balance_passes_size  9
 # define line_snapping_size   4
@@ -310,6 +310,8 @@ typedef enum passes_parameter_okay {
 # define passes_tolerance_okay     (uint64_t) 0x0000000400000000
 # define passes_classes_okay       (uint64_t) 0x0000000800000000
 # define passes_emergencyunit_okay (uint64_t) 0x0000001000000000
+# define passes_minshort_okay      (uint64_t) 0x0000002000000000
+# define passes_maxshort_okay      (uint64_t) 0x0000004000000000
 
 static const uint64_t passes_basics_okay = 
     passes_hyphenation_okay 
@@ -383,6 +385,8 @@ static inline void     tex_set_passes_looseness            (halfword a, halfword
 static inline void     tex_set_passes_orphanlinefactors    (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,18)).half1    = v; }
 static inline void     tex_set_passes_orphanpenalties      (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,19)).half0    = v; }
 static inline void     tex_set_passes_emergencyunit        (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,19)).half1    = v; }
+static inline void     tex_set_passes_minshort             (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,20)).half0    = v; }
+static inline void     tex_set_passes_maxshort             (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,20)).half1    = v; }
 
 static inline uint64_t tex_get_passes_okay                 (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 1)).long0;   }
 static inline halfword tex_get_passes_features             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 2)).quart00; }
@@ -422,6 +426,8 @@ static inline halfword tex_get_passes_looseness            (halfword a, halfword
 static inline halfword tex_get_passes_orphanlinefactors    (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,18)).half1;   }
 static inline halfword tex_get_passes_orphanpenalties      (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,19)).half0;   }
 static inline halfword tex_get_passes_emergencyunit        (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,19)).half1;   }
+static inline halfword tex_get_passes_min_short            (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,20)).half0;   }
+static inline halfword tex_get_passes_max_short            (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,20)).half1;   }
 
 /* balance shape */
 

@@ -1003,11 +1003,30 @@ static void tex_aux_clean_up_the_memory(void)
     }
     node_next(active_head) = null;
     q = lmt_linebreak_state.passive;
+    lmt_linebreak_state.min_short = 0;
+    lmt_linebreak_state.max_short = 0;
     while (q) {
         halfword p = node_next(q);
-     // tex_flush_node(q);
-     // tex_free_node(q, get_node_size(node_type(q))); // less overhead & testing
-        tex_free_node(q, passive_node_size); // less overhead & testing
+        if (p) {
+            scaled width = passive_line_width(p);
+            if (width > 0) {
+                scaled shrt = passive_short(p);
+                if (shrt < 0) {
+                    shrt = - tex_round_xn_over_d(scaling_factor, shrt, width);
+                    if (shrt < lmt_linebreak_state.min_short) {
+                        lmt_linebreak_state.min_short = shrt;
+                    }
+                } else if (shrt > 0) {
+                    shrt = tex_round_xn_over_d(scaling_factor, shrt, width);
+                    if (shrt < lmt_linebreak_state.max_short) {
+                        lmt_linebreak_state.max_short = shrt;
+                    }
+                }
+            }
+         // tex_flush_node(q);
+         // tex_free_node(q, get_node_size(node_type(q))); // less overhead & testing
+            tex_free_node(q, passive_node_size); // less overhead & testing
+        }
         q = p;
     }
     lmt_linebreak_state.passive = null;
@@ -1876,6 +1895,8 @@ static void tex_aux_set_quality(halfword active, halfword passive, scaled shrt, 
     active_short(active) = shrt;
     active_glue(active) = glue;
     active_line_width(active) = width;
+    passive_line_width(passive) = width;
+    passive_short(passive) = shrt;
     if (shrt < 0) {
         shrt = -shrt;
         if (shrt > glue) {
@@ -4105,7 +4126,9 @@ static int tex_aux_set_sub_pass_parameters(
     halfword               classified,
     halfword               threshold,
     halfword               demerits,
-    halfword               classes
+    halfword               classes,
+    scaled                 minshort,
+    scaled                 maxshort
 ) {
     int success = 0;
     uint64_t okay = tex_get_passes_okay(passes, subpass);
@@ -4273,11 +4296,11 @@ static int tex_aux_set_sub_pass_parameters(
         halfword callback = tex_get_passes_callback(passes, subpass);
         halfword id = passes_identifier(passes);
         int repeat = 0;
-        success = lmt_par_pass_callback(
+            success = lmt_par_pass_callback(
             first,
             properties, id, subpass, callback, features,
             overfull, underfull, verdict, classified,
-            threshold, demerits, classes, &repeat
+            threshold, demerits, classes, minshort, maxshort, &repeat
         );
         if (repeat) {
             subpass -= 1;
@@ -4365,7 +4388,10 @@ static int tex_aux_set_sub_pass_parameters(
         tex_print_format("%s emergencyleftextra   %i\n", is_okay(passes_emergencyleftextra_okay), lmt_linebreak_state.emergency_left_extra);
         tex_print_format("%s emergencyrightextra  %i\n", is_okay(passes_emergencyrightextra_okay), lmt_linebreak_state.emergency_right_extra);
         tex_print_str("  --------------------------------\n");
-        tex_print_format("%s mathpenaltyfactor    %i\n", is_okay(passes_mathpenaltyfactor_okay),    properties->math_penalty_factor);
+        tex_print_format("%s minshortpercentage   %i\n", is_okay(passes_minshort_okay), minshort);
+        tex_print_format("%s maxshortpercentage   %i\n", is_okay(passes_maxshort_okay), maxshort);
+        tex_print_str("  --------------------------------\n");
+        tex_print_format("%s mathpenaltyfactor    %i\n", is_okay(passes_mathpenaltyfactor_okay), properties->math_penalty_factor);
         tex_print_str("  --------------------------------\n");
         tex_print_format("%s sffactor             %i\n", is_okay(passes_sffactor_okay), properties->sf_factor);
         tex_print_format("%s sfstretchfactor      %i\n", is_okay(passes_sfstretchfactor_okay), properties->sf_stretch_factor);
@@ -4527,6 +4553,8 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
         }
         while (subpass < nofsubpasses) {
             subpass = tex_aux_next_subpass(properties, passes, subpass, nofsubpasses, state, tracing);
+            lmt_linebreak_state.min_short = 0;
+            lmt_linebreak_state.max_short = 0;
             if (subpass > nofsubpasses) {
                 return subpass;
             } else {
@@ -4539,16 +4567,27 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
                     scaled threshold = tex_get_passes_threshold(passes, subpass);
                     halfword demerits = tex_get_passes_demerits(passes, subpass);
                     halfword classes = tex_get_passes_classes(passes, subpass);
+                    halfword minshort = tex_get_passes_min_short(passes, subpass);
+                    halfword maxshort = tex_get_passes_max_short(passes, subpass);
                     int callback = features & passes_callback_set;
                     int success = 0;
                     int details = properties->tracing_passes > 1;
-                    int retry = callback ? 1 : overfull > threshold || verdict > demerits || (classes && (classes & classified) != 0);
+// printf("%i %i >>> min %i\n",minshort,lmt_linebreak_state.min_short,minshort > lmt_linebreak_state.min_short);
+// printf("%i %i >>> max %i\n",maxshort,lmt_linebreak_state.max_short,maxshort > lmt_linebreak_state.max_short);
+                    int retry = callback
+                              ? 1
+                              : overfull > threshold
+                             || verdict > demerits
+                             || (classes && (classes & classified) != 0)
+                             || maxshort > lmt_linebreak_state.max_short
+                             || minshort < lmt_linebreak_state.min_short
+                    ;
                     if (tracing) {
                         int id = passes_identifier(passes);
                         tex_begin_diagnostic();
                         if (callback) {
-                            tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, classified %x, %s]\n",
-                                id, subpass, nofsubpasses, overfull, underfull, verdict, classified, "callback"
+                            tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, classified %x, min %i, max %i, %s]\n",
+                                id, subpass, nofsubpasses, overfull, underfull, verdict, classified, minshort, maxshort, "callback"
                             );
                         } else {
                             const char *action = retry ? "retry" : "skipped";
@@ -4557,22 +4596,22 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
                             }
                             if (threshold == max_dimension) {
                                 if (demerits == max_dimension) {
-                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, classified %x, %s]\n",
-                                        id, subpass, nofsubpasses, overfull, underfull, verdict, classified, action
+                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, classified %x, min %i, max %i, %s]\n",
+                                        id, subpass, nofsubpasses, overfull, underfull, verdict, classified, minshort, maxshort, action
                                     );
                                 } else {
-                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, demerits %i, classified %x, %s]\n",
-                                        id, subpass, nofsubpasses, overfull, underfull, verdict, demerits, classified, action
+                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, demerits %i, classified %x, min %i, max %i, %s]\n",
+                                        id, subpass, nofsubpasses, overfull, underfull, verdict, demerits, classified, minshort, maxshort, action
                                     );
                                 }
                             } else {
                                 if (demerits == max_dimension) {
-                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, threshold %p, classified %x, %s]\n",
-                                        id, subpass, nofsubpasses, overfull, underfull, verdict, threshold, classified, action
+                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, threshold %p, classified %x, min %i, max %i, %s]\n",
+                                        id, subpass, nofsubpasses, overfull, underfull, verdict, threshold, classified, minshort, maxshort, action
                                     );
                                 } else {
-                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, threshold %p, demerits %i, classified %x, %s]\n",
-                                        id, subpass, nofsubpasses, overfull, underfull, verdict, threshold, demerits, classified, action
+                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, threshold %p, demerits %i, classified %x, min %i, max %i, %s]\n",
+                                        id, subpass, nofsubpasses, overfull, underfull, verdict, threshold, demerits, classified, minshort, maxshort, action
                                     );
                                 }
                             }
@@ -4582,7 +4621,7 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
                         success = tex_aux_set_sub_pass_parameters(
                             properties, passes, subpass, first,
                             details,
-                            features, overfull, underfull, verdict, classified, threshold, demerits, classes
+                            features, overfull, underfull, verdict, classified, threshold, demerits, classes, minshort, maxshort
                         );
                     }
                     if (tracing) {
@@ -5510,6 +5549,8 @@ void tex_do_line_break(line_break_properties *properties)
     lmt_linebreak_state.local_hang_r_indent = 0,
     lmt_linebreak_state.local_hang_r_after = 0,
     lmt_linebreak_state.local_hang_r_index = 0,
+    lmt_linebreak_state.min_short = 0;
+    lmt_linebreak_state.max_short = 0;
 
  // for (int i = 0; i < n_of_glue_amounts; i++) {
  //     lmt_linebreak_state.active_width[i] = 0;
@@ -5646,7 +5687,7 @@ void tex_do_line_break(line_break_properties *properties)
                             first,
                             properties->tracing_passes > 1,
                             tex_get_passes_features(passes,subpass),
-                            0, 0, 0, 0, 0, 0, 0
+                            0, 0, 0, 0, 0, 0, 0, 0, 0
                         );
                         lmt_linebreak_state.passes[properties->par_context].n_of_specification_passes++;
                     }

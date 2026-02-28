@@ -14175,6 +14175,8 @@ int lmt_par_pass_callback(
     scaled                 threshold,
     halfword               demerits,
     halfword               classes,
+    scaled                 minshort,
+    scaled                 maxshort,
     int                   *repeat
 )
 {
@@ -14198,7 +14200,9 @@ int lmt_par_pass_callback(
                 lua_push_integer(L, threshold);
                 lua_push_integer(L, demerits);
                 lua_push_integer(L, classes);
-                i = lmt_callback_call(L, 10, 2, top);
+                lua_push_integer(L, minshort);
+                lua_push_integer(L, maxshort);
+                i = lmt_callback_call(L, 12, 2, top);
                 if (i) {
                     lmt_callback_error(L, top, i);
                 } else {

@@ -3041,8 +3041,7 @@ static inline int  tex_par_to_be_set        (halfword state, halfword what) { re
 # define active_page_number(a)             memone(a,1)
 # define active_page_height(a)             memone(a,2)
 
-//define passive_node_size                 13
-# define passive_node_size                 14
+# define passive_node_size                 15
 # define passive_fitness(a)                memone1(a,0)
 # define passive_prev_break(a)             memone(a,1)   /*tex points to passive node that should precede this one */
 # define passive_cur_break(a)              memtwo(a,1)   /*tex in passive node, points to position of this breakpoint */
@@ -3072,6 +3071,9 @@ static inline int  tex_par_to_be_set        (halfword state, halfword what) { re
 # define passive_hang_r_after(a)           memone1(a,13)
 # define passive_hang_l_index(a)           memtwo0(a,13)
 # define passive_hang_r_index(a)           memtwo1(a,13)
+
+# define passive_short(a)                  memone(a,14)
+# define passive_line_width(a)             memtwo(a,14)
 
 # define delta_node_size                   6
 # define delta_field_total_glue(d)         memone(d,1)
