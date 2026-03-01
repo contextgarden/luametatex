@@ -4606,10 +4606,10 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
                     int retry = callback
                               ? 1
                               : (overfull > threshold)
-                             || (verdict > demerits)
+                             || (verdict  > demerits)
                              || (classes && (classes & classified) != 0)
                              || (underfullpercentage > 0 && lmt_linebreak_state.underfull_percentage >= underfullpercentage)
-                             || (overfullpercentage > 0 && lmt_linebreak_state.overfull_percentage >= overfullpercentage)
+                             || (overfullpercentage  > 0 && lmt_linebreak_state.overfull_percentage  >= overfullpercentage)
                     ;
                     if (properties->tracing_passes == 2026) {
                         int id = passes_identifier(passes);
@@ -4617,26 +4617,29 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
                         tex_print_format("%l[linebreak: id %i, subpass %i of %i, retry %i]\n",
                             id, subpass, nofsubpasses, retry
                         );
-                        tex_print_format("%l[linebreak:   %i : overfull > threshold)  : (%p > %p)]\n",
-                            (overfull > threshold),
-                            overfull, threshold
+                        tex_print_format("%l[linebreak:   %i : overfull > threshold   : %p > %p]\n",
+                            overfull > threshold, overfull, threshold
                         );
-                        tex_print_format("%l[linebreak:   %i : verdict > demerits)    : (%i > %i)]\n",
-                            (verdict > demerits),
-                            verdict, demerits
+                        tex_print_format("%l[linebreak:   %i : verdict  > demerits    : %i > %i]\n",
+                            verdict > demerits, verdict, demerits
                         );
-                        tex_print_format("%l[linebreak:   %i : classes & classified)  : 0x%X && (0x%X & 0x%X)]\n",
-                             (classes && ((classes & classified) != 0)),
-                             classes, classes, classified
-                        );
-                        tex_print_format("%l[linebreak:   %i : maxunderfullpercentage : (%i > 0) && (%i > %i)]\n",
-                            ((underfullpercentage > 0) && (lmt_linebreak_state.underfull_percentage >= underfullpercentage)),
-                            underfullpercentage, lmt_linebreak_state.underfull_percentage, underfullpercentage
-                        );
-                        tex_print_format("%l[linebreak:   %i : maxoverfullpercentage  : (%i > 0) && (%i > %i)]\n",
-                            ((overfullpercentage  > 0) && (lmt_linebreak_state.overfull_percentage  >= overfullpercentage)),
-                            overfullpercentage,  lmt_linebreak_state.overfull_percentage,  overfullpercentage
-                        );
+                        if (classes) {
+                            tex_print_format("%l[linebreak:   %i : classes  & classified  : %X & %X]\n",
+                                 (classes & classified) != 0, classes, classified
+                            );
+                        }
+                        if (underfullpercentage > 0) {
+                            tex_print_format("%l[linebreak:   %i : maxunderfullpercentage : %i > %i]\n",
+                                lmt_linebreak_state.underfull_percentage >= underfullpercentage,
+                                lmt_linebreak_state.underfull_percentage, underfullpercentage
+                            );
+                        }
+                        if (overfullpercentage > 0) {
+                            tex_print_format("%l[linebreak:   %i : maxoverfullpercentage  : %i > %i]\n",
+                                lmt_linebreak_state.overfull_percentage >= overfullpercentage,
+                                lmt_linebreak_state.overfull_percentage, overfullpercentage
+                            );
+                        }
                         tex_end_diagnostic();
                     }
                     if (tracing) {
