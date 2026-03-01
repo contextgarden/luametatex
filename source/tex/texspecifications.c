@@ -791,43 +791,45 @@ static halfword tex_aux_scan_specification_par_passes(void)
                     }
                     break;
                 case 'm': case 'M':
-                    switch (tex_scan_character("iaIA", 0, 0, 0)) {
-                        case 'i': case 'I':
-                            if (tex_scan_mandate_keyword("minshortpercentage", 2)) {
-                                tex_set_passes_minshort(p, n, tex_scan_integer(0, NULL, NULL));
-                                tex_set_passes_features(p, n, passes_criterium_set);
-                                tex_set_passes_okay(p, n, passes_minshort_okay);
-                            }
-                            break;
-                        case 'a': case 'A':
-                            switch (tex_scan_character("txTX", 0, 0, 0)) {
-                                case 't': case 'T':
-                                    if (tex_scan_mandate_keyword("mathpenaltyfactor", 3)) {
-                                        halfword v = tex_scan_integer(0, NULL, NULL);
-                                        if (v < 0) {
-                                            v = 0;
-                                        } else if (v == scaling_factor) {
-                                            v = 0;
+                    if (tex_scan_character("aA", 0, 0, 0)) {
+                        switch (tex_scan_character("txTX", 0, 0, 0)) {
+                            case 't': case 'T':
+                                if (tex_scan_mandate_keyword("mathpenaltyfactor", 3)) {
+                                    halfword v = tex_scan_integer(0, NULL, NULL);
+                                    if (v < 0) {
+                                        v = 0;
+                                    } else if (v == scaling_factor) {
+                                        v = 0;
+                                    }
+                                    tex_set_passes_mathpenaltyfactor(p, n, v);
+                                    tex_set_passes_okay(p, n, passes_mathpenaltyfactor_okay);
+                                }
+                                break;
+                            case 'x': case 'X':
+                                switch (tex_scan_character("ouOU", 0, 0, 0)) {
+                                    case 'o': case 'O':
+                                        if (tex_scan_mandate_keyword("maxoverfullpercentage", 4)) {
+                                            tex_set_passes_overfullpercentage(p, n, tex_scan_integer(0, NULL, NULL));
+                                            tex_set_passes_features(p, n, passes_criterium_set);
+                                            tex_set_passes_okay(p, n, passes_overfullpercentage_okay);
                                         }
-                                        tex_set_passes_mathpenaltyfactor(p, n, v);
-                                        tex_set_passes_okay(p, n, passes_mathpenaltyfactor_okay);
-                                    }
-                                    break;
-                                case 'x': case 'X':
-                                    if (tex_scan_mandate_keyword("maxshortpercentage", 3)) {
-                                        tex_set_passes_maxshort(p, n, tex_scan_integer(0, NULL, NULL));
-                                        tex_set_passes_features(p, n, passes_criterium_set);
-                                        tex_set_passes_okay(p, n, passes_maxshort_okay);
-                                    }
-                                    break;
+                                        break;
+                                    case 'u': case 'U':
+                                        if (tex_scan_mandate_keyword("maxunderfullpercentage", 4)) {
+                                            tex_set_passes_underfullpercentage(p, n, tex_scan_integer(0, NULL, NULL));
+                                            tex_set_passes_features(p, n, passes_criterium_set);
+                                            tex_set_passes_okay(p, n, passes_underfullpercentage_okay);
+                                        }
+                                        break;
+                                    default:
+                                        tex_aux_show_keyword_error("maxoverfullpercentage|maxunderfullpercentage");
+                                        goto DONE;
+                                }
+                                break;
                             default:
-                                tex_aux_show_keyword_error("mathpenaltyfactor|maxshortpercentage");
+                                tex_aux_show_keyword_error("maxoverfullpercentage|maxunderfullpercentage|mathpenaltyfactor");
                                 goto DONE;
-                            }
-                            break;
-                        default:
-                            tex_aux_show_keyword_error("minshortpercentage|maxshortpercentage|mathpenaltyfactor");
-                            goto DONE;
+                        }
                     }
                     break;
                 case 'n': case 'N':

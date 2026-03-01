@@ -14175,8 +14175,8 @@ int lmt_par_pass_callback(
     scaled                 threshold,
     halfword               demerits,
     halfword               classes,
-    scaled                 minshort,
-    scaled                 maxshort,
+    halfword               overfullpercentage,
+    halfword               underfullpercentage,
     int                   *repeat
 )
 {
@@ -14200,8 +14200,8 @@ int lmt_par_pass_callback(
                 lua_push_integer(L, threshold);
                 lua_push_integer(L, demerits);
                 lua_push_integer(L, classes);
-                lua_push_integer(L, minshort);
-                lua_push_integer(L, maxshort);
+                lua_push_integer(L, overfullpercentage);
+                lua_push_integer(L, underfullpercentage);
                 i = lmt_callback_call(L, 12, 2, top);
                 if (i) {
                     lmt_callback_error(L, top, i);
@@ -14237,8 +14237,8 @@ int lmt_par_pass_callback(
                                 get_integer_par_pass(properties->math_penalty_factor, mathpenaltyfactor, properties->math_penalty_factor);
                                 get_integer_par_pass(properties->sf_factor, sffactor, properties->sf_factor);
                                 get_integer_par_pass(properties->sf_stretch_factor, sfstretchfactor, properties->sf_stretch_factor);
-// get_integer_par_pass(properties->min_short, minshortpercentage, properties->min_short);
-// get_integer_par_pass(properties->max_short, maxshortpercentage, properties->min_short);
+// get_integer_par_pass(properties->underfull_percentage, underfullpercentage, properties->underfull_percentage);
+// get_integer_par_pass(properties->overfull_percentage, overfullpercentage, properties->overfull_percentage);
                                 /*tex
                                     These are not properties (yet, but we could just add these as hidden fields):
 

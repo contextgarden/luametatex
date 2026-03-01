@@ -144,8 +144,8 @@ extern int lmt_par_pass_callback(
     scaled                 threshold, 
     halfword               badness, 
     halfword               classes,
-    scaled                 minshort,
-    scaled                 maxshort,
+    halfword               overfullpercentage,
+    halfword               underfullpercentage,
     int                   *repeat
 );
 
