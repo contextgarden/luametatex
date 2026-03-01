@@ -4471,6 +4471,8 @@ static int texlib_linebreak(lua_State *L)
         properties.math_penalty_factor = 0;
         properties.sf_factor = 0;
         properties.sf_stretch_factor = 0;
+        properties.min_short = 0;
+        properties.max_short = 0;
         while (tail) {
             switch (node_type(tail)) {
                 case glue_node:
@@ -4624,6 +4626,10 @@ static int texlib_linebreak(lua_State *L)
         get_line_snapping_par(properties.line_snapping,                linesnapping,              tex_get_par_par(par, par_line_snapping_code));
         get_integer_par      (properties.line_break_checks,            linebreakchecks,           tex_get_par_par(par, par_line_break_checks_code));
         get_integer_par      (properties.line_break_optional,          linebreakoptional,         line_break_optional_par); /* hm */
+
+// get_integer_par_pass(properties->min_short, minshortpercentage, properties->min_short);
+// get_integer_par_pass(properties->max_short, maxshortpercentage, properties->max_short);
+
         if (! prepared) {
             halfword attr_template = tail;
             halfword final_line_penalty = tex_new_penalty_node(infinite_penalty, line_penalty_subtype);

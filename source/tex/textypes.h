@@ -897,6 +897,9 @@ typedef struct line_break_properties {
     halfword math_penalty_factor;
     halfword sf_factor;
     halfword sf_stretch_factor;
+    /* */
+    halfword min_short;
+    halfword max_short;
 } line_break_properties;
 
 typedef struct balance_properties {

@@ -499,6 +499,8 @@ void tex_line_break(int group_context, int par_context, int display_math)
                     .sf_factor               = 0,
                     .sf_stretch_factor       = 0,
                     .max_adj_demerits        = 0,
+                    .min_short               = 0,
+                    .max_short               = 0
                 };
              /* properties.emergency_original = properties.emergency_stretch; */
                 tex_do_line_break(&properties);
@@ -4130,6 +4132,10 @@ static inline void tex_aux_set_adjacent_demerits(line_break_properties *properti
     }
 }
 
+// static inline void tex_aux_set_short(const line_break_properties *properties)
+// {
+// }
+
 static int tex_aux_set_sub_pass_parameters(
     line_break_properties *properties,
     halfword               passes,
@@ -4264,6 +4270,12 @@ static int tex_aux_set_sub_pass_parameters(
         }
         if (okay & passes_linebreakoptional_okay) {
             properties->line_break_optional = tex_get_passes_linebreakoptional(passes, subpass);
+        }
+        if (okay & passes_minshort_okay) {
+            properties->min_short = tex_get_passes_minshort(passes, subpass);
+        }
+        if (okay & passes_maxshort_okay) {
+            properties->max_short = tex_get_passes_maxshort(passes, subpass);
         }
     }
     /*tex
@@ -4405,8 +4417,8 @@ static int tex_aux_set_sub_pass_parameters(
         tex_print_format("%s emergencyleftextra   %i\n", is_okay(passes_emergencyleftextra_okay), lmt_linebreak_state.emergency_left_extra);
         tex_print_format("%s emergencyrightextra  %i\n", is_okay(passes_emergencyrightextra_okay), lmt_linebreak_state.emergency_right_extra);
         tex_print_str("  --------------------------------\n");
-        tex_print_format("%s minshortpercentage   %i\n", is_okay(passes_minshort_okay), minshort);
-        tex_print_format("%s maxshortpercentage   %i\n", is_okay(passes_maxshort_okay), maxshort);
+        tex_print_format("%s minshortpercentage   %i\n", is_okay(passes_minshort_okay), properties->min_short);
+        tex_print_format("%s maxshortpercentage   %i\n", is_okay(passes_maxshort_okay), properties->max_short);
         tex_print_str("  --------------------------------\n");
         tex_print_format("%s mathpenaltyfactor    %i\n", is_okay(passes_mathpenaltyfactor_okay), properties->math_penalty_factor);
         tex_print_str("  --------------------------------\n");
@@ -4582,8 +4594,11 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
                     scaled threshold = tex_get_passes_threshold(passes, subpass);
                     halfword demerits = tex_get_passes_demerits(passes, subpass);
                     halfword classes = tex_get_passes_classes(passes, subpass);
-                    halfword minshort = tex_get_passes_min_short(passes, subpass);
-                    halfword maxshort = tex_get_passes_max_short(passes, subpass);
+                    halfword minshort = tex_get_passes_minshort(passes, subpass);
+                    halfword maxshort = tex_get_passes_maxshort(passes, subpass);
+// why not
+// halfword minshort = properties->min_short;
+// halfword maxshort = properties->max_short;
                     int callback = features & passes_callback_set;
                     int success = 0;
                     int details = properties->tracing_passes > 1;
@@ -4594,8 +4609,10 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
                               : overfull > threshold
                              || verdict > demerits
                              || (classes && (classes & classified) != 0)
-                             || maxshort > lmt_linebreak_state.max_short
-                             || minshort < lmt_linebreak_state.min_short
+//                             || maxshort > lmt_linebreak_state.max_short
+//                             || minshort < lmt_linebreak_state.min_short
+                             || lmt_linebreak_state.max_short >= maxshort
+                             || lmt_linebreak_state.min_short >= minshort
                     ;
                     if (tracing) {
                         int id = passes_identifier(passes);
@@ -5606,6 +5623,7 @@ void tex_do_line_break(line_break_properties *properties)
     tex_aux_set_both_skips(properties);
     tex_aux_set_adjust_spacing_state();
     tex_aux_set_last_line_fit(properties);
+//  tex_aux_set_short(properties);
     /*tex
         Here we start doing the real work: find optimal breakpoints. We have an initial pass
         (pretolerance), when needed a second one (tolerance) and when we're still not done we

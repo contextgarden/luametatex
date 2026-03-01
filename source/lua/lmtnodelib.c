@@ -14237,6 +14237,8 @@ int lmt_par_pass_callback(
                                 get_integer_par_pass(properties->math_penalty_factor, mathpenaltyfactor, properties->math_penalty_factor);
                                 get_integer_par_pass(properties->sf_factor, sffactor, properties->sf_factor);
                                 get_integer_par_pass(properties->sf_stretch_factor, sfstretchfactor, properties->sf_stretch_factor);
+// get_integer_par_pass(properties->min_short, minshortpercentage, properties->min_short);
+// get_integer_par_pass(properties->max_short, maxshortpercentage, properties->min_short);
                                 /*tex
                                     These are not properties (yet, but we could just add these as hidden fields):
 
