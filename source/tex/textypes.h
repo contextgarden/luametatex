@@ -898,8 +898,7 @@ typedef struct line_break_properties {
     halfword sf_factor;
     halfword sf_stretch_factor;
     /* */
-    halfword underfull_percentage;
-    halfword overfull_percentage;
+    halfword raggedness;
 } line_break_properties;
 
 typedef struct balance_properties {

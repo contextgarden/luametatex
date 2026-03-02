@@ -343,7 +343,8 @@ static int tex_aux_first_with_criterium(halfword passes, int subpasses)
 {
     for (halfword subpass = 1; subpass <= subpasses; subpass++) {
         if (tex_get_passes_features(passes, subpass) & passes_criterium_set) {
-            return subpass; 
+            return subpass;
+            return subpass;
         }
     }
     return 0;
@@ -791,45 +792,15 @@ static halfword tex_aux_scan_specification_par_passes(void)
                     }
                     break;
                 case 'm': case 'M':
-                    if (tex_scan_character("aA", 0, 0, 0)) {
-                        switch (tex_scan_character("txTX", 0, 0, 0)) {
-                            case 't': case 'T':
-                                if (tex_scan_mandate_keyword("mathpenaltyfactor", 3)) {
-                                    halfword v = tex_scan_integer(0, NULL, NULL);
-                                    if (v < 0) {
-                                        v = 0;
-                                    } else if (v == scaling_factor) {
-                                        v = 0;
-                                    }
-                                    tex_set_passes_mathpenaltyfactor(p, n, v);
-                                    tex_set_passes_okay(p, n, passes_mathpenaltyfactor_okay);
-                                }
-                                break;
-                            case 'x': case 'X':
-                                switch (tex_scan_character("ouOU", 0, 0, 0)) {
-                                    case 'o': case 'O':
-                                        if (tex_scan_mandate_keyword("maxoverfullpercentage", 4)) {
-                                            tex_set_passes_overfullpercentage(p, n, tex_scan_integer(0, NULL, NULL));
-                                            tex_set_passes_features(p, n, passes_criterium_set);
-                                            tex_set_passes_okay(p, n, passes_overfullpercentage_okay);
-                                        }
-                                        break;
-                                    case 'u': case 'U':
-                                        if (tex_scan_mandate_keyword("maxunderfullpercentage", 4)) {
-                                            tex_set_passes_underfullpercentage(p, n, tex_scan_integer(0, NULL, NULL));
-                                            tex_set_passes_features(p, n, passes_criterium_set);
-                                            tex_set_passes_okay(p, n, passes_underfullpercentage_okay);
-                                        }
-                                        break;
-                                    default:
-                                        tex_aux_show_keyword_error("maxoverfullpercentage|maxunderfullpercentage");
-                                        goto DONE;
-                                }
-                                break;
-                            default:
-                                tex_aux_show_keyword_error("maxoverfullpercentage|maxunderfullpercentage|mathpenaltyfactor");
-                                goto DONE;
+                    if (tex_scan_mandate_keyword("mathpenaltyfactor", 1)) {
+                        halfword v = tex_scan_integer(0, NULL, NULL);
+                        if (v < 0) {
+                            v = 0;
+                        } else if (v == scaling_factor) {
+                            v = 0;
                         }
+                        tex_set_passes_mathpenaltyfactor(p, n, v);
+                        tex_set_passes_okay(p, n, passes_mathpenaltyfactor_okay);
                     }
                     break;
                 case 'n': case 'N':
@@ -864,9 +835,23 @@ static halfword tex_aux_scan_specification_par_passes(void)
                     }
                     break;
                 case 'r': case 'R':
-                    if (tex_scan_mandate_keyword("righttwindemerits", 1)) {
-                        tex_set_passes_righttwindemerits(p, n, tex_scan_integer(0, NULL, NULL));
-                        tex_set_passes_okay(p, n, passes_righttwindemerits_okay);
+                    switch (tex_scan_character("aiAI", 0, 0, 0)) {
+                        case 'a': case 'A':
+                            if (tex_scan_mandate_keyword("raggedness", 2)) {
+                                tex_set_passes_raggedness(p, n, tex_scan_integer(0, NULL, NULL));
+                                tex_set_passes_features(p, n, passes_criterium_set);
+                                tex_set_passes_okay(p, n, passes_raggedness_okay);
+                            }
+                            break;
+                        case 'i': case 'I':
+                            if (tex_scan_mandate_keyword("righttwindemerits", 2)) {
+                                tex_set_passes_righttwindemerits(p, n, tex_scan_integer(0, NULL, NULL));
+                                tex_set_passes_okay(p, n, passes_righttwindemerits_okay);
+                            }
+                            break;
+                        default:
+                            tex_aux_show_keyword_error("raggedness|righttwindemerits");
+                            goto DONE;
                     }
                     break;
                 case 's': case 'S':
@@ -921,6 +906,7 @@ static halfword tex_aux_scan_specification_par_passes(void)
                                 case 'l': case 'L':
                                     if (tex_scan_mandate_keyword("tolerance", 3)) {
                                         tex_set_passes_tolerance(p, n, tex_scan_integer(0, NULL, NULL));
+                        /* Not here! */ /* tex_set_passes_features(p, n, passes_criterium_set); */
                                         tex_set_passes_okay(p, n, passes_tolerance_okay);
                                     }
                                     break;

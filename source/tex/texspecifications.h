@@ -295,11 +295,11 @@ typedef enum passes_parameter_okay {
     /* */
     passes_looseness_okay            = 0x20000000,
     /* */
-    passes_reserved_1_okay           = 0x40000000,
-    passes_reserved_2_okay           = 0x80000000,
+    passes_raggedness_okay           = 0x40000000,
+    passes_reserved_okay             = 0x80000000,
     /* nicer */
-    passes_balancepenalty_okay       = 0x00000800,
-    passes_balancechecks_okay        = 0x00800000,
+    passes_balancepenalty_okay       = 0x00000800, // passes_linepenalty_okay
+    passes_balancechecks_okay        = 0x00800000, // passes_linebreakchecks_okay
     /*tex Watch out: the following options exceed halfword: |noad_options| are |long long|. */
 } passes_parameters_okay;
 
@@ -310,8 +310,6 @@ typedef enum passes_parameter_okay {
 # define passes_tolerance_okay           (uint64_t) 0x0000000400000000
 # define passes_classes_okay             (uint64_t) 0x0000000800000000
 # define passes_emergencyunit_okay       (uint64_t) 0x0000001000000000
-# define passes_underfullpercentage_okay (uint64_t) 0x0000002000000000
-# define passes_overfullpercentage_okay  (uint64_t) 0x0000004000000000
 
 static const uint64_t passes_basics_okay = 
     passes_hyphenation_okay 
@@ -346,8 +344,7 @@ static const uint64_t passes_additional_okay =
   | passes_linebreakoptional_okay
   | passes_sffactor_okay
   | passes_sfstretchfactor_okay
-  | passes_overfullpercentage_okay
-  | passes_underfullpercentage_okay;
+  | passes_raggedness_okay;
 
 /* We could save a few memory words by using quart (4), short (2) or single (1) bytes for some fields, but it' is a bit of work (casts). */
 
@@ -389,8 +386,7 @@ static inline void     tex_set_passes_looseness            (halfword a, halfword
 static inline void     tex_set_passes_orphanlinefactors    (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,18)).half1    = v; }
 static inline void     tex_set_passes_orphanpenalties      (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,19)).half0    = v; }
 static inline void     tex_set_passes_emergencyunit        (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,19)).half1    = v; }
-static inline void     tex_set_passes_overfullpercentage   (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,20)).half0    = v; } // quart
-static inline void     tex_set_passes_underfullpercentage  (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,20)).half1    = v; } // quart
+static inline void     tex_set_passes_raggedness           (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,20)).half0    = v; } // quart
 
 static inline uint64_t tex_get_passes_okay                 (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 1)).long0;   }
 static inline halfword tex_get_passes_features             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 2)).quart00; }
@@ -430,8 +426,7 @@ static inline halfword tex_get_passes_looseness            (halfword a, halfword
 static inline halfword tex_get_passes_orphanlinefactors    (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,18)).half1;   }
 static inline halfword tex_get_passes_orphanpenalties      (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,19)).half0;   }
 static inline halfword tex_get_passes_emergencyunit        (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,19)).half1;   }
-static inline halfword tex_get_passes_overfullpercentage   (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,20)).half0;   }
-static inline halfword tex_get_passes_underfullpercentage  (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,20)).half1;   }
+static inline halfword tex_get_passes_raggedness           (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,20)).half0;   }
 
 /* balance shape */
 

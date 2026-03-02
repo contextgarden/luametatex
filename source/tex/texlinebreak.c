@@ -499,8 +499,7 @@ void tex_line_break(int group_context, int par_context, int display_math)
                     .sf_factor               = 0,
                     .sf_stretch_factor       = 0,
                     .max_adj_demerits        = 0,
-                    .underfull_percentage    = 0,
-                    .overfull_percentage     = 0,
+                    .raggedness              = 0,
                 };
              /* properties.emergency_original = properties.emergency_stretch; */
                 tex_do_line_break(&properties);
@@ -994,37 +993,46 @@ void tex_initialize_active(void)
 
 */
 
-static void tex_aux_clean_up_the_memory(void)
+static void tex_aux_analyze_raggedness(const line_break_properties *properties, int subpass)
 {
     /*tex Collect some statistics. */
-    {
-        halfword q = active_break_node(lmt_linebreak_state.best_bet);
-        lmt_linebreak_state.underfull_percentage = 0;
-        lmt_linebreak_state.overfull_percentage = 0;
+    halfword q = active_break_node(lmt_linebreak_state.best_bet);
+    lmt_linebreak_state.raggedness = 0;
+    if (q) {
+        scaled min = 0;
+        scaled max = 0;
+        scaled count = 0;
         do {
+            ++count;
             /*tex So we skip the last line. */
             q = passive_prev_break(q);
             if (q) {
                 scaled width = passive_line_width(q);
                 if (width > 0) {
-                    scaled shrt = passive_short(q);
-                    if (shrt < 0) {
-                        /* overfull */
-                        shrt = - tex_round_xn_over_d(scaling_factor, shrt, width);
-                        if (shrt > lmt_linebreak_state.overfull_percentage) {
-                            lmt_linebreak_state.overfull_percentage = shrt;
-                        }
-                    } else if (shrt > 0) {
-                        /* underfull */
-                        shrt = tex_round_xn_over_d(scaling_factor, shrt, width);
-                        if (shrt > lmt_linebreak_state.underfull_percentage) {
-                            lmt_linebreak_state.underfull_percentage = shrt;
-                        }
+                 // scaled shrt = passive_short(q);
+                    scaled shrt = tex_round_xn_over_d(scaling_factor, passive_short(q), width);
+                    if (shrt < min) {
+                        min = shrt;
+                    }
+                    if (shrt > max) {
+                        max = shrt;
                     }
                 }
             }
         } while (q);
+     // lmt_linebreak_state.raggedness = tex_round_xn_over_d(scaling_factor, max - min, width);
+        lmt_linebreak_state.raggedness = max - min;
+        if (properties->tracing_passes == 2026) {
+            tex_begin_diagnostic();
+            tex_print_format("%l[linebreak: subpass %i, ragged min %i, ragged max %i, raggedness %i, count %i]\n",
+                subpass, min, max, lmt_linebreak_state.raggedness,count);
+            tex_end_diagnostic();
+        }
     }
+}
+
+static void tex_aux_clean_up_the_memory(void)
+{
     /*tex Wipe active nodes. */
     {
         halfword q = node_next(active_head);
@@ -2363,7 +2371,7 @@ static void tex_aux_trace_special_break(const line_break_properties *properties,
 
 # if (0)
 
-    static scaled xtex_aux_hang_l_indent(halfword active)
+    static scaled tex_aux_hang_l_indent(halfword active)
     {
      halfword passive = active_break_node(active);
      if (passive) {
@@ -2391,7 +2399,7 @@ static void tex_aux_trace_special_break(const line_break_properties *properties,
      return 0;
     }
 
-    static scaled xtex_aux_hang_r_indent(halfword active)
+    static scaled tex_aux_hang_r_indent(halfword active)
     {
      halfword passive = active_break_node(active);
      if (passive) {
@@ -4151,8 +4159,7 @@ static int tex_aux_set_sub_pass_parameters(
     halfword               threshold,
     halfword               demerits,
     halfword               classes,
-    scaled                 overfullpercentage,
-    scaled                 underfullpercentage
+    halfword               raggedness
 ) {
     int success = 0;
     uint64_t okay = tex_get_passes_okay(passes, subpass);
@@ -4272,11 +4279,8 @@ static int tex_aux_set_sub_pass_parameters(
         if (okay & passes_linebreakoptional_okay) {
             properties->line_break_optional = tex_get_passes_linebreakoptional(passes, subpass);
         }
-        if (okay & passes_underfullpercentage_okay) {
-            properties->underfull_percentage = tex_get_passes_underfullpercentage(passes, subpass);
-        }
-        if (okay & passes_overfullpercentage_okay) {
-            properties->overfull_percentage = tex_get_passes_overfullpercentage(passes, subpass);
+        if (okay & passes_raggedness_okay) {
+            properties->raggedness = tex_get_passes_raggedness(passes, subpass);
         }
     }
     /*tex
@@ -4326,11 +4330,11 @@ static int tex_aux_set_sub_pass_parameters(
         halfword callback = tex_get_passes_callback(passes, subpass);
         halfword id = passes_identifier(passes);
         int repeat = 0;
-            success = lmt_par_pass_callback(
+        success = lmt_par_pass_callback(
             first,
             properties, id, subpass, callback, features,
             overfull, underfull, verdict, classified,
-            threshold, demerits, classes, underfullpercentage, overfullpercentage, &repeat
+            threshold, demerits, classes, raggedness, &repeat
         );
         if (repeat) {
             subpass -= 1;
@@ -4373,6 +4377,7 @@ static int tex_aux_set_sub_pass_parameters(
         tex_print_format("%s threshold              %p\n", is_okay(passes_threshold_okay), tex_get_passes_threshold(passes, subpass));
         tex_print_format("%s demerits               %i\n", is_okay(passes_demerits_okay), tex_get_passes_demerits(passes, subpass));
         tex_print_format("%s classes                %X\n", is_okay(passes_classes_okay), tex_get_passes_classes(passes, subpass));
+        tex_print_format("%s raggedness             %i\n", is_okay(passes_raggedness_okay), tex_get_passes_raggedness(passes, subpass));
         tex_print_str("  ----------------------------------\n");
         tex_print_format("%s tolerance              %i\n", is_okay(passes_tolerance_okay), properties->tolerance);
         tex_print_format("%s hyphenation            %s\n", is_okay(passes_hyphenation_okay), lmt_linebreak_state.force_check_hyphenation ? "true": "false");
@@ -4417,9 +4422,6 @@ static int tex_aux_set_sub_pass_parameters(
         tex_print_format("%s emergencypercentage    %i\n", is_okay(passes_emergencypercentage_okay), lmt_linebreak_state.emergency_percentage);
         tex_print_format("%s emergencyleftextra     %i\n", is_okay(passes_emergencyleftextra_okay), lmt_linebreak_state.emergency_left_extra);
         tex_print_format("%s emergencyrightextra    %i\n", is_okay(passes_emergencyrightextra_okay), lmt_linebreak_state.emergency_right_extra);
-        tex_print_str("  ----------------------------------\n");
-        tex_print_format("%s maxunderfullpercentage %i\n", is_okay(passes_underfullpercentage_okay), properties->underfull_percentage);
-        tex_print_format("%s maxoverfullpercentage  %i\n", is_okay(passes_overfullpercentage_okay), properties->overfull_percentage);
         tex_print_str("  ----------------------------------\n");
         tex_print_format("%s mathpenaltyfactor      %i\n", is_okay(passes_mathpenaltyfactor_okay), properties->math_penalty_factor);
         tex_print_str("  ----------------------------------\n");
@@ -4584,70 +4586,84 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
         while (subpass < nofsubpasses) {
             subpass = tex_aux_next_subpass(properties, passes, subpass, nofsubpasses, state, tracing);
             if (subpass > nofsubpasses) {
+                if (properties->tracing_passes == 2026) {
+                    tex_begin_diagnostic();
+                    tex_print_format("%l[linebreak: id %i, criteria for entering subpass %i of %i: next]\n");
+                    tex_end_diagnostic();
+                }
                 return subpass;
             } else {
                 halfword features = tex_get_passes_features(passes, subpass);
                 if (features & passes_quit_pass) {
+                    if (properties->tracing_passes == 2026) {
+                        tex_begin_diagnostic();
+                        tex_print_format("%l[linebreak: id %i, criteria for entering subpass %i of %i: quit]\n");
+                        tex_end_diagnostic();
+                    }
                     return -1;
                 } else if (features & passes_skip_pass) {
+                    if (properties->tracing_passes == 2026) {
+                        tex_begin_diagnostic();
+                        tex_print_format("%l[linebreak: id %i, criteria for entering subpass %i of %i: skip]\n");
+                        tex_end_diagnostic();
+                    }
                     continue;
                 } else {
                     /* those are explicit criteria */
                     scaled threshold = tex_get_passes_threshold(passes, subpass);
                     halfword demerits = tex_get_passes_demerits(passes, subpass);
                     halfword classes = tex_get_passes_classes(passes, subpass);
-                    /* those inherit like others */
-                    halfword underfullpercentage = properties->underfull_percentage;
-                    halfword overfullpercentage = properties->overfull_percentage;
+                    halfword raggedness = tex_get_passes_raggedness(passes, subpass);
                     /* */
                     int callback = features & passes_callback_set;
                     int success = 0;
+                    uint64_t okay = tex_get_passes_okay(passes, subpass);
                     int details = properties->tracing_passes > 1;
                     int retry = callback
                               ? 1
-                              : (overfull > threshold)
-                             || (verdict  > demerits)
-                             || (classes && (classes & classified) != 0)
-                             || (underfullpercentage > 0 && lmt_linebreak_state.underfull_percentage >= underfullpercentage)
-                             || (overfullpercentage  > 0 && lmt_linebreak_state.overfull_percentage  >= overfullpercentage)
+                              : ((okay & passes_threshold_okay ) && (overfull > threshold))
+                             || ((okay & passes_demerits_okay  ) && (verdict  > demerits))
+                             || ((okay & passes_classes_okay   ) && (classes && (classes & classified) != 0))
+                             || ((okay & passes_raggedness_okay) && (raggedness > 0 && lmt_linebreak_state.raggedness >= raggedness))
                     ;
                     if (properties->tracing_passes == 2026) {
                         int id = passes_identifier(passes);
                         tex_begin_diagnostic();
-                        tex_print_format("%l[linebreak: id %i, subpass %i of %i, retry %i]\n",
-                            id, subpass, nofsubpasses, retry
+                        tex_print_format("%l[linebreak: id %i, criteria for entering subpass %i of %i: test]\n",
+                            id, subpass, nofsubpasses
                         );
-                        tex_print_format("%l[linebreak:   %i : overfull > threshold   : %p > %p]\n",
-                            overfull > threshold, overfull, threshold
-                        );
-                        tex_print_format("%l[linebreak:   %i : verdict  > demerits    : %i > %i]\n",
-                            verdict > demerits, verdict, demerits
-                        );
-                        if (classes) {
+                        if (okay & passes_threshold_okay) {
+                            tex_print_format("%l[linebreak:   %i : overfull > threshold   : %p > %p]\n",
+                                overfull > threshold, overfull, threshold
+                            );
+                        }
+                        if (okay & passes_demerits_okay) {
+                            tex_print_format("%l[linebreak:   %i : verdict  > demerits    : %i > %i]\n",
+                                verdict > demerits, verdict, demerits
+                            );
+                        }
+                        if (classes && (okay & passes_classes_okay)) {
                             tex_print_format("%l[linebreak:   %i : classes  & classified  : %X & %X]\n",
                                  (classes & classified) != 0, classes, classified
                             );
                         }
-                        if (underfullpercentage > 0) {
-                            tex_print_format("%l[linebreak:   %i : maxunderfullpercentage : %i > %i]\n",
-                                lmt_linebreak_state.underfull_percentage >= underfullpercentage,
-                                lmt_linebreak_state.underfull_percentage, underfullpercentage
+                        if (raggedness > 0 && (okay & passes_raggedness_okay)) {
+                            tex_print_format("%l[linebreak:   %i : raggedness : %i > %i]\n",
+                                lmt_linebreak_state.raggedness >= raggedness,
+                                lmt_linebreak_state.raggedness, raggedness
                             );
                         }
-                        if (overfullpercentage > 0) {
-                            tex_print_format("%l[linebreak:   %i : maxoverfullpercentage  : %i > %i]\n",
-                                lmt_linebreak_state.overfull_percentage >= overfullpercentage,
-                                lmt_linebreak_state.overfull_percentage, overfullpercentage
-                            );
-                        }
+                        tex_print_format("%l[linebreak: > %i : %s subpass %i]\n",
+                            retry, retry ? "check" : "skip", subpass
+                        );
                         tex_end_diagnostic();
                     }
                     if (tracing) {
                         int id = passes_identifier(passes);
                         tex_begin_diagnostic();
                         if (callback) {
-                            tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, classified %x, min %i, max %i, %s]\n",
-                                id, subpass, nofsubpasses, overfull, underfull, verdict, classified, overfullpercentage, underfullpercentage, "callback"
+                            tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, classified %x, raggedness %i, %s]\n",
+                                id, subpass, nofsubpasses, overfull, underfull, verdict, classified, raggedness, "callback"
                             );
                         } else {
                             const char *action = retry ? "retry" : "skipped";
@@ -4656,22 +4672,22 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
                             }
                             if (threshold == max_dimension) {
                                 if (demerits == max_dimension) {
-                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, classified %x, overfullpct %i, underfullpct %i, %s]\n",
-                                        id, subpass, nofsubpasses, overfull, underfull, verdict, classified, overfullpercentage, underfullpercentage, action
+                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, classified %x, raggedness %i, %s]\n",
+                                        id, subpass, nofsubpasses, overfull, underfull, verdict, classified, raggedness, action
                                     );
                                 } else {
-                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, demerits %i, classified %x, overrullpct %i, underfullpct %i, %s]\n",
-                                        id, subpass, nofsubpasses, overfull, underfull, verdict, demerits, classified, overfullpercentage, underfullpercentage, action
+                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, demerits %i, classified %x, raggedness %i, %s]\n",
+                                        id, subpass, nofsubpasses, overfull, underfull, verdict, demerits, classified, raggedness, action
                                     );
                                 }
                             } else {
                                 if (demerits == max_dimension) {
-                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, threshold %p, classified %x, overfullpct %i, underfullpct %i, %s]\n",
-                                        id, subpass, nofsubpasses, overfull, underfull, verdict, threshold, classified, overfullpercentage, underfullpercentage, action
+                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, threshold %p, classified %x, raggedness%i, %s]\n",
+                                        id, subpass, nofsubpasses, overfull, underfull, verdict, threshold, classified, raggedness, action
                                     );
                                 } else {
-                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, threshold %p, demerits %i, classified %x, overfullpct %i, underfullpct %i, %s]\n",
-                                        id, subpass, nofsubpasses, overfull, underfull, verdict, threshold, demerits, classified, overfullpercentage, underfullpercentage, action
+                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, threshold %p, demerits %i, classified %x, raggedness %i, %s]\n",
+                                        id, subpass, nofsubpasses, overfull, underfull, verdict, threshold, demerits, classified, raggedness, action
                                     );
                                 }
                             }
@@ -4681,7 +4697,8 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
                         success = tex_aux_set_sub_pass_parameters(
                             properties, passes, subpass, first,
                             details,
-                            features, overfull, underfull, verdict, classified, threshold, demerits, classes, overfullpercentage, underfullpercentage
+                            features,
+                            overfull, underfull, verdict, classified, threshold, demerits, classes, raggedness
                         );
                     }
                     if (tracing) {
@@ -4694,7 +4711,12 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
             }
         }
     } else {
-        /*tex We have a few hits in our test files. */
+        /*tex This can't happen, result is 1 or 2. */
+     // if (properties->tracing_passes == 2026) {
+     //     tex_begin_diagnostic();
+     //     tex_print_format("%l[linebreak: id %i, criteria for entering subpass %i of %i: okay]\n");
+     //     tex_end_diagnostic();
+     // }
     }
     return 0;
 }
@@ -5609,8 +5631,7 @@ void tex_do_line_break(line_break_properties *properties)
     lmt_linebreak_state.local_hang_r_indent = 0,
     lmt_linebreak_state.local_hang_r_after = 0,
     lmt_linebreak_state.local_hang_r_index = 0,
-    lmt_linebreak_state.underfull_percentage = 0;
-    lmt_linebreak_state.overfull_percentage = 0;
+    lmt_linebreak_state.raggedness = 0;
 
  // for (int i = 0; i < n_of_glue_amounts; i++) {
  //     lmt_linebreak_state.active_width[i] = 0;
@@ -5698,6 +5719,11 @@ void tex_do_line_break(line_break_properties *properties)
         routine returns either |null| or some place in the list that needs attention.
     */
  /* state = tex_aux_analyze_list(first); */
+    if (subpasses && properties->tracing_passes == 2026) {
+        tex_begin_diagnostic();
+        tex_print_format("%l[linebreak: first final %i in %i]", passes_first_final(passes), subpasses);
+        tex_end_diagnostic();
+    }
     while (1) {
         halfword current = first;
         int artificial = 0;
@@ -5748,7 +5774,10 @@ void tex_do_line_break(line_break_properties *properties)
                             first,
                             properties->tracing_passes > 1,
                             tex_get_passes_features(passes,subpass),
-                            0, 0, 0, 0, 0, 0, 0, 0, 0
+                            /* here not: */
+                            /* overfull, underfull, verdict, classified, threshold, demerits, classes, raggedness */
+                            /* but instead: */
+                            0, 0, 0, 0, 0, 0, 0, 0
                         );
                         lmt_linebreak_state.passes[properties->par_context].n_of_specification_passes++;
                     }
@@ -5899,16 +5928,19 @@ void tex_do_line_break(line_break_properties *properties)
             if (node_next(active_head) != active_head) {
                 /*tex Find an active node with fewest demerits. */
                 tex_aux_find_best_bet();
+if (passes) {
+    tex_aux_analyze_raggedness(properties, subpass);
+}
                 if (pass == linebreak_specification_pass) {
                     /*tex This is where sub passes differ: we do a check. */
                     if (subpass < 0) {
                         goto HERE;
                     } else if (subpass < passes_first_final(passes)) {
+// weird
                         goto DONE;
                     } else if (subpass < subpasses) {
                         int found = tex_aux_check_sub_pass(properties, state, shortfall, passes, subpass, subpasses, first);
-                        lmt_linebreak_state.overfull_percentage = 0;
-                        lmt_linebreak_state.underfull_percentage = 0;
+                        lmt_linebreak_state.raggedness = 0;
                         if (found > 0) {
                             subpass = found;
                             goto HERE;
