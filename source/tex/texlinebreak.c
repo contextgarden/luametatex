@@ -993,43 +993,49 @@ void tex_initialize_active(void)
 
 */
 
-static void tex_aux_analyze_raggedness(const line_break_properties *properties, int subpass)
+static int tex_aux_analyze_raggedness(const line_break_properties *properties, int subpass)
 {
     /*tex Collect some statistics. */
     halfword q = active_break_node(lmt_linebreak_state.best_bet);
-    lmt_linebreak_state.raggedness = 0;
     if (q) {
-        scaled min = 0;
-        scaled max = 0;
-        scaled count = 0;
-        do {
-            ++count;
-            /*tex So we skip the last line. */
-//            q = passive_prev_break(q);
-            if (q) {
-                scaled width = passive_line_width(q);
-                if (width > 0) {
-                 // scaled shrt = passive_short(q);
-                    scaled shrt = tex_round_xn_over_d(scaling_factor, passive_short(q), width);
-                    if (shrt < min) {
-                        min = shrt;
-                    }
-                    if (shrt > max) {
-                        max = shrt;
-                    }
+        halfword min = 0;
+        halfword max = 0;
+        halfword lines = 0;
+        halfword overfull = 0;
+        while (q) {
+            scaled width = passive_line_width(q);
+            if (width > 0) {
+                halfword shrt = tex_round_xn_over_d(scaling_factor, passive_short(q), width);
+                if (shrt > max) {
+                    max = shrt;
+                }
+                if (shrt < min) {
+                    min = shrt;
+                }
+                ++lines;
+                if (passive_quality(q) == par_is_overfull) {
+                    ++overfull;
                 }
             }
             q = passive_prev_break(q);
-        } while (q);
+        }
         lmt_linebreak_state.raggedness = max - min;
         if (properties->tracing_passes == 2026) {
             tex_begin_diagnostic();
-            tex_print_format("%l[linebreak: subpass %i, ragged min %i, ragged max %i, raggedness %i, count %i]\n",
-                subpass, min, max, lmt_linebreak_state.raggedness,count);
+            tex_print_format("%l[linebreak: subpass %i, raggedness, min %i, max %i, effective %i, overfull %i, lines %i, %s]\n",
+                    subpass, min, max, lmt_linebreak_state.raggedness, overfull, lines,
+                    overfull ? "overfull, quit" : "underfull, check"
+            );
             tex_end_diagnostic();
         }
+        return overfull ? 1 : 0;
+    } else {
+        /* shouldn't happen */
+        lmt_linebreak_state.raggedness = 0;
+        return 1;
     }
 }
+
 
 static void tex_aux_clean_up_the_memory(void)
 {
@@ -5924,25 +5930,23 @@ void tex_do_line_break(line_break_properties *properties)
             if (node_next(active_head) != active_head) {
                 /*tex Find an active node with fewest demerits. */
                 tex_aux_find_best_bet();
+                lmt_linebreak_state.raggedness = 0;
                 if (pass == linebreak_specification_pass) {
                     if (passes) {
-                        halfword raggedness = tex_get_passes_raggedness(passes, subpass);
+                        halfword raggedness = tex_get_passes_raggedness(passes, subpass); // properties->raggedness
                         if (raggedness) {
-                            tex_aux_analyze_raggedness(properties, subpass);
-                            if (lmt_linebreak_state.raggedness >= raggedness) {
+                            int force = tex_aux_analyze_raggedness(properties, subpass);
+                            if (force || lmt_linebreak_state.raggedness >= raggedness) {
                                 if (subpass < passes_first_final(passes)) {
                                     subpass += 1;
-                                    if (properties->tracing_paragraphs > 0 || properties->tracing_passes > 0) {
+                                    if (! force && (properties->tracing_paragraphs > 0 || properties->tracing_passes > 0)) {
                                         tex_begin_diagnostic();
-                                        /* todo id */
-                                        tex_print_format("%l[linebreak: subpass %i, raggedness %i >= %i]\n", subpass, lmt_linebreak_state.raggedness, raggedness);
+                                        tex_print_format("%l[linebreak: subpass %i, raggedness %i >= %i, %s]\n", subpass, lmt_linebreak_state.raggedness, raggedness);
                                         tex_begin_diagnostic();
                                     }
                                     goto HERE;
                                 }
                             }
-                        } else {
-                            lmt_linebreak_state.raggedness = 0;
                         }
                     }
                     /*tex This is where sub passes differ: we do a check. */
@@ -5952,7 +5956,6 @@ void tex_do_line_break(line_break_properties *properties)
                         goto DONE;
                     } else if (subpass < subpasses) {
                         int found = tex_aux_check_sub_pass(properties, state, shortfall, passes, subpass, subpasses, first);
-                        lmt_linebreak_state.raggedness = 0;
                         if (found > 0) {
                             subpass = found;
                             goto HERE;
