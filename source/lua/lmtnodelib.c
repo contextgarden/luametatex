@@ -14175,7 +14175,6 @@ int lmt_par_pass_callback(
     scaled                 threshold,
     halfword               demerits,
     halfword               classes,
-    halfword               raggedness,
     int                   *repeat
 )
 {
@@ -14199,8 +14198,7 @@ int lmt_par_pass_callback(
                 lua_push_integer(L, threshold);
                 lua_push_integer(L, demerits);
                 lua_push_integer(L, classes);
-                lua_push_integer(L, raggedness);
-                i = lmt_callback_call(L, 11, 2, top);
+                i = lmt_callback_call(L, 10, 2, top);
                 if (i) {
                     lmt_callback_error(L, top, i);
                 } else {

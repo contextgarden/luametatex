@@ -344,7 +344,6 @@ static int tex_aux_first_with_criterium(halfword passes, int subpasses)
     for (halfword subpass = 1; subpass <= subpasses; subpass++) {
         if (tex_get_passes_features(passes, subpass) & passes_criterium_set) {
             return subpass;
-            return subpass;
         }
     }
     return 0;
@@ -839,7 +838,6 @@ static halfword tex_aux_scan_specification_par_passes(void)
                         case 'a': case 'A':
                             if (tex_scan_mandate_keyword("raggedness", 2)) {
                                 tex_set_passes_raggedness(p, n, tex_scan_integer(0, NULL, NULL));
-                                tex_set_passes_features(p, n, passes_criterium_set);
                                 tex_set_passes_okay(p, n, passes_raggedness_okay);
                             }
                             break;
