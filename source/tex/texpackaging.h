@@ -145,7 +145,7 @@ extern halfword  tex_natural_width         (halfword p, halfword pp, glueratio g
 extern halfword  tex_natural_hsize         (halfword p, halfword *correction);
 extern halfword  tex_natural_vsize         (halfword p);
                                            
-extern halfword  tex_hpack                 (halfword p, scaled w, int m, singleword d, int retain, int limit);
+extern halfword  tex_hpack                 (halfword p, scaled w, int m, singleword d, int retain, int limit, halfword ls, halfword rs);
 extern halfword  tex_vpack                 (halfword p, scaled h, int m, scaled l, singleword d, int retain, int *excess);
                                            
 extern void      tex_repack                (halfword p, scaled w, int m);

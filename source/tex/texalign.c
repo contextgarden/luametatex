@@ -2623,7 +2623,7 @@ static void tex_aux_finish_align(void)
         halfword rule_save = overfull_rule_par;
         /*tex Prevent the rule from being packaged. */
         overfull_rule_par = 0; 
-        preroll = tex_hpack(preamble, amount, mode, direction_unknown, holding_none_option, box_limit_none);
+        preroll = tex_hpack(preamble, amount, mode, direction_unknown, holding_none_option, box_limit_none, null, null);
         overfull_rule_par = rule_save;
     } else {
         halfword unset = node_next(preamble);
@@ -2870,7 +2870,7 @@ static void tex_aux_finish_align(void)
                             halfword box = null;
                             node_prev(rowptr) = null;
                             node_next(rowptr) = null;
-                            box = tex_hpack(rowptr, 0, packing_additional, direction_unknown, holding_none_option, box_limit_none);
+                            box = tex_hpack(rowptr, 0, packing_additional, direction_unknown, holding_none_option, box_limit_none, null, null);
                             tex_attach_attribute_list_attribute(box, rowptr);
                             box_shift_amount(box) = offset;
                             node_subtype(box) = align_cell_list; /*tex This is not really a cell. */

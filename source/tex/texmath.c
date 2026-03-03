@@ -5255,7 +5255,7 @@ static void tex_aux_finish_displayed_math(int atleft, halfword eqnumber, halfwor
     lmt_packaging_state.post_migrate_tail = post_migrate_head;
     lmt_packaging_state.pre_migrate_tail = pre_migrate_head;
     /* */
-    equation_box = tex_hpack(equation, 0, packing_additional, direction_unknown, holding_none_option, box_limit_none);
+    equation_box = tex_hpack(equation, 0, packing_additional, direction_unknown, holding_none_option, box_limit_none, null, null);
     node_subtype(equation_box) = equation_list;
     tex_attach_current_attribute_list(equation_box);
     equation = box_list(equation_box);
@@ -5288,7 +5288,7 @@ static void tex_aux_finish_displayed_math(int atleft, halfword eqnumber, halfwor
                 || (lmt_packaging_state.total_shrink[filll_glue_order] != 0))) {
             box_list(equation_box) = null;
             tex_flush_node(equation_box);
-            equation_box = tex_hpack(equation, line_width - number_plus_gap_width, packing_exactly, direction_unknown, holding_none_option, box_limit_none);
+            equation_box = tex_hpack(equation, line_width - number_plus_gap_width, packing_exactly, direction_unknown, holding_none_option, box_limit_none, null, null);
             node_subtype(equation_box) = equation_list;
             tex_attach_current_attribute_list(equation_box);
         } else {
@@ -5296,7 +5296,7 @@ static void tex_aux_finish_displayed_math(int atleft, halfword eqnumber, halfwor
             if (equation_width > line_width) {
                 box_list(equation_box) = null;
                 tex_flush_node(equation_box);
-                equation_box = tex_hpack(equation, line_width, packing_exactly, direction_unknown, holding_none_option, box_limit_none);
+                equation_box = tex_hpack(equation, line_width, packing_exactly, direction_unknown, holding_none_option, box_limit_none, null, null);
                 node_subtype(equation_box) = equation_list;
                 tex_attach_current_attribute_list(equation_box);
             }
@@ -5410,7 +5410,7 @@ static void tex_aux_finish_displayed_math(int atleft, halfword eqnumber, halfwor
                 equation_box = kern;
             }
         }
-        equation_box = tex_hpack(equation_box, 0, packing_additional, direction_unknown, holding_none_option, box_limit_none);
+        equation_box = tex_hpack(equation_box, 0, packing_additional, direction_unknown, holding_none_option, box_limit_none, null, null);
         node_subtype(equation_box) = equation_list; /* new */
         tex_attach_current_attribute_list(equation_box);
         box_shift_amount(equation_box) = indent;
@@ -5620,7 +5620,7 @@ void tex_run_math_shift(void)
                             break;
                     }
                     tex_run_mlist_to_hlist(mathlist, 0, text_style, unset_noad_class, unset_noad_class);
-                    eqnumber = tex_hpack(node_next(temp_head), 0, packing_additional, direction_unknown, holding_none_option, box_limit_none);
+                    eqnumber = tex_hpack(node_next(temp_head), 0, packing_additional, direction_unknown, holding_none_option, box_limit_none, null, null);
                     tex_attach_current_attribute_list(eqnumber);
                     tex_aux_unsave_math();
                     /*tex now |cur_group = math_shift_group| */

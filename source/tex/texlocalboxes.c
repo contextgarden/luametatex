@@ -244,7 +244,7 @@ void tex_replace_local_boxes(halfword par, halfword b, halfword index, halfword 
 halfword tex_use_local_boxes(halfword p, halfword location)
 {
     if (p) {
-        p = tex_hpack(tex_copy_node_list(p, null), 0, packing_additional, direction_unknown, holding_none_option, box_limit_none);
+        p = tex_hpack(tex_copy_node_list(p, null), 0, packing_additional, direction_unknown, holding_none_option, box_limit_none, null, null);
         switch (location) {
             case local_left_box_code  : node_subtype(p) = local_left_list  ; break;
             case local_right_box_code : node_subtype(p) = local_right_list ; break;
@@ -413,7 +413,7 @@ void tex_aux_finish_local_box(void)
                 We really need something packed so we play safe! This feature is inherited but could
                 have been delegated to a callback anyway.
             */
-            p = tex_hpack(p, 0, packing_additional, direction_unknown, holding_none_option, box_limit_none);
+            p = tex_hpack(p, 0, packing_additional, direction_unknown, holding_none_option, box_limit_none, null, null);
             node_subtype(p) = local_list;
             box_index(p) = index;
             if (always) {
@@ -425,7 +425,7 @@ void tex_aux_finish_local_box(void)
         }
         if (always) {
             if (cur_mode == hmode || cur_mode == mmode) {
-                halfword h = tex_hpack(p, 0, packing_additional, direction_unknown, holding_none_option, box_limit_none);
+                halfword h = tex_hpack(p, 0, packing_additional, direction_unknown, holding_none_option, box_limit_none, null, null);
                 node_subtype(h) = local_list;
                 box_width(h) = 0;
                 box_height(h) = 0;

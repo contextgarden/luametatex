@@ -6170,21 +6170,6 @@ static void tex_aux_trace_penalty(const char *what, int line, int index, long lo
     }
 }
 
-static void tex_aux_adapt_just_skip(halfword target)
-{
-    halfword source = justification_skip_par;
-    if (tex_glue_is_zero(source)) {
-        glue_stretch(target) = unity;
-        glue_stretch_order(target) = filll_glue_order;
-    } else {
-        glue_stretch(target) = glue_stretch(source);
-        glue_shrink(target) = glue_shrink(source);
-        glue_stretch_order(target) = glue_stretch_order(source);
-        glue_shrink_order(target) = glue_shrink_order(source);
-        glue_amount(target) += glue_amount(source);
-    }
-}
-
 static void tex_aux_post_line_break(const line_break_properties *properties, halfword line_break_dir, int callback_id, halfword checks, int state)
 {
     /*tex temporary registers for list manipulation */
@@ -6847,13 +6832,17 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
                 local_hang_r_slack  = passive_hang_r_after(prv_p) - local_hang_r_after;
             }
             shaping = (lefthang || righthang);
-            if (ls && (properties->par_fill_mode & par_left_fill_mode) && normalize_line_mode_option(normalize_line_mode)) {
-                tex_aux_adapt_just_skip(ls);
+            {
+                halfword l_s = null;
+                halfword r_s = null;
+                if (ls && (properties->par_fill_mode & par_left_fill_mode) && normalize_line_mode_option(normalize_line_mode)) {
+                    l_s = ls;
+                }
+                if (rs && (properties->par_fill_mode & par_right_fill_mode) && normalize_line_mode_option(normalize_line_mode)) {
+                    r_s = rs;
+                }
+                lmt_linebreak_state.just_box = tex_hpack(head, cur_width, properties->adjust_spacing ? packing_linebreak : packing_exactly, (singleword) properties->paragraph_direction, holding_none_option, box_limit_line, l_s, r_s);
             }
-            if (rs && (properties->par_fill_mode & par_right_fill_mode) && normalize_line_mode_option(normalize_line_mode)) {
-                tex_aux_adapt_just_skip(rs);
-            }
-            lmt_linebreak_state.just_box = tex_hpack(head, cur_width, properties->adjust_spacing ? packing_linebreak : packing_exactly, (singleword) properties->paragraph_direction, holding_none_option, box_limit_line);
          // attach_attribute_list_copy(linebreak_state.just_box, properties->initial_par);
          // if (cur_line == 1 && (properties->paragraph_options & par_option_synchronize)) {
          //     tex_add_box_option(lmt_linebreak_state.just_box, box_option_synchronize);
@@ -6999,7 +6988,7 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
             }
         } else {
             /*tex Here we can have a right skip way to the right due to an overshoot! */
-            lmt_linebreak_state.just_box = tex_hpack(q, cur_width, properties->adjust_spacing ? packing_linebreak : packing_exactly, (singleword) properties->paragraph_direction, holding_none_option, box_limit_line);
+            lmt_linebreak_state.just_box = tex_hpack(q, cur_width, properties->adjust_spacing ? packing_linebreak : packing_exactly, (singleword) properties->paragraph_direction, holding_none_option, box_limit_line, null, null);
          // attach_attribute_list_copy(lmt_linebreak_state.just_box, properties->initial_par);
             box_shift_amount(lmt_linebreak_state.just_box) = cur_indent;
         }

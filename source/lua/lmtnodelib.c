@@ -5731,7 +5731,7 @@ static int nodelib_direct_hpack(lua_State *L)
     } else {
         n = null;
     }
-    p = tex_hpack(n, w, m, d, holding_none_option, box_limit_none);
+    p = tex_hpack(n, w, m, d, holding_none_option, box_limit_none, null, null);
     lua_pushinteger(L, p);
     lua_pushinteger(L, lmt_packaging_state.last_badness);
     lua_pushinteger(L, lmt_packaging_state.last_overshoot);

@@ -5377,7 +5377,7 @@ int tex_flatten_leaders(halfword box, int grp, int just_pack, int location, int 
                         }
                         /* maybe just get the dimensions instead of packing */
                         if (node_type(leader) == hlist_node) {
-                            packed = tex_hpack(box_list(leader), scaledround(width), packing_exactly, box_direction(leader), holding_none_option, box_limit_none);
+                            packed = tex_hpack(box_list(leader), scaledround(width), packing_exactly, box_direction(leader), holding_none_option, box_limit_none, null, null);
                         } else {
                             packed = tex_vpack(box_list(leader), scaledround(width), packing_exactly, 0, box_direction(leader), holding_none_option, NULL);
                         }

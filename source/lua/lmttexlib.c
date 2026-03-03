@@ -5878,7 +5878,7 @@ static int texlib_getinsertsplitvalues(lua_State *L)
 
 static int texlib_getglueoptionvalues(lua_State *L)
 {
-    lua_createtable(L, 9, 2);
+    lua_createtable(L, 10, 2);
     lua_set_string_by_index(L, glue_option_normal,            "normal");
     lua_set_string_by_index(L, glue_option_no_auto_break,     "noautobreak");
     lua_set_string_by_index(L, glue_option_has_factor,        "hasfactor");
@@ -5891,6 +5891,7 @@ static int texlib_getglueoptionvalues(lua_State *L)
     lua_set_string_by_index(L, glue_option_in_insert,         "ininsert");
     lua_set_string_by_index(L, glue_option_delay,             "delay");
     lua_set_string_by_index(L, glue_option_has_parskip,       "hasparskip");
+    lua_set_string_by_index(L, glue_option_ragged_done,       "raggeddone");
     return 1;
 }
 
