@@ -4789,6 +4789,7 @@ static int nodelib_direct_getparstate(lua_State *L)
                           lua_push_integer_at_key(L, shapingpenalty,                 tex_get_par_par(p, par_shaping_penalty_code));
                           lua_push_integer_at_key(L, emergencyextrastretch,          tex_get_par_par(p, par_emergency_extra_stretch_code));
                           lua_push_integer_at_key(L, linebreakchecks,                tex_get_par_par(p, par_line_break_checks_code));
+                          lua_push_integer_at_key(L, parfillmode,                    tex_get_par_par(p, par_par_fill_mode_code));
                     }
                     lua_push_specification_at_key(L, parshape,                       tex_get_par_par(p, par_par_shape_code));
                     if (! limited) {
@@ -8608,6 +8609,7 @@ static int nodelib_common_getfield(lua_State *L, int direct, halfword n)
                             } else if (lua_key_eq(s, shapingpenalty))        { lua_push_integer(L,             tex_get_par_par(n, par_shaping_penalty_code));
                          // } else if (lua_key_eq(s, emergencyextrastretch)) { lua_push_integer(L,             tex_get_par_par(n, par_emergency_extra_stretch_code));
                          // } else if (lua_key_eq(s, linebreakchecks))       { lua_push_integer(L,             tex_get_par_par(n, par_line_break_checks_code));
+                         // } else if (lua_key_eq(s, parfillmode))           { lua_push_integer(L,             tex_get_par_par(n, par_fill_mode_code));
                             /*tex 
                                 Here start the specification nodes. Some can actually replace the 
                                 singulars so a macro package has to adapt to that when this is 

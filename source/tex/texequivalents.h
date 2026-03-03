@@ -739,6 +739,7 @@ typedef enum int_codes {
     vsplit_checks_code,
     etex_expr_mode_code,
     par_options_code,
+    par_fill_mode_code,
     /*
         This one was added as experiment to \LUATEX\ (answer to a forwarded question) but as it
         didn't get tested it will go away. \CONTEXT\ doesn't need it and we don't need to be
@@ -1624,6 +1625,7 @@ extern int  tex_overload_permitted (halfword flags);
 # define overload_mode_par                integer_parameter(overload_mode_code)
 # define par_direction_par                integer_parameter(par_direction_code)
 # define par_options_par                  integer_parameter(par_options_code)
+# define par_fill_mode_par                integer_parameter(par_fill_mode_code)
 # define parameter_mode_par               integer_parameter(parameter_mode_code)
 # define pausing_par                      integer_parameter(pausing_code)
 # define post_display_penalty_par         integer_parameter(post_display_penalty_code)

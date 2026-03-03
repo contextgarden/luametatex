@@ -422,6 +422,7 @@ void tex_initialize_commands(void)
         tex_primitive(luametatex_command, no_legacy,       "parametermode",                  internal_integer_cmd,   parameter_mode_code,                      internal_integer_base);
         tex_primitive(luatex_command,     no_legacy,       "pardirection",                   internal_integer_cmd,   par_direction_code,                       internal_integer_base);
         tex_primitive(luametatex_command, no_legacy,       "paroptions",                     internal_integer_cmd,   par_options_code,                         internal_integer_base);
+        tex_primitive(luametatex_command, no_legacy,       "parfillmode",                    internal_integer_cmd,   par_fill_mode_code,                       internal_integer_base);
         tex_primitive(tex_command,        no_legacy,       "pausing",                        internal_integer_cmd,   pausing_code,                             internal_integer_base);
         tex_primitive(tex_command,        display_legacy,  "postdisplaypenalty",             internal_integer_cmd,   post_display_penalty_code,                internal_integer_base);
         tex_primitive(luametatex_command, no_legacy,       "postinlinepenalty",              internal_integer_cmd,   post_inline_penalty_code,                 internal_integer_base);

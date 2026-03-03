@@ -4625,6 +4625,7 @@ static int texlib_linebreak(lua_State *L)
         get_line_snapping_par(properties.line_snapping,                linesnapping,              tex_get_par_par(par, par_line_snapping_code));
         get_integer_par      (properties.line_break_checks,            linebreakchecks,           tex_get_par_par(par, par_line_break_checks_code));
         get_integer_par      (properties.line_break_optional,          linebreakoptional,         line_break_optional_par); /* hm */
+        get_integer_par      (properties.par_fill_mode,                parfillmode,               tex_get_par_par(par, par_par_fill_mode_code));
         if (! prepared) {
             halfword attr_template = tail;
             halfword final_line_penalty = tex_new_penalty_node(infinite_penalty, line_penalty_subtype);
@@ -6037,13 +6038,19 @@ static int texlib_getbalancestepoptionvalues(lua_State *L)
 
 static int texlib_getparagraphoptionvalues(lua_State *L)
 {
-    lua_createtable(L, 2, 4);
+    lua_createtable(L, 2, 1);
     lua_set_string_by_index(L, par_hang_depth_option,  "hangdepth");
     lua_set_string_by_index(L, par_synchronize_option, "synchronize");
     lua_set_string_by_index(L, par_snap_option,        "snap");
-    lua_set_string_by_index(L, par_left_fill_option,   "leftfill");
-    lua_set_string_by_index(L, par_right_fill_option,  "rightfill");
-    lua_set_string_by_index(L, par_both_fill_option,   "bothfill");
+    return 1;
+}
+
+static int texlib_getparagraphfillmodevalues(lua_State *L)
+{
+    lua_createtable(L, 3, 0);
+    lua_set_string_by_index(L, par_left_fill_mode,  "left");
+    lua_set_string_by_index(L, par_right_fill_mode, "right");
+    lua_set_string_by_index(L, par_both_fill_mode,  "both");
     return 1;
 }
 
@@ -7466,6 +7473,7 @@ static const struct luaL_Reg texlib_function_list[] = {
     { "getnoadoptionvalues",          texlib_getnoadoptionvalues            },
     { "getbalancestepoptionvalues",   texlib_getbalancestepoptionvalues     },
     { "getparagraphoptionvalues",     texlib_getparagraphoptionvalues       },
+    { "getparagraphfillmodevalues",   texlib_getparagraphfillmodevalues     },
     { "getdiscoptionvalues",          texlib_getdiscoptionvalues            },
     { "getruleoptionvalues",          texlib_getruleoptionvalues            },
     { "getboxoptionvalues",           texlib_getboxoptionvalues             },

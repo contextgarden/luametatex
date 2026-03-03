@@ -2793,6 +2793,7 @@ typedef enum par_codes {                   /* extrahyphenpenalty : in parpass   
     par_single_line_penalty_code,
     par_hyphen_penalty_code,
     par_ex_hyphen_penalty_code,
+    par_par_fill_mode_code,
     par_n_of_codes,
 } par_codes;
 
@@ -2855,6 +2856,7 @@ static int par_category_to_codes[par_n_of_codes] = { /* explicit size is check *
     par_single_line_penalty_category, // par_single_line_penalty_code
     par_hyphen_penalty_category,      // par_hyphen_penalty_code
     par_hyphen_penalty_category,      // par_ex_hyphen_penalty_code
+    par_skip_category,                // par_fill_mode_code
 };
 
 typedef enum par_options {
@@ -2862,10 +2864,13 @@ typedef enum par_options {
     par_synchronize_option = 0x02,
     par_snap_option        = 0x04,
     par_always_option      = 0x08,
-    par_left_fill_option   = 0x10,
-    par_right_fill_option  = 0x20,
-    par_both_fill_option   = 0x30,
 } par_options;
+
+typedef enum par_fillmodes {
+    par_left_fill_mode  = 0x01,
+    par_right_fill_mode = 0x02,
+    par_both_fill_mode  = 0x03,
+} par_fillmodes;
 
 /*tex Make sure that |max_chain_size| is large enough to have this huge node! */
 
@@ -2942,7 +2947,7 @@ typedef enum par_options {
 # define par_right_twin_demerits(a)      memtwo(a,34)
 # define par_orphan_line_factors(a)      memone(a,34)
 # define par_line_snapping(a)            memtwo(a,35)
-# define par_reserved(a)                 memone(a,35)
+# define par_par_fill_mode(a)            memone(a,35) /* can be single */
 
 /*
     At some point we will have this (array with double values), depends on the outcome of an

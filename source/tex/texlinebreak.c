@@ -500,6 +500,7 @@ void tex_line_break(int group_context, int par_context, int display_math)
                     .sf_stretch_factor       = 0,
                     .max_adj_demerits        = 0,
                     .raggedness              = 0,
+                    .par_fill_mode           = tex_get_par_par(par, par_par_fill_mode_code),
                 };
              /* properties.emergency_original = properties.emergency_stretch; */
                 tex_do_line_break(&properties);
@@ -5941,7 +5942,7 @@ void tex_do_line_break(line_break_properties *properties)
                                     subpass += 1;
                                     if (! force && (properties->tracing_paragraphs > 0 || properties->tracing_passes > 0)) {
                                         tex_begin_diagnostic();
-                                        tex_print_format("%l[linebreak: subpass %i, raggedness %i >= %i, %s]\n", subpass, lmt_linebreak_state.raggedness, raggedness);
+                                        tex_print_format("%l[linebreak: subpass %i, raggedness %i >= %i]\n", subpass, lmt_linebreak_state.raggedness, raggedness);
                                         tex_begin_diagnostic();
                                     }
                                     goto HERE;
@@ -6174,7 +6175,7 @@ static void tex_aux_adapt_just_skip(halfword target)
     halfword source = justification_skip_par;
     if (tex_glue_is_zero(source)) {
         glue_stretch(target) = unity;
-        glue_stretch_order(target) = fill_glue_order;
+        glue_stretch_order(target) = filll_glue_order;
     } else {
         glue_stretch(target) = glue_stretch(source);
         glue_shrink(target) = glue_shrink(source);
@@ -6846,10 +6847,10 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
                 local_hang_r_slack  = passive_hang_r_after(prv_p) - local_hang_r_after;
             }
             shaping = (lefthang || righthang);
-            if (ls && (properties-> paragraph_options & par_left_fill_option) && normalize_line_mode_option(normalize_line_mode)) {
+            if (ls && (properties->par_fill_mode & par_left_fill_mode) && normalize_line_mode_option(normalize_line_mode)) {
                 tex_aux_adapt_just_skip(ls);
             }
-            if (rs && (properties-> paragraph_options & par_right_fill_option) && normalize_line_mode_option(normalize_line_mode)) {
+            if (rs && (properties->par_fill_mode & par_right_fill_mode) && normalize_line_mode_option(normalize_line_mode)) {
                 tex_aux_adapt_just_skip(rs);
             }
             lmt_linebreak_state.just_box = tex_hpack(head, cur_width, properties->adjust_spacing ? packing_linebreak : packing_exactly, (singleword) properties->paragraph_direction, holding_none_option, box_limit_line);

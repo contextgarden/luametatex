@@ -992,6 +992,7 @@ void lmt_nodelib_initialize(void) {
     lmt_interface.par_data[par_line_break_checks_code      ] = (par_info) { .cmd = internal_integer_cmd,   .chr = line_break_checks_code,       .category = par_line_break_checks_category   };
     lmt_interface.par_data[par_single_line_penalty_code    ] = (par_info) { .cmd = internal_integer_cmd,   .chr = single_line_penalty_code,     .category = par_single_line_penalty_category };
     lmt_interface.par_data[par_hyphen_penalty_code         ] = (par_info) { .cmd = internal_integer_cmd,   .chr = hyphen_penalty_code,          .category = par_hyphen_penalty_category      };
+    lmt_interface.par_data[par_par_fill_mode_code          ] = (par_info) { .cmd = internal_integer_cmd,   .chr = par_fill_mode_code,           .category = par_skip_category                };
 }
 
 /*tex
@@ -3330,6 +3331,7 @@ void tex_show_node_list(halfword p, int threshold, int max)
                             if (tex_par_state_is_set(p, par_par_passes_code)              ) { v = par_par_passes(p)              ; if (v)                     { tex_print_str(", parpasses * ");                                              } }
                             if (tex_par_state_is_set(p, par_line_snapping_code)           ) { v = par_line_snapping(p)           ; if (v)                     { tex_print_str(", linesnapping * ");                                           } }
                             if (tex_par_state_is_set(p, par_line_break_checks_code)       ) { v = par_line_break_checks(p)       ; if (v)                     { tex_print_str(", linebreakchecks ");         tex_print_int      (v);          } }
+                            if (tex_par_state_is_set(p, par_par_fill_mode_code)           ) { v = par_par_fill_mode(p)           ; if (v)                     { tex_print_str(", parfillmode ");             tex_print_int      (v);          } }
                         }
                         /* local boxes */
                         v = tex_get_local_left_width(p)  ; if (v) { tex_print_format(", leftboxwidth %p", v); }
@@ -4321,6 +4323,7 @@ static halfword tex_aux_internal_to_par_code(halfword cmd, halfword index) {
                 case adjust_spacing_shrink_code  : return par_adjust_spacing_shrink_code;
                 case adjust_spacing_stretch_code : return par_adjust_spacing_stretch_code;
                 case hyphenation_mode_code       : return par_hyphenation_mode_code;
+                case par_fill_mode_code          : return par_par_fill_mode_code;
             }
             break;
         case internal_dimension_cmd:
@@ -4441,6 +4444,7 @@ halfword tex_get_par_par(halfword p, halfword what)
         case par_par_passes_code:              return set ? par_par_passes(p)              : (par_passes_exception_par ? par_passes_exception_par : par_passes_par);
         case par_line_snapping_code:           return set ? par_line_snapping(p)           : line_snapping_par;
         case par_line_break_checks_code:       return set ? par_line_break_checks(p)       : line_break_checks_par;
+        case par_par_fill_mode_code:           return set ? par_par_fill_mode(p)           : par_fill_mode_par;
     }
     return null;
 }
@@ -4664,6 +4668,9 @@ void tex_set_par_par(halfword p, halfword what, halfword v, int force)
                 break;
             case par_line_break_checks_code:
                 par_line_break_checks(p) = v;
+                break;
+            case par_par_fill_mode_code:
+                par_par_fill_mode(p) = v;
                 break;
         }
         tex_set_par_state(p, what);
@@ -4925,14 +4932,8 @@ void tex_snapshot_par(halfword p, halfword what)
         if (tex_par_to_be_set(what, par_line_break_checks_code)) {
             par_line_break_checks(p) = unset ? null : line_break_checks_par;
         }
-        if (tex_par_to_be_set(what, par_single_line_penalty_code)) {
-            par_single_line_penalty(p) = unset ? null : single_line_penalty_par;
-        }
-        if (tex_par_to_be_set(what, par_hyphen_penalty_code)) {
-            par_hyphen_penalty(p) = unset ? null : hyphen_penalty_par;
-        }
-        if (tex_par_to_be_set(what, par_ex_hyphen_penalty_code)) {
-            par_ex_hyphen_penalty(p) = unset ? null : ex_hyphen_penalty_par;
+        if (tex_par_to_be_set(what, par_par_fill_mode_code)) {
+            par_par_fill_mode(p) = unset ? null : par_fill_mode_par;
         }
      // tex_set_par_state(p, what);
         if (what == par_all_category) {

@@ -1134,6 +1134,7 @@ make_lua_key(L, parameter);\
 make_lua_key(L, parameter_reference);\
 make_lua_key(L, parameters);\
 make_lua_key(L, parfillleftskip);\
+make_lua_key(L, parfillmode);\
 make_lua_key(L, parfillrightskip);\
 make_lua_key(L, parfillskip);\
 make_lua_key(L, parindent);\
