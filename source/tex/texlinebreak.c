@@ -1056,11 +1056,9 @@ static void tex_aux_clean_up_the_memory(void)
         halfword q = lmt_linebreak_state.passive;
         while (q) {
             halfword p = node_next(q);
-            if (p) {
-             // tex_flush_node(q);
-             // tex_free_node(q, get_node_size(node_type(q))); // less overhead & testing
-                tex_free_node(q, passive_node_size); // less overhead & testing
-            }
+         // tex_flush_node(q);
+         // tex_free_node(q, get_node_size(node_type(q))); // less overhead & testing
+            tex_free_node(q, passive_node_size); // less overhead & testing
             q = p;
         }
         lmt_linebreak_state.passive = null;
