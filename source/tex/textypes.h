@@ -831,6 +831,7 @@ typedef struct line_break_properties {
     halfword tracing_toddlers;
     halfword tracing_orphans;
     halfword tracing_passes;
+    halfword tracing_raggedness;
     halfword paragraph_direction;
     halfword paragraph_options;
     halfword parfill_left_skip;
@@ -906,6 +907,7 @@ typedef struct balance_properties {
     halfword tracing_balancing;
     halfword tracing_fitness;
     halfword tracing_passes;
+    halfword tracing_raggedness;
     halfword pretolerance;
     halfword tolerance;
     halfword emergency_stretch;

@@ -432,6 +432,7 @@ void tex_line_break(int group_context, int par_context, int display_math)
                     .tracing_paragraphs      = tracing_paragraphs_par,
                     .tracing_fitness         = tracing_fitness_par,
                     .tracing_passes          = tracing_passes_par,
+                    .tracing_raggedness      = tracing_raggedness_par,
                     .tracing_toddlers        = tracing_toddlers_par,
                     .tracing_orphans         = tracing_orphans_par,
                     .paragraph_direction     = par_direction(par),
@@ -1021,7 +1022,7 @@ static int tex_aux_analyze_raggedness(const line_break_properties *properties, i
             q = passive_prev_break(q);
         }
         lmt_linebreak_state.raggedness = max - min;
-        if (properties->tracing_passes == 2026) {
+        if (properties->tracing_raggedness > 0) {
             tex_begin_diagnostic();
             tex_print_format("%l[linebreak: subpass %i, raggedness, min %i, max %i, effective %i, overfull %i, lines %i, %s]\n",
                     subpass, min, max, lmt_linebreak_state.raggedness, overfull, lines,
@@ -4591,27 +4592,12 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
         while (subpass < nofsubpasses) {
             subpass = tex_aux_next_subpass(properties, passes, subpass, nofsubpasses, state, tracing);
             if (subpass > nofsubpasses) {
-                if (properties->tracing_passes == 2026) {
-                    tex_begin_diagnostic();
-                    tex_print_format("%l[linebreak: id %i, criteria for entering subpass %i of %i: next]\n");
-                    tex_end_diagnostic();
-                }
                 return subpass;
             } else {
                 halfword features = tex_get_passes_features(passes, subpass);
                 if (features & passes_quit_pass) {
-                    if (properties->tracing_passes == 2026) {
-                        tex_begin_diagnostic();
-                        tex_print_format("%l[linebreak: id %i, criteria for entering subpass %i of %i: quit]\n");
-                        tex_end_diagnostic();
-                    }
                     return -1;
                 } else if (features & passes_skip_pass) {
-                    if (properties->tracing_passes == 2026) {
-                        tex_begin_diagnostic();
-                        tex_print_format("%l[linebreak: id %i, criteria for entering subpass %i of %i: skip]\n");
-                        tex_end_diagnostic();
-                    }
                     continue;
                 } else {
                     /* those are explicit criteria */
@@ -4629,7 +4615,7 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
                              || ((okay & passes_demerits_okay  ) && (verdict  > demerits))
                              || ((okay & passes_classes_okay   ) && (classes && (classes & classified) != 0))
                     ;
-                    if (properties->tracing_passes == 2026) {
+                    if (properties->tracing_passes > 1) {
                         int id = passes_identifier(passes);
                         tex_begin_diagnostic();
                         tex_print_format("%l[linebreak: id %i, criteria for entering subpass %i of %i: test]\n",
@@ -4709,11 +4695,6 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
         }
     } else {
         /*tex This can't happen, result is 1 or 2. */
-     // if (properties->tracing_passes == 2026) {
-     //     tex_begin_diagnostic();
-     //     tex_print_format("%l[linebreak: id %i, criteria for entering subpass %i of %i: okay]\n");
-     //     tex_end_diagnostic();
-     // }
     }
     return 0;
 }
@@ -5716,7 +5697,7 @@ void tex_do_line_break(line_break_properties *properties)
         routine returns either |null| or some place in the list that needs attention.
     */
  /* state = tex_aux_analyze_list(first); */
-    if (subpasses && properties->tracing_passes == 2026) {
+    if (subpasses && properties->tracing_raggedness > 0) {
         tex_begin_diagnostic();
         tex_print_format("%l[linebreak: first final %i in %i]", passes_first_final(passes), subpasses);
         tex_end_diagnostic();

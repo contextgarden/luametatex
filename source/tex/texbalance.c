@@ -1654,28 +1654,29 @@ void tex_balance_preset(balance_properties *properties)
     if (! balance_fitness_classes) {
         balance_fitness_classes = tex_default_fitness_classes();
     }
-    properties->tracing_balancing = tracing_balancing_par;
-    properties->tracing_fitness   = tracing_fitness_par;
-    properties->tracing_passes    = tracing_passes_par;
-    properties->tolerance         = balance_tolerance_par;
-    properties->pretolerance      = -1; /* we skip when the same */
-    properties->vsize             = balance_vsize_par;
-    properties->topskip           = balance_top_skip_par;
-    properties->bottomskip        = balance_bottom_skip_par;
-    properties->emergency_stretch = balance_emergency_stretch_par;
-    properties->emergency_shrink  = balance_emergency_shrink_par;
-    properties->original_stretch  = 0;
-    properties->original_shrink   = 0;
-    properties->looseness         = balance_looseness_par;
-    properties->adj_demerits      = balance_adj_demerits_par;
-    properties->shape             = balance_shape_par; 
-    properties->fitness_classes   = balance_fitness_classes;
-    properties->passes            = balance_passes_par;   
-    properties->penalty           = balance_penalty_par;
-    properties->max_adj_demerits  = 0;
-    properties->checks            = balance_checks_par;
-    properties->packing           = packing_exactly;
-    properties->trial             = 0;
+    properties->tracing_balancing  = tracing_balancing_par;
+    properties->tracing_fitness    = tracing_fitness_par;
+    properties->tracing_passes     = tracing_passes_par;
+    properties->tracing_raggedness = tracing_raggedness_par;
+    properties->tolerance          = balance_tolerance_par;
+    properties->pretolerance       = -1; /* we skip when the same */
+    properties->vsize              = balance_vsize_par;
+    properties->topskip            = balance_top_skip_par;
+    properties->bottomskip         = balance_bottom_skip_par;
+    properties->emergency_stretch  = balance_emergency_stretch_par;
+    properties->emergency_shrink   = balance_emergency_shrink_par;
+    properties->original_stretch   = 0;
+    properties->original_shrink    = 0;
+    properties->looseness          = balance_looseness_par;
+    properties->adj_demerits       = balance_adj_demerits_par;
+    properties->shape              = balance_shape_par;
+    properties->fitness_classes    = balance_fitness_classes;
+    properties->passes             = balance_passes_par;
+    properties->penalty            = balance_penalty_par;
+    properties->max_adj_demerits   = 0;
+    properties->checks             = balance_checks_par;
+    properties->packing            = packing_exactly;
+    properties->trial              = 0;
 }
 
 void tex_balance_reset(balance_properties *properties)

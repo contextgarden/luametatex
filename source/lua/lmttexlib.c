@@ -4571,6 +4571,7 @@ static int texlib_linebreak(lua_State *L)
         get_integer_par      (properties.tracing_paragraphs,           tracingparagraphs,         tracing_paragraphs_par);
         get_integer_par      (properties.tracing_fitness,              tracingfitness ,           tracing_fitness_par);
         get_integer_par      (properties.tracing_passes,               tracingpasses,             tracing_passes_par);
+        get_integer_par      (properties.tracing_raggedness,           tracingraggedness,         tracing_raggedness_par);
         get_integer_par      (properties.pretolerance,                 pretolerance,              tex_get_par_par(par, par_pre_tolerance_code));
         get_integer_par      (properties.tolerance,                    tolerance,                 tex_get_par_par(par, par_tolerance_code));
         get_dimension_par    (properties.emergency_stretch,            emergencystretch,          tex_get_par_par(par, par_emergency_stretch_code));

@@ -1472,6 +1472,7 @@ make_lua_key(L, total);\
 make_lua_key(L, tracingbalancing);\
 make_lua_key(L, tracingparagraphs);\
 make_lua_key(L, tracingpasses);\
+make_lua_key(L, tracingraggedness);\
 make_lua_key(L, tracingfitness);\
 make_lua_key(L, trace);\
 make_lua_key(L, trailer);\

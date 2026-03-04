@@ -621,6 +621,7 @@ typedef enum int_codes {
     tracing_toddlers_code,
     tracing_orphans_code,
     tracing_loners_code,                /*tex show widow and club penalties calculations */
+    tracing_raggedness_code,
  // uc_hyph_code,                       /*tex hyphenate words beginning with a capital letter */
     output_penalty_code,                /*tex penalty found at current page break */
     max_dead_cycles_code,               /*tex bound on consecutive dead cycles of output */
@@ -1697,6 +1698,7 @@ extern int  tex_overload_permitted (halfword flags);
 # define tracing_snapping_par             integer_parameter(tracing_snapping_code)
 # define tracing_stats_par                integer_parameter(tracing_stats_code)
 # define tracing_toddlers_par             integer_parameter(tracing_toddlers_code)
+# define tracing_raggedness_par           integer_parameter(tracing_raggedness_code)
 # define uc_hyph_par                      integer_parameter(uc_hyph_code)
 # define variable_family_par              integer_parameter(variable_family_code)
 # define vbadness_par                     integer_parameter(vbadness_code)

@@ -501,6 +501,7 @@ void tex_initialize_commands(void)
         tex_primitive(luametatex_command, no_legacy,       "tracingsnapping",                internal_integer_cmd,   tracing_snapping_code,                    internal_integer_base);
         tex_primitive(tex_command,        no_legacy,       "tracingstats",                   internal_integer_cmd,   tracing_stats_code,                       internal_integer_base); /* obsolete */
         tex_primitive(luametatex_command, no_legacy,       "tracingtoddlers",                internal_integer_cmd,   tracing_toddlers_code,                    internal_integer_base);
+        tex_primitive(luametatex_command, no_legacy,       "tracingraggedness",              internal_integer_cmd,   tracing_raggedness_code,                  internal_integer_base);
         tex_primitive(tex_command,        no_legacy,       "uchyph",                         internal_integer_cmd,   uc_hyph_code,                             internal_integer_base); /* obsolete, not needed */
         tex_primitive(luatex_command,     no_legacy,       "variablefam",                    internal_integer_cmd,   variable_family_code,                     internal_integer_base); /* obsolete, not used */
         tex_primitive(tex_command,        no_legacy,       "vbadness",                       internal_integer_cmd,   vbadness_code,                            internal_integer_base);
