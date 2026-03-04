@@ -6840,6 +6840,7 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
                     r_s = rs;
                 }
                 lmt_linebreak_state.just_box = tex_hpack(head, cur_width, properties->adjust_spacing ? packing_linebreak : packing_exactly, (singleword) properties->paragraph_direction, holding_none_option, box_limit_line, l_s, r_s);
+                box_short(lmt_linebreak_state.just_box) = passive_short(cur_p);
             }
          // attach_attribute_list_copy(linebreak_state.just_box, properties->initial_par);
          // if (cur_line == 1 && (properties->paragraph_options & par_option_synchronize)) {

@@ -1080,7 +1080,8 @@ typedef enum list_balance_states {
 # define box_input_file(a)     memtwo(a,17)
 # define box_input_line(a)     memone(a,17)
 
-# define box_tail(a)          box_reserved(a) /* see alignments */
+# define box_tail(a)          box_reserved(a) /* see alignments, cleanedup afterwards */
+# define box_short(a)         box_reserved(a) /* only set on a subtype line */
 
 # define box_total(a) (box_height(a) + box_depth(a)) /* Here we add, with glyphs we maximize. */
 

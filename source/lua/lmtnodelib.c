@@ -2672,6 +2672,7 @@ static int nodelib_direct_setreplace(lua_State *L)
 /* split ifs for clarity .. compiler will optimize */
 
 # define getwidth_usage (hlist_usage | vlist_usage | unset_usage | align_record_usage | rule_usage | glue_usage | glue_spec_usage | glyph_usage | kern_usage | math_usage)
+# define getshort_usage hlist_usage
 
 static int nodelib_direct_getwidth(lua_State *L)
 {
@@ -2730,6 +2731,17 @@ static int nodelib_direct_getwidth(lua_State *L)
                 lua_pushnil(L);
                 break;
         }
+    } else {
+        lua_pushnil(L);
+    }
+    return 1;
+}
+
+static int nodelib_direct_getshort(lua_State *L)
+{
+    halfword n = nodelib_valid_direct_from_index(L, 1);
+    if (n && node_type(n) == hlist_node && node_subtype(n) == line_list) {
+        lua_pushinteger(L, box_short(n));
     } else {
         lua_pushnil(L);
     }
@@ -12863,6 +12875,7 @@ static const usage_record usage_data[] = {
     { .name = "getwhd",                  .target = direct_usage_target,   .usage = getwhd_usage                  },
     { .name = "getnaturalwhd",           .target = direct_usage_target,   .usage = getnaturalwhd_usage           },
     { .name = "getwidth",                .target = direct_usage_target,   .usage = getwidth_usage                },
+    { .name = "getshort",                .target = direct_usage_target,   .usage = getshort_usage                },
     { .name = "getwordrange",            .target = direct_usage_target,   .usage = getwordrange_usage            },
     { .name = "getxscale",               .target = direct_usage_target,   .usage = getxscale_usage               },
     { .name = "getxyscales",             .target = direct_usage_target,   .usage = getxyscales_usage             },
@@ -13270,6 +13283,7 @@ static const struct luaL_Reg nodelib_direct_function_list[] = {
     { "getwhd",                  nodelib_direct_getwhd                  },
     { "getnaturalwhd",           nodelib_direct_getnaturalwhd           },
     { "getwidth",                nodelib_direct_getwidth                },
+    { "getshort",                nodelib_direct_getshort                },
     { "getwordrange",            nodelib_direct_getwordrange            },
     { "getxscale",               nodelib_direct_getxscale               },
     { "getxyscales",             nodelib_direct_getxyscales             },
