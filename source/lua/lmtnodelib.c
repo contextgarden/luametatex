@@ -1283,7 +1283,7 @@ static int nodelib_direct_setattributelist(lua_State *L)
 /* node.direct.getpenalty */
 /* node.direct.setpenalty */
 
-# define getpenalty_usage (penalty_usage | disc_usage | math_node)
+# define getpenalty_usage (penalty_usage | disc_usage | math_node | glue_node)
 # define setpenalty_usage getpenalty_usage
 
 static int nodelib_direct_getpenalty(lua_State *L)
@@ -1300,6 +1300,11 @@ static int nodelib_direct_getpenalty(lua_State *L)
             case math_node:
                 lua_pushinteger(L, math_penalty(n));
                 break;
+            case glue_node:
+                if (tex_has_glue_option(n, glue_option_has_penalty)) {
+                    lua_pushinteger(L, glue_reserved(n));
+                    break;
+                }
             default:
                 lua_pushnil(L);
                 break;
