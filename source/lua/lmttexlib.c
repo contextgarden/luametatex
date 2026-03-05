@@ -2274,6 +2274,27 @@ static int texlib_setsfcode(lua_State *L)
     return 0;
 }
 
+static int texlib_setspcode(lua_State *L)
+{
+    int top = lua_gettop(L);
+    if (top >= 2) {
+        quarterword level;
+        int slot = lmt_check_for_level(L, 1, &level, cur_level);
+        int ch = lmt_checkinteger(L, slot++);
+        if (character_in_range(ch)) {
+            halfword val = lmt_checkhalfword(L, slot);
+            if (half_in_range(val)) {
+                tex_set_sp_code(ch, val, level);
+            } else {
+                texlib_aux_show_half_error(L, val);
+            }
+        } else {
+            texlib_aux_show_character_error(L, ch);
+        }
+    }
+    return 0;
+}
+
 static int texlib_sethccode(lua_State *L)
 {
     int top = lua_gettop(L);
@@ -2375,6 +2396,18 @@ static int texlib_getsfcode(lua_State *L)
     int ch = lmt_checkinteger(L, 1);
     if (character_in_range(ch)) {
         lua_pushinteger(L, tex_get_sf_code(ch));
+    } else {
+        texlib_aux_show_character_error(L, ch);
+        lua_pushinteger(L, 0);
+    }
+    return 1;
+}
+
+static int texlib_getspcode(lua_State *L)
+{
+    int ch = lmt_checkinteger(L, 1);
+    if (character_in_range(ch)) {
+        lua_pushinteger(L, tex_get_sp_code(ch));
     } else {
         texlib_aux_show_character_error(L, ch);
         lua_pushinteger(L, 0);
@@ -3391,6 +3424,7 @@ int lmt_push_specification(lua_State *L, halfword ptr, int onlycount)
             case line_snapping_code:
             case math_snapping_code:
             case align_snapping_code:
+            case text_spacing_code:
             case balance_passes_code:
                 {
                  // lua_pushnil(L);
@@ -6921,6 +6955,8 @@ static int texlib_getspacefactorvalues(lua_State *L)
     lua_set_string_by_index(L, space_factor_over_limit_mode,      "factoroverlimit");
     lua_set_string_by_index(L, space_limit_over_factor_mode,      "limitoverfactor");
     lua_set_string_by_index(L, space_factor_over_limit_half_mode, "factoroverlimithalf");
+    lua_set_string_by_index(L, space_factor_fixed_mode,           "fixed");
+    lua_set_string_by_index(L, space_factor_ignored_mode ,        "ignored");
     return 1;
 };
 
@@ -7374,6 +7410,8 @@ static const struct luaL_Reg texlib_function_list[] = {
     { "getmathcodes",                 texlib_getmathcodes                   },
     { "setsfcode",                    texlib_setsfcode                      },
     { "getsfcode",                    texlib_getsfcode                      },
+    { "setspcode",                    texlib_setspcode                      },
+    { "getspcode",                    texlib_getspcode                      },
     { "setuccode",                    texlib_setuccode                      },
     { "getuccode",                    texlib_getuccode                      },
     { "round",                        texlib_round                          },

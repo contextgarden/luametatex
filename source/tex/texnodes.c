@@ -5179,9 +5179,10 @@ void tex_copy_specification_list(halfword target, halfword source)
                 case balance_passes_code:
                     /* todo */
                     break;
-                case align_snapping_code:
                 case math_snapping_code:
                 case line_snapping_code:
+                case align_snapping_code:
+                case text_spacing_code:
                     /* todo */
                     break;
             }

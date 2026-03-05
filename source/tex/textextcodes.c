@@ -413,13 +413,31 @@ static void tex_aux_free_uccodes(void)
 
 void tex_set_sf_code(int n, halfword v, int gl)
 {
-    sa_tree_item item = { .int_value = v };
+    int code = sa_return_item_4(lmt_luscode_state.sfcode_head, n);
+    sa_tree_item item = {
+        .int_value = (code & 0xFFFF0000) | (v & 0x0000FFFF)
+    };
+    sa_set_item_4(lmt_luscode_state.sfcode_head, n, item, gl);
+}
+
+void tex_set_sp_code(int n, halfword v, int gl)
+{
+    int code = sa_return_item_4(lmt_luscode_state.sfcode_head, n);
+    sa_tree_item item = {
+        .int_value = ((v << 16) & 0xFFFF0000) | (code & 0x0000FFFF)
+    };
     sa_set_item_4(lmt_luscode_state.sfcode_head, n, item, gl);
 }
 
 halfword tex_get_sf_code(int n)
 {
-    return sa_return_item_4(lmt_luscode_state.sfcode_head, n);
+    return sa_return_item_4(lmt_luscode_state.sfcode_head, n) & 0xFFFF;
+}
+
+
+halfword tex_get_sp_code(int n)
+{
+    return (sa_return_item_4(lmt_luscode_state.sfcode_head, n) >> 16) & 0xFFFF;
 }
 
 static void tex_aux_unsave_sfcodes(int gl)
@@ -853,6 +871,7 @@ void tex_show_code_stack()
                     /* maybe */
                     break;
                 case sfcode_charcode     : 
+                case spcode_charcode     :
                     head = lmt_luscode_state.sfcode_head; 
                     break;    
                 case uccode_charcode     : 

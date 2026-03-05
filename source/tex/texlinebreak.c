@@ -4938,6 +4938,10 @@ static inline halfword tex_aux_break_list(const line_break_properties *propertie
                     /*tex Glue in math is not a valid breakpoint, unless we permit it. */
                 } else if (tex_is_par_init_glue(current)) {
                     /*tex Of course we don't break here. */
+                } else if (tex_has_glue_option(current, glue_option_has_penalty) && glue_reserved(current)) {
+                    halfword penalty = glue_reserved(current);
+                    /* maybe also apply factor */
+                    tex_aux_try_break(properties, penalty, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                 } else if (tex_aux_valid_glue_break(current)) {
                     tex_aux_try_break(properties, tex_aux_upcoming_math_penalty(current, properties->math_penalty_factor), unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                 }

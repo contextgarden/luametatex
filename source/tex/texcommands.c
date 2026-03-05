@@ -738,6 +738,7 @@ void tex_initialize_commands(void)
         tex_primitive(luametatex_command, no_legacy,       "linesnapping",                   specification_cmd,      line_snapping_code,                       internal_specification_base);
         tex_primitive(luametatex_command, no_legacy,       "mathsnapping",                   specification_cmd,      math_snapping_code,                       internal_specification_base);
         tex_primitive(luametatex_command, no_legacy,       "alignsnapping",                  specification_cmd,      align_snapping_code,                      internal_specification_base);
+        tex_primitive(luametatex_command, no_legacy,       "textspacing",                    specification_cmd,      text_spacing_code,                        internal_specification_base);
         tex_primitive(luametatex_command, no_legacy,       "parpassesexception",             specification_cmd,      par_passes_exception_code,                internal_specification_base);
         tex_primitive(tex_command,        no_legacy,       "parshape",                       specification_cmd,      par_shape_code,                           internal_specification_base);
         tex_primitive(luametatex_command, no_legacy,       "balanceshape",                   specification_cmd,      balance_shape_code,                       internal_specification_base);
@@ -1182,6 +1183,7 @@ void tex_initialize_commands(void)
         tex_primitive(tex_command,        no_legacy,       "lccode",                         define_char_code_cmd,   lccode_charcode,                          0);
         tex_primitive(tex_command,        math_legacy,     "mathcode",                       define_char_code_cmd,   mathcode_charcode,                        0);
         tex_primitive(tex_command,        no_legacy,       "sfcode",                         define_char_code_cmd,   sfcode_charcode,                          0);
+        tex_primitive(tex_command,        no_legacy,       "spcode",                         define_char_code_cmd,   spcode_charcode,                          0);
         tex_primitive(tex_command,        no_legacy,       "uccode",                         define_char_code_cmd,   uccode_charcode,                          0);
 
         tex_primitive(luatex_command,     no_legacy,       "Udelcode",                       define_char_code_cmd,   extdelcode_charcode,                      0);

@@ -397,6 +397,7 @@ typedef enum specification_codes {
     line_snapping_code,
     math_snapping_code,
     align_snapping_code,
+    text_spacing_code,
     inter_line_penalties_code,    /*tex additional penalties between lines */
     club_penalties_code,          /*tex penalties for creating club lines */
     widow_penalties_code,         /*tex penalties for creating widow lines */
@@ -1751,6 +1752,7 @@ extern int  tex_overload_permitted (halfword flags);
 # define line_snapping_par                specification_parameter(line_snapping_code)
 # define math_snapping_par                specification_parameter(math_snapping_code)
 # define align_snapping_par               specification_parameter(align_snapping_code)
+# define text_spacing_par                 specification_parameter(text_spacing_code)
 # define par_shape_par                    specification_parameter(par_shape_code)
 # define toddler_penalties_par            specification_parameter(toddler_penalties_code)
 # define widow_penalties_par              specification_parameter(widow_penalties_code)
@@ -2107,6 +2109,8 @@ typedef enum space_factor_modes {
     space_factor_over_limit_mode      = 0x00,
     space_limit_over_factor_mode      = 0x01,
     space_factor_over_limit_half_mode = 0x02,
+    space_factor_fixed_mode           = 0x03,
+    space_factor_ignored_mode         = 0x04,
 } space_factor_modes;
 
 # endif

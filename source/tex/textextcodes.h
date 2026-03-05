@@ -26,6 +26,8 @@ extern void     tex_set_uc_code                (int n, halfword v, int gl);
 extern halfword tex_get_uc_code                (int n);
 extern void     tex_set_sf_code                (int n, halfword v, int gl);
 extern halfword tex_get_sf_code                (int n);
+extern void     tex_set_sp_code                (int n, halfword v, int gl);
+extern halfword tex_get_sp_code                (int n);
 extern void     tex_set_hc_code                (int n, halfword v, int gl);
 extern halfword tex_get_hc_code                (int n);
 extern void     tex_set_hm_code                (int n, halfword v, int gl);

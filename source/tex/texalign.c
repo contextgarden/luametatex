@@ -704,7 +704,7 @@ static void tex_aux_get_preamble_token(void)
             }
         case internal_glue_cmd:
             if (cur_chr == internal_glue_location(tab_skip_code)) {
-                halfword v = tex_scan_glue(glue_val_level, 1, 0);
+                halfword v = tex_scan_glue(glue_val_level, 1, 0, NULL);
                 if (global_defs_par > 0) {
                     update_tex_tab_skip_global(v);
                 } else {
@@ -1348,6 +1348,7 @@ static void tex_aux_initialize_span(halfword p)
     tex_push_nest();
     if (cur_list.mode == restricted_hmode) {
         cur_list.space_factor = default_space_factor;
+        cur_list.space_penalty = 0;
     } else {
         cur_list.prev_depth = ignore_depth_criterion_par;
         tex_normal_paragraph(span_par_context);
@@ -1369,7 +1370,8 @@ static void tex_aux_initialize_row(void)
     tex_push_nest();
     cur_list.mode = (- hmode - vmode) - cur_list.mode; /* weird code : - 3 - cur_list.mode : so a buogus line */
     if (cur_list.mode == restricted_hmode) {                     
-        cur_list.space_factor = 0;
+        cur_list.space_factor = 0; /* why not default */
+        cur_list.space_penalty = 0;
     } else {
         cur_list.prev_depth = 0;
     }
@@ -1829,6 +1831,7 @@ static void tex_aux_finish_row(void)
         tex_pop_nest();
         tex_tail_append(row);
         cur_list.space_factor = default_space_factor;
+        cur_list.space_penalty = 0;
     }
     /*tex 
         Currently this one can be overloaded by the one set on the row via the noalign trickery

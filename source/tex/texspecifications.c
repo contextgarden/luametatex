@@ -23,6 +23,7 @@ static int valid_specification_options[number_specification_pars] = {
     [align_snapping_code]          = specification_option_factors
                                    | specification_option_constant
                                    | specification_option_global,
+    [text_spacing_code]            = specification_option_constant,
     [balance_shape_code]           = 0,
     [balance_passes_code]          = specification_option_presets
                                    | specification_option_constant,
@@ -370,6 +371,21 @@ static halfword tex_aux_scan_par_specification(halfword code, halfword (*scan)(v
         tex_back_input(cur_tok);
         return scan();
     }
+}
+
+static halfword tex_aux_scan_specification_text_spacing(void)
+{
+    halfword p = null;
+    halfword count = tex_scan_integer(1, NULL, NULL);
+    if (count > 0) {
+        halfword options = tex_aux_scan_specification_options(text_spacing_code);
+        p = tex_new_specification_node(count, text_spacing_code, options);
+        for (int n = 1; n <= count; n++) {
+            tex_set_specification_nepalty(p, n, tex_scan_integer(0, NULL, NULL));
+            tex_set_specification_penalty(p, n, tex_scan_integer(0, NULL, NULL));
+        }
+    }
+    return p;
 }
 
 static halfword tex_aux_scan_specification_penalties(quarterword code)
@@ -1219,12 +1235,12 @@ static halfword tex_aux_scan_specification_balance_shape(void)
                     break;
                 case 't': case 'T':
                     if (tex_scan_mandate_keyword("topskip", 1)) {
-                        tex_set_balance_topskip(p, n, tex_scan_glue(glue_val_level, 0, 0));
+                        tex_set_balance_topskip(p, n, tex_scan_glue(glue_val_level, 0, 0, NULL));
                     }
                     break;
                 case 'b': case 'B':
                     if (tex_scan_mandate_keyword("bottomskip", 1)) {
-                        tex_set_balance_bottomskip(p, n, tex_scan_glue(glue_val_level, 0, 0));
+                        tex_set_balance_bottomskip(p, n, tex_scan_glue(glue_val_level, 0, 0, NULL));
                     }
                     break;
                 case 'o': case 'O':
@@ -1383,6 +1399,8 @@ static halfword tex_aux_scan_specification(quarterword code)
         case math_snapping_code:
         case align_snapping_code:
             return tex_aux_scan_specification_line_snapping(code);
+        case text_spacing_code:
+            return tex_aux_scan_specification_text_spacing();
         default: 
             return tex_aux_scan_specification_penalties(code);
     }

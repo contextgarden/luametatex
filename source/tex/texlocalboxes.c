@@ -380,6 +380,7 @@ void tex_aux_scan_local_box(int code) {
     tex_push_nest();
     cur_list.mode = restricted_hmode;
     cur_list.space_factor = default_space_factor;
+    cur_list.space_penalty = 0;
 }
 
 void tex_aux_finish_local_box(void)

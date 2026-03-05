@@ -29,6 +29,7 @@ typedef struct list_state_record {
     int      mode_line;            
     halfword prev_depth;           // scaled
     halfword space_factor;         
+    halfword space_penalty;
     halfword direction_stack;
     /* this could become:
     math_state_record math_state;

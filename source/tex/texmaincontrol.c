@@ -168,21 +168,37 @@ static inline int tex_aux_used_space_factor_overload(halfword space_factor)
 
 static void tex_aux_adjust_space_factor(halfword chr)
 {
-    halfword s = tex_get_sf_code(chr);
+    halfword s = 0;
+    halfword p = 0;
+    if (text_spacing_par) {
+        s = tex_get_sp_code(chr);
+        if (s > 0) {
+            s = tex_get_specification_nepalty(text_spacing_par, s);
+            p = tex_get_specification_penalty(text_spacing_par, s);
+        } else {
+            s = default_space_factor;
+        }
+    } else {
+        s = tex_get_sf_code(chr);
+    }
     if (s == default_space_factor) {
         cur_list.space_factor = default_space_factor;
+        cur_list.space_penalty = 0;
     } else if (s < default_space_factor) {
         if (s > 0) {
             cur_list.space_factor = s;
+            cur_list.space_penalty = p;
         } else {
-            /* s <= 0 */
+            /* s <= 0 */ /* keep it */
         }
     } else if (tex_aux_use_space_factor_overload(cur_list.tail, cur_list.space_factor)) {
         /* keep it */
     } else if (cur_list.space_factor < default_space_factor) {
         cur_list.space_factor = default_space_factor;
+        cur_list.space_penalty = 0;
     } else {
         cur_list.space_factor = s;
+        cur_list.space_penalty = p;
     }
 }
 
@@ -505,7 +521,10 @@ static void tex_aux_run_space(void)
             */
             {
                 halfword p;
-                if (cur_mode == hmode && cur_cmd == spacer_cmd && cur_list.space_factor != default_space_factor) {
+                if (cur_mode == hmode
+                        && cur_cmd == spacer_cmd
+                        && cur_list.space_factor != default_space_factor
+                        && space_factor_mode_par != space_factor_ignored_mode) {
                     if ((cur_list.space_factor >= space_factor_threshold) && (! tex_glue_is_zero(xspace_skip_par))) {
                         p = tex_get_scaled_parameter_glue(xspace_skip_code, xspace_skip_glue);
                     } else {
@@ -516,6 +535,10 @@ static void tex_aux_run_space(void)
                             p = tex_get_parameter_glue(space_skip_code, space_skip_glue); /* not scaled */
                         }
                         /* Modify the glue specification in |q| according to the space factor */
+                        if (cur_list.space_penalty) {
+                            glue_reserved(p) = cur_list.space_penalty;
+                            glue_options(p) |= glue_option_has_penalty;
+                        }
                         if (cur_list.space_factor >= space_factor_threshold) {
                             glue_amount(p) += tex_get_scaled_extra_space(font);
                         } else if (tex_aux_use_space_factor_overload(cur_list.tail, cur_list.space_factor)) {
@@ -539,9 +562,11 @@ static void tex_aux_run_space(void)
                                 case space_factor_over_limit_half_mode:
                                     glue_shrink(p) = tex_xn_over_d(glue_shrink(p), 2*scaling_factor, space_factor_shrink_limit_par);
                                     break;
-                             // case space_factor_over_limit_mode:
-                                default:
+                                case space_factor_over_limit_mode:
                                     glue_shrink(p) = tex_xn_over_d(glue_shrink(p), scaling_factor, space_factor_shrink_limit_par);
+                                    break;
+                                default:
+                                    glue_shrink(p) = 0;
                                     break;
                             }
                         } else {                   
@@ -552,9 +577,11 @@ static void tex_aux_run_space(void)
                                 case space_factor_over_limit_half_mode:
                                     glue_shrink(p) = tex_xn_over_d(glue_shrink(p), 2*scaling_factor, cur_list.space_factor);
                                     break;
-                             // case space_factor_over_limit_mode:
-                                default:
+                                case space_factor_over_limit_mode:
                                     glue_shrink(p) = tex_xn_over_d(glue_shrink(p), scaling_factor, cur_list.space_factor);
+                                    break;
+                                default:
+                                    glue_shrink(p) = 0;
                                     break;
                             }
                         }
@@ -2363,7 +2390,7 @@ static const int glue_filler_codes[] = {
     fi_l_neg_glue,
 };
 
-static void tex_aux_run_glue(void)
+static void tex_aux_run_glue(int penalty_too)
 {
     halfword code = cur_chr;
     switch (code) {
@@ -2375,12 +2402,16 @@ static void tex_aux_run_glue(void)
             break;
         case skip_code:
             {
-                halfword v = tex_scan_glue(glue_val_level, 0, 1);
+                halfword p = null;
+                halfword v = tex_scan_glue(glue_val_level, 0, 1, penalty_too ? &p : NULL);
                 halfword g = tex_new_glue_node(v, user_skip_glue);
              /* glue_data(g) = glue_data_par; */
                 if (cur_mode == mmode) {
                    /*tex This could be an option. */
                    glue_options(g) |= glue_option_no_auto_break;
+                } else if (penalty_too && cur_mode == hmode) {
+                    glue_options(g) |= glue_option_has_penalty;
+                    glue_reserved(g) = p;
                 }
                 tex_tail_append(g);
                 tex_flush_node(v);
@@ -2396,7 +2427,7 @@ static void tex_aux_run_mglue(void)
     switch (cur_chr) {
         case normal_mskip_code:
             {
-                halfword v = tex_scan_glue(muglue_val_level, 0, 0);
+                halfword v = tex_scan_glue(muglue_val_level, 0, 0, NULL);
                 tex_tail_append(tex_new_glue_node(v, mu_glue));
                 tex_flush_node(v);
                 break;
@@ -2807,7 +2838,7 @@ static void tex_aux_wrapup_leader_box(halfword boxcontext, halfword boxnode, hal
         tex_get_x_token();
     } while (cur_cmd == spacer_cmd || cur_cmd == relax_cmd);
     if ((cur_cmd == hskip_cmd && cur_mode != vmode) || (cur_cmd == vskip_cmd && cur_mode == vmode)) {
-        tex_aux_run_glue(); /* uses cur_chr */
+        tex_aux_run_glue(0); /* uses cur_chr */
         switch (boxcontext) {
             case a_leaders_flag:
                 node_subtype(cur_list.tail) = a_leaders;
@@ -2917,6 +2948,7 @@ void tex_box_end(int boxcontext, halfword boxnode, scaled shift, halfword maincl
                     case hmode:
                         if (! (box_options(boxnode) & box_option_keep_spacing)) { 
                             cur_list.space_factor = default_space_factor;
+                            cur_list.space_penalty = 0;
                         }
                         tex_couple_nodes(cur_list.tail, boxnode);
                         cur_list.tail = boxnode;
@@ -3032,6 +3064,7 @@ void tex_begin_paragraph(int doindent, int context)
         tex_push_nest();
         cur_list.mode = hmode;
         cur_list.space_factor = default_space_factor;
+        cur_list.space_penalty = 0;
         /*tex Add local paragraph node */
         tex_tail_append(tex_new_par_node(vmode_par_par_subtype));
         par_prev_graf(cur_list.tail) = prev_graf;
@@ -3576,6 +3609,7 @@ static void tex_aux_run_text_accent(void)
             cur_list.tail = accent;
         }
         cur_list.space_factor = default_space_factor;
+        cur_list.space_penalty = 0;
     }
 }
 
@@ -3694,11 +3728,11 @@ static inline halfword tex_aux_get_register_value(int level, int optionalequal)
             return tex_scan_dimension(0, 0, 0, optionalequal, NULL, NULL);
      // case glue_val_level:
      // case muglue_val_level:
-     //     return tex_scan_glue(level, optionalequal, 1);
+     //     return tex_scan_glue(level, optionalequal, 1, NULL);
      // default:
      //     return null;
         default:
-            return tex_scan_glue(level, optionalequal, 1);
+            return tex_scan_glue(level, optionalequal, 1, NULL);
     }
 }
 
@@ -4172,7 +4206,7 @@ static void tex_aux_set_page_property(void)
                     get an out-of-order issue (index too large). The same is true for teh rest.
                 */
                 int index = tex_scan_integer(0, NULL, NULL);
-                tex_set_insert_distance(index, tex_scan_glue(glue_val_level, 1, 1));
+                tex_set_insert_distance(index, tex_scan_glue(glue_val_level, 1, 1, NULL));
             }
             break;
         case insert_multiplier_code:
@@ -4347,6 +4381,7 @@ static void tex_aux_set_auxiliary(int a)
         case space_factor_code:
             if (cur_mode == hmode) {
                 cur_list.space_factor = tex_scan_space_factor(1);
+                cur_list.space_penalty = 0;
             } else {
                 tex_aux_run_illegal_case();
             }
@@ -4759,13 +4794,13 @@ static void tex_aux_set_shorthand_def(int a, int force)
                 }
             case gluespec_def_code:
                 {
-                    halfword v = tex_scan_glue(glue_val_level, 1, 1);
+                    halfword v = tex_scan_glue(glue_val_level, 1, 1, NULL);
                     tex_define_again(a, p, gluespec_cmd, v);
                     break;
                 }
             case mugluespec_def_code:
                 {
-                    halfword v = tex_scan_glue(muglue_val_level, 1, 0);
+                    halfword v = tex_scan_glue(muglue_val_level, 1, 0, NULL);
                     tex_define_again(a, p, mugluespec_cmd, v);
                     break;
                 }
@@ -5414,6 +5449,13 @@ static void tex_aux_set_define_char_code(int a) /* maybe make |a| already a bool
                 tex_set_sf_code(chr, val, global_or_local(a));
             }
             break;
+        case spcode_charcode:
+            {
+                halfword chr = tex_scan_char_number(0);
+                halfword val = tex_scan_space_factor(1);
+                tex_set_sp_code(chr, val, global_or_local(a));
+            }
+            break;
         case hccode_charcode:
             {
                 halfword chr = tex_scan_char_number(0);
@@ -5749,7 +5791,7 @@ static void tex_aux_set_math_parameter(int a)
                     value = tex_scan_dimension(0, 0, 0, 1, NULL, NULL);
                     break;
                 case math_muglue_parameter:
-                    value = tex_scan_glue(muglue_val_level, 1, 0);
+                    value = tex_scan_glue(muglue_val_level, 1, 0, NULL);
                     break;
                 case math_style_parameter:
                     value = tex_scan_integer(1, NULL, NULL);
@@ -5910,7 +5952,7 @@ static void tex_aux_set_internal_glue(int a, int force)
 {
     halfword p = cur_chr;
     if (force || tex_mutation_permitted(p)) {
-        halfword v = tex_scan_glue(glue_val_level, 1, 0);
+        halfword v = tex_scan_glue(glue_val_level, 1, 0, NULL);
      // define(a, p, internal_glue_ref_cmd, v);
         tex_assign_internal_skip_value(a, p, v);
     }
@@ -5920,7 +5962,7 @@ static void tex_aux_set_register_glue(int a, int force)
 {
     halfword p = cur_chr;
     if (force || tex_mutation_permitted(p)) {
-        halfword v = tex_scan_glue(glue_val_level, 1, 1);
+        halfword v = tex_scan_glue(glue_val_level, 1, 1, NULL);
         tex_define(a, p, register_glue_reference_cmd, v);
     }
 }
@@ -5929,7 +5971,7 @@ static void tex_aux_set_internal_muglue(int a, int force)
 {
     halfword p = cur_chr;
     if (force || tex_mutation_permitted(p)) {
-        halfword v = tex_scan_glue(muglue_val_level, 1, 0);
+        halfword v = tex_scan_glue(muglue_val_level, 1, 0, NULL);
         tex_define(a, p, internal_muglue_reference_cmd, v);
     }
 }
@@ -5938,7 +5980,7 @@ static void tex_aux_set_register_muglue(int a, int force)
 {
     halfword p = cur_chr;
     if (force || tex_mutation_permitted(p)) {
-        halfword v = tex_scan_glue(muglue_val_level, 1, 0);
+        halfword v = tex_scan_glue(muglue_val_level, 1, 0, NULL);
         tex_define(a, p, register_muglue_reference_cmd, v);
     }
 }
@@ -5977,7 +6019,7 @@ static int tex_aux_set_some_item(void)
         case lastskip_code:
             if (lmt_page_builder_state.last_glue != max_halfword) {
                 tex_flush_node(lmt_page_builder_state.last_glue);
-                lmt_page_builder_state.last_glue = tex_scan_glue(glue_val_level, 1, 0);
+                lmt_page_builder_state.last_glue = tex_scan_glue(glue_val_level, 1, 0, NULL);
             }
             return 1;
         case lastboundary_code:
@@ -6018,10 +6060,10 @@ static void tex_aux_set_constant_register(halfword cmd, halfword cs, halfword fl
                 v = tex_scan_posit(1);
                 break;
             case gluespec_cmd:
-                v = tex_scan_glue(glue_val_level, 1, 1);
+                v = tex_scan_glue(glue_val_level, 1, 1, NULL);
                 break;
             case mugluespec_cmd:
-                v = tex_scan_glue(muglue_val_level, 1, 0);
+                v = tex_scan_glue(muglue_val_level, 1, 0, NULL);
                 break;
         }
         tex_define(flags, cs, (singleword) cmd, v);
@@ -7165,7 +7207,7 @@ static inline void tex_aux_big_switch(int mode, int cmd)
         case explicit_space_cmd:   mode == vmode ? tex_aux_run_new_paragraph() : tex_aux_run_space();         break;
         case hmove_cmd:            mode == vmode ? tex_aux_run_move()          : tex_aux_run_illegal_case();  break;
         case vmove_cmd:            mode == vmode ? tex_aux_run_illegal_case()  : tex_aux_run_move();          break;    
-        case hskip_cmd:            mode == vmode ? tex_aux_run_new_paragraph() : tex_aux_run_glue();          break;       
+        case hskip_cmd:            mode == vmode ? tex_aux_run_new_paragraph() : tex_aux_run_glue(1);          break;
         case un_hbox_cmd:          mode == vmode ? tex_aux_run_new_paragraph() : tex_run_unpackage();         break;   
 
         /* */
@@ -7261,7 +7303,7 @@ static inline void tex_aux_big_switch(int mode, int cmd)
 
         case vskip_cmd:              
             switch (mode) { 
-                case vmode: tex_aux_run_glue();               break;   
+                case vmode: tex_aux_run_glue(0);              break;
                 case hmode: tex_aux_run_head_for_vmode();     break;   
                 case mmode: tex_aux_run_insert_dollar_sign(); break;
             } 

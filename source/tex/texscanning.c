@@ -597,7 +597,7 @@ static int tex_aux_set_cur_val_by_some_cmd(int code)
                     not using the internal codes anyway (or symbolic constants). In \LUATEX\ there
                     is some \ETEX\ related shifting but we don't do that here.
                 */
-                halfword q = tex_scan_glue(glue_val_level, 0, 0);
+                halfword q = tex_scan_glue(glue_val_level, 0, 0, NULL);
                 cur_val = (code == glue_stretch_order_code) ? glue_stretch_order(q) : glue_shrink_order(q);
                 tex_flush_node(q);
                 cur_val_level = integer_val_level;
@@ -1009,18 +1009,18 @@ static int tex_aux_set_cur_val_by_some_cmd(int code)
         case glue_stretch_code:
         case glue_shrink_code:
             {
-                halfword q = tex_scan_glue(glue_val_level, 0, 0);
+                halfword q = tex_scan_glue(glue_val_level, 0, 0, NULL);
                 cur_val = code == glue_stretch_code ? glue_stretch(q) : glue_shrink(q);
                 tex_flush_node(q);
                 cur_val_level = dimension_val_level;
                 break;
             }
         case mu_to_glue_code:
-            cur_val = tex_scan_glue(muglue_val_level, 0, 0);
+            cur_val = tex_scan_glue(muglue_val_level, 0, 0, NULL);
             cur_val_level = glue_val_level;
             return 1;
         case glue_to_mu_code:
-            cur_val = tex_scan_glue(glue_val_level, 0, 0);
+            cur_val = tex_scan_glue(glue_val_level, 0, 0, NULL);
             cur_val_level = muglue_val_level;
             return 1;
         case numexpr_code:
@@ -1479,6 +1479,9 @@ static void tex_aux_set_cur_val_by_define_char_cmd(int code)
             break;
         case sfcode_charcode:
             code = tex_get_sf_code(index);
+            break;
+        case spcode_charcode:
+            code = tex_get_sp_code(index);
             break;
         case hccode_charcode:
             code = tex_get_hc_code(index);
@@ -3860,7 +3863,7 @@ void tex_scan_dimension_validate(void)
 
 /* todo: get rid of cur_val */
 
-halfword tex_scan_glue(int level, int optional_equal, int options_too)
+halfword tex_scan_glue(int level, int optional_equal, int options_too, halfword * penalty)
 {
     /*tex should the answer be negated? */
     bool negative = false;
@@ -3924,12 +3927,38 @@ halfword tex_scan_glue(int level, int optional_equal, int options_too)
     */
     q = tex_new_glue_spec_node(zero_glue);
     glue_amount(q) = cur_val;
+    if (penalty) {
+        *penalty = 0;
+    }
     while (1) {
         switch (tex_scan_character(options_too ? "pmldPMLD" : "pmPM", 0, 1, 0)) {
             case 0:
                 return q;
             case 'p': case 'P':
-                if (tex_scan_mandate_keyword("plus", 1)) {
+                if (penalty) {
+                    switch (tex_scan_character("elEL", 0, 1, 0)) {
+                        case 'e': case 'E':
+                            if (tex_scan_mandate_keyword("penalty", 2)) {
+                                *penalty = tex_scan_integer(0, NULL, NULL);
+                                break;
+                            } else {
+                                return q;
+                            }
+                        case 'l': case 'L':
+                            if (tex_scan_mandate_keyword("plus", 2)) {
+                                halfword order = normal_glue_order;
+                                glue_stretch(q) = tex_scan_dimension(mu, 1, 0, 0, &order, NULL);
+                                glue_stretch_order(q) = order;
+                                break;
+                            } else {
+                                return q;
+                            }
+                        default:
+                            tex_aux_show_keyword_error("penalty|plus");
+                            return q;
+                        }
+
+                } else if (tex_scan_mandate_keyword("plus", 1)) {
                     halfword order = normal_glue_order;
                     glue_stretch(q) = tex_scan_dimension(mu, 1, 0, 0, &order, NULL);
                     glue_stretch_order(q) = order;
@@ -5711,10 +5740,10 @@ static void tex_aux_scan_expr(halfword level, int braced)
             factor = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
             break;
         case glue_val_level:
-            factor = tex_scan_glue(glue_val_level, 0, 0);
+            factor = tex_scan_glue(glue_val_level, 0, 0, NULL);
             break;
         case muglue_val_level:
-            factor = tex_scan_glue(muglue_val_level, 0, 0);
+            factor = tex_scan_glue(muglue_val_level, 0, 0, NULL);
             break;
     }
   FOUND:

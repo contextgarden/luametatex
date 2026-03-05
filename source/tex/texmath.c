@@ -5162,6 +5162,7 @@ static void tex_aux_resume_after_display(void)
             tex_push_nest();
             cur_list.mode = hmode;
             cur_list.space_factor = default_space_factor;
+            cur_list.space_penalty = 0;
             /*tex
                 This needs to be intercepted in the display math start! Todo! Why do we have this
                 anyway.
@@ -5757,6 +5758,7 @@ void tex_run_math_shift(void)
                         tex_add_math_option(endmath, math_option_short);
                     }
                     cur_list.space_factor = default_space_factor;
+                    cur_list.space_penalty = 0;
                     mathleft = cur_list.math_begin;
                     mathright = cur_list.math_end;
                     math_tolerance(beginmath) = math_tolerance_par;

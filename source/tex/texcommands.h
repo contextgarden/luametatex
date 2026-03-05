@@ -1231,6 +1231,7 @@ typedef enum charcode_codes {
     lccode_charcode,
     uccode_charcode,
     sfcode_charcode,
+    spcode_charcode,
     hccode_charcode,
     hmcode_charcode,
     amcode_charcode,

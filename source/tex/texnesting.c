@@ -246,6 +246,7 @@ void tex_initialize_nesting(void)
     cur_list.mode_line          = 0;
     cur_list.prev_depth         = ignore_depth;
     cur_list.space_factor       = default_space_factor;
+    cur_list.space_penalty      = 0;
     cur_list.incomplete_noad    = null;
     cur_list.direction_stack    = null;
     cur_list.math_dir           = 0;
@@ -267,6 +268,7 @@ void tex_initialize_nesting(void)
         .mode_line          = 0,
         .prev_depth         = ignore_depth,
         .space_factor       = default_space_factor,
+        .space_penalty      = 0,
         .incomplete_noad    = null,
         .direction_stack    = null,
         .math_dir           = 0,
@@ -327,6 +329,7 @@ void tex_push_nest(void)
         cur_list.mode_line         = lmt_input_state.input_line;
         cur_list.prev_depth        = top->prev_depth;
         cur_list.space_factor      = top->space_factor;
+        cur_list.space_penalty     = top->space_penalty;
         cur_list.incomplete_noad   = top->incomplete_noad;
         cur_list.direction_stack   = null;
         cur_list.math_dir          = 0;
@@ -350,6 +353,7 @@ void tex_push_nest(void)
             .mode_line         = lmt_input_state.input_line,
             .prev_depth        = top->prev_depth,
             .space_factor      = top->space_factor,
+            .space_penalty     = top->space_penalty,
             .incomplete_noad   = top->incomplete_noad,
             .direction_stack   = null,
             .math_dir          = 0,
@@ -727,6 +731,7 @@ static void tex_aux_reset_mvl(int i)
         .mode_line         = 0,
         .prev_depth        = ignore_depth,   
         .space_factor      = default_space_factor,
+        .space_penalty     = 0,
         .incomplete_noad   = null,
         .direction_stack   = null,
         .math_dir          = 0,
