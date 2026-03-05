@@ -3956,7 +3956,7 @@ halfword tex_scan_glue(int level, int optional_equal, int options_too, halfword 
                         default:
                             tex_aux_show_keyword_error("penalty|plus");
                             return q;
-                        }
+                    }
                 } else if (tex_scan_mandate_keyword("plus", 1)) {
                     halfword order = normal_glue_order;
                     glue_stretch(q) = tex_scan_dimension(mu, 1, 0, 0, &order, NULL);

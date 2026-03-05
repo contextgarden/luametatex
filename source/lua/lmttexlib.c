@@ -6951,7 +6951,7 @@ static int texlib_getspaceskipvalues(lua_State *L)
 
 static int texlib_getspacefactorvalues(lua_State *L)
 {
-    lua_createtable(L, 2, 1);
+    lua_createtable(L, 2, 3);
     lua_set_string_by_index(L, space_factor_over_limit_mode,      "factoroverlimit");
     lua_set_string_by_index(L, space_limit_over_factor_mode,      "limitoverfactor");
     lua_set_string_by_index(L, space_factor_over_limit_half_mode, "factoroverlimithalf");

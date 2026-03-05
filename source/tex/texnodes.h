@@ -1042,47 +1042,49 @@ typedef enum list_balance_states {
 
 // todo: reorder memone and memtwo (but also check adjust then)
 
-# define box_node_size         18
-# define box_width(a)          memtwo(a,2)
-# define box_w_offset(a)       memone(a,2)
-# define box_depth(a)          memtwo(a,3)
-# define box_d_offset(a)       memone(a,3)
-# define box_height(a)         memtwo(a,4)
-# define box_h_offset(a)       memone(a,4)
-# define box_list(a)           memtwo(a,5)   /* 5 = list_offset */
-# define box_shift_amount(a)   memone(a,5)
-# define box_glue_order(a)     memtwo(a,6)
-# define box_glue_sign(a)      memone00(a,6)
-# define box_balance_state(a)  memone01(a,6)
-# define box_content_state(a)  memone02(a,6)
-# define box_anchoring(a)      memone03(a,6)
-# define box_glue_set(a)       dvalue(a,7)   /* So we reserve a whole memory word! */
-# define box_direction(a)      memtwo00(a,8) /* We could encode it as geometry but not now. */
-# define box_package_state(a)  memtwo01(a,8)
-# define box_options(a)        memtwo02(a,8)
-# define box_geometry(a)       memtwo03(a,8)
-# define box_orientation(a)    memone(a,8)   /* Also used for size in alignments. */
-# define box_x_offset(a)       memtwo(a,9)
-# define box_y_offset(a)       memone(a,9)
-# define box_pre_migrated(a)   memtwo(a,10)
-# define box_post_migrated(a)  memone(a,10)
-# define box_pre_adjusted(a)   memtwo(a,11)
-# define box_post_adjusted(a)  memone(a,11)
-# define box_source_anchor(a)  memtwo(a,12)
-# define box_target_anchor(a)  memone(a,12)
-# define box_anchor(a)         memtwo(a,13)
-# define box_index(a)          memone(a,13)
-# define box_except(a)         memtwo(a,14)
-# define box_exdepth(a)        memone(a,14)
-# define box_discardable(a)    memtwo(a,15)  /* internal usage */
-# define box_reserved(a)       memone(a,15)  /* internal usage */
-# define box_natural_height(a) memtwo(a,16)
-# define box_natural_depth(a)  memone(a,16)
-# define box_input_file(a)     memtwo(a,17)
-# define box_input_line(a)     memone(a,17)
-
-# define box_tail(a)          box_reserved(a) /* see alignments, cleanedup afterwards */
-# define box_short(a)         box_reserved(a) /* only set on a subtype line */
+# define box_node_size          19
+# define box_width(a)           memtwo(a,2)
+# define box_w_offset(a)        memone(a,2)
+# define box_depth(a)           memtwo(a,3)
+# define box_d_offset(a)        memone(a,3)
+# define box_height(a)          memtwo(a,4)
+# define box_h_offset(a)        memone(a,4)
+# define box_list(a)            memtwo(a,5)    /* 5 = list_offset */
+# define box_shift_amount(a)    memone(a,5)
+# define box_glue_order(a)      memtwo(a,6)
+# define box_glue_sign(a)       memone00(a,6)
+# define box_balance_state(a)   memone01(a,6)
+# define box_content_state(a)   memone02(a,6)
+# define box_anchoring(a)       memone03(a,6)
+# define box_glue_set(a)        dvalue(a,7)    /* So we reserve a whole memory word! */
+# define box_direction(a)       memtwo00(a,8)  /* We could encode it as geometry but not now. */
+# define box_package_state(a)   memtwo01(a,8)
+# define box_options(a)         memtwo02(a,8)
+# define box_geometry(a)        memtwo03(a,8)
+# define box_orientation(a)     memone(a,8)    /* Also used for size in alignments. */
+# define box_x_offset(a)        memtwo(a,9)
+# define box_y_offset(a)        memone(a,9)
+# define box_pre_migrated(a)    memtwo(a,10)
+# define box_post_migrated(a)   memone(a,10)
+# define box_pre_adjusted(a)    memtwo(a,11)
+# define box_post_adjusted(a)   memone(a,11)
+# define box_source_anchor(a)   memtwo(a,12)
+# define box_target_anchor(a)   memone(a,12)
+# define box_anchor(a)          memtwo(a,13)
+# define box_index(a)           memone(a,13)
+# define box_except(a)          memtwo(a,14)
+# define box_exdepth(a)         memone(a,14)
+# define box_discardable(a)     memtwo(a,15)   /* internal usage */
+# define box_tail(a)            memone(a,15)   /* internal usage, alignment */
+# define box_natural_height(a)  memtwo(a,16)
+# define box_natural_depth(a)   memone(a,16)
+# define box_input_file(a)      memtwo(a,17)
+# define box_input_line(a)      memone(a,17)
+# define box_short(a)           memtwo(a,18)   /* depends on subtype, here line */
+# define box_dimension_state(a) memone00(a,18) /* todo */
+# define box_leader_state(a)    memone01(a,18) /* todo */
+# define box_reserved_1(a)      memone02(a,18)
+# define box_reserved_2(a)      memone03(a,18)
 
 # define box_total(a) (box_height(a) + box_depth(a)) /* Here we add, with glyphs we maximize. */
 
@@ -1123,12 +1125,12 @@ typedef enum package_states {
     /* maybe vcenter */
 } package_states;
 
-typedef enum package_dimension_states {
+typedef enum package_dimension_states { /* todo: own field */
     package_dimension_not_set  = 0x00,
-    package_dimension_size_set = 0x10, /* used in alignments */
+    package_dimension_size_set = 0x10,  /* used in alignments */
 } package_dimension_states;
 
-typedef enum package_leader_states { /* we can use one of the reserved */
+typedef enum package_leader_states {    /* todo: own field */
     package_u_leader_not_set = 0x00,
     package_u_leader_set     = 0x20,
     package_u_leader_delayed = 0x40,

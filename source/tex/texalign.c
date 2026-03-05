@@ -464,15 +464,6 @@ static void tex_aux_wipe_row_state(void)
     lmt_alignment_state.row_state_set = 0;
 }
 
-static void tex_aux_cleanup_alignment(void)
-{
-    halfword rowptr = node_next(cur_list.head);
-    while (rowptr) {
-        box_tail(rowptr) = null;
-        rowptr = node_next(rowptr);
-    }
-}
-
 /*tex The current preamble list: */
 
 # define preamble node_next(align_head)
@@ -2914,7 +2905,6 @@ static void tex_aux_finish_align(void)
     if (callback) {
         lmt_alignment_callback(cur_list.head, wrapup_pass_alignment_context, lmt_alignment_state.callback, lmt_alignment_state.attr_list, preamble);
     }
-    tex_aux_cleanup_alignment();
     tex_flush_node_list(preroll);
     delete_attribute_reference(lmt_alignment_state.attr_list);
     tex_aux_pop_alignment();

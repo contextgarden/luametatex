@@ -532,10 +532,6 @@ static void tex_aux_run_space(void)
                             p = tex_get_parameter_glue(space_skip_code, space_skip_glue); /* not scaled */
                         }
                         /* Modify the glue specification in |q| according to the space factor */
-//                      if (cur_list.space_penalty) {
-//                          glue_reserved(p) = cur_list.space_penalty;
-//                          glue_options(p) |= glue_option_has_penalty;
-//                      }
                         if (cur_list.space_factor >= space_factor_threshold) {
                             glue_amount(p) += tex_get_scaled_extra_space(font);
                         } else if (tex_aux_use_space_factor_overload(cur_list.tail, cur_list.space_factor)) {
