@@ -183,11 +183,9 @@ static void tex_aux_adjust_space_factor(halfword chr)
     }
     if (s == default_space_factor) {
         cur_list.space_factor = default_space_factor;
-        cur_list.space_penalty = 0;
     } else if (s < default_space_factor) {
         if (s > 0) {
             cur_list.space_factor = s;
-            cur_list.space_penalty = p;
         } else {
             /* s <= 0 */ /* keep it */
         }
@@ -195,11 +193,10 @@ static void tex_aux_adjust_space_factor(halfword chr)
         /* keep it */
     } else if (cur_list.space_factor < default_space_factor) {
         cur_list.space_factor = default_space_factor;
-        cur_list.space_penalty = 0;
     } else {
         cur_list.space_factor = s;
-        cur_list.space_penalty = p;
     }
+    cur_list.space_penalty = p;
 }
 
 static void tex_aux_run_text_char_number(void)
@@ -535,10 +532,10 @@ static void tex_aux_run_space(void)
                             p = tex_get_parameter_glue(space_skip_code, space_skip_glue); /* not scaled */
                         }
                         /* Modify the glue specification in |q| according to the space factor */
-                        if (cur_list.space_penalty) {
-                            glue_reserved(p) = cur_list.space_penalty;
-                            glue_options(p) |= glue_option_has_penalty;
-                        }
+//                      if (cur_list.space_penalty) {
+//                          glue_reserved(p) = cur_list.space_penalty;
+//                          glue_options(p) |= glue_option_has_penalty;
+//                      }
                         if (cur_list.space_factor >= space_factor_threshold) {
                             glue_amount(p) += tex_get_scaled_extra_space(font);
                         } else if (tex_aux_use_space_factor_overload(cur_list.tail, cur_list.space_factor)) {
@@ -592,6 +589,10 @@ static void tex_aux_run_space(void)
                 } else {
                     /*tex Append a normal inter-word space to the current list. */
                     p = tex_get_parameter_glue(space_skip_code, space_skip_glue); /* not scaled */
+                }
+                if (cur_list.space_penalty) {
+                    glue_reserved(p) = cur_list.space_penalty;
+                    glue_options(p) |= glue_option_has_penalty;
                 }
                 glue_font(p) = cur_font_par;
                 tex_tail_append(p);
