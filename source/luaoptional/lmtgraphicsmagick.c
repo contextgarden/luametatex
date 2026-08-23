@@ -24,7 +24,6 @@ typedef struct gmlib_state_info {
     int padding;
 
     void (*gm_InitializeMagick) (
-     // void **argv
         void *path
     );
 
@@ -64,29 +63,24 @@ typedef struct gmlib_state_info {
 } gmlib_state_info;
 
 static gmlib_state_info gmlib_state = {
-
     .initialized            = 0,
     .padding                = 0,
-
     .gm_InitializeMagick    = NULL,
     .gm_DestroyMagick       = NULL,
     .gm_NewMagickWand       = NULL,
     .gm_DestroyMagickWand   = NULL,
     .gm_MagickReadImage     = NULL,
     .gm_MagickWriteImage    = NULL,
-
     .gm_MagickBlurImage     = NULL,
     .gm_MagickAddNoiseImage = NULL,
-
 };
 
-static int gmlib_initialize(lua_State * L) // todo: table
+static int gmlib_initialize(lua_State * L)
 {
     if (! gmlib_state.initialized) {
-        const char *filename1 = lua_tostring(L,1);
-        const char *filename2 = lua_tostring(L,2);
+        const char *filename1 = lua_tostring(L, 1);
+        const char *filename2 = lua_tostring(L, 2);
         if (filename1) {
-
             lmt_library lib = lmt_library_load(filename1);
 
             gmlib_state.gm_InitializeMagick = lmt_library_find(lib, "InitializeMagick");
@@ -95,14 +89,12 @@ static int gmlib_initialize(lua_State * L) // todo: table
             gmlib_state.initialized = lmt_library_okay(lib);
         }
         if (gmlib_state.initialized && filename2) {
-
             lmt_library lib = lmt_library_load(filename2);
 
             gmlib_state.gm_NewMagickWand       = lmt_library_find(lib, "NewMagickWand");
             gmlib_state.gm_DestroyMagickWand   = lmt_library_find(lib, "DestroyMagickWand");
             gmlib_state.gm_MagickReadImage     = lmt_library_find(lib, "MagickReadImage");
             gmlib_state.gm_MagickWriteImage    = lmt_library_find(lib, "MagickWriteImage");
-
             gmlib_state.gm_MagickBlurImage     = lmt_library_find(lib, "MagickBlurImage");
             gmlib_state.gm_MagickAddNoiseImage = lmt_library_find(lib, "MagickAddNoiseImage");
 
@@ -126,34 +118,49 @@ static int gmlib_execute(lua_State * L)
             gmlib_state.initialized = 2;
         }
         if (lua_type(L, 1) == LUA_TTABLE) {
-            void        *wand    = NULL;
-            const char  *inpname = NULL;
-            const char  *outname = NULL;
-            lua_getfield(L, -1, "inputfile" ); inpname = luaL_optstring(L, -1, NULL); lua_pop(L, 1);
-            lua_getfield(L, -1, "outputfile"); outname = luaL_optstring(L, -1, NULL); lua_pop(L, 1);
-         /* gmlib_state.gm_InitializeMagick(NULL); */
-            wand = gmlib_state.gm_NewMagickWand();
+            const char *inpname = NULL;
+            const char *outname = NULL;
+            /*tex
+                Pin options table index to 1 (absolute index).
+            */
+            lua_getfield(L, 1, "inputfile");
+            inpname = luaL_optstring(L, -1, NULL);
+            lua_pop(L, 1);
+            lua_getfield(L, 1, "outputfile");
+            outname = luaL_optstring(L, -1, NULL);
+            lua_pop(L, 1);
+            if (!inpname || !outname) {
+                lua_pushboolean(L, 0);
+                lua_pushliteral(L, "missing inputfile or outputfile");
+                return 2;
+            }
+            void *wand = gmlib_state.gm_NewMagickWand();
             if (wand) {
-                int state = gmlib_state.gm_MagickReadImage(wand, inpname);  /* todo: check return status */
+                int state = gmlib_state.gm_MagickReadImage(wand, inpname);
                 if (state) {
-                    /* fun stuff */
-                    if (lua_getfield(L, -1, "blur" ) == LUA_TTABLE) {
-                        lua_getfield(L, -1, "radius");
-                        lua_getfield(L, -2, "sigma");
-                        gmlib_state.gm_MagickBlurImage(wand, lua_tonumber(L, -2), lua_tonumber(L, -1));
-                        lua_pop(L, 3);
+                    /* Processing blur */
+                    if (lua_getfield(L, 1, "blur") == LUA_TTABLE) {
+                        int blur_tbl = lua_gettop(L);
+                        lua_getfield(L, blur_tbl, "radius");
+                        lua_getfield(L, blur_tbl, "sigma");
+                        double radius = lua_tonumber(L, -2);
+                        double sigma  = lua_tonumber(L, -1);
+                        gmlib_state.gm_MagickBlurImage(wand, radius, sigma);
+                        lua_pop(L, 3); /* pops sigma, radius, and blur table */
                     } else {
                         lua_pop(L, 1);
                     }
-                    if (lua_getfield(L, -1, "noise" ) == LUA_TTABLE) {
-                        lua_getfield(L, -1, "type");
-                        gmlib_state.gm_MagickAddNoiseImage(wand, lmt_tointeger(L, -1));
-                        lua_pop(L, 2);
+                    /* Processing noise */
+                    if (lua_getfield(L, 1, "noise") == LUA_TTABLE) {
+                        int noise_tbl = lua_gettop(L);
+                        lua_getfield(L, noise_tbl, "type");
+                        gmlib_NoiseType ntype = (gmlib_NoiseType) lmt_tointeger(L, -1);
+                        gmlib_state.gm_MagickAddNoiseImage(wand, ntype);
+                        lua_pop(L, 2); /* pops type and noise table */
                     } else {
                         lua_pop(L, 1);
                     }
-                    /* done */
-                    state = gmlib_state.gm_MagickWriteImage(wand, outname); /* todo: check return status */
+                    state = gmlib_state.gm_MagickWriteImage(wand, outname);
                     gmlib_state.gm_DestroyMagickWand(wand);
                     if (state) {
                         lua_pushboolean(L, 1);
@@ -174,7 +181,6 @@ static int gmlib_execute(lua_State * L)
                 lua_pushliteral(L, "possible memory issue");
                 return 2;
             }
-         /* gmlib_state.gm_DestroyMagick(); */
         } else {
             lua_pushboolean(L, 0);
             lua_pushliteral(L, "invalid specification");
@@ -186,7 +192,7 @@ static int gmlib_execute(lua_State * L)
     return 2;
 }
 
-static int gmlib_noisetypes(lua_State * L) 
+static int gmlib_noisetypes(lua_State * L)
 {
     lua_createtable(L, 6, 2);
     lua_set_string_by_index(L, UniformNoise,                "uniform");

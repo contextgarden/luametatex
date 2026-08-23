@@ -28,6 +28,9 @@ target_link_libraries(luametatex
     qrcodegen
     triangles
     nanojpeg    
+    filib
+
+#   qhull
 )
 
 if (LUAMETATEX_NOLDL) 
@@ -90,4 +93,21 @@ elseif (CMAKE_C_COMPILER_ID MATCHES "GNU")
     # -x       : remove all non-global symbols
     # -X       : remove any compiler-generated symbols
     add_custom_command(TARGET luametatex POST_BUILD COMMAND ${CMAKE_STRIP} -g -S -d -x luametatex${CMAKE_EXECUTABLE_SUFFIX})
+endif()
+
+if (DEFINED LMT_OPTIMIZE)
+  # if (MINGW)
+    if (NOT MSVC)
+        target_compile_options(luametatex PRIVATE
+            -Wno-array-bounds
+            -Wno-attributes
+            -Wno-stringop-overflow
+        )
+
+        # If using LTO, pass flag to linker as well so lto1 stays quiet
+        target_link_options(luametatex PRIVATE
+            -Wno-attributes
+            -Wno-stringop-overflow
+        )
+    endif()
 endif()

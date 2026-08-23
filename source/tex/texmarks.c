@@ -52,7 +52,7 @@ void tex_initialize_marks(void)
     }
 }
 
-void tex_reset_mark(halfword m)
+static void tex_aux_reset_mark(halfword m)
 {
     if (m >= lmt_mark_state.mark_data.top) {
        int step = lmt_mark_state.mark_data.step;
@@ -85,34 +85,60 @@ void tex_reset_mark(halfword m)
     tex_wipe_mark(m);
 }
 
+int tex_valid_mark(halfword m)
+{
+    if (m < 0 || m > max_mark_index) {
+        return 0;
+    } else if (m >= lmt_mark_state.mark_data.top) {
+        tex_aux_reset_mark(m);
+    }
+    return m < lmt_mark_state.mark_data.top;
+}
+
+void tex_reset_mark(halfword m)
+{
+    if (tex_valid_mark(m)) {
+        tex_aux_reset_mark(m);
+    }
+}
+
 halfword tex_get_mark(halfword m, halfword s)
 {
-    if (s >= 0 && s <= last_unique_mark_code) {
-        return lmt_mark_state.data[m].marks[s];
-    } else {
-        return null;
+    if (tex_valid_mark(m)) {
+        if (s >= 0 && s <= last_unique_mark_code) {
+            return lmt_mark_state.data[m].marks[s];
+        }
     }
+    return null;
 }
 
 void tex_set_mark(halfword m, halfword s, halfword v)
 {
-    if (s >= 0 && s <= last_unique_mark_code) {
-        if (lmt_mark_state.data[m].marks[s]) {
-            tex_delete_token_reference(lmt_mark_state.data[m].marks[s]);
+    if (tex_valid_mark(m)) {
+        /* here */
+        if (lmt_mark_state.min_used < 0) {
+            lmt_mark_state.min_used = m;
+            lmt_mark_state.max_used = m;
+        } else {
+            if (m < lmt_mark_state.min_used) {
+                lmt_mark_state.min_used = m;
+            }
+            if (m > lmt_mark_state.max_used) {
+                lmt_mark_state.max_used = m;
+            }
         }
-        if (v) {
-            tex_add_token_reference(v);
+        /* */
+        if (s >= 0 && s <= last_unique_mark_code) {
+            if (lmt_mark_state.data[m].marks[s]) {
+                tex_delete_token_reference(lmt_mark_state.data[m].marks[s]);
+            }
+            if (v) {
+                tex_add_token_reference(v);
+            }
+            lmt_mark_state.data[m].marks[s] = v;
+            lmt_mark_state.data[m].state = 1;
         }
-        lmt_mark_state.data[m].marks[s] = v;
-        lmt_mark_state.data[m].state = 1;
     }
-}
-
-int tex_valid_mark(halfword m) {
-    if (m >= lmt_mark_state.mark_data.top) {
-        tex_reset_mark(m);
-    }
-    return m < lmt_mark_state.mark_data.top;
 }
 
 halfword tex_new_mark(quarterword subtype, halfword index, halfword ptr)
@@ -120,17 +146,6 @@ halfword tex_new_mark(quarterword subtype, halfword index, halfword ptr)
     halfword mark = tex_new_node(mark_node, subtype);
     mark_index(mark) = index;
     mark_ptr(mark) = ptr;
-    if (lmt_mark_state.min_used < 0) {
-        lmt_mark_state.min_used = index;
-        lmt_mark_state.max_used = index;
-    } else {
-        if (index < lmt_mark_state.min_used) {
-            lmt_mark_state.min_used = index;
-        }
-        if (index > lmt_mark_state.max_used) {
-            lmt_mark_state.max_used = index;
-        }
-    }
     tex_set_mark(index, current_marks_code, ptr);
     return mark;
 }
@@ -149,7 +164,7 @@ void tex_show_marks()
         tex_begin_diagnostic();
         for (halfword m = lmt_mark_state.min_used; m <= lmt_mark_state.max_used; m++) {
             if (tex_has_mark(m)) {
-                tex_print_format("%l[mark: class %i, page state]",m);
+                tex_print_format("%l[mark: index %i, page state]",m);
                 tex_aux_print_mark("top",         tex_get_mark(m, top_marks_code));
                 tex_aux_print_mark("first",       tex_get_mark(m, first_marks_code));
                 tex_aux_print_mark("bot",         tex_get_mark(m, bot_marks_code));
@@ -172,7 +187,7 @@ int tex_update_top_marks()
                 tex_set_mark(m, top_marks_code, bot);
                 if (tracing_marks_par > 1) {
                     tex_begin_diagnostic();
-                    tex_print_format("%l[mark: class %i, top becomes bot]", m);
+                    tex_print_format("%l[mark: index %i, top becomes bot]", m);
                     tex_aux_print_mark(NULL, bot);
                     tex_end_diagnostic();
                 }
@@ -229,7 +244,7 @@ int tex_update_first_marks(void)
                 tex_set_mark(m, first_marks_code, top);
                 if (tracing_marks_par > 1) {
                     tex_begin_diagnostic();
-                    tex_print_format("%l[mark: class %i, first becomes top]", m);
+                    tex_print_format("%l[mark: index %i, first becomes top]", m);
                     tex_aux_print_mark(NULL, top);
                     tex_end_diagnostic();
                 }
@@ -286,41 +301,47 @@ void tex_update_split_mark(halfword n)
     }
 }
 
+/*tex We could use a static mapping array instead. */
+
 void tex_delete_mark(halfword m, int what)
 {
-    switch (what) {
-        case top_mark_code        : what = top_marks_code;
-        case first_mark_code      : what = first_marks_code;
-        case bot_mark_code        : what = bot_marks_code;
-        case split_first_mark_code: what = split_first_marks_code;
-        case split_bot_mark_code  : what = split_bot_marks_code;
+    if (tex_valid_mark(m)) {
+        switch (what) {
+            case top_mark_code        : what = top_marks_code; break;
+            case first_mark_code      : what = first_marks_code; break;
+            case bot_mark_code        : what = bot_marks_code; break;
+            case split_first_mark_code: what = split_first_marks_code; break;
+            case split_bot_mark_code  : what = split_bot_marks_code; break;
+        }
+        tex_set_mark(m, what, null);
     }
-    tex_set_mark(m, what, null);
 }
 
 halfword tex_get_some_mark(halfword chr, halfword val)
 {
     switch (chr) {
-        case top_mark_code        : val = top_marks_code;
-        case first_mark_code      : val = first_marks_code;
-        case bot_mark_code        : val = bot_marks_code;
-        case split_first_mark_code: val = split_first_marks_code;
-        case split_bot_mark_code  : val = split_bot_marks_code;
+        case top_mark_code        : chr = top_marks_code; break;
+        case first_mark_code      : chr = first_marks_code; break;
+        case bot_mark_code        : chr = bot_marks_code; break;
+        case split_first_mark_code: chr = split_first_marks_code; break;
+        case split_bot_mark_code  : chr = split_bot_marks_code; break;
     }
     return tex_get_mark(val, chr);
 }
 
 void tex_wipe_mark(halfword m)
 {
-    for (int what = 0; what <= last_unique_mark_code; what++) {
-        tex_set_mark(m, what, null);
+    if (tex_valid_mark(m)) {
+        for (int what = 0; what <= last_unique_mark_code; what++) {
+            tex_set_mark(m, what, null);
+        }
+        lmt_mark_state.data[m].state = 0;
     }
-    lmt_mark_state.data[m].state = 0;
 }
 
 int tex_has_mark(halfword m)
 {
-    if (lmt_mark_state.data[m].state) { 
+    if (tex_valid_mark(m) && lmt_mark_state.data[m].state) {
         for (int what = 0; what <= last_unique_mark_code; what++) {
             if (lmt_mark_state.data[m].marks[what]) {
                 return 1;
@@ -394,9 +415,9 @@ extern halfword lmt_get_mark_class(lua_State *L, int index)
             }
         case LUA_TNUMBER:
             {
-                halfword m = lmt_tohalfword(L, index);
+                lua_Integer m = lua_tointeger(L, index);
                 if (m >= 0 && m <= last_unique_mark_code) {
-                    return m; 
+                    return (halfword) m;
                 } else {
                     return -1;
                 }

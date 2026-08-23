@@ -5,6 +5,8 @@
 # ifndef LMT_TEXRULES_H
 # define LMT_TEXRULES_H
 
+# include "luametatex.h"
+
 typedef enum rule_types {
     h_rule_type = 0,
     v_rule_type = 1,

@@ -97,7 +97,7 @@ static inline int     posit_i_round (posit_t v)            { return (int) posit_
 
 */
 
-typedef int       halfword;
+typedef int       tex_halfword;
 typedef posit32_t tex_posit;
 
 # define tex_double_to_posit(p)         double_to_posit(p)       
@@ -115,14 +115,14 @@ typedef posit32_t tex_posit;
 # define tex_posit_ge(p,q)              posit_ge((tex_posit) { .v = (uint32_t) p }, (tex_posit) { .v = (uint32_t) q })
 # define tex_posit_ne(p,q)              posit_ne((tex_posit) { .v = (uint32_t) p }, (tex_posit) { .v = (uint32_t) q })
                                 
-# define tex_posit_add(p,q)             (halfword) posit_add((tex_posit) { .v = (uint32_t) p }, (tex_posit) { .v = (uint32_t) q }).v
-# define tex_posit_sub(p,q)             (halfword) posit_sub((tex_posit) { .v = (uint32_t) p }, (tex_posit) { .v = (uint32_t) q }).v
-# define tex_posit_mul(p,q)             (halfword) posit_mul((tex_posit) { .v = (uint32_t) p }, (tex_posit) { .v = (uint32_t) q }).v
-# define tex_posit_div(p,q)             (halfword) posit_div((tex_posit) { .v = (uint32_t) p }, (tex_posit) { .v = (uint32_t) q }).v
-# define tex_posit_sqrt(p)              (halfword) posit_sqrt((tex_posit) { .v = (uint32_t) p }.v
+# define tex_posit_add(p,q)             (tex_halfword) posit_add((tex_posit) { .v = (uint32_t) p }, (tex_posit) { .v = (uint32_t) q }).v
+# define tex_posit_sub(p,q)             (tex_halfword) posit_sub((tex_posit) { .v = (uint32_t) p }, (tex_posit) { .v = (uint32_t) q }).v
+# define tex_posit_mul(p,q)             (tex_halfword) posit_mul((tex_posit) { .v = (uint32_t) p }, (tex_posit) { .v = (uint32_t) q }).v
+# define tex_posit_div(p,q)             (tex_halfword) posit_div((tex_posit) { .v = (uint32_t) p }, (tex_posit) { .v = (uint32_t) q }).v
+# define tex_posit_sqrt(p)              (tex_halfword) posit_sqrt((tex_posit) { .v = (uint32_t) p }.v
 
-# define tex_posit_mul_by(p,q)          (halfword) posit_mul((tex_posit) { .v = (uint32_t) p }, tex_integer_to_posit(q)).v
-# define tex_posit_div_by(p,q)          (halfword) posit_div((tex_posit) { .v = (uint32_t) p }, tex_integer_to_posit(q)).v
+# define tex_posit_mul_by(p,q)          (tex_halfword) posit_mul((tex_posit) { .v = (uint32_t) p }, tex_integer_to_posit(q)).v
+# define tex_posit_div_by(p,q)          (tex_halfword) posit_div((tex_posit) { .v = (uint32_t) p }, tex_integer_to_posit(q)).v
 
 # define tex_posit_is_NaR(p)            posit_is_NaR((tex_posit) { .v = (uint32_t) p })         
 
@@ -133,30 +133,31 @@ typedef posit32_t tex_posit;
 # define tex_posit_ge_zero(p)           posit_ge_zero((tex_posit) { .v = (uint32_t) p })
 # define tex_posit_ne_zero(p)           posit_ne_zero((tex_posit) { .v = (uint32_t) p })
 
-static inline halfword tex_posit_neg(halfword a) 
+static inline tex_halfword tex_posit_neg(tex_halfword a)
 { 
     posit32_t p ; 
     p.v = -a & 0xFFFFFFFF; 
     return p.v; 
 } 
 
-static inline halfword tex_posit_abs(halfword a) { 
+static inline tex_halfword tex_posit_abs(tex_halfword a)
+{
     posit32_t p ; 
-    int mask = a >> 31; 
+    unsigned mask = (unsigned) a >> 31;
     p.v = ((a + mask) ^ mask) & 0xFFFFFFFF; 
     return p.v; 
 }
 
-static inline tex_posit tex_dimension_to_posit(halfword p) 
+static inline tex_posit tex_dimension_to_posit(tex_halfword p)
 {
     return p32_div(ui32_to_p32(p), ui32_to_p32(65536));
 }
 
-static inline halfword tex_posit_to_dimension(halfword p) 
+static inline tex_halfword tex_posit_to_dimension(tex_halfword p)
 {
     posit32_t x; 
     x.v = (uint32_t) p; 
-    return (halfword) posit_to_integer(p32_mul(x, i32_to_p32(65536)));     
+    return (tex_halfword) posit_to_integer(p32_mul(x, i32_to_p32(65536)));
 }
 
 # endif

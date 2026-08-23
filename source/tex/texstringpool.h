@@ -16,12 +16,38 @@
 
 */
 
+/*
+
+    There is a bit of overkill in the |lstring| objects and the reason is that byte streams (aka
+    char arrays) come in various pointer forms. In order to make clear how we cast we use unions
+    and we trust the compiler to deal with all this properly. For that reason we also use inline
+    accessors instead of macros; we compile with aggressive optimization and link time.
+    optimization.
+
+    We padd so we can either go for size_t or we can use two smaller integers and ponder a future 
+    use for the extra field. We can use if for a hash but we only compare when we trace. We could 
+    store some properties here like if we have an active character. We could also (abuse) it for 
+    some more primitive related properties as these don't change.
+
+*/
+
+typedef uint32_t        lstring_length;
+typedef uint32_t        lstring_mode;
+typedef unsigned char * lstring_string;
+
+typedef enum lstring_modes {
+    lstring_active_mode = 0x01,
+} lstring_modes;
+
 typedef struct lstring {
     union {
-        unsigned char *s;
-        const    char *c;
+        lstring_string  str;
+        const char     *con;
+        char           *chr;
+        unsigned char  *uns;
     };
-    size_t l; /* could be int, but this way we padd */
+    lstring_length len;
+    lstring_mode   mod;
 } lstring;
 
 typedef struct string_pool_info {
@@ -52,14 +78,72 @@ extern string_pool_info lmt_string_pool_state;
     procedure calls. For example, here is a simple macro that computes the length of a string.
 
     Keep in mind that we are talking of a |string_pool| table that officially starts with the
-    unicode characters (as in \TEX\ with \ASCII) but that we use an offset to jump ove that. So the
+    \UNICODE\ characters (as in \TEX\ with \ASCII) but that we use an offset to jump ove that. So the
     real size doesn't include those single character code points.
 
 */
 
-# define str_length(a)  (lmt_string_pool_state.string_pool[(a) - cs_offset_value].l)
-# define str_string(a)  (lmt_string_pool_state.string_pool[(a) - cs_offset_value].s)
-# define str_lstring(a) (lmt_string_pool_state.string_pool[(a) - cs_offset_value])
+static inline lstring_string str_getstr    (int a) { return lmt_string_pool_state.string_pool[a - cs_offset_value].str; }
+static inline char *         str_getchrstr (int a) { return lmt_string_pool_state.string_pool[a - cs_offset_value].chr; }
+static inline const char *   str_getconstr (int a) { return lmt_string_pool_state.string_pool[a - cs_offset_value].con; }
+static inline lstring_string str_getactstr (int a) { return lmt_string_pool_state.string_pool[a - cs_offset_value].str + 3; }
+static inline lstring_length str_getlen    (int a) { return          lmt_string_pool_state.string_pool[a - cs_offset_value].len; }
+static inline int            str_getintlen (int a) { return (int)    lmt_string_pool_state.string_pool[a - cs_offset_value].len; }
+static inline size_t         str_getsizlen (int a) { return (size_t) lmt_string_pool_state.string_pool[a - cs_offset_value].len; }
+static inline lstring_mode   str_getmod    (int a) { return          lmt_string_pool_state.string_pool[a - cs_offset_value].mod; }
+
+static inline void str_setstr    (int a, lstring_string *str) { lmt_string_pool_state.string_pool[a - cs_offset_value].str = (lstring_string) str; }
+static inline void str_setchrstr (int a, char           *str) { lmt_string_pool_state.string_pool[a - cs_offset_value].chr =                  str; }
+static inline void str_setunsstr (int a, unsigned char  *str) { lmt_string_pool_state.string_pool[a - cs_offset_value].uns =                  str; }
+static inline void str_setconstr (int a, const char     *str) { lmt_string_pool_state.string_pool[a - cs_offset_value].con =                  str; }
+static inline void str_setmod    (int a, lstring_mode    mod) { lmt_string_pool_state.string_pool[a - cs_offset_value].mod = (lstring_mode  ) mod; }
+static inline void str_setlen    (int a, lstring_length  len) { lmt_string_pool_state.string_pool[a - cs_offset_value].len =                  len; }
+static inline void str_setintlen (int a, int             len) { lmt_string_pool_state.string_pool[a - cs_offset_value].len = (lstring_length) len; }
+static inline void str_setsizlen (int a, size_t          len) { lmt_string_pool_state.string_pool[a - cs_offset_value].len = (lstring_length) len; }
+
+static inline int str_getindex      (int a) { return a - cs_offset_value; }
+static inline int str_getnofstrings (void)  { return lmt_string_pool_state.string_pool_data.ptr - cs_offset_value; }
+
+static inline int tex_single_letter(strnumber s)
+{
+    const lstring_length len = str_getlen(s);
+    if (len == 1) {
+        return 1;
+    } else {
+        /* the compiler will nicely optimize this */
+        const unsigned char lead = *(const unsigned char *) str_getstr(s);
+        switch (len) {
+            case 2: return (lead >= 0xC0 && lead <= 0xDF);
+            case 3: return (lead >= 0xE0 && lead <= 0xEF);
+            case 4: return (lead >= 0xF0 && lead <= 0xF4);
+            default: return 0;
+        }
+    }
+}
+
+static inline int tex_is_active_cs(strnumber s)
+{
+# if (1)
+    return s && str_getmod(s) == lstring_active_mode;
+# else
+    if (s && str_getlen(s) > 3) {
+     // return memcmp(str_getstr(s), ACTIVE_CHAR_NAMESPACE, 3) == 0;
+        lstring_string ss = str_getstr(s);
+     // if (str_getmod(s) == lstring_active_mode) {
+     //     int index = str_getindex(s);
+     //     printf("IS ACTIVE: index %i 0x%X\n",index, index);
+     // }
+        return (ss[0] == active_character_first) && (ss[1] == active_character_second) && (ss[2] == active_character_third);
+    } else {
+        return 0;
+    }
+# endif
+}
+
+static inline unsigned tex_active_cs_value(strnumber s)
+{
+    return aux_str2uni(str_getactstr(s));
+}
 
 /*tex
 
@@ -81,7 +165,7 @@ static inline void  tex_flush_char(void)       { --lmt_string_pool_state.string_
 extern strnumber  tex_make_string            (void);
 extern strnumber  tex_push_string            (const unsigned char *s, int l);
 extern char      *tex_take_string            (int *len);
-extern int        tex_str_eq_buf             (strnumber s, int k, int n);
+extern int        tex_str_eq_buf             (strnumber s, int k, lstring_length l);
 extern int        tex_str_eq_str             (strnumber s, strnumber t);
 extern int        tex_str_eq_cstr            (strnumber s, const char *, size_t);
 extern int        tex_get_strings_started    (void);
@@ -105,6 +189,4 @@ extern void       tex_compact_string_pool    (void);
 /*     void       tex_increment_pool_string  (int n); */
 /*     void       tex_decrement_pool_string  (int n); */
                                    
-static inline const char *tex_to_cstring (int s) { return str_length(s) > 0 ? (char *) str_string(s) : ""; }
-
 # endif

@@ -314,6 +314,7 @@ typedef enum glue_codes {
  /* inter_math_skip_code,       */ /*tex internal, might go away here */
     math_skip_code,                /*tex glue before and after inline math */
     math_threshold_code,
+    justification_skip_code,
     /*tex total number of glue parameters */
     number_glue_pars,
 } glue_codes;
@@ -396,6 +397,7 @@ typedef enum specification_codes {
     line_snapping_code,
     math_snapping_code,
     align_snapping_code,
+    text_spacing_code,
     inter_line_penalties_code,    /*tex additional penalties between lines */
     club_penalties_code,          /*tex penalties for creating club lines */
     widow_penalties_code,         /*tex penalties for creating widow lines */
@@ -620,6 +622,7 @@ typedef enum int_codes {
     tracing_toddlers_code,
     tracing_orphans_code,
     tracing_loners_code,                /*tex show widow and club penalties calculations */
+    tracing_raggedness_code,
  // uc_hyph_code,                       /*tex hyphenate words beginning with a capital letter */
     output_penalty_code,                /*tex penalty found at current page break */
     max_dead_cycles_code,               /*tex bound on consecutive dead cycles of output */
@@ -738,6 +741,7 @@ typedef enum int_codes {
     vsplit_checks_code,
     etex_expr_mode_code,
     par_options_code,
+    par_fill_mode_code,
     /*
         This one was added as experiment to \LUATEX\ (answer to a forwarded question) but as it
         didn't get tested it will go away. \CONTEXT\ doesn't need it and we don't need to be
@@ -748,11 +752,12 @@ typedef enum int_codes {
     math_pre_tolerance_code,
     math_tolerance_code,
     empty_paragraph_mode_code,
-    space_factor_mode,
+    space_factor_mode_code,
     space_factor_shrink_limit_code,
     space_factor_stretch_limit_code,
     space_factor_overload_code,
     space_skip_factor_code,
+    space_skip_mode_code,
     box_limit_mode_code,
     script_space_before_factor_code,
     script_space_between_factor_code,
@@ -948,12 +953,13 @@ typedef enum unit_codes {
 # define eqtb_out_of_range(n)   ((n >= undefined_control_sequence) && ((n <= eqtb_size) || n > lmt_hash_state.hash_data.top))
 # define eqtb_invalid_cs(n)     ((n == 0) || (n > lmt_hash_state.hash_data.top) || ((n > frozen_control_sequence) && (n <= eqtb_size)))
 
-# define character_in_range(i)  (i >= 0 && i <= max_character_code)
-# define catcode_in_range(i)    (i >= 0 && i <= max_category_code)
-# define family_in_range(i)     (i >= 0 && i <= max_math_family_index)
-# define class_in_range(i)      (i >= 0 && i <= max_math_class_code)
-# define half_in_range(i)       (i >= 0 && i <= max_half_value)
-# define box_index_in_range(i)  (i >= 0 && i <= max_box_index)
+# define character_in_range(i)      (i >= 0 && i <= max_character_code)
+# define math_character_in_range(i) (i >= 0 && i <= max_math_character_code)
+# define catcode_in_range(i)        (i >= 0 && i <= max_category_code)
+# define family_in_range(i)         (i >= 0 && i <= max_math_family_index)
+# define class_in_range(i)          (i >= 0 && i <= max_math_class_code)
+# define half_in_range(i)           (i >= 0 && i <= max_half_value)
+# define box_index_in_range(i)      (i >= 0 && i <= max_box_index)
 
 /* These also have funny offsets: */
 
@@ -1014,6 +1020,13 @@ extern void tex_undump_equivalents_mem  (dumpstream f);
     (lmt_hash_state.eqtb[(A)].half0 == lmt_hash_state.eqtb[(B)].half0) \
  && (lmt_hash_state.eqtb[(A)].half1 == lmt_hash_state.eqtb[(B)].half1) \
 )
+
+// static inline int equal_eqtb_entries(int a, int b)
+// {
+//     return
+//         (lmt_hash_state.eqtb[a].half0 == lmt_hash_state.eqtb[b].half0)
+//      && (lmt_hash_state.eqtb[a].half1 == lmt_hash_state.eqtb[b].half1);
+// }
 
 /* or:
 # define equal_eqtb_entries(A,B) ( \
@@ -1170,8 +1183,6 @@ typedef enum save_record_types {
 # define skip_parameter    glue_parameter
 # define muskip_parameter  muglue_parameter
 
-# define unit_parameter_hash(l,r)   (26 * (l - 'a') + (r - 'a'))
-
 typedef enum unit_classes {
     unset_unit_class      = 0,
     tex_unit_class        = 1,
@@ -1180,26 +1191,42 @@ typedef enum unit_classes {
     user_unit_class       = 4,
 } unit_classes;
 
-static inline int unit_parameter_index(int l, int r) {
+// # define unit_parameter_hash(l,r)   (26 * (l - 'a') + (r - 'a'))
+//
+// static inline int unit_parameter_index(int l, int r) {
+//     if (l >= 'a' && l <= 'z' && r >= 'a' && r <= 'z') {
+//         /* okay */
+//     } else {
+//         if (l >= 'A' && l <= 'Z') {
+//             l |= 0x60;
+//         } else if (l >= 'a' && l <= 'z') {
+//             /* okay */
+//         } else {
+//             return -1;
+//         }
+//         if (r >= 'A' && r <= 'Z') {
+//             r |= 0x60;
+//         } else if (r >= 'a' && r <= 'z') {
+//             /* okay */
+//         } else {
+//             return -1;
+//         }
+//     }
+//     return unit_parameter_hash(l,r);
+// }
+
+# define unit_parameter_hash(l, r)  (26 * ((l) - 'a') + ((r) - 'a'))
+
+static inline int unit_parameter_index(int l, int r)
+{
+    // Convert uppercase to lowercase via ASCII bit-flip (+32)
+    if (l >= 'A' && l <= 'Z') { l |= 0x20; }
+    if (r >= 'A' && r <= 'Z') { r |= 0x20; }
+    // Validate both are lowercase ASCII letters
     if (l >= 'a' && l <= 'z' && r >= 'a' && r <= 'z') {
-        /* okay */
-    } else {
-        if (l >= 'A' && l <= 'Z') { 
-            l |= 0x60;
-        } else if (l >= 'a' && l <= 'z') {
-            /* okay */
-        } else { 
-            return -1;
-        }
-        if (r >= 'A' && r <= 'Z') {
-            r |= 0x60;
-        } else if (r >= 'a' && r <= 'z') {
-            /* okay */
-        } else { 
-            return -1;
-        }
+        return unit_parameter_hash(l, r);
     }
-    return unit_parameter_hash(l,r);
+    return -1;
 }
 
 /*tex These come from |\ALEPH| aka |\OMEGA|: */
@@ -1357,6 +1384,7 @@ typedef enum flag_bit {
 # define is_noaligned(a)            (((a) & noaligned_flag_bit))
 # define is_instance(a)             (((a) & instance_flag_bit))
 # define is_untraced(a)             (((a) & untraced_flag_bit))
+# define is_persistent(a)           (((a) & immutable_flag_bit) && ((a) & (primitive_flag_bit | permanent_flag_bit)))
 
 # define is_global(a)               (((a) & global_flag_bit))
 # define is_tolerant(a)             (((a) & tolerant_flag_bit))
@@ -1418,8 +1446,6 @@ extern void tex_forced_define      (int g, halfword p, singleword flag, singlewo
 extern void tex_word_define        (int g, halfword p, halfword w);
 /*     void tex_forced_word_define (int g, halfword p, singleword flag, halfword w); */
 
-extern int  tex_overload_permitted (halfword flags);
-
 /*tex
 
     The |*_par| macros expand to the variables that are (in most cases) also accessible at the users
@@ -1478,6 +1504,7 @@ extern int  tex_overload_permitted (halfword flags);
 # define emergency_right_skip_par         glue_parameter(emergency_right_skip_code)
 # define initial_page_skip_par            glue_parameter(initial_page_skip_code)
 # define initial_top_skip_par             glue_parameter(initial_top_skip_code)
+# define justification_skip_par           glue_parameter(justification_skip_code)
 # define left_skip_par                    glue_parameter(left_skip_code)
 # define line_skip_par                    glue_parameter(line_skip_code)
 # define math_skip_par                    glue_parameter(math_skip_code)
@@ -1621,6 +1648,7 @@ extern int  tex_overload_permitted (halfword flags);
 # define overload_mode_par                integer_parameter(overload_mode_code)
 # define par_direction_par                integer_parameter(par_direction_code)
 # define par_options_par                  integer_parameter(par_options_code)
+# define par_fill_mode_par                integer_parameter(par_fill_mode_code)
 # define parameter_mode_par               integer_parameter(parameter_mode_code)
 # define pausing_par                      integer_parameter(pausing_code)
 # define post_display_penalty_par         integer_parameter(post_display_penalty_code)
@@ -1647,11 +1675,12 @@ extern int  tex_overload_permitted (halfword flags);
 # define show_node_details_par            integer_parameter(show_node_details_code)
 # define single_line_penalty_par          integer_parameter(single_line_penalty_code)
 # define space_char_par                   integer_parameter(space_char_code)
-# define space_factor_mode_par            integer_parameter(space_factor_mode)
+# define space_factor_mode_par            integer_parameter(space_factor_mode_code)
 # define space_factor_overload_par        integer_parameter(space_factor_overload_code)
 # define space_factor_shrink_limit_par    integer_parameter(space_factor_shrink_limit_code)
 # define space_factor_stretch_limit_par   integer_parameter(space_factor_stretch_limit_code)
 # define space_skip_factor_par            integer_parameter(space_skip_factor_code)
+# define space_skip_mode_par              integer_parameter(space_skip_mode_code)
 # define sup_mark_mode_par                integer_parameter(sup_mark_mode_code)
 /*       comment_mode_par                 integer_parameter(comment_mode_code) */ /* experiment */
 # define text_direction_par               integer_parameter(text_direction_code)
@@ -1691,6 +1720,7 @@ extern int  tex_overload_permitted (halfword flags);
 # define tracing_snapping_par             integer_parameter(tracing_snapping_code)
 # define tracing_stats_par                integer_parameter(tracing_stats_code)
 # define tracing_toddlers_par             integer_parameter(tracing_toddlers_code)
+# define tracing_raggedness_par           integer_parameter(tracing_raggedness_code)
 # define uc_hyph_par                      integer_parameter(uc_hyph_code)
 # define variable_family_par              integer_parameter(variable_family_code)
 # define vbadness_par                     integer_parameter(vbadness_code)
@@ -1743,6 +1773,7 @@ extern int  tex_overload_permitted (halfword flags);
 # define line_snapping_par                specification_parameter(line_snapping_code)
 # define math_snapping_par                specification_parameter(math_snapping_code)
 # define align_snapping_par               specification_parameter(align_snapping_code)
+# define text_spacing_par                 specification_parameter(text_spacing_code)
 # define par_shape_par                    specification_parameter(par_shape_code)
 # define toddler_penalties_par            specification_parameter(toddler_penalties_code)
 # define widow_penalties_par              specification_parameter(widow_penalties_code)
@@ -2076,7 +2107,28 @@ typedef enum badness_modes {
     badness_mode_all       = 0x0F,
 } badness_modes;
 
-extern int tex_report_overload          (halfword cs, int overload);
-extern int tex_report_overload_register (halfword cs, int overload, halfword index, const char *str);
+typedef enum no_spaces_modes {
+    no_spaces_discard_mode    = 0x01,
+    no_spaces_zero_mode       = 0x02,
+    no_spaces_char_mode       = 0x03,
+    no_spaces_font_mode       = 0x04,
+    no_spaces_font_fixed_mode = 0x05,
+    no_spaces_char_width_mode = 0x06,
+} no_spaces_modes;
+
+typedef enum space_skip_modes {
+    space_skip_no_amount_mode  = 0x01,
+    space_skip_no_stretch_mode = 0x02,
+    space_skip_no_shrink_mode  = 0x04,
+    space_skip_no_glue_mode    = 0x06, /* bonus */
+} space_skip_modes;
+
+typedef enum space_factor_modes {
+    space_factor_over_limit_mode      = 0x00,
+    space_limit_over_factor_mode      = 0x01,
+    space_factor_over_limit_half_mode = 0x02,
+    space_factor_fixed_mode           = 0x03,
+    space_factor_ignored_mode         = 0x04,
+} space_factor_modes;
 
 # endif

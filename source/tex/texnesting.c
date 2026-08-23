@@ -180,7 +180,7 @@ void tex_initialize_nest_state(void)
 {
     int size = lmt_nest_state.nest_data.minimum;
     lmt_nest_state.nest = aux_allocate_clear_array(sizeof(list_state_record), size, reserved_nest_slots);
-    if (lmt_nest_state.nest) {
+    if lmt_likely(lmt_nest_state.nest) {
         lmt_nest_state.nest_data.allocated = size;
     } else {
         tex_overflow_error("nest", size);
@@ -192,7 +192,7 @@ static int tex_aux_room_on_nest_stack(void) /* quite similar to save_stack check
     int top = lmt_nest_state.nest_data.ptr;
     if (top > lmt_nest_state.nest_data.top) {
         lmt_nest_state.nest_data.top = top;
-        if (top > lmt_nest_state.nest_data.allocated) {
+        if lmt_unlikely(top > lmt_nest_state.nest_data.allocated) {
             list_state_record *tmp = NULL;
             top = lmt_nest_state.nest_data.allocated + lmt_nest_state.nest_data.step;
             if (top > lmt_nest_state.nest_data.size) {
@@ -246,6 +246,7 @@ void tex_initialize_nesting(void)
     cur_list.mode_line          = 0;
     cur_list.prev_depth         = ignore_depth;
     cur_list.space_factor       = default_space_factor;
+    cur_list.space_penalty      = 0;
     cur_list.incomplete_noad    = null;
     cur_list.direction_stack    = null;
     cur_list.math_dir           = 0;
@@ -256,28 +257,31 @@ void tex_initialize_nesting(void)
     cur_list.math_begin         = unset_noad_class;
     cur_list.math_end           = unset_noad_class;
     cur_list.math_mode          = 0;
+    cur_list.math_scale         = 0;
     cur_list.options            = 0;
 # else 
     cur_list = (list_state_record) {
-        .mode               = vmode,
-        .head               = contribute_head,
-        .tail               = contribute_head,
-        .delimiter          = null,
-        .prev_graf          = 0,
-        .mode_line          = 0,
-        .prev_depth         = ignore_depth,
-        .space_factor       = default_space_factor,
-        .incomplete_noad    = null,
-        .direction_stack    = null,
-        .math_dir           = 0,
-        .math_style         = -1,
-        .math_main_style    = -1,
-        .math_parent_style  = -1,
-        .math_flatten       = 1,
-        .math_begin         = unset_noad_class,
-        .math_end           = unset_noad_class,
-        .math_mode          = 0,
-        .options            = 0,
+        .mode              = vmode,
+        .head              = contribute_head,
+        .tail              = contribute_head,
+        .delimiter         = null,
+        .prev_graf         = 0,
+        .mode_line         = 0,
+        .prev_depth        = ignore_depth,
+        .space_factor      = default_space_factor,
+        .space_penalty     = 0,
+        .incomplete_noad   = null,
+        .direction_stack   = null,
+        .math_dir          = 0,
+        .math_style        = -1,
+        .math_main_style   = -1,
+        .math_parent_style = -1,
+        .math_flatten      = 1,
+        .math_begin        = unset_noad_class,
+        .math_end          = unset_noad_class,
+        .math_mode         = 0,
+        .math_scale        = 0;
+        .options           = 0,
     };
 # endif 
     tex_aux_nesting_reset_state();
@@ -313,11 +317,12 @@ halfword tex_pop_tail(void)
 
 void tex_push_nest(void)
 {
-    list_state_record *top = &lmt_nest_state.nest[lmt_nest_state.nest_data.ptr];
+    int previous = lmt_nest_state.nest_data.ptr;
     lmt_nest_state.nest_data.ptr += 1;
  // lmt_nest_state.shown_mode = 0; // needs checking 
     lmt_nest_state.math_mode = 0;
-    if (tex_aux_room_on_nest_stack()) {
+    if lmt_likely(tex_aux_room_on_nest_stack()) {
+        list_state_record *top = &lmt_nest_state.nest[previous];
 # if 1
         cur_list.mode              = top->mode;
         cur_list.head              = tex_new_temp_node();
@@ -327,6 +332,7 @@ void tex_push_nest(void)
         cur_list.mode_line         = lmt_input_state.input_line;
         cur_list.prev_depth        = top->prev_depth;
         cur_list.space_factor      = top->space_factor;
+        cur_list.space_penalty     = top->space_penalty;
         cur_list.incomplete_noad   = top->incomplete_noad;
         cur_list.direction_stack   = null;
         cur_list.math_dir          = 0;
@@ -338,6 +344,7 @@ void tex_push_nest(void)
         cur_list.math_end          = unset_noad_class;
      // cur_list.math_begin        = top->math_begin;
      // cur_list.math_end          = top->math_end;
+        cur_list.math_scale        = 0;
         cur_list.math_mode         = 0;
         cur_list.options           = 0;
 # else
@@ -350,6 +357,7 @@ void tex_push_nest(void)
             .mode_line         = lmt_input_state.input_line,
             .prev_depth        = top->prev_depth,
             .space_factor      = top->space_factor,
+            .space_penalty     = top->space_penalty,
             .incomplete_noad   = top->incomplete_noad,
             .direction_stack   = null,
             .math_dir          = 0,
@@ -361,13 +369,14 @@ void tex_push_nest(void)
             .math_end          = unset_noad_class,
          // .math_begin        = top->math_begin,
          // .math_end          = top->math_end,
+            .math_scale        = 0,
             .math_mode         = 0,
             .options           = 0,
         };
         cur_list.head = tex_new_temp_node(),
         cur_list.tail = cur_list.head;
 # endif
-    tex_aux_nesting_reset_state();
+        tex_aux_nesting_reset_state();
     } else {
         tex_overflow_error("semantic nest size", lmt_nest_state.nest_data.size);
     }
@@ -409,7 +418,7 @@ void tex_show_activities(void)
                 if (lmt_page_builder_state.contents != contribute_nothing) {
                     halfword r;
                     tex_print_format("%l[total height %P, goal height %p]",
-                        page_total, page_stretch, page_filstretch, page_fillstretch, page_filllstretch, page_shrink,
+                        page_total, page_stretch, page_fistretch, page_filstretch, page_fillstretch, page_filllstretch, page_shrink,
                         page_goal
                     );
                     r = node_next(page_insert_head);
@@ -486,10 +495,11 @@ int tex_vmode_nest_index(void)
 void tex_tail_prepend(halfword n) 
 {
     if (n) {
-        tex_couple_nodes(node_prev(cur_list.tail), n);
-        tex_couple_nodes(n, cur_list.tail);
-        if (cur_list.tail == cur_list.head) {
-            cur_list.head = n;
+        if (cur_list.head == cur_list.tail) {
+            tex_tail_append(n);
+        } else {
+            tex_couple_nodes(node_prev(cur_list.tail), n);
+            tex_couple_nodes(n, cur_list.tail);
         }
     }
 }
@@ -509,9 +519,12 @@ void tex_tail_append(halfword p)
     because we don't know what we'll add in the future. We migh talso add some more specific
     tracing.
 
-    We assume that the callback manages the nodes and cleans up if needed.
+    We assume that the callback manages the nodes and cleans up if needed. This feature is
+    experimental and will be so for a while. For sure there are issues.
 
 */
+
+# if (delayed_glue_supported == 1)
 
 static void tex_aux_tail_cleanup(halfword current)
 {
@@ -523,91 +536,68 @@ static void tex_aux_tail_cleanup(halfword current)
     }
 }
 
-void tex_delayed_glue_check(int target, int location)
+void tex_delayed_glue_check(int target, int location) /* TODO: often empty */
 {
-    switch (target) {
-        case delayed_glue_target_unknown:
-            if (lmt_nest_state.nest_data.ptr == 1) {
-                goto MVL;
-            } else {
-                goto CURRENT;
-            }
-        case delayed_glue_target_current:
-          CURRENT:
-            {
-                halfword current = cur_list.tail;
-                if (node_type(current) == temp_node) {
+    if (0) {
+        halfword head, tail;
+        if (target == delayed_glue_target_unknown) {
+         // target = lmt_nest_state.nest_data.ptr == 1 ? delayed_glue_target_mvl : delayed_glue_target_current;
+            target = lmt_nest_state.nest_data.ptr == 0 ? delayed_glue_target_mvl : delayed_glue_target_current;
+        }
+        switch (target) {
+            case delayed_glue_target_current:
+                head = cur_list.head;
+                tail = cur_list.tail;
+                if (head == tail) {
                     return;
                 } else {
-                    int callback_id = lmt_callback_defined(delayed_glue_callback);
-                    if (callback_id > 0) {
-                        halfword tail = current;
-                        if (node_type(current) == glue_node && node_subtype(current) == par_skip_glue) {
-                            current = node_prev(current);
-                        }
-                        if (current && node_type(current) == glue_node && (glue_options(current) & glue_option_delay)) {
-                            halfword result = null;
-                            halfword head = current;
-                            while (1) {
-                                halfword prev = node_prev(head);
-                                if (node_type(prev) == glue_node && (glue_options(prev) & glue_option_delay)) {
-                                    head = prev;
-                                } else {
-                                    node_next(prev) = null;
-                                    node_prev(head) = null;
-                                    cur_list.tail = prev;
-                                    break;
-                                }
-                            }
-                            lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddNN->N", delayed_glue_target_current, location, head, tail, &result);
-                            if (result) {
-                                tex_aux_tail_cleanup(result);
-                                tex_tail_append(result);
-                                cur_list.tail = tex_tail_of_node_list(result);
-                            }
-                        }
+                    break;
+                }
+            case delayed_glue_target_mvl:
+                head = contribute_head;
+                tail = contribute_tail;
+                if (head == tail) {
+                    return;
+                } else {
+                    break;
+                }
+            default:
+                return;
+        }
+        {
+            int callback_id = lmt_callback_defined(delayed_glue_callback);
+            if (callback_id > 0) {
+                halfword result = null;
+               switch (target) {
+                   case delayed_glue_target_current:
+                       head = node_next(head);
+                       node_next(cur_list.head) = null;
+                       cur_list.tail = cur_list.head;
+                       break;
+                   case delayed_glue_target_mvl:
+                       head = node_next(head);
+                       node_next(contribute_head) = null;
+                       contribute_tail = contribute_head;
+                       break;
+               }
+               node_prev(head) = null;
+               lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddNN->N", target, location, head, tail, &result);
+               if (result) {
+                   tex_aux_tail_cleanup(result);
+                   tail = tex_tail_of_node_list(result);
+                   switch (target) {
+                       case delayed_glue_target_current:
+                           tex_couple_nodes(cur_list.head, result);
+                            cur_list.tail = tail;
+                            break;
+                        case delayed_glue_target_mvl:
+                            tex_couple_nodes(contribute_head, result);
+                            contribute_tail = tail;
+                            break;
                     }
                 }
             }
-            break;
-        case delayed_glue_target_mvl:
-          MVL:
-            {
-                halfword current = contribute_tail;
-                if (node_type(current) == temp_node) {
-                    return;
-                } else {
-                    int callback_id = lmt_callback_defined(delayed_glue_callback);
-                    if (callback_id > 0) {
-                        halfword tail = current;
-                        if (node_type(current) == glue_node && node_subtype(current) == par_skip_glue) {
-                            current = node_prev(current);
-                        }
-                        if (current && node_type(current) == glue_node && (glue_options(current) & glue_option_delay)) {
-                            halfword result = null;
-                            halfword head = current;
-                            while (1) {
-                                halfword prev = node_prev(head);
-                                if (node_type(prev) == glue_node && (glue_options(prev) & glue_option_delay)) {
-                                    head = prev;
-                                } else {
-                                    node_next(prev) = null;
-                                    node_prev(head) = null;
-                                    contribute_tail = prev;
-                                    break;
-                                }
-                            }
-                            lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddNN->N", delayed_glue_target_mvl, location, head, tail, &result);
-                            if (result) {
-                                tex_aux_tail_cleanup(result);
-                                tex_couple_nodes(contribute_tail, result);
-                                contribute_tail = tex_tail_of_node_list(result);
-                            }
-                        }
-                    }
-                }
-            }
-            break;
+        }
     }
 }
 
@@ -625,6 +615,8 @@ int tex_delayed_glue_par_skipped(void)
     }
     return node_type(tail) == glue_node && (glue_options(tail) & glue_option_has_parskip);
 }
+
+# endif
 
 /*tex
 
@@ -673,13 +665,14 @@ void tex_tail_append_list(halfword p)
     }
 }
 
-void tex_tail_append_callback(halfword p)
+halfword tex_tail_append_callback(halfword p)
 {
     halfword c = tex_tail_fetch_callback();
     if (c) { 
         p = tex_tail_apply_callback(p, c);
     }
     tex_tail_append_list(p);
+    return p;
 }
 
 /*tex 
@@ -727,6 +720,7 @@ static void tex_aux_reset_mvl(int i)
         .mode_line         = 0,
         .prev_depth        = ignore_depth,   
         .space_factor      = default_space_factor,
+        .space_penalty     = 0,
         .incomplete_noad   = null,
         .direction_stack   = null,
         .math_dir          = 0,
@@ -745,7 +739,7 @@ static void tex_aux_reset_mvl(int i)
 void tex_initialize_mvl_state(void)
 {
     list_state_record *tmp = aux_allocate_clear_array(sizeof(list_state_record), lmt_mvl_state.mvl_data.minimum, 1);
-    if (tmp) {
+    if lmt_likely(tmp) {
         lmt_mvl_state.mvl = tmp;
         lmt_mvl_state.mvl_data.allocated = lmt_mvl_state.mvl_data.minimum;
         lmt_mvl_state.mvl_data.top = lmt_mvl_state.mvl_data.minimum;
@@ -766,12 +760,14 @@ static int tex_valid_mvl_id(halfword n)
  //         "You cannot use an mlv command inside a box."
  //     );
  // } else 
-    if (n <= lmt_mvl_state.mvl_data.ptr) {
+    if (n < min_mvl_index || n > max_mvl_index) {
+        return 0;
+    } else if (n <= lmt_mvl_state.mvl_data.ptr) {
         return 1;
-    } else if (n < lmt_mvl_state.mvl_data.top) {
+    } else if (n <= lmt_mvl_state.mvl_data.top) {
         lmt_mvl_state.mvl_data.ptr = n;
         return 1;
-    } else if (n < lmt_mvl_state.mvl_data.maximum && lmt_mvl_state.mvl_data.top < lmt_mvl_state.mvl_data.maximum) {
+    } else if (n <= lmt_mvl_state.mvl_data.maximum && lmt_mvl_state.mvl_data.top < lmt_mvl_state.mvl_data.maximum) {
         list_state_record *tmp = NULL;
         int top = n + lmt_mvl_state.mvl_data.step;
         if (top > lmt_mvl_state.mvl_data.maximum) {
@@ -798,18 +794,18 @@ void tex_start_mvl(void)
     halfword options = 0;
     halfword prevdepth = max_dimen;
     while (1) {
-        switch (tex_scan_character("iopIOP", 0, 1, 0)) {
-            case 'i': case 'I':
+        switch (tex_scan_character("iop", 0, 1, 0)) {
+            case 'i':
                 if (tex_scan_mandate_keyword("index", 1)) {
                     index = tex_scan_integer(0, NULL, NULL);
                 }
                 break;
-            case 'o': case 'O':
+            case 'o':
                 if (tex_scan_mandate_keyword("options", 1)) {
                     options = tex_scan_integer(0, NULL, NULL);
                 }
                 break;
-            case 'p': case 'P':
+            case 'p':
                 if (tex_scan_mandate_keyword("prevdepth", 1)) {
                     prevdepth = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
                 }
@@ -887,7 +883,7 @@ void tex_stop_mvl(void)
             }
         }
         mvl->prev_depth = lmt_nest_state.nest[0].prev_depth;
-        lmt_nest_state.nest[0].prev_depth = mvl->prev_depth;
+        lmt_nest_state.nest[0].prev_depth = lmt_mvl_state.mvl[0].prev_depth;
         lmt_mvl_state.slot = 0;
     }
 }
@@ -929,6 +925,29 @@ halfword tex_flush_mvl(halfword index)
     }
 }
 
+halfword tex_preroll_mvl(halfword index)
+{
+ // halfword index = tex_scan_integer(0, NULL);
+    if (lmt_mvl_state.slot) {
+        /*tex We're collecting. */
+        return null;
+    } else if (! tex_valid_mvl_id(index)) {
+        /*tex We're in trouble. */
+        return null;
+    } else if (! lmt_mvl_state.mvl[index].tail || lmt_mvl_state.mvl[index].tail == lmt_mvl_state.mvl[index].head) {
+        /*tex We collected nothing or are invalid. */
+        return null;
+    } else {
+        /*tex We collected something. */
+        scaledwhd whd = tex_natural_vsizes(lmt_mvl_state.mvl[index].head, null, 0, 0, 0, 0);
+        halfword box = tex_new_node(vlist_node, unknown_list);
+        box_width(box) = whd.wd;
+        box_height(box) = whd.ht;
+        box_depth(box) = whd.dp;
+        return box;
+    }
+}
+
 int tex_appended_mvl(halfword context, halfword boundary)
 {
     if (! lmt_mvl_state.slot) {
@@ -965,8 +984,7 @@ int tex_appended_mvl(halfword context, halfword boundary)
                     tex_end_diagnostic();
                 }
                 if (assign) { 
-                    node_next(lmt_mvl_state.mvl[lmt_mvl_state.slot].head) = first;
-                    /* what with prev */
+                    tex_couple_nodes(lmt_mvl_state.mvl[lmt_mvl_state.slot].head, first);
                 } else { 
                     tex_couple_nodes(lmt_mvl_state.mvl[lmt_mvl_state.slot].tail, first);
                 }

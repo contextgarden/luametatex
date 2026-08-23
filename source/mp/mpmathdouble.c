@@ -5,6 +5,8 @@
 
 /* 
     todo: check the random code, we might as well use the lua randomizer for all number models. 
+
+    done: no longer intercept zero because a test is worse for branch prediction than a redundant action
 */
 
 # include "mpmathdouble.h"
@@ -49,7 +51,6 @@
 # define  negative_one_eighty_deg (-180.0 * angle_multiplier)
 # define  three_sixty_deg         ( 360.0 * angle_multiplier)
 
-# define  odd(A)                  (labs(A) % 2 == 1)
 # define  two_to_the(A)           (1 << (unsigned)(A))
 # define  set_cur_cmd(A)          mp->cur_mod_->command = (A)
 # define  set_cur_mod(A)          mp->cur_mod_->data.n.data.dval = (A)
@@ -59,317 +60,311 @@
 Apart from it looking weird in results a |-0.0| can also give wrong results, for instance in a 
 |tan2|, see there for a comment. This is why we now do some checking on zero which in some cases
 also might be a bit more efficient as it avoids a multiplication or division, so likely we break 
-even. 
+even. We can use |signbit| but equally well just set or add zero.
 
 */
 
-static inline double mp_double_make_fraction(double p, double q) { 
- // return (p / q) * fraction_multiplier; 
-    return p == 0.0 ? 0.0 : (p / q) * fraction_multiplier; 
+static inline double mp_double_make_fraction(double p, double q)
+{
+    return (p / q) * fraction_multiplier;
 }
 
-// printf("%f %f %f %f\n",p,q,p*q,(p * q) / fraction_multiplier);
-// -4096.000000 0.000000 -0.000000 -0.000000
-
-static inline double mp_double_take_fraction(double p, double q) { 
- // return (p * q) / fraction_multiplier; 
-    return p == 0.0 ? 0.0 : q == 0.0 ? 0.0 : (p * q) / fraction_multiplier; 
+static inline double mp_double_take_fraction(double p, double q)
+{
+    return (p * q) / fraction_multiplier;
 }
 
-static inline double mp_double_make_scaled(double p, double q) { 
- // return p / q; 
-    return p == 0.0 ? 0.0 : p / q; 
+static inline double mp_double_make_scaled(double p, double q)
+{
+    return p / q;
 }
 
-static void mp_double_allocate_number(MP mp, mp_number *n, mp_number_type t)
+static inline void mp_double_allocate_number(MP mp, mp_number *n, mp_number_type t)
 {
     (void) mp;
-    n->data.dval = 0.0;
-    n->type = t;
+    *n = (mp_number) {
+        .data.dval = 0.0,
+        .type      = t,
+    };
 }
 
-static void mp_double_allocate_clone(MP mp, mp_number *n, mp_number_type t, mp_number *v)
+static inline void mp_double_allocate_clone(MP mp, mp_number *n, mp_number_type t, const mp_number *v)
 {
     (void) mp;
-    n->type = t;
-    n->data.dval = v->data.dval;
+    *n = (mp_number) {
+        .data.dval = v->data.dval,
+        .type      = t,
+    };
 }
 
-static void mp_double_allocate_abs(MP mp, mp_number *n, mp_number_type t, mp_number *v)
+static inline void mp_double_allocate_abs(MP mp, mp_number *n, mp_number_type t, const mp_number *v)
 {
     (void) mp;
-    n->type = t;
-    n->data.dval = fabs(v->data.dval);
+    *n = (mp_number) {
+        .data.dval = fabs(v->data.dval),
+        .type      = t,
+    };
 }
 
-static void mp_double_allocate_div(MP mp, mp_number *n, mp_number_type t, mp_number *a, mp_number *b)
+static inline void mp_double_allocate_div(MP mp, mp_number *n, mp_number_type t, const mp_number *a, const mp_number *b)
 {
     (void) mp;
-    n->type = t;
-    n->data.dval = a->data.dval == 0.0 ? 0.0 : a->data.dval / b->data.dval;
+    *n = (mp_number) {
+        .data.dval = a->data.dval == 0.0 ? 0.0 : a->data.dval / b->data.dval,
+        .type      = t,
+    };
 }
 
-static void mp_double_allocate_mul(MP mp, mp_number *n, mp_number_type t, mp_number *a, mp_number *b)
+static inline void mp_double_allocate_mul(MP mp, mp_number *n, mp_number_type t, const mp_number *a, const mp_number *b)
 {
     (void) mp;
-    n->type = t;
-    n->data.dval = a->data.dval == 0.0 || b->data.dval == 0.0 ? 0.0 : a->data.dval * b->data.dval;
+    *n = (mp_number) {
+        .data.dval = a->data.dval == 0.0 || b->data.dval == 0.0 ? 0.0 : a->data.dval * b->data.dval,
+        .type      = t,
+    };
 }
 
-static void mp_double_allocate_add(MP mp, mp_number *n, mp_number_type t, mp_number *a, mp_number *b)
+static inline void mp_double_allocate_add(MP mp, mp_number *n, mp_number_type t, const mp_number *a, const mp_number *b)
 {
     (void) mp;
-    n->type = t;
-    n->data.dval = a->data.dval + b->data.dval;
+    *n = (mp_number) {
+        .data.dval = a->data.dval + b->data.dval,
+        .type      = t,
+    };
 }
 
-static void mp_double_allocate_sub(MP mp, mp_number *n, mp_number_type t, mp_number *a, mp_number *b)
+static inline void mp_double_allocate_sub(MP mp, mp_number *n, mp_number_type t, const mp_number *a, const mp_number *b)
 {
     (void) mp;
-    n->type = t;
-    n->data.dval = a->data.dval - b->data.dval;
+    *n = (mp_number) {
+        .data.dval = a->data.dval - b->data.dval,
+        .type      = t,
+    };
 }
 
-static void mp_double_allocate_double(MP mp, mp_number *n, double v)
+static inline void mp_double_allocate_double(MP mp, mp_number *n, double v)
 {
     (void) mp;
-    n->type = mp_scaled_type;
-    n->data.dval = v;
+    *n = (mp_number) {
+        .data.dval = v,
+        .type      = mp_scaled_type,
+    };
 }
 
-static void mp_double_free_number(MP mp, mp_number *n)
+static inline void mp_double_free_number(MP mp, mp_number *n)
 {
     (void) mp;
     n->type = mp_nan_type;
 }
 
-static void mp_double_set_from_int(mp_number *A, mp_scaled_t B)
+static inline void mp_double_set_from_int(mp_number *A, mp_scaled_t B)
 {
     A->data.dval = B;
 }
 
-static void mp_double_set_from_boolean(mp_number *A, mp_scaled_t B)
+static inline void mp_double_set_from_boolean(mp_number *A, mp_scaled_t B)
 {
     A->data.dval = B;
 }
 
-static void mp_double_set_from_scaled(mp_number *A, mp_scaled_t B)
+static inline void mp_double_set_from_scaled(mp_number *A, mp_scaled_t B)
 {
-    A->data.dval = B == 0 ? 0.0 : B / 65536.0;
+    static const double INV_65536 = 1.0 / 65536.0;
+    A->data.dval = B * INV_65536;
 }
 
-static void mp_double_set_from_double(mp_number *A, double B)
+static inline void mp_double_set_from_double(mp_number *A, double B)
 {
     A->data.dval = B;
 }
 
-static void mp_double_set_from_addition(mp_number *A, mp_number *B, mp_number *C)
+static inline void mp_double_set_from_addition(mp_number *A, const mp_number *B, const mp_number *C)
 {
     A->data.dval = B->data.dval + C->data.dval;
 }
 
-static void mp_double_set_half_from_addition(mp_number *A, mp_number *B, mp_number *C)
+static inline void mp_double_set_half_from_addition(mp_number *A, const mp_number *B, const mp_number *C)
 {
     A->data.dval = (B->data.dval + C->data.dval) / 2.0;
 }
 
-static void mp_double_set_from_subtraction(mp_number *A, mp_number *B, mp_number *C)
+static inline void mp_double_set_from_subtraction(mp_number *A, const mp_number *B, const mp_number *C)
 {
     A->data.dval = B->data.dval - C->data.dval;
 }
 
-static void mp_double_set_half_from_subtraction(mp_number *A, mp_number *B, mp_number *C)
+static inline void mp_double_set_half_from_subtraction(mp_number *A, const mp_number *B, const mp_number *C)
 {
     A->data.dval = (B->data.dval - C->data.dval) / 2.0;
 }
 
-static void mp_double_set_from_div(mp_number *A, mp_number *B, mp_number *C)
+static inline void mp_double_set_from_div(mp_number *A, const mp_number *B, const mp_number *C)
 {
-    A->data.dval = B->data.dval == 0.0 ? 0.0 : B->data.dval / C->data.dval;
+    A->data.dval = B->data.dval / C->data.dval;
 }
 
-static void mp_double_set_from_mul(mp_number *A, mp_number *B, mp_number *C)
+static inline void mp_double_set_from_mul(mp_number *A, const mp_number *B, const mp_number *C)
 {
-    A->data.dval = B->data.dval == 0.0 || C->data.dval == 0.0 ? 0.0 : B->data.dval * C->data.dval;
+    A->data.dval = B->data.dval * C->data.dval;
 }
 
-static void mp_double_set_from_int_div(mp_number *A, mp_number *B, mp_scaled_t C)
+static inline void mp_double_set_from_int_div(mp_number *A, const mp_number *B, mp_scaled_t C)
 {
     A->data.dval = B->data.dval == 0.0 ? 0.0 : B->data.dval / C;
 }
 
-static void mp_double_set_from_int_mul(mp_number *A, mp_number *B, mp_scaled_t C)
+static inline void mp_double_set_from_int_mul(mp_number *A, const mp_number *B, mp_scaled_t C)
 {
-    A->data.dval = B->data.dval == 0.0 || C == 0 ? 0.0 : B->data.dval * C;
+    A->data.dval = B->data.dval * (double) C;
 }
 
-static void mp_double_set_from_of_the_way(MP mp, mp_number *A, mp_number *t, mp_number *B, mp_number *C)
+static inline void mp_double_set_from_of_the_way(MP mp, mp_number *A, const mp_number *t, const mp_number *B, const mp_number *C)
 {
     (void) mp;
     A->data.dval = B->data.dval - mp_double_take_fraction(B->data.dval - C->data.dval, t->data.dval);
 }
 
-static void mp_double_negate(mp_number *A)
+static inline void mp_double_negate(mp_number *A)
 {
-    if (A->data.dval == -0.0) { /* already checked */
-        A->data.dval = 0.0;
-    } else if (A->data.dval != 0.0) {
-        A->data.dval = -A->data.dval;
-    }
+    /* the addition gets rid of the sign bit when we have zero: no -ffast-math */
+    A->data.dval = -A->data.dval + 0.0;
 }
 
-static void mp_double_add(mp_number *A, mp_number *B)
+static inline void mp_double_add(mp_number *A, const mp_number *B)
 {
     A->data.dval += B->data.dval;
 }
 
-static void mp_double_subtract(mp_number *A, mp_number *B)
+static inline void mp_double_subtract(mp_number *A, const mp_number *B)
 {
     A->data.dval -= B->data.dval;
 }
 
-static void mp_double_half(mp_number *A)
+static inline void mp_double_half(mp_number *A)
 {
-    if (A->data.dval != 0.0) {
-        A->data.dval /= 2.0;
-    }
+    A->data.dval /= 2.0;
 }
 
-static void mp_double_double(mp_number *A)
+static inline void mp_double_double(mp_number *A)
 {
-    if (A->data.dval != 0.0) {
-        A->data.dval *= 2.0;
-    }
+    A->data.dval *= 2.0;
 }
 
-static void mp_double_add_scaled(mp_number *A, mp_scaled_t B)
+static inline void mp_double_add_scaled(mp_number *A, mp_scaled_t B)
 {
     /* also for negative B */
-    A->data.dval += (B / 65536.0);
+    static const double INV_65536 = 1.0 / 65536.0;
+    A->data.dval += (B * INV_65536);
 }
 
-static void mp_double_multiply_int(mp_number *A, mp_scaled_t B)
+static inline void mp_double_multiply_int(mp_number *A, mp_scaled_t B)
 {
-    if (A->data.dval != 0.0) {
-        A->data.dval *= (double) B;
-    }
+    A->data.dval *= (double) B;
 }
 
-static void mp_double_divide_int(mp_number *A, mp_scaled_t B)
+static inline void mp_double_divide_int(mp_number *A, mp_scaled_t B)
 {
-    if (A->data.dval != 0.0) {
-        A->data.dval /= (double) B;
-    }
+    A->data.dval /= (double) B;
 }
 
-static void mp_double_abs(mp_number *A)
+static inline void mp_double_abs(mp_number *A)
 {
     A->data.dval = fabs(A->data.dval);
 }
 
-static void mp_double_clone(mp_number *A, mp_number *B)
+static inline void mp_double_clone(mp_number *A, const mp_number *B)
 {
-    A->data.dval = B->data.dval;
+    *A = *B;
 }
 
-static void mp_double_negated_clone(mp_number *A, mp_number *B)
+static inline void mp_double_negated_clone(mp_number *A, const mp_number *B)
 {
-    A->data.dval = -B->data.dval;
-    if (A->data.dval == -0.0) {
-        A->data.dval = 0.0;
-    }
+    /* the addition gets rid of the sign bit when we have zero: no -ffast-math */
+    A->data.dval = -B->data.dval + 0.0;
 }
 
-static void mp_double_abs_clone(mp_number *A, mp_number *B)
+static inline void mp_double_abs_clone(mp_number *A, const mp_number *B)
 {
     A->data.dval = fabs(B->data.dval);
 }
 
-static void mp_double_swap(mp_number *A, mp_number *B)
+static inline void mp_double_swap(mp_number *A, mp_number *B)
 {
-    double swap_tmp = A->data.dval;
-    A->data.dval = B->data.dval;
-    B->data.dval = swap_tmp;
+    mp_number tmp = *A;
+    *A = *B;
+    *B = tmp;
 }
 
-static void mp_double_fraction_to_scaled(mp_number *A)
-{
-    A->type = mp_scaled_type;
-    if (A->data.dval != 0.0) {
-        A->data.dval /= fraction_multiplier;
-    }
-}
-
-static void mp_double_angle_to_scaled(mp_number *A)
+static inline void mp_double_fraction_to_scaled(mp_number *A)
 {
     A->type = mp_scaled_type;
-    if (A->data.dval != 0.0) {
-        A->data.dval /= angle_multiplier;
-    }
+    A->data.dval /= fraction_multiplier;
 }
 
-static void mp_double_scaled_to_fraction(mp_number *A)
+static inline void mp_double_angle_to_scaled(mp_number *A)
+{
+    A->type = mp_scaled_type;
+    A->data.dval /= angle_multiplier;
+}
+
+static inline void mp_double_scaled_to_fraction(mp_number *A)
 {
     A->type = mp_fraction_type;
-    if (A->data.dval != 0.0) {
-        A->data.dval *= fraction_multiplier;
-    }
+    A->data.dval *= fraction_multiplier;
 }
 
-static void mp_double_scaled_to_angle(mp_number *A)
+static inline void mp_double_scaled_to_angle(mp_number *A)
 {
     A->type = mp_angle_type;
-    if (A->data.dval != 0.0) {
-        A->data.dval *= angle_multiplier;
-    }
+    A->data.dval *= angle_multiplier;
 }
 
-static mp_scaled_t mp_double_to_scaled(mp_number *A)
+static mp_scaled_t mp_double_to_scaled(const mp_number *A)
 {
     return (mp_scaled_t) mpscaledround(A->data.dval * 65536.0);
 }
 
-static mp_scaled_t mp_double_to_int(mp_number *A)
+static mp_scaled_t mp_double_to_int(const mp_number *A)
 {
     return (mp_scaled_t) (A->data.dval);
 }
 
-static mp_scaled_t mp_double_to_boolean(mp_number *A)
+static mp_scaled_t mp_double_to_boolean(const mp_number *A)
 {
     return (mp_scaled_t) (A->data.dval);
 }
 
-static double mp_double_to_double(mp_number *A)
+static double mp_double_to_double(const mp_number *A)
 {
     return A->data.dval;
 }
 
-static int mp_double_odd(mp_number *A)
+static int mp_double_odd(const mp_number *A)
 {
-    return odd((mp_scaled_t) mpscaledround(A->data.dval));
+    return odd_long(lround(A->data.dval));
 }
 
-static int mp_double_equal(mp_number *A, mp_number *B)
+static int mp_double_equal(const mp_number *A, const mp_number *B)
 {
     return A->data.dval == B->data.dval;
 }
 
-static int mp_double_greater(mp_number *A, mp_number *B)
+static int mp_double_greater(const mp_number *A, const mp_number *B)
 {
     return A->data.dval > B->data.dval;
 }
 
-static int mp_double_less(mp_number *A, mp_number *B)
+static int mp_double_less(const mp_number *A, const mp_number *B)
 {
     return A->data.dval < B->data.dval;
 }
 
-static int mp_double_non_equal_abs(mp_number *A, mp_number *B)
+static int mp_double_non_equal_abs(const mp_number *A, const mp_number *B)
 {
     return fabs(A->data.dval) != fabs(B->data.dval);
 }
 
-static char *mp_double_number_tostring(MP mp, mp_number *n)
+static char *mp_double_number_tostring(MP mp, const mp_number *n)
 {
     static char set[64];
     int l = 0;
@@ -383,14 +378,14 @@ static char *mp_double_number_tostring(MP mp, mp_number *n)
     return ret;
 }
 
-static void mp_double_print_number(MP mp, mp_number *n)
+static inline void mp_double_print_number(MP mp, const mp_number *n)
 {
     char *str = mp_double_number_tostring(mp, n);
     mp_print_e_str(mp, str);
     mp_memory_free(str);
 }
 
-static void mp_double_slow_add(MP mp, mp_number *ret, mp_number *x_orig, mp_number *y_orig)
+static void mp_double_slow_add(MP mp, mp_number *ret, const mp_number *x_orig, const mp_number *y_orig)
 {
     double x = x_orig->data.dval;
     double y = y_orig->data.dval;
@@ -398,34 +393,55 @@ static void mp_double_slow_add(MP mp, mp_number *ret, mp_number *x_orig, mp_numb
         if (y <= EL_GORDO - x) {
             ret->data.dval = x + y;
         } else {
-            mp->arithmic_error = 1;
+            mp->arithmic_error = mp_error_code(mp, 1);
             ret->data.dval = EL_GORDO;
         }
     } else if (-y <= EL_GORDO + x) {
         ret->data.dval = x + y;
     } else {
-        mp->arithmic_error = 1;
+        mp->arithmic_error = mp_error_code(mp, 2);
         ret->data.dval = negative_EL_GORDO;
     }
 }
 
-static void mp_double_number_make_fraction(MP mp, mp_number *ret, mp_number *p, mp_number *q) {
+static void mp_double_slow_sub(MP mp, mp_number *ret, const mp_number *x_orig, const mp_number *y_orig)
+{
+    double x = x_orig->data.dval;
+    double y = y_orig->data.dval;
+    if (x >= 0.0) {
+        if (-y <= EL_GORDO - x) {
+            ret->data.dval = x - y;
+        } else {
+            mp->arithmic_error = mp_error_code(mp, 1);
+            ret->data.dval = EL_GORDO;
+        }
+    } else if (y <= EL_GORDO + x) {
+        ret->data.dval = x - y;
+    } else {
+        mp->arithmic_error = mp_error_code(mp, 2);
+        ret->data.dval = negative_EL_GORDO;
+    }
+}
+
+static inline void mp_double_number_make_fraction(MP mp, mp_number *ret, const mp_number *p, const mp_number *q)
+{
     (void) mp;
     ret->data.dval = mp_double_make_fraction(p->data.dval, q->data.dval);
 }
 
-static void mp_double_number_take_fraction(MP mp, mp_number *ret, mp_number *p, mp_number *q) {
+static inline void mp_double_number_take_fraction(MP mp, mp_number *ret, const mp_number *p, const mp_number *q)
+{
    (void) mp;
    ret->data.dval = mp_double_take_fraction(p->data.dval, q->data.dval);
 }
 
-static void mp_double_number_take_scaled(MP mp, mp_number *ret, mp_number *p_orig, mp_number *q_orig)
+static inline void mp_double_number_take_scaled(MP mp, mp_number *ret, const mp_number *p_orig, const mp_number *q_orig)
 {
     (void) mp;
     ret->data.dval = p_orig->data.dval * q_orig->data.dval;
 }
 
-static void mp_double_number_make_scaled(MP mp, mp_number *ret, mp_number *p_orig, mp_number *q_orig)
+static inline void mp_double_number_make_scaled(MP mp, mp_number *ret, const mp_number *p_orig, const mp_number *q_orig)
 {
     (void) mp;
     ret->data.dval = p_orig->data.dval / q_orig->data.dval;
@@ -520,7 +536,7 @@ static void mp_double_scan_numeric_token(MP mp, mp_scaled_t n)
     mp_wrapup_numeric_token(mp, start, stop);
 }
 
-static void mp_double_velocity(MP mp, mp_number *ret, mp_number *st, mp_number *ct, mp_number *sf, mp_number *cf, mp_number *t)
+static void mp_double_velocity(MP mp, mp_number *ret, const mp_number *st, const mp_number *ct, const mp_number *sf, const mp_number *cf, const mp_number *t)
 {
     double acc, num, denom; /* registers for intermediate calculations */
     (void) mp;
@@ -540,7 +556,7 @@ static void mp_double_velocity(MP mp, mp_number *ret, mp_number *st, mp_number *
     }
 }
 
-static int mp_double_ab_vs_cd(mp_number *a_orig, mp_number *b_orig, mp_number *c_orig, mp_number *d_orig)
+static inline int mp_double_ab_vs_cd(const mp_number *a_orig, const mp_number *b_orig, const mp_number *c_orig, const mp_number *d_orig)
 {
     double ab = a_orig->data.dval * b_orig->data.dval;
     double cd = c_orig->data.dval * d_orig->data.dval;
@@ -553,7 +569,7 @@ static int mp_double_ab_vs_cd(mp_number *a_orig, mp_number *b_orig, mp_number *c
     }
 }
 
-static void mp_double_crossing_point(MP mp, mp_number *ret, mp_number *aa, mp_number *bb, mp_number *cc)
+static void mp_double_crossing_point(MP mp, mp_number *ret, const mp_number *aa, const mp_number *bb, const mp_number *cc)
 {
     double a = aa->data.dval;
     double b = bb->data.dval;
@@ -620,24 +636,24 @@ static void mp_double_crossing_point(MP mp, mp_number *ret, mp_number *aa, mp_nu
 
 */
 
-static mp_scaled_t mp_double_unscaled(mp_number *x_orig)
+static inline mp_scaled_t mp_double_unscaled(const mp_number *x_orig)
 {
     return (mp_scaled_t) mpscaledround(x_orig->data.dval);
 }
 
-static void mp_double_floor(mp_number *i)
+static inline void mp_double_floor(mp_number *i)
 {
     i->data.dval = floor(i->data.dval);
 }
 
-static void mp_double_fraction_to_round_scaled(mp_number *x_orig)
+static inline void mp_double_fraction_to_round_scaled(mp_number *x_orig)
 {
     double x = x_orig->data.dval;
     x_orig->type = mp_scaled_type;
     x_orig->data.dval = x / fraction_multiplier;
 }
 
-static void mp_double_square_rt(MP mp, mp_number *ret, mp_number *x_orig) /* return, x: scaled */
+static void mp_double_square_rt(MP mp, mp_number *ret, const mp_number *x_orig) /* return, x: scaled */
 {
     double x = x_orig->data.dval;
     if (x > 0) {
@@ -659,19 +675,32 @@ static void mp_double_square_rt(MP mp, mp_number *ret, mp_number *x_orig) /* ret
     }
 }
 
-static void mp_double_pyth_add(MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig)
+static void mp_double_pyth_add(MP mp, mp_number *ret, const mp_number *a_orig, const mp_number *b_orig)
 {
     double a = fabs(a_orig->data.dval);
     double b = fabs(b_orig->data.dval);
     errno = 0;
-    ret->data.dval = sqrt(a*a + b*b);
+    ret->data.dval = hypot(a, b);
     if (errno) {
-        mp->arithmic_error = 1;
+        mp->arithmic_error = mp_error_code(mp, 3);
         ret->data.dval = EL_GORDO;
     }
 }
 
-static void mp_double_pyth_sub(MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig)
+static void mp_double_pyth_add3(MP mp, mp_number *ret, const mp_number *a_orig, const mp_number *b_orig, const mp_number *c_orig)
+{
+    double a = fabs(a_orig->data.dval);
+    double b = fabs(b_orig->data.dval);
+    double c = fabs(c_orig->data.dval);
+    errno = 0;
+    ret->data.dval = sqrt(a*a + b*b + c*c);
+    if (errno) {
+        mp->arithmic_error = mp_error_code(mp, 3);
+        ret->data.dval = EL_GORDO;
+    }
+}
+
+static void mp_double_pyth_sub(MP mp, mp_number *ret, mp_number *a_orig, const mp_number *b_orig)
 {
     double a = fabs(a_orig->data.dval);
     double b = fabs(b_orig->data.dval);
@@ -697,17 +726,17 @@ static void mp_double_pyth_sub(MP mp, mp_number *ret, mp_number *a_orig, mp_numb
     ret->data.dval = a;
 }
 
-static void mp_double_power_of(MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig)
+static void mp_double_power_of(MP mp, mp_number *ret, const mp_number *a_orig, const mp_number *b_orig)
 {
     errno = 0;
     ret->data.dval = pow(a_orig->data.dval, b_orig->data.dval);
     if (errno) {
-        mp->arithmic_error = 1;
+        mp->arithmic_error = mp_error_code(mp, 4);
         ret->data.dval = EL_GORDO;
     }
 }
 
-static void mp_double_m_log(MP mp, mp_number *ret, mp_number *x_orig)
+static void mp_double_m_log(MP mp, mp_number *ret, const mp_number *x_orig)
 {
     if (x_orig->data.dval > 0) {
         ret->data.dval = log(x_orig->data.dval)*256.0;
@@ -726,13 +755,13 @@ static void mp_double_m_log(MP mp, mp_number *ret, mp_number *x_orig)
     }
 }
 
-static void mp_double_m_exp(MP mp, mp_number *ret, mp_number *x_orig)
+static void mp_double_m_exp(MP mp, mp_number *ret, const mp_number *x_orig)
 {
     errno = 0;
     ret->data.dval = exp(x_orig->data.dval / 256.0);
     if (errno) {
         if (x_orig->data.dval > 0) {
-            mp->arithmic_error = 1;
+            mp->arithmic_error = mp_error_code(mp, 5);
             ret->data.dval = EL_GORDO;
         } else {
             ret->data.dval = 0;
@@ -754,16 +783,8 @@ static void mp_double_m_exp(MP mp, mp_number *ret, mp_number *x_orig)
 
 */
 
-static void mp_double_n_arg(MP mp, mp_number *ret, mp_number *x_orig, mp_number *y_orig)
+static void mp_double_n_arg(MP mp, mp_number *ret, const mp_number *x_orig, const mp_number *y_orig)
 {
-    /*        
-        if (x_orig->data.dval == -0.0) {
-            x_orig->data.dval = 0.0;
-        }
-        if (y_orig->data.dval == -0.0) {
-            y_orig->data.dval = 0.0;
-        }
-    */
     if (x_orig->data.dval == 0.0 && y_orig->data.dval == 0.0) {
         if (internal_value(mp_default_zero_angle_internal).data.dval < 0) {
             mp_error(
@@ -779,14 +800,14 @@ static void mp_double_n_arg(MP mp, mp_number *ret, mp_number *x_orig, mp_number 
     } else {
         ret->type = mp_angle_type;
         ret->data.dval = atan2(y_orig->data.dval, x_orig->data.dval) * (180.0 / PI) * angle_multiplier;
-        if (ret->data.dval == -0.0) {
+        /* we need to get rid of the sign bit */
+        if (ret->data.dval == 0.0) {
             ret->data.dval = 0.0;
         }
-// printf("D x=%f y=%f atan=%f\n",y_orig->data.dval,x_orig->data.dval,ret->data.dval);
     }
 }
 
-static void mp_double_sin_cos(MP mp, mp_number *z_orig, mp_number *n_cos, mp_number *n_sin)
+static void mp_double_sin_cos(MP mp, const mp_number *z_orig, mp_number *n_cos, mp_number *n_sin)
 {
     double rad = (z_orig->data.dval / angle_multiplier); /* still degrees */
     (void) mp;
@@ -812,83 +833,57 @@ static void mp_double_sin_cos(MP mp, mp_number *z_orig, mp_number *n_cos, mp_num
     same method.
 */
 
-# define KK            100                /* the long lag  */
-# define LL            37                 /* the short lag */
-# define MM            (1L<<30)           /* the modulus   */
-# define mod_diff(x,y) (((x)-(y))&(MM-1)) /* subtraction mod MM */
-# define TT            70                 /* guaranteed separation between streams */
-# define is_odd(x)     ((x)&1)            /* units bit of x */
-# define QUALITY       1009               /* recommended quality level for high-res use */
-
-/*tex 
-    The destination array length (must be at least KK).
-*/
-
-typedef struct mp_double_random_info {
-    long  x[KK];
-    long  buf[QUALITY];
-    long  dummy;
-    long  started;
-    long *ptr;
-} mp_double_random_info;
-
-static mp_double_random_info mp_double_random_data = {
-    .dummy   = -1,
-    .started = -1,
-    .ptr     = &mp_double_random_data.dummy
-};
-
-static void mp_double_aux_ran_array(long aa[], int n)
+static void mp_double_aux_ran_array(MP mp, long aa[], int n)
 {
     int i, j;
-    for (j = 0; j < KK; j++) {
-        aa[j] = mp_double_random_data.x[j];
+    for (j = 0; j < mp_random_KK; j++) {
+        aa[j] = mp->random_data.x[j];
     }
     for (; j < n; j++) {
-        aa[j] = mod_diff(aa[j - KK], aa[j - LL]);
+        aa[j] = mp_random_mod_diff(aa[j - mp_random_KK], aa[j - mp_random_LL]);
     }
-    for (i = 0; i < LL; i++, j++) {
-        mp_double_random_data.x[i] = mod_diff(aa[j - KK], aa[j - LL]);
+    for (i = 0; i < mp_random_LL; i++, j++) {
+        mp->random_data.x[i] = mp_random_mod_diff(aa[j - mp_random_KK], aa[j - mp_random_LL]);
     }
-    for (; i < KK; i++, j++) {
-        mp_double_random_data.x[i] = mod_diff(aa[j - KK], mp_double_random_data.x[i - LL]);
+    for (; i < mp_random_KK; i++, j++) {
+        mp->random_data.x[i] = mp_random_mod_diff(aa[j - mp_random_KK], mp->random_data.x[i - mp_random_LL]);
     }
 }
 
-static void mp_double_aux_ran_start(long seed)
+static void mp_double_aux_ran_start(MP mp, long seed)
 {
     int t, j;
-    long x[KK + KK - 1]; /* the preparation buffer */
-    long ss = (seed + 2) & (MM - 2);
-    for (j = 0; j < KK; j++) {
+    long x[mp_random_KK + mp_random_KK - 1]; /* the preparation buffer */
+    long ss = (seed + 2) & (mp_random_MM - 2);
+    for (j = 0; j < mp_random_KK; j++) {
         /* bootstrap the buffer */
         x[j] = ss;
         /* cyclic shift 29 bits */
         ss <<= 1;
-        if (ss >= MM) {
-            ss -= MM - 2;
+        if (ss >= mp_random_MM) {
+            ss -= mp_random_MM - 2;
         }
     }
     /* make x[1] (and only x[1]) odd */
     x[1]++;
-    for (ss = seed & (MM - 1), t = TT - 1; t;) {
-        for (j = KK - 1; j > 0; j--) {
+    for (ss = seed & (mp_random_MM - 1), t = mp_random_TT - 1; t;) {
+        for (j = mp_random_KK - 1; j > 0; j--) {
             /* "square" */
             x[j + j] = x[j];
             x[j + j - 1] = 0;
         }
-        for (j = KK + KK - 2; j >= KK; j--) {
-            x[j - (KK -LL)] = mod_diff(x[j - (KK - LL)], x[j]);
-            x[j - KK] = mod_diff(x[j - KK], x[j]);
+        for (j = mp_random_KK + mp_random_KK - 2; j >= mp_random_KK; j--) {
+            x[j - (mp_random_KK - mp_random_LL)] = mp_random_mod_diff(x[j - (mp_random_KK - mp_random_LL)], x[j]);
+            x[j - mp_random_KK] = mp_random_mod_diff(x[j - mp_random_KK], x[j]);
         }
-        if (is_odd(ss)) {
+        if (odd_long(ss)) {
             /* "multiply by z" */
-            for (j = KK; j > 0; j--) {
+            for (j = mp_random_KK; j > 0; j--) {
                 x[j] = x[j-1];
             }
-            x[0] = x[KK];
+            x[0] = x[mp_random_KK];
             /* shift the buffer cyclically */
-            x[LL] = mod_diff(x[LL], x[KK]);
+            x[mp_random_LL] = mp_random_mod_diff(x[mp_random_LL], x[mp_random_KK]);
         }
         if (ss) {
             ss >>= 1;
@@ -896,33 +891,38 @@ static void mp_double_aux_ran_start(long seed)
             t--;
         }
     }
-    for (j = 0; j < LL; j++) {
-        mp_double_random_data.x[j + KK - LL] = x[j];
+    for (j = 0; j < mp_random_LL; j++) {
+        mp->random_data.x[j + mp_random_KK - mp_random_LL] = x[j];
     }
-    for (;j < KK; j++) {
-        mp_double_random_data.x[j - LL] = x[j];
+    for (;j < mp_random_KK; j++) {
+        mp->random_data.x[j - mp_random_LL] = x[j];
     }
     for (j = 0; j < 10; j++) {
         /* warm things up */
-        mp_double_aux_ran_array(x, KK + KK - 1);
+        mp_double_aux_ran_array(mp, x, mp_random_KK + mp_random_KK - 1);
     }
-    mp_double_random_data.ptr = &mp_double_random_data.started;
+    mp->random_data.ptr = &mp->random_data.started;
 }
 
-static long mp_double_aux_ran_arr_cycle(void)
+static long mp_double_aux_ran_arr_cycle(MP mp)
 {
-    if (mp_double_random_data.ptr == &mp_double_random_data.dummy) {
+    if (mp->random_data.ptr == &mp->random_data.dummy) {
         /* the user forgot to initialize */
-        mp_double_aux_ran_start(314159L);
+        mp_double_aux_ran_start(mp, 314159L);
     }
-    mp_double_aux_ran_array(mp_double_random_data.buf, QUALITY);
-    mp_double_random_data.buf[KK] = -1;
-    mp_double_random_data.ptr = mp_double_random_data.buf + 1;
-    return mp_double_random_data.buf[0];
+    mp_double_aux_ran_array(mp, mp->random_data.buf, mp_random_QUALITY);
+    mp->random_data.buf[mp_random_KK] = -1;
+    mp->random_data.ptr = mp->random_data.buf + 1;
+    return mp->random_data.buf[0];
 }
 
 static void mp_double_init_randoms(MP mp, int seed)
 {
+    mp->random_data = (mp_random_info) {
+        .dummy   = -1,
+        .started = -1,
+        .ptr     = &mp->random_data.dummy
+    };
     int k = 1;
     int j = abs(seed);
     int f = (int) fraction_one; /* avoid warnings */
@@ -942,10 +942,10 @@ static void mp_double_init_randoms(MP mp, int seed)
     mp_new_randoms(mp);
     mp_new_randoms(mp);
     /* warm up the array */
-    mp_double_aux_ran_start((unsigned long) seed);
+    mp_double_aux_ran_start(mp, (long) seed);
 }
 
-static void mp_double_modulo(mp_number *a, mp_number *b)
+static inline void mp_double_modulo(mp_number *a, const mp_number *b)
 {
     double tmp;
     a->data.dval = modf((double) a->data.dval / (double) b->data.dval, &tmp) * (double) b->data.dval;
@@ -953,8 +953,8 @@ static void mp_double_modulo(mp_number *a, mp_number *b)
 
 static void mp_double_aux_next_unif_random(MP mp, mp_number *ret)
 {
-    unsigned long int op = (unsigned) (*mp_double_random_data.ptr>=0? *mp_double_random_data.ptr++: mp_double_aux_ran_arr_cycle());
-    double a = op / (MM * 1.0);
+    unsigned long int op = (unsigned) (*mp->random_data.ptr >= 0 ? *mp->random_data.ptr++ : mp_double_aux_ran_arr_cycle(mp));
+    double a = op / (mp_random_MM * 1.0);
     (void) mp;
     ret->data.dval = a;
 }
@@ -969,7 +969,7 @@ static void mp_double_aux_next_random(MP mp, mp_number *ret)
     mp_double_clone(ret, &(mp->randoms[mp->j_random]));
 }
 
-static void mp_double_m_unif_rand(MP mp, mp_number *ret, mp_number *x_orig)
+static void mp_double_m_unif_rand(MP mp, mp_number *ret, const mp_number *x_orig)
 {
     mp_number x, abs_x, u, y; /* |y| is trial value */
     mp_double_allocate_number(mp, &y, mp_fraction_type);
@@ -1205,6 +1205,7 @@ math_data *mp_initialize_double_math(MP mp)
     math->md_m_unif_rand              = mp_double_m_unif_rand;
     math->md_m_norm_rand              = mp_double_m_norm_rand;
     math->md_pyth_add                 = mp_double_pyth_add;
+    math->md_pyth_add3                = mp_double_pyth_add3;
     math->md_pyth_sub                 = mp_double_pyth_sub;
     math->md_power_of                 = mp_double_power_of;
     math->md_fraction_to_scaled       = mp_double_fraction_to_scaled;
@@ -1214,6 +1215,7 @@ math_data *mp_initialize_double_math(MP mp)
     math->md_init_randoms             = mp_double_init_randoms;
     math->md_sin_cos                  = mp_double_sin_cos;
     math->md_slow_add                 = mp_double_slow_add;
+    math->md_slow_sub                 = mp_double_slow_sub;
     math->md_sqrt                     = mp_double_square_rt;
     math->md_print                    = mp_double_print_number;
     math->md_tostring                 = mp_double_number_tostring;

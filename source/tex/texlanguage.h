@@ -7,8 +7,23 @@
 
 /*tex We resolve the properties beforehand and store them in a struct. */
 
+typedef struct tex_language_data {
+    halfword        pre_hyphen_char;
+    halfword        post_hyphen_char;
+    halfword        pre_exhyphen_char;
+    halfword        post_exhyphen_char;
+    halfword        hyphenation_min;
+    halfword        id;
+    hjn_dictionary *patterns;
+    int             exceptions;
+    int             wordhandler;
+    sa_tree         hjcode_head;
+} tex_language_data;
+
+typedef tex_language_data * tex_language;
+
 typedef struct language_state_info {
-    struct tex_language **languages;
+    tex_language         *languages;
     memory_data           language_data;
     lua_Integer           handler_table_id;
     int                   handler_count;
@@ -32,31 +47,16 @@ typedef struct language_variables {
     halfword post_exhyphen_char;
 } language_variables;
 
-/*tex This is used in: */
-
-typedef struct tex_language {
-    halfword        pre_hyphen_char;
-    halfword        post_hyphen_char;
-    halfword        pre_exhyphen_char;
-    halfword        post_exhyphen_char;
-    halfword        hyphenation_min;
-    halfword        id;
-    hjn_dictionary *patterns;
-    int             exceptions;
-    int             wordhandler;
-    sa_tree         hjcode_head;
-} tex_language;
-
-extern tex_language *tex_new_language           (halfword n);
-extern tex_language *tex_get_language           (halfword n);
+extern tex_language  tex_new_language           (halfword n);
+extern tex_language  tex_get_language           (halfword n);
 /*     void          tex_free_languages         (void); */
 
-extern void          tex_load_patterns          (struct tex_language *lang, const unsigned char *buf);
-extern void          tex_load_hyphenation       (struct tex_language *lang, const unsigned char *buf);
+extern void          tex_load_patterns          (tex_language lang, const unsigned char *buf);
+extern void          tex_load_hyphenation       (tex_language lang, const unsigned char *buf);
 
 extern void          tex_handle_hyphenation     (halfword h, halfword t);
-extern void          tex_clear_patterns         (struct tex_language *lang);
-extern void          tex_clear_hyphenation      (struct tex_language *lang);
+extern void          tex_clear_patterns         (tex_language lang);
+extern void          tex_clear_hyphenation      (tex_language lang);
 extern const char   *tex_clean_hyphenation      (halfword id, const char *buffer, char **cleaned);
 
 extern void          tex_hyphenate_list         (halfword head, halfword tail);
@@ -78,7 +78,7 @@ extern halfword      tex_get_hyphenation_min    (halfword lan);
 extern void          tex_dump_language_data     (dumpstream f);
 extern void          tex_undump_language_data   (dumpstream f);
 
-/*     char         *tex_get_exception_strings  (struct tex_language *lang); */
+/*     char         *tex_get_exception_strings  (tex_language lang); */
 
 extern void          tex_load_tex_patterns      (halfword curlang, halfword head);
 extern void          tex_load_tex_hyphenation   (halfword curlang, halfword head);

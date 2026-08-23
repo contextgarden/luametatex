@@ -3,21 +3,15 @@
     files but now maintained as C file.
 */
 
-/*
-    todo: collect constants like decimal
-    todo: share scanners and random
-*/
+#include "mpmathposit.h"
 
-# include "mpmathposit.h"
+#define mp_fraction_multiplier 4096
+#define mp_angle_multiplier    16
+#define mp_warning_limit       pow(2.0, 52)
 
-# define mp_fraction_multiplier 4096
-# define mp_angle_multiplier    16
-# define mp_warning_limit       pow(2.0,52)
-
-# define odd(A)                 (labs(A) %2 == 1)
-# define two_to_the(A)          (1 << (unsigned) (A))
-# define set_cur_cmd(A)         mp->cur_mod_->command = (A)
-# define set_cur_mod(A)         mp->cur_mod_->data.n.data.pval = (A)
+#define two_to_the(A)          (1 << (unsigned)(A))
+#define set_cur_cmd(A)         mp->cur_mod_->command = (A)
+#define set_cur_mod(A)         mp->cur_mod_->data.n.data.pval = (A)
 
 typedef struct mp_posit_info {
     posit_t unity;
@@ -47,7 +41,7 @@ typedef struct mp_posit_info {
     posit_t dm270;
     posit_t dm360;
     posit_t fraction_multiplier;
-    posit_t negative_fraction_multiplier; /* todo: also in decimal */
+    posit_t negative_fraction_multiplier;
     posit_t angle_multiplier;
     posit_t fraction_one;
     posit_t fraction_two;
@@ -87,13 +81,24 @@ static mp_posit_info mp_posit_data = {
     .initialized = 0,
 };
 
-static inline posit_t mp_posit_aux_make_fraction (posit_t p, posit_t q) { return posit_mul(posit_div(p,q), mp_posit_data.fraction_multiplier); }
-static inline posit_t mp_posit_aux_take_fraction (posit_t p, posit_t q) { return posit_div(posit_mul(p,q), mp_posit_data.fraction_multiplier); }
-static inline posit_t mp_posit_aux_make_scaled   (posit_t p, posit_t q) { return posit_div(p,q); }
+static inline posit_t mp_posit_aux_make_fraction(posit_t p, posit_t q) 
+{ 
+    return posit_mul(posit_div(p, q), mp_posit_data.fraction_multiplier); 
+}
+
+static inline posit_t mp_posit_aux_take_fraction(posit_t p, posit_t q) 
+{ 
+    return posit_div(posit_mul(p, q), mp_posit_data.fraction_multiplier); 
+}
+
+static inline posit_t mp_posit_aux_make_scaled(posit_t p, posit_t q) 
+{ 
+    return posit_div(p, q); 
+}
 
 /*tex
-    All functions execpt the initializer are static as they are not used elsewhere. See |mpmath| and     
-    and |mpmathdouble| for documentation. 
+    All functions except the initializer are static as they are not used elsewhere.
+    See |mpmath| and |mpmathdouble| for documentation.
 */
 
 static void mp_posit_allocate_number(MP mp, mp_number *n, mp_number_type t)
@@ -103,43 +108,42 @@ static void mp_posit_allocate_number(MP mp, mp_number *n, mp_number_type t)
     n->type = t;
 }
 
-static void mp_posit_allocate_clone(MP mp, mp_number *n, mp_number_type t, mp_number *v)
+static void mp_posit_allocate_clone(MP mp, mp_number *n, mp_number_type t, const mp_number *v)
 {
     (void) mp;
     n->type = t;
     n->data.pval = v->data.pval;
 }
 
-static void mp_posit_allocate_abs(MP mp, mp_number *n, mp_number_type t, mp_number *v)
+static void mp_posit_allocate_abs(MP mp, mp_number *n, mp_number_type t, const mp_number *v)
 {
     (void) mp;
     n->type = t;
     n->data.pval = posit_fabs(v->data.pval);
 }
 
-
-static void mp_posit_allocate_div(MP mp, mp_number *n, mp_number_type t, mp_number *a, mp_number *b)
+static void mp_posit_allocate_div(MP mp, mp_number *n, mp_number_type t, const mp_number *a, const mp_number *b)
 {
     (void) mp;
     n->type = t;
     n->data.pval = posit_div(a->data.pval, b->data.pval);
 }
 
-static void mp_posit_allocate_mul(MP mp, mp_number *n, mp_number_type t, mp_number *a, mp_number *b)
+static void mp_posit_allocate_mul(MP mp, mp_number *n, mp_number_type t, const mp_number *a, const mp_number *b)
 {
     (void) mp;
     n->type = t;
     n->data.pval = posit_mul(a->data.pval, b->data.pval);
 }
 
-static void mp_posit_allocate_add(MP mp, mp_number *n, mp_number_type t, mp_number *a, mp_number *b)
+static void mp_posit_allocate_add(MP mp, mp_number *n, mp_number_type t, const mp_number *a, const mp_number *b)
 {
     (void) mp;
     n->type = t;
     n->data.pval = posit_add(a->data.pval, b->data.pval);
 }
 
-static void mp_posit_allocate_sub(MP mp, mp_number *n, mp_number_type t, mp_number *a, mp_number *b)
+static void mp_posit_allocate_sub(MP mp, mp_number *n, mp_number_type t, const mp_number *a, const mp_number *b)
 {
     (void) mp;
     n->type = t;
@@ -179,47 +183,47 @@ static void mp_posit_set_from_double(mp_number *A, double B)
     A->data.pval = double_to_posit(B);
 }
 
-static void mp_posit_set_from_addition(mp_number *A, mp_number *B, mp_number *C)
+static void mp_posit_set_from_addition(mp_number *A, const mp_number *B, const mp_number *C)
 {
     A->data.pval = posit_add(B->data.pval, C->data.pval);
 }
 
-static void mp_posit_set_half_from_addition(mp_number *A, mp_number *B, mp_number *C)
+static void mp_posit_set_half_from_addition(mp_number *A, const mp_number *B, const mp_number *C)
 {
-    A->data.pval = posit_div(posit_add(B->data.pval,C->data.pval), mp_posit_data.two);
+    A->data.pval = posit_div(posit_add(B->data.pval, C->data.pval), mp_posit_data.two);
 }
 
-static void mp_posit_set_from_subtraction(mp_number *A, mp_number *B, mp_number *C)
+static void mp_posit_set_from_subtraction(mp_number *A, const mp_number *B, const mp_number *C)
 {
     A->data.pval = posit_sub(B->data.pval, C->data.pval);
 }
 
-static void mp_posit_set_half_from_subtraction(mp_number *A, mp_number *B, mp_number *C)
+static void mp_posit_set_half_from_subtraction(mp_number *A, const mp_number *B, const mp_number *C)
 {
     A->data.pval = posit_div(posit_sub(B->data.pval, C->data.pval), mp_posit_data.two);
 }
 
-static void mp_posit_set_from_div(mp_number *A, mp_number *B, mp_number *C)
+static void mp_posit_set_from_div(mp_number *A, const mp_number *B, const mp_number *C)
 {
     A->data.pval = posit_div(B->data.pval, C->data.pval);
 }
 
-static void mp_posit_set_from_mul(mp_number *A, mp_number *B, mp_number *C)
+static void mp_posit_set_from_mul(mp_number *A, const mp_number *B, const mp_number *C)
 {
     A->data.pval = posit_mul(B->data.pval, C->data.pval);
 }
 
-static void mp_posit_set_from_int_div(mp_number *A, mp_number *B, mp_scaled_t C)
+static void mp_posit_set_from_int_div(mp_number *A, const mp_number *B, mp_scaled_t C)
 {
     A->data.pval = posit_div(B->data.pval, integer_to_posit(C));
 }
 
-static void mp_posit_set_from_int_mul(mp_number *A, mp_number *B, mp_scaled_t C)
+static void mp_posit_set_from_int_mul(mp_number *A, const mp_number *B, mp_scaled_t C)
 {
     A->data.pval = posit_mul(B->data.pval, integer_to_posit(C));
 }
 
-static void mp_posit_set_from_of_the_way(MP mp, mp_number *A, mp_number *t, mp_number *B, mp_number *C)
+static void mp_posit_set_from_of_the_way(MP mp, mp_number *A, const mp_number *t, const mp_number *B, const mp_number *C)
 {
     (void) mp;
     A->data.pval = posit_sub(B->data.pval, mp_posit_aux_take_fraction(posit_sub(B->data.pval, C->data.pval), t->data.pval));
@@ -230,12 +234,12 @@ static void mp_posit_negate(mp_number *A)
     A->data.pval = posit_neg(A->data.pval);
 }
 
-static void mp_posit_add(mp_number *A, mp_number *B)
+static void mp_posit_add(mp_number *A, const mp_number *B)
 {
     A->data.pval = posit_add(A->data.pval, B->data.pval);
 }
 
-static void mp_posit_subtract(mp_number *A, mp_number *B)
+static void mp_posit_subtract(mp_number *A, const mp_number *B)
 {
     A->data.pval = posit_sub(A->data.pval, B->data.pval);
 }
@@ -252,7 +256,6 @@ static void mp_posit_double(mp_number *A)
 
 static void mp_posit_add_scaled(mp_number *A, mp_scaled_t B)
 {
-    /* also for negative B */
     A->data.pval = posit_add(A->data.pval, posit_div(integer_to_posit(B), mp_posit_data.d65536));
 }
 
@@ -271,17 +274,17 @@ static void mp_posit_abs(mp_number *A)
     A->data.pval = posit_fabs(A->data.pval);
 }
 
-static void mp_posit_clone(mp_number *A, mp_number *B)
+static void mp_posit_clone(mp_number *A, const mp_number *B)
 {
     A->data.pval = B->data.pval;
 }
 
-static void mp_posit_negated_clone(mp_number *A, mp_number *B)
+static void mp_posit_negated_clone(mp_number *A, const mp_number *B)
 {
     A->data.pval = posit_neg(B->data.pval);
 }
 
-static void mp_posit_abs_clone(mp_number *A, mp_number *B)
+static void mp_posit_abs_clone(mp_number *A, const mp_number *B)
 {
     A->data.pval = posit_fabs(B->data.pval);
 }
@@ -317,52 +320,53 @@ static void mp_posit_scaled_to_angle(mp_number *A)
     A->data.pval = posit_mul(A->data.pval, mp_posit_data.angle_multiplier);
 }
 
-static mp_scaled_t mp_posit_to_scaled(mp_number *A)
+static mp_scaled_t mp_posit_to_scaled(const mp_number *A)
 {
     return (mp_scaled_t) posit_to_integer(posit_mul(A->data.pval, mp_posit_data.d65536));
 }
 
-static mp_scaled_t mp_posit_to_int(mp_number *A)
+static mp_scaled_t mp_posit_to_int(const mp_number *A)
 {
     return (mp_scaled_t) posit_to_integer(A->data.pval);
 }
 
-static mp_scaled_t mp_posit_to_boolean(mp_number *A)
+static mp_scaled_t mp_posit_to_boolean(const mp_number *A)
 {
     return posit_eq_zero(A->data.pval) ? 0 : 1;
 }
 
-static double mp_posit_to_double(mp_number *A)
+static double mp_posit_to_double(const mp_number *A)
 {
     return posit_to_double(A->data.pval);
 }
 
-static int mp_posit_odd(mp_number *A)
+static int mp_posit_odd(const mp_number *A)
 {
-    return (int) odd(posit_to_integer(A->data.pval));
+ // return odd_double(lround(posit_to_double(A->data.pval)));
+    return odd_long(posit_to_integer(A->data.pval));
 }
 
-static int mp_posit_equal(mp_number *A, mp_number *B)
+static int mp_posit_equal(const mp_number *A, const mp_number *B)
 {
     return posit_eq(A->data.pval, B->data.pval);
 }
 
-static int mp_posit_greater(mp_number *A, mp_number *B)
+static int mp_posit_greater(const mp_number *A, const mp_number *B)
 {
     return posit_gt(A->data.pval, B->data.pval);
 }
 
-static int mp_posit_less(mp_number *A, mp_number *B)
+static int mp_posit_less(const mp_number *A, const mp_number *B)
 {
     return posit_lt(A->data.pval, B->data.pval);
 }
 
-static int mp_posit_non_equal_abs(mp_number *A, mp_number *B)
+static int mp_posit_non_equal_abs(const mp_number *A, const mp_number *B)
 {
-    return ! posit_eq(posit_fabs(A->data.pval), posit_fabs(B->data.pval));
+    return !posit_eq(posit_fabs(A->data.pval), posit_fabs(B->data.pval));
 }
 
-static char *mp_posit_number_tostring(MP mp, mp_number *n)
+static char *mp_posit_number_tostring(MP mp, const mp_number *n)
 {
     static char set[64];
     int l = 0;
@@ -372,53 +376,70 @@ static char *mp_posit_number_tostring(MP mp, mp_number *n)
     while (set[l] == ' ') {
         l++;
     }
-    strcpy(ret, set+l);
+    strcpy(ret, set + l);
     return ret;
 }
 
-static void mp_posit_print_number(MP mp, mp_number *n)
+static void mp_posit_print_number(MP mp, const mp_number *n)
 {
     char *str = mp_posit_number_tostring(mp, n);
     mp_print_e_str(mp, str);
     mp_memory_free(str);
 }
 
-/* Todo: it is hard to overflow posits. Also, we can check zero fast. */
-
-static void mp_posit_slow_add(MP mp, mp_number *ret, mp_number *x_orig, mp_number *y_orig)
+static void mp_posit_slow_add(MP mp, mp_number *ret, const mp_number *x_orig, const mp_number *y_orig)
 {
     if (posit_gt(x_orig->data.pval, mp_posit_data.zero)) {
         if (posit_le(y_orig->data.pval, posit_sub(mp_posit_data.EL_GORDO, x_orig->data.pval))) {
             ret->data.pval = posit_add(x_orig->data.pval, y_orig->data.pval);
         } else {
-            mp->arithmic_error = 1;
+            mp->arithmic_error = mp_error_code(mp, 1);
             ret->data.pval = mp_posit_data.EL_GORDO;
         }
     } else if (posit_le(posit_neg(y_orig->data.pval), posit_add(mp_posit_data.EL_GORDO, x_orig->data.pval))) {
         ret->data.pval = posit_add(x_orig->data.pval, y_orig->data.pval);
     } else {
-        mp->arithmic_error = 1;
+        mp->arithmic_error = mp_error_code(mp, 2);
         ret->data.pval = mp_posit_data.negative_EL_GORDO;
     }
 }
 
-static void mp_posit_make_fraction(MP mp, mp_number *ret, mp_number *p, mp_number *q) {
+static void mp_posit_slow_sub(MP mp, mp_number *ret, const mp_number *x_orig, const mp_number *y_orig)
+{
+    if (posit_gt(x_orig->data.pval, mp_posit_data.zero)) {
+        if (posit_le(posit_neg(y_orig->data.pval), posit_sub(mp_posit_data.EL_GORDO, x_orig->data.pval))) {
+            ret->data.pval = posit_sub(x_orig->data.pval, y_orig->data.pval);
+        } else {
+            mp->arithmic_error = mp_error_code(mp, 1);
+            ret->data.pval = mp_posit_data.EL_GORDO;
+        }
+    } else if (posit_le(y_orig->data.pval, posit_add(mp_posit_data.EL_GORDO, x_orig->data.pval))) {
+        ret->data.pval = posit_sub(x_orig->data.pval, y_orig->data.pval);
+    } else {
+        mp->arithmic_error = mp_error_code(mp, 2);
+        ret->data.pval = mp_posit_data.negative_EL_GORDO;
+    }
+}
+
+static void mp_posit_make_fraction(MP mp, mp_number *ret, const mp_number *p, const mp_number *q)
+{
     (void) mp;
     ret->data.pval = mp_posit_aux_make_fraction(p->data.pval, q->data.pval);
 }
 
-static void mp_posit_take_fraction(MP mp, mp_number *ret, mp_number *p, mp_number *q) {
-   (void) mp;
-   ret->data.pval = mp_posit_aux_take_fraction(p->data.pval, q->data.pval);
+static void mp_posit_take_fraction(MP mp, mp_number *ret, const mp_number *p, const mp_number *q)
+{
+    (void) mp;
+    ret->data.pval = mp_posit_aux_take_fraction(p->data.pval, q->data.pval);
 }
 
-static void mp_posit_take_scaled(MP mp, mp_number *ret, mp_number *p_orig, mp_number *q_orig)
+static void mp_posit_take_scaled(MP mp, mp_number *ret, const mp_number *p_orig, const mp_number *q_orig)
 {
     (void) mp;
     ret->data.pval = posit_mul(p_orig->data.pval, q_orig->data.pval);
 }
 
-static void mp_posit_make_scaled(MP mp, mp_number *ret, mp_number *p_orig, mp_number *q_orig)
+static void mp_posit_make_scaled(MP mp, mp_number *ret, const mp_number *p_orig, const mp_number *q_orig)
 {
     (void) mp;
     ret->data.pval = posit_div(p_orig->data.pval, q_orig->data.pval);
@@ -448,8 +469,7 @@ static void mp_posit_aux_wrapup_numeric_token(MP mp, unsigned char *start, unsig
         mp_error(
             mp,
             "Enormous number has been reduced.",
-            "I could not handle this number specification probably because it is out of"
-            "range."
+            "I could not handle this number specification probably because it is out of range."
         );
         set_cur_mod(mp_posit_data.EL_GORDO);
     }
@@ -478,46 +498,46 @@ static void mp_posit_aux_find_exponent(MP mp)
 
 static void mp_posit_scan_fractional_token(MP mp, mp_scaled_t n)
 {
-    unsigned char *start = &mp->buffer[mp->cur_input.loc_field -1];
+    unsigned char *start = &mp->buffer[mp->cur_input.loc_field - 1];
     unsigned char *stop;
     (void) n;
     while (mp->char_class[mp->buffer[mp->cur_input.loc_field]] == mp_digit_class) {
         mp->cur_input.loc_field++;
     }
     mp_posit_aux_find_exponent(mp);
-    stop = &mp->buffer[mp->cur_input.loc_field-1];
+    stop = &mp->buffer[mp->cur_input.loc_field - 1];
     mp_posit_aux_wrapup_numeric_token(mp, start, stop);
 }
 
 static void mp_posit_scan_numeric_token(MP mp, mp_scaled_t n)
 {
-    unsigned char *start = &mp->buffer[mp->cur_input.loc_field -1];
+    unsigned char *start = &mp->buffer[mp->cur_input.loc_field - 1];
     unsigned char *stop;
     (void) n;
     while (mp->char_class[mp->buffer[mp->cur_input.loc_field]] == mp_digit_class) {
         mp->cur_input.loc_field++;
     }
-    if (mp->buffer[mp->cur_input.loc_field] == '.' && mp->buffer[mp->cur_input.loc_field+1] != '.') {
+    if (mp->buffer[mp->cur_input.loc_field] == '.' && mp->buffer[mp->cur_input.loc_field + 1] != '.') {
         mp->cur_input.loc_field++;
         while (mp->char_class[mp->buffer[mp->cur_input.loc_field]] == mp_digit_class) {
             mp->cur_input.loc_field++;
         }
     }
     mp_posit_aux_find_exponent(mp);
-    stop = &mp->buffer[mp->cur_input.loc_field-1];
+    stop = &mp->buffer[mp->cur_input.loc_field - 1];
     mp_posit_aux_wrapup_numeric_token(mp, start, stop);
 }
 
-static void mp_posit_velocity(MP mp, mp_number *ret, mp_number *st, mp_number *ct, mp_number *sf, mp_number *cf, mp_number *t)
+static void mp_posit_velocity(MP mp, mp_number *ret, const mp_number *st, const mp_number *ct, const mp_number *sf, const mp_number *cf, const mp_number *t)
 {
-    posit_t acc, num, denom; /* registers for intermediate calculations */
+    posit_t acc, num, denom;
     (void) mp;
     acc = mp_posit_aux_take_fraction(
         mp_posit_aux_take_fraction(
             posit_sub(st->data.pval, posit_div(sf->data.pval, mp_posit_data.sixteen)),
             posit_sub(sf->data.pval, posit_div(st->data.pval, mp_posit_data.sixteen))
         ),
-        posit_sub(ct->data.pval,cf->data.pval)
+        posit_sub(ct->data.pval, cf->data.pval)
     );
     num = posit_add(
         mp_posit_data.fraction_two,
@@ -549,20 +569,20 @@ static void mp_posit_velocity(MP mp, mp_number *ret, mp_number *st, mp_number *c
     }
 }
 
-static int mp_posit_ab_vs_cd(mp_number *a_orig, mp_number *b_orig, mp_number *c_orig, mp_number *d_orig)
+static int mp_posit_ab_vs_cd(const mp_number *a_orig, const mp_number *b_orig, const mp_number *c_orig, const mp_number *d_orig)
 {
     posit_t ab = posit_mul(a_orig->data.pval, b_orig->data.pval);
     posit_t cd = posit_mul(c_orig->data.pval, d_orig->data.pval);
-    if (posit_eq(ab,cd)) {
+    if (posit_eq(ab, cd)) {
         return 0;
-    } else if (posit_lt(ab,cd)) {
+    } else if (posit_lt(ab, cd)) {
         return -1;
     } else {
         return 1;
     }
 }
 
-static void mp_posit_crossing_point(MP mp, mp_number *ret, mp_number *aa, mp_number *bb, mp_number *cc)
+static void mp_posit_crossing_point(MP mp, mp_number *ret, const mp_number *aa, const mp_number *bb, const mp_number *cc)
 {
     posit_t d;
     posit_t xx, x0, x1, x2;
@@ -593,13 +613,11 @@ static void mp_posit_crossing_point(MP mp, mp_number *ret, mp_number *aa, mp_num
         ret->data.pval = mp_posit_data.zero_crossing;
         return;
     }
-    /* Use bisection to find the crossing point... */
     d = mp_posit_data.epsilon;
     x0 = a;
     x1 = posit_sub(a, b);
     x2 = posit_sub(b, c);
     do {
-        /* not sure why the error correction has to be >= 1E-12 */
         posit_t x = posit_add(posit_div(posit_add(x1, x2), mp_posit_data.two), mp_posit_data.error_correction);
         if (posit_gt(posit_sub(x1, x0), x0)) {
             x2 = x;
@@ -625,9 +643,7 @@ static void mp_posit_crossing_point(MP mp, mp_number *ret, mp_number *aa, mp_num
     ret->data.pval = posit_sub(d, mp_posit_data.fraction_one);
 }
 
-/* See mpmathdouble for documentation. */
-
-static mp_scaled_t mp_posit_round_unscaled(mp_number *x_orig)
+static mp_scaled_t mp_posit_round_unscaled(const mp_number *x_orig)
 {
     return (mp_scaled_t) posit_i_round(x_orig->data.pval);
 }
@@ -643,7 +659,7 @@ static void mp_posit_fraction_to_round_scaled(mp_number *x_orig)
     x_orig->data.pval = posit_div(x_orig->data.pval, mp_posit_data.fraction_multiplier);
 }
 
-static void mp_posit_square_rt(MP mp, mp_number *ret, mp_number *x_orig) /* return, x: scaled */
+static void mp_posit_square_rt(MP mp, mp_number *ret, const mp_number *x_orig)
 {
     if (posit_gt(x_orig->data.pval, mp_posit_data.zero)) {
         ret->data.pval = posit_sqrt(x_orig->data.pval);
@@ -664,41 +680,42 @@ static void mp_posit_square_rt(MP mp, mp_number *ret, mp_number *x_orig) /* retu
     }
 }
 
-static void mp_posit_pyth_add(MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig)
+static void mp_posit_pyth_add(MP mp, mp_number *ret, const mp_number *a_orig, const mp_number *b_orig)
 {
     (void) mp;
     ret->data.pval = posit_sqrt(
         posit_add(
-            posit_mul(
-                a_orig->data.pval,
-                a_orig->data.pval
-            ),
-            posit_mul(
-                b_orig->data.pval,
-                b_orig->data.pval
-            )
+            posit_mul(a_orig->data.pval, a_orig->data.pval),
+            posit_mul(b_orig->data.pval, b_orig->data.pval)
         )
     );
 }
 
-static void mp_posit_pyth_sub(MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig)
+static void mp_posit_pyth_add3(MP mp, mp_number *ret, const mp_number *a_orig, const mp_number *b_orig, const mp_number *c_orig)
 {
-    /* can be made nicer */
-    if (posit_gt(a_orig->data.pval,b_orig->data.pval)) {
+    (void) mp;
+    ret->data.pval = posit_sqrt(
+        posit_add(
+            posit_add(
+                posit_mul(a_orig->data.pval, a_orig->data.pval),
+                posit_mul(b_orig->data.pval, b_orig->data.pval)
+            ),
+            posit_mul(c_orig->data.pval, c_orig->data.pval)
+        )
+    );
+}
+
+static void mp_posit_pyth_sub(MP mp, mp_number *ret, mp_number *a_orig, const mp_number *b_orig)
+{
+    if (posit_gt(a_orig->data.pval, b_orig->data.pval)) {
         a_orig->data.pval = posit_sqrt(
             posit_sub(
-                posit_mul(
-                    a_orig->data.pval,
-                    a_orig->data.pval
-                ),
-                posit_mul(
-                    b_orig->data.pval,
-                    b_orig->data.pval
-                )
+                posit_mul(a_orig->data.pval, a_orig->data.pval),
+                posit_mul(b_orig->data.pval, b_orig->data.pval)
             )
         );
     } else {
-        if (posit_lt(a_orig->data.pval,b_orig->data.pval)) {
+        if (posit_lt(a_orig->data.pval, b_orig->data.pval)) {
             char msg[256];
             char *astr = mp_posit_number_tostring(mp, a_orig);
             char *bstr = mp_posit_number_tostring(mp, b_orig);
@@ -717,21 +734,20 @@ static void mp_posit_pyth_sub(MP mp, mp_number *ret, mp_number *a_orig, mp_numbe
     ret->data.pval = a_orig->data.pval;
 }
 
-static void mp_posit_power_of(MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig)
+static void mp_posit_power_of(MP mp, mp_number *ret, const mp_number *a_orig, const mp_number *b_orig)
 {
     errno = 0;
     ret->data.pval = posit_pow(a_orig->data.pval, b_orig->data.pval);
     if (errno) {
-        mp->arithmic_error = 1;
+        mp->arithmic_error = mp_error_code(mp, 3);
         ret->data.pval = mp_posit_data.EL_GORDO;
     }
 }
 
-static void mp_posit_m_log(MP mp, mp_number *ret, mp_number *x_orig)
+static void mp_posit_m_log(MP mp, mp_number *ret, const mp_number *x_orig)
 {
-    /* TODO: int mult */
-    if (posit_gt(x_orig->data.pval,mp_posit_data.zero)) {
-        ret->data.pval = posit_mul(posit_log(x_orig->data.pval),mp_posit_data.d256);
+    if (posit_gt(x_orig->data.pval, mp_posit_data.zero)) {
+        ret->data.pval = posit_mul(posit_log(x_orig->data.pval), mp_posit_data.d256);
     } else {
         char msg[256];
         char *xstr = mp_posit_number_tostring(mp, x_orig);
@@ -747,13 +763,13 @@ static void mp_posit_m_log(MP mp, mp_number *ret, mp_number *x_orig)
     }
 }
 
-static void mp_posit_m_exp(MP mp, mp_number *ret, mp_number *x_orig)
+static void mp_posit_m_exp(MP mp, mp_number *ret, const mp_number *x_orig)
 {
     errno = 0;
-    ret->data.pval = posit_exp(posit_div(x_orig->data.pval,mp_posit_data.d256));
+    ret->data.pval = posit_exp(posit_div(x_orig->data.pval, mp_posit_data.d256));
     if (errno) {
-        if (posit_gt(x_orig->data.pval,mp_posit_data.zero)) {
-            mp->arithmic_error = 1;
+        if (posit_gt(x_orig->data.pval, mp_posit_data.zero)) {
+            mp->arithmic_error = mp_error_code(mp, 4);
             ret->data.pval = mp_posit_data.EL_GORDO;
         } else {
             ret->data.pval = mp_posit_data.zero;
@@ -761,7 +777,7 @@ static void mp_posit_m_exp(MP mp, mp_number *ret, mp_number *x_orig)
     }
 }
 
-static void mp_posit_n_arg(MP mp, mp_number *ret, mp_number *x_orig, mp_number *y_orig)
+static void mp_posit_n_arg(MP mp, mp_number *ret, const mp_number *x_orig, const mp_number *y_orig)
 {
     if (posit_eq_zero(x_orig->data.pval) && posit_eq_zero(y_orig->data.pval)) {
         if (posit_lt(internal_value(mp_default_zero_angle_internal).data.pval, mp_posit_data.zero)) {
@@ -777,19 +793,14 @@ static void mp_posit_n_arg(MP mp, mp_number *ret, mp_number *x_orig, mp_number *
         }
     } else {
         ret->type = mp_angle_type;
-        /* TODO */
         ret->data.pval = posit_mul(
-            posit_atan2(
-                y_orig->data.pval,
-                x_orig->data.pval
-            ),
+            posit_atan2(y_orig->data.pval, x_orig->data.pval),
             mp_posit_data.d180_divided_by_pi_mul_angle
         );
-// printf("P x=%f y=%f atan=%f\n",posit_to_double(y_orig->data.pval),posit_to_double(x_orig->data.pval),posit_to_double(ret->data.pval));
     }
 }
 
-static void mp_posit_sin_cos(MP mp, mp_number *z_orig, mp_number *n_cos, mp_number *n_sin)
+static void mp_posit_sin_cos(MP mp, const mp_number *z_orig, mp_number *n_cos, mp_number *n_sin)
 {
     posit_t rad = posit_div(z_orig->data.pval, mp_posit_data.angle_multiplier);
     (void) mp;
@@ -803,94 +814,67 @@ static void mp_posit_sin_cos(MP mp, mp_number *z_orig, mp_number *n_cos, mp_numb
         n_cos->data.pval = mp_posit_data.negative_fraction_multiplier;
         n_sin->data.pval = mp_posit_data.zero;
     } else {
-        rad = posit_mul(rad,mp_posit_data.pi_divided_by_180);
-        n_cos->data.pval = posit_mul(posit_cos(rad),mp_posit_data.fraction_multiplier);
-        n_sin->data.pval = posit_mul(posit_sin(rad),mp_posit_data.fraction_multiplier);
+        rad = posit_mul(rad, mp_posit_data.pi_divided_by_180);
+        n_cos->data.pval = posit_mul(posit_cos(rad), mp_posit_data.fraction_multiplier);
+        n_sin->data.pval = posit_mul(posit_sin(rad), mp_posit_data.fraction_multiplier);
     }
 }
-
-/* See mpmathdouble for documentation. */
-
-# define KK            100                /* the long lag  */
-# define LL            37                 /* the short lag */
-# define MM            (1L<<30)           /* the modulus   */
-# define mod_diff(x,y) (((x)-(y))&(MM-1)) /* subtraction mod MM */
-# define TT            70                 /* guaranteed separation between streams */
-# define is_odd(x)     ((x)&1)            /* units bit of x */
-# define QUALITY       1009               /* recommended quality level for high-res use */
-
-/* destination, array length (must be at least KK) */
-
-typedef struct mp_posit_random_info {
-    long  x[KK];
-    long  buf[QUALITY];
-    long  dummy;
-    long  started;
-    long *ptr;
-} mp_posit_random_info;
-
-static mp_posit_random_info mp_posit_random_data = {
-    .dummy   = -1,
-    .started = -1,
-    .ptr     = &mp_posit_random_data.dummy
-};
 
 /* the following routines are from exercise 3.6--15 */
 /* after calling |mp_aux_ran_start|, get new randoms by, e.g., |x=mp_aux_ran_arr_next()| */
 
-static void mp_posit_aux_ran_array(long aa[], int n)
+static void mp_posit_aux_ran_array(MP mp, long aa[], int n)
 {
     int i, j;
-    for (j = 0; j < KK; j++) {
-        aa[j] = mp_posit_random_data.x[j];
+    for (j = 0; j < mp_random_KK; j++) {
+        aa[j] = mp->random_data.x[j];
     }
     for (; j < n; j++) {
-        aa[j] = mod_diff(aa[j - KK], aa[j - LL]);
+        aa[j] = mp_random_mod_diff(aa[j - mp_random_KK], aa[j - mp_random_LL]);
     }
-    for (i = 0; i < LL; i++, j++) {
-        mp_posit_random_data.x[i] = mod_diff(aa[j - KK], aa[j - LL]);
+    for (i = 0; i < mp_random_LL; i++, j++) {
+        mp->random_data.x[i] = mp_random_mod_diff(aa[j - mp_random_KK], aa[j - mp_random_LL]);
     }
-    for (; i < KK; i++, j++) {
-        mp_posit_random_data.x[i] = mod_diff(aa[j - KK], mp_posit_random_data.x[i - LL]);
+    for (; i < mp_random_KK; i++, j++) {
+        mp->random_data.x[i] = mp_random_mod_diff(aa[j - mp_random_KK], mp->random_data.x[i - mp_random_LL]);
     }
 }
 
 /* Do this before using |mp_aux_ran_array|, long seed selector for different streams. */
 
-static void mp_posit_aux_ran_start(long seed)
+static void mp_posit_aux_ran_start(MP mp, long seed)
 {
     int t, j;
-    long x[KK + KK - 1]; /* the preparation buffer */
-    long ss = (seed+2) & (MM - 2);
-    for (j = 0; j < KK; j++) {
+    long x[mp_random_KK + mp_random_KK - 1];
+    long ss = (seed + 2) & (mp_random_MM - 2);
+    for (j = 0; j < mp_random_KK; j++) {
         /* bootstrap the buffer */
         x[j] = ss;
         /* cyclic shift 29 bits */
         ss <<= 1;
-        if (ss >= MM) {
-            ss -= MM - 2;
+        if (ss >= mp_random_MM) {
+            ss -= mp_random_MM - 2;
         }
     }
     /* make x[1] (and only x[1]) odd */
     x[1]++;
-    for (ss = seed & (MM - 1), t = TT - 1; t;) {
-        for (j = KK - 1; j > 0; j--) {
+    for (ss = seed & (mp_random_MM - 1), t = mp_random_TT - 1; t;) {
+        for (j = mp_random_KK - 1; j > 0; j--) {
             /* "square" */
             x[j + j] = x[j];
             x[j + j - 1] = 0;
         }
-        for (j = KK + KK - 2; j >= KK; j--) {
-            x[j - (KK -LL)] = mod_diff(x[j - (KK - LL)], x[j]);
-            x[j - KK] = mod_diff(x[j - KK], x[j]);
+        for (j = mp_random_KK + mp_random_KK - 2; j >= mp_random_KK; j--) {
+            x[j - (mp_random_KK - mp_random_LL)] = mp_random_mod_diff(x[j - (mp_random_KK - mp_random_LL)], x[j]);
+            x[j - mp_random_KK] = mp_random_mod_diff(x[j - mp_random_KK], x[j]);
         }
-        if (is_odd(ss)) {
-            /* "multiply by z" */
-            for (j = KK; j>0; j--) {
-                x[j] = x[j-1];
+        if (odd_long(ss)) {
+            for (j = mp_random_KK; j > 0; j--) {
+                x[j] = x[j - 1];
             }
-            x[0] = x[KK];
-            /* shift the buffer cyclically */
-            x[LL] = mod_diff(x[LL], x[KK]);
+            x[0] = x[mp_random_KK];
+            /* shift the buffer cyclicamp_random_LLy */
+            x[mp_random_LL] = mp_random_mod_diff(x[mp_random_LL], x[mp_random_KK]);
         }
         if (ss) {
             ss >>= 1;
@@ -898,38 +882,43 @@ static void mp_posit_aux_ran_start(long seed)
             t--;
         }
     }
-    for (j = 0; j < LL; j++) {
-        mp_posit_random_data.x[j + KK - LL] = x[j];
+    for (j = 0; j < mp_random_LL; j++) {
+        mp->random_data.x[j + mp_random_KK - mp_random_LL] = x[j];
     }
-    for (;j < KK; j++) {
-        mp_posit_random_data.x[j - LL] = x[j];
+    for (; j < mp_random_KK; j++) {
+        mp->random_data.x[j - mp_random_LL] = x[j];
     }
     for (j = 0; j < 10; j++) {
         /* warm things up */
-        mp_posit_aux_ran_array(x, KK + KK - 1);
+        mp_posit_aux_ran_array(mp, x, mp_random_KK + mp_random_KK - 1);
     }
-    mp_posit_random_data.ptr = &mp_posit_random_data.started;
+    mp->random_data.ptr = &mp->random_data.started;
 }
 
-static long mp_posit_aux_ran_arr_cycle(void)
+static long mp_posit_aux_ran_arr_cycle(MP mp)
 {
-    if (mp_posit_random_data.ptr == &mp_posit_random_data.dummy) {
+    if (mp->random_data.ptr == &mp->random_data.dummy) {
         /* the user forgot to initialize */
-        mp_posit_aux_ran_start(314159L);
+        mp_posit_aux_ran_start(mp, 314159L);
     }
-    mp_posit_aux_ran_array(mp_posit_random_data.buf, QUALITY);
-    mp_posit_random_data.buf[KK] = -1;
-    mp_posit_random_data.ptr = mp_posit_random_data.buf + 1;
-    return mp_posit_random_data.buf[0];
+    mp_posit_aux_ran_array(mp, mp->random_data.buf, mp_random_QUALITY);
+    mp->random_data.buf[mp_random_KK] = -1;
+    mp->random_data.ptr = mp->random_data.buf + 1;
+    return mp->random_data.buf[0];
 }
 
 static void mp_posit_init_randoms(MP mp, int seed)
 {
+    mp->random_data = (mp_random_info) {
+        .dummy   = -1,
+        .started = -1,
+        .ptr     = &mp->random_data.dummy
+    };
     int k = 1;
     int j = abs(seed);
     int f = (int) mp_fraction_multiplier; /* avoid warnings */
     while (j >= f) {
-        j = j/2;
+        j = j / 2;
     }
     for (int i = 0; i <= 54; i++) {
         int jj = k;
@@ -944,18 +933,18 @@ static void mp_posit_init_randoms(MP mp, int seed)
     mp_new_randoms(mp);
     mp_new_randoms(mp);
     /* warm up the array */
-    mp_posit_aux_ran_start((unsigned long) seed);
+    mp_posit_aux_ran_start(mp, (unsigned long) seed);
 }
 
-static void mp_posit_modulo(mp_number *a, mp_number *b)
+static void mp_posit_modulo(mp_number *a, const mp_number *b)
 {
     a->data.pval = posit_mul(posit_modf(posit_div(a->data.pval, b->data.pval)), b->data.pval);
 }
 
 static void mp_posit_next_unif_random(MP mp, mp_number *ret)
 {
-    unsigned long int op = (unsigned) (*mp_posit_random_data.ptr >=0 ? *mp_posit_random_data.ptr++: mp_posit_aux_ran_arr_cycle());
-    double a = op / (MM * 1.0);
+    unsigned long int op = (unsigned) (*mp->random_data.ptr >= 0 ? *mp->random_data.ptr++ : mp_posit_aux_ran_arr_cycle(mp));
+    double a = op / (mp_random_MM * 1.0);
     (void) mp;
     ret->data.pval = double_to_posit(a);
 }
@@ -970,7 +959,7 @@ static void mp_posit_aux_next_random(MP mp, mp_number *ret)
     mp_posit_clone(ret, &(mp->randoms[mp->j_random]));
 }
 
-static void mp_posit_m_unif_rand(MP mp, mp_number *ret, mp_number *x_orig)
+static void mp_posit_m_unif_rand(MP mp, mp_number *ret, const mp_number *x_orig)
 {
     mp_number x, abs_x, u, y;
     mp_posit_allocate_number(mp, &y, mp_fraction_type);
@@ -981,8 +970,8 @@ static void mp_posit_m_unif_rand(MP mp, mp_number *ret, mp_number *x_orig)
     y.data.pval = posit_mul(abs_x.data.pval, u.data.pval);
     mp_posit_free_number(mp, &u);
     if (mp_posit_equal(&y, &abs_x)) {
-        mp_posit_clone(ret, &((math_data *)mp->math)->md_zero_t);
-    } else if (mp_posit_greater(&x, &((math_data *)mp->math)->md_zero_t)) {
+        mp_posit_clone(ret, &((math_data *) mp->math)->md_zero_t);
+    } else if (mp_posit_greater(&x, &((math_data *) mp->math)->md_zero_t)) {
         mp_posit_clone(ret, &y);
     } else {
         mp_posit_negated_clone(ret, &y);
@@ -1005,8 +994,8 @@ static void mp_posit_m_norm_rand(MP mp, mp_number *ret)
             mp_number v;
             mp_posit_allocate_number(mp, &v, mp_scaled_type);
             mp_posit_aux_next_random(mp, &v);
-            mp_posit_subtract(&v, &((math_data *)mp->math)->md_fraction_half_t);
-            mp_posit_take_fraction(mp, &xa, &((math_data *)mp->math)->md_sqrt_8_e_k, &v);
+            mp_posit_subtract(&v, &((math_data *) mp->math)->md_fraction_half_t);
+            mp_posit_take_fraction(mp, &xa, &((math_data *) mp->math)->md_sqrt_8_e_k, &v);
             mp_posit_free_number(mp, &v);
             mp_posit_aux_next_random(mp, &u);
             mp_posit_clone(&abs_x, &xa);
@@ -1015,8 +1004,8 @@ static void mp_posit_m_norm_rand(MP mp, mp_number *ret)
         mp_posit_make_fraction(mp, &r, &xa, &u);
         mp_posit_clone(&xa, &r);
         mp_posit_m_log(mp, &la, &u);
-        mp_posit_set_from_subtraction(&la, &((math_data *)mp->math)->md_twelve_ln_2_k, &la);
-    } while (mp_posit_ab_vs_cd(&((math_data *)mp->math)->md_one_k, &la, &xa, &xa) < 0);
+        mp_posit_set_from_subtraction(&la, &((math_data *) mp->math)->md_twelve_ln_2_k, &la);
+    } while (mp_posit_ab_vs_cd(&((math_data *) mp->math)->md_one_k, &la, &xa, &xa) < 0);
     mp_posit_clone(ret, &xa);
     mp_posit_free_number(mp, &r);
     mp_posit_free_number(mp, &abs_x);
@@ -1032,7 +1021,6 @@ static void mp_posit_set_precision(MP mp)
 
 static void mp_posit_free_math(MP mp)
 {
-    /* Is this list up to date? Also check elewhere. */
     mp_posit_free_number(mp, &(mp->math->md_three_sixty_deg_t));
     mp_posit_free_number(mp, &(mp->math->md_one_eighty_deg_t));
     mp_posit_free_number(mp, &(mp->math->md_negative_one_eighty_deg_t));
@@ -1065,7 +1053,7 @@ static void mp_posit_free_math(MP mp)
 math_data *mp_initialize_posit_math(MP mp)
 {
     math_data *math = (math_data *) mp_memory_allocate(sizeof(math_data));
-    /* alloc */
+
     if (! mp_posit_data.initialized) {
         mp_posit_data.initialized                  = 1;
         mp_posit_data.unity                        = integer_to_posit(1);
@@ -1093,7 +1081,7 @@ math_data *mp_initialize_posit_math(MP mp)
         mp_posit_data.d65536                       = integer_to_posit(65536);
         mp_posit_data.minusone                     = posit_neg(mp_posit_data.one);
         mp_posit_data.half_unit                    = posit_div(mp_posit_data.unity, mp_posit_data.two);
-        mp_posit_data.three_quarter_unit           = posit_mul(mp_posit_data.three, posit_div(mp_posit_data.unity,mp_posit_data.four));
+        mp_posit_data.three_quarter_unit           = posit_mul(mp_posit_data.three, posit_div(mp_posit_data.unity, mp_posit_data.four));
         mp_posit_data.fraction_multiplier          = integer_to_posit(mp_fraction_multiplier);
         mp_posit_data.negative_fraction_multiplier = posit_neg(mp_posit_data.fraction_multiplier);
         mp_posit_data.angle_multiplier             = integer_to_posit(mp_angle_multiplier);
@@ -1109,57 +1097,41 @@ math_data *mp_initialize_posit_math(MP mp)
         mp_posit_data.no_crossing                  = posit_add(mp_posit_data.fraction_multiplier, mp_posit_data.one);
         mp_posit_data.one_crossing                 = mp_posit_data.fraction_multiplier;
         mp_posit_data.zero_crossing                = mp_posit_data.zero;
-        mp_posit_data.error_correction             = double_to_posit(1E-12);                                                              /* debatable */
-        mp_posit_data.warning_limit                = posit_pow(mp_posit_data.two, integer_to_posit(52));                                  /* this is a large value that can just be expressed without loss of precision */
+        mp_posit_data.error_correction             = double_to_posit(1E-12);
+        mp_posit_data.warning_limit                = posit_pow(mp_posit_data.two, integer_to_posit(52));
         mp_posit_data.pi                           = double_to_posit(3.1415926535897932384626433832795028841971);
         mp_posit_data.pi_divided_by_180            = posit_div(mp_posit_data.pi, mp_posit_data.dp180);
         mp_posit_data.epsilon                      = posit_pow(mp_posit_data.two, integer_to_posit(-52.0));
-        mp_posit_data.EL_GORDO                     = posit_sub(posit_div(double_to_posit(DBL_MAX),mp_posit_data.two), mp_posit_data.one); /* the largest value that \MP\ likes. */
+        mp_posit_data.EL_GORDO                     = posit_sub(posit_div(double_to_posit(DBL_MAX), mp_posit_data.two), mp_posit_data.one);
         mp_posit_data.negative_EL_GORDO            = posit_neg(mp_posit_data.EL_GORDO);
         mp_posit_data.one_third_EL_GORDO           = posit_div(mp_posit_data.EL_GORDO, mp_posit_data.three);
-        mp_posit_data.coef                         = posit_div(mp_posit_data.seven, mp_posit_data.three);                                       /* |fraction| approximation to 7/3 */
+        mp_posit_data.coef                         = posit_div(mp_posit_data.seven, mp_posit_data.three);
         mp_posit_data.coef_bound                   = posit_mul(mp_posit_data.coef, mp_posit_data.fraction_multiplier);
-        mp_posit_data.scaled_threshold             = double_to_posit(0.000122);                                                           /* a |scaled| coefficient less than this is zeroed */
-        mp_posit_data.near_zero_angle              = posit_mul(double_to_posit(0.0256), mp_posit_data.angle_multiplier);                  /* an angle of about 0.0256 */
+        mp_posit_data.scaled_threshold             = double_to_posit(0.000122);
+        mp_posit_data.fraction_threshold           = double_to_posit(0.04096);
+        mp_posit_data.near_zero_angle              = posit_mul(double_to_posit(0.0256), mp_posit_data.angle_multiplier);
         mp_posit_data.p_over_v_threshold           = integer_to_posit(0x80000);
         mp_posit_data.equation_threshold           = double_to_posit(0.001);
-        mp_posit_data.sqrt_two_mul_fraction_one =
-            posit_mul(
-                posit_sqrt(mp_posit_data.two),
-                mp_posit_data.fraction_one
-            );
+        mp_posit_data.sqrt_two_mul_fraction_one    = posit_mul(posit_sqrt(mp_posit_data.two), mp_posit_data.fraction_one);
+
         mp_posit_data.sqrt_five_minus_one_mul_fraction_one_and_half =
             posit_mul(
-                posit_mul(
-                    mp_posit_data.three,
-                    mp_posit_data.fraction_half
-                ),
-                posit_sub(
-                    posit_sqrt(mp_posit_data.five),
-                    mp_posit_data.one
-                )
+                posit_mul(mp_posit_data.three, mp_posit_data.fraction_half),
+                posit_sub(posit_sqrt(mp_posit_data.five), mp_posit_data.one)
             );
         mp_posit_data.three_minus_sqrt_five_mul_fraction_one_and_half =
             posit_mul(
-                posit_mul(
-                    mp_posit_data.three,
-                    mp_posit_data.fraction_half
-                ),
-                posit_sub(
-                    mp_posit_data.three,
-                    posit_sqrt(mp_posit_data.five)
-                )
+                posit_mul(mp_posit_data.three, mp_posit_data.fraction_half),
+                posit_sub(mp_posit_data.three, posit_sqrt(mp_posit_data.five))
             );
         mp_posit_data.d180_divided_by_pi_mul_angle =
             posit_mul(
-                posit_div(
-                    mp_posit_data.dp180,
-                    mp_posit_data.pi
-                ),
+                posit_div(mp_posit_data.dp180, mp_posit_data.pi),
                 mp_posit_data.angle_multiplier
             );
     }
-    /* alloc */
+
+    /* Allocations */
     math->md_allocate        = mp_posit_allocate_number;
     math->md_free            = mp_posit_free_number;
     math->md_allocate_clone  = mp_posit_allocate_clone;
@@ -1169,11 +1141,13 @@ math_data *mp_initialize_posit_math(MP mp)
     math->md_allocate_add    = mp_posit_allocate_add;
     math->md_allocate_sub    = mp_posit_allocate_sub;
     math->md_allocate_double = mp_posit_allocate_double;
-    /* precission */
+
+    /* Precision defaults */
     mp_posit_allocate_number(mp, &math->md_precision_default, mp_scaled_type);
     mp_posit_allocate_number(mp, &math->md_precision_max, mp_scaled_type);
     mp_posit_allocate_number(mp, &math->md_precision_min, mp_scaled_type);
-    /* here are the constants for |scaled| objects */
+
+    /* Constants for |scaled| objects */
     mp_posit_allocate_number(mp, &math->md_epsilon_t, mp_scaled_type);
     mp_posit_allocate_number(mp, &math->md_inf_t, mp_scaled_type);
     mp_posit_allocate_number(mp, &math->md_negative_inf_t, mp_scaled_type);
@@ -1185,17 +1159,20 @@ math_data *mp_initialize_posit_math(MP mp)
     mp_posit_allocate_number(mp, &math->md_half_unit_t, mp_scaled_type);
     mp_posit_allocate_number(mp, &math->md_three_quarter_unit_t, mp_scaled_type);
     mp_posit_allocate_number(mp, &math->md_zero_t, mp_scaled_type);
+
     /* |fractions| */
     mp_posit_allocate_number(mp, &math->md_arc_tol_k, mp_fraction_type);
     mp_posit_allocate_number(mp, &math->md_fraction_one_t, mp_fraction_type);
     mp_posit_allocate_number(mp, &math->md_fraction_half_t, mp_fraction_type);
     mp_posit_allocate_number(mp, &math->md_fraction_three_t, mp_fraction_type);
     mp_posit_allocate_number(mp, &math->md_fraction_four_t, mp_fraction_type);
+
     /* |angles| */
     mp_posit_allocate_number(mp, &math->md_three_sixty_deg_t, mp_angle_type);
     mp_posit_allocate_number(mp, &math->md_one_eighty_deg_t, mp_angle_type);
     mp_posit_allocate_number(mp, &math->md_negative_one_eighty_deg_t, mp_angle_type);
-    /* various approximations */
+
+    /* Various approximations */
     mp_posit_allocate_number(mp, &math->md_one_k, mp_scaled_type);
     mp_posit_allocate_number(mp, &math->md_sqrt_8_e_k, mp_scaled_type);
     mp_posit_allocate_number(mp, &math->md_twelve_ln_2_k, mp_fraction_type);
@@ -1205,7 +1182,8 @@ math_data *mp_initialize_posit_math(MP mp)
     mp_posit_allocate_number(mp, &math->md_twentysixbits_sqrt2_t, mp_fraction_type);
     mp_posit_allocate_number(mp, &math->md_twentyeightbits_d_t, mp_fraction_type);
     mp_posit_allocate_number(mp, &math->md_twentysevenbits_sqrt2_d_t, mp_fraction_type);
-    /* thresholds */
+
+    /* Thresholds */
     mp_posit_allocate_number(mp, &math->md_fraction_threshold_t, mp_fraction_type);
     mp_posit_allocate_number(mp, &math->md_half_fraction_threshold_t, mp_fraction_type);
     mp_posit_allocate_number(mp, &math->md_scaled_threshold_t, mp_scaled_type);
@@ -1213,7 +1191,8 @@ math_data *mp_initialize_posit_math(MP mp)
     mp_posit_allocate_number(mp, &math->md_near_zero_angle_t, mp_angle_type);
     mp_posit_allocate_number(mp, &math->md_p_over_v_threshold_t, mp_fraction_type);
     mp_posit_allocate_number(mp, &math->md_equation_threshold_t, mp_scaled_type);
-    /* initializations */
+
+    /* Initializations */
     math->md_precision_default.data.pval         = posit_mul(mp_posit_data.d16, mp_posit_data.unity);
     math->md_precision_max.data.pval             = posit_mul(mp_posit_data.d16, mp_posit_data.unity);
     math->md_precision_min.data.pval             = posit_mul(mp_posit_data.d16, mp_posit_data.unity);
@@ -1227,7 +1206,7 @@ math_data *mp_initialize_posit_math(MP mp)
     math->md_three_t.data.pval                   = mp_posit_data.three;
     math->md_half_unit_t.data.pval               = mp_posit_data.half_unit;
     math->md_three_quarter_unit_t.data.pval      = mp_posit_data.three_quarter_unit;
-    math->md_arc_tol_k.data.pval                 = posit_div(mp_posit_data.unity, mp_posit_data.d4096);                         /* quit when change in arc length estimate reaches this */
+    math->md_arc_tol_k.data.pval                 = posit_div(mp_posit_data.unity, mp_posit_data.d4096);
     math->md_fraction_one_t.data.pval            = mp_posit_data.fraction_one;
     math->md_fraction_half_t.data.pval           = mp_posit_data.fraction_half;
     math->md_fraction_three_t.data.pval          = mp_posit_data.fraction_three;
@@ -1236,22 +1215,23 @@ math_data *mp_initialize_posit_math(MP mp)
     math->md_one_eighty_deg_t.data.pval          = mp_posit_data.one_eighty_degrees;
     math->md_negative_one_eighty_deg_t.data.pval = mp_posit_data.negative_one_eighty_degrees;
     math->md_one_k.data.pval                     = posit_div(mp_posit_data.one, mp_posit_data.d64);
-    math->md_sqrt_8_e_k.data.pval                = double_to_posit(1.71552776992141359295);                                /* $2^{16}\sqrt{8/e}  \approx   112428.82793$ */
-    math->md_twelve_ln_2_k.data.pval             = posit_mul(double_to_posit(8.31776616671934371292), mp_posit_data.d256); /* $2^{24}\cdot12\ln2 \approx139548959.6165 $ */
-    math->md_twelvebits_3.data.pval              = posit_div(integer_to_posit(1365), mp_posit_data.unity);                 /* $1365              \approx 2^{12}/3      $ */
-    math->md_twentysixbits_sqrt2_t.data.pval     = posit_div(integer_to_posit(94906266), mp_posit_data.d65536);            /* $2^{26}\sqrt2      \approx 94906265.62   $ */
-    math->md_twentyeightbits_d_t.data.pval       = posit_div(integer_to_posit(35596755), mp_posit_data.d65536);            /* $2^{28}d           \approx 35596754.69   $ */
-    math->md_twentysevenbits_sqrt2_d_t.data.pval = posit_div(integer_to_posit(25170707), mp_posit_data.d65536);            /* $2^{27}\sqrt2\,d   \approx 25170706.63   $ */
+    math->md_sqrt_8_e_k.data.pval                = double_to_posit(1.71552776992141359295);
+    math->md_twelve_ln_2_k.data.pval             = posit_mul(double_to_posit(8.31776616671934371292), mp_posit_data.d256);
+    math->md_twelvebits_3.data.pval              = posit_div(integer_to_posit(1365), mp_posit_data.unity);
+    math->md_twentysixbits_sqrt2_t.data.pval     = posit_div(integer_to_posit(94906266), mp_posit_data.d65536);
+    math->md_twentyeightbits_d_t.data.pval       = posit_div(integer_to_posit(35596755), mp_posit_data.d65536);
+    math->md_twentysevenbits_sqrt2_d_t.data.pval = posit_div(integer_to_posit(25170707), mp_posit_data.d65536);
     math->md_coef_bound_k.data.pval              = mp_posit_data.coef_bound;
     math->md_coef_bound_minus_1.data.pval        = posit_sub(mp_posit_data.coef_bound, posit_div(mp_posit_data.one, mp_posit_data.d65536));
-    math->md_fraction_threshold_t.data.pval      = double_to_posit(0.04096);                                               /* a |fraction| coefficient less than this is zeroed */
+    math->md_fraction_threshold_t.data.pval      = mp_posit_data.fraction_threshold;
     math->md_half_fraction_threshold_t.data.pval = posit_div(mp_posit_data.fraction_threshold, mp_posit_data.two);
     math->md_scaled_threshold_t.data.pval        = mp_posit_data.scaled_threshold;
-    math->md_half_scaled_threshold_t.data.pval   = posit_div(mp_posit_data.scaled_threshold,mp_posit_data.two);
+    math->md_half_scaled_threshold_t.data.pval   = posit_div(mp_posit_data.scaled_threshold, mp_posit_data.two);
     math->md_near_zero_angle_t.data.pval         = mp_posit_data.near_zero_angle;
     math->md_p_over_v_threshold_t.data.pval      = mp_posit_data.p_over_v_threshold;
     math->md_equation_threshold_t.data.pval      = mp_posit_data.equation_threshold;
-    /* functions */
+
+    /* Function bindings */
     math->md_from_int                 = mp_posit_set_from_int;
     math->md_from_boolean             = mp_posit_set_from_boolean;
     math->md_from_scaled              = mp_posit_set_from_scaled;
@@ -1301,6 +1281,7 @@ math_data *mp_initialize_posit_math(MP mp)
     math->md_m_unif_rand              = mp_posit_m_unif_rand;
     math->md_m_norm_rand              = mp_posit_m_norm_rand;
     math->md_pyth_add                 = mp_posit_pyth_add;
+    math->md_pyth_add3                = mp_posit_pyth_add3;
     math->md_pyth_sub                 = mp_posit_pyth_sub;
     math->md_power_of                 = mp_posit_power_of;
     math->md_fraction_to_scaled       = mp_posit_fraction_to_scaled;
@@ -1310,6 +1291,7 @@ math_data *mp_initialize_posit_math(MP mp)
     math->md_init_randoms             = mp_posit_init_randoms;
     math->md_sin_cos                  = mp_posit_sin_cos;
     math->md_slow_add                 = mp_posit_slow_add;
+    math->md_slow_sub                 = mp_posit_slow_sub;
     math->md_sqrt                     = mp_posit_square_rt;
     math->md_print                    = mp_posit_print_number;
     math->md_tostring                 = mp_posit_number_tostring;
@@ -1318,8 +1300,10 @@ math_data *mp_initialize_posit_math(MP mp)
     math->md_crossing_point           = mp_posit_crossing_point;
     math->md_scan_numeric             = mp_posit_scan_numeric_token;
     math->md_scan_fractional          = mp_posit_scan_fractional_token;
-    /* housekeeping */
+
+    /* Housekeeping */
     math->md_free_math                = mp_posit_free_math;
     math->md_set_precision            = mp_posit_set_precision;
+
     return math;
 }

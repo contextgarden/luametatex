@@ -38,4 +38,6 @@ extern void        lmt_dump_engine_info           (dumpstream f);
 extern void        lmt_undump_engine_info         (dumpstream f);
 extern const char *lmt_error_string               (lua_State *L, int index);
 
+extern int         tex_engine_mps_initialize      (int state);
+
 # endif

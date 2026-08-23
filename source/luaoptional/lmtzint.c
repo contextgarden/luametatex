@@ -8,7 +8,7 @@
     we adapt to versions. We can always decide to drop older ones when we get too many. The next
     variant is a mix of our attempts to deal with this issue.
 
-    Remark: we have qr code generation available in a dedicated module in the core (Project Nayuki). 
+    Remark: we have qr code generation available in a dedicated module in the core (Project Nayuki).
 
 */
 
@@ -146,47 +146,45 @@ typedef struct {
     struct zint_vector    *vector;
 } zint_symbol_212;
 
-/* It looks like we have 2.12's with a different blob: */
-
-// typedef struct {
-//     int                    symbology;
-//     float                  height;
-//     float                  scale;
-//     int                    whitespace_width;
-//     int                    whitespace_height;
-//     int                    border_width;
-//     int                    output_options;
-//     char                   fgcolour[16];
-//     char                   bgcolour[16];
-//     char                  *fgcolor;
-//     char                  *bgcolor;
-//     char                   outfile[256];
-//     char                   primary[128];
-//     int                    option_1;
-//     int                    option_2;
-//     int                    option_3;
-//     int                    show_hrt;
-//     int                    input_mode;
-//     int                    eci;
-//     float                  dpmm;
-//     float                  dot_size;
-//     float                  text_gap;
-//     float                  guard_descent;
-//     struct zint_structapp  structapp;
-//     int                    warn_level;
-//     int                    debug;
-//     unsigned char          text[160];
-//     int                    rows;
-//     int                    width;
-//     unsigned char          encoded_data[200][144];
-//     float                  row_height[200];
-//     char                   errtxt[100];
-//     unsigned char         *bitmap;
-//     int                    bitmap_width;
-//     int                    bitmap_height;
-//     unsigned char         *alphamap;
-//     struct zint_vector    *vector;
-// } zint_symbol_212;
+typedef struct {
+    int                    symbology;
+    float                  height;
+    float                  scale;
+    int                    whitespace_width;
+    int                    whitespace_height;
+    int                    border_width;
+    int                    output_options;
+    char                   fgcolour[16];
+    char                   bgcolour[16];
+    char                  *fgcolor;
+    char                  *bgcolor;
+    char                   outfile[256];
+    char                   primary[128];
+    int                    option_1;
+    int                    option_2;
+    int                    option_3;
+    int                    show_hrt;
+    int                    input_mode;
+    int                    eci;
+    float                  dpmm;
+    float                  dot_size;
+    float                  text_gap;
+    float                  guard_descent;
+    struct zint_structapp  structapp;
+    int                    warn_level;
+    int                    debug;
+    unsigned char          text[160];
+    int                    rows;
+    int                    width;
+    unsigned char          encoded_data[200][144];
+    float                  row_height[200];
+    char                   errtxt[100];
+    unsigned char         *bitmap;
+    int                    bitmap_width;
+    int                    bitmap_height;
+    unsigned char         *alphamap;
+    struct zint_vector    *vector;
+} zint_symbol_213;
 
 typedef struct zint_rectangle zint_rectangle;
 
@@ -373,6 +371,12 @@ static zint_vector *lmt_zint_vector_212(zint_symbol *symbol_)
     return symbol->vector;
 }
 
+static zint_vector *lmt_zint_vector_213(zint_symbol *symbol_)
+{
+    zint_symbol_213 *symbol = (void*) symbol_;
+    return symbol->vector;
+}
+
 static void lmt_zint_symbol_set_options_210(zint_symbol *symbol_, int symbology, int input_mode, int output_options, int square)
 {
     zint_symbol_210 *symbol = (void*) symbol_;
@@ -397,6 +401,17 @@ static void lmt_zint_symbol_set_options_211(zint_symbol *symbol_, int symbology,
 static void lmt_zint_symbol_set_options_212(zint_symbol *symbol_, int symbology, int input_mode, int output_options, int square)
 {
     zint_symbol_212 *symbol = (void*) symbol_;
+    symbol->symbology = symbology;
+    symbol->input_mode = input_mode;
+    symbol->output_options = output_options;
+    if (square) {
+        symbol->option_3 = ZINT_DM_SQUARE;
+    }
+}
+
+static void lmt_zint_symbol_set_options_213(zint_symbol *symbol_, int symbology, int input_mode, int output_options, int square)
+{
+    zint_symbol_213 *symbol = (void*) symbol_;
     symbol->symbology = symbology;
     symbol->input_mode = input_mode;
     symbol->output_options = output_options;
@@ -445,7 +460,7 @@ static zintlib_state_info zintlib_state = {
 
 static void (*lmt_zint_get_circle) (
     zint_circle     *zint_,
-	lmt_zint_circle *lmt
+    lmt_zint_circle *lmt
 );
 
 static zint_vector *(*lmt_zint_vector)(
@@ -478,7 +493,6 @@ static int zintlib_initialize(lua_State * L)
                 zintlib_state.version = zintlib_state.ZBarcode_Version();
             }
             zintlib_state.version = zintlib_state.version / 100;
-         // printf("zint version: %i\n", zintlib_state.version);
             if (zintlib_state.version < 210) {
                 zintlib_state.initialized = 0;
             } else if (zintlib_state.version < 211) {
@@ -489,10 +503,14 @@ static int zintlib_initialize(lua_State * L)
                 lmt_zint_get_circle         = lmt_zint_get_circle_211;
                 lmt_zint_vector             = lmt_zint_vector_211;
                 lmt_zint_symbol_set_options = lmt_zint_symbol_set_options_211;
-            } else {
+            } else if (zintlib_state.version < 213) {
                 lmt_zint_get_circle         = lmt_zint_get_circle_212;
                 lmt_zint_vector             = lmt_zint_vector_212;
                 lmt_zint_symbol_set_options = lmt_zint_symbol_set_options_212;
+            } else {
+                lmt_zint_get_circle         = lmt_zint_get_circle_212;
+                lmt_zint_vector             = lmt_zint_vector_213;
+                lmt_zint_symbol_set_options = lmt_zint_symbol_set_options_213;
             }
         }
     }
@@ -504,10 +522,10 @@ static int zintlib_execute(lua_State * L)
 {
     if (zintlib_state.initialized) {
         if (lua_type(L, 1) == LUA_TTABLE) {
-            int code = -1;
-            size_t l = 0;
-            const unsigned char *s = NULL;
-            const char *o = NULL;
+            int                  code = -1;
+            size_t               l    = 0;
+            const unsigned char *s    = NULL;
+            const char          *o    = NULL;
             if (lua_getfield(L, 1, "code") == LUA_TNUMBER) {
                 code = lmt_tointeger(L, -1);
             }
@@ -567,7 +585,7 @@ static int zintlib_execute(lua_State * L)
                                 lua_newtable(L);
                                 for (zint_hexagon *h = vector->hexagons; h; h = hexagon.next) {
                                     lmt_zint_get_hexagon(h, &hexagon);
-                                    lua_createtable(L, 0, 3);
+                                    lua_createtable(L, 3, 0);
                                     lua_pushinteger(L, lmt_roundedfloat(hexagon.x)); lua_rawseti(L, -2, 1);
                                     lua_pushinteger(L, lmt_roundedfloat(hexagon.y)); lua_rawseti(L, -2, 2);
                                     lua_pushinteger(L, lmt_roundedfloat(hexagon.d)); lua_rawseti(L, -2, 3);
@@ -581,7 +599,7 @@ static int zintlib_execute(lua_State * L)
                                 lua_newtable(L);
                                 for (zint_circle *c = vector->circles; c; c = circle.next) {
                                     lmt_zint_get_circle(c, &circle);
-                                    lua_createtable(L, 0, 3);
+                                    lua_createtable(L, 3, 0);
                                     lua_pushinteger(L, lmt_roundedfloat(circle.x)); lua_rawseti(L, -2, 1);
                                     lua_pushinteger(L, lmt_roundedfloat(circle.y)); lua_rawseti(L, -2, 2);
                                     lua_pushinteger(L, lmt_roundedfloat(circle.d)); lua_rawseti(L, -2, 3);
@@ -595,7 +613,7 @@ static int zintlib_execute(lua_State * L)
                                 lua_newtable(L);
                                 for (zint_string *s = vector->strings; s; s = string.next) {
                                     lmt_zint_next_string(s, &string);
-                                    lua_createtable(L, 0, 4);
+                                    lua_createtable(L, 4, 0);
                                     lua_pushinteger(L, lmt_roundedfloat(string.x)); lua_rawseti(L, -2, 1);
                                     lua_pushinteger(L, lmt_roundedfloat(string.y)); lua_rawseti(L, -2, 2);
                                     lua_pushinteger(L, lmt_roundedfloat(string.s)); lua_rawseti(L, -2, 3);

@@ -39,6 +39,8 @@
 
 /*tex
 
+    % This needs to be adapted to new variable names! It's the old documentation.
+
     Physical sizes that a \TEX\ user specifies for portions of documents are represented internally
     as scaled points. Thus, if we define an |sp| (scaled point) as a unit equal to $2^{-16}$
     printer's points, every dimension inside of \TEX\ is an integer number of sp. There are exactly
@@ -54,12 +56,17 @@
     \TEX\ needs to do only a few arithmetic operations on scaled quantities, other than addition and
     subtraction, and the following subroutines do most of the work. A single computation might use
     several subroutine calls, and it is desirable to avoid producing multiple error messages in case
-    of arithmetic overflow; so the routines set the global variable |arithmic_error| to |true| instead
-    of reporting errors directly to the user. Another global variable, |tex_remainder|, holds the
+    of arithmetic overflow; so the routines set the |arithmetic_error| field in |lmt_scanner_state|
+    to |1| instead of reporting errors directly to the user. An optional out-parameter holds the
     remainder after a division.
 
     The first arithmetical subroutine we need computes $nx+y$, where |x| and~|y| are |scaled| and
     |n| is an integer. We will also use it to multiply integers.
+
+    Helpers like this evolve as one sometimes reads about how compilers and processors deal with
+    this (it's interesting to see progress when one started with microprocessors as kid). When
+    searching a bit on compiler optimizations llm's recognize these integer based \TEX\ paradigms
+    but also see that we do things differently already so we mostly stick to what we have now.
 
 */
 
@@ -67,17 +74,14 @@ static inline scaled tex_aux_m_and_a(int n, scaled x, scaled y, scaled max_answe
 {
     if (n == 0) {
         return y;
+    }
+    // 64-bit widening: 0 division cycles, perfectly safe against overflow
+    long long res = (long long) n * (long long) x + (long long) y;
+    if (res >= -((long long) max_answer) && res <= (long long) max_answer) {
+        return (scaled)res;
     } else {
-        if (n < 0) {
-            x = -x;
-            n = -n;
-        }
-        if (((x <= (max_answer - y) / n) && (-x <= (max_answer + y) / n))) {
-            return n * x + y;
-        } else {
-            lmt_scanner_state.arithmetic_error = 1;
-            return 0;
-        }
+        lmt_scanner_state.arithmetic_error = 1;
+        return 0;
     }
 }
 
@@ -85,79 +89,22 @@ scaled tex_multiply_and_add  (int n, scaled x, scaled y, scaled max_answer) { re
 scaled tex_nx_plus_y         (int n, scaled x, scaled y)                    { return tex_aux_m_and_a(n, x, y, 0x3FFFFFFF); } //  07777777777
 scaled tex_multiply_integers (int n, scaled x)                              { return tex_aux_m_and_a(n, x, 0, 0x7FFFFFFF); } // 017777777777
 
-/*tex We also need to divide scaled dimensions by integers. */
-
-/*
 scaled tex_x_over_n_r(scaled x, int n, int *remainder)
 {
+    /*tex The optional |remainder| has the sign of the dividend. */
     if (n == 0) {
-        lmt_scanner_state.arithmic_error = 1;
+        lmt_scanner_state.arithmetic_error = 1;
         if (remainder) {
             *remainder = x;
         }
         return 0;
     } else {
-        int negative = 0;
-        if (n < 0) {
-            x = -x;
-            n = -n;
-            negative = 1;
+        if (remainder) {
+            *remainder = x % n;
         }
-        if (x >= 0) {
-            int r = x % n;
-            if (remainder) {
-                if (negative) {
-                    r = -r;
-                }
-                *remainder = r;
-            }
-            return (x / n);
-        } else {
-            int r = -((-x) % n);
-            if (remainder) {
-                if (negative) {
-                    r = -r;
-                }
-                *remainder = r;
-            }
-            return -((-x) / n);
-        }
+        return x / n;
     }
 }
-*/
-
-scaled tex_x_over_n_r(scaled x, int n, int *remainder)
-{
-    /*tex Should |tex_remainder| be negated? */
-    if (n == 0) {
-        lmt_scanner_state.arithmetic_error = 1;
-        *remainder = x;
-        return 0;
-    } else {
-        *remainder = x % n;
-        return x/n;
-    }
-}
-
-/*
-scaled tex_x_over_n(scaled x, int n)
-{
-     if (n == 0) {
-        lmt_scanner_state.arithmic_error = 1;
-        return 0;
-    } else {
-        if (n < 0) {
-            x = -x;
-            n = -n;
-        }
-        if (x >= 0) {
-            return (x / n);
-        } else {
-            return -((-x) / n);
-        }
-    }
-}
-*/
 
 scaled tex_x_over_n(scaled x, int n)
 {
@@ -189,118 +136,54 @@ scaled tex_x_over_n_factor(scaled x)
 
 */
 
-/*
 scaled tex_xn_over_d_r(scaled x, int n, int d, int *remainder)
 {
+    if (d == 0) {
+        lmt_scanner_state.arithmetic_error = 1;
+        if (remainder) {
+            *remainder = x;
+        }
+        return 0;
+    }
     if (x == 0) {
         if (remainder) {
             *remainder = 0;
         }
         return 0;
     } else {
-        int positive = 1;
-        unsigned int t, u, v, xx, dd;
-        if (x < 0) {
-            x = -x;
-            positive = 0;
-        }
-        xx = (unsigned int) x;
-        dd = (unsigned int) d;
-        t = ((xx % 0x8000) * (unsigned int) n);
-        u = ((xx / 0x8000) * (unsigned int) n + (t / 0x8000));
-        v = (u % dd) * 0x8000 + (t % 0x8000);
-        if (u / dd >= 0x8000) {
-            lmt_scanner_state.arithmic_error = 1;
-        } else {
-            u = 0x8000 * (u / dd) + (v / dd);
-        }
-        if (positive) {
-            if (remainder) {
-                *remainder = (int) (v % dd);
-            }
-            return (scaled) u;
-        } else {
-            if (remainder) {
-                *remainder = - (int) (v % dd);
-            }
-            return - (scaled) u;
-        }
-    }
-}
-*/
-
-scaled tex_xn_over_d_r(scaled x, int n, int d, int *remainder)
-{
-    if (x == 0) {
-        *remainder = 0;
-        return 0;
-    } else {
         long long v = (long long) x * (long long) n;
-        *remainder = (scaled) (v % d);
-        return (scaled) (v / d); 
+        long long q = v / d;
+        long long r = v % d;
+        if (q < (long long) min_dimension || q > (long long) max_dimension) {
+            lmt_scanner_state.arithmetic_error = 1;
+            if (remainder) {
+                *remainder = (scaled) r;
+            }
+            return 0;
+        }
+        if (remainder) {
+            *remainder = (scaled) r;
+        }
+        return (scaled) q;
     }
 }
 
-/*
 scaled tex_xn_over_d(scaled x, int n, int d)
 {
+    if (d == 0) {
+        lmt_scanner_state.arithmetic_error = 1;
+        return 0;
+    }
     if (x == 0) {
         return 0;
-    } else {
-        int positive = 1;
-        unsigned int t, u, v, xx, dd;
-        if (x < 0) {
-            x = -x;
-            positive = 0;
-        }
-        xx = (unsigned int) x;
-        dd = (unsigned int) d;
-        t = ((xx % 0x8000) * (unsigned int) n);
-        u = ((xx / 0x8000) * (unsigned int) n + (t / 0x8000));
-        v = (u % dd) * 0x8000 + (t % 0x8000);
-        if (u / dd >= 0x8000) {
-            lmt_scanner_state.arithmic_error = 1;
-        } else {
-            u = 0x8000 * (u / dd) + (v / dd);
-        }
-        if (positive) {
-            return (scaled) u;
-        } else {
-            return - (scaled) u;
-        }
     }
+    long long q = ((long long) x * (long long) n) / d;
+    if (q < (long long) min_dimension || q > (long long) max_dimension) {
+        lmt_scanner_state.arithmetic_error = 1;
+        return 0;
+    }
+    return (scaled) q;
 }
-*/
-
-// scaled tex_xn_over_d(scaled x, int n, int d)
-// {
-//     if (x == 0) {
-//         return 0;
-//     } else {
-//         long long v = (long long) x * (long long) n;
-//         return (scaled) (v / d);
-//     }
-// }
-//
-// scaled tex_xn_over_d_unity(scaled x, int n)
-// {
-//     if (x == 0) {
-//         return 0;
-//     } else {
-//         long long v = (long long) x * (long long) n;
-//         return (scaled) (v / unity);
-//     }
-// }
-
-// scaled tex_xn_over_d_factor(scaled x, int n)
-// {
-//     if (x == 0) {
-//         return 0;
-//     } else {
-//         long long v = (long long) x * (long long) n;
-//         return (scaled) (v / scaling_factor);
-//     }
-// }
 
 /*tex
 
@@ -319,58 +202,35 @@ scaled tex_xn_over_d(scaled x, int n, int d)
 */
 
 /*
-scaled tex_round_xn_over_d(scaled x, int n, unsigned int d)
+    this (double) constant integer ... will the compiler optimize that?
+*/
+
+static inline scaled tex_aux_checked_scaledround(double value, scaled lo, scaled hi)
 {
-    if (x == 0) {
+    if (value == 0) {
         return 0;
-    } else if (n == d) {
-        return x;
+    } else if (! isfinite(value)) {
+        lmt_scanner_state.arithmetic_error = 1;
+        return 0;
     } else {
-        int positive = 1;
-        unsigned t, u, v;
-        if (x < 0) {
-            positive = ! positive;
-            x = -x;
+        double rounded = value >= 0.0 ? value + 0.5 : value - 0.5;
+        if (rounded < (double) lo || rounded > (double) hi) {
+            lmt_scanner_state.arithmetic_error = 1;
+            return 0;
         }
-        if (n < 0) {
-            positive = ! positive;
-            n = -n;
-        }
-        t = (unsigned) ((x % 0x8000) * n);
-        u = (unsigned) (((unsigned) (x) / 0x8000) * (unsigned) n + (t / 0x8000));
-        v = (u % d) * 0x8000 + (t % 0x8000);
-        if (u / d >= 0x8000) {
-            lmt_scanner_state.arithmic_error = 1;
-        } else {
-            u = 0x8000 * (u / d) + (v / d);
-        }
-        v = v % d;
-        if (2 * v >= d) {
-            u++;
-        }
-        return positive ? (scaled) u : - (scaled) u;
+        return (scaled) rounded;
     }
 }
-*/
-
-/*
-scaled tex_round_xn_over_d(scaled x, int n, unsigned int d)
-{
-    if (x == 0|| n == d) {
-        return x;
-    } else {
-        double v = (1.0 / d) * n * x;
-        return (v < 0.0) ? (int) (v - 0.5) : (int) (v + 0.5);
-    }
-}
-*/
 
 scaled tex_round_xn_over_d(scaled x, int n, unsigned int d)
 {
-    if (x == 0 || (unsigned int) n == d) {
+    if (d == 0) {
+        lmt_scanner_state.arithmetic_error = 1;
+        return 0;
+    } else if (x == 0 || (n >= 0 && (unsigned int) n == d && x >= min_dimension && x <= max_dimension)) {
         return x;
     } else {
-        return scaledround((1.0 / d) * n * x);
+        return tex_aux_checked_scaledround((1.0 / d) * n * x, min_dimension, max_dimension);
     }
 }
 
@@ -381,85 +241,28 @@ scaled tex_round_xn_over_d(scaled x, int n, unsigned int d)
 
 */
 
-/* not used:
-
-scaled tex_divide_scaled(scaled s, scaled m, int dd)
-{
-    if (s == 0) {
-        return 0;
-    } else {
-        scaled q, r;
-        int sign = 1;
-        if (s < 0) {
-            sign = -sign;
-            s = -s;
-        }
-        if (m < 0) {
-            sign = -sign;
-            m = -m;
-        }
-        if (m == 0) {
-            normal_error("arithmetic", "divided by zero");
-        } else if (m >= (max_integer / 10)) {
-            normal_error("arithmetic", "number too big");
-        }
-        q = s / m;
-        r = s % m;
-        for (int i = 1; i <= (int) dd; i++) {
-            q = 10 * q + (10 * r) / m;
-            r =          (10 * r) % m;
-        }
-        if (2 * r >= m) {
-            q++; // rounding
-        }
-        return sign * q;
-    }
-}
-*/
-
-/*
-scaled divide_scaled_n(double sd, double md, double n)
-{
-    scaled di = 0;
-    double dd = sd / md * n;
-    if (dd > 0.0) {
-        di =  ifloor(  dd  + 0.5);
-    } else if (dd < 0.0) {
-        di = -ifloor((-dd) + 0.5);
-    }
-    return di;
-}
-*/
-
 scaled tex_divide_scaled_n(double sd, double md, double n)
 {
-    return scaledround(sd / md * n);
-}
-
-/*
-scaled tex_ext_xn_over_d(scaled x, scaled n, scaled d)
-{
-    double r = (((double) x) * ((double) n)) / ((double) d);
-    if (r > DBL_EPSILON) {
-        r += 0.5;
+    if (md == 0.0) {
+        lmt_scanner_state.arithmetic_error = 1;
+        return 0;
     } else {
-        r -= 0.5;
+        return tex_aux_checked_scaledround(sd / md * n, min_integer, max_integer);
     }
-    if (r >= (double) max_integer || r <= -(double) max_integer) {
-        tex_normal_warning("internal", "arithmetic number too big");
-    }
-    return (scaled) r;
 }
-*/
 
 scaled tex_ext_xn_over_d(scaled x, scaled n, scaled d)
 {
-    double r = (((double) x) * ((double) n)) / ((double) d);
-    if (r >= (double) max_integer || r <= -(double) max_integer) {
-        /* can we really run into this? */
-        tex_normal_warning("internal", "arithmetic number too big");
+    if (d == 0) {
+        lmt_scanner_state.arithmetic_error = 1;
+        return 0;
+    } else {
+        double r = (((double) x) * ((double) n)) / ((double) d);
+        if (r > (double) max_integer || r < (double) min_integer) {
+            tex_normal_warning("internal", "arithmetic number too big");
+        }
+        return tex_aux_checked_scaledround(r, min_integer, max_integer);
     }
-    return scaledround(r);
 }
 
 scaled tex_nx_plus_y_posit(halfword p, scaled x, scaled y)

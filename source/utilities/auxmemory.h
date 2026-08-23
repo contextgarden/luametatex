@@ -24,31 +24,39 @@
 
 # if defined(LUAMETATEX_USE_MIMALLOC)
     # include "libraries/mimalloc/include/mimalloc.h"
-    # define lmt_memory_malloc  mi_malloc
-    # define lmt_memory_calloc  mi_calloc
-    # define lmt_memory_realloc mi_realloc
-    # define lmt_memory_free    mi_free
-    # define lmt_memory_strdup  mi_strdup
+    # define lmt_memory_malloc   mi_malloc
+    # define lmt_memory_calloc   mi_calloc
+    # define lmt_memory_realloc  mi_realloc
+ // # define lmt_memory_recalloc mi_recalloc
+    # define lmt_memory_free     mi_free
+    # define lmt_memory_strdup   mi_strdup
+
+    # define lmt_memory_recalloc(p,oldcount,newcount,size) ((void) (oldcount), mi_recalloc(p,newcount,size))
 
  // # include "libraries/mimalloc/include/mimalloc-override.h"
 
 # else
-    # define lmt_memory_malloc  malloc
-    # define lmt_memory_calloc  calloc
-    # define lmt_memory_realloc realloc
-    # define lmt_memory_free    free
-    # define lmt_memory_strdup  strdup
+    # define lmt_memory_malloc   malloc
+    # define lmt_memory_calloc   calloc
+    # define lmt_memory_realloc  realloc
+    # define lmt_memory_recalloc recalloc
+    # define lmt_memory_free     free
+    # define lmt_memory_strdup   strdup
 # endif
 
-# define lmt_generic_malloc  malloc
-# define lmt_generic_calloc  calloc
-# define lmt_generic_realloc realloc
-# define lmt_generic_free    free
-# define lmt_generic_strdup  strdup
+# define lmt_generic_malloc   malloc
+# define lmt_generic_calloc   calloc
+# define lmt_generic_realloc  realloc
+# define lmt_generic_recalloc recalloc
+# define lmt_generic_free     free
+# define lmt_generic_strdup   strdup
 
-extern void *aux_allocate_array       (int recordsize, int size, int reserved);
-extern void *aux_reallocate_array     (void *p, int recordsize, int size, int reserved);
-extern void *aux_allocate_clear_array (int recordsize, int size, int reserved);
-extern void  aux_deallocate_array     (void *p);
+extern void *recalloc                   (void *p, size_t old_count, size_t new_count, size_t size);
+
+extern void *aux_allocate_array         (int recordsize, int size, int reserved);
+extern void *aux_reallocate_array       (void *p, int recordsize, int size, int reserved);
+extern void *aux_allocate_clear_array   (int recordsize, int size, int reserved);
+extern void *aux_reallocate_clear_array (void *p, int recordsize, int size, int reserved, int oldsize);
+extern void  aux_deallocate_array       (void *p);
 
 # endif

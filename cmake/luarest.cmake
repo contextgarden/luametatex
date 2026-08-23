@@ -12,6 +12,8 @@ set(luarest_sources
     source/libraries/libcerf/im_w_of_x.c
     source/libraries/libcerf/w_of_z.c
     source/libraries/libcerf/width.c
+
+ #  source/libraries/hull/libhull.c
 )
 
 add_library(luarest STATIC ${luarest_sources})

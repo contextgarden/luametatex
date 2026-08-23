@@ -8,13 +8,14 @@
 extern void lmt_initialize_languages (void);
 
 extern int  lmt_handle_word (
-    tex_language *lang,
+    tex_language  language,
     const char   *original,
     const char   *word,
     int           length,
     halfword      first,
     halfword      last,
-    char        **replacement
+    char        **replacement,
+    int          *size
 );
 
 # endif

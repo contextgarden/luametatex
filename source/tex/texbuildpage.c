@@ -97,7 +97,7 @@ static void tex_aux_fire_up (halfword c);
     |subtype| field of each node in this list refers to an insertion number; for example, |\insert
     250| would correspond to a node whose |subtype| is |qi(250)| (the same as the |subtype| field
     of the relevant |insert_node|). These |subtype| fields are in increasing order, and |subtype
-    (page_insert_head) = 65535|, so |page_insert_head| serves as a convenient sentinel at the end
+    (page_insert_head) = max_insert_size + 1|, so |page_insert_head| serves as a convenient sentinel at the end
     of the list. A record is present for each insertion number that appears in the current page.
 
     The |type| field in these nodes distinguishes two possibilities that might occur as we look
@@ -132,8 +132,8 @@ static void tex_aux_fire_up (halfword c);
     onto the contribution list, and control will effectively pass to the user's output routine.
 
     We make |type (page_head) = glue_node|, so that an initial glue node on the current page will
-    not be considered a valid breakpoint. We keep this old tex trickery of cheating with node types
-    but have to make sure that the size is valid to do so (and we have different sizes!).
+    not be considered a valid break point. We keep this old \TEX\ trickery of cheating with node
+    types but have to make sure that the size is valid to do so (and we have different sizes!).
 
 */
 
@@ -171,7 +171,7 @@ void tex_initialize_buildpage(void)
 {
     node_type(page_insert_head) = split_node;
     node_subtype(page_insert_head) = insert_split_subtype;
-    insert_index(page_insert_head) = 65535;          /*tex some signal */
+    insert_index(page_insert_head) = max_insert_size + 1; /*tex some signal */
     node_next(page_insert_head) = page_insert_head;
     node_type(page_head) = glue_node;                /*tex brr, a temp node has a different size than a glue node */
     node_subtype(page_head) = page_glue;             /*tex basically: unset */
@@ -202,6 +202,7 @@ void tex_initialize_buildpage(void)
 
 static int tex_aux_count_only_inserts(void)
 {
+    /* Normally this is the same as an earlier |\insertpenalties|.*/
     return (page_head != page_tail) ? tex_insert_get_only_count(node_next(page_head)) : 0;
 }
 
@@ -351,7 +352,7 @@ static int tex_aux_valid_insert_content(halfword content)
         /*tex It's not always a box so we need to adapt this message some day. */
         tex_handle_error(
             normal_error_type,
-            "Insertions can only be added to a vbox",
+            "Insertions can only be added to a vbox%h",
             "Tut tut: You're trying to \\insert into a \\box register that now contains an\n"
             "\\hbox. Proceed, and I'll discard its present contents."
         );
@@ -462,14 +463,9 @@ static void tex_aux_append_insert(halfword current)
     int where = 0;
     scaled advance = 0;
     int ignore = 0;
-    /*tex
-        Do we have a problem here? Say we can't place it, then we still mess with the spacing while
-        actually we should just go on.
-    */
-    tex_add_insert_placed(index);
     ignore = ! tex_can_insert_placed(index);
-    if (ignore) {
-        limit = 0;
+    if (! ignore) {
+        tex_add_insert_placed(index);
     }
     /* */
     if (lmt_page_builder_state.contents == contribute_nothing) {
@@ -528,7 +524,7 @@ static void tex_aux_append_insert(halfword current)
     if (ignore) {
         /* there is no need for spacing */
     } else {
-        halfword distance = lmt_get_insert_distance(index, first, top, where); /*tex Callback: we get a copy! */
+        halfword distance = lmt_get_insert_distance(index, first, top, where); /*tex The caller owns the result. */
         if (distance) {
             if (! tex_glue_is_zero(distance)) {
                 advance += glue_amount(distance);
@@ -537,7 +533,7 @@ static void tex_aux_append_insert(halfword current)
                 if (glue_shrink_order(distance) != normal_glue_order && glue_shrink(distance)) {
                     tex_handle_error(
                         infinite_shrink_error_type,
-                        "Infinite glue shrinkage inserted from \\skip%i",
+                        "Infinite glue shrinkage inserted from \\skip%i%h",
                         index,
                         "The correction glue for page breaking with insertions must have finite\n"
                         "shrinkability. But you may proceed, since the offensive shrinkability has been\n"
@@ -850,10 +846,7 @@ static int tex_aux_migrating_restart(halfword current, int tracing)
                 tex_end_diagnostic();
             }
             tex_couple_nodes(tail, current);
-            tex_couple_nodes(contribute_head, current);
-            // if (contribute_head == contribute_tail) {
-            //     contribute_tail = tail;
-            // }
+            tex_couple_nodes(contribute_head, head);
             box_pre_migrated(current) = null;
             return 1;
         }
@@ -937,7 +930,7 @@ static void tex_aux_reconsider_goal(halfword current, halfword *badness, halfwor
                         tex_begin_diagnostic();
                         tex_print_format(
                             "%l[page: extra check, total %P, goal %p, extragoal %p, badness %B, costs %i, extrabadness %B, extracosts %i]",
-                            page_total, page_stretch, page_filstretch, page_filstretch, page_fillstretch, page_filllstretch, page_shrink,
+                            page_total, page_stretch, page_fistretch, page_filstretch, page_fillstretch, page_filllstretch, page_shrink,
                             page_goal, page_extra_goal_par,
                             *badness, *costs, extrabadness, extracosts
                         );
@@ -978,12 +971,11 @@ static void tex_aux_contribute_glue(halfword current)
     if (glue_shrink_order(current) != normal_glue_order && glue_shrink(current)) {
         tex_handle_error(
             infinite_shrink_error_type,
-            "Infinite glue shrinkage found on current page",
+            "Infinite glue shrinkage found on current page%h",
             "The page about to be output contains some infinitely shrinkable glue, e.g.,\n"
             "'\\vss' or '\\vskip 0pt minus 1fil'. Such glue doesn't belong there; but you can\n"
             "safely proceed, since the offensive shrinkability has been made finite."
         );
-        tex_reset_glue_to_zero(current);
         glue_shrink_order(current) = normal_glue_order;
     }
 }
@@ -1006,12 +998,14 @@ static inline halfword tex_aux_used_penalty(halfword p)
 
 static void tex_process_mvl(halfword context, halfword boundary)
 {
-
-    if (node_type(contribute_tail) == glue_node && (glue_options(contribute_tail) & glue_option_delay)) {
-        return;
+# if (delayed_glue_supported == 1)
+    if (node_next(contribute_head) && ! lmt_page_builder_state.output_active) {
+          if (node_type(contribute_tail) == glue_node && (glue_options(contribute_tail) & glue_option_delay)) {
+              return;
+          }
+          tex_delayed_glue_check(delayed_glue_target_mvl, delayed_glue_location_build);
     }
-    tex_delayed_glue_check(delayed_glue_target_mvl, delayed_glue_location_build);
-
+# endif
     if (node_next(contribute_head) && ! lmt_page_builder_state.output_active) {
  // if (! lmt_page_builder_state.output_active) {
         lmt_buildpage_callback(context, boundary);
@@ -1032,7 +1026,7 @@ static void tex_process_mvl(halfword context, halfword boundary)
             halfword current = node_next(contribute_head);
             halfword type = node_type(current);
             quarterword subtype = node_subtype(current);
-            if (callback_id) {
+            if (callback_id > 0) {
                 tex_aux_step_show_build_node(callback_id, current);
             }
             if (lmt_page_builder_state.last_glue != max_halfword) {
@@ -1077,10 +1071,11 @@ static void tex_process_mvl(halfword context, halfword boundary)
                             case 1:
                                 continue;
                             case 2:
-                                /* todo: remove */
-                                box_height(current) = 0;
-                                box_depth(current) = 0;
-                                continue;
+                             // box_height(current) = 0;
+                             // box_depth(current) = 0;
+                             // goto CONTRIBUTE;
+/* This needs a test! */
+                                goto DISCARD;
                             default:
                                 goto CONTRIBUTE;
                         }
@@ -1096,10 +1091,11 @@ static void tex_process_mvl(halfword context, halfword boundary)
                             }
                             continue;
                         case 2:
-                            /* todo: remove */
-                            rule_height(current) = 0;
-                            rule_depth(current) = 0;
-                            continue;
+                         // rule_height(current) = 0;
+                         // rule_depth(current) = 0;
+                         // goto CONTRIBUTE;
+/* This needs a test! */
+                            goto DISCARD;
                         default:
                             goto CONTRIBUTE;
                     }
@@ -1132,6 +1128,9 @@ static void tex_process_mvl(halfword context, halfword boundary)
                     lmt_page_builder_state.last_glue = tex_new_glue_node(current, subtype);
                     if (lmt_page_builder_state.contents < contribute_box) {
                         goto DISCARD;
+                    } else if (tex_has_glue_option(current, glue_option_has_penalty) && glue_penalty(current)) {
+                        penalty = glue_penalty(current);
+                        break;
                     } else if (precedes_break(lmt_page_builder_state.tail)) {
                         penalty = 0;
                         break;
@@ -1168,12 +1167,11 @@ static void tex_process_mvl(halfword context, halfword boundary)
                         // normal_error_type,
                         succumb_error_type,
                         "Invalid %N node in pagebuilder",
-                        current,
-                        NULL
+                        current
                     );
                     goto DISCARD;
-                    // tex_formatted_error("pagebuilder", "invalid %N node in vertical mode", current);
-                    break;
+                 // tex_formatted_error("pagebuilder", "invalid %N node in vertical mode", current);
+                 // break;
             }
             /*tex
                 Check if node |p| is a new champion breakpoint; then if it is time for a page break,
@@ -1207,8 +1205,9 @@ static void tex_process_mvl(halfword context, halfword boundary)
                 {
                     int moveon = costs <= lmt_page_builder_state.least_cost;
                     int fireup = costs == awful_bad || penalty <= eject_penalty;
-                    if (callback_id) {
-                        tex_aux_check_show_build_node(callback_id, current, badness, lmt_page_builder_state.last_penalty, costs, &moveon, &fireup);
+                    if (callback_id > 0) {
+                        tex_aux_check_show_build_node(callback_id, current, badness, costs, penalty, &moveon, &fireup);
+
                     }
                     if (tracing > 0) {
                         tex_aux_display_page_break_cost(context, badness, penalty, costs, moveon, fireup);
@@ -1225,7 +1224,7 @@ static void tex_process_mvl(halfword context, halfword boundary)
                             insert = node_next(insert);
                         }
                         tex_aux_save_best_page_specs();
-                        if (callback_id) {
+                        if (callback_id > 0) {
                             tex_aux_move_show_build_node(callback_id, current);
                         }
                     }
@@ -1235,14 +1234,14 @@ static void tex_process_mvl(halfword context, halfword boundary)
                             tex_print_format("%l[page: fireup: %N, %d]", current, current);
                             tex_end_diagnostic();
                         }
-                        if (callback_id) {
+                        if (callback_id > 0) {
                             tex_aux_fireup_show_build_node(callback_id, current);
                         }
                         /*tex Output the current page at the best place. */
                         tex_aux_fire_up(current);
                         if (lmt_page_builder_state.output_active) {
                             /*tex User's output routine will act. */
-                            if (callback_id) {
+                            if (callback_id > 0) {
                                 tex_aux_wrapup_show_build_node(callback_id);
                             }
                             return;
@@ -1253,7 +1252,7 @@ static void tex_process_mvl(halfword context, halfword boundary)
                     }
                 }
             } else {
-                if (callback_id) {
+                if (callback_id > 0) {
                     tex_aux_skip_show_build_node(callback_id, current);
                 }
             }
@@ -1438,7 +1437,7 @@ static int tex_aux_output_routine_done(void)
         /*tex Explain that too many dead cycles have occurred in a row. */
         tex_handle_error(
             normal_error_type,
-            "Output loop --- %i consecutive dead cycles",
+            "Output loop --- %i consecutive dead cycles%h",
             lmt_page_builder_state.dead_cycles,
             "I've concluded that your \\output is awry; it never does a \\shipout, so I'm\n"
             "shipping \\box\\outputbox out myself. Next time increase \\maxdeadcycles if you\n"
@@ -1540,7 +1539,7 @@ static void tex_aux_prepare_output_box(void)
         if (! ((no_output_box_error_par > 2) || (no_output_box_error_par & 1))) {
             tex_handle_error(
                 normal_error_type,
-                "\\box%i is not void",
+                "\\box%i is not void%h",
                 output_box_par,
                 "You shouldn't use \\box\\outputbox except in \\output routines. Proceed, and I'll\n"
                 "discard its present contents."
@@ -1788,7 +1787,7 @@ void tex_resume_after_output(void)
      // /*tex Recover from an unbalanced output routine */
      // tex_handle_error(
      //     normal_error_type,
-     //     "Unbalanced output routine",
+     //     "Unbalanced output routine%h",
      //     "Your sneaky output routine has problematic {'s and/or }'s. I can't handle that\n"
      //     "very well; good luck."
      // );
@@ -1809,7 +1808,7 @@ void tex_resume_after_output(void)
         if (! ((no_output_box_error_par > 2) || (no_output_box_error_par & 2))) {
             tex_handle_error(
                 normal_error_type,
-                "Output routine didn't use all of \\box%i", output_box_par,
+                "Output routine didn't use all of \\box%i%h", output_box_par,
                 "Your \\output commands should empty \\box\\outputbox, e.g., by saying\n"
                 "'\\shipout\\box\\outputbox'. Proceed; I'll discard its present contents."
             );
@@ -1849,6 +1848,7 @@ void tex_resume_after_output(void)
             halfword n = node_next(h);
             if (node_type(h) == insert_node) {
                 tex_try_couple_nodes(node_prev(h), n);
+                tex_uncouple_node(h);
                 tex_insert_restore(h);
             }
             h = n;

@@ -55,21 +55,42 @@
 
 */
 
-# define luametatex_format_fingerprint 729
+# define luametatex_format_fingerprint 736
 
-/* These end up in the string pool. */
+typedef enum dump_statistics {
+    dump_stat_fingerprint,
+    dump_stat_engine,
+    dump_stat_preamble,
+    dump_stat_constants,
+    dump_stat_stringpool,
+    dump_stat_nodes,
+    dump_stat_tokens,
+    dump_stat_equivalents,
+    dump_stat_specifications,
+    dump_stat_mathcodes,
+    dump_stat_textcodes,
+    dump_stat_primitives,
+    dump_stat_hashtable,
+    dump_stat_fonts,
+    dump_stat_math,
+    dump_stat_languages,
+    dump_stat_inserts,
+    dump_stat_bytecodes,
+    dump_stat_housekeeping,
+    dump_stat_total,
+} dump_statistics;
 
 typedef struct dump_state_info {
-    int fingerprint;
-    int padding;
+    int statistics[dump_stat_total + 1];
 } dump_state_info;
 
 extern dump_state_info lmt_dump_state;
 
-extern void tex_store_fmt_file         (void);
-extern int  tex_load_fmt_file          (void);
-extern int  tex_fatal_undump_error     (const char *s);
-extern void tex_initialize_dump_state  (void);
+extern void         tex_store_fmt_file           (void);
+extern int          tex_load_fmt_file            (void);
+extern int          tex_fatal_undump_error       (const char *s);
+extern void         tex_initialize_dump_state    (void);
+extern const char * tex_get_dump_statistics_name (dump_statistics s);
 
 //define   dump_items(f,p,item_size,nitems)       fwrite((void *) p, (size_t) item_size, (size_t) nitems, f)
 //define undump_items(f,p,item_size,nitems) { if (fread ((void *) p, (size_t) item_size, (size_t) nitems, f)) { } }
@@ -77,8 +98,11 @@ extern void tex_initialize_dump_state  (void);
 # define   dump_items(f,p,item_size,nitems) fwrite((void *) p, (size_t) item_size, (size_t) nitems, f)
 # define undump_items(f,p,item_size,nitems) fread ((void *) p, (size_t) item_size, (size_t) nitems, f)
 
-# define   dump_things(f,base,len)   dump_items(f, (char *) &(base), sizeof (base), (int) (len))
-# define undump_things(f,base,len) undump_items(f, (char *) &(base), sizeof (base), (int) (len))
+//# define   dump_things(f,base,len)   dump_items(f, (char *) &(base), sizeof (base), (int) (len))
+//# define undump_things(f,base,len) undump_items(f, (char *) &(base), sizeof (base), (int) (len))
+
+# define   dump_things(f,base,len)   dump_items(f, (char *) &(base), sizeof (base), (len))
+# define undump_things(f,base,len) undump_items(f, (char *) &(base), sizeof (base), (len))
 
 # define   dump_mem(f,x)   dump_things(f,x,1)
 # define undump_mem(f,x) undump_things(f,x,1)
@@ -86,11 +110,23 @@ extern void tex_initialize_dump_state  (void);
 # define   dump_int(f,x)   dump_things(f,x,1)
 # define undump_int(f,x) undump_things(f,x,1)
 
-# define   dump_char(f,x)   dump_things(f,x,1)
-# define undump_char(f,x) undump_things(f,x,1)
+# if 0
 
-# define   dump_uchar(f,x)   dump_things(f,x,1)
-# define undump_uchar(f,x) undump_things(f,x,1)
+    # define   dump_char(f,x)   dump_things(f,x,1)
+    # define undump_char(f,x) undump_things(f,x,1)
+
+    # define   dump_uchar(f,x)   dump_things(f,x,1)
+    # define undump_uchar(f,x) undump_things(f,x,1)
+
+# else
+
+    # define   dump_char(f,x)   fputc(x,f)
+    # define undump_char(f,x)   x = (char) fgetc(f)
+
+    # define   dump_uchar(f,x)  fputc(x,f)
+    # define undump_uchar(f,x)  x = (unsigned char) fgetc(f)
+
+# endif
 
 # define   dump_short(f,x)   dump_things(f,x,1)
 # define undump_short(f,x) undump_things(f,x,1)
@@ -119,17 +155,17 @@ extern void tex_initialize_dump_state  (void);
 
 # define dump_via_char(f,x) do { \
     char x_val = (x); \
-    dump_int(f,x_val); \
+    dump_char(f,x_val); \
 } while (0)
 
 # define dump_via_uchar(f,x) do { \
     unsigned char x_val = (x); \
-    dump_int(f,x_val); \
+    dump_uchar(f,x_val); \
 } while (0)
 
 # define dump_string(f,a) \
     if (a) { \
-        int x = (int)strlen(a) + 1; \
+        int x = (int) strlen(a) + 1; \
         dump_int(f,x); \
         dump_things(f,*a, x); \
     } else { \

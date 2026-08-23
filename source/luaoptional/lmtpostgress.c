@@ -43,7 +43,6 @@ typedef enum postgres_connection_status_type {
 # define POSTGRESSLIB_METATABLE  "luatex.postgresslib"
 
 typedef struct postgresslib_data {
-    /*tex There is not much more than a pointer currently. */
     PGconn * db;
 } postgresslib_data ;
 
@@ -163,17 +162,18 @@ static int postgresslib_initialize(lua_State * L)
 static int postgresslib_open(lua_State * L)
 {
     if (postgresslib_state.initialized) {
-        const char *database  = luaL_checkstring(L, 1);
-        const char *username  = luaL_optstring(L, 2, NULL);
-        const char *password  = luaL_optstring(L, 3, NULL);
-        const char *host      = luaL_optstring(L, 4, NULL);
-        const char *port      = luaL_optstring(L, 5, NULL);
-        PGconn     *db        = postgresslib_state.PQsetdbLogin(host, port, NULL, NULL, database, username, password);
+        const char *database = luaL_checkstring(L, 1);
+        const char *username = luaL_optstring(L, 2, NULL);
+        const char *password = luaL_optstring(L, 3, NULL);
+        const char *host     = luaL_optstring(L, 4, NULL);
+        const char *port     = luaL_optstring(L, 5, NULL);
+        PGconn     *db       = postgresslib_state.PQsetdbLogin(host, port, NULL, NULL, database, username, password);
         if (db != NULL && postgresslib_state.PQstatus(db) == PGRES_CONNECTION_BAD) {
             postgresslib_state.PQfinish(db);
+            return 0;
         } else {
-            postgresslib_data *data = lua_newuserdatauv(L, sizeof(data), 0);
-            data->db = db ;
+            postgresslib_data *data = lua_newuserdatauv(L, sizeof(postgresslib_data), 0);
+            data->db = db;
             luaL_getmetatable(L, POSTGRESSLIB_METATABLE);
             lua_setmetatable(L, -2);
             return 1;
@@ -186,7 +186,7 @@ static int postgresslib_close(lua_State * L)
 {
     if (postgresslib_state.initialized) {
         postgresslib_data *data = luaL_checkudata(L, 1, POSTGRESSLIB_METATABLE);
-        if (data != NULL) {
+        if (data != NULL && data->db != NULL) {
             postgresslib_state.PQfinish(data->db);
             data->db = NULL;
         }
@@ -200,37 +200,46 @@ static int postgresslib_execute(lua_State * L)
 {
     if (postgresslib_state.initialized) {
         postgresslib_data *data = luaL_checkudata(L, 1, POSTGRESSLIB_METATABLE);
-        if (data != NULL) {
+        if (data != NULL && data->db != NULL) {
             size_t length = 0;
             const char *query = lua_tolstring(L, 2, &length);
+            /*tex
+                 A sanity check: we need to ensure that a callback function is provided at slot 3.
+             */
+            luaL_checktype(L, 3, LUA_TFUNCTION);
             if (query != NULL) {
-                int error = postgresslib_state.PQsendQuery(data->db, query);
-                if (!error) {
-                    PGresult * result = postgresslib_state.PQgetResult(data->db);
-                    if (result) {
+                int ok = postgresslib_state.PQsendQuery(data->db, query);
+                if (ok) {
+                    PGresult *result = NULL;
+                    while ((result = postgresslib_state.PQgetResult(data->db)) != NULL) {
                         if (postgresslib_state.PQresultStatus(result) == PGRES_TUPLES_OK) {
                             int nofrows    = postgresslib_state.PQntuples(result);
                             int nofcolumns = postgresslib_state.PQnfields(result);
-                            /* This is similar to sqlite but there the callback is more indirect. */
                             if (nofcolumns > 0 && nofrows > 0) {
                                 for (int r = 0; r < nofrows; r++) {
-                                    lua_pushvalue(L, -1);
+                                    lua_pushvalue(L, 3);
                                     lua_pushinteger(L, nofcolumns);
+                                    /*tex
+                                        Populate the values table.
+                                    */
                                     lua_createtable(L, nofcolumns, 0);
                                     for (int c = 0; c < nofcolumns; c++) {
                                         lua_pushstring(L, postgresslib_state.PQgetvalue(result, r, c));
-                                        lua_rawseti(L,- 2, (lua_Integer)c + 1);
+                                        lua_rawseti(L, -2, (lua_Integer)c + 1);
                                     }
-                                    if (r) {
+                                    if (r > 0) {
                                         lua_call(L, 2, 0);
                                     } else {
+                                        /*tex
+                                            Populate header/field names on first row.
+                                        */
                                         lua_createtable(L, nofcolumns, 0);
                                         for (int c = 0; c < nofcolumns; c++) {
-                                            lua_pushstring(L, postgresslib_state.PQfname(result,c));
+                                            lua_pushstring(L, postgresslib_state.PQfname(result, c));
                                             lua_rawseti(L, -2, (lua_Integer)c + 1);
                                         }
-                                        lua_call(L,3,0);
-                                   }
+                                        lua_call(L, 3, 0);
+                                    }
                                 }
                             }
                         }
@@ -250,7 +259,7 @@ static int postgresslib_getmessage(lua_State * L)
 {
     if (postgresslib_state.initialized) {
         postgresslib_data *data = luaL_checkudata(L, 1, POSTGRESSLIB_METATABLE);
-        if (data != NULL) {
+        if (data != NULL && data->db != NULL) {
             lua_pushstring(L, postgresslib_state.PQerrorMessage(data->db));
             return 1;
         }
@@ -268,7 +277,7 @@ static int postgresslib_free(lua_State * L)
 /* <string> = tostring(instance) */
 
 static int postgresslib_tostring(lua_State * L)
- {
+{
     if (postgresslib_state.initialized) {
         postgresslib_data *data = luaL_checkudata(L, 1, POSTGRESSLIB_METATABLE);
         if (data != NULL) {

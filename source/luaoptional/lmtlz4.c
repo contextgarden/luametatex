@@ -19,7 +19,7 @@ typedef struct lz4lib_state_info {
     int      (*LZ4_decompress_safe)             (const char *src, char *dst, int compressedSize, int dstCapacity);
     size_t   (*LZ4F_compressFrameBound)         (size_t srcSize, void *);
     size_t   (*LZ4F_compressFrame)              (void *dstBuffer, size_t dstCapacity, const void* srcBuffer, size_t srcSize, void *);
-    unsigned (*LZ4F_isError)                    (int code);
+    unsigned (*LZ4F_isError)                    (size_t code);
     int      (*LZ4F_createDecompressionContext) (void **dctxPtr, unsigned version);
     int      (*LZ4F_freeDecompressionContext)   (void *dctx);
     size_t   (*LZ4F_decompress)                 (void *dctx, void *dstBuffer, size_t *dstSizePtr, const void *srcBuffer, size_t *srcSizePtr, void *);
@@ -46,18 +46,20 @@ static lz4lib_state_info lz4lib_state = {
 static int lz4lib_compress(lua_State *L)
 {
     if (lz4lib_state.initialized) {
-        size_t sourcesize = 0;
-        const char *source = luaL_checklstring(L, 1, &sourcesize);
-        lua_Integer acceleration = luaL_optinteger(L, 2, 1);
-        size_t targetsize = lz4lib_state.LZ4_compressBound((int) sourcesize);
-        luaL_Buffer buffer;
-        char *target = luaL_buffinitsize(L, &buffer, targetsize);
-        int result = lz4lib_state.LZ4_compress_fast(source, target, (int) sourcesize, (int) targetsize, (int) acceleration);
+        size_t       sourcesize   = 0;
+        const char  *source       = luaL_checklstring(L, 1, &sourcesize);
+        lua_Integer  acceleration = luaL_optinteger(L, 2, 1);
+        size_t       targetsize   = lz4lib_state.LZ4_compressBound((int) sourcesize);
+        luaL_Buffer  buffer;
+        char        *target       = luaL_buffinitsize(L, &buffer, targetsize);
+        int          result       = lz4lib_state.LZ4_compress_fast(source, target, (int) sourcesize, (int) targetsize, (int) acceleration);
         if (result > 0) {
             luaL_pushresultsize(&buffer, result);
         } else {
             lua_pushnil(L);
         }
+    } else {
+        lua_pushnil(L);
     }
     return 1;
 }
@@ -78,9 +80,9 @@ static int lz4lib_compress(lua_State *L)
 static int lz4lib_decompresssize(lua_State *L)
 {
     if (lz4lib_state.initialized) {
-        size_t sourcesize = 0;
-        size_t targetsize = luaL_checkinteger(L, 2);
-        const char *source = luaL_checklstring(L, 1, &sourcesize);
+        size_t      sourcesize = 0;
+        size_t      targetsize = (size_t) luaL_checkinteger(L, 2);
+        const char *source     = luaL_checklstring(L, 1, &sourcesize);
         if (source && targetsize > 0) {
             luaL_Buffer buffer;
             char *target = luaL_buffinitsize(L, &buffer, targetsize);
@@ -93,6 +95,8 @@ static int lz4lib_decompresssize(lua_State *L)
         } else {
             lua_pushnil(L);
         }
+    } else {
+        lua_pushnil(L);
     }
     return 1;
 }
@@ -100,13 +104,20 @@ static int lz4lib_decompresssize(lua_State *L)
 static int lz4lib_framecompress(lua_State *L)
 {
     if (lz4lib_state.initialized) {
-        size_t sourcesize = 0;
-        const char *source = luaL_checklstring(L, 1, &sourcesize);
+        size_t      sourcesize = 0;
+        const char *source     = luaL_checklstring(L, 1, &sourcesize);
         luaL_Buffer buffer;
-        size_t targetsize = lz4lib_state.LZ4F_compressFrameBound(sourcesize, NULL);
-        char *target = luaL_buffinitsize(L, &buffer, targetsize);
-        size_t result = lz4lib_state.LZ4F_compressFrame(target, targetsize, source, sourcesize, NULL);
-        luaL_pushresultsize(&buffer, result);
+        size_t      targetsize = lz4lib_state.LZ4F_compressFrameBound(sourcesize, NULL);
+        char       *target     = luaL_buffinitsize(L, &buffer, targetsize);
+        size_t      result     = lz4lib_state.LZ4F_compressFrame(target, targetsize, source, sourcesize, NULL);
+        /* Check if compressFrame returned an error code */
+        if (lz4lib_state.LZ4F_isError(result)) {
+            lua_pushnil(L);
+        } else {
+            luaL_pushresultsize(&buffer, result);
+        }
+    } else {
+        lua_pushnil(L);
     }
     return 1;
 }
@@ -114,32 +125,37 @@ static int lz4lib_framecompress(lua_State *L)
 static int lz4lib_framedecompress(lua_State *L)
 {
     if (lz4lib_state.initialized) {
-        size_t sourcesize = 0;
-        const char *source = luaL_checklstring(L, 1, &sourcesize);
+        size_t      sourcesize = 0;
+        const char *source     = luaL_checklstring(L, 1, &sourcesize);
         if (source) {
-            void *context = NULL;
-            int errorcode = lz4lib_state.LZ4F_createDecompressionContext(&context, LZ4F_VERSION);
-            if (lz4lib_state.LZ4F_isError(errorcode)) {
+            void *context   = NULL;
+            int   errorcode = lz4lib_state.LZ4F_createDecompressionContext(&context, LZ4F_VERSION);
+            if (lz4lib_state.LZ4F_isError((size_t) errorcode)) {
                 lua_pushnil(L);
             } else {
                 luaL_Buffer buffer;
                 luaL_buffinit(L, &buffer);
+                int failed = 0;
                 while (1) {
-                    size_t targetsize = 0xFFFF;
-                    char *target = luaL_prepbuffsize(&buffer, targetsize);
-                    size_t consumed = sourcesize;
-                    size_t errorcode = lz4lib_state.LZ4F_decompress(context, target, &targetsize, source, &consumed, NULL);
-                    if (lz4lib_state.LZ4F_isError((int) errorcode)) {
-                        lua_pushnil(L);
+                    size_t  targetsize = 0xFFFF;
+                    char   *target     = luaL_prepbuffsize(&buffer, targetsize);
+                    size_t  consumed   = sourcesize;
+                    size_t  ret        = lz4lib_state.LZ4F_decompress(context, target, &targetsize, source, &consumed, NULL);
+                    if (lz4lib_state.LZ4F_isError(ret)) {
+                        failed = 1;
                         break;
                     } else if (targetsize == 0) {
-                        luaL_pushresult(&buffer);
                         break;
                     } else {
                         luaL_addsize(&buffer, targetsize);
                         sourcesize -= consumed;
                         source += consumed;
                     }
+                }
+                if (failed) {
+                    lua_pushnil(L);
+                } else {
+                    luaL_pushresult(&buffer);
                 }
             }
             if (context) {
@@ -148,6 +164,8 @@ static int lz4lib_framedecompress(lua_State *L)
         } else {
             lua_pushnil(L);
         }
+    } else {
+        lua_pushnil(L);
     }
     return 1;
 }

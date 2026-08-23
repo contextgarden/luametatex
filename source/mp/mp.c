@@ -237,8 +237,6 @@ definitions as these are in the header file.
 
 */
 
-# define odd(A) (labs(A) % 2 == 1)
-
 /*tex
 
 The principal computations performed by \MP\ are done entirely in terms of integers less than
@@ -835,6 +833,7 @@ The first set of numerical values goes into the header
 # define mp_make_fraction(R,A,B)                    mp->math->md_make_fraction(mp,&(R),&(A),&(B))
 # define mp_take_fraction(R,A,B)                    mp->math->md_take_fraction(mp,&(R),&(A),&(B))
 # define mp_pyth_add(R,A,B)                         mp->math->md_pyth_add(mp,&(R),&(A),&(B))
+# define mp_pyth_add3(R,A,B,C)                      mp->math->md_pyth_add3(mp,&(R),&(A),&(B),&(C))
 # define mp_pyth_sub(R,A,B)                         mp->math->md_pyth_sub(mp,&(R),&(A),&(B))
 # define mp_power_of(R,A,B)                         mp->math->md_power_of(mp,&(R),&(A),&(B))
 # define mp_n_arg(R,A,B)                            mp->math->md_n_arg(mp,&(R),&(A),&(B))
@@ -848,11 +847,12 @@ The first set of numerical values goes into the header
 # define mp_n_sin_cos(A,S,C)                        mp->math->md_sin_cos(mp,&(A),&(S),&(C))
 # define mp_square_rt(A,S)                          mp->math->md_sqrt(mp,&(A),&(S))
 # define mp_slow_add(R,A,B)                         mp->math->md_slow_add(mp,&(R),&(A),&(B))
+# define mp_slow_sub(R,A,B)                         mp->math->md_slow_sub(mp,&(R),&(A),&(B))
 # define mp_round_unscaled(A)                       mp->math->md_round_unscaled(&(A))
 # define mp_floor_scaled(A)                         mp->math->md_floor_scaled(&(A))
 # define mp_fraction_to_round_scaled(A)             mp->math->md_fraction_to_round_scaled(&(A))
 # define mp_number_to_int(A)                        mp->math->md_to_int(&(A))
-# define mp_number_to_boolean(A)                    mp->math->md_to_boolean(&(A))
+# define mp_number_to_boolean(A)              (int) mp->math->md_to_boolean(&(A))
 # define mp_number_to_scaled(A)                     mp->math->md_to_scaled(&(A))
 # define mp_number_to_double(A)                     mp->math->md_to_double(&(A))
 # define mp_number_negate(A)                        mp->math->md_negate(&(A))
@@ -917,32 +917,32 @@ code when we make then the same. Todo: use char for some.
 //define bm_first_y(ny,y,dy) (bm_current_y(ny,y)-dy+1)
 //define bm_last_y(ny,y,dy)  (bm_current_y(ny,y)-1)
 
-# define mp_path_ptr(A)       (A)->path
-# define mp_pen_ptr(A)        (A)->pen
-# define mp_dash_ptr(A)       ((mp_shape_node) (A))->dash
-# define mp_line_cap(A)       ((mp_shape_node) (A))->linecap
-# define mp_line_join(A)      ((mp_shape_node) (A))->linejoin
-# define mp_miterlimit(A)     ((mp_shape_node) (A))->miterlimit
-# define mp_curvature(A)      ((mp_shape_node) (A))->curvature
-# define mp_set_linecap(A,B)  ((mp_shape_node) (A))->linecap = (unsigned char) (B)
-# define mp_set_linejoin(A,B) ((mp_shape_node) (A))->linejoin = (unsigned char) (B)
-# define mp_set_curvature(A,B)((mp_shape_node) (A))->curvature = (unsigned char) (B)
-# define mp_set_mesh(A,B)     ((mp_shape_node) (A))->mesh = (short) (B)
-# define mp_set_bytemap(A,B)  ((mp_shape_node) (A))->bytemap = (short) (B)
-# define mp_pre_script(A)     ((mp_shape_node) (A))->pre_script
-# define mp_post_script(A)    ((mp_shape_node) (A))->post_script
-# define mp_color_model(A)    ((mp_shape_node) (A))->color_model
-# define mp_stacking(A)       ((mp_shape_node) (A))->stacking
-# define mp_pen_type(A)       ((mp_shape_node) (A))->pen_type
-# define mp_cyan_color(A)     ((mp_shape_node) (A))->cyan
-# define mp_magenta_color(A)  ((mp_shape_node) (A))->magenta
-# define mp_yellow_color(A)   ((mp_shape_node) (A))->yellow
-# define mp_black_color(A)    ((mp_shape_node) (A))->black
-# define mp_red_color(A)      ((mp_shape_node) (A))->red
-# define mp_green_color(A)    ((mp_shape_node) (A))->green
-# define mp_blue_color(A)     ((mp_shape_node) (A))->blue
-# define mp_gray_color(A)     ((mp_shape_node) (A))->grey
-# define mp_grey_color(A)     ((mp_shape_node) (A))->grey
+# define mp_path_ptr(A)         (A)->path
+# define mp_pen_ptr(A)          (A)->pen
+# define mp_dash_ptr(A)         ((mp_shape_node) (A))->dash
+# define mp_line_cap(A)         ((mp_shape_node) (A))->linecap
+# define mp_line_join(A)        ((mp_shape_node) (A))->linejoin
+# define mp_miterlimit(A)       ((mp_shape_node) (A))->miterlimit
+# define mp_curvature(A)        ((mp_shape_node) (A))->curvature
+# define mp_set_linecap(A,B)    ((mp_shape_node) (A))->linecap = (unsigned char) (B)
+# define mp_set_linejoin(A,B)   ((mp_shape_node) (A))->linejoin = (unsigned char) (B)
+# define mp_set_curvature(A,B)  ((mp_shape_node) (A))->curvature = (unsigned char) (B)
+# define mp_set_mesh(A,B)       ((mp_shape_node) (A))->mesh = (short) (B)
+# define mp_set_bytemap(A,B)    ((mp_shape_node) (A))->bytemap = (short) (B)
+# define mp_pre_script(A)       ((mp_shape_node) (A))->pre_script
+# define mp_post_script(A)      ((mp_shape_node) (A))->post_script
+# define mp_color_model(A)      ((mp_shape_node) (A))->color_model
+# define mp_stacking(A)         ((mp_shape_node) (A))->stacking
+# define mp_pen_type(A)         ((mp_shape_node) (A))->pen_type
+# define mp_cyan_color(A)       ((mp_shape_node) (A))->cyan
+# define mp_magenta_color(A)    ((mp_shape_node) (A))->magenta
+# define mp_yellow_color(A)     ((mp_shape_node) (A))->yellow
+# define mp_black_color(A)      ((mp_shape_node) (A))->black
+# define mp_red_color(A)        ((mp_shape_node) (A))->red
+# define mp_green_color(A)      ((mp_shape_node) (A))->green
+# define mp_blue_color(A)       ((mp_shape_node) (A))->blue
+# define mp_gray_color(A)       ((mp_shape_node) (A))->grey
+# define mp_grey_color(A)       ((mp_shape_node) (A))->grey
 
 # define mp_has_color(A)        ((A)->type <  mp_start_clip_node_type)
 # define mp_has_script(A)       ((A)->type <= mp_start_bounds_node_type)
@@ -1149,7 +1149,16 @@ the 5-word packets for $U$, $V$, $X$, and~$Y$.
 The following macros define the allocation of stack positions to the quantities needed for
 bisection-intersection.
 
+The size of stack for bisection algorithms; it should probably be left at this value. The stack bumps
+by 20 or 5 so it is actually not that large. The bisect stack size is large enough and seldom goes
+above 1000 anyway. There is some 31 mentioned in the explanations and 30 times 20 is indeed 1500.
+
 */
+
+# define bisect_int_packets      20
+# define bisect_int_step          5
+
+# define bisect_stack_size     1500 /* so a mulitple of 20 */
 
 # define stack_1(A)   mp->bisect_stack[(A)]
 # define stack_2(A)   mp->bisect_stack[(A)+1]
@@ -1157,14 +1166,12 @@ bisection-intersection.
 # define stack_min(A) mp->bisect_stack[(A)+3]
 # define stack_max(A) mp->bisect_stack[(A)+4]
 
-# define int_packets  20
-
 # define u_packet(A) ((A)- 5)
 # define v_packet(A) ((A)-10)
 # define x_packet(A) ((A)-15)
 # define y_packet(A) ((A)-20)
 
-# define l_packets (mp->bisect_ptr-int_packets)
+# define l_packets (mp->bisect_ptr - bisect_int_packets)
 # define r_packets  mp->bisect_ptr
 
 # define ul_packet u_packet(l_packets)
@@ -1201,13 +1208,13 @@ bisection-intersection.
 # define y2r stack_2(yr_packet)
 # define y3r stack_3(yr_packet)
 
-# define stack_dx  mp->bisect_stack[mp->bisect_ptr]
+# define stack_dx  mp->bisect_stack[mp->bisect_ptr    ]
 # define stack_dy  mp->bisect_stack[mp->bisect_ptr + 1]
 # define stack_tol mp->bisect_stack[mp->bisect_ptr + 2]
 # define stack_uv  mp->bisect_stack[mp->bisect_ptr + 3]
 # define stack_xy  mp->bisect_stack[mp->bisect_ptr + 4]
 
-# define int_increment (int_packets + int_packets + 5)
+# define bisect_int_increment (bisect_int_packets + bisect_int_packets + bisect_int_step)
 
 /*tex
 
@@ -1348,10 +1355,10 @@ can be recognized by testing that the returned list pointer is equal to |dep_fin
 
 */
 
-# define two_to_the(A) (1<<(unsigned)(A))
+# define two_to_the(A) (mp_scaled_t) (1 << (unsigned) (A))
 
 # define cur_cmd               mp->cur_mod_->command
-# define cur_mod               mp_number_to_scaled(mp->cur_mod_->data.n)
+# define cur_mod               (int) mp_number_to_scaled(mp->cur_mod_->data.n)
 # define cur_mod_number        mp->cur_mod_->data.n
 # define cur_mod_node          mp->cur_mod_->data.node
 # define cur_mod_str           mp->cur_mod_->data.str
@@ -1857,8 +1864,13 @@ static mp_symbol           mp_new_symbols_entry           (MP mp, unsigned char 
 
 static void                mp_fix_date_and_time           (MP mp);
 
+/*tex
+    Testing with as static mp_number actually gives a good idea where these numbers can get adapted
+    when passed around. Sometimes it happens as side effect so we might look intio that one day.
+*/
+
 static inline void         mp_do_set_value_sym            (MP mp, mp_token_node A, mp_symbol B);
-static inline void         mp_do_set_value_number         (MP mp, mp_token_node A, mp_number *B);
+static inline void         mp_do_set_value_number         (MP mp, mp_token_node A, const mp_number *B);
 static inline void         mp_do_set_value_str            (MP mp, mp_token_node A, mp_string B);
 static inline void         mp_do_set_value_node           (MP mp, mp_token_node A, mp_node B);
 static inline void         mp_do_set_value_knot           (MP mp, mp_token_node A, mp_knot B);
@@ -1882,7 +1894,7 @@ static void                mp_solve_rising_cubic          (MP mp, mp_number *ret
 static mp_knot             mp_convex_hull                 (MP mp, mp_knot h);
 void                       mp_simplify_path               (MP mp, mp_knot h);
 static void                mp_move_knot                   (MP mp, mp_knot p, mp_knot q);
-static void                mp_sqrt_det                    (MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig, mp_number *c_orig, mp_number *d_orig);
+static void                mp_sqrt_det                    (MP mp, mp_number *ret, const mp_number *a_orig, const mp_number *b_orig, const mp_number *c_orig, const mp_number *d_orig);
 static void                mp_flush_dash_list             (MP mp, mp_edge_header_node h);
 static void                mp_toss_edges                  (MP mp, mp_edge_header_node h);
 static mp_edge_header_node mp_copy_objects                (MP mp, mp_node p, mp_node q);
@@ -2088,6 +2100,8 @@ static void                mp_final_cleanup               (MP mp);
 
 */
 
+/* todo: as in tex, use %h for last help */
+
 static inline void mp_print_format_args(MP mp, const char *format, va_list args)
 {
     while (1) {
@@ -2189,7 +2203,7 @@ static inline void mp_print_format_args(MP mp, const char *format, va_list args)
 void mp_print_format(MP mp, const char *format, ...)
 {
     va_list args;
-    va_start(args, format); /* hm, weird, no number */
+    va_start(args, format);
     mp_print_format_args(mp, format, args);
     va_end(args);
 }
@@ -2307,6 +2321,8 @@ static MP mp_new_instance(void)
 
 static void mp_free_instance(MP mp)
 {
+    /* Close callback-owned handles before releasing the instance state. */
+    mp_close_files(mp);
     mp_memory_free(mp->banner);
     mp_memory_free(mp->buffer);
     mp_free_strings(mp);
@@ -2381,7 +2397,7 @@ static void mp_free_instance(MP mp)
     }
     mp_free_number(mp->cur_x);
     mp_free_number(mp->cur_y);
-    for (int i=0; i<bistack_size + 1; i++) {
+    for (int i = 0; i < bisect_stack_size + 1; i++) {
         mp_free_number(mp->bisect_stack[i]);
     }
     mp_memory_free(mp->bisect_stack);
@@ -2412,7 +2428,6 @@ static void mp_free_instance(MP mp)
     }
     mp_memory_free(mp->bytemaps);
     /* */
-    mp_close_files(mp);
     if (mp->read_filenames != NULL) {
         mp_memory_free(mp->read_filehandles);
         mp_memory_free(mp->read_filenames);
@@ -2425,9 +2440,6 @@ static void mp_free_instance(MP mp)
         mp->write_filehandles = NULL;
         mp->write_filenames = NULL;
     }
-    /*tex  finish non-interactive use */
-    mp_memory_free(mp->term_in);
-    mp->term_in = NULL;
     mp_memory_free(mp->jump_buffer);
     /*tex  free table entries */
     mp_free_symbolic_node(mp, mp->spec_head);
@@ -2677,7 +2689,7 @@ static void mp_check_overload(MP mp, mp_symbol p)
 {
     /* not the fastest check */
     if (mp_number_nonzero(internal_value(mp_overloadmode_internal))) {
-        if (mp->run_overload(mp, p->property, (const char *) p->text->str, mp_number_to_int(internal_value(mp_overloadmode_internal)))) {
+        if (mp->run_overload(mp, p->property, (const char *) p->text->str, (int) mp_number_to_int(internal_value(mp_overloadmode_internal)))) {
             p->property = 0;
         } else {
             /* we keep the property */
@@ -2834,6 +2846,16 @@ void *mp_memory_reallocate(void *p, size_t size)
     void *w = lmt_memory_realloc(p, size);
     if (! w) {
         printf("mplib ran out of memory, case 3");
+        exit(EXIT_FAILURE);
+    }
+    return w;
+}
+
+void *mp_memory_clear_reallocate(void *p, size_t oldsize, size_t newsize)
+{
+    void *w = lmt_memory_recalloc(p, oldsize, newsize, 1);
+    if (! w) {
+        printf("mplib ran out of memory, case 4");
         exit(EXIT_FAILURE);
     }
     return w;
@@ -3075,8 +3097,7 @@ static void mp_print_string_length(MP mp, const char *str, size_t len)
             case mp_no_print_selector:
                 break;
             case mp_new_string_selector:
-                mp_str_room(mp, (int) len);
-                mp_append_str(mp, str);
+                mp_append_str(mp, str, (int) len);
                 break;
             default:
                 mp_fputs(str, mp->write_filehandles[mp->selector - mp_first_file_selector]);
@@ -3238,6 +3259,16 @@ At crucial points the program will say |mp_check_arithmic|, to test if an arithm
 detected.
 
 */
+
+int mp_error_code(MP mp, int n)
+{
+    if (0) { /* can be an internal, for debugging */
+        mp_begin_diagnostic_print(mp, "arithmic", "error", 1);
+        mp_print_format(mp, " mode %i, code %i", mp->math_mode, n);
+        mp_end_diagnostic(mp, 1);
+    }
+    return n;
+}
 
 static void mp_check_arithmic(MP mp)
 {
@@ -3477,6 +3508,8 @@ static const char *mp_op_string_names[] = {
     [mp_attribute_operation]           = "attribute",
     [mp_x_part_operation]              = "xpart",
     [mp_y_part_operation]              = "ypart",
+    [mp_z_part_operation]              = "zpart",
+    [mp_w_part_operation]              = "wpart",
     [mp_xx_part_operation]             = "xxpart",
     [mp_xy_part_operation]             = "xypart",
     [mp_yx_part_operation]             = "yxpart",
@@ -3534,9 +3567,20 @@ static const char *mp_op_string_names[] = {
     [mp_hex_operation]                 = "hex",
     [mp_ASCII_operation]               = "ASCII",
     [mp_char_operation]                = "char",
+    [mp_segments_operation]            = "segments",
     [mp_length_operation]              = "length",
     [mp_prune_singularities_operation] = "prunesingularities",
     [mp_no_length_operation]           = "nolength",
+    [mp_first_point_operation]         = "firstpoint",
+    [mp_first_pre_control_operation]   = "firstprecontrol",
+    [mp_first_post_control_operation]  = "firstpostcontrol",
+    [mp_first_direction_operation]     = "firstdirection",
+    [mp_first_unit_direction_operation]= "firstunitdirection",
+    [mp_last_point_operation]          = "lastpoint",
+    [mp_last_pre_control_operation]    = "lastprecontrol",
+    [mp_last_post_control_operation]   = "lastpostcontrol",
+    [mp_last_direction_operation]      = "lastdirection",
+    [mp_last_unit_direction_operation] = "lastunitdirection",
     [mp_turning_operation]             = "turningnumber",
     [mp_color_model_operation]         = "colormodel",
     [mp_path_part_operation]           = "pathpart",
@@ -3552,6 +3596,7 @@ static const char *mp_op_string_names[] = {
     [mp_sin_d_operation]               = "sind",
     [mp_cos_d_operation]               = "cosd",
     [mp_floor_operation]               = "floor",
+    [mp_normalize_operation]           = "normalize",
     [mp_uniform_deviate_operation]     = "uniformdeviate",
     [mp_ll_corner_operation]           = "llcorner",
     [mp_lr_corner_operation]           = "lrcorner",
@@ -3566,7 +3611,9 @@ static const char *mp_op_string_names[] = {
     [mp_delta_precontrol_operation]    = "deltaprecontrol",
     [mp_delta_postcontrol_operation]   = "deltapostcontrol",
     [mp_delta_direction_operation]     = "deltadirection",
+    [mp_delta_unit_direction_operation]= "deltaunitdirection",
     [mp_delta_arclength_operation]     = "deltaarclength",
+    [mp_delta_iterator_index_operation]= "deltaiteratorindex",
     [mp_arc_length_operation]          = "arclength",
     [mp_angle_operation]               = "angle",
     [mp_cycle_operation]               = "cycle",
@@ -3615,6 +3662,8 @@ static const char *mp_op_string_names[] = {
     [mp_y_scaled_operation]            = "yscaled",
     [mp_z_scaled_operation]            = "zscaled",
     [mp_xy_scaled_operation]           = "xyscaled",
+    [mp_x_shifted_operation]           = "xshifted",
+    [mp_y_shifted_operation]           = "yshifted",
     [mp_bytemap_scaled_operation]      = "bytemapscaled",
     [mp_uncycled_operation]            = "uncycled",
     [mp_intertimes_operation]          = "intersectiontimes",
@@ -3622,11 +3671,13 @@ static const char *mp_op_string_names[] = {
     [mp_double_dot_operation]          = "..",
     [mp_substring_operation]           = "substring",
     [mp_subpath_operation]             = "subpath",
+    [mp_segment_operation]             = "segment",
     [mp_direction_time_operation]      = "directiontime",
     [mp_point_operation]               = "point",
     [mp_precontrol_operation]          = "precontrol",
     [mp_postcontrol_operation]         = "postcontrol",
     [mp_direction_operation]           = "direction",
+    [mp_unit_direction_operation]      = "unitdirection",
     [mp_last_xy_operation]             = "lastxy",
     [mp_last_x_operation]              = "lastx",
     [mp_last_y_operation]              = "lasty",
@@ -3637,18 +3688,22 @@ static const char *mp_op_string_names[] = {
     [mp_path_precontrol_operation]     = "pathprecontrol",
     [mp_path_postcontrol_operation]    = "pathpostcontrol",
     [mp_path_direction_operation]      = "pathdirection",
+    [mp_path_unit_direction_operation] = "pathunitdirection",
     [mp_path_state_operation]          = "pathstate",
     [mp_path_index_operation]          = "pathindex",
     [mp_path_lastindex_operation]      = "pathlastindex",
     [mp_path_length_operation]         = "pathlength",
     [mp_path_first_operation]          = "pathfirst",
     [mp_path_last_operation]           = "pathlast",
+    [mp_path_xpart_operation]          = "pathxpart",
+    [mp_path_ypart_operation]          = "pathypart",
     [mp_pen_offset_operation]          = "penoffset",
     [mp_arc_time_operation]            = "arctime",
     [mp_arc_point_operation]           = "arcpoint",
     [mp_arc_point_list_operation]      = "arcpointlist",
     [mp_subarc_length_operation]       = "subarclength",
     [mp_version_operation]             = "mpversion",
+    [mp_iterator_index_operation]      = "interatorindex",
     [mp_envelope_operation]            = "envelope",
     [mp_boundingpath_operation]        = "boundingpath",
     [mp_bytemap_value_operation]       = "bytemapvalue",
@@ -3659,12 +3714,13 @@ static const char *mp_op_string_names[] = {
 
 static const char *mp_operator_string(int c)
 {
-    if (c >= mp_root_operation && c <= mp_bytemap_bounds_operation) {
+    if (c >= mp_first_operation && c <= mp_last_operation) {
         return mp_op_string_names[c];
     } else {
         return "unknown operation";
     }
 }
+
 /* weird, these slightly different ranges, side effect from unknown */
 
 static void mp_print_operator(MP mp, int c)
@@ -3768,7 +3824,7 @@ static void mp_begin_diagnostic_print(MP mp, const char *s, const char *t, int n
 
 /*tex
 
-Here are the functions needed for the avl construction.The avl comparison function is a
+Here are the functions needed for the avl construction. The avl comparison function is a
 straight forward version of |strcmp|, except that checks for the string lengths first.
 
 */
@@ -3916,12 +3972,29 @@ the new |eqtb| pointer after |primitive| has acted.
 
 */
 
-static void mp_primitive(MP mp, const char *str, int c, int o)
+static int n_of_primitives = 0;
+static int primitives_max  = 500;
+static int primitives_set  = 0;
+
+static mp_primitive_data primitivedata[500]; /* more than enough */
+
+static void mp_primitive(MP mp, int origin, int legacy, const char *str, int command, int operator)
 {
-    set_cur_sym(mp_id_lookup(mp, (char *) str, strlen(str), 1));
-    mp_set_eq_type(cur_sym, c);
-    mp_set_eq_property(cur_sym, 0x1); /* todo: enumeration values */
-    mp_set_eq_valent(cur_sym, o);
+    if (mp && command != mp_undefined_command) {
+        set_cur_sym(mp_id_lookup(mp, (char *) str, strlen(str), 1));
+        mp_set_eq_type(cur_sym, command);
+        mp_set_eq_property(cur_sym, 0x1); /* todo: enumeration values */
+        mp_set_eq_valent(cur_sym, operator);
+    }
+    if (! primitives_set && n_of_primitives < primitives_max) {
+        primitivedata[n_of_primitives++] = (mp_primitive_data) {
+            .name      = str,
+            .command   = (unsigned char) command,
+            .operation = (unsigned char) operator,
+            .origin    = (unsigned char) origin,
+            .legacy    = (unsigned char) legacy,
+        };
+    }
 }
 
 /*tex
@@ -3964,7 +4037,7 @@ static inline void mp_do_set_value_sym(MP mp, mp_token_node tok, mp_symbol sym)
     tok->data.sym = sym;
 }
 
-static inline void mp_do_set_value_number(MP mp, mp_token_node tok, mp_number *num)
+static inline void mp_do_set_value_number(MP mp, mp_token_node tok, const mp_number *num)
 {
     (void) mp;
     tok->data.p = NULL;
@@ -4123,7 +4196,7 @@ for a spacy layout because we have more screen real estate today.
 
 */
 
-void mp_show_token_list(MP mp, mp_node p, mp_node q)
+static void mp_show_token_list(MP mp, mp_node p, mp_node q)
 {
     int cclass = mp_percent_class;
     (void) q;
@@ -4206,7 +4279,7 @@ void mp_show_token_list(MP mp, mp_node p, mp_node q)
     return;
 }
 
-void mp_show_token_list_space(MP mp, mp_node p, mp_node q)
+static void mp_show_token_list_space(MP mp, mp_node p, mp_node q)
 {
     (void) q;
     while (p != NULL) {
@@ -4769,7 +4842,7 @@ which displays the full name of a variable given only a pointer to its value.
 
 */
 
-void mp_print_variable_name(MP mp, mp_node p)
+static void mp_print_variable_name(MP mp, mp_node p)
 {
     mp_node q = NULL; /* a token list that will name the variable's suffix */
     mp_node r = NULL; /* temporary for token list creation */
@@ -4851,8 +4924,8 @@ static int mp_interesting(MP mp, mp_node p)
                             t = mp_cyan_part(tt)->name_type;
                             break;
                         default:
-                                t = mp_x_part(tt)->name_type;
-                                break;
+                            t = mp_x_part(tt)->name_type;
+                            break;
                     }
                     break;
                 case mp_y_part_operation:
@@ -4877,6 +4950,7 @@ static int mp_interesting(MP mp, mp_node p)
                             t = mp_yellow_part(tt)->name_type;
                             break;
                         default:
+                            t = mp_capsule_operation; /* error */
                             break;
                     }
                     break;
@@ -4886,6 +4960,7 @@ static int mp_interesting(MP mp, mp_node p)
                             t = mp_black_part(tt)->name_type;
                             break;
                         default:
+                            t = mp_capsule_operation; /* error */
                             break;
                     }
                     break;
@@ -5229,7 +5304,7 @@ The next procedure is simpler; it wipes out everything but |p| itself, which bec
 
 */
 
-void mp_flush_below_variable(MP mp, mp_node p)
+static void mp_flush_below_variable(MP mp, mp_node p)
 {
     if (p->type != mp_structured_type) {
         /*tex This sets |type(p) = undefined|. */
@@ -5629,7 +5704,7 @@ static void mp_print_path_only(MP mp, mp_knot h) /* todo: spaces, just after thi
                         }
                         goto DONE1;
                     }
-                    break;
+                 // break;
                 case mp_explicit_knot:
                     {
                         /*tex print control points between |p| and |q|, then |goto done1| */
@@ -5640,7 +5715,7 @@ static void mp_print_path_only(MP mp, mp_knot h) /* todo: spaces, just after thi
                         }
                         goto DONE1;
                     }
-                    break;
+                 // break;
                 case mp_open_knot:
                     {
                         /*tex print information for a curve that begins |open| */
@@ -5826,6 +5901,21 @@ static mp_knot mp_copy_knot(MP mp, mp_knot source)
     return k;
 }
 
+static void mp_append_knot_to_cycle(mp_knot *head, mp_knot k)
+{
+    if (*head == NULL) {
+        mp_prev_knot(k) = k;
+        mp_next_knot(k) = k;
+        *head = k;
+    } else {
+        mp_knot tail = mp_prev_knot(*head);
+        mp_prev_knot(k) = tail;
+        mp_next_knot(k) = *head;
+        mp_next_knot(tail) = k;
+        mp_prev_knot(*head) = k;
+    }
+}
+
 /*tex
     The |copy_path| routine makes a clone of a given path.
 */
@@ -5836,17 +5926,14 @@ static mp_knot mp_copy_path(MP mp, mp_knot p)
         return NULL;
     } else {
         mp_knot q = mp_copy_knot(mp, p);
-        mp_knot qq = q;
+        mp_prev_knot(q) = q;
+        mp_next_knot(q) = q;
         mp_knot pp = mp_next_knot(p);
         while (pp != p) {
             mp_knot k = mp_copy_knot(mp, pp);
-            mp_next_knot(qq) = k;
-            mp_prev_knot(k) = qq;
-            qq = mp_next_knot(qq);
+            mp_append_knot_to_cycle(&q, k);
             pp = mp_next_knot(pp);
         }
-        mp_next_knot(qq) = q;
-        mp_prev_knot(q) = qq;
         return q;
     }
 }
@@ -5854,9 +5941,8 @@ static mp_knot mp_copy_path(MP mp, mp_knot p)
 /*tex
 
 Similarly, there's a way to copy the {\em reverse} of a path. This procedure returns a pointer to
-the first node of the copy, if the path is a cycle, but to the final node of a non-cyclic copy. The
-global variable |path_tail| will point to the final node of the original path; this trick makes it
-easier to implement |doublepath|. All node types are assumed to be |endpoint| or |explicit| only.
+the first node of the copy, if the path is a cycle, but to the final node of a non-cyclic copy. All
+node types are assumed to be |endpoint| or |explicit| only.
 
 */
 
@@ -5879,7 +5965,6 @@ static mp_knot mp_htap_ypoc(MP mp, mp_knot p)
         if (mp_next_knot(pp) == p) {
             mp_prev_knot(qq) = q;
             mp_next_knot(q) = qq;
-            mp->path_tail = pp;
             return q;
         } else {
             mp_knot rr = mp_new_knot(mp);
@@ -6312,7 +6397,7 @@ are of type |fraction|; the $\theta$'s and $v$'s are of type |angle|.
 
 */
 
-void mp_reallocate_paths(MP mp, int l)
+static void mp_reallocate_paths(MP mp, int l)
 {
     mp->delta_x = mp_memory_reallocate(mp->delta_x, (size_t) (l + 1) * sizeof(mp_number));
     mp->delta_y = mp_memory_reallocate(mp->delta_y, (size_t) (l + 1) * sizeof(mp_number));
@@ -6343,7 +6428,7 @@ overall computation.
 
 */
 
-void mp_solve_choices(MP mp, mp_knot p, mp_knot q, int n)
+static void mp_solve_choices(MP mp, mp_knot p, mp_knot q, int n)
 {
     int k = 0; /*tex current knot number */
     mp_knot r = 0;
@@ -6879,7 +6964,7 @@ and tension are both large.) The values of $\alpha$ and $\beta$ will be at most~
 
 */
 
-void mp_curl_ratio(MP mp, mp_number *ret, mp_number *gamma_orig, mp_number *a_tension, mp_number *b_tension)
+static void mp_curl_ratio(MP mp, mp_number *ret, mp_number *gamma_orig, mp_number *a_tension, mp_number *b_tension)
 {
     mp_number alpha, beta, gamma, num, denom, ff;
     mp_number arg1;
@@ -6942,7 +7027,7 @@ pair of consecutive nodes |p| and~|q|. Global variables are used to record the v
 
 */
 
-void mp_set_controls(MP mp, mp_knot p, mp_knot q, int k)
+static void mp_set_controls(MP mp, mp_knot p, mp_knot q, int k)
 {
     mp_number rr, ss; /*tex velocities, divided by thrice the tension */
     mp_number lt, rt; /*tex tensions */
@@ -7407,13 +7492,13 @@ static int path_needs_fixing(mp_knot source)
 {
     mp_knot sourcehead = source;
     do {
-        source = source->next;
-    } while (source && source != sourcehead);
-    if (! source) {
-        return 1;
-    } else {
-        return 0;
-    }
+        mp_knot next = mp_next_knot(source);
+        if (next == NULL || mp_prev_knot(next) != source) {
+            return 1;
+        }
+        source = next;
+    } while (source != sourcehead);
+    return 0;
 }
 
 int mp_solve_path(MP mp, mp_knot first)
@@ -7424,12 +7509,12 @@ int mp_solve_path(MP mp, mp_knot first)
         return 0;
     } else {
         int saved_arithmic_error = mp->arithmic_error;
-        int retval = 1;
         jmp_buf *saved_jump_buffer = mp->jump_buffer;
         mp->jump_buffer = mp_memory_allocate(sizeof(jmp_buf));
         if (mp->jump_buffer == NULL || setjmp(*(mp->jump_buffer)) != 0) {
             return 0;
         } else {
+            int retval = 1;
             mp->arithmic_error = 0;
             mp_make_choices(mp, first);
             if (mp->arithmic_error) {
@@ -7852,6 +7937,8 @@ relatively expensive to compute and they are needed in different instances of |a
 
 */
 
+// static int mp_arc_level = 0;
+
 static void mp_arc_test(MP mp,
     mp_number *ret, mp_number *dx0, mp_number *dy0, mp_number *dx1,
     mp_number *dy1, mp_number *dx2, mp_number *dy2, mp_number *v0,
@@ -7865,6 +7952,10 @@ static void mp_arc_test(MP mp,
     mp_number arc1;       /* arc length estimate for the first half */
     mp_number simply;
     mp_number tol;
+//  mp_arc_level++;
+//  if (mp_arc_level > 10) {
+//      goto OEPS;
+//  }
     mp_new_number(arc );
     mp_new_number(arc1);
     mp_new_number(dx01);
@@ -7927,7 +8018,7 @@ static void mp_arc_test(MP mp,
             mp_number_add(arc, arc1);
         } else {
             mp_free_number(tmp);
-            mp->arithmic_error = 1;
+            mp->arithmic_error = mp_error_code(mp, 1);
             if (mp_number_infinite(*a_goal)) {
                 mp_set_number_to_inf(*ret);
             } else {
@@ -7972,7 +8063,7 @@ static void mp_arc_test(MP mp,
     mp_number_subtract(simply, *v02);
     mp_number_abs(simply);
     if (simple && mp_number_lessequal(simply, tol)) {
-        if (mp_number_less(arc, *a_goal)){
+        if (mp_number_less(arc, *a_goal)) {
             mp_number_clone(*ret, arc);
         } else {
             /*tex
@@ -8158,6 +8249,8 @@ static void mp_arc_test(MP mp,
     mp_free_number(v022);
     mp_free_number(simply);
     mp_free_number(tol);
+//OEPS:
+//  mp_arc_level--;
 }
 
 /*
@@ -8175,7 +8268,7 @@ function value reaches |x| and the slope is positive.
 
 */
 
-void mp_solve_rising_cubic(MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig, mp_number *c_orig, mp_number *x_orig)
+static void mp_solve_rising_cubic(MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig, mp_number *c_orig, mp_number *x_orig)
 {
     mp_number abc;
     mp_number a, b, c, x; /*tex local versions of arguments */
@@ -8273,7 +8366,7 @@ static void mp_do_arc_test(MP mp,
     mp_pyth_add(v1, *dx1, *dy1);
     mp_pyth_add(v2, *dx2, *dy2);
     if ((mp_number_greaterequal(v0, mp_fraction_four_t)) || (mp_number_greaterequal(v1, mp_fraction_four_t)) || (mp_number_greaterequal(v2, mp_fraction_four_t))) {
-        mp->arithmic_error = 1;
+        mp->arithmic_error = mp_error_code(mp, 2);
         if (mp_number_infinite(*a_goal)) {
             mp_set_number_to_inf(*ret);
         } else {
@@ -8501,7 +8594,7 @@ static mp_knot mp_get_arc_time(MP mp, mp_number *ret, mp_knot h, mp_number *arc0
                     mp_number_add(v1, mp_epsilon_t);       /* v1 = v1 + 1 */
                     mp_set_number_from_div(d1, d1, v1);    /* |d1 = EL_GORDO / v1| */
                     if (mp_number_greater(t_tot, d1)) {
-                        mp->arithmic_error = 1;
+                        mp->arithmic_error = mp_error_code(mp, 3);
                         mp_check_arithmic(mp);
                         mp_set_number_to_inf(*ret);
                         mp_free_number(n);
@@ -8568,15 +8661,6 @@ degenerate ellipse. We need only initialize the |left_x|, |left_y|, |right_x|, a
 
 static mp_knot mp_make_pen(MP mp, mp_knot h, int need_hull)
 {
-    mp_knot q = h;
-    /*tex
-        This can go ... we are already double linked.
-    */
-    do {
-        mp_knot p = q;
-        q = mp_next_knot(q);
-        mp_prev_knot(q) = p;
-    } while (q != h);
     if (need_hull) {
         h = mp_convex_hull(mp, h);
         /*tex
@@ -8614,7 +8698,7 @@ Printing a polygonal pen is very much like printing a path
 
 */
 
-void mp_print_pen_only(MP mp, mp_knot h)
+static void mp_print_pen_only(MP mp, mp_knot h)
 {
     if (mp_pen_is_elliptical(h)) {
         /*tex
@@ -8654,7 +8738,7 @@ void mp_print_pen_only(MP mp, mp_knot h)
 
 */
 
-void mp_print_pen(MP mp, mp_knot h, const char *s, int nuline) {
+static void mp_print_pen(MP mp, mp_knot h, const char *s, int nuline) {
     mp_begin_diagnostic_print(mp, "Pen", s, nuline);
     mp_print_ln(mp);
     mp_print_pen_only(mp, h);
@@ -8770,7 +8854,7 @@ Geometry}, Springer-Verlag, 1985].
 
 */
 
-mp_knot mp_convex_hull(MP mp, mp_knot h)
+static mp_knot mp_convex_hull(MP mp, mp_knot h)
 {
     if (mp_pen_is_elliptical(h)) {
         return h;
@@ -8984,7 +9068,7 @@ All comparisons are done primarily on $x$ and secondarily on $y$.The |move_knot|
 
 */
 
-void mp_move_knot(MP mp, mp_knot p, mp_knot q)
+static void mp_move_knot(MP mp, mp_knot p, mp_knot q)
 {
     (void) mp;
     mp_next_knot(mp_prev_knot(p)) = mp_next_knot(p);
@@ -9116,14 +9200,14 @@ static void mp_find_offset(MP mp, mp_number *x_orig, mp_number *y_orig, mp_knot 
         mp_new_number(arg2);
         q = h;
         do {
-            p = q;
             q = mp_next_knot(q);
+            p = mp_prev_knot(q);
             mp_set_number_from_subtraction(arg1, q->x_coord, p->x_coord);
             mp_set_number_from_subtraction(arg2, q->y_coord, p->y_coord);
         } while (mp_ab_vs_cd(arg1, *y_orig, arg2, *x_orig) < 0);
         do {
-            p = q;
             q = mp_next_knot(q);
+            p = mp_prev_knot(q);
             mp_set_number_from_subtraction(arg1, q->x_coord, p->x_coord);
             mp_set_number_from_subtraction(arg2, q->y_coord, p->y_coord);
         } while (mp_ab_vs_cd(arg1, *y_orig, arg2, *x_orig) > 0);
@@ -9245,7 +9329,7 @@ static mp_node mp_new_shape_node(MP mp, mp_knot p, int type)
     } else {
         t->linejoin = mp_mitered_linejoin_code;
     }
-    t->stacking = mp_round_unscaled(internal_value(mp_stacking_internal));
+    t->stacking = (int) mp_round_unscaled(internal_value(mp_stacking_internal));
     if (mp_number_less(internal_value(mp_miterlimit_internal), mp_unity_t)) {
         mp_set_number_to_unity(t->miterlimit);
     } else {
@@ -9277,12 +9361,12 @@ static mp_shape_node mp_copy_shape_node(MP mp, mp_shape_node source)
     mp_new_number_clone(target->miterlimit, source->miterlimit);
     mp_new_number_clone(target->dashscale, source->dashscale);
     mp_path_ptr(target) = mp_copy_path(mp, mp_path_ptr(source));
-    if (mp_pre_script(source) != NULL) {
+ // if (mp_pre_script(source) != NULL) {
         mp_add_string_reference(mp, mp_pre_script(source));
-    }
-    if (mp_post_script(source) != NULL) {
+ // }
+ // if (mp_post_script(source) != NULL) {
         mp_add_string_reference(mp, mp_post_script(source));
-    }
+ // }
     if (mp_pen_ptr(source) != NULL) {
         mp_pen_ptr(target) = mp_copy_pen(mp, mp_pen_ptr(source));
     }
@@ -9299,12 +9383,12 @@ static mp_edge_header_node mp_free_shape_node(MP mp, mp_shape_node p)
     if (mp_pen_ptr(p) != NULL) {
         mp_toss_knot_list(mp, mp_pen_ptr(p));
     }
-    if (mp_pre_script(p) != NULL) {
+ // if (mp_pre_script(p) != NULL) {
         mp_delete_string_reference(mp, mp_pre_script(p));
-    }
-    if (mp_post_script(p) != NULL) {
+ // }
+ // if (mp_post_script(p) != NULL) {
         mp_delete_string_reference(mp, mp_post_script(p));
-    }
+ // }
     e = (mp_edge_header_node) mp_dash_ptr(p);
     mp_free_number(p->red);
     mp_free_number(p->green);
@@ -9346,7 +9430,7 @@ scales its result by $2^8$ while we need $2^{14}$ to counteract the effect of |m
 
 */
 
-void mp_sqrt_det(MP mp, mp_number *ret, mp_number *a_orig, mp_number *b_orig, mp_number *c_orig, mp_number *d_orig)
+static void mp_sqrt_det(MP mp, mp_number *ret, const mp_number *a_orig, const mp_number *b_orig, const mp_number *c_orig, const mp_number *d_orig)
 {
     mp_number a, b, c, d;
     mp_number maxabs; /*tex $max(|a|,|b|,|c|,|d|)$ */
@@ -9454,24 +9538,24 @@ static mp_start_node mp_copy_start_node(MP mp, mp_start_node source)
     memcpy(target, source, (size_t) sizeof(mp_start_node_data));
     target->link = NULL;
     mp_path_ptr(target) = mp_copy_path(mp, mp_path_ptr(source));
-    if (mp_pre_script(source) != NULL) {
+ // if (mp_pre_script(source) != NULL) {
         mp_add_string_reference(mp, mp_pre_script(source));
-    }
-    if (mp_post_script(source) != NULL) {
+ // }
+ // if (mp_post_script(source) != NULL) {
         mp_add_string_reference(mp, mp_post_script(source));
-    }
+ // }
     return target;
 }
 
 static void mp_free_start_node(MP mp, mp_start_node p)
 {
     mp_toss_knot_list(mp, mp_path_ptr(p));
-    if (mp_pre_script(p) != NULL) {
+ // if (mp_pre_script(p) != NULL) {
         mp_delete_string_reference(mp, mp_pre_script(p));
-    }
-    if (mp_post_script(p) != NULL) {
+ // }
+ // if (mp_post_script(p) != NULL) {
         mp_delete_string_reference(mp, mp_post_script(p));
-    }
+ // }
     /* */
     mp->memory_pool[mp_start_pool].used--;
     if (mp->memory_pool[mp_start_pool].pool < mp->memory_pool[mp_start_pool].kept) {
@@ -9550,22 +9634,22 @@ static mp_node mp_new_bounds_node(MP mp, mp_knot p, int c)
                 mp_start_node t = mp_new_start_node(mp);
                 t->type = c;
                 t->path = p;
-                t->stacking = mp_round_unscaled(internal_value(mp_stacking_internal));
+                t->stacking = (int) mp_round_unscaled(internal_value(mp_stacking_internal));
                 mp_pre_script(t) = NULL;
                 mp_post_script(t) = NULL;
                 return (mp_node) t;
             }
-            break;
+         // break;
         case mp_stop_clip_node_type:
         case mp_stop_group_node_type:
         case mp_stop_bounds_node_type:
             {
                 mp_stop_node t = mp_new_stop_node(mp);;
                 t->type = c;
-                t->stacking = mp_round_unscaled(internal_value(mp_stacking_internal));
+                t->stacking = (int) mp_round_unscaled(internal_value(mp_stacking_internal));
                 return (mp_node) t;
             }
-            break;
+         // break;
         default:
             /* maybe some message */
             break;
@@ -9723,7 +9807,7 @@ static mp_edge_header_node mp_toss_graphic_object(MP mp, mp_node p)
     }
 }
 
-void mp_toss_edges(MP mp, mp_edge_header_node h)
+static void mp_toss_edges(MP mp, mp_edge_header_node h)
 {
     mp_node q;             /* pointers that scan the list being recycled */
     mp_edge_header_node r; /* an edge structure that object |p| refers to */
@@ -9740,7 +9824,7 @@ void mp_toss_edges(MP mp, mp_edge_header_node h)
     mp_free_edge_header_node(mp, h);
 }
 
-void mp_flush_dash_list(MP mp, mp_edge_header_node h)
+static void mp_flush_dash_list(MP mp, mp_edge_header_node h)
 {
     mp_dash_node q = mp_get_dash_list(h);
     while (q != mp->null_dash) {
@@ -9818,7 +9902,7 @@ headed at |p|. The resulting edge structure requires further initialization by |
 
 */
 
-mp_edge_header_node mp_copy_objects(MP mp, mp_node p, mp_node q) {
+static mp_edge_header_node mp_copy_objects(MP mp, mp_node p, mp_node q) {
     mp_node pp; /*tex the last newly copied object */
     mp_edge_header_node hh = mp_new_edge_header_node(mp); /* the new edge header */
     mp_set_dash_list(hh, mp->null_dash);
@@ -9890,7 +9974,7 @@ Here is a diagnostic routine for printing an edge structure in symbolic form.
 
 */
 
-void mp_print_edges(MP mp, mp_node h, const char *s, int nuline)
+static void mp_print_edges(MP mp, mp_node h, const char *s, int nuline)
 {
     mp_node p = mp_edge_list(h); /*tex a graphical object to be printed */
     mp_number scf;               /*tex a scale factor for the dash pattern */
@@ -10103,7 +10187,7 @@ Here is a routine that prints the color of a graphical object if it isn't black 
 
 */
 
-void mp_print_obj_color(MP mp, mp_node p)
+static void mp_print_obj_color(MP mp, mp_node p)
 {
     mp_shape_node p0 = (mp_shape_node) p;
     switch (mp_color_model(p)) {
@@ -10456,7 +10540,7 @@ static mp_edge_header_node mp_make_dashes(MP mp, mp_edge_header_node h)
     A similar error occurs when monotonicity fails.
 */
 
-void mp_x_retrace_error(MP mp)
+static void mp_x_retrace_error(MP mp)
 {
     mp_back_error(
         mp,
@@ -10515,6 +10599,7 @@ the squared-off ends of a non-cyclic path~|p| that is to be stroked with the pen
 static void mp_box_ends(MP mp, mp_knot p, mp_knot pp, mp_edge_header_node h)
 {
     if (mp_right_type(p) != mp_endpoint_knot) {
+        mp_knot head = p;
         mp_number dx, dy;            /*tex a unit vector in the direction out of the path at~|p| */
         mp_number d;                 /*tex a factor for adjusting the length of |(dx,dy)| */
         mp_number z;                 /*tex a coordinate being tested against the bounding box */
@@ -10614,10 +10699,8 @@ static void mp_box_ends(MP mp, mp_knot p, mp_knot pp, mp_edge_header_node h)
                 /*tex
                     Advance |p| to the end of the path and make |q| the previous knot.
                 */
-                do {
-                    q = p;
-                    p = mp_next_knot(p);
-                } while (mp_right_type(p) != mp_endpoint_knot);
+                p = mp_prev_knot(head);
+                q = mp_prev_knot(p);
             }
         }
       DONE:
@@ -10639,7 +10722,7 @@ clipped. Such calls are distinguished by the fact that the boolean parameter |to
 
 */
 
-void mp_set_bbox(MP mp, mp_edge_header_node h, int top_level)
+static void mp_set_bbox(MP mp, mp_edge_header_node h, int top_level)
 {
     /*tex
         Wipe out any existing bounding box information if |bbtype(h)| is incompatible with
@@ -10714,7 +10797,6 @@ void mp_set_bbox(MP mp, mp_edge_header_node h, int top_level)
             case mp_fill_node_type:
             case mp_stroked_node_type:
                 {
-                    mp_number x0a, y0a, x1a, y1a;
                     mp_path_bbox(mp, mp_path_ptr((mp_shape_node) p));
                     /*tex
                         Stroked paths always have a pen. It saves a lot of grief here to be slightly
@@ -10724,6 +10806,7 @@ void mp_set_bbox(MP mp, mp_edge_header_node h, int top_level)
                         caps.
                     */
                     if (mp_pen_ptr((mp_shape_node) p) != NULL) {
+                        mp_number x0a, y0a, x1a, y1a;
                         mp_new_number_clone(x0a, mp_minx);
                         mp_new_number_clone(y0a, mp_miny);
                         mp_new_number_clone(x1a, mp_maxx);
@@ -11382,7 +11465,7 @@ paths.
 
 */
 
-void mp_split_cubic(MP mp, mp_knot p, mp_number *t)
+static void mp_split_cubic(MP mp, mp_knot p, mp_number *t)
 {
     mp_number v;    mp_knot q = mp_next_knot(p);
     mp_knot r = mp_new_knot(mp);
@@ -11445,11 +11528,12 @@ static mp_knot mp_split_cubic_knot(MP mp, mp_knot p, mp_number *t) /* can be les
 
 */
 
-void mp_remove_cubic(MP mp, mp_knot p)
+static void mp_remove_cubic(MP mp, mp_knot p)
 {
     mp_knot q = mp_next_knot(p); /* the node that disappears */
-    mp_prev_knot(q) = mp_next_knot(p);
-    mp_next_knot(p) = mp_next_knot(q);
+    mp_knot next = mp_next_knot(q);
+    mp_next_knot(p) = next;
+    mp_prev_knot(next) = p;
     mp_number_clone(p->right_x, q->right_x);
     mp_number_clone(p->right_y, q->right_y);
     /* was: mp_memory_free(q); */
@@ -11478,7 +11562,7 @@ We may have to split a cubic into many pieces before each piece corresponds to a
 
 */
 
-mp_knot mp_pen_walk(MP mp, mp_knot w, int k)
+static mp_knot mp_pen_walk(MP mp, mp_knot w, int k)
 {
     /*tex
         Walk |k| steps around a pen from |w|:
@@ -11563,7 +11647,7 @@ must be careful to stop after crossing the first such edge in order to avoid an 
 
 */
 
-void mp_fin_offset_prep(MP mp, mp_knot p, mp_knot w, mp_number *x0, mp_number *x1, mp_number *x2, mp_number *y0, mp_number *y1, mp_number *y2, int rise, int turn_amt)
+static void mp_fin_offset_prep(MP mp, mp_knot p, mp_knot w, mp_number *x0, mp_number *x1, mp_number *x2, mp_number *y0, mp_number *y1, mp_number *y2, int rise, int turn_amt)
 {
     mp_number du, dv;     /*tex for slope calculation */
     mp_number t0, t1, t2; /*tex test coefficients */
@@ -11700,7 +11784,7 @@ void mp_fin_offset_prep(MP mp, mp_knot p, mp_knot w, mp_number *x0, mp_number *x
     mp_free_number(t2);
 }
 
-int mp_get_turn_amt(MP mp, mp_knot w, mp_number *dx, mp_number *dy, int ccw)
+static int mp_get_turn_amt(MP mp, mp_knot w, mp_number *dx, mp_number *dy, int ccw)
 {
     int s = 0; /*tex The turn amount so far. */
     mp_number arg1, arg2;
@@ -11823,16 +11907,12 @@ such cases we use a simple connect-the-endpoints approach that is achieved by se
 static mp_knot mp_make_envelope(MP mp, mp_knot c, mp_knot h, int linejoin, int linecap, mp_number *miterlimit)
 {
     mp_knot p, q, r, q0;                /*tex for manipulating the path */
-    mp_knot w, w0;                      /*tex the pen knot for the current offset */
-    int k, k0;                          /*tex controls pen edge insertion */
+    mp_knot w;                          /*tex the pen knot for the current offset */
     mp_number qx, qy;                   /*tex unshifted coordinates of |q| */
     mp_number dxin, dyin, dxout, dyout; /*tex directions at |q| when square or mitered */
     int join_type = 0;                  /*tex codes |0..3| for mitered, round, beveled, or square */
     mp_number tmp;                      /*tex a temporary value */
     mp_number max_ht;                   /*tex maximum height of the pen polygon above the |w0|-|w| line */
-    int kk;                             /*tex keeps track of the pen vertices being scanned */
-    mp_knot ww;                         /*tex the pen vertex being tested */
-
     mp_new_number(max_ht);
     mp_new_number(tmp);
     mp_new_fraction(dxin);
@@ -11847,8 +11927,9 @@ static mp_knot mp_make_envelope(MP mp, mp_knot c, mp_knot h, int linejoin, int l
         If endpoint, double the path |c|, and set |spec_p1| and |spec_p2|.
     */
     if (mp_left_type(c) == mp_endpoint_knot) {
+        mp_knot path_tail = mp_prev_knot(c);
         mp->spec_p1 = mp_htap_ypoc(mp, c);
-        mp->spec_p2 = mp->path_tail;
+        mp->spec_p2 = path_tail;
         mp_originator(mp->spec_p1) = mp_program_code;
         mp_knotstate(mp->spec_p1) = mp_regular_knot;
         mp_prev_knot(mp->spec_p1) = mp_next_knot(mp->spec_p2);
@@ -11884,6 +11965,8 @@ static mp_knot mp_make_envelope(MP mp, mp_knot c, mp_knot h, int linejoin, int l
     w = h;
     p = c;
     do {
+        mp_knot w0;
+        int k, k0; /*tex controls pen edge insertion */
         q = mp_next_knot(p);
         q0 = q;
         mp_number_clone(qx, q->x_coord);
@@ -12099,6 +12182,8 @@ static mp_knot mp_make_envelope(MP mp, mp_knot c, mp_knot h, int linejoin, int l
                         Make |r| the last of two knots inserted between |p| and |q| to form a squared
                         join.
                     */
+                    int kk;               /*tex Keeps track of the pen vertices being scanned. */
+                    mp_knot ww;           /*tex The pen vertex being tested. */
                     mp_number ht_x, ht_y; /*tex Perpendicular to the segment from |p| to |q|. */
                     mp_number ht_x_abs, ht_y_abs;
                     mp_number xtot, ytot, xsub, ysub;
@@ -12229,7 +12314,7 @@ static mp_knot mp_make_envelope(MP mp, mp_knot c, mp_knot h, int linejoin, int l
 
 */
 
-mp_knot mp_insert_knot(MP mp, mp_knot q, mp_number *x, mp_number *y)
+static mp_knot mp_insert_knot(MP mp, mp_knot q, mp_number *x, mp_number *y)
 {
     /* returns the inserted knot */
     mp_knot r = mp_new_knot(mp);
@@ -12645,7 +12730,7 @@ comparisons are made in each branch.This was a macro but a function is way more 
 
 */
 
-void mp_set_min_max(MP mp, int v)
+static void mp_set_min_max(MP mp, int v)
 {
     if (mp_number_negative(stack_1(v))) {
         if (mp_number_nonnegative (stack_3(v))) {
@@ -12714,7 +12799,7 @@ static int mp_cubic_intersection(MP mp, mp_knot p, mp_knot pp, int run, int cubi
     /*tex Initialize for intersections at level zero: */
     q = mp_next_knot(p);
     qq = mp_next_knot(pp);
-    mp->bisect_ptr = int_packets;
+    mp->bisect_ptr = bisect_int_packets;
     mp_set_number_from_subtraction(u1r, p->right_x, p->x_coord);
     mp_set_number_from_subtraction(u2r, q->left_x, p->right_x);
     mp_set_number_from_subtraction(u3r, q->x_coord, q->left_x);
@@ -12745,8 +12830,8 @@ static int mp_cubic_intersection(MP mp, mp_knot p, mp_knot pp, int run, int cubi
             When we are in arbitrary precision math, low precisions can lead to access locations
             beyond the |stack_size|: in this case we say that there is no intersection.
         */
-        if (((x_packet (mp->xy)) + 4) > bistack_size || ((u_packet (mp->uv)) + 4) > bistack_size
-         || ((y_packet (mp->xy)) + 4) > bistack_size || ((v_packet (mp->uv)) + 4) > bistack_size) {
+        if (((x_packet(mp->xy)) + bisect_int_step - 1) > bisect_stack_size || ((u_packet(mp->uv)) + bisect_int_step - 1) > bisect_stack_size
+         || ((y_packet(mp->xy)) + bisect_int_step - 1) > bisect_stack_size || ((v_packet(mp->uv)) + bisect_int_step - 1) > bisect_stack_size) {
             mp_set_number_from_scaled(mp->cur_t, 1);
             mp_set_number_from_scaled(mp->cur_tt, 1);
             goto NOT_FOUND;
@@ -12769,8 +12854,7 @@ static int mp_cubic_intersection(MP mp, mp_knot p, mp_knot pp, int run, int cubi
                             if (mp_number_equal(mp->max_t, x_two_t) || mp_number_greater(mp->max_t, x_two_t_low_precision)) {
                                 if (run == 1) {
                                     /*tex
-                                        We've done 17+2 bisections, first restore values due bit
-                                        precision.
+                                        We've done 17+2 bisections, first restore values to bit precision.
                                     */
                                     mp_number_divide_int(mp->cur_t, cubic_precision);
                                     mp_number_divide_int(mp->cur_tt, cubic_precision);
@@ -12796,7 +12880,7 @@ static int mp_cubic_intersection(MP mp, mp_knot p, mp_knot pp, int run, int cubi
                         mp_set_number_from_scaled(stack_tol, mp->tol);
                         mp_set_number_from_scaled(stack_uv, mp->uv);
                         mp_set_number_from_scaled(stack_xy, mp->xy);
-                        mp->bisect_ptr = mp->bisect_ptr + int_increment;
+                        mp->bisect_ptr = mp->bisect_ptr + bisect_int_increment;
                         mp_number_double(mp->cur_t);
                         mp_number_double(mp->cur_tt);
                         mp_number_clone(u1l, stack_1(u_packet (mp->uv)));
@@ -12863,10 +12947,8 @@ static int mp_cubic_intersection(MP mp, mp_knot p, mp_knot pp, int run, int cubi
         /*tex
             Advance to the next pair |(cur_t,cur_tt)|.
         */
-        if (odd(mp_number_to_scaled(mp->cur_tt))) {
-     // if (mp_number_odd(mp->cur_tt)) {
-            if (odd(mp_number_to_scaled(mp->cur_t))) {
-         // if (mp_number_odd(mp->cur_t)) {
+        if (odd_long(mp_number_to_scaled(mp->cur_tt))) {
+            if (odd_long(mp_number_to_scaled(mp->cur_t))) {
                 /*tex
                     Descend to the previous level and |goto not_found|.
                 */
@@ -12877,57 +12959,59 @@ static int mp_cubic_intersection(MP mp, mp_knot p, mp_knot pp, int run, int cubi
                     mp_free_number(x_two_t_low_precision);
                     return 3;
                 } else {
-                    mp->bisect_ptr -= int_increment;
+                    mp->bisect_ptr -= bisect_int_increment;
                     mp->three_l -= (int) mp->tol_step;
                     mp_number_clone(mp->delx, stack_dx);
                     mp_number_clone(mp->dely, stack_dy);
-                    mp->tol = mp_number_to_scaled(stack_tol);
-                    mp->uv = mp_number_to_scaled(stack_uv);
-                    mp->xy = mp_number_to_scaled(stack_xy);
+                    mp->tol = (int) mp_number_to_scaled(stack_tol);
+                    mp->uv = (int) mp_number_to_scaled(stack_uv);
+                    mp->xy = (int) mp_number_to_scaled(stack_xy);
                     goto NOT_FOUND;
                 }
             } else {
                 mp_set_number_from_scaled(mp->cur_t, mp_number_to_scaled(mp->cur_t) + 1);
-                mp_number_add(mp->delx, stack_1(u_packet (mp->uv)));
-                mp_number_add(mp->delx, stack_2(u_packet (mp->uv)));
-                mp_number_add(mp->delx, stack_3(u_packet (mp->uv)));
-                mp_number_add(mp->dely, stack_1(v_packet (mp->uv)));
-                mp_number_add(mp->dely, stack_2(v_packet (mp->uv)));
-                mp_number_add(mp->dely, stack_3(v_packet (mp->uv)));
+                mp_number_add(mp->delx, stack_1(u_packet(mp->uv)));
+                mp_number_add(mp->delx, stack_2(u_packet(mp->uv)));
+                mp_number_add(mp->delx, stack_3(u_packet(mp->uv)));
+                mp_number_add(mp->dely, stack_1(v_packet(mp->uv)));
+                mp_number_add(mp->dely, stack_2(v_packet(mp->uv)));
+                mp_number_add(mp->dely, stack_3(v_packet(mp->uv)));
                 /*tex switch from |l_packets| to |r_packets| */
-                mp->uv = mp->uv + int_packets;
+                mp->uv = mp->uv + bisect_int_packets;
                 mp_set_number_from_scaled(mp->cur_tt, mp_number_to_scaled(mp->cur_tt) - 1);
-                mp->xy = mp->xy - int_packets;
-                mp_number_add(mp->delx, stack_1(x_packet (mp->xy)));
-                mp_number_add(mp->delx, stack_2(x_packet (mp->xy)));
-                mp_number_add(mp->delx, stack_3(x_packet (mp->xy)));
-                mp_number_add(mp->dely, stack_1(y_packet (mp->xy)));
-                mp_number_add(mp->dely, stack_2(y_packet (mp->xy)));
-                mp_number_add(mp->dely, stack_3(y_packet (mp->xy)));
+                mp->xy = mp->xy - bisect_int_packets;
+                mp_number_add(mp->delx, stack_1(x_packet(mp->xy)));
+                mp_number_add(mp->delx, stack_2(x_packet(mp->xy)));
+                mp_number_add(mp->delx, stack_3(x_packet(mp->xy)));
+                mp_number_add(mp->dely, stack_1(y_packet(mp->xy)));
+                mp_number_add(mp->dely, stack_2(y_packet(mp->xy)));
+                mp_number_add(mp->dely, stack_3(y_packet(mp->xy)));
             }
         } else {
             mp_set_number_from_scaled(mp->cur_tt, mp_number_to_scaled(mp->cur_tt) + 1);
             mp->tol = mp->tol + mp->three_l;
-            mp_number_subtract(mp->delx, stack_1(x_packet (mp->xy)));
-            mp_number_subtract(mp->delx, stack_2(x_packet (mp->xy)));
-            mp_number_subtract(mp->delx, stack_3(x_packet (mp->xy)));
-            mp_number_subtract(mp->dely, stack_1(y_packet (mp->xy)));
-            mp_number_subtract(mp->dely, stack_2(y_packet (mp->xy)));
-            mp_number_subtract(mp->dely, stack_3(y_packet (mp->xy)));
+            mp_number_subtract(mp->delx, stack_1(x_packet(mp->xy)));
+            mp_number_subtract(mp->delx, stack_2(x_packet(mp->xy)));
+            mp_number_subtract(mp->delx, stack_3(x_packet(mp->xy)));
+            mp_number_subtract(mp->dely, stack_1(y_packet(mp->xy)));
+            mp_number_subtract(mp->dely, stack_2(y_packet(mp->xy)));
+            mp_number_subtract(mp->dely, stack_3(y_packet(mp->xy)));
             /*tex switch from |l_packets| to |r_packets| */
-            mp->xy = mp->xy + int_packets;
+            mp->xy = mp->xy + bisect_int_packets;
         }
     }
     mp_free_number(x_two_t);
     mp_free_number(x_two_t_low_precision);
+    return 0;
 }
 
-static mp_knot mp_path_intersection_add(MP mp, mp_knot list, mp_knot *last, mp_number *t, mp_number *tt)
+static mp_knot mp_path_intersection_add(MP mp, mp_knot list, mp_number *t, mp_number *tt)
 {
-    int a = mp_number_to_scaled(*t) >> mp_intersection_run_shift;
-    int aa = mp_number_to_scaled(*tt) >> mp_intersection_run_shift;
-    int b =  (list ? mp_number_to_scaled((*last)->x_coord) : -1) >> mp_intersection_run_shift ;
-    int bb = (list ? mp_number_to_scaled((*last)->y_coord) : -1) >> mp_intersection_run_shift ;
+    mp_knot last = list ? mp_prev_knot(list) : NULL;
+    int a = (int) mp_number_to_scaled(*t) >> mp_intersection_run_shift;
+    int aa = (int) mp_number_to_scaled(*tt) >> mp_intersection_run_shift;
+    int b =  (list ? (int) mp_number_to_scaled(last->x_coord) : -1) >> mp_intersection_run_shift ;
+    int bb = (list ? (int) mp_number_to_scaled(last->y_coord) : -1) >> mp_intersection_run_shift ;
     if (a == b && aa == bb) {
         /* ignore */
     } else {
@@ -12937,38 +13021,25 @@ static mp_knot mp_path_intersection_add(MP mp, mp_knot list, mp_knot *last, mp_n
         mp_right_type(k) = mp_explicit_knot;
         mp_number_clone(k->x_coord, *t);
         mp_number_clone(k->y_coord, *tt);
-        if (list) {
-            mp_prev_knot(k) = *last;
-            mp_next_knot(*last) = k;
-            mp_prev_knot(list) = k;
-            mp_next_knot(k) = list;
-        } else {
-            list = k;
-            mp_prev_knot(k) = k;
-            mp_next_knot(k) = k;
-        }
-        *last = k;
+        mp_append_knot_to_cycle(&list, k);
     }
     return list;
 }
 
-static mp_knot mp_path_intersection(MP mp, mp_knot h, mp_knot hh, int path, mp_knot *last)
+static mp_knot mp_path_intersection(MP mp, mp_knot h, mp_knot hh, int path)
 {
     mp_number n, nn; /*tex Integer parts of intersection times, minus |unity|. */
     int done = 0;
     mp_knot list = NULL;
     mp_knot l = NULL;
     mp_knot ll = NULL;
-    int precision = mp_number_to_int(internal_value(mp_intersection_precision_internal));
+    int precision = (int) mp_number_to_int(internal_value(mp_intersection_precision_internal));
     if (precision < 1) {
         precision = 1;
     } else if (precision > 4) {
         precision = 4;
     }
     precision = 1 << precision;
-    if (last) {
-        *last = NULL;
-    }
     /*tex
         Change one-point paths into dead cycles.
     */
@@ -13015,7 +13086,7 @@ static mp_knot mp_path_intersection(MP mp, mp_knot h, mp_knot hh, int path, mp_k
                             mp_number_add(mp->cur_tt, nn);
                             done = 1;
                             if (path) {
-                                list = mp_path_intersection_add(mp, list, last, &(mp->cur_t), &(mp->cur_tt));
+                                list = mp_path_intersection_add(mp, list, &(mp->cur_t), &(mp->cur_tt));
                                 if (t == mp_number_to_scaled(mp->cur_t) && tt == mp_number_to_scaled(mp->cur_tt)) {
                                     if (retrials == 8) { /* is 8 okay? */
                                         break;
@@ -13025,8 +13096,8 @@ static mp_knot mp_path_intersection(MP mp, mp_knot h, mp_knot hh, int path, mp_k
                                     }
                                 } else {
                                     retrials = 0;
-                                    t = mp_number_to_scaled(mp->cur_t);
-                                    tt = mp_number_to_scaled(mp->cur_tt);
+                                    t = (int) mp_number_to_scaled(mp->cur_t);
+                                    tt = (int) mp_number_to_scaled(mp->cur_tt);
                                     goto RETRY;
                                 }
                             } else {
@@ -13065,7 +13136,7 @@ static mp_knot mp_path_intersection(MP mp, mp_knot h, mp_knot hh, int path, mp_k
     } while (mp->tol_step <= 3);
   DONE:
     if (path && l && ll && mp_number_equal(l->x_coord, ll->x_coord) && mp_number_equal(l->y_coord, ll->y_coord)) {
-        list = mp_path_intersection_add(mp, list, last, &n, &nn);
+        list = mp_path_intersection_add(mp, list, &n, &nn);
     }
     if (! done) {
         mp_number_negated_clone(mp->cur_t, mp_unity_t);
@@ -13074,12 +13145,7 @@ static mp_knot mp_path_intersection(MP mp, mp_knot h, mp_knot hh, int path, mp_k
             mp_knot k = mp_new_knot(mp);
             mp_number_clone(k->x_coord, mp->cur_t);
             mp_number_clone(k->y_coord, mp->cur_tt);
-            mp_prev_knot(k) = k;
-            mp_next_knot(k) = k;
-            list = k;
-            if (last) {
-                *last = k;
-            }
+            mp_append_knot_to_cycle(&list, k);
         }
     }
     mp_free_number(n);
@@ -13749,7 +13815,7 @@ points to the variable, and |q| points to the dependency list (which is one node
 
 */
 
-void mp_make_known(MP mp, mp_value_node p, mp_value_node q)
+static void mp_make_known(MP mp, mp_value_node p, mp_value_node q)
 {
     mp_variable_type t = p->type; /* the previous type */
     mp_number absval;
@@ -13898,7 +13964,7 @@ static mp_value_node mp_single_dependency(MP mp, mp_node p)
         q = mp_get_dep_node(mp, 5);
  // cf mfont q->type = 0;
         mp_set_dep_value(q, mp_zero_t);
-        mp_set_number_from_scaled(mp_get_dep_value(q), (int) two_to_the(28 - m));
+        mp_set_number_from_scaled(mp_get_dep_value(q), two_to_the(28 - m));
         mp_set_dep_info(q, p);
         {
             /* We append a kind of dummy term: |x = x + 0|. */
@@ -14219,7 +14285,7 @@ simply detaches a quantity from its ring, without recycling the storage.
 
 */
 
-void mp_ring_delete(MP mp, mp_node p)
+static void mp_ring_delete(MP mp, mp_node p)
 {
     mp_node q = mp_get_value_node(p);
     (void) mp;
@@ -14670,7 +14736,7 @@ it as well.
 
 */
 
-int mp_true_line(MP mp)
+static int mp_true_line(MP mp)
 {
     if (file_state && (mp_input_name > mp_input_last_special)) {
         return mp_input_line;
@@ -14828,7 +14894,7 @@ initially, the same properties as the old). We could have a maximum depth here.
 
 */
 
-void mp_push_input(MP mp)
+static void mp_push_input(MP mp)
 {
     if (mp->input_ptr > mp->max_input_stack) {
         mp->max_input_stack = mp->input_ptr;
@@ -15405,7 +15471,7 @@ The |runaway| procedure displays the first part of the text that occurred when \
 
 */
 
-void mp_runaway(MP mp)
+static void mp_runaway(MP mp)
 {
     if (mp->scanner_status > mp_flushing_state) {
         mp_print_nl(mp, "Runaway ");
@@ -15435,7 +15501,7 @@ signs and double quotes need to be passed over when skipping TeX material. The g
 
 */
 
-void mp_get_next(MP mp)
+static void mp_get_next(MP mp)
 {
     mp_symbol cur_sym_;
   RESTART:
@@ -15721,7 +15787,7 @@ instead of the line in the file.
 
 */
 
-void mp_firm_up_the_line(MP mp)
+static void mp_firm_up_the_line(MP mp)
 {
     mp_input_limit = (int) mp->last;
 }
@@ -15751,7 +15817,7 @@ static void mp_get_t_next(MP mp)
         int slin = mp_input_line;
         int size = 0;
         int done = 0;
-        int mode = mp_round_unscaled(internal_value(mp_texscriptmode_internal)) ; /* default: 1 */
+        int mode = (int) mp_round_unscaled(internal_value(mp_texscriptmode_internal)) ; /* default: 1 */
         int verb = cur_mod == mp_verbatim_code;
         int first;
         /*tex We had a (mandate) trailing space. */
@@ -15973,12 +16039,12 @@ static void mp_flush_subst_pool(MP mp)
 
 static mp_node mp_scan_toks(MP mp, mp_command_code terminator, mp_subst_node subst_list, mp_node tail_end, int suffix_count)
 {
-    int cur_data;
     int cur_data_mod = 0;
     mp_node p = mp->hold_head; /*tex tail of the token list being built */
     int balance = 1;           /*tex left delimiters minus right delimiters */
     mp->hold_head->link = NULL;
     while (1) {
+        int cur_data;
         mp_get_t_next(mp);
         cur_data = -1;
         if (cur_sym != NULL) {
@@ -16504,7 +16570,7 @@ static void mp_expand(MP mp)
                 mp_do_boolean_error(mp);
             }
             if (mp_number_greater(internal_value(mp_tracing_commands_internal), mp_unity_t)) {
-                mp_show_cmd_mod(mp, mp_nullary_command, cur_exp_value_boolean);
+                mp_show_cmd_mod(mp, mp_nullary_command, (int) cur_exp_value_boolean);
             }
             if (cur_exp_value_boolean == mp_true_operation) {
                 if (mp->loop_ptr != NULL) {
@@ -16705,7 +16771,7 @@ processing of |endinput| is trivial.
 
 */
 
-void mp_check_script_result(MP mp, char *s)
+static void mp_check_script_result(MP mp, char *s)
 {
     if (s) {
         size_t size = strlen(s);
@@ -17152,7 +17218,7 @@ contained in a group.
 
 */
 
-void mp_scan_text_arg(MP mp, mp_symbol l_delim, mp_symbol r_delim)
+static void mp_scan_text_arg(MP mp, mp_symbol l_delim, mp_symbol r_delim)
 {
     int balance = 1;           /*tex excess of |l_delim| over |r_delim| */
     mp_node p = mp->hold_head; /*tex list tail */
@@ -17290,7 +17356,7 @@ bit simpler.
 
 */
 
-void mp_pass_text(MP mp)
+static void mp_pass_text(MP mp)
 {
     int level = 0;
     mp->scanner_status = mp_skipping_state;
@@ -17539,7 +17605,7 @@ static void mp_flush_loop_pool(MP mp)
     }
 }
 
-void mp_begin_iteration(MP mp)
+static void mp_begin_iteration(MP mp)
 {
     mp_node q;              /*tex link manipulation register */
     mp_symbol n = cur_sym;  /*tex hash address of the current symbol */
@@ -17553,6 +17619,7 @@ void mp_begin_iteration(MP mp)
  // s->link = NULL;
     s->var = NULL;
     s->point = NULL;
+    mp_new_number(s->index);
     mp_new_number(s->value);
     mp_new_number(s->old_value);
     mp_new_number(s->step_size);
@@ -17748,10 +17815,11 @@ apparatus by the |resume_iteration| routine.
 
 */
 
-void mp_resume_iteration(MP mp)
+static void mp_resume_iteration(MP mp)
 {
-    mp_node p, q; /* link registers */
-    p = mp->loop_ptr->type;
+    mp_node p = mp->loop_ptr->type;
+    mp_node q; /* link registers */
+    mp_number_add(mp->loop_ptr->index, mp_unity_t);
     if (p == MP_PROGRESSION_FLAG) {
         /*
         mp_set_cur_exp_value_number(mp, &(mp->loop_ptr->value));
@@ -17861,7 +17929,7 @@ A level of loop control disappears when |resume_iteration| has decided not to re
 
 */
 
-void mp_stop_iteration(MP mp)
+static void mp_stop_iteration(MP mp)
 {
     mp_node p = mp->loop_ptr->type;
     if (p == MP_PROGRESSION_FLAG) {
@@ -17966,7 +18034,7 @@ Here are the routines for file name scanning.
 
 */
 
-void mp_begin_name(MP mp)
+static void mp_begin_name(MP mp)
 {
     mp_memory_free(mp->cur_name);
     mp->cur_name = NULL;
@@ -18081,7 +18149,7 @@ command is being processed.
 
 */
 
-void mp_start_input(MP mp)
+static void mp_start_input(MP mp)
 {
     /*tex
         Put the desired file name in |cur_name|.
@@ -18192,7 +18260,7 @@ static void mp_open_write_file(MP mp, char *s, int n)
     }
 }
 
-void mp_set_cur_exp_node(MP mp, mp_node n)
+static void mp_set_cur_exp_node(MP mp, mp_node n)
 {
     if (cur_exp_str) {
         mp_delete_string_reference(mp, cur_exp_str);
@@ -18203,7 +18271,7 @@ void mp_set_cur_exp_node(MP mp, mp_node n)
     mp_set_number_to_zero(cur_exp_value_number);
 }
 
-void mp_set_cur_exp_knot(MP mp, mp_knot n)
+static void mp_set_cur_exp_knot(MP mp, mp_knot n)
 {
     if (cur_exp_str) {
         mp_delete_string_reference(mp, cur_exp_str);
@@ -18214,7 +18282,7 @@ void mp_set_cur_exp_knot(MP mp, mp_knot n)
     mp_set_number_to_zero(cur_exp_value_number);
 }
 
-void mp_set_cur_exp_value_boolean(MP mp, int b)
+static void mp_set_cur_exp_value_boolean(MP mp, int b)
 {
     if (cur_exp_str) {
         mp_delete_string_reference(mp, cur_exp_str);
@@ -18225,7 +18293,7 @@ void mp_set_cur_exp_value_boolean(MP mp, int b)
     cur_exp_knot = NULL;
 }
 
-void mp_set_cur_exp_value_scaled(MP mp, int s)
+static void mp_set_cur_exp_value_scaled(MP mp, int s)
 {
     if (cur_exp_str) {
         mp_delete_string_reference(mp, cur_exp_str);
@@ -18236,7 +18304,7 @@ void mp_set_cur_exp_value_scaled(MP mp, int s)
     cur_exp_knot = NULL;
 }
 
-void mp_set_cur_exp_value_number(MP mp, mp_number *n)
+static void mp_set_cur_exp_value_number(MP mp, mp_number *n)
 {
     if (cur_exp_str) {
         mp_delete_string_reference(mp, cur_exp_str);
@@ -18247,7 +18315,7 @@ void mp_set_cur_exp_value_number(MP mp, mp_number *n)
     cur_exp_knot = NULL;
 }
 
-void mp_set_cur_exp_str(MP mp, mp_string s)
+static void mp_set_cur_exp_str(MP mp, mp_string s)
 {
     if (cur_exp_str) {
         mp_delete_string_reference(mp, cur_exp_str);
@@ -18470,7 +18538,7 @@ procedure assumes that they are dead or dormant; it resuscitates them.
 
 */
 
-void mp_unstash_cur_exp(MP mp, mp_node p)
+static void mp_unstash_cur_exp(MP mp, mp_node p)
 {
     cur_exp_type = p->type;
     switch (cur_exp_type) {
@@ -18536,7 +18604,7 @@ greater than~1, complicated structures (pens, pictures, and paths) will be displ
 
 */
 
-void mp_print_exp(MP mp, mp_node p, int verbosity)
+static void mp_print_exp(MP mp, mp_node p, int verbosity)
 {
     int restore_cur_exp; /*tex should |cur_exp| be restored? */
     mp_variable_type t;  /*tex the type of the expression */
@@ -18702,7 +18770,7 @@ void mp_print_exp(MP mp, mp_node p, int verbosity)
     mp_free_number(vv);
 }
 
-void mp_print_big_node(MP mp, mp_node v, int verbosity)
+static void mp_print_big_node(MP mp, mp_node v, int verbosity)
 {
     switch (v->type) {
         case mp_known_type:
@@ -18741,7 +18809,7 @@ error message, using |disp_err| just before |mp_error|.
 
 */
 
-void mp_display_error(MP mp, mp_node p)
+static void mp_display_error(MP mp, mp_node p)
 {
     if (mp->interaction >= mp_error_stop_mode) {
         mp_print_flush_line(mp);
@@ -18772,7 +18840,7 @@ can think of |cur_type| and |cur_exp| as either alive or dormant after this has 
 
 */
 
-void mp_flush_cur_exp(MP mp, mp_value v)
+static void mp_flush_cur_exp(MP mp, mp_value v)
 {
     if (is_number(cur_exp_value_number)) {
         mp_free_number(cur_exp_value_number);
@@ -19512,7 +19580,7 @@ the current expression is flushed.
 
 */
 
-void mp_known_pair(MP mp)
+static void mp_known_pair(MP mp)
 {
     mp_value new_expr;
     memset(&new_expr, 0, sizeof(mp_value));
@@ -19698,24 +19766,25 @@ performs is a |primary_binary| or |secondary_binary|, etc.
 static void mp_push_of_path_result(MP mp, int what, mp_knot p, mp_number i, mp_number n)
 {
     switch (what) {
-        case 0:
+        case 0: /* point */
             mp_pair_value(mp, &(p->x_coord), &(p->y_coord));
             break;
-        case 1:
+        case 1: /* precontrol */
             if (mp_left_type(p) == mp_endpoint_knot) {
                 mp_pair_value(mp, &(p->x_coord), &(p->y_coord));
             } else {
                 mp_pair_value(mp, &(p->left_x), &(p->left_y));
             }
             break;
-        case 2:
+        case 2: /* postcontrol */
             if (mp_right_type(p) == mp_endpoint_knot) {
                 mp_pair_value(mp, &(p->x_coord), &(p->y_coord));
             } else {
                 mp_pair_value(mp, &(p->right_x), &(p->right_y));
             }
             break;
-        case 3:
+        case 3: /* direction */
+        case 4: /* unitdirection */
             {
                 mp_number x, y;
                 if (mp_right_type(p) == mp_endpoint_knot) {
@@ -19732,12 +19801,24 @@ static void mp_push_of_path_result(MP mp, int what, mp_knot p, mp_number i, mp_n
                     mp_number_subtract(x, p->left_x);
                     mp_number_subtract(y, p->left_y);
                 }
+                if (what == 4) {
+                    mp_number n;
+                    mp_pyth_add(n, x, y);
+                    if (mp_number_zero(n)) {
+                        mp_number_clone(x, mp_zero_t);
+                        mp_number_clone(y, mp_zero_t);
+                    } else {
+                        mp_set_number_from_div(x, x, n);
+                        mp_set_number_from_div(y, y, n);
+                    }
+                    mp_free_number(n);
+                }
                 mp_pair_value(mp, &x, &y);
                 mp_free_number(x);
                 mp_free_number(y);
             }
             break;
-        case 4:
+        case 5: /* state */
             {
                 mp_value expr;
                 memset(&expr, 0, sizeof(mp_value));
@@ -19746,7 +19827,7 @@ static void mp_push_of_path_result(MP mp, int what, mp_knot p, mp_number i, mp_n
                 mp_flush_cur_exp(mp, expr);
             }
             break;
-        case 5:
+        case 6: /* index */
             {
                 mp_value expr;
                 memset(&expr, 0, sizeof(mp_value));
@@ -19754,7 +19835,7 @@ static void mp_push_of_path_result(MP mp, int what, mp_knot p, mp_number i, mp_n
                 mp_flush_cur_exp(mp, expr);
             }
             break;
-        case 6:
+        case 7: /* lastindex */
             {
                 mp_value expr;
                 memset(&expr, 0, sizeof(mp_value));
@@ -19762,7 +19843,7 @@ static void mp_push_of_path_result(MP mp, int what, mp_knot p, mp_number i, mp_n
                 mp_flush_cur_exp(mp, expr);
             }
             break;
-        case 7:
+        case 8: /* length */
             {
                 mp_value expr;
                 memset(&expr, 0, sizeof(mp_value));
@@ -19770,25 +19851,25 @@ static void mp_push_of_path_result(MP mp, int what, mp_knot p, mp_number i, mp_n
                 mp_flush_cur_exp(mp, expr);
             }
             break;
-        case 8: /* first */
+        case 9: /* first */
             {
                 cur_exp_type = mp_boolean_type;
                 mp_set_cur_exp_value_boolean(mp, mp_number_equal(i, mp_unity_t) ? mp_true_operation : mp_false_operation);
             }
             break;
-        case 9: /* last */
+        case 10: /* last */
             {
                 cur_exp_type = mp_boolean_type;
                 mp_set_cur_exp_value_boolean(mp, mp_number_greater(i, n) ? mp_true_operation : mp_false_operation);
             }
             break;
-        case 10: /* xpart */
+        case 11: /* xpart */
             {
                 cur_exp_type = mp_known_type;
                 mp_set_cur_exp_value_number(mp,  &(p->x_coord));
             }
             break;
-        case 11: /* ypart */
+        case 12: /* ypart */
             {
                 cur_exp_type = mp_known_type;
                 mp_set_cur_exp_value_number(mp,  &(p->y_coord));
@@ -19899,10 +19980,15 @@ static void mp_do_command_nullary(MP mp, int c)
             cur_exp_type = mp_string_type;
             mp_set_cur_exp_str(mp, mp_intern(mp, metapost_version));
             break;
+        case mp_iterator_index_operation:
+            cur_exp_type = mp_known_type;
+            mp_set_cur_exp_value_number(mp, mp->loop_ptr ? &(mp->loop_ptr->index) : &mp_zero_t);
+            break;
         case mp_path_point_operation:
         case mp_path_precontrol_operation:
         case mp_path_postcontrol_operation:
         case mp_path_direction_operation:
+        case mp_path_unit_direction_operation:
         case mp_path_state_operation:
         case mp_path_index_operation:
         case mp_path_lastindex_operation:
@@ -20078,6 +20164,12 @@ static int mp_nice_pair(MP mp, mp_node p, int t)
     return (t == mp_pair_type) && mp_pair_is_known(mp_get_value_node(p));
 }
 
+static int mp_nice_color(MP mp, mp_node p, int t)
+{
+    (void) mp;
+    return (t == mp_color_type) && mp_rgb_color_is_known(mp_get_value_node(p));
+}
+
 static int mp_nice_color_or_pair(MP mp, mp_node p, int t)
 {
     (void) mp;
@@ -20213,7 +20305,7 @@ static void mp_take_part(MP mp, int c)
                     mp_make_exp_copy(mp, mp_yellow_part(p), c);
                     break;
                 default:
-                    /* can't happen */
+                    mp_confusion(mp, "invalid zpart");
                     break;
             }
             break;
@@ -20223,7 +20315,7 @@ static void mp_take_part(MP mp, int c)
                     mp_make_exp_copy(mp, mp_black_part(p), c);
                     break;
                 default:
-                    /* can't happen */
+                    mp_confusion(mp, "invalid wpart");
                     break;
             }
             break;
@@ -21110,6 +21202,40 @@ static void mp_set_up_floor(MP mp, int c)
     }
 }
 
+static void mp_set_up_normalize(MP mp, int c)
+{
+    if (mp_nice_color(mp, cur_exp_node, cur_exp_type)) {
+        mp_number n;
+        mp_node q = cur_exp_node;
+        mp_make_exp_copy(mp, q, 2);
+        mp_node p = mp_get_value_node(cur_exp_node);
+        mp_pyth_add3(n,
+            mp_get_value_number(mp_red_part(p)),
+            mp_get_value_number(mp_green_part(p)),
+            mp_get_value_number(mp_blue_part(p))
+        );
+        if (mp_number_zero(n)) {
+            mp_set_value_number(mp_red_part(p), mp_zero_t);
+            mp_set_value_number(mp_green_part(p), mp_zero_t);
+            mp_set_value_number(mp_blue_part(p), mp_zero_t);
+        } else {
+            mp_number x, y, z;
+            mp_new_number_from_div(x, mp_get_value_number(mp_red_part(p)), n);
+            mp_new_number_from_div(y, mp_get_value_number(mp_green_part(p)), n);
+            mp_new_number_from_div(z, mp_get_value_number(mp_blue_part(p)), n);
+            mp_set_value_number(mp_red_part(p), x);
+            mp_set_value_number(mp_green_part(p), y);
+            mp_set_value_number(mp_blue_part(p), z);
+        }
+        mp_free_number(n);
+        mp_recycle_value(mp, q);
+        mp_free_value_node(mp, q);
+    } else {
+        mp_bad_unary(mp, c);
+    }
+}
+
+
 static void mp_set_up_uniform_deviate(MP mp, int c)
 {
     if (cur_exp_type != mp_known_type) {
@@ -21135,7 +21261,7 @@ static void mp_set_up_odd(MP mp, int c)
 
 static void mp_set_up_angle(MP mp, int c)
 {
-    if (mp_nice_pair (mp, cur_exp_node, cur_exp_type)) {
+    if (mp_nice_pair(mp, cur_exp_node, cur_exp_type)) {
         mp_value expr;
         mp_node p; /* for list manipulation */
         mp_number narg;
@@ -21158,12 +21284,12 @@ static void mp_set_up_char(MP mp, int c)
     if (cur_exp_type != mp_known_type) {
         mp_bad_unary(mp, c);
     } else {
-        int n = mp_round_unscaled(cur_exp_value_number) % 256;
+        int n = (int) mp_round_unscaled(cur_exp_value_number) % 256;
         unsigned char s[2];
         mp_set_cur_exp_value_scaled(mp, n);
         cur_exp_type = mp_string_type;
         if (mp_number_negative(cur_exp_value_number)) {
-            n = mp_number_to_scaled(cur_exp_value_number) + 256;
+            n = (int) mp_number_to_scaled(cur_exp_value_number) + 256;
             mp_set_cur_exp_value_scaled(mp, n);
         }
         s[0] = (unsigned char) mp_number_to_scaled(cur_exp_value_number);
@@ -21319,7 +21445,7 @@ static void mp_set_up_length(MP mp, int c)
                 break;
             }
         default:
-            if (mp_nice_pair (mp, cur_exp_node, cur_exp_type)) {
+            if (mp_nice_pair(mp, cur_exp_node, cur_exp_type)) {
                 mp_value expr;
                 memset(&expr, 0, sizeof(mp_value));
                 mp_new_number(expr.data.n);
@@ -21328,10 +21454,47 @@ static void mp_set_up_length(MP mp, int c)
                     mp_get_value_number(mp_y_part(mp_get_value_node(cur_exp_node)))
                 );
                 mp_flush_cur_exp(mp, expr);
+            } else if (mp_nice_color(mp, cur_exp_node, cur_exp_type)) {
+                mp_value expr;
+                memset(&expr, 0, sizeof(mp_value));
+                mp_new_number(expr.data.n);
+                mp_pyth_add3(expr.data.n,
+                    mp_get_value_number(mp_red_part(mp_get_value_node(cur_exp_node))),
+                    mp_get_value_number(mp_green_part(mp_get_value_node(cur_exp_node))),
+                    mp_get_value_number(mp_blue_part(mp_get_value_node(cur_exp_node)))
+                );
+                mp_flush_cur_exp(mp, expr);
             } else {
                 mp_bad_unary(mp, c);
             }
             break;
+    }
+}
+
+static void mp_set_up_some_point(MP mp, int c)
+{
+    if (cur_exp_type == mp_path_type) {
+        mp_knot p = cur_exp_knot;
+        switch (c) {
+            case mp_first_point_operation:
+            case mp_first_pre_control_operation:
+            case mp_first_post_control_operation:
+            case mp_first_direction_operation:
+            case mp_first_unit_direction_operation:
+                c -= mp_first_point_operation;
+                break;
+            case mp_last_point_operation:
+            case mp_last_pre_control_operation:
+            case mp_last_post_control_operation:
+            case mp_last_direction_operation:
+            case mp_last_unit_direction_operation:
+                c -= mp_last_point_operation;
+                p = mp_prev_knot(p);
+                break;
+        }
+        mp_push_of_path_result(mp, c, p, mp_zero_t, mp_zero_t);
+    } else {
+        mp_bad_unary(mp, c);
     }
 }
 
@@ -21482,11 +21645,19 @@ static inline int mp_same_point(MP mp, mp_knot left, mp_knot right)
 static void mp_set_up_prune_singularities_r_r(MP mp, mp_knot first)
 {
     mp_knot current = first;
-    mp_knot previous = NULL;
     int state = mp_begin_knot;
     while (1) {
         mp_knot next = mp_next_knot(current);
-        if (previous && state == mp_regular_knot && next != first && current->state == mp_regular_knot && mp_same_point(mp, previous, current)) {
+        if (current != first && state == mp_regular_knot && next != first && current->state == mp_regular_knot) {
+            mp_knot previous = mp_prev_knot(current);
+            if (! mp_same_point(mp, previous, current)) {
+                state = current->state;
+                current = next;
+                if (current == first) {
+                    break;
+                }
+                continue;
+            }
             mp_knot wiped = current;
             mp_next_knot(previous) = next;
             mp_prev_knot(next) = previous;
@@ -21494,12 +21665,13 @@ static void mp_set_up_prune_singularities_r_r(MP mp, mp_knot first)
             mp_number_clone(previous->right_y, current->right_y);
             current = next;
             mp_free_knot(mp, wiped);
-            goto PICKUP;
+            if (current == first) {
+                break;
+            }
+            continue;
         }
         state = current->state;
-        previous = current;
         current = next;
-      PICKUP:
         if (current == first) {
             break;
         }
@@ -21508,11 +21680,11 @@ static void mp_set_up_prune_singularities_r_r(MP mp, mp_knot first)
 
 static void mp_set_up_prune_singularities_b_r(MP mp, mp_knot first)
 {
-    mp_knot previous = first;
     mp_knot current = mp_next_knot(first);
     int state = mp_begin_knot;
     while (current != first) {
         mp_knot next = mp_next_knot(current);
+        mp_knot previous = mp_prev_knot(current);
         if (state == mp_begin_knot && next != first && current->state == mp_regular_knot && mp_same_point(mp, previous, current)) {
             mp_knot wiped = current;
             mp_next_knot(previous) = next;
@@ -21522,26 +21694,29 @@ static void mp_set_up_prune_singularities_b_r(MP mp, mp_knot first)
             current = next;
             state = mp_regular_knot;
             mp_free_knot(mp, wiped);
-            goto PICKUP;
+            continue;
         }
         state = current->state;
-        previous = current;
         current = next;
-      PICKUP:
-        if (current == first) {
-            break;
-        }
     }
 }
 
 static void mp_set_up_prune_singularities_r_e(MP mp, mp_knot first) /* todo : last is also end */
 {
      mp_knot current = first;
-     mp_knot previous = NULL;
      int state = mp_begin_knot;
-     while (current != first) {
+     while (1) {
         mp_knot next = mp_next_knot(current);
-         if (previous && state == mp_regular_knot && (current->state == mp_end_knot || next == first ) && mp_same_point(mp, previous, current)) {
+         if (current != first && state == mp_regular_knot && (current->state == mp_end_knot || next == first)) {
+             mp_knot previous = mp_prev_knot(current);
+             if (! mp_same_point(mp, previous, current)) {
+                 state = current->state;
+                 current = next;
+                 if (current == first) {
+                     break;
+                 }
+                 continue;
+             }
              mp_knot wiped = previous;
              mp_knot prev = mp_prev_knot(previous);
              mp_number_clone(current->left_x, previous->left_x);
@@ -21551,7 +21726,6 @@ static void mp_set_up_prune_singularities_r_e(MP mp, mp_knot first) /* todo : la
              mp_free_knot(mp, wiped);
          }
          state = current->state;
-         previous = current;
          current = next;
          if (current == first) {
              break;
@@ -21561,11 +21735,11 @@ static void mp_set_up_prune_singularities_r_e(MP mp, mp_knot first) /* todo : la
 
 static void mp_set_up_prune_singularities_b_e(MP mp, mp_knot first)
 {
-    mp_knot previous = first;
     mp_knot current = mp_next_knot(first);
     int state = mp_begin_knot;
     while (current != first) {
         mp_knot next = mp_next_knot(current);
+        mp_knot previous = mp_prev_knot(current);
         if (state == mp_begin_knot && (current->state == mp_end_knot || next == first) && mp_same_point(mp, previous, current)) {
             mp_knot wiped = current;
             mp_next_knot(previous) = next;
@@ -21578,24 +21752,19 @@ static void mp_set_up_prune_singularities_b_e(MP mp, mp_knot first)
             current = next;
             state = mp_single_knot;
             mp_free_knot(mp, wiped);
-            goto PICKUP;
+            continue;
         }
         state = current->state;
-        previous = current;
         current = next;
-      PICKUP:
-        if (current == first) {
-            break;
-        }
     }
 }
 
 static void mp_set_up_prune_singularities_w_s(MP mp, mp_knot first)
 {
-    mp_knot previous = first;
     mp_knot current = mp_next_knot(first);
     while (current != first) {
         mp_knot next = mp_next_knot(current);
+        mp_knot previous = mp_prev_knot(current);
         if (current->state == mp_single_knot) {
             mp_knot wiped = current;
             mp_next_knot(previous) = next;
@@ -21605,26 +21774,18 @@ static void mp_set_up_prune_singularities_w_s(MP mp, mp_knot first)
             mp_number_clone(next->left_x, next->x_coord);
             mp_number_clone(next->left_y, next->y_coord);
             mp_free_knot(mp, wiped);
-            current = next;
-            goto PICKUP;
-        } else {
-            previous = current;
-            current = next;
         }
-      PICKUP:
-        if (current == first) {
-            break;
-        }
+        current = next;
     }
 }
 
 static void mp_set_up_prune_singularities_c_s(MP mp, mp_knot first)
 {
-    mp_knot previous = first;
     mp_knot current = mp_next_knot(first);
     int state = mp_begin_knot;
     while (current != first) {
         mp_knot next = mp_next_knot(current);
+        mp_knot previous = mp_prev_knot(current);
         if (state == mp_end_knot && current->state == mp_begin_knot && mp_same_point(mp, previous, current)) {
             mp_knot wiped = current;
             mp_next_knot(previous) = next;
@@ -21635,15 +21796,10 @@ static void mp_set_up_prune_singularities_c_s(MP mp, mp_knot first)
             current = next;
             state = mp_regular_knot;
             mp_free_knot(mp, wiped);
-            goto PICKUP;
+            continue;
         }
         state = current->state;
-        previous = current;
         current = next;
-      PICKUP:
-        if (current == first) {
-            break;
-        }
     }
 }
 
@@ -21652,7 +21808,7 @@ static void mp_set_up_prune_singularities(MP mp, int c)
     switch (cur_exp_type) {
         case mp_path_type: /* we can use a interternal as bitset */
             {
-                int prune = mp_round_unscaled(internal_value(mp_prune_options_internal));
+                int prune = (int) mp_round_unscaled(internal_value(mp_prune_options_internal));
                 if (prune & collapse_regular_regular_prune) {
                     mp_set_up_prune_singularities_r_r(mp, cur_exp_knot);
                 }
@@ -21866,8 +22022,8 @@ static void mp_set_up_delta(MP mp, int c)
             mp_value new_expr;
             mp_number count;
             mp_knot p = mp->loop_ptr->point;
-            int f = mp_round_unscaled(mp->cur_x);
-            int l = mp_round_unscaled(mp->cur_y) - f;
+            int f = (int) mp_round_unscaled(mp->cur_x);
+            int l = (int) mp_round_unscaled(mp->cur_y) - f;
             if (f > 0) { while (f--) { p = mp_next_knot(p); } } else
             if (f < 0) { while (f++) { p = mp_prev_knot(p); } }
             memset(&new_expr, 0, sizeof(mp_value));
@@ -21879,26 +22035,36 @@ static void mp_set_up_delta(MP mp, int c)
         } else {
             mp_bad_unary(mp, c);
         }
-    } else {
-        if (cur_exp_type == mp_known_type) {
-            mp_set_cur_exp_value_number(mp, &cur_exp_value_number);
-            if (mp->loop_ptr && mp->loop_ptr->point != NULL) {
-                mp_knot p = mp->loop_ptr->point;
-                int n = mp_round_unscaled(cur_exp_value_number);
-                if (n > 0) {
-                    while (n--) {
-                        p = mp_next_knot(p);
-                    }
-                } else if (n < 0) {
-                    while (n++) {
-                        p = mp_prev_knot(p);
-                    }
-                }
-                mp_push_of_path_result(mp, c - mp_delta_point_operation, p, mp->loop_ptr->value, mp->loop_ptr->final_value);
+    } else if (c == mp_delta_iterator_index_operation) {
+        mp_loop_node p = mp->loop_ptr->link;
+        mp_set_cur_exp_value_number(mp, &cur_exp_value_number);
+        int n = (int) mp_round_unscaled(cur_exp_value_number);
+        if (n > 0) {
+            while (p && --n > 0) {
+                p = p->link;
             }
         } else {
-            mp_bad_unary(mp, c);
+            p = NULL;
         }
+        mp_set_cur_exp_value_number(mp, p ? &p->index : &mp_zero_t);
+    } else if (cur_exp_type == mp_known_type) {
+        mp_set_cur_exp_value_number(mp, &cur_exp_value_number);
+        if (mp->loop_ptr && mp->loop_ptr->point != NULL) {
+            mp_knot p = mp->loop_ptr->point;
+            int n = (int) mp_round_unscaled(cur_exp_value_number);
+            if (n > 0) {
+                while (n--) {
+                    p = mp_next_knot(p);
+                }
+            } else if (n < 0) {
+                while (n++) {
+                    p = mp_prev_knot(p);
+                }
+            }
+            mp_push_of_path_result(mp, c - mp_delta_point_operation, p, mp->loop_ptr->value, mp->loop_ptr->final_value);
+        }
+    } else {
+        mp_bad_unary(mp, c);
     }
 }
 
@@ -22251,6 +22417,9 @@ static void mp_do_unary(MP mp, int c)
         case mp_floor_operation:
             mp_set_up_floor(mp, c);
             break;
+        case mp_normalize_operation:
+            mp_set_up_normalize(mp, c);
+            break;
         case mp_uniform_deviate_operation:
             mp_set_up_uniform_deviate(mp, c);
             break;
@@ -22307,6 +22476,18 @@ static void mp_do_unary(MP mp, int c)
             break;
         case mp_no_length_operation:
             mp_set_up_no_length(mp, c);
+            break;
+        case mp_first_point_operation:
+        case mp_first_pre_control_operation:
+        case mp_first_post_control_operation:
+        case mp_first_direction_operation:
+        case mp_first_unit_direction_operation:
+        case mp_last_point_operation:
+        case mp_last_pre_control_operation:
+        case mp_last_post_control_operation:
+        case mp_last_direction_operation:
+        case mp_last_unit_direction_operation:
+            mp_set_up_some_point(mp, c);
             break;
         case mp_turning_operation:
             mp_set_up_turning(mp, c);
@@ -22392,7 +22573,9 @@ static void mp_do_unary(MP mp, int c)
         case mp_delta_precontrol_operation:
         case mp_delta_postcontrol_operation:
         case mp_delta_direction_operation:
+        case mp_delta_unit_direction_operation:
         case mp_delta_arclength_operation:
+        case mp_delta_iterator_index_operation:
             mp_set_up_delta(mp, c);
             break;
         case mp_read_from_operation:
@@ -22610,6 +22793,7 @@ static void mp_bad_binary(MP mp, mp_node p, int c)
     );
     mp_get_x_next(mp);
 }
+
 static void mp_bad_envelope_pen(MP mp)
 {
     mp_display_error(mp, NULL);
@@ -22712,11 +22896,12 @@ static void mp_add_or_subtract(MP mp, mp_node p, mp_node q, int c)
     }
     if (t == mp_known_type) {
         mp_value_node qq = (mp_value_node) q;
-        if (c == mp_minus_operation) {
-            mp_number_negate(vv);
-        }
         if (p->type == mp_known_type) {
-            mp_slow_add(vv, mp_get_value_number(p), vv);
+            if (c == mp_minus_operation) {
+                mp_slow_sub(vv, mp_get_value_number(p), vv);
+            } else {
+                mp_slow_add(vv, mp_get_value_number(p), vv);
+            }
             if (q == NULL) {
                 mp_set_cur_exp_value_number(mp, &vv);
             } else {
@@ -22732,7 +22917,11 @@ static void mp_add_or_subtract(MP mp, mp_node p, mp_node q, int c)
             while (mp_get_dep_info(r) != NULL) {
                 r = (mp_value_node) r->link;
             }
-            mp_slow_add(vv, mp_get_dep_value(r), vv);
+            if (c == mp_minus_operation) {
+                mp_slow_sub(vv, mp_get_dep_value(r), vv);
+            } else {
+                mp_slow_add(vv, mp_get_dep_value(r), vv);
+            }
             mp_set_dep_value(r, vv);
             if (qq == NULL) {
                 qq = mp_get_dep_node(mp, 8);
@@ -22929,6 +23118,28 @@ static void mp_hard_times(MP mp, mp_node p)
     }
 }
 
+static void mp_harder_times(MP mp, mp_node p)
+{
+    if (p->type <= mp_pair_type) {
+        mp_value_node q = (mp_value_node) mp_stash_cur_exp(mp);
+        mp_unstash_cur_exp(mp, p);
+        p = (mp_node) q;
+    }
+    {
+        mp_node e = mp_get_value_node(cur_exp_node);
+        mp_number x, y, z;
+        mp_new_number_from_mul(x, mp_get_value_number(mp_red_part(mp_get_value_node(cur_exp_node))), mp_get_value_number(mp_red_part(mp_get_value_node(p))));
+        mp_new_number_from_mul(y, mp_get_value_number(mp_green_part(mp_get_value_node(cur_exp_node))), mp_get_value_number(mp_green_part(mp_get_value_node(p))));
+        mp_new_number_from_mul(z, mp_get_value_number(mp_blue_part(mp_get_value_node(cur_exp_node))), mp_get_value_number(mp_blue_part(mp_get_value_node(p))));
+        mp_set_value_number(mp_red_part(e), x);
+        mp_set_value_number(mp_green_part(e), y);
+        mp_set_value_number(mp_blue_part(e), z);
+        mp_free_number(x);
+        mp_free_number(y);
+        mp_free_number(z);
+    }
+}
+
 static void mp_dep_div(MP mp, mp_value_node p, mp_number *v)
 {
     mp_value_node q; /*tex the dependency list being divided by |v| */
@@ -23076,9 +23287,23 @@ static void mp_set_up_trans(MP mp, int c)
                     goto DONE;
                 }
                 break;
+            case mp_x_shifted_operation:
+                if (p->type == mp_pair_type) {
+                    r = mp_get_value_node(p);
+                    mp_install(mp, mp_tx_part(q), mp_x_part(r));
+                    goto DONE;
+                }
+                break;
+            case mp_y_shifted_operation:
+                if (p->type == mp_pair_type) {
+                    r = mp_get_value_node(p);
+                    mp_install(mp, mp_ty_part(q), mp_y_part(r));
+                    goto DONE;
+                }
+                break;
             case mp_bytemap_scaled_operation:
                 if (p->type == mp_known_type) {
-                    int index = mp_round_unscaled(mp_get_value_number(p));
+                    int index = (int) mp_round_unscaled(mp_get_value_number(p));
                     int nx = 1;
                     int ny = 1;
                     mp_number sx, sy;
@@ -23203,8 +23428,8 @@ static void mp_do_pen_trans(MP mp, mp_knot p)
 
 static void mp_do_path_pen_trans(MP mp, mp_shape_node p, mp_number *sqdet, int sgndet)
 {
-    mp_number sx, sy;
     if (mp_pen_ptr(p) != NULL) {
+        mp_number sx, sy;
         mp_new_number_clone(sx, mp->tx);
         mp_new_number_clone(sy, mp->ty);
         mp_set_number_to_zero(mp->tx);
@@ -23599,6 +23824,7 @@ static void mp_set_up_direction_time(MP mp, mp_node p, int c)
         mp_bad_binary(mp, p, c);
     }
 }
+
 static void mp_set_up_envelope(MP mp, mp_node p, int c)
 {
     if ((p->type != mp_pen_type && p->type != mp_nep_type) || (cur_exp_type != mp_path_type)) {
@@ -23639,6 +23865,7 @@ static void mp_set_up_envelope(MP mp, mp_node p, int c)
         }
     }
 }
+
 static void mp_set_up_boundingpath(MP mp, mp_node p, int c)
 {
     if ((p->type != mp_pen_type && p->type != mp_nep_type) || (cur_exp_type != mp_path_type)) {
@@ -23655,16 +23882,9 @@ static void mp_set_up_boundingpath(MP mp, mp_node p, int c)
             polygonal one. The approximation of 8 knots should be good enough.
         */
         if (mp_pen_is_elliptical(mp_get_value_knot(p))) {
-            mp_knot kp, kq;
             pen = mp_copy_pen(mp, mp_get_value_knot(p));
             mp_make_path(mp, pen);
-            kq = pen;
-            do {
-                kp = kq;
-                kq = mp_next_knot(kq);
-                mp_prev_knot(kq) = kp;
-            } while (kq != pen);
-            mp_close_path_cycle(mp, kp, pen);
+            mp_close_path_cycle(mp, mp_prev_knot(pen), pen);
         }
         if (mp_number_greater(internal_value(mp_linejoin_internal), mp_unity_t)) {
             linejoin = mp_beveled_linejoin_code;
@@ -24041,7 +24261,6 @@ static void mp_set_up_compare(MP mp, mp_node p, int c)
             default:
                 mp_bad_binary(mp, p, (int) c);
                 goto DONE;
-                break;
         }
     }
     /*tex
@@ -24444,6 +24663,10 @@ static int mp_set_up_times(MP mp, mp_node p, int c, mp_node old_p, mp_node old_e
         mp_hard_times(mp, p);
         mp_finish_binary(mp, old_p, old_exp);
         return 1;
+    } else if (mp_nice_color(mp, p, p->type) && mp_nice_color(mp, cur_exp_node, cur_exp_type)) {
+        mp_harder_times(mp, p);
+        mp_finish_binary(mp, old_p, old_exp);
+        return 1;
     } else {
         mp_bad_binary(mp, p, c);
         return 0;
@@ -24471,13 +24694,12 @@ static void mp_set_up_intertimes(MP mp, mp_node p, int c)
             // mp_pair_value(mp, &arg1, &arg2);
             // mp_free_number(arg1);
             // mp_free_number(arg2);
-            mp_path_intersection(mp, mp_get_value_knot(p), cur_exp_knot, 0, NULL);
+            mp_path_intersection(mp, mp_get_value_knot(p), cur_exp_knot, 0);
             mp_pair_value(mp, &mp->cur_t, &mp->cur_tt);
         } else {
-            mp_knot last = NULL;
-            mp_knot list = mp_path_intersection(mp, mp_get_value_knot(p), cur_exp_knot, 1, &last);
+            mp_knot list = mp_path_intersection(mp, mp_get_value_knot(p), cur_exp_knot, 1);
             mp_left_type(list) = mp_endpoint_knot;
-            mp_right_type(last) = mp_endpoint_knot;
+            mp_right_type(mp_prev_knot(list)) = mp_endpoint_knot;
             cur_exp_type = mp_path_type;
             mp_set_cur_exp_knot(mp, list);
         }
@@ -24536,7 +24758,6 @@ static void mp_set_up_arc_point_list(MP mp, mp_node p, int c)
         mp_value new_expr;
         mp_knot cur = cur_exp_knot;
         mp_number len, aln, seg, tot, tim, stp, acc, tmp, idx, cnt;
-        mp_knot last = NULL;
         mp_knot list = NULL;
         int iscycle = mp_left_type(cur_exp_knot) == mp_explicit_knot;
         mp_new_number(len);
@@ -24559,7 +24780,6 @@ static void mp_set_up_arc_point_list(MP mp, mp_node p, int c)
         list = mp_complex_knot(mp, cur_exp_knot);
         mp_prev_knot(list) = list;
         mp_next_knot(list) = list;
-        last = list;
         /* second and following points */
         mp_number_clone(tot, stp);
         /* checking the index is more robust than checking on accumulated length */
@@ -24600,11 +24820,7 @@ static void mp_set_up_arc_point_list(MP mp, mp_node p, int c)
                 }
                 OVERSHOOT:
                 kk = mp_complex_knot(mp, k);
-                mp_prev_knot(list) = kk;
-                mp_next_knot(kk) = list;
-                mp_prev_knot(kk) = last;
-                mp_next_knot(last) = kk;
-                last = kk;
+                mp_append_knot_to_cycle(&list, kk);
                 if (toss) {
                     mp_free_knot(mp, k);
                 }
@@ -24627,10 +24843,10 @@ static void mp_set_up_arc_point_list(MP mp, mp_node p, int c)
         if (list) {
             if (iscycle) {
                 mp_left_type(list) = mp_explicit_knot;
-                mp_right_type(last) = mp_explicit_knot;
+                mp_right_type(mp_prev_knot(list)) = mp_explicit_knot;
             } else {
                 mp_left_type(list) = mp_endpoint_knot;
-                mp_right_type(last) = mp_endpoint_knot;
+                mp_right_type(mp_prev_knot(list)) = mp_endpoint_knot;
             }
             cur_exp_type = mp_path_type;
             mp_set_cur_exp_knot(mp, list);
@@ -24785,9 +25001,9 @@ static void mp_set_up_substring(MP mp, mp_node p, int c)
     if (mp_nice_pair(mp, p, p->type) && (cur_exp_type == mp_string_type)) {
         mp_string str = mp_chop_string (mp,
             cur_exp_str,
-            mp_round_unscaled(mp_get_value_number(mp_x_part(mp_get_value_node(p)))),
-            mp_round_unscaled(mp_get_value_number(mp_y_part(mp_get_value_node(p))))
-            );
+            (int) mp_round_unscaled(mp_get_value_number(mp_x_part(mp_get_value_node(p)))),
+            (int) mp_round_unscaled(mp_get_value_number(mp_y_part(mp_get_value_node(p))))
+        );
         mp_delete_string_reference(mp, cur_exp_str) ;
         mp_set_cur_exp_str(mp, str);
     } else {
@@ -24812,7 +25028,7 @@ static void mp_set_up_subpath(MP mp, mp_node p, int c)
                 {
                     int first = -1;
                     int last = -1;
-                    if (mp_path_segment(mp, mp_round_unscaled(mp_get_value_number(p)), &first, &last)) {
+                    if (mp_path_segment(mp, (int) mp_round_unscaled(mp_get_value_number(p)), &first, &last)) {
                         mp_new_number(a);
                         mp_new_number(b);
                         mp_set_number_from_int(a, first);
@@ -24969,7 +25185,7 @@ static void mp_set_up_segment(MP mp, mp_node p, int c)
                 {
                     int first = -1;
                     int last = -1;
-                    if (mp_path_segment(mp, mp_round_unscaled(mp_get_value_number(p)), &first, &last)) {
+                    if (mp_path_segment(mp, (int) mp_round_unscaled(mp_get_value_number(p)), &first, &last)) {
                         mp_number a, b;
                         mp_new_number(a);
                         mp_new_number(b);
@@ -25129,6 +25345,8 @@ static void mp_do_binary(MP mp, mp_node p, int c)
         case mp_y_scaled_operation:
         case mp_z_scaled_operation:
         case mp_xy_scaled_operation:
+        case mp_x_shifted_operation:
+        case mp_y_shifted_operation:
         case mp_bytemap_scaled_operation:
             if (mp_set_up_transform(mp, p, c, old_p, old_exp)) {
                 return;
@@ -25154,6 +25372,7 @@ static void mp_do_binary(MP mp, mp_node p, int c)
         case mp_precontrol_operation:
         case mp_postcontrol_operation:
         case mp_direction_operation:
+        case mp_unit_direction_operation:
             mp_set_up_direction(mp, p, c);
             break;
         case mp_pen_offset_operation:
@@ -25366,7 +25585,7 @@ a statement that starts with, e.g., |string|, as a type declaration rather than 
 static void worry_about_bad_statement            (MP mp);
 static void flush_unparsable_junk_after_statement(MP mp);
 
-void mp_do_statement(MP mp)
+static void mp_do_statement(MP mp)
 {
     cur_exp_type = mp_vacuous_type;
     mp_get_x_next(mp);
@@ -25617,7 +25836,7 @@ side (which will normally be equal to the left-hand side).
 
 */
 
-void mp_do_equation(MP mp)
+static void mp_do_equation(MP mp)
 {
     mp_node lhs = mp_stash_cur_exp(mp); /* capsule for the left-hand side */
     mp_get_x_next(mp);
@@ -25767,7 +25986,7 @@ And |do_assignment| is similar to |do_equation|:
 
 */
 
-void mp_do_assignment(MP mp)
+static void mp_do_assignment(MP mp)
 {
     if (cur_exp_type != mp_token_list_type) {
         mp_bad_lhs(mp);
@@ -25928,7 +26147,7 @@ to be equated to the current expression.
 
 */
 
-void mp_make_eq(MP mp, mp_node lhs)
+static void mp_make_eq(MP mp, mp_node lhs)
 {
     mp_value new_expr;
     mp_variable_type t; /*tex type of the left-hand side */
@@ -26077,7 +26296,7 @@ static void deal_with_redundant_or_inconsistent_equation(MP mp, mp_value_node p,
     mp_free_dep_node(mp, p, 20);
 }
 
-void mp_try_eq(MP mp, mp_node l, mp_node r)
+static void mp_try_eq(MP mp, mp_node l, mp_node r)
 {
     mp_value_node p;     /*tex dependency list for right operand minus left operand */
     mp_value_node q;     /*tex the constant term of |p| is here */
@@ -26216,7 +26435,7 @@ it will appear in |cur_cmd|, |cur_mod|, and~|cur_sym|.
 
 */
 
-mp_node mp_scan_declared_variable(MP mp)
+static mp_node mp_scan_declared_variable(MP mp)
 {
     mp_symbol x;  /*tex hash address of the variable's root */
     mp_node h, t; /*tex head and tail of the token list to be returned */
@@ -26316,7 +26535,7 @@ static void flush_spurious_symbols_after_declared_variable(MP mp)
     mp->scanner_status = mp_normal_state;
 }
 
-void mp_do_type_declaration(MP mp)
+static void mp_do_type_declaration(MP mp)
 {
     int t = mp_numeric_type; /* cur_mod >= mp_transform_type ? cur_mod : cur_mod + mp_unknown_tag; */ /* the type being declared */
     switch (cur_mod) {
@@ -26364,7 +26583,8 @@ user's program. Each execution of |do_statement| concludes with |cur_cmd=semicol
 
 */
 
-static void mp_main_control(MP mp) {
+static void mp_main_control(MP mp)
+{
     do {
         mp_do_statement(mp);
         if (cur_cmd == mp_end_group_command) {
@@ -26408,7 +26628,6 @@ controlling application). It accepts two |char *|'s, even for numeric assignment
 void mp_set_internal(MP mp, char *n, char *v, int isstring)
 {
     size_t l = strlen(n);
-    char err[256];
     const char *errid = NULL;
     if (l > 0) {
         mp_symbol p = mp_id_lookup(mp, n, l, 0);
@@ -26433,6 +26652,7 @@ void mp_set_internal(MP mp, char *n, char *v, int isstring)
         }
     }
     if (errid != NULL) {
+        char err[256];
         if (isstring) {
             snprintf(err, 256, "%s=\"%s\": %s, assignment ignored.", n, v, errid);
         } else {
@@ -26561,8 +26781,10 @@ int mp_execute(MP mp, const char *s, size_t l)
                 mp->scanner_status = mp_normal_state;
                 mp_fix_date_and_time(mp);
                 if (mp->random_seed == 0) {
-                    mp->random_seed = (mp_number_to_scaled(internal_value(mp_time_internal))/mp_number_to_scaled(mp_unity_t))
-                        + mp_number_to_scaled(internal_value(mp_day_internal));
+                    mp->random_seed = (
+                        (int) mp_number_to_scaled(internal_value(mp_time_internal)) / (int) mp_number_to_scaled(mp_unity_t))
+                      + (int) mp_number_to_scaled(internal_value(mp_day_internal)
+                    );
                 }
                 mp_init_randoms(mp->random_seed);
                 mp->selector = mp->interaction == mp_batch_mode ? mp_no_print_selector : mp_term_only_selector;
@@ -26629,7 +26851,7 @@ genericmessage).
 
 */
 
-void mp_do_max_knot_pool(MP mp)
+static void mp_do_max_knot_pool(MP mp)
 {
     mp_value new_expr;
     memset(&new_expr, 0, sizeof(mp_value));
@@ -26666,7 +26888,7 @@ void mp_do_max_knot_pool(MP mp)
     }
 }
 
-void mp_do_random_seed(MP mp)
+static void mp_do_random_seed(MP mp)
 {
     mp_value new_expr;
     memset(&new_expr, 0, sizeof(mp_value));
@@ -26695,7 +26917,7 @@ void mp_do_random_seed(MP mp)
         /*tex
             Initialize the random seed to |cur_exp|.
         */
-        mp_init_randoms(mp_number_to_scaled(cur_exp_value_number));
+        mp_init_randoms((int) mp_number_to_scaled(cur_exp_value_number));
         if (mp->interaction < mp_silent_mode && (mp->selector == mp_log_only_selector || mp->selector == mp_term_and_log_selector)) {
             int selector = mp->selector;
             mp->selector = mp_log_only_selector;
@@ -26711,7 +26933,7 @@ The |inner| and |outer| commands are only slightly harder.
 
 */
 
-void mp_do_protection(MP mp)
+static void mp_do_protection(MP mp)
 {
 //  int m = cur_mod; /* 0 to unprotect, 1 to protect */
     do {
@@ -26743,7 +26965,7 @@ mechanism is quite experimental and used in \CONTEXT\ for protecting definitions
 
 */
 
-void mp_do_property(MP mp)
+static void mp_do_property(MP mp)
 {
    int p = 0;
    mp_get_x_next(mp);
@@ -26778,7 +27000,7 @@ and |right_delimiter| to |)|; the |equiv| of each delimiter is the hash address 
 
 */
 
-void mp_do_delimiters(MP mp)
+static void mp_do_delimiters(MP mp)
 {
     mp_symbol l_delim, r_delim; /* the new delimiter pair */
     mp_get_clear_symbol(mp);
@@ -26799,7 +27021,7 @@ mandatory.
 
 */
 
-void mp_check_delimiter(MP mp, mp_symbol l_delim, mp_symbol r_delim)
+static void mp_check_delimiter(MP mp, mp_symbol l_delim, mp_symbol r_delim)
 {
     if (cur_cmd == mp_right_delimiter_command && eq_symbol(cur_sym) == l_delim) {
         return;
@@ -26830,7 +27052,7 @@ The next four commands save or change the values associated with tokens.
 
 */
 
-void mp_do_interim(MP mp) {
+static void mp_do_interim(MP mp) {
     mp_get_x_next(mp);
     if (cur_cmd != mp_internal_command) {
         char msg[256];
@@ -26853,7 +27075,7 @@ The following procedure is careful not to undefine the left-hand symbol too soon
 
 */
 
-void mp_do_let(MP mp)
+static void mp_do_let(MP mp)
 {
     mp_symbol l; /*tex Hash location of the left-hand symbol. */
     mp_get_symbol(mp);
@@ -27015,8 +27237,9 @@ static int mp_bytemap_grow(MP mp) /* todo */
     int oldmax = mp->memory_pool[mp_bytemaps_pool].max;
     int newmax = oldmax + mp->memory_pool[mp_bytemaps_pool].step;
     if (newmax > max_bytemaps) {
-        /* todo: messaage */
-     // mp_confusion(mp, "out of memory"); /* can't be reached */
+        newmax = max_bytemaps;
+    }
+    if (newmax <= oldmax) {
         return 0;
     } else {
         size_t newsize = (size_t) (newmax + 1) * sizeof(bytemap_data);
@@ -27030,6 +27253,7 @@ static int mp_bytemap_grow(MP mp) /* todo */
                 .ox      = 0,
                 .oy      = 0,
                 .options = 0,
+                .model   = bytemap_gray,
             };
         }
         mp->memory_pool[mp_bytemaps_pool].max = newmax;
@@ -27037,15 +27261,26 @@ static int mp_bytemap_grow(MP mp) /* todo */
     return 1;
 }
 
-static int mp_bytemap_valid(MP mp, int index) /* todo */
+static int mp_bytemap_valid(MP mp, int index)
 {
-    return (index >= 0 && (index < mp->memory_pool[mp_bytemaps_pool].max || mp_bytemap_grow(mp)));
+    return index >= 0 && index < mp->memory_pool[mp_bytemaps_pool].max;
 }
 
-static int mp_bytemap_valid_data(MP mp, int index) /* todo */
+static int mp_bytemap_ensure(MP mp, int index)
 {
- // return index >= 0 && (index < mp->memory_pool[mp_bytemaps_pool].max || mp_bytemap_grow(mp))
- //     && mp->bytemaps[index].data;
+    if (index < 0 || index >= max_bytemaps) {
+        return 0;
+    }
+    while (index >= mp->memory_pool[mp_bytemaps_pool].max) {
+        if (! mp_bytemap_grow(mp)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static int mp_bytemap_valid_data(MP mp, int index)
+{
     return mp_bytemap_valid(mp, index) && mp->bytemaps[index].data;
 }
 
@@ -27069,9 +27304,12 @@ static inline unsigned char mp_valid_byte(int value) /* todo */
     }
 }
 
+// integer approximation (299*256/1000 ≈ 77, 587*256/1000 ≈ 150, 114*256/1000 ≈ 29)
+
 static inline int mp_aux_weighted(int r, int g, int b) /* todo */
 {
-    return round(0.299 * r + 0.587 * g + 0.114 * b);
+ // return round(0.299 * r + 0.587 * g + 0.114 * b);
+    return (77 * r + 150 * g + 29 * b + 128) >> 8;
 }
 
 static inline int mp_aux_bytemap_get_byte(MP mp, bytemap_data *bytemap, mp_number *source) /* todo */
@@ -27096,7 +27334,7 @@ static inline void mp_aux_bytemap_set_byte(MP mp, bytemap_data *bytemap, mp_numb
 
 static inline void mp_aux_set_bytemap_channel(bytemap_data *bytemap, int x, int y, int z, int v)
 {
-    if (x >= 0 && y >= 0 && x < bytemap->nx && y < bytemap->ny && z < bytemap->nz) {
+    if (x >= 0 && y >= 0 && x < bytemap->nx && y < bytemap->ny && z >= 0 && z < bytemap->nz) {
         switch (bytemap->nz) {
             case 1:
                 bytemap->data[bm_current_y(bytemap->ny,y) * bytemap->nx + x] = mp_valid_byte(v);
@@ -27128,6 +27366,7 @@ static int mp_aux_bytemap_allocate(MP mp, int index, int nx, int ny, int nz, uns
             .ox      = 0,
             .oy      = 0,
             .options = 0,
+            .model   = nz == 3 ? bytemap_rgb : bytemap_gray,
         };
         mp->memory_pool[mp_bytemap_data_pool].count += nx * ny * nz;
         mp->memory_pool[mp_bytemaps_pool].used++;
@@ -27155,7 +27394,7 @@ bytemap_data *mp_bytemap_get_by_index(MP mp, int index)
 
 int mp_bytemap_new_by_index(MP mp, int index, int nx, int ny, int nz, unsigned char *data)
 {
-    return mp_bytemap_valid(mp, index) && mp_aux_bytemap_allocate(mp, index, nx, ny, nz, data);
+    return mp_bytemap_ensure(mp, index) && mp_aux_bytemap_allocate(mp, index, nx, ny, nz, data);
 }
 
 /* end of public */
@@ -27168,16 +27407,22 @@ static void mp_bytemap_copy(MP mp) /* done */
         case mp_numeric_type:
         case mp_known_type:
             if (cur_cmd == mp_to_command) {
-                int oldindex = mp_round_unscaled(cur_exp_value_number);
+                int oldindex = (int) mp_round_unscaled(cur_exp_value_number);
                 mp_get_x_next(mp);
                 mp_scan_primary(mp);
                 switch (cur_exp_type) {
                     case mp_numeric_type:
                     case mp_known_type:
                         {
-                            int newindex = mp_round_unscaled(cur_exp_value_number);
-                            if (mp_bytemap_valid(mp, oldindex) && mp_bytemap_valid(mp, newindex)) {
-                                bytemap_copy(&(mp->bytemaps[oldindex]), &(mp->bytemaps[newindex]), &(mp->memory_pool[mp_bytemap_data_pool].count));
+                            int newindex = (int) mp_round_unscaled(cur_exp_value_number);
+                            if (mp_bytemap_valid(mp, oldindex) && mp_bytemap_ensure(mp, newindex)) {
+                                bytemap_data *source = &(mp->bytemaps[oldindex]);
+                                bytemap_data *target = &(mp->bytemaps[newindex]);
+                                int target_had_data = target->data != NULL;
+                                bytemap_copy(source, target, &(mp->memory_pool[mp_bytemap_data_pool].count));
+                                if (! target_had_data && target->data) {
+                                    mp->memory_pool[mp_bytemaps_pool].used++;
+                                }
                             }
                         }
                         break;
@@ -27200,14 +27445,14 @@ static void mp_bytemap_clip(MP mp) /* done */
         case mp_numeric_type:
         case mp_known_type:
             if (cur_cmd == mp_to_command) {
-                int index = mp_round_unscaled(cur_exp_value_number);
+                int index = (int) mp_round_unscaled(cur_exp_value_number);
                 mp_get_x_next(mp);
                 mp_scan_primary(mp);
                 switch (cur_exp_type) {
                     case mp_numeric_type:
                     case mp_known_type:
                         {
-                         // int value = mp_round_unscaled(cur_exp_value_number);
+                         // int value = (int) mp_round_unscaled(cur_exp_value_number);
                             if (mp_bytemap_valid_data(mp, index)) {
                                 bytemap_data *b = &mp->bytemaps[index];
                                 int value = mp_aux_bytemap_get_byte(mp, b, &(cur_exp_value_number));
@@ -27234,7 +27479,7 @@ static void mp_bytemap_new(MP mp) /* todo */
         case mp_numeric_type:
         case mp_known_type:
             if (cur_cmd == mp_of_command) {
-                int index = mp_round_unscaled(cur_exp_value_number);
+                int index = (int) mp_round_unscaled(cur_exp_value_number);
                 int nx = 0;
                 int ny = 0;
                 int nz = 1;
@@ -27243,25 +27488,25 @@ static void mp_bytemap_new(MP mp) /* todo */
                 switch (cur_exp_type) {
                     case mp_numeric_type:
                     case mp_known_type:
-                        if (mp_bytemap_valid(mp, index)) {
-                            nx = mp_round_unscaled(cur_exp_value_number);
+                        if (mp_bytemap_ensure(mp, index)) {
+                            nx = (int) mp_round_unscaled(cur_exp_value_number);
                             ny = 1;
                         }
                         break;
                     case mp_pair_type:
-                        if (mp_bytemap_valid(mp, index)) {
+                        if (mp_bytemap_ensure(mp, index)) {
                             if (mp_pair_is_known(mp_get_value_node(cur_exp_node))) {
-                                nx = mp_round_unscaled(mp_get_value_number(mp_x_part(mp_get_value_node(cur_exp_node))));
-                                ny = mp_round_unscaled(mp_get_value_number(mp_y_part(mp_get_value_node(cur_exp_node))));
+                                nx = (int) mp_round_unscaled(mp_get_value_number(mp_x_part(mp_get_value_node(cur_exp_node))));
+                                ny = (int) mp_round_unscaled(mp_get_value_number(mp_y_part(mp_get_value_node(cur_exp_node))));
                             }
                         }
                         break;
                     case mp_color_type:
-                        if (mp_bytemap_valid(mp, index)) {
+                        if (mp_bytemap_ensure(mp, index)) {
                             if (mp_rgb_color_is_known(mp_get_value_node(cur_exp_node))) {
-                                nx = mp_round_unscaled(mp_get_value_number(mp_red_part(mp_get_value_node(cur_exp_node))));
-                                ny = mp_round_unscaled(mp_get_value_number(mp_green_part(mp_get_value_node(cur_exp_node))));
-                                nz = mp_round_unscaled(mp_get_value_number(mp_blue_part(mp_get_value_node(cur_exp_node))));
+                                nx = (int) mp_round_unscaled(mp_get_value_number(mp_red_part(mp_get_value_node(cur_exp_node))));
+                                ny = (int) mp_round_unscaled(mp_get_value_number(mp_green_part(mp_get_value_node(cur_exp_node))));
+                                nz = (int) mp_round_unscaled(mp_get_value_number(mp_blue_part(mp_get_value_node(cur_exp_node))));
                                 if (nz < 0) {
                                     nz = 1;
                                 } else if (nz > 3) {
@@ -27269,6 +27514,7 @@ static void mp_bytemap_new(MP mp) /* todo */
                                 }
                             }
                         }
+                        break;
                     default:
                         break;
                 }
@@ -27293,12 +27539,12 @@ static void mp_bytemap_reduce(MP mp) /* done */
         case mp_numeric_type:
         case mp_known_type:
             {
-                int index = mp_round_unscaled(cur_exp_value_number);
+                int index = (int) mp_round_unscaled(cur_exp_value_number);
                 int method = 0;
                 if (cur_cmd == mp_to_command) {
                     mp_get_x_next(mp);
                     mp_scan_primary(mp);
-                    method = mp_round_unscaled(cur_exp_value_number);
+                    method = (int) mp_round_unscaled(cur_exp_value_number);
                 }
                 if (mp_bytemap_valid_data(mp, index)) {
                     bytemap_reduce(&(mp->bytemaps[index]), method, &(mp->memory_pool[mp_bytemap_data_pool].count));
@@ -27317,7 +27563,7 @@ static void mp_bytemap_value(MP mp, mp_node p, int c) /* done */
         case mp_numeric_type:  /* needed ? */
         case mp_known_type:
             {
-                int index = mp_round_unscaled(cur_exp_value_number);
+                int index = (int) mp_round_unscaled(cur_exp_value_number);
                 int x = 0;
                 int y = 0;
                 int z = 0;
@@ -27325,15 +27571,15 @@ static void mp_bytemap_value(MP mp, mp_node p, int c) /* done */
                 switch (p->type) {
                     case mp_pair_type:
                         if (mp_pair_is_known(mp_get_value_node(p))) {
-                            x = mp_round_unscaled(mp_get_value_number(mp_x_part(mp_get_value_node(p))));
-                            y = mp_round_unscaled(mp_get_value_number(mp_y_part(mp_get_value_node(p))));
+                            x = (int) mp_round_unscaled(mp_get_value_number(mp_x_part(mp_get_value_node(p))));
+                            y = (int) mp_round_unscaled(mp_get_value_number(mp_y_part(mp_get_value_node(p))));
                         }
                         break;
                     case mp_color_type:
                         if (mp_rgb_color_is_known(mp_get_value_node(p))) {
-                            x = mp_round_unscaled(mp_get_value_number(mp_red_part(mp_get_value_node(p))));
-                            y = mp_round_unscaled(mp_get_value_number(mp_green_part(mp_get_value_node(p))));
-                            z = mp_round_unscaled(mp_get_value_number(mp_blue_part(mp_get_value_node(p))));
+                            x = (int) mp_round_unscaled(mp_get_value_number(mp_red_part(mp_get_value_node(p))));
+                            y = (int) mp_round_unscaled(mp_get_value_number(mp_green_part(mp_get_value_node(p))));
+                            z = (int) mp_round_unscaled(mp_get_value_number(mp_blue_part(mp_get_value_node(p))));
                         }
                         break;
                     default:
@@ -27360,7 +27606,7 @@ static void mp_bytemap_found(MP mp, mp_node p, int c) /* done */ /* todo */
         case mp_numeric_type:  /* needed ? */
         case mp_known_type:
             {
-                int index = mp_round_unscaled(cur_exp_value_number);
+                int index = (int) mp_round_unscaled(cur_exp_value_number);
                 int found = 0;
                 switch (p->type) {
                     case mp_numeric_type:  /* needed ? */
@@ -27368,8 +27614,8 @@ static void mp_bytemap_found(MP mp, mp_node p, int c) /* done */ /* todo */
                          /* here posit */
                          if (mp_bytemap_valid_data(mp, index)) {
                              found = bytemap_has_byte_gray(&mp->bytemaps[index],
-                                // mp_round_unscaled(mp_get_value_number(mp_get_value_node(p)))
-                                // mp_round_unscaled(mp_get_value_number(p))
+                                // (int) mp_round_unscaled(mp_get_value_number(mp_get_value_node(p)))
+                                // (int) mp_round_unscaled(mp_get_value_number(p))
                                 mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(p)))
                             );
                          }
@@ -27379,8 +27625,8 @@ static void mp_bytemap_found(MP mp, mp_node p, int c) /* done */ /* todo */
                             /* here posit */
                             if (mp_bytemap_valid_data(mp, index)) {
                                 found = bytemap_has_byte_range(&mp->bytemaps[index],
-                                // mp_round_unscaled(mp_get_value_number(mp_x_part(mp_get_value_node(p)))),
-                                // mp_round_unscaled(mp_get_value_number(mp_y_part(mp_get_value_node(p))))
+                                // (int) mp_round_unscaled(mp_get_value_number(mp_x_part(mp_get_value_node(p)))),
+                                // (int) mp_round_unscaled(mp_get_value_number(mp_y_part(mp_get_value_node(p))))
                                    mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(mp_x_part(mp_get_value_node(p))))),
                                    mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(mp_y_part(mp_get_value_node(p)))))
                                 );
@@ -27392,9 +27638,9 @@ static void mp_bytemap_found(MP mp, mp_node p, int c) /* done */ /* todo */
                             /* here posit */
                             if (mp_bytemap_valid_data(mp, index)) {
                                 found = bytemap_has_byte_rgb(&mp->bytemaps[index],
-                                    mp_round_unscaled(mp_get_value_number(mp_red_part(mp_get_value_node(p)))),
-                                    mp_round_unscaled(mp_get_value_number(mp_green_part(mp_get_value_node(p)))),
-                                    mp_round_unscaled(mp_get_value_number(mp_blue_part(mp_get_value_node(p))))
+                                    mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(mp_red_part(mp_get_value_node(p))))),
+                                    mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(mp_green_part(mp_get_value_node(p))))),
+                                    mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(mp_blue_part(mp_get_value_node(p)))))
                                 );
                             }
                         }
@@ -27420,9 +27666,8 @@ static void mp_bytemap_path(MP mp, mp_node p, int c) /* no need */
         case mp_numeric_type:  /* needed ? */
         case mp_known_type:
             {
-                int index = mp_round_unscaled(cur_exp_value_number);
+                int index = (int) mp_round_unscaled(cur_exp_value_number);
                 mp_knot head = NULL;
-                mp_knot tail = NULL;
                 if (mp_bytemap_valid_data(mp, index)) {
                     int nx = mp->bytemaps[index].nx;
                     int ny = mp->bytemaps[index].ny;
@@ -27435,13 +27680,13 @@ static void mp_bytemap_path(MP mp, mp_node p, int c) /* no need */
                                 switch (p->type) {
                                     case mp_numeric_type:  /* needed ? */
                                     case mp_known_type:
-                                     // value = mp_round_unscaled(mp_get_value_number(p));
+                                     // value = (int) mp_round_unscaled(mp_get_value_number(p));
                                         value = mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(p)));
                                         break;
                                     case mp_pair_type:
                                         if (mp_pair_is_known(mp_get_value_node(p))) {
-                                         // value = mp_round_unscaled(mp_get_value_number(mp_x_part(mp_get_value_node(p))));
-                                         // range = mp_round_unscaled(mp_get_value_number(mp_y_part(mp_get_value_node(p))));
+                                         // value = (int) mp_round_unscaled(mp_get_value_number(mp_x_part(mp_get_value_node(p))));
+                                         // range = (int) mp_round_unscaled(mp_get_value_number(mp_y_part(mp_get_value_node(p))));
                                             value = mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(mp_x_part(mp_get_value_node(p)))));
                                             range = mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(mp_y_part(mp_get_value_node(p)))));
                                         }
@@ -27450,9 +27695,9 @@ static void mp_bytemap_path(MP mp, mp_node p, int c) /* no need */
                                         if (mp_rgb_color_is_known(mp_get_value_node(p))) {
                                             /* here posit */
                                             value = mp_aux_weighted(
-                                                mp_round_unscaled(mp_get_value_number(mp_red_part(mp_get_value_node(p)))),
-                                                mp_round_unscaled(mp_get_value_number(mp_green_part(mp_get_value_node(p)))),
-                                                mp_round_unscaled(mp_get_value_number(mp_blue_part(mp_get_value_node(p))))
+                                                mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(mp_red_part(mp_get_value_node(p))))),
+                                                mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(mp_green_part(mp_get_value_node(p))))),
+                                                mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(mp_blue_part(mp_get_value_node(p)))))
                                             );
                                         }
                                         break;
@@ -27468,14 +27713,7 @@ static void mp_bytemap_path(MP mp, mp_node p, int c) /* no need */
                                             /* here posit */
                                             if (*p >= value && *p <= range) {
                                                 mp_knot k = mp_simple_int_knot(mp, x, bm_current_y(ny,y));
-                                                if (head) {
-                                                    mp_prev_knot(k) = tail;
-                                                    mp_next_knot(tail) = k;
-                                                    tail = k;
-                                                } else {
-                                                    head = k;
-                                                    tail = k;
-                                                }
+                                                mp_append_knot_to_cycle(&head, k);
                                             }
                                             ++p;
                                         }
@@ -27489,14 +27727,7 @@ static void mp_bytemap_path(MP mp, mp_node p, int c) /* no need */
                                             /* here posit */
                                             if (*p++ == value) {
                                                 mp_knot k = mp_simple_int_knot(mp, x, yy);
-                                                if (head) {
-                                                    mp_prev_knot(k) = tail;
-                                                    mp_next_knot(tail) = k;
-                                                    tail = k;
-                                                } else {
-                                                    head = k;
-                                                    tail = k;
-                                                }
+                                                mp_append_knot_to_cycle(&head, k);
                                             }
                                         }
                                     }
@@ -27511,15 +27742,15 @@ static void mp_bytemap_path(MP mp, mp_node p, int c) /* no need */
                                 switch (p->type) {
                                     case mp_numeric_type:  /* needed ? */
                                     case mp_known_type:
-                                        r = mp_round_unscaled(mp_get_value_number(p));
+                                        r = mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(p)));
                                         g = r;
                                         b = r;
                                         break;
                                     case mp_color_type:
                                         if (mp_rgb_color_is_known(mp_get_value_node(p))) {
-                                            r = mp_round_unscaled(mp_get_value_number(mp_red_part(mp_get_value_node(p))));
-                                            g = mp_round_unscaled(mp_get_value_number(mp_green_part(mp_get_value_node(p))));
-                                            b = mp_round_unscaled(mp_get_value_number(mp_blue_part(mp_get_value_node(p))));
+                                            r = mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(mp_red_part(mp_get_value_node(p)))));
+                                            g = mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(mp_green_part(mp_get_value_node(p)))));
+                                            b = mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(mp_blue_part(mp_get_value_node(p)))));
                                         }
                                         break;
                                     default:
@@ -27528,21 +27759,17 @@ static void mp_bytemap_path(MP mp, mp_node p, int c) /* no need */
                                 }
                                 if (r >= 0) {
                                     /* can be a single loop and div/mod */
-                                    unsigned char *p = mp->bytemaps[index].data;
+                                    unsigned char *bytes = mp->bytemaps[index].data;
                                     for (int y = 0; y < ny; y++) {
                                         int yy = bm_current_y(ny,y);
                                         for (int x = 0; x < nx; x++) {
-                                            /* here posit */
-                                            if ((*p++ == r) && (*p++ == g) && (*p++ == b)) {
+                                            unsigned char red   = bytes[0];
+                                            unsigned char green = bytes[1];
+                                            unsigned char blue  = bytes[2];
+                                            bytes += 3;
+                                            if (red == r && green == g && blue == b) {
                                                 mp_knot k = mp_simple_int_knot(mp, x, yy);
-                                                if (head) {
-                                                    mp_prev_knot(k) = tail;
-                                                    mp_next_knot(tail) = k;
-                                                    tail = k;
-                                                } else {
-                                                    head = k;
-                                                    tail = k;
-                                                }
+                                                mp_append_knot_to_cycle(&head, k);
                                             }
                                         }
                                     }
@@ -27551,15 +27778,14 @@ static void mp_bytemap_path(MP mp, mp_node p, int c) /* no need */
                             break;
                     }
                 }
-                if (tail) {
-                    mp_prev_knot(head) = tail;
-                    mp_next_knot(tail) = head;
+                if (head) {
                     mp_set_cur_exp_knot(mp, head);
                     cur_exp_type = mp_path_type;
                 } else {
                     /* what to do */
                 }
             }
+            break;
         default:
             /* error */
             break;
@@ -27574,7 +27800,7 @@ static void mp_bytemap_bounds(MP mp, mp_node p, int c, int clip) /* done */
         case mp_numeric_type:
         case mp_known_type:
             {
-                int index = mp_round_unscaled(cur_exp_value_number);
+                int index = (int) mp_round_unscaled(cur_exp_value_number);
                 if (mp_bytemap_valid_data(mp, index)) {
                     bytemap_data b = mp->bytemaps[index];
                     int llx, lly, urx, ury;
@@ -27582,7 +27808,7 @@ static void mp_bytemap_bounds(MP mp, mp_node p, int c, int clip) /* done */
                     switch (p->type) {
                         case mp_numeric_type:  /* needed ? */
                         case mp_known_type:
-                         // value = mp_valid_byte(mp_round_unscaled(mp_get_value_number(p)));
+                         // value = mp_valid_byte((int) mp_round_unscaled(mp_get_value_number(p)));
                             value = mp_valid_byte(mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(p))));
                             break;
                         default:
@@ -27597,6 +27823,7 @@ static void mp_bytemap_bounds(MP mp, mp_node p, int c, int clip) /* done */
                     mp_make_bounding_box(mp);
                 }
             }
+            break;
         default:
             /* error */
             break;
@@ -27611,12 +27838,12 @@ static void mp_bytemap_set_options(MP mp) /* no need */
         case mp_numeric_type:
         case mp_known_type:
             {
-                int index   = mp_round_unscaled(cur_exp_value_number);
+                int index   = (int) mp_round_unscaled(cur_exp_value_number);
                 int options = 0;
                 if (cur_cmd == mp_to_command) {
                     mp_get_x_next(mp);
                     mp_scan_primary(mp);
-                    options = mp_round_unscaled(cur_exp_value_number);
+                    options = (int) mp_round_unscaled(cur_exp_value_number);
                 }
                 if (mp_bytemap_valid_data(mp, index)) {
                     /* here posit */
@@ -27638,7 +27865,7 @@ static void mp_bytemap_set(MP mp) /* done */
         case mp_numeric_type:
         case mp_known_type:
             if (cur_cmd == mp_to_command) {
-                int index = mp_round_unscaled(cur_exp_value_number);
+                int index = (int) mp_round_unscaled(cur_exp_value_number);
                 mp_get_x_next(mp);
                 mp_scan_primary(mp);
                 switch (cur_exp_type) {
@@ -27649,7 +27876,7 @@ static void mp_bytemap_set(MP mp) /* done */
                             bytemap_slice_gray(
                                 &(mp->bytemaps[index]),
                                 0, 0, mp->bytemaps[index].nx, mp->bytemaps[index].ny,
-                             // mp_round_unscaled(cur_exp_value_number)
+                             // (int) mp_round_unscaled(cur_exp_value_number)
                                 mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(cur_exp_value_number))
                             );
                         }
@@ -27661,9 +27888,9 @@ static void mp_bytemap_set(MP mp) /* done */
                                 bytemap_slice_rgb(
                                     &(mp->bytemaps[index]),
                                     0, 0, mp->bytemaps[index].nx, mp->bytemaps[index].ny,
-                                    mp_round_unscaled(mp_get_value_number(mp_red_part(mp_get_value_node(cur_exp_node)))),
-                                    mp_round_unscaled(mp_get_value_number(mp_green_part(mp_get_value_node(cur_exp_node)))),
-                                    mp_round_unscaled(mp_get_value_number(mp_blue_part(mp_get_value_node(cur_exp_node))))
+                                    mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(mp_red_part(mp_get_value_node(cur_exp_node))))),
+                                    mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(mp_green_part(mp_get_value_node(cur_exp_node))))),
+                                    mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(mp_blue_part(mp_get_value_node(cur_exp_node)))))
                                 );
                             }
                         }
@@ -27710,10 +27937,10 @@ static void mp_bytemap_reset(MP mp) /* todo */
         case mp_numeric_type:
         case mp_known_type:
             {
-                int index = mp_round_unscaled(cur_exp_value_number);
+                int index = (int) mp_round_unscaled(cur_exp_value_number);
                 if (mp_bytemap_valid_data(mp, index)) {
                     mp_aux_reset_bytemap(mp, index);
-                  // printf("[bitmap: reset, index %i\n", index);
+                 // printf("[bitmap: reset, index %i\n", index);
                 }
                 break;
             }
@@ -27737,15 +27964,15 @@ static void mp_bytemap_set_byte(MP mp) /* done */ /* todo */
         case mp_pair_type:
             if (cur_cmd == mp_of_command) {
                 if (mp_pair_is_known(mp_get_value_node(cur_exp_node))) {
-                    int x = mp_round_unscaled(mp_get_value_number(mp_x_part(mp_get_value_node(cur_exp_node))));
-                    int y = mp_round_unscaled(mp_get_value_number(mp_y_part(mp_get_value_node(cur_exp_node))));
+                    int x = (int) mp_round_unscaled(mp_get_value_number(mp_x_part(mp_get_value_node(cur_exp_node))));
+                    int y = (int) mp_round_unscaled(mp_get_value_number(mp_y_part(mp_get_value_node(cur_exp_node))));
                     mp_get_x_next(mp);
                     mp_scan_primary(mp);
                     switch (cur_exp_type) {
                         case mp_numeric_type:
                         case mp_known_type:
                             if (cur_cmd == mp_to_command) {
-                                int index = mp_round_unscaled(cur_exp_value_number);
+                                int index = (int) mp_round_unscaled(cur_exp_value_number);
                                 mp_get_x_next(mp);
                                 mp_scan_primary(mp);
                                 switch (cur_exp_type) {
@@ -27771,9 +27998,9 @@ static void mp_bytemap_set_byte(MP mp) /* done */ /* todo */
                                                 bytemap_set_rgb(
                                                     &(mp->bytemaps[index]),
                                                     x, y,
-                                                    mp_round_unscaled(mp_get_value_number(mp_red_part(mp_get_value_node(cur_exp_node)))),
-                                                    mp_round_unscaled(mp_get_value_number(mp_green_part(mp_get_value_node(cur_exp_node)))),
-                                                    mp_round_unscaled(mp_get_value_number(mp_blue_part(mp_get_value_node(cur_exp_node))))
+                                                    mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(mp_red_part(mp_get_value_node(cur_exp_node))))),
+                                                    mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(mp_green_part(mp_get_value_node(cur_exp_node))))),
+                                                    mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(mp_blue_part(mp_get_value_node(cur_exp_node)))))
                                                 );
                                             }
                                         }
@@ -27802,16 +28029,16 @@ static void mp_bytemap_set_byte(MP mp) /* done */ /* todo */
         case mp_color_type:
             if (cur_cmd == mp_of_command) {
                 if (mp_rgb_color_is_known(mp_get_value_node(cur_exp_node))) {
-                    int x = mp_round_unscaled(mp_get_value_number(mp_red_part(mp_get_value_node(cur_exp_node))));
-                    int y = mp_round_unscaled(mp_get_value_number(mp_green_part(mp_get_value_node(cur_exp_node))));
-                    int z = mp_round_unscaled(mp_get_value_number(mp_blue_part(mp_get_value_node(cur_exp_node))));
+                    int x = (int) mp_round_unscaled(mp_get_value_number(mp_red_part(mp_get_value_node(cur_exp_node))));
+                    int y = (int) mp_round_unscaled(mp_get_value_number(mp_green_part(mp_get_value_node(cur_exp_node))));
+                    int z = (int) mp_round_unscaled(mp_get_value_number(mp_blue_part(mp_get_value_node(cur_exp_node))));
                     mp_get_x_next(mp);
                     mp_scan_primary(mp);
                     switch (cur_exp_type) {
                         case mp_numeric_type:
                         case mp_known_type:
                             if (cur_cmd == mp_to_command) {
-                                int index = mp_round_unscaled(cur_exp_value_number);
+                                int index = (int) mp_round_unscaled(cur_exp_value_number);
                                 mp_get_x_next(mp);
                                 mp_scan_primary(mp);
                                 switch (cur_exp_type) {
@@ -27851,17 +28078,17 @@ static void mp_bytemap_set_byte(MP mp) /* done */ /* todo */
         case mp_cmykcolor_type:
             if (cur_cmd == mp_of_command) {
                 if (mp_cmyk_color_is_known(mp_get_value_node(cur_exp_node))) {
-                    int x = mp_round_unscaled(mp_get_value_number(mp_cyan_part(mp_get_value_node(cur_exp_node))));
-                    int y = mp_round_unscaled(mp_get_value_number(mp_magenta_part(mp_get_value_node(cur_exp_node))));
-                    int dx = mp_round_unscaled(mp_get_value_number(mp_yellow_part(mp_get_value_node(cur_exp_node))));
-                    int dy = mp_round_unscaled(mp_get_value_number(mp_black_part(mp_get_value_node(cur_exp_node))));
+                    int x = (int) mp_round_unscaled(mp_get_value_number(mp_cyan_part(mp_get_value_node(cur_exp_node))));
+                    int y = (int) mp_round_unscaled(mp_get_value_number(mp_magenta_part(mp_get_value_node(cur_exp_node))));
+                    int dx = (int) mp_round_unscaled(mp_get_value_number(mp_yellow_part(mp_get_value_node(cur_exp_node))));
+                    int dy = (int) mp_round_unscaled(mp_get_value_number(mp_black_part(mp_get_value_node(cur_exp_node))));
                     mp_get_x_next(mp);
                     mp_scan_primary(mp);
                     switch (cur_exp_type) {
                         case mp_numeric_type:
                         case mp_known_type:
                             if (cur_cmd == mp_to_command) {
-                                int index = mp_round_unscaled(cur_exp_value_number);
+                                int index = (int) mp_round_unscaled(cur_exp_value_number);
                                 mp_get_x_next(mp);
                                 mp_scan_primary(mp);
                                 if (mp_bytemap_valid_data(mp, index)) {
@@ -27882,8 +28109,8 @@ static void mp_bytemap_set_byte(MP mp) /* done */ /* todo */
                                                     bytemap_slice_range(
                                                         &(mp->bytemaps[index]),
                                                         x, y, dx, dy,
-                                                        mp_round_unscaled(mp_get_value_number(mp_x_part(mp_get_value_node(cur_exp_node)))),
-                                                        mp_round_unscaled(mp_get_value_number(mp_y_part (mp_get_value_node(cur_exp_node))))
+                                                        (int) mp_round_unscaled(mp_get_value_number(mp_x_part(mp_get_value_node(cur_exp_node)))),
+                                                        (int) mp_round_unscaled(mp_get_value_number(mp_y_part (mp_get_value_node(cur_exp_node))))
                                                     );
                                                 }
                                                 break;
@@ -27893,9 +28120,9 @@ static void mp_bytemap_set_byte(MP mp) /* done */ /* todo */
                                                     bytemap_slice_rgb(
                                                         &(mp->bytemaps[index]),
                                                         x, y, dx, dy,
-                                                        mp_round_unscaled(mp_get_value_number(mp_red_part  (mp_get_value_node(cur_exp_node)))),
-                                                        mp_round_unscaled(mp_get_value_number(mp_green_part(mp_get_value_node(cur_exp_node)))),
-                                                        mp_round_unscaled(mp_get_value_number(mp_blue_part (mp_get_value_node(cur_exp_node))))
+                                                        mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(mp_red_part  (mp_get_value_node(cur_exp_node))))),
+                                                        mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(mp_green_part(mp_get_value_node(cur_exp_node))))),
+                                                        mp_aux_bytemap_get_byte(mp, &(mp->bytemaps[index]), &(mp_get_value_number(mp_blue_part (mp_get_value_node(cur_exp_node)))))
                                                     );
                                                 }
                                                 break;
@@ -27935,15 +28162,15 @@ static void mp_bytemap_set_offset(MP mp) /* todo */
     if (cur_exp_type == mp_pair_type) {
         if (cur_cmd == mp_of_command) {
             if (mp_pair_is_known(mp_get_value_node(cur_exp_node))) {
-                int x = mp_round_unscaled(mp_get_value_number(mp_x_part(mp_get_value_node(cur_exp_node))));
-                int y = mp_round_unscaled(mp_get_value_number(mp_y_part(mp_get_value_node(cur_exp_node))));
+                int x = (int) mp_round_unscaled(mp_get_value_number(mp_x_part(mp_get_value_node(cur_exp_node))));
+                int y = (int) mp_round_unscaled(mp_get_value_number(mp_y_part(mp_get_value_node(cur_exp_node))));
                 mp_get_x_next(mp);
                 mp_scan_primary(mp);
                 switch (cur_exp_type) {
                     case mp_numeric_type:
                     case mp_known_type:
                         {
-                            int index = mp_round_unscaled(cur_exp_value_number);
+                            int index = (int) mp_round_unscaled(cur_exp_value_number);
                             if (mp_bytemap_valid_data(mp, index)) {
                                 mp->bytemaps[index].ox = x;
                                 mp->bytemaps[index].oy = y;
@@ -27966,7 +28193,7 @@ structures are abbreviated, otherwise they aren't.
 
 */
 
-void mp_do_show(MP mp)
+static void mp_do_show(MP mp)
 {
     do {
         mp_value new_expr;
@@ -28016,7 +28243,7 @@ don't necessarily correspond to primitive tokens.
 
 */
 
-void mp_do_show_token(MP mp)
+static void mp_do_show_token(MP mp)
 {
     do {
         mp_get_t_next(mp);
@@ -28025,7 +28252,7 @@ void mp_do_show_token(MP mp)
     } while (cur_cmd == mp_comma_command);
 }
 
-void mp_do_show_stats(MP mp)
+static void mp_do_show_stats(MP mp)
 {
  // if (0) {
  //     mp_print_ln(mp);
@@ -28051,7 +28278,7 @@ Here's a recursive procedure that gives an abbreviated account of a variable, fo
 
 */
 
-void mp_display_var(MP mp, mp_node p)
+static void mp_display_var(MP mp, mp_node p)
 {
     if (p->type == mp_structured_type) {
         /* Descend the structure */
@@ -28082,7 +28309,7 @@ void mp_display_var(MP mp, mp_node p)
     }
 }
 
-void mp_do_show_var(MP mp)
+static void mp_do_show_var(MP mp)
 {
     do {
         mp_get_t_next(mp);
@@ -28098,7 +28325,7 @@ void mp_do_show_var(MP mp)
     } while (cur_cmd == mp_comma_command);
 }
 
-void mp_do_show_dependencies(MP mp)
+static void mp_do_show_dependencies(MP mp)
 {
     if (mp_number_positive(internal_value(mp_tracing_dependencies_internal))) {
         mp_value_node p = (mp_value_node) mp->dep_head->link;
@@ -28151,7 +28378,7 @@ Finally we are ready for the procedure that governs all of the show commands.
 
 */
 
-void mp_do_show_whatever(MP mp)
+static void mp_do_show_whatever(MP mp)
 {
     if (mp->interaction == mp_error_stop_mode) {
         mp_print_flush_line(mp);
@@ -28341,7 +28568,7 @@ static mp_string mp_aux_prepend_post_script(MP mp, mp_string target)
     return target;
 }
 
-void mp_scan_with_list(MP mp, mp_node p, mp_node pstop)
+static void mp_scan_with_list(MP mp, mp_node p, mp_node pstop)
 {
     mp_node cp = MP_VOID;
     mp_node pp = MP_VOID;
@@ -28351,6 +28578,7 @@ void mp_scan_with_list(MP mp, mp_node p, mp_node pstop)
     mp_node sp = MP_VOID;
     mp_node spstop = MP_VOID;
     mp_number ml;
+    int stacking_set = 0;
     int miterlimit = 0;
     int linecap = -1;
     int linejoin = -1;
@@ -28650,13 +28878,14 @@ void mp_scan_with_list(MP mp, mp_node p, mp_node pstop)
                                 spstop = pstop;
                             }
                             if (sp != NULL) {
-                                mp_stacking(sp) = mp_round_unscaled(cur_exp_value_number);
+                                mp_stacking(sp) = (int) mp_round_unscaled(cur_exp_value_number);
                             }
                             if (pp && spstop != NULL) {
-                                mp_stacking(spstop) = mp_round_unscaled(cur_exp_value_number);
+                                mp_stacking(spstop) = (int) mp_round_unscaled(cur_exp_value_number);
                             }
                             /* free ? */
                             cur_exp_type = mp_vacuous_type;
+                            stacking_set = 1;
                         }
                         break;
                     case mp_pair_type:
@@ -28669,13 +28898,14 @@ void mp_scan_with_list(MP mp, mp_node p, mp_node pstop)
                                     spstop = pstop;
                                 }
                                 if (sp != NULL) {
-                                    mp_stacking(sp) = mp_round_unscaled(mp_get_value_number(mp_x_part(mp_get_value_node(cur_exp_node))));
+                                    mp_stacking(sp) = (int) mp_round_unscaled(mp_get_value_number(mp_x_part(mp_get_value_node(cur_exp_node))));
                                 }
                                 if (spstop != NULL) {
-                                    mp_stacking(spstop) = mp_round_unscaled(mp_get_value_number(mp_y_part(mp_get_value_node(cur_exp_node))));
+                                    mp_stacking(spstop) = (int) mp_round_unscaled(mp_get_value_number(mp_y_part(mp_get_value_node(cur_exp_node))));
                                 }
                                 /* free ? */
                                 cur_exp_type = mp_vacuous_type;
+                                stacking_set = 1;
                             } else {
                                 complain_invalid_with_list(mp, t);
                                 goto CONTINUE;
@@ -28693,7 +28923,7 @@ void mp_scan_with_list(MP mp, mp_node p, mp_node pstop)
                 switch (cur_exp_type) {
                     case mp_known_type:
                         {
-                            linecap = mp_round_unscaled(cur_exp_value_number);
+                            linecap = (int) mp_round_unscaled(cur_exp_value_number);
                             cur_exp_type = mp_vacuous_type;
                             break;
                         }
@@ -28708,7 +28938,7 @@ void mp_scan_with_list(MP mp, mp_node p, mp_node pstop)
                 switch (cur_exp_type) {
                     case mp_known_type:
                         {
-                            linejoin = mp_round_unscaled(cur_exp_value_number);
+                            linejoin = (int) mp_round_unscaled(cur_exp_value_number);
                             cur_exp_type = mp_vacuous_type;
                             break;
                         }
@@ -28739,7 +28969,7 @@ void mp_scan_with_list(MP mp, mp_node p, mp_node pstop)
                 switch (cur_exp_type) {
                     case mp_known_type:
                         {
-                            curvature = mp_round_unscaled(cur_exp_value_number);
+                            curvature = (int) mp_round_unscaled(cur_exp_value_number);
                             cur_exp_type = mp_vacuous_type;
                             break;
                         }
@@ -28754,7 +28984,7 @@ void mp_scan_with_list(MP mp, mp_node p, mp_node pstop)
                 switch (cur_exp_type) {
                     case mp_known_type:
                         {
-                            mesh = mp_round_unscaled(cur_exp_value_number);
+                            mesh = (int) mp_round_unscaled(cur_exp_value_number);
                             cur_exp_type = mp_vacuous_type;
                             break;
                         }
@@ -28769,7 +28999,7 @@ void mp_scan_with_list(MP mp, mp_node p, mp_node pstop)
                 switch (cur_exp_type) {
                     case mp_known_type:
                         {
-                            bytemap = mp_round_unscaled(cur_exp_value_number);
+                            bytemap = (int) mp_round_unscaled(cur_exp_value_number);
                             cur_exp_type = mp_vacuous_type;
                             break;
                         }
@@ -28929,7 +29159,7 @@ void mp_scan_with_list(MP mp, mp_node p, mp_node pstop)
             q = q->link;
         }
     }
-    if (mesh >= 0 ) {
+    if (mesh >= 0) {
         mp_node q = p;
         while (q != NULL) {
             switch (q->type) {
@@ -28940,6 +29170,20 @@ void mp_scan_with_list(MP mp, mp_node p, mp_node pstop)
                 default:
                     break;
             }
+            q = q->link;
+        }
+    }
+    if (stacking_set) {
+     // if (! pp && sp > MP_VOID) {
+     //     mp_node q = sp->link;
+     //     while (q != NULL) {
+     //         mp_stacking(q) = mp_stacking(sp);
+     //         q = q->link;
+     //     }
+     // }
+        mp_node q = p;
+        while (q != NULL) {
+            mp_stacking(q) = mp_stacking(sp);
             q = q->link;
         }
     }
@@ -28957,13 +29201,6 @@ void mp_scan_with_list(MP mp, mp_node p, mp_node pstop)
             q = q->link;
         }
     }
-    if (! pp && sp > MP_VOID) {
-        mp_node q = sp->link;
-        while (q != NULL) {
-            mp_stacking(q) = mp_stacking(sp);
-            q = q->link;
-        }
-    }
 }
 
 /*tex
@@ -28974,7 +29211,7 @@ about to be updated, we use |private_edges| to make sure that this is possible.
 
 */
 
-mp_edge_header_node mp_find_edges_var(MP mp, mp_node t)
+static mp_edge_header_node mp_find_edges_var(MP mp, mp_node t)
 {
     mp_edge_header_node cur_edges = NULL;
     mp_node p = mp_find_variable(mp, t);
@@ -29025,7 +29262,7 @@ list for the variable and stores the command modifier for the separator token in
 
 */
 
-mp_node mp_start_draw_cmd(MP mp, int sep)
+static mp_node mp_start_draw_cmd(MP mp, int sep)
 {
     mp_node lhv = NULL; /*tex variable to add to left */
     int add_type = 0;   /*tex value to be returned in |last_add_type| */
@@ -29066,7 +29303,7 @@ Here is an example of how to use |start_draw_cmd|.
 
 */
 
-void mp_do_bounds(MP mp)
+static void mp_do_bounds(MP mp)
 {
     mp_edge_header_node lhe;
     int c = cur_cmd;
@@ -29134,7 +29371,7 @@ The |do_add_to| procedure is a little like |do_clip| but there are a lot more ca
 
 */
 
-void mp_do_add_to(MP mp)
+static void mp_do_add_to(MP mp)
 {
     mp_node lhv = mp_start_draw_cmd(mp, mp_thing_to_add_command);
     if (lhv != NULL) {
@@ -29251,7 +29488,7 @@ void mp_do_add_to(MP mp)
     }
 }
 
-void mp_do_ship_out(MP mp)
+static void mp_do_ship_out(MP mp)
 {
     mp_value new_expr;
     memset(&new_expr, 0, sizeof(mp_value));
@@ -29270,7 +29507,7 @@ void mp_do_ship_out(MP mp)
     }
 }
 
-void mp_do_message(MP mp)
+static void mp_do_message(MP mp)
 {
     mp_value new_expr;
     int m = cur_mod; /* the type of message */
@@ -29341,7 +29578,7 @@ once.
 
 */
 
-void mp_do_write(MP mp)
+static void mp_do_write(MP mp)
 {
     mp_value new_expr;
     memset(&new_expr, 0, sizeof(mp_value));
@@ -29759,17 +29996,18 @@ static mp_knot_object_node mp_export_path(MP mp, mp_knot p)
         return NULL;
     } else {
         mp_knot_object_node q = mp_export_knot(mp, p);
-        mp_knot_object_node qq = q;
+        mp_prev_knot(q) = q;
+        mp_next_knot(q) = q;
         mp_knot pp = mp_next_knot(p);
         while (pp != p) {
             mp_knot_object_node k = mp_export_knot(mp, pp);
-            mp_prev_knot(k) = qq;
-            mp_next_knot(qq) = k;
-            qq = k;
+            mp_knot_object_node tail = mp_prev_knot(q);
+            mp_prev_knot(k) = tail;
+            mp_next_knot(k) = q;
+            mp_next_knot(tail) = k;
+            mp_prev_knot(q) = k;
             pp = mp_next_knot(pp);
         }
-        mp_prev_knot(q) = qq;
-        mp_next_knot(qq) = q;
         return q;
     }
 }
@@ -29794,7 +30032,6 @@ static mp_dash_object_node mp_export_dashes(MP mp, mp_shape_node q, mp_number *w
         mp_number scf; /* scale factor */
         mp_number dashoff;
         double *dashes = NULL;
-        int num_dashes = 1;
         mp_new_number(scf);
         p = mp_get_dash_list(h);
         mp_get_pen_scale(mp, &scf, mp_pen_ptr(q));
@@ -29816,6 +30053,7 @@ static mp_dash_object_node mp_export_dashes(MP mp, mp_shape_node q, mp_number *w
         d = mp_new_dash_object_node(mp);
         mp_set_number_from_addition(mp->null_dash->start_x, p->start_x, h->dash_y);
         {
+            int num_dashes = 1;
             mp_number ret, arg1;
             mp_new_number(ret);
             mp_new_number(arg1);
@@ -29862,7 +30100,7 @@ static mp_edge_object_node mp_graphic_export(MP mp, mp_edge_header_node h)
     hh->maxx = fabs(hh->maxx) < 0.00001 ? 0 : hh->maxx;
     hh->maxy = mp_number_to_double(h->maxy);
     hh->maxy = fabs(hh->maxy) < 0.00001 ? 0 : hh->maxy;
-    hh->charcode = mp_round_unscaled(internal_value(mp_char_code_internal));
+    hh->charcode = (int) mp_round_unscaled(internal_value(mp_char_code_internal));
     hh->width = mp_number_to_double(internal_value(mp_char_wd_internal));
     hh->height = mp_number_to_double(internal_value(mp_char_ht_internal));
     hh->depth = mp_number_to_double(internal_value(mp_char_dp_internal));
@@ -30298,17 +30536,19 @@ void mp_scan_boolean_value(MP mp, int primary, int *b)
     }
 }
 
-void mp_scan_string_value(MP mp, int primary, char **s, size_t *l)
+int mp_scan_string_value(MP mp, int primary, char **s, size_t *l)
 {
     mp_scan_something(mp, primary);
     if (cur_exp_type != mp_string_type) {
-        mp_back_input(mp); /* hm */
-        *s = NULL ;
+        mp_back_input(mp);
+        *s = NULL;
         *l = 0;
+        return 0;
     } else {
-        mp_back_input(mp); /* hm */
-        *s = (char *) cur_exp_str->str ;
+        mp_back_input(mp);
+        *s = (char *) cur_exp_str->str;
         *l = cur_exp_str->len;
+        return 1;
     }
 }
 
@@ -30476,34 +30716,14 @@ void mp_push_path_value(MP mp, mp_knot k)
     mp_back_expr(mp);
 }
 
-// void mp_push_tokens_value(MP mp, const char *str, size_t length)
-// {
-//     /*tex
-//         THIS IS NOT YET OKAY AND NOT TO BE USED.
-//     */
-//     if (str && length > 0) {
-//         printf("push tokens is not yet implemented\n");
-//
-// //      mp_check_script_result(mp, (char *) str);
-//
-// //        cur_exp_type = mp_string_type;
-// //        mp_set_cur_exp_str(mp, mp_rtsl(mp, (char *) str, length));
-// //        mp_back_expr(mp);
-// //
-// //        set_cur_cmd(mp_scan_tokens_command);
-// //        mp_back_input(mp);
-//
-// //        mp_node p = mp_new_symbolic_node(mp);
-// //        mp_set_sym_sym(p, cur_sym);
-// //        mp_begin_token_list(mp, p, mp_backed_up_text);
-// //        /* */
-// //        set_cur_cmd(mp_scan_tokens_command);
-// //        set_cur_mod(0);
-// //        set_cur_sym(NULL);
-// //        mp_back_input(mp);
-// //        /* */
-//     }
-// }
+void mp_push_tokens_value(MP mp, const char *str, size_t length)
+{
+    (void) mp;
+    if (str && length > 0) {
+        printf("push tokens is not yet implemented\n");
+     // mp_check_script_result(mp, (char *) str);
+    }
+}
 
 /*tex
 
@@ -31394,8 +31614,8 @@ static int mp_scan_path(MP mp)
         doesn't have a suitable type. Keep in mind that as we progress, cur_cmd can be ahead
         of the expression we just consumed.
     */
-mp_number_clone(mp->previous_x, mp_inf_t);
-mp_number_clone(mp->previous_y, mp_inf_t);
+    mp_number_clone(mp->previous_x, mp_inf_t);
+    mp_number_clone(mp->previous_y, mp_inf_t);
     switch (cur_exp_type) {
         case mp_pair_type:
             {
@@ -31406,11 +31626,7 @@ mp_number_clone(mp->previous_y, mp_inf_t);
         case mp_path_type:
             {
                 path_p = cur_exp_knot;
-                path_q = path_p;
-                /*tex Goto the end of a the path. */
-                while (mp_next_knot(path_q) != path_p) {
-                    path_q = mp_next_knot(path_q);
-                }
+                path_q = mp_prev_knot(path_p);
                 /*tex Open up a cycle. */
                 if (mp_left_type(path_p) != mp_endpoint_knot) {
                     mp_knot r = mp_copy_knot(mp, path_p);
@@ -31734,8 +31950,8 @@ mp_number_clone(mp->previous_y, mp_inf_t);
                 break;
         }
     } else {
-mp_number_clone(mp->previous_x, mp_inf_t);
-mp_number_clone(mp->previous_y, mp_inf_t);
+// mp_number_clone(mp->previous_x, mp_inf_t);
+// mp_number_clone(mp->previous_y, mp_inf_t);
         mp_scan_tertiary(mp);
         /*tex
             Convert the right operand, |cur_exp|, into a partial path from |pp| to~|qq|.
@@ -31745,10 +31961,7 @@ mp_number_clone(mp->previous_y, mp_inf_t);
             qq = pp;
         } else {
             pp = cur_exp_knot;
-            qq = pp;
-            while (mp_next_knot(qq) != pp) {
-                qq = mp_next_knot(qq);
-            }
+            qq = mp_prev_knot(pp);
             if (mp_left_type(pp) != mp_endpoint_knot) {
                 /*tex Open up a cycle. */
                 mp_knot r = mp_copy_knot(mp, pp);
@@ -31875,8 +32088,13 @@ mp_number_clone(mp->previous_y, mp_inf_t);
                         mp_set_number_to_unity(pp->right_curl);
                     }
                     mp_right_type(path_q) = mp_right_type(pp);
-                    mp_prev_knot(pp) = mp_next_knot(path_q);
-                    mp_next_knot(path_q) = mp_next_knot(pp);
+                    mp_knot next = mp_next_knot(pp);
+                    if (next != pp) {
+                        mp_next_knot(path_q) = next;
+                        mp_prev_knot(next) = path_q;
+                        mp_next_knot(qq) = path_p;
+                        mp_prev_knot(path_p) = qq;
+                    }
                     mp_number_clone(path_q->right_x, pp->right_x);
                     mp_number_clone(path_q->right_y, pp->right_y);
                     mp_memory_free(pp);
@@ -32016,6 +32234,10 @@ static void mp_close_files(MP mp)
             }
         }
     }
+    if (mp->term_in != NULL) {
+        (mp->close_file)(mp, mp->term_in);
+        mp->term_in = NULL;
+    }
 }
 
 void mp_close_files_and_terminate(MP mp)
@@ -32078,409 +32300,503 @@ void mp_final_cleanup(MP mp)
 
 static void mp_initialize_primitives(MP mp)
 {
-    mp_primitive(mp, "tracingtitles",         mp_internal_command,         mp_tracing_titles_internal);
-    mp_primitive(mp, "tracingequations",      mp_internal_command,         mp_tracing_equations_internal);
-    mp_primitive(mp, "tracingcapsules",       mp_internal_command,         mp_tracing_capsules_internal);
-    mp_primitive(mp, "tracingdependencies",   mp_internal_command,         mp_tracing_dependencies_internal);
-    mp_primitive(mp, "tracingchoices",        mp_internal_command,         mp_tracing_choices_internal);
-    mp_primitive(mp, "tracingspecs",          mp_internal_command,         mp_tracing_specs_internal);
-    mp_primitive(mp, "tracingcommands",       mp_internal_command,         mp_tracing_commands_internal);
-    mp_primitive(mp, "tracingrestores",       mp_internal_command,         mp_tracing_restores_internal);
-    mp_primitive(mp, "tracingmacros",         mp_internal_command,         mp_tracing_macros_internal);
-    mp_primitive(mp, "tracingoutput",         mp_internal_command,         mp_tracing_output_internal);
-    mp_primitive(mp, "tracingstats",          mp_internal_command,         mp_tracing_stats_internal);
-    mp_primitive(mp, "tracingonline",         mp_internal_command,         mp_tracing_online_internal);
-    mp_primitive(mp, "year",                  mp_internal_command,         mp_year_internal);
-    mp_primitive(mp, "month",                 mp_internal_command,         mp_month_internal);
-    mp_primitive(mp, "day",                   mp_internal_command,         mp_day_internal);
-    mp_primitive(mp, "time",                  mp_internal_command,         mp_time_internal);
-    mp_primitive(mp, "hour",                  mp_internal_command,         mp_hour_internal);
-    mp_primitive(mp, "minute",                mp_internal_command,         mp_minute_internal);
-    mp_primitive(mp, "charcode",              mp_internal_command,         mp_char_code_internal);
-    mp_primitive(mp, "charwd",                mp_internal_command,         mp_char_wd_internal);
-    mp_primitive(mp, "charht",                mp_internal_command,         mp_char_ht_internal);
-    mp_primitive(mp, "chardp",                mp_internal_command,         mp_char_dp_internal);
-    mp_primitive(mp, "charic",                mp_internal_command,         mp_char_ic_internal);
-    mp_primitive(mp, "pausing",               mp_internal_command,         mp_pausing_internal);
-    mp_primitive(mp, "showstopping",          mp_internal_command,         mp_showstopping_internal);
-    mp_primitive(mp, "texscriptmode",         mp_internal_command,         mp_texscriptmode_internal);
-    mp_primitive(mp, "overloadmode",          mp_internal_command,         mp_overloadmode_internal);
-    mp_primitive(mp, "linejoin",              mp_internal_command,         mp_linejoin_internal);
-    mp_primitive(mp, "linecap",               mp_internal_command,         mp_linecap_internal);
-    mp_primitive(mp, "stacking",              mp_internal_command,         mp_stacking_internal);
-    mp_primitive(mp, "miterlimit",            mp_internal_command,         mp_miterlimit_internal);
-    mp_primitive(mp, "warningcheck",          mp_internal_command,         mp_warning_check_internal);
-    mp_primitive(mp, "defaultzeroangle",      mp_internal_command,         mp_default_zero_angle_internal);
-    mp_primitive(mp, "truecorners",           mp_internal_command,         mp_true_corners_internal);
-    mp_primitive(mp, "defaultcolormodel",     mp_internal_command,         mp_default_color_model_internal);
-    mp_primitive(mp, "restoreclipcolor",      mp_internal_command,         mp_restore_clip_color_internal);
-    mp_primitive(mp, "numbersystem",          mp_internal_command,         mp_number_system_internal);
-    mp_primitive(mp, "numberprecision",       mp_internal_command,         mp_number_precision_internal);
-    mp_primitive(mp, "jobname",               mp_internal_command,         mp_job_name_internal);
-    mp_primitive(mp, "lessdigits",            mp_internal_command,         mp_less_digits_internal);
-    mp_primitive(mp, "intersectionprecision", mp_internal_command,         mp_intersection_precision_internal);
-    mp_primitive(mp, "jointolerance",         mp_internal_command,         mp_join_tolerance_internal);
-    mp_primitive(mp, "singlequotemode",       mp_internal_command,         mp_single_quote_mode_internal);
-    mp_primitive(mp, "pruneoptions",          mp_internal_command,         mp_prune_options_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "tracingtitles",         mp_internal_command,         mp_tracing_titles_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "tracingequations",      mp_internal_command,         mp_tracing_equations_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "tracingcapsules",       mp_internal_command,         mp_tracing_capsules_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "tracingdependencies",   mp_internal_command,         mp_tracing_dependencies_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "tracingchoices",        mp_internal_command,         mp_tracing_choices_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "tracingspecs",          mp_internal_command,         mp_tracing_specs_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "tracingcommands",       mp_internal_command,         mp_tracing_commands_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "tracingrestores",       mp_internal_command,         mp_tracing_restores_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "tracingmacros",         mp_internal_command,         mp_tracing_macros_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "tracingoutput",         mp_internal_command,         mp_tracing_output_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "tracingstats",          mp_internal_command,         mp_tracing_stats_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "tracingonline",         mp_internal_command,         mp_tracing_online_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "year",                  mp_internal_command,         mp_year_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "month",                 mp_internal_command,         mp_month_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "day",                   mp_internal_command,         mp_day_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "time",                  mp_internal_command,         mp_time_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "hour",                  mp_internal_command,         mp_hour_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "minute",                mp_internal_command,         mp_minute_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "charcode",              mp_internal_command,         mp_char_code_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "charwd",                mp_internal_command,         mp_char_wd_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "charht",                mp_internal_command,         mp_char_ht_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "chardp",                mp_internal_command,         mp_char_dp_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "charic",                mp_internal_command,         mp_char_ic_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "pausing",               mp_internal_command,         mp_pausing_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "showstopping",          mp_internal_command,         mp_showstopping_internal);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "texscriptmode",         mp_internal_command,         mp_texscriptmode_internal);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "overloadmode",          mp_internal_command,         mp_overloadmode_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "linejoin",              mp_internal_command,         mp_linejoin_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "linecap",               mp_internal_command,         mp_linecap_internal);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "stacking",              mp_internal_command,         mp_stacking_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "miterlimit",            mp_internal_command,         mp_miterlimit_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "warningcheck",          mp_internal_command,         mp_warning_check_internal);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "defaultzeroangle",      mp_internal_command,         mp_default_zero_angle_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "truecorners",           mp_internal_command,         mp_true_corners_internal);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "defaultcolormodel",     mp_internal_command,         mp_default_color_model_internal);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "restoreclipcolor",      mp_internal_command,         mp_restore_clip_color_internal);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "numbersystem",          mp_internal_command,         mp_number_system_internal);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "numberprecision",       mp_internal_command,         mp_number_precision_internal);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "jobname",               mp_internal_command,         mp_job_name_internal);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "lessdigits",            mp_internal_command,         mp_less_digits_internal);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "intersectionprecision", mp_internal_command,         mp_intersection_precision_internal);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "jointolerance",         mp_internal_command,         mp_join_tolerance_internal);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "singlequotemode",       mp_internal_command,         mp_single_quote_mode_internal);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "pruneoptions",          mp_internal_command,         mp_prune_options_internal);
 
-    mp_primitive(mp, "..",                    mp_path_join_command,        0);
-    mp_primitive(mp, "--",                    mp_path_connect_command,     0);
-    mp_primitive(mp, "[",                     mp_left_bracket_command,     0);
-    mp_primitive(mp, "]",                     mp_right_bracket_command,    0);
-    mp_primitive(mp, "}",                     mp_right_brace_command,      0);
-    mp_primitive(mp, "{",                     mp_left_brace_command,       0);
-    mp_primitive(mp, ":",                     mp_colon_command,            0);
-    mp_primitive(mp, ":=",                    mp_assignment_command,       0);
-    mp_primitive(mp, ",",                     mp_comma_command,            0);
-    mp_primitive(mp, ";",                     mp_semicolon_command,        0);
-    mp_primitive(mp, "\\",                    mp_relax_command,            0);
-    mp_primitive(mp, "addto",                 mp_add_to_command,           0);
-    mp_primitive(mp, "atleast",               mp_at_least_command,         0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "..",                    mp_path_join_command,        0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "--",                    mp_path_connect_command,     0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "[",                     mp_left_bracket_command,     0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "]",                     mp_right_bracket_command,    0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "}",                     mp_right_brace_command,      0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "{",                     mp_left_brace_command,       0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    ":",                     mp_colon_command,            0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    ":=",                    mp_assignment_command,       0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    ",",                     mp_comma_command,            0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    ";",                     mp_semicolon_command,        0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "\\",                    mp_relax_command,            0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "addto",                 mp_add_to_command,           0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "atleast",               mp_at_least_command,         0);
 
-    mp_primitive(mp, "controls",              mp_controls_command,         mp_both_controls_code);
-    mp_primitive(mp, "firstcontrol",          mp_controls_command,         mp_first_control_code);
-    mp_primitive(mp, "secondcontrol",         mp_controls_command,         mp_second_control_code);
-    mp_primitive(mp, "curl",                  mp_curl_command,             0);
-    mp_primitive(mp, "delimiters",            mp_delimiters_command,       0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "controls",              mp_controls_command,         mp_both_controls_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "firstcontrol",          mp_controls_command,         mp_first_control_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "secondcontrol",         mp_controls_command,         mp_second_control_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "curl",                  mp_curl_command,             0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "delimiters",            mp_delimiters_command,       0);
 
-    mp_primitive(mp, "begingroup",            mp_begin_group_command,      0); mp->bg_loc = cur_sym;
-    mp_primitive(mp, "endgroup",              mp_end_group_command,        0); mp->eg_loc = cur_sym;
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "begingroup",            mp_begin_group_command,      0); if (mp) { mp->bg_loc = cur_sym; }
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "endgroup",              mp_end_group_command,        0); if (mp) { mp->eg_loc = cur_sym; }
 
-    mp_primitive(mp, "everyjob",              mp_every_job_command,        0);
-    mp_primitive(mp, "exitif",                mp_exit_test_command,        0);
-    mp_primitive(mp, "expandafter",           mp_expand_after_command,     0);
-    mp_primitive(mp, "interim",               mp_interim_command,          0);
-    mp_primitive(mp, "let",                   mp_let_command,              0);
-    mp_primitive(mp, "newinternal",           mp_new_internal_command,     0);
-    mp_primitive(mp, "of",                    mp_of_command,               0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "everyjob",              mp_every_job_command,        0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "exitif",                mp_exit_test_command,        0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "expandafter",           mp_expand_after_command,     0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "interim",               mp_interim_command,          0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "let",                   mp_let_command,              0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "newinternal",           mp_new_internal_command,     0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "of",                    mp_of_command,               0);
 
-    mp_primitive(mp, "setbyte",               mp_bytemap_command,          mp_bytemap_set_byte_code);
-    mp_primitive(mp, "setbytemapoffset",      mp_bytemap_command,          mp_bytemap_set_offset_code);
-    mp_primitive(mp, "copybytemap",           mp_bytemap_command,          mp_bytemap_copy_code);
-    mp_primitive(mp, "newbytemap",            mp_bytemap_command,          mp_bytemap_new_code);
-    mp_primitive(mp, "setbytemap",            mp_bytemap_command,          mp_bytemap_set_code);
-    mp_primitive(mp, "clipbytemap",           mp_bytemap_command,          mp_bytemap_clip_code);
-    mp_primitive(mp, "reducebytemap",         mp_bytemap_command,          mp_bytemap_reduce_code);
-    mp_primitive(mp, "setbytemapoptions",     mp_bytemap_command,          mp_bytemap_set_options_code);
-    mp_primitive(mp, "resetbytemap",          mp_bytemap_command,          mp_bytemap_reset_code);
-    mp_primitive(mp, "resetbytemaps",         mp_bytemap_command,          mp_bytemap_reset_all_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "setbyte",               mp_bytemap_command,          mp_bytemap_set_byte_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "setbytemapoffset",      mp_bytemap_command,          mp_bytemap_set_offset_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "copybytemap",           mp_bytemap_command,          mp_bytemap_copy_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "newbytemap",            mp_bytemap_command,          mp_bytemap_new_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "setbytemap",            mp_bytemap_command,          mp_bytemap_set_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "clipbytemap",           mp_bytemap_command,          mp_bytemap_clip_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "reducebytemap",         mp_bytemap_command,          mp_bytemap_reduce_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "setbytemapoptions",     mp_bytemap_command,          mp_bytemap_set_options_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "resetbytemap",          mp_bytemap_command,          mp_bytemap_reset_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "resetbytemaps",         mp_bytemap_command,          mp_bytemap_reset_all_code);
 
-    mp_primitive(mp, "randomseed",            mp_only_set_command,         mp_random_seed_code);
-    mp_primitive(mp, "maxknotpool",           mp_only_set_command,         mp_max_knot_pool_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "randomseed",            mp_only_set_command,         mp_random_seed_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "maxknotpool",           mp_only_set_command,         mp_max_knot_pool_code);
 
-    mp_primitive(mp, "save",                  mp_save_command,             0);
-    mp_primitive(mp, "scantokens",            mp_scan_tokens_command,      0);
-    mp_primitive(mp, "runscript",             mp_runscript_command,        0);
-    mp_primitive(mp, "maketext",              mp_maketext_command,         0);
-    mp_primitive(mp, "shipout",               mp_ship_out_command,         0);
-    mp_primitive(mp, "step",                  mp_step_command,             0);
-    mp_primitive(mp, "str",                   mp_str_command,              0);
-    mp_primitive(mp, "void",                  mp_void_command,             0);
-    mp_primitive(mp, "tension",               mp_tension_command,          0);
-    mp_primitive(mp, "to",                    mp_to_command,               0);
-    mp_primitive(mp, "until",                 mp_until_command,            0);
-    mp_primitive(mp, "within",                mp_within_command,           0);
-    mp_primitive(mp, "write",                 mp_write_command,            0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "save",                  mp_save_command,             0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "scantokens",            mp_scan_tokens_command,      0);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "runscript",             mp_runscript_command,        0);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "maketext",              mp_maketext_command,         0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "shipout",               mp_ship_out_command,         0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "step",                  mp_step_command,             0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "str",                   mp_str_command,              0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "void",                  mp_void_command,             0); /* hidden gem */
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "tension",               mp_tension_command,          0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "to",                    mp_to_command,               0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "until",                 mp_until_command,            0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "within",                mp_within_command,           0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "write",                 mp_write_command,            0);
 
-    mp_primitive(mp, "btex",                  mp_btex_command,             mp_btex_code);
-    mp_primitive(mp, "verbatimtex",           mp_btex_command,             mp_verbatim_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "btex",                  mp_btex_command,             mp_btex_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "verbatimtex",           mp_btex_command,             mp_verbatim_code)  ;
 
-    mp_primitive(mp, "etex",                  mp_etex_command,             0);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "etex",                  mp_etex_command,             0);
 
-    mp_primitive(mp, "def",                   mp_macro_def_command,        mp_def_code);
-    mp_primitive(mp, "vardef",                mp_macro_def_command,        mp_var_def_code);
-    mp_primitive(mp, "primarydef",            mp_macro_def_command,        mp_primary_def_code);
-    mp_primitive(mp, "secondarydef",          mp_macro_def_command,        mp_secondary_def_code);
-    mp_primitive(mp, "tertiarydef",           mp_macro_def_command,        mp_tertiary_def_code);
-    mp_primitive(mp, "enddef",                mp_macro_def_command,        mp_end_def_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "def",                   mp_macro_def_command,        mp_def_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "vardef",                mp_macro_def_command,        mp_var_def_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "primarydef",            mp_macro_def_command,        mp_primary_def_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "secondarydef",          mp_macro_def_command,        mp_secondary_def_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "tertiarydef",           mp_macro_def_command,        mp_tertiary_def_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "enddef",                mp_macro_def_command,        mp_end_def_code);
 
-    mp_primitive(mp, "for",                   mp_iteration_command,        mp_start_for_code);
-    mp_primitive(mp, "forsuffixes",           mp_iteration_command,        mp_start_forsuffixes_code);
-    mp_primitive(mp, "forever",               mp_iteration_command,        mp_start_forever_code);
-    mp_primitive(mp, "endfor",                mp_iteration_command,        mp_end_for_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "for",                   mp_iteration_command,        mp_start_for_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "forsuffixes",           mp_iteration_command,        mp_start_forsuffixes_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "forever",               mp_iteration_command,        mp_start_forever_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "endfor",                mp_iteration_command,        mp_end_for_code);
 
-    mp_primitive(mp, "quote",                 mp_macro_special_command,    mp_macro_quote_code);
-    mp_primitive(mp, "#@",                    mp_macro_special_command,    mp_macro_prefix_code);
-    mp_primitive(mp, "@",                     mp_macro_special_command,    mp_macro_at_code);
-    mp_primitive(mp, "@#",                    mp_macro_special_command,    mp_macro_suffix_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "quote",                 mp_macro_special_command,    mp_macro_quote_code); /* hidden gem */
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "#@",                    mp_macro_special_command,    mp_macro_prefix_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "@",                     mp_macro_special_command,    mp_macro_at_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "@#",                    mp_macro_special_command,    mp_macro_suffix_code);
 
-    mp_primitive(mp, "expr",                  mp_parameter_commmand,       mp_expr_parameter);
-    mp_primitive(mp, "suffix",                mp_parameter_commmand,       mp_suffix_parameter);
-    mp_primitive(mp, "text",                  mp_parameter_commmand,       mp_text_parameter);
-    mp_primitive(mp, "primary",               mp_parameter_commmand,       mp_primary_macro);
-    mp_primitive(mp, "secondary",             mp_parameter_commmand,       mp_secondary_macro);
-    mp_primitive(mp, "tertiary",              mp_parameter_commmand,       mp_tertiary_macro);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "expr",                  mp_parameter_commmand,       mp_expr_parameter);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "suffix",                mp_parameter_commmand,       mp_suffix_parameter);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "text",                  mp_parameter_commmand,       mp_text_parameter);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "primary",               mp_parameter_commmand,       mp_primary_macro);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "secondary",             mp_parameter_commmand,       mp_secondary_macro);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "tertiary",              mp_parameter_commmand,       mp_tertiary_macro);
 
-    mp_primitive(mp, "input",                 mp_input_command,            mp_input_code);
-    mp_primitive(mp, "endinput",              mp_input_command,            mp_end_input_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "input",                 mp_input_command,            mp_input_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "endinput",              mp_input_command,            mp_end_input_code);
 
-    mp_primitive(mp, "if",                    mp_if_test_command,          mp_if_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "if",                    mp_if_test_command,          mp_if_code);
 
-    mp_primitive(mp, "fi",                    mp_fi_or_else_command,       mp_fi_code);
-    mp_primitive(mp, "else",                  mp_fi_or_else_command,       mp_else_code);
-    mp_primitive(mp, "elseif",                mp_fi_or_else_command,       mp_else_if_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "fi",                    mp_fi_or_else_command,       mp_fi_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "else",                  mp_fi_or_else_command,       mp_else_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "elseif",                mp_fi_or_else_command,       mp_else_if_code);
 
-    mp_primitive(mp, "true",                  mp_nullary_command,          mp_true_operation);
-    mp_primitive(mp, "false",                 mp_nullary_command,          mp_false_operation);
-    mp_primitive(mp, "nullpicture",           mp_nullary_command,          mp_null_picture_operation);
-    mp_primitive(mp, "nullpen",               mp_nullary_command,          mp_null_pen_operation);
-    mp_primitive(mp, "readstring",            mp_nullary_command,          mp_read_string_operation);
-    mp_primitive(mp, "pencircle",             mp_nullary_command,          mp_pen_circle_operation);
-    mp_primitive(mp, "normaldeviate",         mp_nullary_command,          mp_normal_deviate_operation);
-    mp_primitive(mp, "pathpoint",             mp_nullary_command,          mp_path_point_operation);
-    mp_primitive(mp, "pathprecontrol",        mp_nullary_command,          mp_path_precontrol_operation);
-    mp_primitive(mp, "pathpostcontrol",       mp_nullary_command,          mp_path_postcontrol_operation);
-    mp_primitive(mp, "pathdirection",         mp_nullary_command,          mp_path_direction_operation);
-    mp_primitive(mp, "lastxy",                mp_nullary_command,          mp_last_xy_operation);
-    mp_primitive(mp, "lastx",                 mp_nullary_command,          mp_last_x_operation);
-    mp_primitive(mp, "lasty",                 mp_nullary_command,          mp_last_y_operation);
-    mp_primitive(mp, "previousxy",            mp_nullary_command,          mp_previous_xy_operation);
-    mp_primitive(mp, "previousx",             mp_nullary_command,          mp_previous_x_operation);
-    mp_primitive(mp, "previousy",             mp_nullary_command,          mp_previous_y_operation);
-    mp_primitive(mp, "pathstate",             mp_nullary_command,          mp_path_state_operation);
-    mp_primitive(mp, "pathindex",             mp_nullary_command,          mp_path_index_operation);
-    mp_primitive(mp, "pathlastindex",         mp_nullary_command,          mp_path_lastindex_operation);
-    mp_primitive(mp, "pathlength",            mp_nullary_command,          mp_path_length_operation);
-    mp_primitive(mp, "pathfirst",             mp_nullary_command,          mp_path_first_operation);
-    mp_primitive(mp, "pathlast",              mp_nullary_command,          mp_path_last_operation);
-    mp_primitive(mp, "pathxpart",             mp_nullary_command,          mp_path_xpart_operation);
-    mp_primitive(mp, "pathypart",             mp_nullary_command,          mp_path_ypart_operation);
-    mp_primitive(mp, "mpversion",             mp_nullary_command,          mp_version_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "true",                  mp_nullary_command,          mp_true_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "false",                 mp_nullary_command,          mp_false_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "nullpicture",           mp_nullary_command,          mp_null_picture_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "nullpen",               mp_nullary_command,          mp_null_pen_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "readstring",            mp_nullary_command,          mp_read_string_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "pencircle",             mp_nullary_command,          mp_pen_circle_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "normaldeviate",         mp_nullary_command,          mp_normal_deviate_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "pathpoint",             mp_nullary_command,          mp_path_point_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "pathprecontrol",        mp_nullary_command,          mp_path_precontrol_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "pathpostcontrol",       mp_nullary_command,          mp_path_postcontrol_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "pathdirection",         mp_nullary_command,          mp_path_direction_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "pathunitdirection",     mp_nullary_command,          mp_path_unit_direction_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "lastxy",                mp_nullary_command,          mp_last_xy_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "lastx",                 mp_nullary_command,          mp_last_x_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "lasty",                 mp_nullary_command,          mp_last_y_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "previousxy",            mp_nullary_command,          mp_previous_xy_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "previousx",             mp_nullary_command,          mp_previous_x_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "previousy",             mp_nullary_command,          mp_previous_y_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "pathstate",             mp_nullary_command,          mp_path_state_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "pathindex",             mp_nullary_command,          mp_path_index_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "pathlastindex",         mp_nullary_command,          mp_path_lastindex_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "pathlength",            mp_nullary_command,          mp_path_length_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "pathfirst",             mp_nullary_command,          mp_path_first_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "pathlast",              mp_nullary_command,          mp_path_last_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "pathxpart",             mp_nullary_command,          mp_path_xpart_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "pathypart",             mp_nullary_command,          mp_path_ypart_operation);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "mpversion",             mp_nullary_command,          mp_version_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "iteratorindex",         mp_nullary_command,          mp_iterator_index_operation);
 
-    mp_primitive(mp, "readfrom",              mp_unary_command,            mp_read_from_operation);
-    mp_primitive(mp, "closefrom",             mp_unary_command,            mp_close_from_operation);
-    mp_primitive(mp, "odd",                   mp_unary_command,            mp_odd_operation);
-    mp_primitive(mp, "known",                 mp_unary_command,            mp_known_operation);
-    mp_primitive(mp, "unknown",               mp_unary_command,            mp_unknown_operation);
-    mp_primitive(mp, "not",                   mp_unary_command,            mp_not_operation);
-    mp_primitive(mp, "decimal",               mp_unary_command,            mp_decimal_operation);
-    mp_primitive(mp, "reverse",               mp_unary_command,            mp_reverse_operation);
-    mp_primitive(mp, "uncycle",               mp_unary_command,            mp_uncycle_operation);
-    mp_primitive(mp, "singularity",           mp_unary_command,            mp_singularity_operation);
-    mp_primitive(mp, "makepath",              mp_unary_command,            mp_make_path_operation);
-    mp_primitive(mp, "makepen",               mp_unary_command,            mp_make_pen_operation);
-    mp_primitive(mp, "makenep",               mp_unary_command,            mp_make_nep_operation);
-    mp_primitive(mp, "convexed",              mp_unary_command,            mp_convexed_operation);
-    mp_primitive(mp, "uncontrolled",          mp_unary_command,            mp_uncontrolled_operation);
-    mp_primitive(mp, "oct",                   mp_unary_command,            mp_oct_operation);
-    mp_primitive(mp, "hex",                   mp_unary_command,            mp_hex_operation);
-    mp_primitive(mp, "ASCII",                 mp_unary_command,            mp_ASCII_operation);
-    mp_primitive(mp, "char",                  mp_unary_command,            mp_char_operation);
-    mp_primitive(mp, "segments",              mp_unary_command,            mp_segments_operation);
-    mp_primitive(mp, "prunesingularities",    mp_unary_command,            mp_prune_singularities_operation);
-    mp_primitive(mp, "length",                mp_unary_command,            mp_length_operation);
-    mp_primitive(mp, "nolength",              mp_unary_command,            mp_no_length_operation);
-    mp_primitive(mp, "turningnumber",         mp_unary_command,            mp_turning_operation);
-    mp_primitive(mp, "xpart",                 mp_unary_command,            mp_x_part_operation);
-    mp_primitive(mp, "ypart",                 mp_unary_command,            mp_y_part_operation);
-    mp_primitive(mp, "zpart",                 mp_unary_command,            mp_z_part_operation);
-    mp_primitive(mp, "wpart",                 mp_unary_command,            mp_w_part_operation);
-    mp_primitive(mp, "xxpart",                mp_unary_command,            mp_xx_part_operation);
-    mp_primitive(mp, "xypart",                mp_unary_command,            mp_xy_part_operation);
-    mp_primitive(mp, "yxpart",                mp_unary_command,            mp_yx_part_operation);
-    mp_primitive(mp, "yypart",                mp_unary_command,            mp_yy_part_operation);
-    mp_primitive(mp, "redpart",               mp_unary_command,            mp_red_part_operation);
-    mp_primitive(mp, "greenpart",             mp_unary_command,            mp_green_part_operation);
-    mp_primitive(mp, "bluepart",              mp_unary_command,            mp_blue_part_operation);
-    mp_primitive(mp, "cyanpart",              mp_unary_command,            mp_cyan_part_operation);
-    mp_primitive(mp, "magentapart",           mp_unary_command,            mp_magenta_part_operation);
-    mp_primitive(mp, "yellowpart",            mp_unary_command,            mp_yellow_part_operation);
-    mp_primitive(mp, "blackpart",             mp_unary_command,            mp_black_part_operation);
-    mp_primitive(mp, "greypart",              mp_unary_command,            mp_grey_part_operation);
-    mp_primitive(mp, "colormodel",            mp_unary_command,            mp_color_model_operation);
-    mp_primitive(mp, "prescriptpart",         mp_unary_command,            mp_prescript_part_operation);
-    mp_primitive(mp, "postscriptpart",        mp_unary_command,            mp_postscript_part_operation);
-    mp_primitive(mp, "stackingpart",          mp_unary_command,            mp_stacking_part_operation);
-    mp_primitive(mp, "pathpart",              mp_unary_command,            mp_path_part_operation);
-    mp_primitive(mp, "penpart",               mp_unary_command,            mp_pen_part_operation);
-    mp_primitive(mp, "dashpart",              mp_unary_command,            mp_dash_part_operation);
-    mp_primitive(mp, "sqrt",                  mp_unary_command,            mp_sqrt_operation);
-    mp_primitive(mp, "knownnorm",             mp_unary_command,            mp_norm_operation);
-    mp_primitive(mp, "mexp",                  mp_unary_command,            mp_m_exp_operation);
-    mp_primitive(mp, "mlog",                  mp_unary_command,            mp_m_log_operation);
-    mp_primitive(mp, "sind",                  mp_unary_command,            mp_sin_d_operation);
-    mp_primitive(mp, "cosd",                  mp_unary_command,            mp_cos_d_operation);
-    mp_primitive(mp, "floor",                 mp_unary_command,            mp_floor_operation);
-    mp_primitive(mp, "uniformdeviate",        mp_unary_command,            mp_uniform_deviate_operation);
-    mp_primitive(mp, "llcorner",              mp_unary_command,            mp_ll_corner_operation);
-    mp_primitive(mp, "lrcorner",              mp_unary_command,            mp_lr_corner_operation);
-    mp_primitive(mp, "ulcorner",              mp_unary_command,            mp_ul_corner_operation);
-    mp_primitive(mp, "urcorner",              mp_unary_command,            mp_ur_corner_operation);
-    mp_primitive(mp, "corners",               mp_unary_command,            mp_corners_operation);
-    mp_primitive(mp, "centerof",              mp_unary_command,            mp_center_of_operation);
-    mp_primitive(mp, "centerofmass",          mp_unary_command,            mp_center_of_mass_operation);
-    mp_primitive(mp, "xrange",                mp_unary_command,            mp_x_range_operation);
-    mp_primitive(mp, "yrange",                mp_unary_command,            mp_y_range_operation);
-    mp_primitive(mp, "deltapoint",            mp_unary_command,            mp_delta_point_operation);
-    mp_primitive(mp, "deltaprecontrol",       mp_unary_command,            mp_delta_precontrol_operation);
-    mp_primitive(mp, "deltapostcontrol",      mp_unary_command,            mp_delta_postcontrol_operation);
-    mp_primitive(mp, "deltadirection",        mp_unary_command,            mp_delta_direction_operation);
-    mp_primitive(mp, "deltaarclength",        mp_unary_command,            mp_delta_arclength_operation);
-    mp_primitive(mp, "arclength",             mp_unary_command,            mp_arc_length_operation);
-    mp_primitive(mp, "angle",                 mp_unary_command,            mp_angle_operation);
-    mp_primitive(mp, "stroked",               mp_unary_command,            mp_stroked_operation);
-    mp_primitive(mp, "filled",                mp_unary_command,            mp_filled_operation);
-    mp_primitive(mp, "clipped",               mp_unary_command,            mp_clipped_operation);
-    mp_primitive(mp, "grouped",               mp_unary_command,            mp_grouped_operation);
-    mp_primitive(mp, "bounded",               mp_unary_command,            mp_bounded_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "readfrom",              mp_unary_command,            mp_read_from_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "closefrom",             mp_unary_command,            mp_close_from_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "odd",                   mp_unary_command,            mp_odd_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "known",                 mp_unary_command,            mp_known_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "unknown",               mp_unary_command,            mp_unknown_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "not",                   mp_unary_command,            mp_not_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "decimal",               mp_unary_command,            mp_decimal_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "reverse",               mp_unary_command,            mp_reverse_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "uncycle",               mp_unary_command,            mp_uncycle_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "singularity",           mp_unary_command,            mp_singularity_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "makepath",              mp_unary_command,            mp_make_path_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "makepen",               mp_unary_command,            mp_make_pen_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "makenep",               mp_unary_command,            mp_make_nep_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "convexed",              mp_unary_command,            mp_convexed_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "uncontrolled",          mp_unary_command,            mp_uncontrolled_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "oct",                   mp_unary_command,            mp_oct_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "hex",                   mp_unary_command,            mp_hex_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "ASCII",                 mp_unary_command,            mp_ASCII_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "char",                  mp_unary_command,            mp_char_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "segments",              mp_unary_command,            mp_segments_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "prunesingularities",    mp_unary_command,            mp_prune_singularities_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "length",                mp_unary_command,            mp_length_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "nolength",              mp_unary_command,            mp_no_length_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "firstpoint",            mp_unary_command,            mp_first_point_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "firstprecontrol",       mp_unary_command,            mp_first_pre_control_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "firstpostcontrol",      mp_unary_command,            mp_first_post_control_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "firstdirection",        mp_unary_command,            mp_first_direction_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "firstunitdirection",    mp_unary_command,            mp_first_unit_direction_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "lastpoint",             mp_unary_command,            mp_last_point_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "lastprecontrol",        mp_unary_command,            mp_last_pre_control_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "lastpostcontrol",       mp_unary_command,            mp_last_post_control_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "lastdirection",         mp_unary_command,            mp_last_direction_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "lastunitdirection",     mp_unary_command,            mp_last_unit_direction_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "turningnumber",         mp_unary_command,            mp_turning_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "xpart",                 mp_unary_command,            mp_x_part_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "ypart",                 mp_unary_command,            mp_y_part_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "zpart",                 mp_unary_command,            mp_z_part_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "wpart",                 mp_unary_command,            mp_w_part_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "xxpart",                mp_unary_command,            mp_xx_part_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "xypart",                mp_unary_command,            mp_xy_part_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "yxpart",                mp_unary_command,            mp_yx_part_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "yypart",                mp_unary_command,            mp_yy_part_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "redpart",               mp_unary_command,            mp_red_part_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "greenpart",             mp_unary_command,            mp_green_part_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "bluepart",              mp_unary_command,            mp_blue_part_operation);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "cyanpart",              mp_unary_command,            mp_cyan_part_operation);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "magentapart",           mp_unary_command,            mp_magenta_part_operation);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "yellowpart",            mp_unary_command,            mp_yellow_part_operation);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "blackpart",             mp_unary_command,            mp_black_part_operation);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "greypart",              mp_unary_command,            mp_grey_part_operation);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "colormodel",            mp_unary_command,            mp_color_model_operation);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "prescriptpart",         mp_unary_command,            mp_prescript_part_operation);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "postscriptpart",        mp_unary_command,            mp_postscript_part_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "stackingpart",          mp_unary_command,            mp_stacking_part_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "pathpart",              mp_unary_command,            mp_path_part_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "penpart",               mp_unary_command,            mp_pen_part_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "dashpart",              mp_unary_command,            mp_dash_part_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "sqrt",                  mp_unary_command,            mp_sqrt_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "knownnorm",             mp_unary_command,            mp_norm_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "mexp",                  mp_unary_command,            mp_m_exp_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "mlog",                  mp_unary_command,            mp_m_log_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "sind",                  mp_unary_command,            mp_sin_d_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "cosd",                  mp_unary_command,            mp_cos_d_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "floor",                 mp_unary_command,            mp_floor_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "knownnormalize",        mp_unary_command,            mp_normalize_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "uniformdeviate",        mp_unary_command,            mp_uniform_deviate_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "llcorner",              mp_unary_command,            mp_ll_corner_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "lrcorner",              mp_unary_command,            mp_lr_corner_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "ulcorner",              mp_unary_command,            mp_ul_corner_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "urcorner",              mp_unary_command,            mp_ur_corner_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "corners",               mp_unary_command,            mp_corners_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "centerof",              mp_unary_command,            mp_center_of_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "centerofmass",          mp_unary_command,            mp_center_of_mass_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "xrange",                mp_unary_command,            mp_x_range_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "yrange",                mp_unary_command,            mp_y_range_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "deltapoint",            mp_unary_command,            mp_delta_point_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "deltaprecontrol",       mp_unary_command,            mp_delta_precontrol_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "deltapostcontrol",      mp_unary_command,            mp_delta_postcontrol_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "deltadirection",        mp_unary_command,            mp_delta_direction_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "deltaunitdirection",    mp_unary_command,            mp_delta_unit_direction_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "deltaarclength",        mp_unary_command,            mp_delta_arclength_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "deltaiteratorindex",    mp_unary_command,            mp_delta_iterator_index_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "arclength",             mp_unary_command,            mp_arc_length_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "angle",                 mp_unary_command,            mp_angle_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "stroked",               mp_unary_command,            mp_stroked_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "filled",                mp_unary_command,            mp_filled_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "clipped",               mp_unary_command,            mp_clipped_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "grouped",               mp_unary_command,            mp_grouped_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "bounded",               mp_unary_command,            mp_bounded_operation);
 
-    mp_primitive(mp, "cycle",                 mp_cycle_command,            mp_cycle_operation);
-    mp_primitive(mp, "recycle",               mp_cycle_command,            mp_recycle_operation);
-    mp_primitive(mp, "nocycle",               mp_cycle_command,            mp_no_cycle_operation);
-    mp_primitive(mp, "xrelative",             mp_cycle_command,            mp_x_relative_operation);
-    mp_primitive(mp, "yrelative",             mp_cycle_command,            mp_y_relative_operation);
-    mp_primitive(mp, "xyrelative",            mp_cycle_command,            mp_xy_relative_operation);
-    mp_primitive(mp, "xabsolute",             mp_cycle_command,            mp_x_absolute_operation);
-    mp_primitive(mp, "yabsolute",             mp_cycle_command,            mp_y_absolute_operation);
-    mp_primitive(mp, "xyabsolute",            mp_cycle_command,            mp_xy_absolute_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "cycle",                 mp_cycle_command,            mp_cycle_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "recycle",               mp_cycle_command,            mp_recycle_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "nocycle",               mp_cycle_command,            mp_no_cycle_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "xrelative",             mp_cycle_command,            mp_x_relative_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "yrelative",             mp_cycle_command,            mp_y_relative_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "xyrelative",            mp_cycle_command,            mp_xy_relative_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "xabsolute",             mp_cycle_command,            mp_x_absolute_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "yabsolute",             mp_cycle_command,            mp_y_absolute_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "xyabsolute",            mp_cycle_command,            mp_xy_absolute_operation);
 
-    mp_primitive(mp, "+",                     mp_plus_or_minus_command,    mp_plus_operation);
-    mp_primitive(mp, "-",                     mp_plus_or_minus_command,    mp_minus_operation);
-    mp_primitive(mp, "/",                     mp_slash_command,            mp_over_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "+",                     mp_plus_or_minus_command,    mp_plus_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "-",                     mp_plus_or_minus_command,    mp_minus_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "/",                     mp_slash_command,            mp_over_operation);
 
-    mp_primitive(mp, "*",                     mp_secondary_binary_command, mp_times_operation);
-    mp_primitive(mp, "^",                     mp_secondary_binary_command, mp_power_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "*",                     mp_secondary_binary_command, mp_times_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "^",                     mp_secondary_binary_command, mp_power_operation);
 
-    mp_primitive(mp, "++",                    mp_tertiary_binary_command,  mp_pythag_add_operation);
-    mp_primitive(mp, "+-+",                   mp_tertiary_binary_command,  mp_pythag_sub_operation);
-    mp_primitive(mp, "or",                    mp_tertiary_binary_command,  mp_or_operation);
-    mp_primitive(mp, "knowndotprod",          mp_tertiary_binary_command,  mp_dotprod_operation);
-    mp_primitive(mp, "knowncrossprod",        mp_tertiary_binary_command,  mp_crossprod_operation);
-    mp_primitive(mp, "knowndiv",              mp_tertiary_binary_command,  mp_div_operation);
-    mp_primitive(mp, "knownmod",              mp_tertiary_binary_command,  mp_mod_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "++",                    mp_tertiary_binary_command,  mp_pythag_add_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "+-+",                   mp_tertiary_binary_command,  mp_pythag_sub_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "or",                    mp_tertiary_binary_command,  mp_or_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "knowndotprod",          mp_tertiary_binary_command,  mp_dotprod_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "knowncrossprod",        mp_tertiary_binary_command,  mp_crossprod_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "knowndiv",              mp_tertiary_binary_command,  mp_div_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "knownmod",              mp_tertiary_binary_command,  mp_mod_operation);
 
-    mp_primitive(mp, "and",                   mp_and_command,              mp_and_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "and",                   mp_and_command,              mp_and_operation);
 
-    mp_primitive(mp, "<",                     mp_primary_binary_command,   mp_less_than_operation);
-    mp_primitive(mp, "<=",                    mp_primary_binary_command,   mp_less_or_equal_operation);
-    mp_primitive(mp, ">",                     mp_primary_binary_command,   mp_greater_than_operation);
-    mp_primitive(mp, ">=",                    mp_primary_binary_command,   mp_greater_or_equal_operation);
-    mp_primitive(mp, "<>",                    mp_primary_binary_command,   mp_unequal_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "<",                     mp_primary_binary_command,   mp_less_than_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "<=",                    mp_primary_binary_command,   mp_less_or_equal_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    ">",                     mp_primary_binary_command,   mp_greater_than_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    ">=",                    mp_primary_binary_command,   mp_greater_or_equal_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "<>",                    mp_primary_binary_command,   mp_unequal_operation);
 
-    mp_primitive(mp, "=",                     mp_equals_command,           mp_equal_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "=",                     mp_equals_command,           mp_equal_operation);
 
-    mp_primitive(mp, "substring",             mp_of_binary_command,        mp_substring_operation);
-    mp_primitive(mp, "subpath",               mp_of_binary_command,        mp_subpath_operation);
-    mp_primitive(mp, "segment",               mp_of_binary_command,        mp_segment_operation);
-    mp_primitive(mp, "directiontime",         mp_of_binary_command,        mp_direction_time_operation);
-    mp_primitive(mp, "point",                 mp_of_binary_command,        mp_point_operation);
-    mp_primitive(mp, "precontrol",            mp_of_binary_command,        mp_precontrol_operation);
-    mp_primitive(mp, "postcontrol",           mp_of_binary_command,        mp_postcontrol_operation);
-    mp_primitive(mp, "direction",             mp_of_binary_command,        mp_direction_operation);
-    mp_primitive(mp, "penoffset",             mp_of_binary_command,        mp_pen_offset_operation);
-    mp_primitive(mp, "arctime",               mp_of_binary_command,        mp_arc_time_operation);
-    mp_primitive(mp, "arcpoint",              mp_of_binary_command,        mp_arc_point_operation);
-    mp_primitive(mp, "arcpointlist",          mp_of_binary_command,        mp_arc_point_list_operation);
-    mp_primitive(mp, "subarclength",          mp_of_binary_command,        mp_subarc_length_operation);
-    mp_primitive(mp, "bytevalue",             mp_of_binary_command,        mp_bytemap_value_operation);
-    mp_primitive(mp, "bytefound",             mp_of_binary_command,        mp_bytemap_found_operation);
-    mp_primitive(mp, "bytepath",              mp_of_binary_command,        mp_bytemap_path_operation);
-    mp_primitive(mp, "bytemapbounds",         mp_of_binary_command,        mp_bytemap_bounds_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "substring",             mp_of_binary_command,        mp_substring_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "subpath",               mp_of_binary_command,        mp_subpath_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "segment",               mp_of_binary_command,        mp_segment_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "directiontime",         mp_of_binary_command,        mp_direction_time_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "point",                 mp_of_binary_command,        mp_point_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "precontrol",            mp_of_binary_command,        mp_precontrol_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "postcontrol",           mp_of_binary_command,        mp_postcontrol_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "direction",             mp_of_binary_command,        mp_direction_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "unitdirection",         mp_of_binary_command,        mp_unit_direction_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "penoffset",             mp_of_binary_command,        mp_pen_offset_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "arctime",               mp_of_binary_command,        mp_arc_time_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "arcpoint",              mp_of_binary_command,        mp_arc_point_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "arcpointlist",          mp_of_binary_command,        mp_arc_point_list_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "subarclength",          mp_of_binary_command,        mp_subarc_length_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "bytevalue",             mp_of_binary_command,        mp_bytemap_value_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "bytefound",             mp_of_binary_command,        mp_bytemap_found_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "bytepath",              mp_of_binary_command,        mp_bytemap_path_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "bytemapbounds",         mp_of_binary_command,        mp_bytemap_bounds_operation);
 
-    mp_primitive(mp, "&",                     mp_ampersand_command,        mp_concat_operation);
-    mp_primitive(mp, "&&",                    mp_ampersand_command,        mp_just_append_operation);
-    mp_primitive(mp, "&&&",                   mp_ampersand_command,        mp_tolerant_concat_operation);
-    mp_primitive(mp, "&&&&",                  mp_ampersand_command,        mp_tolerant_append_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "&",                     mp_ampersand_command,        mp_concat_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "&&",                    mp_ampersand_command,        mp_just_append_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "&&&",                   mp_ampersand_command,        mp_tolerant_concat_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "&&&&",                  mp_ampersand_command,        mp_tolerant_append_operation);
 
-    mp_primitive(mp, "rotated",               mp_secondary_binary_command, mp_rotated_operation);
-    mp_primitive(mp, "slanted",               mp_secondary_binary_command, mp_slanted_operation);
-    mp_primitive(mp, "scaled",                mp_secondary_binary_command, mp_scaled_operation);
-    mp_primitive(mp, "shifted",               mp_secondary_binary_command, mp_shifted_operation);
-    mp_primitive(mp, "transformed",           mp_secondary_binary_command, mp_transformed_operation);
-    mp_primitive(mp, "xscaled",               mp_secondary_binary_command, mp_x_scaled_operation);
-    mp_primitive(mp, "yscaled",               mp_secondary_binary_command, mp_y_scaled_operation);
-    mp_primitive(mp, "zscaled",               mp_secondary_binary_command, mp_z_scaled_operation);
-    mp_primitive(mp, "xyscaled",              mp_secondary_binary_command, mp_xy_scaled_operation);
-    mp_primitive(mp, "bytemapscaled",         mp_secondary_binary_command, mp_bytemap_scaled_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "rotated",               mp_secondary_binary_command, mp_rotated_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "slanted",               mp_secondary_binary_command, mp_slanted_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "scaled",                mp_secondary_binary_command, mp_scaled_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "shifted",               mp_secondary_binary_command, mp_shifted_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "transformed",           mp_secondary_binary_command, mp_transformed_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "xscaled",               mp_secondary_binary_command, mp_x_scaled_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "yscaled",               mp_secondary_binary_command, mp_y_scaled_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "zscaled",               mp_secondary_binary_command, mp_z_scaled_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "xyscaled",              mp_secondary_binary_command, mp_xy_scaled_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "xshifted",              mp_secondary_binary_command, mp_x_shifted_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "yshifted",              mp_secondary_binary_command, mp_y_shifted_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "bytemapscaled",         mp_secondary_binary_command, mp_bytemap_scaled_operation);
 
-    mp_primitive(mp, "intersectiontimes",     mp_tertiary_binary_command,  mp_intertimes_operation);
-    mp_primitive(mp, "intersectiontimeslist", mp_tertiary_binary_command,  mp_intertimes_list_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "intersectiontimes",     mp_tertiary_binary_command,  mp_intertimes_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "intersectiontimeslist", mp_tertiary_binary_command,  mp_intertimes_list_operation);
 
-    mp_primitive(mp, "envelope",              mp_of_binary_command,        mp_envelope_operation);
-    mp_primitive(mp, "boundingpath",          mp_of_binary_command,        mp_boundingpath_operation);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "envelope",              mp_of_binary_command,        mp_envelope_operation);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "boundingpath",          mp_of_binary_command,        mp_boundingpath_operation);
 
-    mp_primitive(mp, "numeric",               mp_type_name_command,        mp_numeric_type_operation);
-    mp_primitive(mp, "string",                mp_type_name_command,        mp_string_type_operation);
-    mp_primitive(mp, "boolean",               mp_type_name_command,        mp_boolean_type_operation);
-    mp_primitive(mp, "path",                  mp_type_name_command,        mp_path_type_operation);
-    mp_primitive(mp, "pen",                   mp_type_name_command,        mp_pen_type_operation);
-    mp_primitive(mp, "nep",                   mp_type_name_command,        mp_nep_type_operation);
-    mp_primitive(mp, "picture",               mp_type_name_command,        mp_picture_type_operation);
-    mp_primitive(mp, "transform",             mp_type_name_command,        mp_transform_type_operation);
-    mp_primitive(mp, "color",                 mp_type_name_command,        mp_color_type_operation);
-    mp_primitive(mp, "rgbcolor",              mp_type_name_command,        mp_color_type_operation);
-    mp_primitive(mp, "cmykcolor",             mp_type_name_command,        mp_cmykcolor_type_operation);
-    mp_primitive(mp, "pair",                  mp_type_name_command,        mp_pair_type_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "numeric",               mp_type_name_command,        mp_numeric_type_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "string",                mp_type_name_command,        mp_string_type_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "boolean",               mp_type_name_command,        mp_boolean_type_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "path",                  mp_type_name_command,        mp_path_type_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "pen",                   mp_type_name_command,        mp_pen_type_operation);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "nep",                   mp_type_name_command,        mp_nep_type_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "picture",               mp_type_name_command,        mp_picture_type_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "transform",             mp_type_name_command,        mp_transform_type_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "color",                 mp_type_name_command,        mp_color_type_operation);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "rgbcolor",              mp_type_name_command,        mp_color_type_operation);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "cmykcolor",             mp_type_name_command,        mp_cmykcolor_type_operation);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "pair",                  mp_type_name_command,        mp_pair_type_operation);
 
-    mp_primitive(mp, "end",                   mp_stop_command,             mp_end_code);
-    mp_primitive(mp, "dump",                  mp_stop_command,             mp_dump_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "end",                   mp_stop_command,             mp_end_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "dump",                  mp_stop_command,             mp_dump_code);
 
-    mp_primitive(mp, "batchmode",             mp_mode_command,             mp_batch_mode);
-    mp_primitive(mp, "nonstopmode",           mp_mode_command,             mp_nonstop_mode);
-    mp_primitive(mp, "scrollmode",            mp_mode_command,             mp_scroll_mode);
-    mp_primitive(mp, "errorstopmode",         mp_mode_command,             mp_error_stop_mode);
-    mp_primitive(mp, "silentmode",            mp_mode_command,             mp_silent_mode);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "batchmode",             mp_mode_command,             mp_batch_mode);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "nonstopmode",           mp_mode_command,             mp_nonstop_mode);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "scrollmode",            mp_mode_command,             mp_scroll_mode);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "errorstopmode",         mp_mode_command,             mp_error_stop_mode);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "silentmode",            mp_mode_command,             mp_silent_mode);
 
-    mp_primitive(mp, "inner",                 mp_protection_command,       mp_inner_protection_code);
-    mp_primitive(mp, "outer",                 mp_protection_command,       mp_outer_protection_code);
+    mp_primitive(mp, mp_origin_unset,      mp_legacy_language, "inner",                 mp_protection_command,       mp_inner_protection_code);
+    mp_primitive(mp, mp_origin_unset,      mp_legacy_language, "outer",                 mp_protection_command,       mp_outer_protection_code);
 
-    mp_primitive(mp, "setproperty",           mp_property_command,         1);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "setproperty",           mp_property_command,         1);
 
-    mp_primitive(mp, "showtoken",             mp_show_command,             mp_show_token_code);
-    mp_primitive(mp, "showstats",             mp_show_command,             mp_show_stats_code);
-    mp_primitive(mp, "show",                  mp_show_command,             mp_show_code);
-    mp_primitive(mp, "showvariable",          mp_show_command,             mp_show_var_code);
-    mp_primitive(mp, "showdependencies",      mp_show_command,             mp_show_dependencies_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "showtoken",             mp_show_command,             mp_show_token_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "showstats",             mp_show_command,             mp_show_stats_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "show",                  mp_show_command,             mp_show_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "showvariable",          mp_show_command,             mp_show_var_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "showdependencies",      mp_show_command,             mp_show_dependencies_code);
 
-    mp_primitive(mp, "doublepath",            mp_thing_to_add_command,     mp_add_double_path_code);
-    mp_primitive(mp, "contour",               mp_thing_to_add_command,     mp_add_contour_code);
-    mp_primitive(mp, "also",                  mp_thing_to_add_command,     mp_add_also_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "doublepath",            mp_thing_to_add_command,     mp_add_double_path_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "contour",               mp_thing_to_add_command,     mp_add_contour_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "also",                  mp_thing_to_add_command,     mp_add_also_code);
 
-    mp_primitive(mp, "withpen",               mp_with_option_command,      mp_with_pen_code);
-    mp_primitive(mp, "dashed",                mp_with_option_command,      mp_with_dashed_code);
-    mp_primitive(mp, "withprescript",         mp_with_option_command,      mp_with_pre_script_code);
-    mp_primitive(mp, "withpostscript",        mp_with_option_command,      mp_with_post_script_code);
-    mp_primitive(mp, "withnestedprescript",   mp_with_option_command,      mp_with_nested_pre_script_code);
-    mp_primitive(mp, "withnestedpostscript",  mp_with_option_command,      mp_with_nested_post_script_code);
-    mp_primitive(mp, "withstacking",          mp_with_option_command,      mp_with_stacking_code);
-    mp_primitive(mp, "withlinecap",           mp_with_option_command,      mp_with_linecap_code);
-    mp_primitive(mp, "withlinejoin",          mp_with_option_command,      mp_with_linejoin_code);
-    mp_primitive(mp, "withmiterlimit",        mp_with_option_command,      mp_with_miterlimit_code);
-    mp_primitive(mp, "withoutcolor",          mp_with_option_command,      mp_with_no_model_code);
-    mp_primitive(mp, "withgreyscale",         mp_with_option_command,      mp_with_grey_model_code);
-    mp_primitive(mp, "withcolor",             mp_with_option_command,      mp_with_uninitialized_model_code);
-    mp_primitive(mp, "withrgbcolor",          mp_with_option_command,      mp_with_rgb_model_code);
-    mp_primitive(mp, "withcmykcolor",         mp_with_option_command,      mp_with_cmyk_model_code);
-    mp_primitive(mp, "withcurvature",         mp_with_option_command,      mp_with_curvature_code);
-    mp_primitive(mp, "withmesh",              mp_with_option_command,      mp_with_mesh_code);
-    mp_primitive(mp, "withbytemap",           mp_with_option_command,      mp_with_bytemap_code);
-    mp_primitive(mp, "withnothing",           mp_with_option_command,      mp_with_nothing_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "withpen",               mp_with_option_command,      mp_with_pen_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "dashed",                mp_with_option_command,      mp_with_dashed_code);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "withprescript",         mp_with_option_command,      mp_with_pre_script_code);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "withpostscript",        mp_with_option_command,      mp_with_post_script_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "withnestedprescript",   mp_with_option_command,      mp_with_nested_pre_script_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "withnestedpostscript",  mp_with_option_command,      mp_with_nested_post_script_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "withstacking",          mp_with_option_command,      mp_with_stacking_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "withlinecap",           mp_with_option_command,      mp_with_linecap_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "withlinejoin",          mp_with_option_command,      mp_with_linejoin_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "withmiterlimit",        mp_with_option_command,      mp_with_miterlimit_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "withoutcolor",          mp_with_option_command,      mp_with_no_model_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "withgreyscale",         mp_with_option_command,      mp_with_grey_model_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "withcolor",             mp_with_option_command,      mp_with_uninitialized_model_code);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "withrgbcolor",          mp_with_option_command,      mp_with_rgb_model_code);
+    mp_primitive(mp, mp_origin_luatex,     mp_legacy_unset,    "withcmykcolor",         mp_with_option_command,      mp_with_cmyk_model_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "withcurvature",         mp_with_option_command,      mp_with_curvature_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "withmesh",              mp_with_option_command,      mp_with_mesh_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "withbytemap",           mp_with_option_command,      mp_with_bytemap_code);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "withnothing",           mp_with_option_command,      mp_with_nothing_code);
 
-    mp_primitive(mp, "clip",                  mp_bounds_command,           mp_start_clip_node_type);
-    mp_primitive(mp, "setgroup",              mp_bounds_command,           mp_start_group_node_type);
-    mp_primitive(mp, "setbounds",             mp_bounds_command,           mp_start_bounds_node_type);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "clip",                  mp_bounds_command,           mp_start_clip_node_type);
+    mp_primitive(mp, mp_origin_luametatex, mp_legacy_unset,    "setgroup",              mp_bounds_command,           mp_start_group_node_type);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "setbounds",             mp_bounds_command,           mp_start_bounds_node_type);
 
-    mp_primitive(mp, "message",               mp_message_command,          mp_normal_message_code);
-    mp_primitive(mp, "errmessage",            mp_message_command,          mp_error_message_code);
-    mp_primitive(mp, "errhelp",               mp_message_command,          mp_error_help_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "message",               mp_message_command,          mp_normal_message_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "errmessage",            mp_message_command,          mp_error_message_code);
+    mp_primitive(mp, mp_origin_metapost,   mp_legacy_unset,    "errhelp",               mp_message_command,          mp_error_help_code);
 
-    mp->frozen_left_bracket    = mp_frozen_primitive(mp, "[",              mp_left_bracket_command,    0);
-    mp->frozen_colon           = mp_frozen_primitive(mp, ":",              mp_colon_command,           0);
-    mp->frozen_semicolon       = mp_frozen_primitive(mp, ";",              mp_semicolon_command,       0);
-    mp->frozen_end_group       = mp_frozen_primitive(mp, "endgroup",       mp_end_group_command,       0);
-    mp->frozen_etex            = mp_frozen_primitive(mp, "etex",           mp_etex_command,            0);
-    mp->frozen_end_def         = mp_frozen_primitive(mp, "enddef",         mp_macro_def_command,       mp_end_def_code);
-    mp->frozen_end_for         = mp_frozen_primitive(mp, "endfor",         mp_iteration_command,       mp_end_for_code);
-    mp->frozen_fi              = mp_frozen_primitive(mp, "fi",             mp_fi_or_else_command,      mp_fi_code);
-    mp->frozen_slash           = mp_frozen_primitive(mp, "/",              mp_slash_command,           mp_over_operation);
-    mp->frozen_dump            = mp_frozen_primitive(mp, "dump",           mp_stop_command,            mp_dump_code);
+    /* These are only registered for documentation purposes. */
 
-    mp->frozen_bad_vardef      = mp_frozen_primitive(mp, "a bad variable", mp_tag_command,             0);
-    mp->frozen_right_delimiter = mp_frozen_primitive(mp, ")",              mp_right_delimiter_command, 0);
-    mp->frozen_inaccessible    = mp_frozen_primitive(mp, " INACCESSIBLE",  mp_tag_command,             0);
-    mp->frozen_undefined       = mp_frozen_primitive(mp, " UNDEFINED",     mp_tag_command,             0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_font,   "tracinglostchars", mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_font,   "charexists",       mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_font,   "charext",          mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_luatex,   mp_legacy_font,   "glyph",            mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_font,   "kern",             mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_font,   "boundarychar",     mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_font,   "designsize",       mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_font,   "fontmaking",       mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_font,   "charlist",         mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_font,   "ligtable",         mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_font,   "extensible",       mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_font,   "headerbyte",       mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_font,   "fontdimen",        mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_font,   "skipto",           mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_font,   "::",               mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_font,   "||:",              mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_font,   "=:",               mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_font,   "=:|",              mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_font,   "=:|>",             mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_font,   "|=:",              mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_font,   "|=:>",             mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_font,   "|=:|",             mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_font,   "|=:|>",            mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_font,   "|=:|>>",           mp_undefined_command, 0);
 
-    mp->frozen_repeat_loop     = mp_frozen_primitive(mp, " ENDFOR",        mp_repeat_loop_command,     0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_text,   "fontpart",         mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_text,   "textual",          mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_text,   "textpart",         mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_text,   "infont",           mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_text,   "fontsize",         mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_text ,  "mpxbreak",         mp_undefined_command, 0);
+
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_output, "special",          mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_luatex,   mp_legacy_output, "fontmapfile",      mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_luatex,   mp_legacy_output, "fontmapline",      mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_metapost, mp_legacy_output, "prologues",        mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_luatex,   mp_legacy_output, "mpprocset",        mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_luatex,   mp_legacy_output, "troffmode",        mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_luatex,   mp_legacy_output, "outputtemplate",   mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_luatex,   mp_legacy_output, "outputfilename",   mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_luatex,   mp_legacy_output, "filenametemplate", mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_luatex,   mp_legacy_output, "hppp",             mp_undefined_command, 0);
+    mp_primitive(mp, mp_origin_luatex,   mp_legacy_output, "vppp",             mp_undefined_command, 0);
+
+ /* mp_primitive(mp, mp_origin_metapost, mp_legacy_unset, "interval_get_left_endpoint",  mp_undefined_command, 0); */
+ /* mp_primitive(mp, mp_origin_metapost, mp_legacy_unset, "interval_get_right_endpoint", mp_undefined_command, 0); */
+ /* mp_primitive(mp, mp_origin_metapost, mp_legacy_unset, "interval_set",                mp_undefined_command, 0); */
+
+    if (mp) {
+
+        mp->frozen_left_bracket    = mp_frozen_primitive(mp, "[",              mp_left_bracket_command,    0);
+        mp->frozen_colon           = mp_frozen_primitive(mp, ":",              mp_colon_command,           0);
+        mp->frozen_semicolon       = mp_frozen_primitive(mp, ";",              mp_semicolon_command,       0);
+        mp->frozen_end_group       = mp_frozen_primitive(mp, "endgroup",       mp_end_group_command,       0);
+        mp->frozen_etex            = mp_frozen_primitive(mp, "etex",           mp_etex_command,            0);
+        mp->frozen_end_def         = mp_frozen_primitive(mp, "enddef",         mp_macro_def_command,       mp_end_def_code);
+        mp->frozen_end_for         = mp_frozen_primitive(mp, "endfor",         mp_iteration_command,       mp_end_for_code);
+        mp->frozen_fi              = mp_frozen_primitive(mp, "fi",             mp_fi_or_else_command,      mp_fi_code);
+        mp->frozen_slash           = mp_frozen_primitive(mp, "/",              mp_slash_command,           mp_over_operation);
+        mp->frozen_dump            = mp_frozen_primitive(mp, "dump",           mp_stop_command,            mp_dump_code);
+
+        mp->frozen_bad_vardef      = mp_frozen_primitive(mp, "a bad variable", mp_tag_command,             0);
+        mp->frozen_right_delimiter = mp_frozen_primitive(mp, ")",              mp_right_delimiter_command, 0);
+        mp->frozen_inaccessible    = mp_frozen_primitive(mp, " INACCESSIBLE",  mp_tag_command,             0);
+        mp->frozen_undefined       = mp_frozen_primitive(mp, " UNDEFINED",     mp_tag_command,             0);
+
+        mp->frozen_repeat_loop     = mp_frozen_primitive(mp, " ENDFOR",        mp_repeat_loop_command,     0);
+
+    }
+
+    primitives_set = 1;
+}
+
+int mp_n_of_primitives(void)
+{
+    if (! primitives_set) {
+        mp_initialize_primitives(NULL);
+    }
+    return n_of_primitives;
+}
+
+mp_primitive_data mp_get_primitive_data(int i)
+{
+    if (! primitives_set) {
+        mp_initialize_primitives(NULL);
+    }
+    if (i >= 1 && i <= n_of_primitives) {
+        return primitivedata[i-1];
+    } else {
+        return (mp_primitive_data) { .name = NULL, .command = 0, .operation = 0 };
+    }
 }
 
 static void mp_initialize_tables(MP mp)
@@ -32648,11 +32964,11 @@ some lines of code in already long functions. This procedure gets things started
 
 MP mp_initialize(MP_options *opt)
 {
-    MP mp = mp_new_instance();
-    if (! mp) {
+    if (! opt || ! opt->job_name || ! *(opt->job_name)) {
         return NULL;
     }
-    if (! opt->job_name || ! *(opt->job_name)) {
+    MP mp = mp_new_instance();
+    if (! mp) {
         return NULL;
     }
     mp->job_name        = mp_strdup(opt->job_name);
@@ -32698,9 +33014,8 @@ MP mp_initialize(MP_options *opt)
      //     mp->math = mp_initialize_double_math(mp);
      //     break;
         case mp_math_binary_mode:
-            /*tex This reports an warning in luametatex. */
             mp->math = mp_initialize_binary_math(mp);
-            goto DOUBLE_MATH;
+            break;
         case mp_math_decimal_mode:
             mp->math = mp_initialize_decimal_math(mp);
             break;
@@ -32708,13 +33023,15 @@ MP mp_initialize(MP_options *opt)
             mp->math = mp_initialize_posit_math(mp);
             break;
         case mp_math_interval_mode:
-            /*tex This reports an warning in luametatex. */
             mp->math = mp_initialize_interval_math(mp);
-            goto DOUBLE_MATH;
-        default:
-          DOUBLE_MATH:
-            mp->math = mp_initialize_double_math(mp);
             break;
+        default:
+            mp->math = NULL;
+            break;
+    }
+    if (! mp->math) {
+        mp->math = mp_initialize_double_math(mp);
+        opt->math_mode = mp_math_double_mode;
     }
     mp->parameter_size = 4;
     mp->max_in_open = 0;
@@ -32790,13 +33107,15 @@ MP mp_initialize(MP_options *opt)
         set_internal_type(mp_single_quote_mode_internal, mp_boolean_type);
     }
 
-    mp_bytemap_valid(mp, 0); /* forces an initial lot */
+    mp_bytemap_ensure(mp, 0); /* forces an initial lot */
 
     mp->symbols = avl_create(mp_compare_symbols_entry, mp_copy_symbols_entry, mp_delete_symbols_entry, mp_memory_allocate, mp_memory_free, NULL);
     mp->frozen_symbols = avl_create(mp_compare_symbols_entry, mp_copy_symbols_entry, mp_delete_symbols_entry, mp_memory_allocate, mp_memory_free, NULL);
-    mp->bisect_stack = mp_memory_allocate((size_t) (bistack_size + 1) * sizeof(mp_number));
-    for (int i=0; i<bistack_size + 1; i++) {
-        mp_new_number(mp->bisect_stack[i]);
+    mp->bisect_stack = mp_memory_allocate((size_t) (bisect_stack_size + 1) * sizeof(mp_number));
+    if (mp->bisect_stack) {
+        for (int i = 0; i < bisect_stack_size + 1; i++) {
+            mp_new_number(mp->bisect_stack[i]);
+        }
     }
     mp->stack_size = 16;
     mp->input_stack = mp_memory_allocate((size_t) (mp->stack_size + 1) * sizeof(mp_in_state_record));
@@ -32815,25 +33134,26 @@ MP mp_initialize(MP_options *opt)
     mp->history = mp_fatal_error_stop;
     mp_do_initialize(mp);
     mp_initialize_tables(mp);
-    switch (opt->math_mode) {
+ // switch (opt->math_mode) {
+    switch (mp->math_mode) {
         case mp_math_scaled_mode:
             set_internal_string(mp_number_system_internal, mp_intern(mp, "scaled"));
             break;
      // case mp_math_double_mode:
      //     set_internal_string(mp_number_system_internal, mp_intern(mp, "double"));
      //     break;
-     // case mp_math_binary_mode:
-     //     set_internal_string(mp_number_system_internal, mp_intern(mp, "binary"));
-     //     break;
+        case mp_math_binary_mode:
+            set_internal_string(mp_number_system_internal, mp_intern(mp, "binary"));
+            break;
         case mp_math_decimal_mode:
             set_internal_string(mp_number_system_internal, mp_intern(mp, "decimal"));
             break;
         case mp_math_posit_mode:
             set_internal_string(mp_number_system_internal, mp_intern(mp, "posit"));
             break;
-     // case mp_math_interval_mode:
-     //     set_internal_string(mp_number_system_internal, mp_intern(mp, "interval"));
-     //     break;
+        case mp_math_interval_mode:
+            set_internal_string(mp_number_system_internal, mp_intern(mp, "interval"));
+            break;
         default:
             set_internal_string(mp_number_system_internal, mp_intern(mp, "double"));
             break;

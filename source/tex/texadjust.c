@@ -59,18 +59,18 @@ static inline void saved_adjust_initialize(void)
 
 void tex_show_adjust_group(void)
 {
-    tex_print_str_esc("vadjust");
+    tex_print_format("%evadjust");
     if (saved_adjust_location == pre_adjust_code) {
-        tex_print_str(" pre");
+        tex_print_str_len(" pre", 4);
     }
     if (saved_adjust_options & adjust_option_before) {
-        tex_print_str(" before");
+        tex_print_str_len(" before", 7);
     }
 }
 
 bool tex_show_adjust_record(void)
 {
-    tex_print_str("adjust ");
+    tex_print_str_len("adjust ", 7);
     switch (saved_type(0)) { 
        case saved_record_0:
             tex_print_format("location %i, options %i, index %i", saved_value_1(0), saved_value_2(0), saved_value_3(0));
@@ -89,23 +89,23 @@ bool tex_show_adjust_record(void)
 
 static void tex_scan_adjust_keys(adjust_properties *properties)
 {
-    properties->code = post_adjust_code;
-    properties->options = adjust_option_none;
-    properties->index = 0;
+    properties->code        = post_adjust_code;
+    properties->options     = adjust_option_none;
+    properties->index       = 0;
     properties->depthbefore = 0;
-    properties->depthafter = 0;
-    properties->attrlist = null;
-    properties->except = 0;
+    properties->depthafter  = 0;
+    properties->attrlist    = null;
+    properties->except      = 0;
     while (1) {
-        switch (tex_scan_character("abdeipABDEIP", 0, 1, 0)) {
-            case 'a': case 'A':
-                switch (tex_scan_character("ftFT", 0, 0, 0)) {
-                    case 'f': case 'F':
+        switch (tex_scan_character("abdeip", 0, 1, 0)) {
+            case 'a':
+                switch (tex_scan_character("ft", 0, 0, 0)) {
+                    case 'f':
                         if (tex_scan_mandate_keyword("after", 2)) {
-                            properties->options &= ~(adjust_option_before | properties->options);
+                            properties->options &= ~adjust_option_before;
                         }
                         break;
-                    case 't': case 'T':
+                    case 't':
                         if (tex_scan_mandate_keyword("attr", 2)) {
                             properties->attrlist = tex_scan_attribute(properties->attrlist);
                         }
@@ -115,14 +115,14 @@ static void tex_scan_adjust_keys(adjust_properties *properties)
                         goto DONE;
                 }   
                 break;
-            case 'b': case 'B':
-                switch (tex_scan_character("aeAE", 0, 0, 0)) {
-                    case 'a': case 'A':
+            case 'b':
+                switch (tex_scan_character("ae", 0, 0, 0)) {
+                    case 'a':
                         if (tex_scan_mandate_keyword("baseline", 2)) {
                             properties->options |= adjust_option_baseline;
                         }
                         break;
-                    case 'e': case 'E':
+                    case 'e':
                         if (tex_scan_mandate_keyword("before", 2)) {
                             properties->options |= adjust_option_before;
                         }
@@ -130,29 +130,29 @@ static void tex_scan_adjust_keys(adjust_properties *properties)
                     default:
                         tex_aux_show_keyword_error("baseline|before");
                         goto DONE;
-               }
+                }
                 break;
-            case 'd': case 'D':
+            case 'd':
                 if (tex_scan_mandate_keyword("depth", 1)) {
-                    switch (tex_scan_character("abclABCL", 0, 1, 0)) { /* so a space is permitted */
-                        case 'a': case 'A':
+                    switch (tex_scan_character("abcl", 0, 1, 0)) { /* space permitted */
+                        case 'a':
                             if (tex_scan_mandate_keyword("after", 1)) {
                                 properties->options |= adjust_option_depth_after;
                                 properties->depthafter = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
                             }
                             break;
-                        case 'b': case 'B':
+                        case 'b':
                             if (tex_scan_mandate_keyword("before", 1)) {
                                 properties->options |= adjust_option_depth_before;
                                 properties->depthbefore = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
                             }
                             break;
-                        case 'c': case 'C':
+                        case 'c':
                             if (tex_scan_mandate_keyword("check", 1)) {
                                 properties->options |= adjust_option_depth_check;
                             }
                             break;
-                        case 'l': case 'L':
+                        case 'l':
                             if (tex_scan_mandate_keyword("last", 1)) {
                                 properties->options |= adjust_option_depth_last;
                             }
@@ -163,13 +163,13 @@ static void tex_scan_adjust_keys(adjust_properties *properties)
                     }
                 }
                 break;
-            case 'e': case 'E':
+            case 'e':
                 if (tex_scan_mandate_keyword("except", 1)) {
                     properties->except = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
                     properties->options |= adjust_option_except;
                 }
                 break;
-            case 'i': case 'I':
+            case 'i':
                 if (tex_scan_mandate_keyword("index", 1)) {
                     properties->index = tex_scan_integer(0, NULL, NULL);
                     if (! tex_valid_adjust_index(properties->index)) {
@@ -177,14 +177,14 @@ static void tex_scan_adjust_keys(adjust_properties *properties)
                     }
                 }
                 break;
-            case 'p': case 'P':
-                switch (tex_scan_character("roRO", 0, 0, 0)) {
-                    case 'r': case 'R':
+            case 'p':
+                switch (tex_scan_character("ro", 0, 0, 0)) {
+                    case 'r':
                         if (tex_scan_mandate_keyword("pre", 2)) {
                             properties->code = pre_adjust_code;
                         }
                         break;
-                    case 'o': case 'O':
+                    case 'o':
                         if (tex_scan_mandate_keyword("post", 2)) {
                             properties->code = post_adjust_code;
                         }
@@ -199,10 +199,15 @@ static void tex_scan_adjust_keys(adjust_properties *properties)
         }
     }
   DONE:
+    if (properties->code == pre_adjust_code) {
+        /* todo: maybe a warning */
+        properties->except = 0;
+        properties->options &= ~adjust_option_except;
+    }
     if (! properties->attrlist) {
         properties->attrlist = tex_current_attribute_list();
-        add_attribute_reference(properties->attrlist); /* needs checking */
     }
+    add_attribute_reference(properties->attrlist);
 }
 
 int tex_valid_adjust_index(halfword n)
@@ -255,11 +260,7 @@ void tex_finish_vadjust_group(void)
         adjust_depth_after(adjust) = (halfword) saved_adjust_depth_after;
         adjust_except(adjust) = (halfword) saved_adjust_except;
         tex_attach_attribute_list_attribute(adjust, (halfword) saved_adjust_attr_list);
-        if (target < 1) {
-            tex_tail_append(adjust);
-        } else { 
-            tex_adjust_attach(target, adjust);
-        }
+        delete_attribute_reference(saved_adjust_attr_list);
         if (has_adjust_option(adjust, adjust_option_except) && ! adjust_list(adjust)) { 
             /*tex 
                 We create a simple adjust node. Anything more complex is kind of weird anyway. We 
@@ -269,6 +270,13 @@ void tex_finish_vadjust_group(void)
             adjust_depth_before(adjust) = 0;
             adjust_depth_after(adjust) = 0;
             adjust_list(adjust) = tex_new_node(boundary_node, adjust_boundary);
+        }
+        if (target == 0) {
+            tex_flush_node(adjust);
+        } else if (target < 1) {
+            tex_tail_append(adjust);
+        } else {
+            tex_adjust_attach(target, adjust);
         }
         box_list(box) = null;
         tex_flush_node(box);
@@ -304,22 +312,27 @@ halfword tex_append_adjust_list(halfword head, halfword tail, halfword adjust, c
 
 halfword tex_prepend_adjust_list(halfword head, halfword tail, halfword adjust, const char *detail)
 {
+    halfword first = adjust;
+    halfword last = adjust;
+    if (! first || node_type(first) != adjust_node) {
+        return tail;
+    }
     while (adjust && node_type(adjust) == adjust_node) {
-        halfword next = node_next(adjust);
-        if (tail == head) {
-            node_next(head) = adjust;
-            tail = adjust;
-        } else {
-            tex_try_couple_nodes(adjust, node_next(node_next(head)));
-            tex_couple_nodes(node_next(head), adjust);
-        }
+        last = adjust;
         if (tracing_adjusts_par > 1) {
             tex_begin_diagnostic();
             tex_print_format("%l[adjust: index %i, location %s, prepend, %s]", adjust_index(adjust), tex_aux_subtype_str(adjust), detail);
             tex_print_node_list(adjust_list(adjust), "adjust", show_box_depth_par, show_box_breadth_par);
             tex_end_diagnostic();
         }
-        adjust = next;
+        adjust = node_next(adjust);
+    }
+    if (tail == head) {
+        tex_couple_nodes(head, first);
+        tail = last;
+    } else {
+        tex_try_couple_nodes(last, node_next(head));
+        tex_couple_nodes(head, first);
     }
     return tail;
 }
@@ -491,7 +504,7 @@ void tex_adjust_passon(halfword box, halfword adjust)
                 }
                 break;
             case post_adjust_code:
-                if (has_adjust_option(adjust, adjust_option_except) && adjust_except(adjust) > lmt_packaging_state.except) { 
+                if (has_adjust_option(adjust, adjust_option_except) && adjust_except(adjust) > lmt_packaging_state.except) {
                     lmt_packaging_state.except = adjust_except(adjust);
                 }
                 if (lmt_packaging_state.post_adjust_tail) {
@@ -533,7 +546,19 @@ halfword tex_flush_adjust_append(halfword adjust, halfword tail)
             tex_aux_show_flush_adjust(p, "append", ishmode ? "repack" : "direct");
             if (ishmode) { 
                 halfword n = tex_new_node(adjust_node, post_adjust_code);
-                // tex_attach_attribute_list_copy(n, post_adjusted);
+                /* preserved */
+                adjust_options(n)      = adjust_options(p);
+                adjust_index(n)        = adjust_index(p);
+                adjust_except(n)       = adjust_except(p);
+                adjust_depth_before(n) = adjust_depth_before(p);
+                adjust_depth_after(n)  = adjust_depth_after(p);
+                if (node_attr(p)) {
+                    tex_attach_attribute_list_copy(n, p);
+                } else {
+                    remove_attribute_list(n);
+                }
+                tex_copy_node_properties(n, p);
+                /* */
                 adjust_list(n) = h;
                 h = n;
             }
@@ -557,7 +582,19 @@ halfword tex_flush_adjust_prepend(halfword adjust, halfword tail)
             tex_aux_show_flush_adjust(p, "prepend", ishmode ? "repack" : "direct");
             if (ishmode) { 
                 halfword n = tex_new_node(adjust_node, pre_adjust_code);
-                // tex_attach_attribute_list_copy(n, pre_adjusted);
+                /* preserved */
+                adjust_options(n)      = adjust_options(p);
+                adjust_index(n)        = adjust_index(p);
+                adjust_except(n)       = adjust_except(p);
+                adjust_depth_before(n) = adjust_depth_before(p);
+                adjust_depth_after(n)  = adjust_depth_after(p);
+                if (node_attr(p)) {
+                    tex_attach_attribute_list_copy(n, p);
+                } else {
+                    remove_attribute_list(n);
+                }
+                tex_copy_node_properties(n, p);
+                /* */
                 adjust_list(n) = h;
                 h = n;
             }

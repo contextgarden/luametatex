@@ -65,10 +65,10 @@
             goto DONE;
         }
         /* */
-        timeouts.ReadIntervalTimeout = 50;
-        timeouts.ReadTotalTimeoutConstant = 50;
-        timeouts.ReadTotalTimeoutMultiplier = 10;
-        timeouts.WriteTotalTimeoutConstant = 50;
+        timeouts.ReadIntervalTimeout         = 50;
+        timeouts.ReadTotalTimeoutConstant    = 50;
+        timeouts.ReadTotalTimeoutMultiplier  = 10;
+        timeouts.WriteTotalTimeoutConstant   = 50;
         timeouts.WriteTotalTimeoutMultiplier = 10;
         if (SetCommTimeouts(handle, &timeouts) == FALSE) {
             goto DONE;
@@ -145,7 +145,7 @@
     {
         int            success  = 0;
         int            handle   = 0;
-        const char    *portname = lua_type(L, 1) == LUA_TSTRING ? lua_tostring(L, 1) : NULL;
+        const char    *portname = lua_type(L, 1) == LUA_TSTRING ? lua_tostring (L, 1) : NULL;
         lua_Integer    baudrate = lua_type(L, 2) == LUA_TNUMBER ? lua_tointeger(L, 2) : B19200;
 		struct termios settings;	
 	    /* */
@@ -296,7 +296,7 @@ static int seriallib_tostring(lua_State *L) {
         lua_getiuservalue(L, 1, 1);
         port = lua_tostring(L, -1);
         lua_pop(L, -1);
-        lua_pushfstring(L, "<serial %s>", port); 
+        lua_pushfstring(L, "<serial %p : %s>", serial, port);
         return 1;
     } else {
         return 0;

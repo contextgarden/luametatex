@@ -137,6 +137,44 @@ void tex_print_ln(void)
     /*tex |tally| is not affected */
 }
 
+/*tex
+
+    First a few helpers. Pseudo printing only happens when we have an error message and have
+    to collect a few lines in a way that works well with excessively long token lists that
+    the get serialized. The two helpers are non-critical but nevertheless optimized i.e.
+    we don't go char-by-char when we have a string.
+
+*/
+
+static inline void tex_aux_print_pseudo_string(const unsigned char *s, size_t len)
+{
+    size_t buf_size = (size_t)lmt_error_state.line_limits.size;
+    if (buf_size > 0 && lmt_print_state.tally < lmt_print_state.trick_count) {
+        size_t avail = (size_t)(lmt_print_state.trick_count - lmt_print_state.tally);
+        size_t to_copy = (len < avail) ? len : avail;
+        if (to_copy > 0) {
+            /* Check if the chunk wraps around the circular buffer boundary */
+            size_t offset = (size_t)(lmt_print_state.tally % buf_size);
+            if (offset + to_copy <= buf_size) {
+                memcpy(&lmt_print_state.trick_buffer[offset], s, to_copy);
+            } else {
+                size_t first_part = buf_size - offset;
+                memcpy(&lmt_print_state.trick_buffer[offset], s, first_part);
+                memcpy(&lmt_print_state.trick_buffer[0], s + first_part, to_copy - first_part);
+            }
+        }
+    }
+    lmt_print_state.tally += (int) len;
+}
+
+static inline void tex_aux_print_pseudo_char(unsigned char c)
+{
+    int k = lmt_print_state.tally++;
+    size_t buf_size = (size_t)lmt_error_state.line_limits.size;
+    if (k < lmt_print_state.trick_count && buf_size > 0) {
+        lmt_print_state.trick_buffer[k % buf_size] = c;
+    }
+}
 
 /*tex
 
@@ -152,23 +190,24 @@ void tex_print_ln(void)
 
 void tex_print_char(int s)
 {
-    if (s < 0 || s > 255) {
+ // s = s < 0 ? 0 : (s > 255 ? 255 : s);
+    if lmt_unlikely(s < 0 || s > 255) {
         tex_formatted_warning("print", "weird character %i", s);
     } else {
         switch (lmt_print_state.selector) {
             case no_print_selector_code:
                 break;
             case terminal_selector_code:
-                if (s == new_line_char_par) { 
+                if (s == new_line_char_par) {
                     fputc('\n', stdout);
                     lmt_print_state.terminal_offset = 0;
-                } else { 
+                } else {
                     fputc(s, stdout);
                     ++lmt_print_state.terminal_offset;
                 }
                 break;
             case logfile_selector_code:
-                if (s == new_line_char_par) { 
+                if (s == new_line_char_par) {
                     fputc('\n', lmt_print_state.logfile);
                     lmt_print_state.logfile_offset = 0;
                 } else {
@@ -177,12 +216,12 @@ void tex_print_char(int s)
                 }
                 break;
             case terminal_and_logfile_selector_code:
-                if (s == new_line_char_par) { 
+                if (s == new_line_char_par) {
                     fputc('\n', stdout);
                     fputc('\n', lmt_print_state.logfile);
                     lmt_print_state.terminal_offset = 0;
                     lmt_print_state.logfile_offset = 0;
-                } else { 
+                } else {
                     fputc(s, stdout);
                     fputc(s, lmt_print_state.logfile);
                     ++lmt_print_state.terminal_offset;
@@ -190,10 +229,11 @@ void tex_print_char(int s)
                 }
                 break;
             case pseudo_selector_code:
-                if (lmt_print_state.tally < lmt_print_state.trick_count) {
-                    lmt_print_state.trick_buffer[lmt_print_state.tally % lmt_error_state.line_limits.size] = (unsigned char) s;
-                }
-                ++lmt_print_state.tally;
+             // if (lmt_print_state.tally < lmt_print_state.trick_count) {
+             //     lmt_print_state.trick_buffer[lmt_print_state.tally % lmt_error_state.line_limits.size] = (unsigned char) s;
+             // }
+             // ++lmt_print_state.tally;
+                tex_aux_print_pseudo_char((unsigned char) s);
                 break;
             case new_string_selector_code:
                 tex_append_char((unsigned char) s);
@@ -217,13 +257,13 @@ void tex_print_char(int s)
 
     The first 256 entries above the 17th unicode plane are used for a special trick: when \TEX\ has
     to print items in that range, it will instead print the character that results from substracting
-    0x110000 from that value. This allows byte-oriented output to things like |\specials|. We dropped 
-    this feature because it was never used (we used it as part of experiments with \LUATEX). The old 
-    code branches can be found in the repository. 
+    0x110000 from that value. This allows byte-oriented output to things like |\specials|. We dropped
+    this feature because it was never used (we used it as part of experiments with \LUATEX). The old
+    code branches can be found in the repository.
 
 */
 
-/* no_print terminal | logfile | terminal_and_logfile | pseudo | new_string | luabuffer */ 
+/* no_print terminal | logfile | terminal_and_logfile | pseudo | new_string | luabuffer */
 
 static void tex_aux_uprint(int s)
 {
@@ -237,20 +277,8 @@ static void tex_aux_uprint(int s)
     */
     if (s == new_line_char_par && lmt_print_state.selector < pseudo_selector_code) {
         tex_print_ln();
-    } else if (s <= 0x7F) {
-        tex_print_char(s);
-    } else if (s <= 0x7FF) {
-        tex_print_char(0xC0 + (s / 0x40));
-        tex_print_char(0x80 + (s % 0x40));
-    } else if (s <= 0xFFFF) {
-        tex_print_char(0xE0 + (s / 0x1000));
-        tex_print_char(0x80 + ((s % 0x1000) / 0x40));
-        tex_print_char(0x80 + ((s % 0x1000) % 0x40));
     } else {
-        tex_print_char(0xF0 + (s / 0x40000));
-        tex_print_char(0x80 + ((s % 0x40000) / 0x1000));
-        tex_print_char(0x80 + (((s % 0x40000) % 0x1000) / 0x40));
-        tex_print_char(0x80 + (((s % 0x40000) % 0x1000) % 0x40));
+        aux_uni2str_callback((unsigned) s, &tex_print_char);
     }
 }
 
@@ -265,10 +293,10 @@ void tex_print_tex_str(int s)
             tex_aux_uprint(s);
         }
     } else if (lmt_print_state.selector == new_string_selector_code) {
-        tex_append_string(str_string(s), (unsigned) str_length(s));
+        tex_append_string(str_getstr(s), str_getlen(s));
     } else {
-        unsigned char *j = str_string(s);
-        for (unsigned i = 0; i < str_length(s); i++) {
+        lstring_string j = str_getstr(s);
+        for (lstring_length i = 0; i < str_getlen(s); i++) {
             tex_print_char(j[i]);
         }
     }
@@ -323,8 +351,11 @@ void tex_print_nlp(void)
 
 */
 
-void tex_print_str(const char *s)
+void tex_print_str_len(const char *s, int len)
 {
+    if (len <= 0 || ! s) {
+        return;
+    }
     int logfile = 0;
     int terminal = 0;
     switch (lmt_print_state.selector) {
@@ -341,46 +372,49 @@ void tex_print_str(const char *s)
             terminal = 1;
             break;
         case pseudo_selector_code:
-            while ((*s) && (lmt_print_state.tally < lmt_print_state.trick_count)) {
-                lmt_print_state.trick_buffer[lmt_print_state.tally % lmt_error_state.line_limits.size] = (unsigned char) *s++;
-                lmt_print_state.tally++;
-            }
+         // while (len-- && (lmt_print_state.tally < lmt_print_state.trick_count)) {
+         //     lmt_print_state.trick_buffer[lmt_print_state.tally % lmt_error_state.line_limits.size] = (unsigned char) *s++;
+         //     lmt_print_state.tally++;
+         // }
+            tex_aux_print_pseudo_string((const unsigned char *) s, (size_t) len);
             return;
         case new_string_selector_code:
-            tex_append_string((const unsigned char *) s, (unsigned) strlen(s));
+            tex_append_string((const unsigned char *) s, (unsigned) len);
             return;
         case luabuffer_selector_code:
-            lmt_string_to_buffer(s);
+            lmt_string_to_buffer_len(s, len);
             return;
         default:
             return;
     }
     if (terminal || logfile) {
-        int len = (int) strlen(s);
         if (logfile && ! lmt_fileio_state.log_opened) {
             logfile = 0;
         }
-        if (len > 0) {
-            int newline = s[len-1] == '\n';
-            if (logfile) {
-                fputs(s, lmt_print_state.logfile);
-             // fwrite(s, sizeof(char), len, lmt_print_state.logfile);
-                if (newline) {
-                    lmt_print_state.logfile_offset = 0;
-                } else {
-                    lmt_print_state.logfile_offset += len;
-                }
-            }
-            if (terminal) {
-                fputs(s, stdout);
-             // fwrite(s, sizeof(char), len, stdout);
-                if (newline) {
-                    lmt_print_state.terminal_offset = 0;
-                } else {
-                    lmt_print_state.terminal_offset += len;
-                }
+        int newline = (s[len-1] == '\n');
+        if (logfile) {
+            fwrite(s, 1, len, lmt_print_state.logfile);
+            if (newline) {
+                lmt_print_state.logfile_offset = 0;
+            } else {
+                lmt_print_state.logfile_offset += len;
             }
         }
+        if (terminal) {
+            fwrite(s, 1, len, stdout);
+            if (newline) {
+                lmt_print_state.terminal_offset = 0;
+            } else {
+                lmt_print_state.terminal_offset += len;
+            }
+        }
+    }
+}
+
+void tex_print_str(const char *s)
+{
+    if (s) {
+        tex_print_str_len(s, (int) strlen(s));
     }
 }
 
@@ -430,7 +464,7 @@ void tex_print_version_banner(void)
 
 */
 
-void tex_print_tex_str_esc(strnumber s)
+static inline void tex_print_tex_str_esc(strnumber s)
 {
     /*tex Set variable |c| to the current escape character: */
     int c = escape_char_par;
@@ -444,14 +478,14 @@ void tex_print_tex_str_esc(strnumber s)
 
 /*tex This prints escape character, then |s|. */
 
-void tex_print_str_esc(const char *s)
+static inline void tex_print_str_esc(const char *s)
 {
     /*tex Set variable |c| to the current escape character: */
     int c = escape_char_par;
     if (c >= 0) {
         tex_print_tex_str(c);
     }
-    if (s) {
+    if (s && s[0]) {
         tex_print_str(s);
     }
 }
@@ -465,35 +499,79 @@ void tex_print_str_esc(const char *s)
 
 */
 
-void tex_print_int(int n)
-{
-    /*tex In the end a 0..9 fast path works out best; using |sprintf| is slower. */
-    if (n < 0) {
-        tex_print_char('-');
-        n = -n; 
-    }
-    if (n >= 0 && n <= 9) { 
-        tex_print_char('0' + n);
-    } else if (n >= 0 && n <= 99) { 
-        tex_print_char('0' + n/10);
-        tex_print_char('0' + n%10);
-    } else { 
-        int k = 0;
-        unsigned char digits[24];
-//        if (n < 0) {
-//            tex_print_char('-');
-//            n = -n; 
-//        }
-        do {
-            digits[k] = '0' + (unsigned char) (n % 10);
-            n = n / 10;
-            ++k;
-        } while (n != 0);
-        while (k-- > 0) {
-            tex_print_char(digits[k]);
+# if 0
+
+    void tex_print_int(int n)
+    {
+        if (n < 0) {
+            tex_print_char('-');
+            n = -n;
+        }
+        if (n >= 0 && n <= 9) {
+            tex_print_char('0' + n);
+        } else if (n >= 0 && n <= 99) {
+            tex_print_char('0' + n / 10);
+            tex_print_char('0' + n % 10);
+        } else {
+            int k = 0;
+            unsigned char digits[24];
+            do {
+                digits[k] = '0' + (unsigned char) (n % 10);
+                n = n / 10;
+                ++k;
+            } while (n != 0);
+            while (k-- > 0) {
+                tex_print_char(digits[k]);
+            }
         }
     }
-}
+
+# else
+
+    static const char DIGIT_PAIRS[] =
+        "00010203040506070809"
+        "10111213141516171819"
+        "20212223242526272829"
+        "30313233343536373839"
+        "40414243444546474849"
+        "50515253545556575859"
+        "60616263646566676869"
+        "70717273747576777879"
+        "80818283848586878889"
+        "90919293949596979899";
+
+    void tex_print_int(int n)
+    {
+        // Max size for 32-bit int: 1 byte sign + 10 digits = 11 bytes.
+        // 16 bytes provides a safe, 16-byte aligned stack allocation.
+        char buf[16];
+        char *p = buf + sizeof(buf);
+        // Cast to unsigned int safely handling INT_MIN (-2147483648)
+        unsigned int val = (n < 0) ? (0u - (unsigned int)n) : (unsigned int)n;
+        // Process 2 digits at a time
+        while (val >= 100) {
+            unsigned int q = val / 100;
+            unsigned int rem = val - (q * 100);
+            val = q;
+            p -= 2;
+            memcpy(p, &DIGIT_PAIRS[rem * 2], 2);
+        }
+        // Remaining 1 or 2 digits (< 100)
+        if (val < 10) {
+            *(--p) = (char)('0' + val);
+        } else {
+            p -= 2;
+            memcpy(p, &DIGIT_PAIRS[val * 2], 2);
+        }
+        // Prepend sign
+        if (n < 0) {
+            *(--p) = '-';
+        }
+        // Pass exact pointer and calculated string length
+        tex_print_str_len(p, (int) ((buf + sizeof(buf)) - p));
+    }
+
+# endif
 
 /*tex
 
@@ -509,117 +587,228 @@ void tex_print_int(int n)
 
     The next one prints a scaled real, rounded to five digits.
 
+    todo: time these two variants
+
 */
 
-void tex_print_dimension(scaled s, int unit)
-{
-    if (s == 0) {
-        tex_print_str("0.0"); /* really .. just 0 is not ok for some applications */
-    } else {
-        /*tex The amount of allowable inaccuracy: */
-        scaled delta = 10;
-        char buffer[20] = { 0 } ;
-        int i = 0;
-        if (s < 0) {
-            /*tex Print the sign, if negative. */
-            tex_print_char('-');
-            s = -s;
-        }
-        /*tex Print the integer part. */
-        tex_print_int(s / unity);
-        buffer[i++] = '.';
-        s = 10 * (s % unity) + 5;
-        do {
-            if (delta > unity) {
-                /*tex Round the last digit, so: |s + 32768 - 50000| it is. */
-                s = s + 0x8000 - 50000;
-            }
-            buffer[i++] = (unsigned char) ('0' + (s / unity));
-            s = 10 * (s % unity);
-            delta *= 10;
-        } while (s > delta);
-     // buffer[i++] = '\0';
-        tex_print_str(buffer);
-    }
-    if (unit != no_unit) {
-        tex_print_unit(unit);
-    }
-}
+# if 0
 
-void tex_print_sparse_dimension(scaled s, int unit)
-{
-    if (s == 0) {
-        tex_print_char('0');
-    } else if (s == unity) {
-        tex_print_char('1');
-    } else {
-        /*tex The amount of allowable inaccuracy: */
-        scaled delta = 10;
-        char buffer[20];
-        int i = 0;
-        if (s < 0) {
-            /*tex Print the sign, if negative. */
-            tex_print_char('-');
-            /*tex So we trust it here while in printing int we mess around. */
-            s = -s; 
-        }
-        /*tex Print the integer part. */
-        tex_print_int(s / unity);
-        s = 10 * (s % unity) + 5;
-        do {
-            if (delta > unity) {
-                /*tex Round the last digit. */
-                s = s + 0100000 - 50000;
+    void tex_print_dimension(scaled s, int unit)
+    {
+        if (s == 0) {
+            tex_print_str_len("0.0", 3); /* really .. just 0 is not ok for some applications */
+        } else {
+            /*tex The amount of allowable inaccuracy: */
+            scaled delta = 10;
+            char buffer[20] = { 0 } ;
+            int i = 0;
+            if (s < 0) {
+                /*tex Print the sign, if negative. */
+                tex_print_char('-');
+                s = -s;
             }
-            buffer[i++] = (unsigned char) ('0' + (s / unity));
-            s = 10 * (s % unity);
-            delta *= 10;
-        } while (s > delta);
-        if (i == 1 && buffer[i-1] == '0') {
-            /* no need */
-        } else { 
-            buffer[i++] = '\0';
-            tex_print_char('.');
+            /*tex Print the integer part. */
+            tex_print_int(s / unity);
+            buffer[i++] = '.';
+            s = 10 * (s % unity) + 5;
+            do {
+                if (delta > unity) {
+                    /*tex Round the last digit, so: |s + 32768 - 50000| it is. */
+                    s = s + 0x8000 - 50000;
+                }
+                buffer[i++] = (unsigned char) ('0' + (s / unity));
+                s = 10 * (s % unity);
+                delta *= 10;
+            } while (s > delta);
+         // buffer[i++] = '\0';
             tex_print_str(buffer);
         }
+        if (unit != no_unit) {
+            tex_print_unit(unit);
+        }
     }
-    if (unit != no_unit) {
-        tex_print_unit(unit);
-    }
-}
 
-/*tex 
-    Good enough.
+    void tex_print_sparse_dimension(scaled s, int unit)
+    {
+        if (s == 0) {
+            tex_print_char('0');
+        } else if (s == unity) {
+            tex_print_char('1');
+        } else {
+            /*tex The amount of allowable inaccuracy: */
+            scaled delta = 10;
+            char buffer[20];
+            int i = 0;
+            if (s < 0) {
+                /*tex Print the sign, if negative. */
+                tex_print_char('-');
+                /*tex So we trust it here while in printing int we mess around. */
+                s = -s;
+            }
+            /*tex Print the integer part. */
+            tex_print_int(s / unity);
+            s = 10 * (s % unity) + 5;
+            do {
+                if (delta > unity) {
+                    /*tex Round the last digit. */
+                    s = s + 0100000 - 50000;
+                }
+                buffer[i++] = (unsigned char) ('0' + (s / unity));
+                s = 10 * (s % unity);
+                delta *= 10;
+            } while (s > delta);
+            if (i == 1 && buffer[i-1] == '0') {
+                /* no need */
+            } else {
+                buffer[i++] = '\0';
+                tex_print_char('.');
+                tex_print_str(buffer);
+            }
+        }
+        if (unit != no_unit) {
+            tex_print_unit(unit);
+        }
+    }
+
+# else
+
+    # ifndef UNITY
+        # define UNITY 65536
+    # endif
+
+    static void tex_aux_print_scaled(scaled s, int unit, int is_sparse)
+    {
+        // Fast path 1: 0.0 vs 0
+        if (s == 0) {
+            if (unit == no_unit) {
+                if (is_sparse) { tex_print_char('0'); } else { tex_print_str_len("0.0", 3); }
+            } else if (unit == pt_unit) {
+                tex_print_str_len(is_sparse ? "0pt" : "0.0pt", is_sparse ? 3 : 5);
+            } else {
+                tex_print_str_len(is_sparse ? "0mu" : "0.0mu", is_sparse ? 3 : 5);
+            }
+            return;
+        }
+        // Fast path 2: sparse 1pt
+        if (is_sparse && s == UNITY) {
+            if (unit == no_unit) {
+                if (is_sparse) { tex_print_char('1'); } else { tex_print_str_len("1.0", 3); }
+            } else if (unit == pt_unit) {
+                tex_print_str_len(is_sparse ? "1pt" : "1.0pt", is_sparse ? 3 : 5);
+            } else {
+                tex_print_str_len(is_sparse ? "1mu" : "1.0mu", is_sparse ? 3 : 5);
+            }
+            return;
+        }
+        // 1. Handle sign safely
+        int is_negative = 0;
+        unsigned int u_s;
+        if (s < 0) {
+            is_negative = 1;
+         // u_s = -((unsigned int) s);
+            u_s = 0u -((unsigned int) s); // for ms
+        } else {
+            u_s = (unsigned int) s;
+        }
+        // Stack buffer for entire dimension output .. plenty
+        char buf[64];
+        char *p = buf;
+        if (is_negative) {
+            *p++ = '-';
+        }
+        // 2. Format integer part into buffer
+        unsigned int int_part = u_s / UNITY;
+        unsigned int frac_part = u_s % UNITY;
+        // Fast inline base-10 formatting for integer part
+        if (int_part == 0) {
+            *p++ = '0';
+        } else {
+            char int_buf[16];
+            char *ip = &int_buf[sizeof(int_buf) - 1];
+            *ip = '\0';
+            while (int_part > 0) {
+                *(--ip) = (char) ('0' + (int_part % 10));
+                int_part /= 10;
+            }
+            size_t len = strlen(ip);
+            memcpy(p, ip, len);
+            p += len;
+        }
+        // 3. Format fractional part using TeX allowable inaccuracy loop
+        char frac_buf[20];
+        int frac_len = 0;
+        scaled delta = 10;
+        scaled work_s = (scaled) (10 * frac_part + 5);
+        do {
+            if (delta > UNITY) {
+                // Round the last digit: s + 32768 - 50000 (0x8000 = 32768)
+                work_s += 0x8000 - 50000;
+            }
+            frac_buf[frac_len++] = (char)('0' + (work_s / UNITY));
+            work_s = 10 * (work_s % UNITY);
+            delta *= 10;
+        } while (work_s > delta);
+        // 4. Apply sparse mode rules vs standard dimension rules
+        if (is_sparse && frac_len == 1 && frac_buf[0] == '0') {
+            // Skip writing decimal point for trailing zero in sparse mode (e.g., "5.0" -> "5")
+        } else {
+            *p++ = '.';
+            memcpy(p, frac_buf, frac_len);
+            p += frac_len;
+        }
+        if (unit != no_unit) {
+            const char *u = (unit == pt_unit) ? "pt" : "mu";
+            memcpy(p, u, 2);
+            p += 2;
+        }
+        tex_print_str_len(buf, (int)(p - buf));
+    }
+
+    void tex_print_dimension(scaled s, int unit)
+    {
+        tex_aux_print_scaled(s, unit, 0);
+    }
+
+    void tex_print_sparse_dimension(scaled s, int unit)
+    {
+        tex_aux_print_scaled(s, unit, 1);
+    }
+
+# endif
+
+/*tex
+    Till we start using this more extensively this one will not be used often.
 */
 
 static void tex_aux_print_posit(halfword s, int texlike)
 {
     if (s == 0) {
-        tex_print_str("0");
-    } else { 
-        double n = tex_posit_to_double(s);
-        if (n == 1.0) {
-            tex_print_str("1");
-        } else {
-            char s[128];
-            if (fmod(n, 1) == 0 && n >= min_integer && n <= max_integer) {
-                snprintf(s, 128, "%i", (int) n);
-            } else {
-                int i = snprintf(s, 128, texlike ? "%0.5f" : "%0.9f", n) ;
-                int l = i - 1;
-                while (l > 1) {
-                    if (s[l - 1] == '.') {
-                        break;
-                    } else if (s[l] == '0') {
-                        --i;
-                    } else {
-                        break;
-                    }
-                    l--;
-                }
-            }
-            tex_print_str(s);
+        tex_print_char('0');
+        return;
+    }
+    double n = tex_posit_to_double(s);
+    if (n == 1.0) {
+        tex_print_char('1');
+        return;
+    }
+    if (n == -1.0) {
+        tex_print_str_len("-1", 2);
+        return;
+    }
+    if (fmod(n, 1.0) == 0.0 && n >= min_integer && n <= max_integer) {
+        tex_print_int((int)n);
+        return;
+    }
+    char buf[128];
+    int len = snprintf(buf, sizeof(buf), texlike ? "%.5f" : "%.9f", n);
+    if (len > 0 && len < (int) sizeof(buf)) {
+        while (len > 0 && buf[len - 1] == '0') {
+            len--;
         }
+        if (len > 0 && buf[len - 1] == '.') {
+            len--;
+        }
+        tex_print_str_len(buf, len);
     }
 }
 
@@ -628,89 +817,182 @@ void tex_print_posit_5(halfword s) { tex_aux_print_posit(s, 1); }
 
 /*tex
 
-    Hexadecimal printing of nonnegative integers is accomplished by |print_hex|. We have a few 
+    Hexadecimal printing of nonnegative integers is accomplished by |print_hex|. We have a few
     variants. Because we have bitsets that can give upto |0xFFFFFFFF| we treat the given integer
-    as an unsigned. 
+    as an unsigned.
 */
 
-void tex_print_hex(long long sn)
-{
-    if (sn == 0) { 
-        tex_print_char('0');
-    } else { 
-        unsigned long long n = 0;
-        int k = 0;
-        unsigned char digits[24];
-        if (sn < 0) { 
-            tex_print_char('-');
-            n = (unsigned long long) -sn;
-        } else { 
-            n = (unsigned long long) sn;
-        }
-        do {
-            unsigned char d = (unsigned char) (n % 16);
-            if (d < 10) {
-                digits[k] = '0' + d;
+# if 0
+
+    void tex_print_hex(long long sn)
+    {
+        if (sn == 0) {
+            tex_print_char('0');
+        } else {
+            unsigned long long n = 0;
+            int k = 0;
+            unsigned char digits[24];
+            if (sn < 0) {
+                tex_print_char('-');
+                n = (unsigned long long) -sn;
             } else {
-                digits[k] = 'A' - 10 + d;
+                n = (unsigned long long) sn;
             }
-            n = n / 16;
-            ++k;
-        } while (n != 0);
-        while (k-- > 0) {
-            tex_print_char(digits[k]);
+            do {
+                unsigned char d = (unsigned char) (n % 16);
+                if (d < 10) {
+                    digits[k] = '0' + d;
+                } else {
+                    digits[k] = 'A' - 10 + d;
+                }
+                n = n / 16;
+                ++k;
+            } while (n != 0);
+            while (k-- > 0) {
+                tex_print_char(digits[k]);
+            }
         }
     }
-}
 
-void tex_print_qhex(long long n)
-{
-    tex_print_char('"');
-    tex_print_hex(n);
-}
+    static void tex_print_qhex(long long n)
+    {
+        tex_print_char('"');
+        tex_print_hex(n);
+    }
 
-void tex_print_uhex(long long n)
-{
-    tex_print_str("U+");
-    /* todo: loop */
-    if (n < 16) {
-        tex_print_char('0');
+    static void tex_print_uhex(long long n)
+    {
+        tex_print_str_len("U+", 2);
+        /* todo: loop */
+        if (n < 16) {
+            tex_print_char('0');
+        }
+        if (n < 256) {
+            tex_print_char('0');
+        }
+        if (n < 4096) {
+            tex_print_char('0');
+        }
+        tex_print_hex(n);
     }
-    if (n < 256) {
-        tex_print_char('0');
-    }
-    if (n < 4096) {
-        tex_print_char('0');
-    }
-    tex_print_hex(n);
-}
 
-static void tex_print_xhex(long long n)
+    static void tex_print_xhex(long long n)
+    {
+        tex_print_char('"');
+        /* todo: loop */
+        if (n < 0xF) {
+            tex_print_char('0');
+        }
+        if (n < 0xFF) {
+            tex_print_char('0');
+        }
+        if (n < 0xFFF) {
+            tex_print_char('0');
+        }
+        if (n < 0xFFFF) {
+            tex_print_char('0');
+        }
+        if (n < 0xFFFFF) {
+            tex_print_char('0');
+        }
+        if (n < 0xFFFFFF) {
+            tex_print_char('0');
+        }
+        if (n < 0xFFFFFFF) {
+            tex_print_char('0');
+        }
+        tex_print_hex(n);
+    }
+
+# else
+
+    static inline void tex_aux_print_hex_engine(long long sn, int min_digits, const char *prefix, const char *suffix)
+    {
+        char buf[64];
+        char *p = &buf[sizeof(buf) - 1];
+        *p = '\0';
+        // 1. Append suffix if present (e.g. closing quote '"')
+        if (suffix) {
+            size_t len = strlen(suffix);
+            p -= len;
+            memcpy(p, suffix, len);
+        }
+        // 2. Safe unsigned conversion (handles LLONG_MIN correctly)
+        unsigned long long val;
+        int is_negative = 0;
+        if (sn < 0) {
+            is_negative = 1;
+         // val = -((unsigned long long) sn);
+            val = 0ul -((unsigned long long) sn); // for ms
+        } else {
+            val = (unsigned long long) sn;
+        }
+        // 3. Extract hex digits backwards
+        static const char hex_digits[] = "0123456789ABCDEF";
+        int digits = 0;
+        do {
+            *(--p) = hex_digits[val & 0xF];
+            val >>= 4;
+            digits++;
+        } while (val > 0);
+        // 4. Apply minimum zero padding (if requested)
+        while (digits < min_digits) {
+            *(--p) = '0';
+            digits++;
+        }
+        // 5. Prepend negative sign if needed
+        if (is_negative) {
+            *(--p) = '-';
+        }
+        // 6. Prepend prefix if present (e.g. opening quote '"' or "U+")
+        if (prefix) {
+            size_t len = strlen(prefix);
+            p -= len;
+            memcpy(p, prefix, len);
+        }
+        // Single multiplexer dispatch
+        tex_print_str_len(p, (int) (&buf[sizeof(buf) - 1] - p));
+    }
+
+    void tex_print_hex(long long n)
+    {
+        tex_aux_print_hex_engine(n, 1, NULL, NULL);
+    }
+
+    static void tex_print_qhex(long long n)
+    {
+        tex_aux_print_hex_engine(n, 1, "\"", "\"");
+    }
+
+    static void tex_print_uhex(long long n)
+    {
+        tex_aux_print_hex_engine(n, 4, "U+", NULL);
+    }
+
+    static void tex_print_xhex(long long n)
+    {
+        tex_aux_print_hex_engine(n, 8, "\"", "\"");
+    }
+
+# endif
+
+void tex_print_char_identifier(halfword c)
 {
-    tex_print_char('"');
-    /* todo: loop */
-    if (n < 0xF) {
-        tex_print_char('0');
+    if (c > 0x10FFFF) {
+        return;
+    } else if ((c >= 0x00E000 && c <= 0x00F8FF) ||
+        (c >= 0x0F0000 && c <= 0x0FFFFF) ||
+        (c >= 0x100000 && c <= 0x10FFFF) ||
+        (c >= 0x00D800 && c <= 0x00DFFF))
+    {
+        // Formats as 6 hex digits with "0x" prefix (e.g., "0x00E000")
+        tex_aux_print_hex_engine(c, 6, "0x", NULL);
+    } else {
+        // Formats as 6 hex digits with "U+" prefix (e.g., "U+000041")
+        tex_aux_print_hex_engine(c, 6, "U+", NULL);
+        tex_print_char(' ');
+        tex_print_tex_str(c);
     }
-    if (n < 0xFF) {
-        tex_print_char('0');
-    }
-    if (n < 0xFFF) {
-        tex_print_char('0');
-    }
-    if (n < 0xFFFF) {
-        tex_print_char('0');
-    }
-    if (n < 0xFFFFF) {
-        tex_print_char('0');
-    }
-    if (n < 0xFFFFFF) {
-        tex_print_char('0');
-    }
-    if (n < 0xFFFFFFF) {
-        tex_print_char('0');
-    }
-    tex_print_hex(n);
 }
 
 /*tex
@@ -719,9 +1001,47 @@ static void tex_print_xhex(long long n)
     enjoy trying to figure out how this tricky code works; therefore no explanation will be given.
     Notice that 1990 yields |mcmxc|, not |mxm|.
 
+    When staring at this one once again, I wondered what Gemini would come up with so I asked and
+    got this:
+
+    \startquotation
+    The beauty of \quotation {m2d5c2l5x2v5i} lies in how the string encodes both the divisors and
+    the subtractive lookahead offsets:
+
+    Letters: The Roman symbols m, d, c, l, x, v, i.
+
+    Numbers: 2 and 5
+
+    The factor to divide $v$ by to get to the next lower symbol!
+
+    \startlines
+       $1000 \div 2 = 500$ (d)
+       $ 500 \div 5 = 100$ (c)
+       $ 100 \div 2 =  50$ (l)
+       $  50 \div 5 =  10$ (x)
+       $  10 \div 2 =   5$ (v)
+       $   5 \div 5 =   1$ (i)
+    \stoplines
+
+    When checking whether to write a subtractive pair (like iv for 4 or ix for 9), the algorithm
+    inspects whether $n + u \ge v$, where $u$ is calculated by stepping forward in the mystery
+    string to peek at the appropriate power-of-10 unit (c, x, or i).
+
+    It's a masterclass in squeezing complex formatting logic into minimal instruction space!
+    \stopquotation
+
+    Indeed. After that I did a bit of research (actually we already have a variant in the regular
+    \CONTEXT\ converter but that assumes \UNICODE) and chat a bit and ended up with the next more
+    regular \ASCII\ variant (there has also been solutions using _ and ^ but for \TEX\ that sounds
+    like a bad idea). Of course that means that we're not compatible but whem macro writers expect
+    thousands of repeated \type {m}'s, well they can have it. I've seen some (in modern code)
+    examples where that actually happens and it's an oversight, waste of tokens and string space,
+    etc. but maybe a price a macro writer wants to pay for this \type {\romannumeral} obsession. I
+    wonder if someone ever notices this variant.
+
 */
 
-void tex_print_roman_int(int n)
+static void tex_print_knuth_roman(int n)
 {
     char mystery[] = "m2d5c2l5x2v5i";
     char *j = (char *) mystery;
@@ -732,7 +1052,6 @@ void tex_print_roman_int(int n)
             n = n - v;
         }
         if (n <= 0) {
-            /*tex nonpositive input produces no output */
             return;
         } else {
             char *k = j + 2;
@@ -754,15 +1073,91 @@ void tex_print_roman_int(int n)
 
 /*tex
 
-    The |print| subroutine will not print a string that is still being created. The following
-    procedure will.
+    A parenthetical wrapper that delegates sub-4000 chunks to Knuth's algorithm: for 4000 and
+    above we process in groups of 1000 using nested parentheses. We stay faithful to Knuth and
+    use his clever solution. Anyone using romannumerals for more than 4000 pages should rethink
+    the design anyway.
 
 */
 
-void tex_print_current_string(void)
+void tex_print_roman_int(int n, int numerical)
 {
-    for (int j = 0; j < lmt_string_pool_state.string_temp_top; j++) {
-        tex_print_char(lmt_string_pool_state.string_temp[j++]);
+    if (n == 0) {
+        /*tex
+            The romans had no zero and \TEX\ doesn't output something when we're zero or
+            below. Some macro writers abuse that fact.
+        */
+    } else if (n < 4000 || ! numerical) {
+        tex_print_knuth_roman(n);
+    } else {
+        unsigned int multiplier = 1;
+        int depth = 0;
+        while (n / multiplier >= 1000) {
+            multiplier *= 1000;
+            depth++;
+        }
+        while (multiplier > 0) {
+            int chunk = (int)(n / multiplier);
+            n %= multiplier;
+            if (chunk > 0) {
+                /*tex opening parentheses for high-order groups */
+                for (int i = 0; i < depth; i++) {
+                    tex_print_char('(');
+                }
+                /*tex chunk (1–999) using Knuth's routine */
+                tex_print_knuth_roman(chunk);
+                /*tex closing parentheses */
+                for (int i = 0; i < depth; i++) {
+                    tex_print_char(')');
+                }
+            }
+            multiplier /= 1000;
+            depth--;
+        }
+    }
+}
+
+/*tex
+
+    Group codes were introduced in \ETEX\ but have been extended in the meantime in \LUATEX\ and
+    later again in \LUAMETATEX. We might have (even) more granularity in the future.
+
+    Todo: combine this with an array of struct(id,name,lua) ... a rainy day + stack of new cd's job.
+
+*/
+
+/*tex
+    We have at most 4 pairs, in math choices, but let's be nice and check anyway.
+*/
+
+static inline void tex_print_group_count(int n)
+{
+    if (n > 0) {
+        static const char group_pairs[] = "{}{}{}{}";
+        while (n >= 4) {
+            tex_print_str_len(group_pairs, 8);
+            n -= 4;
+        }
+        if (n > 0) {
+            tex_print_str_len(group_pairs, n * 2);
+        }
+    }
+}
+
+static inline void tex_print_group(int e)
+{
+    int line = tex_saved_line_at_level();
+    tex_print_str(lmt_interface.group_code_values[cur_group].name);
+    if (cur_group != bottom_level_group) {
+        tex_print_str_len(" group", 6);
+        if (line) {
+            if (e) {
+                tex_print_str_len(" entered at line ", 17);
+            } else {
+                tex_print_str_len(" at line ", 9);
+            }
+            tex_print_int(line);
+        }
     }
 }
 
@@ -785,31 +1180,28 @@ void tex_print_cs_checked(halfword p)
                 if (t < 0 || t >= lmt_string_pool_state.string_pool_data.ptr) {
                     tex_print_str(error_string_nonexistent(13));
                 } else if (tex_is_active_cs(t)) {
-                    tex_print_tex_str(active_cs_value(t));
+                    tex_print_tex_str(tex_active_cs_value(t));
                 } else {
                     tex_print_tex_str_esc(t);
-                    if (! tex_single_letter(t) || (tex_get_cat_code(cat_code_table_par, aux_str2uni(str_string(t))) == letter_cmd)) {
+                    if (! tex_single_letter(t) || (tex_get_cat_code(cat_code_table_par, aux_str2uni(str_getstr(t))) == letter_cmd)) {
                         tex_print_char(' ');
                     }
                 }
             }
             break;
         case cs_null_error:
-            tex_print_str_esc("csname");
-            tex_print_str_esc("endcsname");
-            tex_print_char(' ');
+            tex_print_format("%ecsname%eendcsname");
             break;
         case cs_below_base_error:
             tex_print_str(error_string_impossible(11));
             break;
         case cs_undefined_error:
-            tex_print_str_esc("undefined");
-            tex_print_char(' ');
+            tex_print_format("%eundefined");
             break;
         case cs_out_of_range_error:
             tex_print_str(error_string_impossible(12));
             break;
-    } 
+    }
 }
 
 /*tex
@@ -822,12 +1214,11 @@ void tex_print_cs_checked(halfword p)
 void tex_print_cs(halfword p)
 {
     if (p == null_cs) {
-        tex_print_str_esc("csname");
-        tex_print_str_esc("endcsname");
+        tex_print_format("%ecsname%eendcsname"); /* no space */
     } else {
         strnumber t = cs_text(p);
         if (tex_is_active_cs(t)) {
-            tex_print_tex_str(active_cs_value(t));
+            tex_print_tex_str(tex_active_cs_value(t));
         } else {
             tex_print_tex_str_esc(t);
         }
@@ -839,7 +1230,7 @@ void tex_print_cs_name(halfword p)
     if (p != null_cs) {
         strnumber t = cs_text(p);
         if (tex_is_active_cs(t)) {
-            tex_print_tex_str(active_cs_value(t));
+            tex_print_tex_str(tex_active_cs_value(t));
         } else {
             tex_print_tex_str(t);
         }
@@ -855,18 +1246,38 @@ void tex_print_cs_name(halfword p)
 
 void tex_print_glue(scaled d, int order, int unit)
 {
-    tex_print_dimension(d, no_unit);
-    if ((order < normal_glue_order) || (order > filll_glue_order)) {
-        /*tex For sure this will crash someplace because it is also used as index! */
-        tex_print_str("foul");
-    } else if (order > normal_glue_order) {
-        tex_print_str("fi");
-        while (order > fi_glue_order) {
-            tex_print_char('l');
-            --order;
-        }
+    if (order == normal_glue_order) { /* 0 */
+        tex_print_dimension(d, unit);
     } else {
-        tex_print_unit(unit);
+        tex_print_dimension(d, no_unit);
+        switch (order) {
+            case fi_glue_order    : tex_print_str_len("fi",    2); break;
+            case fil_glue_order   : tex_print_str_len("fil",   3); break;
+            case fill_glue_order  : tex_print_str_len("fill",  4); break;
+            case filll_glue_order : tex_print_str_len("filll", 5); break;
+            default               : tex_print_str_len("foul",  4); break;
+        }
+    }
+}
+
+void tex_print_glue_set(halfword p)
+{
+    double g = (double) (box_glue_set(p));
+    if ((g != 0.0) && (box_glue_sign(p) != normal_glue_sign)) {
+        tex_print_str_len(", glue set ", 11); // This was |glue set|.
+        if (box_glue_sign(p) == shrinking_glue_sign) {
+            tex_print_str_len("- ", 2);
+        }
+        if (g > 20000.0 || g < -20000.0) {
+            if (g > 0.0) {
+                tex_print_char('>');
+            } else {
+                tex_print_str_len("< -", 3);
+            }
+            tex_print_glue(20000 * unity, box_glue_order(p), no_unit);
+        } else {
+            tex_print_glue((scaled) glueround(unity *g), box_glue_order(p), no_unit);
+        }
     }
 }
 
@@ -875,7 +1286,7 @@ void tex_print_glue(scaled d, int order, int unit)
 void tex_print_unit(int unit)
 {
     if (unit != no_unit) {
-        tex_print_str(unit == pt_unit ? "pt" : "mu");
+        tex_print_str_len(unit == pt_unit ? "pt" : "mu", 2);
     }
 }
 
@@ -887,14 +1298,53 @@ void tex_print_spec(int p, int unit)
         tex_print_dimension(0, unit);
     } else {
         tex_print_dimension(glue_amount(p), unit);
+        /* todo */
         if (glue_stretch(p)) {
-            tex_print_str(" plus ");
+            tex_print_str_len(" plus ", 6);
             tex_print_glue(glue_stretch(p), glue_stretch_order(p), unit);
         }
         if (glue_shrink(p)) {
-            tex_print_str(" minus ");
+            tex_print_str_len(" minus ", 7);
             tex_print_glue(glue_shrink(p), glue_shrink_order(p), unit);
         }
+    }
+}
+
+static void tex_print_gluespec(
+        scaled total,
+        scaled stretch,
+        scaled fistretch,
+        scaled filstretch,
+        scaled fillstretch,
+        scaled filllstretch,
+        scaled shrink,
+        int    unit
+)
+{
+    tex_print_dimension(total, unit);
+    if (stretch) {
+        tex_print_str_len(" plus ", 6);
+        tex_print_dimension(stretch, unit);
+    } else if (fistretch) {
+        tex_print_str_len(" plus ", 6);
+        tex_print_dimension(fistretch, no_unit);
+        tex_print_str_len(" fi", 3);
+    } else if (filstretch) {
+        tex_print_str_len(" plus ", 6);
+        tex_print_dimension(filstretch, no_unit);
+        tex_print_str_len(" fil", 4);
+    } else if (fillstretch) {
+        tex_print_str_len(" plus ", 6);
+        tex_print_dimension(fillstretch, no_unit);
+        tex_print_str_len(" fill", 5);
+    } else if (filllstretch) {
+        tex_print_str_len(" plus ", 6);
+        tex_print_dimension(filllstretch, no_unit);
+        tex_print_str_len(" filll", 6);
+    }
+    if (shrink) {
+        tex_print_str_len(" minus ", 7);
+        tex_print_dimension(shrink, unit);
     }
 }
 
@@ -902,24 +1352,19 @@ void tex_print_fontspec(int p)
 {
     tex_print_int(font_spec_identifier(p));
     if (font_spec_scale(p) != unused_scale_value) {
-        tex_print_str(" scale ");
-        tex_print_int(font_spec_scale(p));
+        tex_print_format(" scale %i", font_spec_scale(p));
     }
     if (font_spec_x_scale(p) != unused_scale_value) {
-        tex_print_str(" xscale ");
-        tex_print_int(font_spec_x_scale(p));
+        tex_print_format(" xscale %i", font_spec_x_scale(p));
     }
     if (font_spec_y_scale(p) != unused_scale_value) {
-        tex_print_str(" yscale ");
-        tex_print_int(font_spec_y_scale(p));
+        tex_print_format(" yscale %i", font_spec_y_scale(p));
     }
     if (font_spec_slant(p)) {
-        tex_print_str(" slant ");
-        tex_print_int(font_spec_slant(p));
+        tex_print_format(" slant %i", font_spec_slant(p));
     }
     if (font_spec_weight(p)) {
-        tex_print_str(" weight ");
-        tex_print_int(font_spec_weight(p));
+        tex_print_format(" weight %i", font_spec_weight(p));
     }
 }
 
@@ -931,7 +1376,7 @@ void tex_print_mathspec(int p)
         mathcodeval m = tex_get_math_spec(p);
         tex_show_mathcode_value(m, node_subtype(p));
     } else {
-        tex_print_str("[invalid mathspec]");
+        tex_print_str_len("[invalid mathspec]", 18);
     }
 }
 
@@ -967,37 +1412,20 @@ void tex_print_mathspec(int p)
     \stoptyping
 
     This is no longer the case: we now always print a full specification. The |\tracingfonts|
-    register will be dropped. 
+    register will be dropped.
 
 */
-
-void tex_print_char_identifier(halfword c) // todo: use string_print_format
-{
-    if (c <= 0x10FFFF) {
-        char b[10];
-        if ( (c >= 0x00E000 && c <= 0x00F8FF) || (c >= 0x0F0000 && c <= 0x0FFFFF) ||
-             (c >= 0x100000 && c <= 0x10FFFF) || (c >= 0x00D800 && c <= 0x00DFFF) ) {
-            sprintf(b, "0x%06X", c);
-            tex_print_str(b);
-        } else {
-            sprintf(b, "U+%06X", c);
-            tex_print_str(b);
-            tex_print_char(' ');
-            tex_print_tex_str(c);
-        }
-    }
-}
 
 void tex_print_font_identifier(halfword f)
 {
     /*tex |< >| is less likely to clash with text parenthesis */
-    if (f < 0) { 
+    if (f < 0) {
         f = cur_font_par; /* bonus */
     }
     if (tex_is_valid_font(f)) {
         tex_print_format("<%i: %s @ %p>", f, font_name(f), font_size(f));
     } else {
-        tex_print_str("<*>");
+        tex_print_str_len("<*>", 3);
     }
 }
 
@@ -1006,17 +1434,17 @@ void tex_print_font_specifier(halfword e)
     if (e && tex_is_valid_font(font_spec_identifier(e))) {
         tex_print_format("<%i: %i %i %i %i %i>", font_spec_identifier(e), font_spec_scale(e), font_spec_x_scale(e), font_spec_y_scale(e), font_spec_slant(e), font_spec_weight(e));
     } else {
-        tex_print_str("<*>");
+        tex_print_str_len("<*>", 3);
     }
 }
 
 void tex_print_font(halfword f)
 {
-    if (f < 0) { 
+    if (f < 0) {
         f = cur_font_par; /* bonus */
     }
     if (! f) {
-        tex_print_str("nullfont");
+        tex_print_str_len("nullfont", 8);
     } else if (tex_is_valid_font(f)) {
         tex_print_str(font_name(f));
      /* if (font_size(f) != font_design_size(f)) { */
@@ -1027,7 +1455,7 @@ void tex_print_font(halfword f)
             tex_print_format(" at %p", font_size(f));
      /* } */
     } else {
-        tex_print_str("nofont");
+        tex_print_str_len("nofont", 6);
     }
 }
 
@@ -1039,7 +1467,7 @@ void tex_short_display(halfword p)
     if (p) {
         tex_print_short_node_contents(p);
     } else {
-        tex_print_str("[empty list]");
+        tex_print_str_len("[empty list]", 12);
     }
 }
 
@@ -1048,7 +1476,7 @@ void tex_short_display(halfword p)
 void tex_print_token_list(const char *s, halfword p)
 {
     tex_print_levels();
-    tex_print_str("..");
+    tex_print_str_len("..", 2);
     if (s) {
         tex_print_str(s);
         tex_print_char(' ');
@@ -1064,7 +1492,7 @@ void tex_print_token_list(const char *s, halfword p)
 
 /*tex This prints dimensions of a rule node. */
 
-void tex_print_rule_dimension(scaled d)
+static inline void tex_print_rule_dimension(scaled d)
 {
     if (d == null_flag) {
         tex_print_char('*');
@@ -1133,13 +1561,13 @@ static void tex_print_padding(void)
 {
     switch (lmt_print_state.selector) {
         case terminal_selector_code:
-            if (! odd(lmt_print_state.terminal_offset)) {
+            if (! odd_int(lmt_print_state.terminal_offset)) {
                 tex_print_char(' ');
             }
             break;
         case logfile_selector_code:
         case terminal_and_logfile_selector_code:
-            if (! odd(lmt_print_state.logfile_offset)) {
+            if (! odd_int(lmt_print_state.logfile_offset)) {
                 tex_print_char(' ');
             }
             break;
@@ -1153,20 +1581,27 @@ void tex_print_levels(void)
     int l0 = tracing_levels_par;
     tex_print_nlp();
     if (l0 > 0) {
-        int l1 = (l0 & tracing_levels_group) == tracing_levels_group;
-        int l2 = (l0 & tracing_levels_input) == tracing_levels_input;
+        int l1 = (l0 & tracing_levels_group   ) == tracing_levels_group;
+        int l2 = (l0 & tracing_levels_input   ) == tracing_levels_input;
         int l4 = (l0 & tracing_levels_catcodes) == tracing_levels_catcodes;
+        if (l1 && l2) {
+            if (l4) {
+                tex_print_format("%i:%i:%i ", cur_level, lmt_input_state.input_stack_data.ptr, cat_code_table_par);
+                return;
+            } else {
+                /*tex This is the default in context: */
+                tex_print_format("%i:%i: ", cur_level, lmt_input_state.input_stack_data.ptr);
+                return;
+            }
+        }
         if (l1) {
-            tex_print_int(cur_level);
-            tex_print_char(':');
+            tex_print_format("%i:", cur_level);
         }
         if (l2) {
-            tex_print_int(lmt_input_state.input_stack_data.ptr);
-            tex_print_char(':');
+            tex_print_format("%i:", lmt_input_state.input_stack_data.ptr);
         }
         if (l4) {
-            tex_print_int(cat_code_table_par);
-            tex_print_char(':');
+            tex_print_format("%i:", cat_code_table_par);
         }
         if (l1 || l2 || l4) {
             tex_print_char(' ');
@@ -1175,265 +1610,309 @@ void tex_print_levels(void)
     }
 }
 
-/* maybe %GROUP% where we scan upto [UPPER][%], so %G and %GR are also is ok
+/*tex
 
-    shared with error messages, so at some point we will merge:
+    We have these formatting keys:
 
-    %c   int       char
-    %s  *char      string
-    %q  *char      'string'
-    %i   int       integer
-    %e             backslash (tex escape)
-    %C   int int   symbolic representation of cmd chr
-    %E  *char      \cs
-    %S   int       tex cs string
-    %M   int       mode
-    %T   int       tex string
-    %%             percent
+    \starttyping
+    %c   int            char
+    %d   int            detail (node)
+    %e                  backslash (tex escape)
+    %h  *char           error help
+    %i   int            integer
+    %l                  levels
+    %n   int            extended subtype
+    %m   int            cs checked (macro)
+    %p   int            dimension with pt unit
+    %q  *char          'string'
+    %s  *char           string
+    %u   int            utf character
+    %x   int            quoted hex
 
-    specific for print (I need to identify the rest)
+    %B   int            badness
+    %C   int int        symbolic representation of cmd chr
+    %D   int int        dimension plus unit
+    %E  *char           \cs
+    %F   int            font identifier
+    %G   int            group
+    %L   int            (if) linenumber
+    %M   int            mode
+    %N   int            node name
+    %O   int int int    glue component
+    %P   7 int          glue spec
+    %Q   int            glue node
+    %R   int            rule dimensions
+    %S   int            tex cs string
+    %T   int            tex string
+    %U   int            unicode
+    %X   int            unicode
 
- !  %U   int       unicode
- !  %D   int       dimension
+    %#   int            group count : n*{}
 
- !  %B   int       badness
- !  %G   int       group
+    %2   int            direction
 
- !  %L   int      (if) linenumber
+    %%                  percent
+    \stoptyping
+
+    Using a variant that collects stripes between formatters is faster: so that is what we do now,
+    and  we gained over 30\percent which is nice on extreme tracing.
 
 */
 
-const char *tex_print_format_args(const char *format, va_list args)
+inline const char *tex_print_format_args(const char *format, va_list args)
 {
+    const char *start = format;
     while (1) {
         int chr = *format++;
         switch (chr) {
             case '\0':
-                /* So we also need a NULL last! */
-                return va_arg(args, char *);
+                if (format - 1 > start) {
+                    tex_print_str_len(start, (int) (format - 1 - start));
+                }
+                return NULL;
             case '%':
-                {
-                    chr = *format++;
-                    switch (chr) {
-                        case '\0':
-                            return va_arg(args, char *);
-                        case 'c':
-                            tex_print_char(va_arg(args, int));
+                /*tex We need to flush preceding literal characters. */
+                if (format - 1 > start) {
+                    tex_print_str_len(start, (int) (format - 1 - start));
+                }
+                chr = *format++;
+                switch (chr) {
+                    case '\0':
+                        return NULL;
+                    case 'c':
+                        {
+                            int chr = va_arg(args, int);
+                            tex_aux_uprint(chr);
                             break;
-                        case 'd': /* detail */
+                        }
+                    case 'd': /* detail */
+                        {
                             tex_print_str(tex_aux_subtype_str(va_arg(args, int)));
                             break;
-                        case 'e':
-                            tex_print_str_esc(NULL);
+                        }
+                    case 'e':
+                        {
+                            tex_print_str_esc("");
                             break;
-                        case 'i':
+                        }
+                    case 'h':
+                        {
+                            /*tex Optional help info gets returned and comes last. */
+                            return va_arg(args, const char *);
+                        }
+                    case 'i':
+                        {
                             tex_print_int(va_arg(args, int));
                             break;
-                        case 'l':
+                        }
+                    case 'l':
+                        {
                             tex_print_levels();
                             break;
-                        case 'n':
-                            tex_print_extended_subtype(null, (quarterword) va_arg(args, int));
+                        }
+                    case 'n':
+                        {
+                            quarterword subtype = (quarterword) va_arg(args, int);
+                            tex_print_extended_subtype(null, subtype);
                             break;
-                        case 'm':
+                        }
+                    case 'm':
+                        {
                             tex_print_cs_checked(va_arg(args, int));
                             break;
-                        case 's':
-                            tex_print_str(va_arg(args, char *));
+                        }
+                    case 'p':
+                        {
+                            tex_print_dimension((scaled) va_arg(args, int), pt_unit);
                             break;
-                        case 'p':
-                            tex_print_dimension(va_arg(args, scaled), pt_unit);
-                            break;
-                        case 'q':
+                        }
+                    case 'q':
+                        {
+                            const char *str = va_arg(args, const char *);
                             tex_print_char('\'');
-                            tex_print_str(va_arg(args, char *));
+                            if (str) {
+                                tex_print_str_len(str, (int) strlen(str));
+                            }
                             tex_print_char('\'');
                             break;
-                        case 'x':
-                            tex_print_qhex(va_arg(args, int));
+                        }
+                    case 's':
+                        {
+                            const char *str = va_arg(args, const char *);
+                            if (str) {
+                                tex_print_str_len(str, (int) strlen(str));
+                            }
                             break;
-                        /*
-                        case 'u':
-                            tex_print_unit(va_arg(args, int));
+                        }
+                    case 'u':
+                        tex_aux_uprint(va_arg(args, int));
+                        break;
+                    case 'x':
+                        {
+                            int value = va_arg(args, int);
+                            tex_print_qhex(value);
                             break;
-                        */
-                        case 'u':
-                            {
-                                unsigned char s[6] = { 0 };
-                                unsigned char *b = s;
-                                b = aux_uni2str(va_arg(args, int));
-                                tex_print_format("%s", b);
-                                break;
-                            }                       
-                        case 'B': /* badness */
-                            {
-                                scaled b = va_arg(args, halfword);
-                                if (b == awful_bad) {
-                                    tex_print_char('*');
-                                } else {
-                                    tex_print_int(b);
-                                }
-                                break;
+                        }
+                    case 'B': /* badness */
+                        {
+                            scaled badness = va_arg(args, int);
+                            if (badness == awful_bad) {
+                                tex_print_char('*');
+                            } else {
+                                tex_print_int(badness);
                             }
-                        case 'C':
-                            {
-                                int cmd = va_arg(args, int);
-                                int val = va_arg(args, int);
-                                tex_print_cmd_chr((singleword) cmd, val); /* inlining doesn't work */
-                                break;
-                            }
-                        case 'D': /* dimension */
-                            {
-                                scaled s = va_arg(args, scaled);
-                                int u = va_arg(args, int);
-                                tex_print_dimension(s, u);
-                                break;
-                            }
-                        case 'E':
-                            tex_print_str_esc(va_arg(args, char *));
                             break;
-                        case 'G':
-                            {
-                                halfword g = va_arg(args, int);
-                                tex_print_group(g);
-                                break;
+                        }
+                    case 'C':
+                        {
+                            int cmd = va_arg(args, int);
+                            int val = va_arg(args, int);
+                            tex_print_cmd_chr((singleword) cmd, val);
+                            break;
+                        }
+                    case 'D': /* dimension */
+                        {
+                            scaled amount = va_arg(args, int);
+                            int    unit   = va_arg(args, int);
+                            tex_print_dimension(amount, unit);
+                            break;
+                        }
+                    case 'E':
+                        {
+                            tex_print_str_esc(va_arg(args, const char *));
+                            break;
+                        }
+                    case 'F':
+                        {
+                            halfword id = va_arg(args, int);
+                            tex_print_font_identifier(id);
+                            break;
+                        }
+                    case 'G':
+                        {
+                            tex_print_group(va_arg(args, int));
+                            break;
+                        }
+                    case 'L':
+                        {
+                            halfword line = va_arg(args, int);
+                            if (line) {
+                                tex_print_str_len(" entered on line ", 17);
+                                tex_print_int(line);
                             }
-                        case 'F':
-                            {
-                                halfword i = va_arg(args, int);
-                                tex_print_font_identifier(i);
-                                break;
+                            break;
+                        }
+                    case 'M':
+                        {
+                            halfword mode = va_arg(args, int);
+                            tex_print_str(tex_string_mode(mode));
+                            break;
+                        }
+                    case 'N':
+                        {
+                            halfword node = va_arg(args, int);
+                            if (node) {
+                                tex_print_str(lmt_interface.node_data[node_type(node)].name);
                             }
-                        case 'L':
-                            {
-                                /* typically used for if line */
-                                halfword line = va_arg(args, int);
-                                if (line) {
-                                    tex_print_str(" entered on line ");
-                                    tex_print_int(line);
-                                }
-                                break;
+                            break;
+                        }
+                    case 'O':
+                        {
+                            scaled   s = va_arg(args, int);
+                            halfword o = va_arg(args, int);
+                            int      u = va_arg(args, int);
+                            tex_print_glue(s, o, u);
+                            break;
+                        }
+                    case 'P':
+                        {
+                            scaled total        = va_arg(args, int);
+                            scaled stretch      = va_arg(args, int);
+                            scaled fistretch    = va_arg(args, int);
+                            scaled filstretch   = va_arg(args, int);
+                            scaled fillstretch  = va_arg(args, int);
+                            scaled filllstretch = va_arg(args, int);
+                            scaled shrink       = va_arg(args, int);
+                            tex_print_gluespec(total, stretch, fistretch, filstretch,
+                                fillstretch, filllstretch, shrink, pt_unit);
+                            break;
+                        }
+                    case 'Q':
+                        {
+                            scaled glue = va_arg(args, int);
+                            int    unit = va_arg(args, int);
+                            tex_print_spec(glue, unit);
+                            break;
+                        }
+                    case 'R':
+                        {
+                            halfword rule = va_arg(args, int);
+                            tex_print_rule_dimension(rule);
+                            break;
+                        }
+                    case 'S':
+                        {
+                            halfword cs = va_arg(args, int);
+                            tex_print_cs(cs);
+                            break;
+                        }
+                    case 'T':
+                        {
+                            strnumber s = va_arg(args, int);
+                            tex_print_tex_str(s);
+                            break;
+                        }
+                    case 'U':
+                        {
+                            halfword chr = va_arg(args, int);
+                            tex_print_uhex(chr);
+                            break;
+                        }
+                    case 'X':
+                        {
+                            halfword chr = va_arg(args, int);
+                            tex_print_xhex(chr);
+                            break;
+                        }
+                    case '2':
+                        {
+                            halfword direction = va_arg(args, int);
+                            switch (direction) {
+                                case direction_l2r : tex_print_str_len("l2r",   3); break;
+                                case direction_r2l : tex_print_str_len("r2l",   3); break;
+                                default            : tex_print_str_len("unset", 5); break;
                             }
-                        case 'N':
-                            {
-                                halfword node = va_arg(args, int);
-                                if (node) {
-                                    tex_print_str(lmt_interface.node_data[node_type(node)].name);
-                                }
-                                break;
-                            }
-                        case 'M':
-                            {
-                                halfword mode = va_arg(args, int);
-                                tex_print_str(tex_string_mode(mode));
-                                break;
-                            }
-                        case 'P':
-                            {
-                                 scaled total = va_arg(args, int);
-                                 scaled stretch = va_arg(args, int);
-                                 scaled fistretch = va_arg(args, int);
-                                 scaled filstretch = va_arg(args, int);
-                                 scaled fillstretch = va_arg(args, int);
-                                 scaled filllstretch = va_arg(args, int);
-                                 scaled shrink = va_arg(args, int);
-                                 tex_print_dimension(total, pt_unit);
-                                 if (stretch) {
-                                     tex_print_str(" plus ");
-                                     tex_print_dimension(stretch, pt_unit);
-                                 } else if (fistretch) {
-                                     tex_print_str(" plus ");
-                                     tex_print_dimension(fistretch, no_unit);
-                                     tex_print_str(" fi");
-                                 } else if (filstretch) {
-                                     tex_print_str(" plus ");
-                                     tex_print_dimension(filstretch, no_unit);
-                                     tex_print_str(" fil");
-                                 } else if (fillstretch) {
-                                     tex_print_str(" plus ");
-                                     tex_print_dimension(fillstretch, no_unit);
-                                     tex_print_str(" fill");
-                                 } else if (filllstretch) {
-                                     tex_print_str(" plus ");
-                                     tex_print_dimension(fillstretch, no_unit);
-                                     tex_print_str(" filll");
-                                 }
-                                 if (shrink) {
-                                     tex_print_str(" minus ");
-                                     tex_print_dimension(shrink, pt_unit);
-                                 }
-                                 break;
-                            }
-                        case 'Q':
-                            {
-                                scaled s = va_arg(args, scaled);
-                                int u = va_arg(args, int);
-                                tex_print_spec(s, u);
-                                break;
-                            }
-                        case 'R':
-                            {
-                                halfword d = va_arg(args, int);
-                                tex_print_rule_dimension(d);
-                                break;
-                            }
-                        case 'S':
-                            {
-                                halfword cs = va_arg(args, int);
-                                tex_print_cs(cs);
-                                break;
-                            }
-                        case 'T':
-                            {
-                                strnumber s = va_arg(args, int);
-                                tex_print_tex_str(s);
-                                break;
-                            }
-                        case 'U':
-                            {
-                                halfword c = va_arg(args, int);
-                                tex_print_uhex(c);
-                                break;
-                            }
-                        case 'X':
-                            { 
-                                halfword x = va_arg(args, int);
-                                tex_print_xhex(x);
-                                break;
-                            }
-                        case '2':
-                            {
-                                halfword c = va_arg(args, int);
-                                switch (c) {
-                                    case direction_l2r : tex_print_str("l2r"); break;
-                                    case direction_r2l : tex_print_str("r2l"); break;
-                                    default            : tex_print_str("unset"); break;
-                                }
-                                break;
-                            }
-                        case '%':
+                            break;
+                        }
+                    case '#':
+                        {
+                            halfword groups = va_arg(args, int);
+                            tex_print_group_count(groups);
+                            break;
+                        }
+                    case '%':
+                        {
                             tex_print_char('%');
                             break;
-                     // case '[':
-                     //     tex_begin_diagnostic();
-                     //     tex_print_char('[');
-                     //     break;
-                     // case ']':
-                     //     tex_print_char(']');
-                     //     tex_end_diagnostic();
-                     //     break;
-                        default:
-                            /* ignore bad one */
-                            break;
-                    }
+                        }
+                    default:
+                        /* ignore bad one */
+                        break;
                 }
+                /*tex Reset start after processing argument specifier. */
+                start = format;
                 break;
             case '\n':
             case '\r':
+                /*tex Flush the literal string up to newline before dealing with the newline. */
+                if (format - 1 > start) {
+                    tex_print_str_len(start, (int) (format - 1 - start));
+                }
                 tex_print_nlp();
+                start = format;
                 break;
             default:
-                tex_print_char(chr); /* todo: utf */
+                /*tex We just advance. */
                 break;
         }
     }
@@ -1442,38 +1921,12 @@ const char *tex_print_format_args(const char *format, va_list args)
 void tex_print_format(const char *format, ...)
 {
     va_list args;
-    va_start(args, format); /* hm, weird, no number */
+    va_start(args, format);
     tex_print_format_args(format, args);
     va_end(args);
 }
 
-/*tex
-
-    Group codes were introduced in \ETEX\ but have been extended in the meantime in \LUATEX\ and
-    later again in \LUAMETATEX. We might have (even) more granularity in the future.
-
-    Todo: combine this with an array of struct(id,name,lua) ... a rainy day + stack of new cd's job.
-
-*/
-
-void tex_print_group(int e)
-{
-    int line = tex_saved_line_at_level();
-    tex_print_str(lmt_interface.group_code_values[cur_group].name);
-    if (cur_group != bottom_level_group) {
-        tex_print_str(" group");
-        if (line) {
-            tex_print_str(e ? " entered at line " : " at line ");
-            tex_print_int(line);
-        }
-    }
-}
-
 void tex_print_message(const char *s)
 {
-    tex_print_nlp();
-    tex_print_char('(');
-    tex_print_str(s);
-    tex_print_char(')');
-    tex_print_nlp();
+    tex_print_format("\n(%s)\n", s);
 }

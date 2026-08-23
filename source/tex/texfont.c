@@ -104,6 +104,18 @@ static inline scaled tex_aux_glyph_y_scaled(halfword g, scaled v)
     return v ? scaledround(0.000001 * (glyph_scale(g) ? glyph_scale(g) : 1000) * (glyph_y_scale(g) ? glyph_y_scale(g) : 1000) * v) : 0;
 }
 
+static inline scaled tex_aux_glyph_lr_scaled(halfword l, halfword r, scaled v)
+{
+    return v
+        ? scaledround (
+            (
+                0.0000005 * (glyph_scale(l) ? glyph_scale(l) : 1000) * (glyph_x_scale(l) ? glyph_x_scale(l) : 1000)
+              + 0.0000005 * (glyph_scale(r) ? glyph_scale(r) : 1000) * (glyph_x_scale(r) ? glyph_x_scale(r) : 1000)
+            ) * v
+          )
+        : 0;
+}
+
 font_state_info lmt_font_state = {
     .fonts          = NULL,
     .adjust_stretch = 0,
@@ -206,24 +218,75 @@ void tex_set_charinfo_extensible_recipe(charinfo *ci, extinfo *ext)
     }
 }
 
-void tex_set_font_parameters(halfword f, int index)
+static void tex_aux_clear_charinfo(charinfo *ci)
 {
-    int i = font_parameter_count(f);
-    if (index > i) {
-        /*tex If really needed this can be a calloc. */
-        int size = (index + 2) * (int) sizeof(int);
-        int *list = lmt_memory_realloc(font_parameter_base(f), (size_t) size);
-        if (list) {
-            lmt_font_state.font_data.extra += (index - i + 1) * (int) sizeof(scaled);
-            font_parameter_base(f) = list;
-            font_parameter_count(f) = index;
-            while (i < index) {
-                font_parameter(f, ++i) = 0;
-            }
-        } else {
-            tex_overflow_error("font", size);
+    if (ci) {
+        lmt_memory_free(ci->kerns);
+        ci->kerns = NULL;
+        lmt_memory_free(ci->ligatures);
+        ci->ligatures = NULL;
+        if (ci->math) {
+            tex_set_charinfo_extensible_recipe(ci, NULL);
+            set_charinfo_top_left_math_kern_array(ci, NULL);
+            set_charinfo_top_right_math_kern_array(ci, NULL);
+            set_charinfo_bottom_right_math_kern_array(ci, NULL);
+            set_charinfo_bottom_left_math_kern_array(ci, NULL);
+            lmt_memory_free(ci->math);
+            ci->math = NULL;
         }
     }
+}
+
+void tex_reset_charinfo(charinfo *ci)
+{
+    if (ci) {
+        tex_aux_clear_charinfo(ci);
+        memset(ci, 0, sizeof(charinfo));
+        ci->expansion = scaling_factor;
+    }
+}
+
+static void tex_aux_font_overflow_error(int max)
+{
+    tex_handle_error(
+        normal_error_type,
+        "There can be at most %i font parameters%h", max,
+        "I'm just ignoring this command, you shouldn't abuse a font\n"
+        "to store dimensions. There are better ways."
+    );
+}
+
+int tex_set_font_parameters(halfword f, int index)
+{
+    if (! tex_is_valid_font(f)) {
+        return 0;
+    } else if (index < 0 || index > max_text_font_parameters) {
+        tex_aux_font_overflow_error(max_text_font_parameters);
+        return 0;
+    }
+    int i = font_parameter_count(f);
+    if (index > i) {
+        if (i <= max_text_font_parameters) {
+            /*tex If really needed this can be a calloc. */
+            size_t size = ((size_t) index + 2) * sizeof(int); /* we add a bit reserve */
+            int *list = lmt_memory_realloc(font_parameter_base(f), size);
+            if (list) {
+                lmt_font_state.font_data.extra += (index - i + 1) * (int) sizeof(scaled);
+                font_parameter_base(f) = list;
+                font_parameter_count(f) = index;
+                while (i < index) {
+                    font_parameter(f, ++i) = 0;
+                }
+            } else {
+                tex_overflow_error("font", (int) size);
+                return 0;
+            }
+        } else {
+            tex_aux_font_overflow_error(max_text_font_parameters);
+            return 0;
+        }
+    }
+    return 1;
 }
 
 /*tex Most stuff is zero: */
@@ -237,7 +300,7 @@ int tex_new_font(void)
         size = sizeof(texfont);
         tf = lmt_memory_calloc(1, (size_t) size);
         if (tf) {
-            sa_tree_item sa_value = { 0 };
+            sa_tree_item sa_value = { .uint_value = 0 };
             int id = tex_new_font_id();
             lmt_font_state.font_data.extra += size;
             lmt_font_state.fonts[id] = tf;
@@ -252,9 +315,9 @@ int tex_new_font(void)
             set_font_hyphen_char(id, '-');
             set_font_skew_char(id, -1);
             /*tex allocate eight values including 0 */
-            tex_set_font_parameters(id, 7);
-            for (int i = 0; i <= 7; i++) {
-                tex_set_font_parameter(id, i, 0);
+            tex_set_font_parameters(id, last_font_parameter);
+            for (int i = 0; i <= last_font_parameter; i++) {
+              tex_set_font_parameter(id, i, 0); /*tex These are already zero'd but ... */
             }
             /*tex character info zero is reserved for |notdef|. The stack size 1, default item value 0. */
             tf->characters = sa_new_tree(fontchar_sparse_identifier, 1, 1, 4, sa_value);
@@ -326,20 +389,20 @@ void tex_char_malloc_mathinfo(charinfo *ci)
 
 static inline int aux_find_charinfo_id(halfword f, int c) 
 {
-    sa_tree_item item; 
-    sa_get_item_4(lmt_font_state.fonts[f]->characters, c, &item);
-    return (int) item.int_value;
+    int id = sa_return_item_4(lmt_font_state.fonts[f]->characters, c);
+    return id > 0 && id < lmt_font_state.fonts[f]->chardata_size ? id : 0;
 }
+
+static charinfo tex_aux_invalid_charinfo;
 
 charinfo *tex_get_charinfo(halfword f, int c)
 {
-    if (proper_char_index(f, c)) {
-        sa_tree_item item;
-        int glyph; 
-        sa_get_item_4(lmt_font_state.fonts[f]->characters, c, &item);
-        glyph = (int) item.int_value;
+    if (! tex_is_valid_font(f)) {
+        return NULL;
+    } else if (proper_char_index(f, c)) {
+        int glyph = aux_find_charinfo_id(f, c);
         if (! glyph) {
-            sa_tree_item sa_value = { 0 };
+            sa_tree_item sa_value = { .uint_value = 0 };
             int tglyph = ++lmt_font_state.fonts[f]->chardata_count;
             if (tglyph >= lmt_font_state.fonts[f]->chardata_size) {
                 tex_font_malloc_charinfo(f, 256);
@@ -382,8 +445,8 @@ charinfo *tex_get_charinfo(halfword f, int c)
 
 static charinfo *tex_aux_char_info(halfword f, int c)
 {
-    if (f > lmt_font_state.font_data.ptr) {
-        return NULL;
+    if (! tex_is_valid_font(f)) {
+        return &tex_aux_invalid_charinfo;
     } else if (proper_char_index(f, c)) {
         return &(lmt_font_state.fonts[f]->chardata[(int) aux_find_charinfo_id(f, c)]);
     } else if (c == left_boundary_char) {
@@ -398,6 +461,21 @@ static charinfo *tex_aux_char_info(halfword f, int c)
     return &(lmt_font_state.fonts[f]->chardata[0]);
 }
 
+charinfo *tex_existing_char_info(halfword f, int c)
+{
+    if (! tex_is_valid_font(f)) {
+        return NULL;
+    } else if (proper_char_index(f, c)) {
+        int glyph = aux_find_charinfo_id(f, c);
+        return glyph ? &(lmt_font_state.fonts[f]->chardata[glyph]) : NULL;
+    } else if (c == left_boundary_char) {
+        return font_left_boundary(f);
+    } else if (c == right_boundary_char) {
+        return font_right_boundary(f);
+    }
+    return NULL;
+}
+
 // static scaled tex_aux_font_weight_done(halfword f, scaled v)
 // {
 //  // return v ? lround(65.536 * v * (double) lmt_font_state.fonts[f]->design_size / (double) lmt_font_state.fonts[f]->size) : 0;
@@ -406,13 +484,18 @@ static charinfo *tex_aux_char_info(halfword f, int c)
 
 static scaled tex_aux_glyph_weight_done(halfword g)
 {
-    return glyph_weight(g) && tex_has_glyph_option(g, glyph_option_weight_less) 
-        ? 0 : lround(glyph_weight(g) * lmt_font_state.fonts[glyph_font(g)]->weight);
+    halfword f = glyph_font(g);
+    if (! glyph_weight(g) || ! tex_is_valid_font(f)) {
+        return 0;
+    } else {
+        return tex_has_glyph_option(g, glyph_option_weight_less)
+            ? 0 : lround(glyph_weight(g) * lmt_font_state.fonts[f]->weight);
+    }
 }
 
 void tex_char_process(halfword f, int c) 
 {
-    if (tex_char_has_tag_from_font(f, c, callback_tag)) { 
+    if (tex_is_valid_font(f) && tex_char_has_tag_from_font(f, c, callback_tag)) {
         int callback_id = lmt_callback_defined(process_character_callback);
         if (callback_id > 0) {
             lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "dd->", f, c);
@@ -423,7 +506,7 @@ void tex_char_process(halfword f, int c)
 
 int tex_char_exists(halfword f, int c)
 {
-    if (f > lmt_font_state.font_data.ptr) {
+    if (! tex_is_valid_font(f)) {
         return 0;
     } else if (proper_char_index(f, c)) {
         return (int) aux_find_charinfo_id(f, c);
@@ -458,7 +541,11 @@ static int check_math_char(halfword f, int c, int size)
 int tex_math_char_exists(halfword f, int c, int size)
 {
     (void) size;
-    return (f > 0 && f <= lmt_font_state.font_data.ptr && proper_char_index(f, c));
+    if (f <= 0 || ! tex_is_valid_font(f) || ! proper_char_index(f, c)) {
+        return 0;
+    } else {
+        return aux_find_charinfo_id(f, c) != 0;
+    }
 }
 
 /*tex
@@ -468,13 +555,22 @@ int tex_math_char_exists(halfword f, int c, int size)
 
 int tex_get_math_char(halfword f, int c, int size, scaled *scale, scaled *xscale, scaled *yscale, scaled *weight, int direction)
 {
-    int id = aux_find_charinfo_id(f, c);
+    if (! tex_is_valid_font(f)) {
+        if (scale) {
+            *scale = scaling_factor;
+            *xscale = scaling_factor;
+            *yscale = scaling_factor;
+            *weight = 0;
+        }
+        return c;
+    }
+    int id = proper_char_index(f, c) ? aux_find_charinfo_id(f, c) : 0;
     texfont *tf = lmt_font_state.fonts[f];
     if (id) { 
         /* */
         if (direction) { 
             charinfo *ci = &tf->chardata[id];
-            int m = ci->math->mirror;
+            int m = ci->math ? ci->math->mirror : 0;
             if (m && proper_char_index(f, m)) {
                 int mid = aux_find_charinfo_id(f, m);
                 if (mid) { 
@@ -683,59 +779,125 @@ void tex_add_charinfo_math_kern(charinfo *ci, int id, scaled ht, scaled krn)
     \stoptyping
 */
 
-/*tex why not just preallocate for all math otf parameters */
+/*tex
+    We could just preallocate for all math otf parameters, some 100 in \CONTEXT, so we
+    could start out that high. Assignments don't happen in order so often we start with
+    say index 80 anyway, We always assume some 100 now, which saves some 10 reallocations
+    per font (so 40 on a standard pagella bodyfont load).
+*/
 
-void tex_set_font_math_parameters(halfword f, int b)
+# define default_math_parameters_size 100
+
+int tex_set_font_math_parameters(halfword f, int b)
 {
+    if (! tex_is_valid_font(f)) {
+        return 0;
+    } else if (b < 0 || b > max_math_font_parameters) {
+        tex_aux_font_overflow_error(max_math_font_parameters);
+        return 0;
+    }
     int i = font_math_parameter_count(f);
+    if (i == 0 && b < default_math_parameters_size) {
+        b = default_math_parameters_size;
+    }
     if (i < b) {
-        size_t size = ((size_t) b + 2) * sizeof(scaled);
-        scaled *data = lmt_memory_realloc(font_math_parameter_base(f), size);
-        if (data) {
-            lmt_font_state.font_data.extra += (int) (((size_t) b - i + 1) * sizeof(scaled));
-            font_math_parameter_base(f) = data;
-            font_math_parameter_count(f) = b;
-            while (i < b) {
-                ++i; /* in macro, make the next a function */
-             // set_font_math_parameter(f, i, undefined_math_parameter);
-                font_math_parameter(f, i) = undefined_math_parameter;
+        if (i <= max_math_font_parameters) {
+            /* We add two anyway, as safeguard. */
+            size_t size = ((size_t) b + 2) * sizeof(scaled);
+            scaled *data = lmt_memory_realloc(font_math_parameter_base(f), size);
+            if (data) {
+                lmt_font_state.font_data.extra += (int) (((size_t) b - i + 1) * sizeof(scaled));
+                font_math_parameter_base(f) = data;
+                font_math_parameter_count(f) = b;
+                while (i < b) {
+                    ++i; /* in macro, make the next a function */
+                 // set_font_math_parameter(f, i, undefined_math_parameter);
+                    font_math_parameter(f, i) = undefined_math_parameter;
+                }
+            } else {
+                tex_overflow_error("font", (int) size);
+                return 0;
             }
         } else {
-            tex_overflow_error("font", (int) size);
+            tex_aux_font_overflow_error(max_math_font_parameters);
+            return 0;
         }
+    }
+    return 1;
+}
+
+static void tex_aux_clear_font_charinfo(texfont *tf)
+{
+    if (tf->chardata) {
+        for (int i = 0; i < tf->chardata_size; i++) {
+            tex_aux_clear_charinfo(&tf->chardata[i]);
+        }
+    }
+    if (tf->left_boundary) {
+        tex_aux_clear_charinfo(tf->left_boundary);
+        lmt_memory_free(tf->left_boundary);
+        tf->left_boundary = NULL;
+    }
+    if (tf->right_boundary) {
+        tex_aux_clear_charinfo(tf->right_boundary);
+        lmt_memory_free(tf->right_boundary);
+        tf->right_boundary = NULL;
+    }
+}
+
+static void tex_aux_reset_font(halfword f)
+{
+    texfont *tf = lmt_font_state.fonts[f];
+    sa_tree_item sa_value = { .uint_value = 0 };
+    charinfo *ci = lmt_memory_calloc(1, sizeof(charinfo));
+    if (! ci) {
+        tex_overflow_error("font", sizeof(charinfo));
+        return;
+    }
+    sa_tree characters = sa_new_tree(fontchar_sparse_identifier, 1, 1, 4, sa_value);
+    tex_set_font_name(f, NULL);
+    tex_set_font_original(f, NULL);
+    tex_aux_clear_font_charinfo(tf);
+    lmt_memory_free(tf->chardata);
+    sa_destroy_tree(tf->characters);
+    lmt_memory_free(tf->parameter_base);
+    lmt_memory_free(tf->math_parameter_base);
+    memset(tf, 0, sizeof(texfont));
+    tf->first_character = 1;
+    tf->hyphen_char = '-';
+    tf->skew_char = -1;
+    tf->characters = characters;
+    tf->chardata = ci;
+    tf->chardata_size = 1;
+    tf->weight = 1.0;
+    tex_set_font_parameters(f, last_font_parameter);
+    for (int i = 0; i <= last_font_parameter; i++) {
+        tex_set_font_parameter(f, i, 0);
+    }
+}
+
+void tex_reset_font(halfword f)
+{
+    if (tex_is_valid_font(f)) {
+        tex_aux_reset_font(f);
     }
 }
 
 void tex_delete_font(int f)
 {
-    if (lmt_font_state.fonts[f]) {
+    if (tex_is_valid_font(f)) {
+        texfont *tf = lmt_font_state.fonts[f];
         tex_set_font_name(f, NULL);
         tex_set_font_original(f, NULL);
-        set_font_left_boundary(f, NULL);
-        set_font_right_boundary(f, NULL);
-        for (int i = font_first_character(f); i <= font_last_character(f); i++) {
-            if (tex_char_exists(f, i)) {
-                charinfo *co = tex_aux_char_info(f, i);
-                set_charinfo_kerns(co, NULL);
-                set_charinfo_ligatures(co, NULL);
-                if (co->math) {
-                    tex_set_charinfo_extensible_recipe(co, NULL);
-                    set_charinfo_top_left_math_kern_array(co, NULL);
-                    set_charinfo_top_right_math_kern_array(co, NULL);
-                    set_charinfo_bottom_right_math_kern_array(co, NULL);
-                    set_charinfo_bottom_left_math_kern_array(co, NULL);
-                    set_charinfo_math(co, NULL);
-                }
-            }
-        }
+        tex_aux_clear_font_charinfo(tf);
         /*tex free |notdef| */
-        lmt_memory_free(lmt_font_state.fonts[f]->chardata);
-        sa_destroy_tree(lmt_font_state.fonts[f]->characters);
+        lmt_memory_free(tf->chardata);
+        sa_destroy_tree(tf->characters);
         lmt_memory_free(font_parameter_base(f));
         if (font_math_parameter_base(f)) {
             lmt_memory_free(font_math_parameter_base(f));
         }
-        lmt_memory_free(lmt_font_state.fonts[f]);
+        lmt_memory_free(tf);
         lmt_font_state.fonts[f] = NULL;
         if (lmt_font_state.font_data.ptr == f) {
             lmt_font_state.font_data.ptr--;
@@ -750,12 +912,12 @@ void tex_create_null_font(void)
     tex_set_font_original(id, "nullfont");
 }
 
-int tex_is_valid_font(halfword f)
+int inline tex_is_valid_font(halfword f)
 {
     return (f >= 0 && f <= lmt_font_state.font_data.ptr && lmt_font_state.fonts[f]);
 }
 
-int tex_checked_font(halfword f)
+int inline tex_checked_font(halfword f)
 {
     return (f >= 0 && f <= lmt_font_state.font_data.ptr && lmt_font_state.fonts[f]) ? f : null_font;
 }
@@ -776,7 +938,7 @@ halfword tex_get_font_identifier(halfword fontspec)
     identical.
 */
 
-ligatureinfo tex_get_ligature(halfword f, int lc, int rc)
+static ligatureinfo tex_get_ligature(halfword f, int lc, int rc)
 {
     ligatureinfo t = { 0, 0, 0, 0 };
     if (lc != non_boundary_char && rc != non_boundary_char && tex_has_ligature(f, lc)) {
@@ -795,7 +957,7 @@ ligatureinfo tex_get_ligature(halfword f, int lc, int rc)
     return t;
 }
 
-int tex_raw_get_kern(halfword f, int lc, int rc)
+static int tex_raw_get_kern(halfword f, int lc, int rc)
 {
     if (lc != non_boundary_char && rc != non_boundary_char) {
         int k = 0;
@@ -879,7 +1041,7 @@ int tex_read_font_info(char *cnom, scaled s)
     if (callback_id > 0) {
         int f = 0;
         lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "Sd->d", cnom, s, &f);
-        if (tex_is_valid_font(f)) {
+        if (f > 0 && tex_is_valid_font(f)) {
             tex_set_font_original(f, (char *) cnom);
             return f;
         } else {
@@ -893,20 +1055,32 @@ int tex_read_font_info(char *cnom, scaled s)
 
 /*tex Abstraction: */
 
+int tex_valid_font_parameter(halfword f, halfword code)
+{
+    if (! tex_is_valid_font(f) || code < 0 || code > max_text_font_parameters) {
+        return 0;
+    } else if (font_parameter_count(f) < code) {
+        if (! tex_set_font_parameters(f, code)) {
+            return 0;
+        };
+    }
+    return 1;
+}
+
 halfword tex_get_font_parameter(halfword f, halfword code) /* todo: math */
 {
-    if (font_parameter_count(f) < code) {
-        tex_set_font_parameters(f, code);
+    if (tex_valid_font_parameter(f, code)) {
+        return font_parameter(f, code);
+    } else {
+        return 0;
     }
-    return font_parameter(f, code);
 }
 
 void tex_set_font_parameter(halfword f, halfword code, scaled v)
 {
-    if (font_parameter_count(f) < code) {
-        tex_set_font_parameters(f, code);
+    if (tex_valid_font_parameter(f, code)) {
+        font_parameter(f, code) = v;
     }
-    font_parameter(f, code) = v;
 }
 
 scaled tex_get_font_slant           (halfword f) { return font_parameter(f, slant_code);         }
@@ -930,25 +1104,35 @@ scaled tex_font_y_scaled            (scaled v) { return tex_aux_font_y_scaled(v)
 
 halfword tex_get_scaled_parameter(halfword f, halfword code) /* todo: math */
 {
-    if (font_parameter_count(f) < code) {
-        tex_set_font_parameters(f, code);
-    }
-    switch (code) {
-        case slant_code:
-            return font_parameter(f, code);
-        case ex_height_code:
-            return tex_aux_font_y_scaled(font_parameter(f, code));
-        default:
-            return tex_aux_font_x_scaled(font_parameter(f, code));
+    if (tex_valid_font_parameter(f, code)) {
+        switch (code) {
+            case slant_code:
+                return font_parameter(f, code);
+            case ex_height_code:
+                return tex_aux_font_y_scaled(font_parameter(f, code));
+            default:
+                return tex_aux_font_x_scaled(font_parameter(f, code));
+        }
+    } else {
+        return 0;
     }
 }
 
 void tex_set_scaled_parameter(halfword f, halfword code, scaled v)
 {
-    if (font_parameter_count(f) < code) {
-        tex_set_font_parameters(f, code);
+    if (tex_valid_font_parameter(f, code)) {
+        switch (code) {
+            case slant_code:
+                font_parameter(f, code) = v;
+                break;
+            case ex_height_code:
+                font_parameter(f, code) = tex_aux_font_y_scaled(v);
+                break;
+            default:
+                font_parameter(f, code) = tex_aux_font_x_scaled(v);
+                break;
+        }
     }
-    font_parameter(f, code) = tex_aux_font_x_scaled(v);
 }
 
 halfword tex_get_scaled_glue(halfword f)
@@ -965,9 +1149,6 @@ halfword tex_get_scaled_parameter_glue(quarterword p, quarterword s)
 {
     halfword n = tex_new_glue_node(zero_glue, s);
     halfword g = glue_parameter(p);
- // if (g) {
- //     memcpy((void *) (node_memory_state.nodes + n + 2), (void *) (node_memory_state.nodes + g + 2), (glue_spec_size - 2) * (sizeof(memoryword)));
- // }
     glue_amount(n) = tex_aux_font_x_scaled(glue_amount(g));
     glue_stretch(n) = tex_aux_font_x_scaled(glue_stretch(g));
     glue_shrink(n) = tex_aux_font_x_scaled(glue_shrink(g));
@@ -1023,7 +1204,11 @@ static void tex_aux_nesting_prepend_list(halfword target, int location, halfword
 
 int tex_valid_ligature(halfword left, halfword right, int *slot)
 {
-    if (node_type(left) != glyph_node) {
+    if (! left || ! right) {
+        return -1;
+    } else if (node_type(left) != glyph_node || node_type(right) != glyph_node) {
+        return -1;
+    } else if (glyph_protected(left) || glyph_protected(right)) {
         return -1;
     } else if (glyph_font(left) != glyph_font(right)) {
         return -1;
@@ -1043,6 +1228,8 @@ int tex_valid_ligature(halfword left, halfword right, int *slot)
 static int tex_aux_found_ligature(halfword left, halfword right)
 {
     if (! left || ! right) {
+        return 0;
+    } else if (glyph_protected(left) || glyph_protected(right)) {
         return 0;
     } else if (node_type(left) != glyph_node || node_type(right) != glyph_node) {
         return 0;
@@ -1148,7 +1335,7 @@ static void tex_aux_handle_ligature_pair(halfword target, int location)
                 head = previous;
                 node_head(node) = previous;
             }
-            node_tail(node) = previous;
+            node_tail(node) = tex_tail_of_node_list(node_head(node));
         }
     }
 }
@@ -1407,7 +1594,7 @@ halfword tex_handle_ligaturing(halfword head, halfword tail)
 
 /*tex Kerning starts here: */
 
-static halfword tex_aux_add_kern_before(halfword left, halfword right)
+static halfword tex_aux_add_kern_before(halfword left, halfword right, halfword root)
 {
     if (tex_aux_same_font_properties(left, right) &&
             ! tex_has_glyph_option(left, glyph_option_no_right_kern) &&
@@ -1416,9 +1603,14 @@ static halfword tex_aux_add_kern_before(halfword left, halfword right)
         ) {
         scaled k = tex_raw_get_kern(glyph_font(left), glyph_character(left), glyph_character(right));
         if (k) {
+            k = tex_aux_glyph_lr_scaled(left, right, k);
             scaled kern = tex_new_kern_node(k, font_kern_subtype);
             halfword previous = node_prev(right);
-            tex_couple_nodes(previous, kern);
+            if (previous) {
+                tex_couple_nodes(previous, kern);
+            } else if (root) {
+                node_next(root) = kern;
+            }
             tex_couple_nodes(kern, right);
             tex_attach_attribute_list_copy(kern, left);
             return kern;
@@ -1436,6 +1628,7 @@ static halfword tex_aux_add_kern_after(halfword left, halfword right, halfword a
         ) {
         scaled k = tex_raw_get_kern(glyph_font(left), glyph_character(left), glyph_character(right));
         if (k) {
+            k = tex_aux_glyph_lr_scaled(left, right, k);
             scaled kern = tex_new_kern_node(k, font_kern_subtype);
             halfword next = node_next(after);
             tex_couple_nodes(after, kern);
@@ -1453,25 +1646,22 @@ static void tex_aux_handle_discretionary_kerning(halfword target, int location, 
 {
     halfword node = tex_aux_discretionary_node(target, location);
     if (node_head(node)) {
-        halfword kern = tex_aux_do_handle_kerning(node_head(node), left, right);
-        if (kern) { 
-            node_head(node) = kern;
-            node_tail(node) = tex_tail_of_node_list(node_head(node));
-        }
+        tex_aux_do_handle_kerning(node, left, right);
+        node_prev(node_head(node)) = null;
+        node_tail(node) = tex_tail_of_node_list(node_head(node));
     }
 }
 
 static halfword tex_aux_do_handle_kerning(halfword root, halfword init_left, halfword init_right)
 {
- // halfword head = node_next(root); // todo: get rid of this one 
-    halfword head = root; // todo: get rid of this one 
+    halfword head = node_next(root);
     halfword current = head;
     halfword initial = null;
     if (current) {
         halfword left = null;
         if (node_type(current) == glyph_node && tex_aux_apply_base_kerning(current)) {
             if (init_left) {
-                halfword kern = tex_aux_add_kern_before(init_left, current);
+                halfword kern = tex_aux_add_kern_before(init_left, current, root);
                 if (current == head) {
                     initial = kern; 
                 }
@@ -1484,10 +1674,16 @@ static halfword tex_aux_do_handle_kerning(halfword root, halfword init_left, hal
             if (currenttype == glyph_node) { 
                 if (tex_aux_apply_base_kerning(current)) {
                     if (left) {
-                        tex_aux_add_kern_before(left, current);
+                        halfword kern = tex_aux_add_kern_before(left, current, root);
                         if (glyph_character(left) < 0) {
                             halfword previous = node_prev(left);
-                            tex_couple_nodes(previous, current);
+                            if (! previous) {
+                                previous = root;
+                            }
+                            tex_try_couple_nodes(previous, current);
+                            if (kern) {
+                                tex_flush_node(kern);
+                            }
                             tex_flush_node(left);
                         }
                     }
@@ -1498,7 +1694,7 @@ static halfword tex_aux_do_handle_kerning(halfword root, halfword init_left, hal
             } else {
                 if (currenttype == disc_node) {
                     halfword next = node_next(current);
-                    halfword right = node_type(next) == glyph_node && tex_aux_apply_base_kerning(next) ? next : null;
+                    halfword right = next && node_type(next) == glyph_node && tex_aux_apply_base_kerning(next) ? next : null;
                     tex_aux_handle_discretionary_kerning(current, pre_break_code, left, null);
                     tex_aux_handle_discretionary_kerning(current, post_break_code, null, right);
                     tex_aux_handle_discretionary_kerning(current, no_break_code, left, right);
@@ -1506,7 +1702,10 @@ static halfword tex_aux_do_handle_kerning(halfword root, halfword init_left, hal
                 if (left) {
                     if (glyph_character(left) < 0) { /* boundary ? */
                         halfword previous = node_prev(left);
-                        tex_couple_nodes(previous, current);
+                        if (! previous) {
+                            previous = root;
+                        }
+                        tex_try_couple_nodes(previous, current);
                         tex_flush_node(left);
                     }
                     left = null;
@@ -1521,22 +1720,15 @@ static halfword tex_aux_do_handle_kerning(halfword root, halfword init_left, hal
             if (glyph_character(left) < 0) {
                 halfword previous = node_prev(left);
                 halfword next = node_next(left);
-                if (next) {
-                    tex_couple_nodes(previous, next);
-                    node_tail(root) = next;
-                } else if (previous != root) {
-                    node_next(previous) = null;
-                    node_tail(root) = previous;
-                } else {
-                    node_next(root) = null;
-                    node_tail(root) = null;
+                if (! previous) {
+                    previous = root;
                 }
+                tex_try_couple_nodes(previous, next);
                 tex_flush_node(left);
             }
         }
     } else if (init_left && init_right ) {
         tex_aux_add_kern_after(init_left, init_right, root);
-        node_tail(root) = node_next(root);
     }
     return initial; 
 }
@@ -1548,15 +1740,17 @@ halfword tex_handle_kerning(halfword head, halfword tail)
         save_link = node_next(tail);
         node_next(tail) = null;
         node_tail(head) = tail;
-        tex_aux_do_handle_kerning(node_next(head), null, null); /*tex There is no need to check initial here. */
-        tail = node_tail(head);
+        tex_aux_do_handle_kerning(head, null, null);
+        tail = node_next(head) ? tex_tail_of_node_list(node_next(head)) : null;
+        node_tail(head) = tail;
         if (tex_valid_node(save_link)) {
             /* no need for check */
-            tex_try_couple_nodes(tail, save_link);
+            tex_try_couple_nodes(tail ? tail : head, save_link);
         }
     } else {
         node_tail(head) = null;
-        tex_aux_do_handle_kerning(node_next(head), null, null); /*tex There is no need to check initial here. */
+        tex_aux_do_handle_kerning(head, null, null);
+        node_tail(head) = node_next(head) ? tex_tail_of_node_list(node_next(head)) : null;
     }
     return tail;
 }
@@ -1582,6 +1776,41 @@ static halfword tex_aux_run_lua_ligkern_callback(lua_State *L, halfword head, ha
     return head;
 }
 
+static halfword tex_aux_handle_glyphrun_fallback(halfword head, int ligaturing, int kerning)
+{
+    if (head) {
+        if (node_type(head) == nesting_node) {
+            if (ligaturing) {
+                tex_handle_ligaturing(head, null);
+            }
+            if (kerning) {
+                tex_handle_kerning(head, null);
+            }
+        } else {
+            int is_par = node_type(head) == par_node;
+            halfword previous = is_par ? head : node_prev(head);
+            halfword first = is_par ? node_next(head) : head;
+            halfword root = tex_new_node(nesting_node, unset_nesting_code);
+            if (root) {
+                tex_try_couple_nodes(root, first);
+                if (ligaturing) {
+                    tex_handle_ligaturing(root, null);
+                }
+                if (kerning) {
+                    tex_handle_kerning(root, null);
+                }
+                head = node_next(root);
+                tex_try_couple_nodes(previous, head);
+                tex_flush_node(root);
+                if (is_par) {
+                    head = previous;
+                }
+            }
+        }
+    }
+    return head;
+}
+
 halfword tex_handle_glyphrun(halfword head, halfword group, halfword direction)
 {
     if (head) {
@@ -1593,17 +1822,13 @@ halfword tex_handle_glyphrun(halfword head, halfword group, halfword direction)
             if (callback_id > 0) {
                 head = tex_aux_run_lua_ligkern_callback(lmt_lua_state.lua_instance, head, group, direction, callback_id);
             } else if (callback_id == 0) {
-                // what if disc at start 
-                tex_handle_ligaturing(head, null);
+                head = tex_aux_handle_glyphrun_fallback(head, 1, 0);
             }
             callback_id = lmt_callback_defined(kerning_callback);
             if (callback_id > 0) {
                 head = tex_aux_run_lua_ligkern_callback(lmt_lua_state.lua_instance, head, group, direction, callback_id);
             } else if (callback_id == 0) {
-                halfword kern = tex_aux_do_handle_kerning(head, null, null);
-                if (kern) { 
-                    head = kern; 
-                }
+                head = tex_aux_handle_glyphrun_fallback(head, 0, 1);
             }
         }
     }
@@ -1656,16 +1881,16 @@ int tex_tex_def_font(int a)
         } else {
             update_tex_font_local(u, null_font);
         }
-        fn = tex_read_file_name(1, NULL, NULL);
+        fn = tex_read_file_name(1, NULL);
         /*tex Scan the font size specification. */
         lmt_fileio_state.name_in_progress = 1;
         if (tex_scan_keyword("at")) {
             /*tex Put the positive 'at' size into |s|. */
             s = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
-            if ((s <= 0) || (s >= 0x8000000)) { 
+            if lmt_unlikely((s <= 0) || (s >= 0x8000000)) {
                 tex_handle_error(
                     normal_error_type,
-                    "Improper 'at' size (%p), replaced by 10pt",
+                    "Improper 'at' size (%p), replaced by 10pt%h",
                     s,
                     "I can only handle fonts at positive sizes that are less than 2048pt, so I've\n"
                     "changed what you said to 10pt." 
@@ -1674,10 +1899,10 @@ int tex_tex_def_font(int a)
             }
         } else if (tex_scan_keyword("scaled")) {
             s = tex_scan_integer(0, NULL, NULL);
-            if ((s <= 0) || (s > 0x8000)) {
+            if lmt_unlikely((s <= 0) || (s > 0x8000)) {
                 tex_handle_error(
                     normal_error_type,
-                    "Illegal magnification has been changed to 1000 (%i)",
+                    "Illegal magnification has been changed to 1000 (%i)%h",
                     s,
                     "The magnification ratio must be between 1 and 32768."
                 );
@@ -1719,7 +1944,7 @@ void tex_missing_character(halfword n, halfword f, halfword c, halfword where)
             tracing_online_par = 1;
         }
         tex_begin_diagnostic();
-        tex_print_format("%l[font: missing character, character %c (%U), font '%s', location %i]", c, c, font_name(f), where);
+        tex_print_format("%l[font: missing character, character %c (%U), font '%s', location %i]", c, c, tex_is_valid_font(f) ? font_name(f) : "<invalid>", where);
         tex_end_diagnostic();
         tracing_online_par = old_setting;
     }
@@ -1778,7 +2003,7 @@ scaledwhd tex_char_whd_from_font(halfword f, halfword c)
 
 static charinfo *tex_aux_quality_char_info(halfword f, int c)
 {
-    if (f > lmt_font_state.font_data.ptr) {
+    if (! tex_is_valid_font(f)) {
         return NULL;
     } else if (proper_char_index(f, c)) {
         if (! has_font_text_control(f, text_control_quality_set)) { 
@@ -1820,18 +2045,20 @@ scaled tex_char_rp_from_font(halfword f, halfword c)
 
 halfword tex_char_has_tag_from_font(halfword f, halfword c, halfword tag)
 {
-    return (tex_aux_char_info(f, c)->tag & tag) == tag;
+    return tex_is_valid_font(f) && (tex_aux_char_info(f, c)->tag & tag) == tag;
 }
 
 void tex_char_reset_tag_from_font(halfword f, halfword c, halfword tag)
 {
-    charinfo *ci = tex_aux_char_info(f, c);
-    ci->tag = ci->tag & ~(tag);
+    if (tex_is_valid_font(f)) {
+        charinfo *ci = tex_aux_char_info(f, c);
+        ci->tag = ci->tag & ~(tag);
+    }
 }
 
 halfword tex_char_tag_from_font(halfword f, halfword c)
 {
-    return tex_aux_char_info(f, c)->tag;
+    return tex_is_valid_font(f) ? tex_aux_char_info(f, c)->tag : 0;
 }
 
 int tex_char_checked_tag(halfword tag)
@@ -1915,12 +2142,22 @@ extinfo *tex_char_extensible_recipe_from_font(halfword f, halfword c)
     return ci->math ? ci->math->extensible_recipe : NULL;
 }
 
-extinfo *tex_char_extensible_recipe_front_last(halfword f, halfword c)
+/*tex
+    We assume a reasonable font where at the \LUA\ end there has been checking for loops and
+    such. Indeed there are fonts with weird side effect butthose are like also crappy and
+    unreliable.
+*/
+
+extinfo *tex_char_extensible_recipe_from_last(halfword f, halfword c)
 {
+    if (! tex_is_valid_font(f)) {
+        return NULL;
+    }
     charinfo *ci = tex_aux_char_info(f, c);
-    while (ci) { 
+    int left = lmt_font_state.fonts[f]->chardata_size;
+    while (ci && left-- > 0) {
         halfword next = ci->math ? ci->math->next : -1;
-        if (next > 0) { // no zero 
+        if (next > 0 && proper_char_index(f, next) && aux_find_charinfo_id(f, next)) {
             ci = tex_aux_char_info(f, next);
         } else { 
             return ci->math ? ci->math->extensible_recipe : NULL;
@@ -2269,9 +2506,7 @@ void tex_run_font_spec(void)
         }
     }
     if (font_spec_property_is_set(cur_chr, font_spec_slant_set)) {
-        if (font_spec_y_scale(cur_chr) != glyph_slant_par) {
-            update_tex_glyph_slant(font_spec_slant(cur_chr));
-        }
+        update_tex_glyph_slant(font_spec_slant(cur_chr));
     }
     if (font_spec_property_is_set(cur_chr, font_spec_weight_set)) {
         if (font_spec_weight(cur_chr) != glyph_weight_par) {

@@ -73,8 +73,7 @@ extern void        tex_check_fmt_name    (void);
 extern void        tex_check_job_name    (char *fn);
 extern dumpstream  tex_open_fmt_file     (int writemode);
 extern void        tex_close_fmt_file    (dumpstream f);
-extern char       *tex_read_file_name    (int optionalequal, const char * name, const char* ext);
-extern void        tex_print_file_name   (unsigned char *name);
+extern char       *tex_read_file_name    (int optionalequal, const char* ext);
 extern void        tex_report_start_file (unsigned char *name);
 extern void        tex_report_stop_file  (void);
 

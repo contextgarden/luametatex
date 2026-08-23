@@ -63,31 +63,31 @@ typedef struct mathspecval {
     mathdictval dict;
 } mathspecval;
 
-extern void        tex_set_math_code              (int n, mathcodeval v, int gl);
-extern mathcodeval tex_get_math_code              (int n);
-extern int         tex_get_math_code_number       (int n);
-extern mathcodeval tex_no_math_code               (void);
+extern void         tex_set_math_code              (int n, mathcodeval v, int gl);
+extern mathcodeval  tex_get_math_code              (int n);
+extern unsigned int tex_get_math_code_number       (int n);
+extern mathcodeval  tex_no_math_code               (void);
 
-extern void        tex_set_del_code               (int n, delcodeval v, int gl);
-extern delcodeval  tex_get_del_code               (int n);
-extern int         tex_get_del_code_number        (int n);
-extern int         tex_has_del_code               (delcodeval v);
-extern delcodeval  tex_no_del_code                (void);
+extern void         tex_set_del_code               (int n, delcodeval v, int gl);
+extern delcodeval   tex_get_del_code               (int n);
+extern int          tex_get_del_code_number        (int n);
+extern int          tex_has_del_code               (delcodeval v);
+extern delcodeval   tex_no_del_code                (void);
 
-extern mathcodeval tex_scan_mathchar              (int extcode);
-extern mathdictval tex_scan_mathdict              (void);
-extern mathcodeval tex_scan_delimiter_as_mathchar (int extcode);
-extern mathcodeval tex_mathchar_from_integer      (int value, int extcode);
-extern mathcodeval tex_mathchar_from_spec         (int value);
+extern mathcodeval  tex_scan_mathchar              (int extcode);
+extern mathdictval  tex_scan_mathdict              (void);
+extern mathcodeval  tex_scan_delimiter_as_mathchar (int extcode);
+extern mathcodeval  tex_mathchar_from_integer      (int value, int extcode);
+extern mathcodeval  tex_mathchar_from_spec         (int value);
 
-extern void        tex_show_mathcode_value        (mathcodeval d, int extcode);
-extern void        tex_unsave_math_codes          (int grouplevel);
-extern void        tex_initialize_math_codes      (void);
-extern void        tex_dump_math_codes            (dumpstream f);
-extern void        tex_undump_math_codes          (dumpstream f);
+extern void         tex_show_mathcode_value        (mathcodeval d, int extcode);
+extern void         tex_unsave_math_codes          (int grouplevel);
+extern void         tex_initialize_math_codes      (void);
+extern void         tex_dump_math_codes            (dumpstream f);
+extern void         tex_undump_math_codes          (dumpstream f);
 
-extern void        tex_free_math_codes            (void);
+extern void         tex_free_math_codes            (void);
 
-extern mathdictval tex_no_dict_code               (void);
+extern mathdictval  tex_no_dict_code               (void);
 
 # endif

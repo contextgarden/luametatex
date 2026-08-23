@@ -1,0 +1,63 @@
+Hi,
+
+The command `build.sh --profile` performs a complete profile-guided optimization build
+for the native compiler selected by `CC` (GCC by default, or Clang). It builds an
+instrumented binary, trains it through the ConTeXt `context` alias, and then rebuilds
+with the collected data.
+
+Generated data is kept locally in compiler/target-specific directories and is not part
+of the repository. The `profiles` path has the data:
+
+Native GCC   : profiles/gcc/data/
+Clang        : profiles/clang/data/
+MinGW-64 GCC : profiles/gcc/mingw64/data/
+
+The initial training documents are:
+
+../../doc/context/sources/general/manuals/luametatex/luametatex.tex
+../../doc/context/sources/general/manuals/luametafun/luametafun.tex
+../../doc/context/sources/general/manuals/mathincontext/mathincontext.tex
+
+If needed you can set these variables (we use `$CONTEXTOOT` as shortcut):
+
+export LMT_CONTEXT_BIN=/data/context/tex/texmf-linux-64/bin
+export CONTEXTROOT=/data/context/tex/texmf-context/doc/context/sources/general
+export LMT_MANUAL_LUAMETATEX=$CONTEXTROOT/manuals/luametatex/luametatex.tex
+export LMT_MANUAL_LUAMETAFUN=$CONTEXTROOT/manuals/luametafun/luametafun.tex
+export LMT_MANUAL_MATHINCONTEXT=$CONTEXTROOT/manuals/mathincontext/mathincontext.tex
+
+You run the native GCC workflow with:
+
+sh ./build.sh --profile
+
+For Clang, select the compiler explicitly:
+
+sh CC=clang ./build.sh --profile
+
+From WSL, MinGW-64 can be profiled by running the Windows executable through WSL
+interop:
+
+export LMT_CONTEXT_BIN=/mnt/c/path/to/tex/texmf-win64/bin
+export LMT_MANUAL_LUAMETATEX=/mnt/c/path/to/tex/texmf-context/doc/context/sources/general/manuals/luametatex/luametatex.tex
+export LMT_MANUAL_LUAMETAFUN=/mnt/c/path/to/tex/texmf-context/doc/context/sources/general/manuals/luametafun/luametafun.tex
+export LMT_MANUAL_MATHINCONTEXT=/mnt/c/path/to/tex/texmf-context/doc/context/sources/general/manuals/mathincontext/mathincontext.tex
+./build.sh --profile --mingw64
+
+The MinGW toolchain defaults to `x86_64-w64-mingw32-gcc`; set `CC` if another
+compiler is needed. The script uses `wslpath` to give the Windows executable
+a usable profile-data path.
+
+Each run removes only the selected compiler/target data directory before training. Run
+the matching profile command again after changing engine sources, the compiler, or the
+training documents. A `profile.ready` marker is written only after all training commands
+and (for Clang) raw-profile merging succeed; CMake rejects a `USE` configuration without
+that marker. This makes an interrupted or stale run safe to recover by starting a new
+profile build.
+
+There are a few example `profile-*.sh` files provided but these are for Hans and Mikael
+and might not suit your setup. They are run with `. profile-*.sh` in order to expose
+these variables.
+
+So far,
+
+Hans Hagen & Mikael Sundqvist

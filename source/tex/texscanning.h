@@ -81,14 +81,13 @@ extern void        tex_scan_optional_equals           (void);
 extern int         tex_scan_cardinal                  (int optional_equal, unsigned *value, int dontbark);
 extern halfword    tex_scan_integer                   (int optional_equal, int *radix, int *grouped);
 extern void        tex_scan_integer_validate          (void);
-extern halfword    tex_scan_positive_integer          (int optional_equal);
 extern halfword    tex_scan_scale                     (int optional_equal);
 extern halfword    tex_scan_scale_factor              (int optional_equal);
 extern halfword    tex_scan_clipped_scale_factor      (int optional_equal);
 extern halfword    tex_scan_posit                     (int optional_equal);
 extern halfword    tex_scan_dimension                 (int mu, int inf, int shortcut, int optional_equal, halfword *order, int *grouped);
 extern void        tex_scan_dimension_validate        (void);
-extern halfword    tex_scan_glue                      (int level, int optional_equal, int options_too);
+extern halfword    tex_scan_glue                      (int level, int optional_equal, int options_too, halfword *penalty);
 extern halfword    tex_scan_font                      (int optional_equal);
 extern halfword    tex_scan_general_text              (halfword *tail);
 /*     halfword    tex_scan_toks                      (int macrodef, int xpand, int left_brace_found); */
@@ -138,6 +137,7 @@ extern halfword    tex_scan_math_discretionary_number (int optional_equal);
 extern halfword    tex_scan_category_code             (int optional_equal);
 extern halfword    tex_scan_classification_code       (int optional_equal);
 extern halfword    tex_scan_space_factor              (int optional_equal);
+extern halfword    tex_scan_space_penalty             (int optional_equal);
 extern singleword  tex_scan_box_index                 (void); /*tex For local boxes: small for now! */
 extern singleword  tex_scan_box_axis                  (void);
 extern halfword    tex_scan_function_reference        (int optional_equal);

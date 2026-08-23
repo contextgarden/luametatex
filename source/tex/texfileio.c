@@ -42,7 +42,7 @@ void tex_initialize_fileio_state(void)
 {
     int size = lmt_fileio_state.io_buffer_data.minimum;
     lmt_fileio_state.io_buffer = aux_allocate_clear_array(sizeof(unsigned char), size, reserved_io_buffer_slots);
-    if (lmt_fileio_state.io_buffer) {
+    if lmt_likely(lmt_fileio_state.io_buffer) {
         lmt_fileio_state.io_buffer_data.allocated = size;
     } else {
         tex_overflow_error("buffer", size);
@@ -70,7 +70,7 @@ bool tex_room_in_buffer(int top)
                 }
             }
             lmt_run_memory_callback("buffer", tmp ? 1 : 0);
-            if (! tmp) {
+            if lmt_unlikely(! tmp) {
                 tex_overflow_error("buffer", top);
                 return false;
             }
@@ -212,6 +212,10 @@ int tex_lua_input_ln(void) /*tex |bypass_eoln| was not used */
         lmt_fileio_state.io_last = lmt_fileio_state.io_first;
         last_ptr = lmt_run_saved_callback_line(L, callback_id, lmt_fileio_state.io_first);
         if (last_ptr < 0) {
+            /*tex
+                We could return some more detailed state but it doesn't really matter and it's
+                valid anyway, so no error messages here!
+            */
             return 0;
         } else if (last_ptr > 0) {
             lmt_fileio_state.io_last = last_ptr;
@@ -300,7 +304,7 @@ int tex_lua_input_ln(void) /*tex |bypass_eoln| was not used */
     input from files and the console.
 
     In the end I went for an easier solution: just pass the name to the file reader. But we keep
-    this as nostalgic reference to how \TEX\ originally kin dof did these things.
+    this as nostalgic reference to how \TEX\ originally kind of did these things.
 
     \starttyping
     int input_file_name_pushed(void)
@@ -418,13 +422,10 @@ void tex_terminal_update(void) /* renamed, else conflict in |lmplib|. */
 
 */
 
-static char *tex_aux_pack_file_name(char *s, int l, const char *name, const char *ext)
+static char *tex_aux_pack_file_name(char *s, int l, const char *ext)
 {
     const char *fn = (char *) s;
     if ((! fn) || (l <= 0)) {
-        fn = name;
-    }
-    if (! fn) {
         return NULL;
     } else if (! ext) {
         return lmt_memory_strdup(fn);
@@ -472,7 +473,6 @@ static char *tex_aux_pack_job_name(const char *e, int keeppath, int keepsuffix)
         int f = -1; /* first */
         int l = -1; /* last */
         char *fn = NULL;
-        int k = 0;
         for (int i = 0; i < ln; i++) {
             if (IS_DIR_SEP(n[i])) {
                 f = i;
@@ -493,6 +493,7 @@ static char *tex_aux_pack_job_name(const char *e, int keeppath, int keepsuffix)
         }
         fn = (char*) lmt_memory_malloc((l - f) + le + 2); /* a bit too much */
         if (fn) {
+            int k = 0;
             for (int i = f; i < l; i++) {
                 fn[k++] = n[i];
             }
@@ -740,8 +741,7 @@ void tex_start_input(char *fn, halfword at_end_of_file)
             one passed on the command line can fall though this checking.
         */
         tex_end_file_reading();
-//        tex_emergency_message("runtime error", "input file '%s' is not found, quitting", fn);
-//        tex_emergency_exit();
+        tex_formatted_error("input", "file {%s} is not found, quitting", fn ? fn : "<emtpy>");
         tex_close_files_and_terminate(1);
         tex_normal_exit();
         return;
@@ -823,7 +823,7 @@ void tex_start_input(char *fn, halfword at_end_of_file)
 
 */
 
-char *tex_read_file_name(int optionalequal, const char * name, const char* ext)
+char *tex_read_file_name(int optionalequal, const char* ext)
 {
     halfword result;
     if (optionalequal) {
@@ -831,13 +831,15 @@ char *tex_read_file_name(int optionalequal, const char * name, const char* ext)
     }
     do {
         tex_get_x_token();
-    } while (cur_cmd == spacer_cmd || cur_cmd == relax_cmd);
+ // } while (cur_cmd == spacer_cmd || cur_cmd == relax_cmd);
+    } while (cur_cmd == spacer_cmd);
     if (cur_cmd == left_brace_cmd) {
         result = tex_scan_toks_expand(1, NULL, 0, 0);
     } else {
         char quote = 0;
         halfword p = get_reference_token();
         result = p;
+        bool busy = false;
         while (1) {
             switch (cur_cmd) {
                 case escape_cmd:
@@ -852,20 +854,25 @@ char *tex_read_file_name(int optionalequal, const char * name, const char* ext)
                 case other_char_cmd:
                     switch (cur_chr) { 
                         case double_quote:
-                            if (quote == double_quote) {
-                                goto DONE;
-                            } else {
+                            if (! busy) {
                                 quote = double_quote;
-                            }
-                            break;
-                        case single_quote:
-                            if (quote == single_quote) {
+                                break;
+                            } else if (quote == double_quote) {
                                 goto DONE;
                             } else {
-                                quote = single_quote;
+                                goto ADD;
                             }
-                            break;
+                        case single_quote:
+                            if (! busy) {
+                                quote = single_quote;
+                                break;
+                            } else if (quote == single_quote) {
+                                goto DONE;
+                            } else {
+                                goto ADD;
+                            }
                         default:
+                          ADD:
                             p = tex_store_new_token(p, cur_tok);
                     }
                     break;
@@ -882,6 +889,7 @@ char *tex_read_file_name(int optionalequal, const char * name, const char* ext)
                     tex_back_input(cur_tok);
                     goto DONE;
             }
+            busy = true;
             tex_get_x_token();
         }
     }
@@ -889,61 +897,39 @@ char *tex_read_file_name(int optionalequal, const char * name, const char* ext)
     {
         int l = 0;
         char *s = tex_tokenlist_to_tstring(result, 1, &l, 0, 0, 0, 1, 1); /* single hashes */
-        char *fn = s ? tex_aux_pack_file_name(s, l, name, ext) : NULL;
+        char *fn = s ? tex_aux_pack_file_name(s, l, ext) : NULL;
         return fn;
-    }
-}
-
-void tex_print_file_name(unsigned char *name)
-{
-    int must_quote = 0;
-    if (name) {
-        unsigned char *j = name;
-        while (*j) {
-            if (*j == ' ') {
-                must_quote = 1;
-                break;
-            } else {
-                j++;
-            }
-        }
-    }
-    if (must_quote) {
-        /* initial quote */
-        tex_print_char('"');
-    }
-    if (name) {
-        unsigned char *j = name;
-        while (*j) {
-            if (*j == '"') {
-                /* skip embedded quote, maybe escape */
-            } else {
-                tex_print_char(*j);
-            }
-            j++;
-        }
-    }
-    if (must_quote) {
-        /* final quote */
-        tex_print_char('"');
     }
 }
 
 void tex_report_start_file(unsigned char *name)
 {
     int callback_id = lmt_callback_defined(start_file_callback);
-    if (callback_id > 0) {
+    if lmt_likely(callback_id > 0) {
         lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "S->", name);
     } else {
-        tex_print_char('(');
-        tex_print_file_name((unsigned char *) name);
+        const char *n = (const char *) name;
+        const char *f;
+        bool squote = strchr(n, '\"');
+        bool dquote = strchr(n, '\'');
+        bool space  = strchr(n, ' ');
+        if (squote && dquote) {
+            f = "({%s}";
+        } else if (dquote) {
+            f = "(\'%s\'";
+        } else if (squote || space) {
+            f = "(\"%s\"";
+        } else {
+            f = "(%s";
+        }
+        tex_print_format(f, n);
     }
 }
 
 void tex_report_stop_file(void)
 {
     int callback_id = lmt_callback_defined(stop_file_callback);
-    if (callback_id > 0) {
+    if lmt_likely(callback_id > 0) {
         lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "->");
     } else {
         tex_print_char(')');

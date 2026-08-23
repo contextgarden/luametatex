@@ -80,7 +80,7 @@ void tex_initialize_input_state(void)
     {
         int size = lmt_input_state.input_stack_data.minimum;
         lmt_input_state.input_stack = aux_allocate_clear_array(sizeof(in_state_record), size, reserved_input_stack_slots);
-        if (lmt_input_state.input_stack) {
+        if lmt_likely(lmt_input_state.input_stack) {
             lmt_input_state.input_stack_data.allocated = size;
         } else {
             tex_overflow_error("input",  size);
@@ -89,7 +89,7 @@ void tex_initialize_input_state(void)
     {
         int size = lmt_input_state.in_stack_data.minimum;
         lmt_input_state.in_stack = aux_allocate_clear_array(sizeof(input_stack_record), size, reserved_in_stack_slots);
-        if (lmt_input_state.in_stack) {
+        if lmt_likely(lmt_input_state.in_stack) {
             lmt_input_state.in_stack_data.allocated = size;
         } else {
             tex_overflow_error("file", size);
@@ -98,7 +98,7 @@ void tex_initialize_input_state(void)
     {
         int size = lmt_input_state.parameter_stack_data.minimum;
         lmt_input_state.parameter_stack = aux_allocate_clear_array(sizeof(halfword), size, reserved_parameter_stack_slots);
-        if (lmt_input_state.parameter_stack) {
+        if lmt_likely(lmt_input_state.parameter_stack) {
             lmt_input_state.parameter_stack_data.allocated = size;
         } else {
             tex_overflow_error("parameter", size);
@@ -110,20 +110,26 @@ static bool tex_aux_room_on_input_stack(void) /* quite similar to save_stack che
 {
     int top = lmt_input_state.input_stack_data.ptr;
     if (top > lmt_input_state.input_stack_data.top) {
+        int previous_top = lmt_input_state.input_stack_data.top;
         lmt_input_state.input_stack_data.top = top;
-        if (top > lmt_input_state.input_stack_data.allocated) {
+        if lmt_unlikely(top > lmt_input_state.input_stack_data.allocated) {
             in_state_record *tmp = NULL;
             top = lmt_input_state.input_stack_data.allocated + lmt_input_state.input_stack_data.step;
             if (top > lmt_input_state.input_stack_data.size) {
                 top = lmt_input_state.input_stack_data.size;
             }
             if (top > lmt_input_state.input_stack_data.allocated) {
-                lmt_input_state.input_stack_data.allocated = top;
                 tmp = aux_reallocate_array(lmt_input_state.input_stack, sizeof(in_state_record), top, reserved_input_stack_slots);
-                lmt_input_state.input_stack = tmp;
+                if (tmp) {
+                    lmt_input_state.input_stack = tmp;
+                    lmt_input_state.input_stack_data.allocated = top;
+                } else {
+                    /* what to do with lmt_input_state.input_stack here */
+                }
             }
             lmt_run_memory_callback("input", tmp ? 1 : 0);
             if (! tmp) {
+                lmt_input_state.input_stack_data.top = previous_top;
                 tex_overflow_error("input", top);
                 return false;
             }
@@ -136,20 +142,26 @@ static bool tex_aux_room_on_in_stack(void) /* quite similar to save_stack checke
 {
     int top = lmt_input_state.in_stack_data.ptr;
     if (top > lmt_input_state.in_stack_data.top) {
+        int previous_top = lmt_input_state.in_stack_data.top;
         lmt_input_state.in_stack_data.top = top;
-        if (top > lmt_input_state.in_stack_data.allocated) {
+        if lmt_unlikely(top > lmt_input_state.in_stack_data.allocated) {
             input_stack_record *tmp = NULL;
             top = lmt_input_state.in_stack_data.allocated + lmt_input_state.in_stack_data.step;
             if (top > lmt_input_state.in_stack_data.size) {
                 top = lmt_input_state.in_stack_data.size;
             }
             if (top > lmt_input_state.in_stack_data.allocated) {
-                lmt_input_state.in_stack_data.allocated = top;
                 tmp = aux_reallocate_array(lmt_input_state.in_stack, sizeof(input_stack_record), top, reserved_in_stack_slots);
-                lmt_input_state.in_stack = tmp;
+                if (tmp) {
+                    lmt_input_state.in_stack = tmp;
+                    lmt_input_state.in_stack_data.allocated = top;
+                } else {
+                    /* what to do with lmt_input_state.in_stack here */
+                }
             }
             lmt_run_memory_callback("file", tmp ? 1 : 0);
             if (! tmp) {
+                lmt_input_state.in_stack_data.top = previous_top;
                 tex_overflow_error("file", top);
                 return false;
             }
@@ -162,20 +174,26 @@ static bool tex_aux_room_on_parameter_stack(void) /* quite similar to save_stack
 {
     int top = lmt_input_state.parameter_stack_data.ptr;
     if (top > lmt_input_state.parameter_stack_data.top) {
+        int previous_top = lmt_input_state.parameter_stack_data.top;
         lmt_input_state.parameter_stack_data.top = top;
-        if (top > lmt_input_state.parameter_stack_data.allocated) {
+        if lmt_unlikely(top > lmt_input_state.parameter_stack_data.allocated) {
             halfword *tmp =  NULL;
             top = lmt_input_state.parameter_stack_data.allocated + lmt_input_state.parameter_stack_data.step;
             if (top > lmt_input_state.parameter_stack_data.size) {
                 top = lmt_input_state.parameter_stack_data.size;
             }
             if (top > lmt_input_state.parameter_stack_data.allocated) {
-                lmt_input_state.parameter_stack_data.allocated = top;
                 tmp = aux_reallocate_array(lmt_input_state.parameter_stack, sizeof(halfword), top, reserved_parameter_stack_slots);
-                lmt_input_state.parameter_stack = tmp;
+                if (tmp) {
+                    lmt_input_state.parameter_stack_data.allocated = top;
+                    lmt_input_state.parameter_stack = tmp;
+                } else {
+                    /* what to do with lmt_input_state.parameter_stack here */
+                }
             }
             lmt_run_memory_callback("parameter", tmp ? 1 : 0);
             if (! tmp) {
+                lmt_input_state.parameter_stack_data.top = previous_top;
                 tex_overflow_error("parameter", top);
                 return false;
             }
@@ -404,40 +422,41 @@ static void tex_aux_print_current_input_state(void)
                 if (lmt_input_state.cur_input.token_type < n_of_token_types) {
                     tex_print_str(token_types_texts[lmt_input_state.cur_input.token_type]);
                 } else {
-                    tex_print_str("unknown");
+                    tex_print_str_len("unknown", 7);
                 }
                 break;
         }
     } else {
         switch (lmt_input_state.cur_input.name) {
             case io_initial_input_code:
-                tex_print_str("initial input");
+                tex_print_str_len("initial input", 13);
                 break;
             case io_lua_input_code:
-                tex_print_str("lua input");
+                tex_print_str_len("lua input", 9);
                 break;
             case io_token_input_code:
-                tex_print_str("token input");
+                tex_print_str_len("token input", 11);
                 break;
             case io_token_eof_input_code:
-                tex_print_str("token eof input");
+                tex_print_str_len("token eof input", 15);
                 break;
             case io_tex_macro_code:
             case io_file_input_code:
             default:
                 {
                     /* Todo : figure out what the weird line is when we have a premature file end. */
-                    tex_print_str("line ");
-                    tex_print_int(lmt_input_state.cur_input.index);
-                    tex_print_char('.');
-                    tex_print_int(lmt_input_state.cur_input.index == lmt_input_state.in_stack_data.ptr ? lmt_input_state.input_line : lmt_input_state.in_stack[lmt_input_state.cur_input.index + 1].line);
+                    tex_print_format("line %i.%i",
+                        lmt_input_state.cur_input.index,
+                        lmt_input_state.cur_input.index == lmt_input_state.in_stack_data.ptr ? lmt_input_state.input_line : lmt_input_state.in_stack[lmt_input_state.cur_input.index + 1].line
+                    );
                 }
                 break;
         }
     }
-    tex_print_str("> ");
     if (macro) {
-        tex_print_cs_checked(macro);
+        tex_print_format("> %m", macro);
+    } else {
+        tex_print_str_len("> ", 2);
     }
 }
 
@@ -494,6 +513,7 @@ static void tex_aux_print_valid_utf8(int q)
 {
     int l = lmt_error_state.line_limits.size;
     int c = (int) lmt_print_state.trick_buffer[q % l];
+    /*tex We know that we have valid code points. */
     if (c < 128) {
         tex_print_char(c);
     } else if (c < 194) {
@@ -511,7 +531,7 @@ static void tex_aux_print_valid_utf8(int q)
         tex_print_char(lmt_print_state.trick_buffer[(q + 2) % l]);
         tex_print_char(lmt_print_state.trick_buffer[(q + 3) % l]);
     } else {
-        /*tex Invalid character! */
+        /*tex Invalid character, can't really happen here, so we just ignore it! */
     }
 }
 
@@ -599,7 +619,7 @@ void tex_show_context(void)
                         p = 0;
                         n = lmt_print_state.first_count;
                     } else {
-                        tex_print_str("...");
+                        tex_print_str_len("...", 3);
                         p = lmt_print_state.first_count - lmt_error_state.half_line_limits.size + 3;
                         n = lmt_error_state.half_line_limits.size;
                     }
@@ -622,16 +642,14 @@ void tex_show_context(void)
                             tex_aux_print_valid_utf8(q);
                         }
                         if (m + n > lmt_error_state.line_limits.size) {
-                            tex_print_str(" ...");
+                            tex_print_str_len(" ...", 4);
                         }
                     }
                 }
                 ++context_lines;
             }
         } else if (context_lines == error_context_lines_par) {
-            tex_print_nlp();
-            tex_print_str(" ...");
-            tex_print_nlp();
+            tex_print_format("\n ...\n");
             ++context_lines;
             /*tex Omitted if |error_context_lines_par < 0|. */
         }
@@ -655,13 +673,14 @@ void tex_show_context(void)
 
 */
 
-static inline void tex_aux_push_input(void)
+static inline bool tex_aux_push_input(void)
 {
-    if (tex_aux_room_on_input_stack()) {
+    if lmt_likely(tex_aux_room_on_input_stack()) {
         lmt_input_state.input_stack[lmt_input_state.input_stack_data.ptr] = lmt_input_state.cur_input;
         ++lmt_input_state.input_stack_data.ptr;
+        return true;
     } else {
-        tex_overflow_error("input stack size", lmt_input_state.input_stack_data.size);
+        return false;
     }
 }
 
@@ -706,9 +725,10 @@ void tex_begin_token_list(halfword t, quarterword kind)
                 /* messy offsets */
                 tex_print_cmd_chr(internal_toks_cmd, kind - output_text + internal_toks_location(output_routine_code));
             }
-            tex_print_str("->");
-            if (kind == loop_text || kind == local_loop_text) { 
-                tex_print_char('{');
+            if (kind == loop_text || kind == local_loop_text) {
+                tex_print_str_len("->{", 3);
+            } else {
+                tex_print_str_len("->", 2);
             }
             tex_token_show(t);
             tex_end_diagnostic();
@@ -791,6 +811,20 @@ void tex_begin_macro_list(halfword t)
 
 */
 
+static inline void tex_cleanup_parameter_stack(void)
+{
+    /*tex Parameters must be flushed: */
+    int ptr = lmt_input_state.parameter_stack_data.ptr;
+    int start = lmt_input_state.cur_input.parameter_start;
+    while (ptr > start) {
+        if (lmt_input_state.parameter_stack[--ptr]) {
+            tex_flush_token_list(lmt_input_state.parameter_stack[ptr]);
+         // lmt_input_state.parameter_stack[ptr] = null;
+        }
+    }
+    lmt_input_state.parameter_stack_data.ptr = start;
+}
+
 void tex_end_token_list(void)
 {
     /*tex Leave a token-list input level: */
@@ -798,7 +832,7 @@ void tex_end_token_list(void)
         case parameter_text:
             break;
         case template_pre_text:
-            if (lmt_input_state.align_state > interwoven_alignment_threshold) {
+            if lmt_likely(lmt_input_state.align_state > interwoven_alignment_threshold) {
                 lmt_input_state.align_state = 0;
             } else {
                 tex_alignment_interwoven_error(7);
@@ -809,29 +843,19 @@ void tex_end_token_list(void)
             break;
         case backed_up_text:
         case inserted_text:
-//        case end_of_group_text:
+     // case end_of_group_text:
      /* case local_text: */
             tex_flush_token_list(lmt_input_state.cur_input.start);
             break;
         case macro_text:
             {
+                int has_parameters = get_token_parameters(lmt_input_state.cur_input.start);
                 tex_delete_token_reference(lmt_input_state.cur_input.start);
-                if (get_token_preamble(lmt_input_state.cur_input.start)) {
-                    /*tex Parameters must be flushed: */
-                    int ptr = lmt_input_state.parameter_stack_data.ptr;
-                    int start = lmt_input_state.cur_input.parameter_start;
-                    while (ptr > start) {
-                        if (lmt_input_state.parameter_stack[--ptr]) {
-                            tex_flush_token_list(lmt_input_state.parameter_stack[ptr]);
-                         // lmt_input_state.parameter_stack[ptr] = null;
-                        }
-                    }
-                    lmt_input_state.parameter_stack_data.ptr = start;
-                } else { 
-                    /*tex We have no arguments so we save very little runtime here. */
+                if (has_parameters) {
+                    tex_cleanup_parameter_stack();
                 }
-                break;
             }
+            break;
         default:
             /*tex Update the reference count: */
             tex_delete_token_reference(lmt_input_state.cur_input.start);
@@ -841,13 +865,26 @@ void tex_end_token_list(void)
  /* check_interrupt(); */
 }
 
+// void tex_quit_token_list(void)
+// {
+//     if (lmt_input_state.cur_input.index > 0) {
+//         if (lmt_input_state.cur_input.token_type == backed_up_text) {
+//             /* \expandafter \ignorerest */
+//             tex_end_token_list();
+//         }
+//         tex_end_token_list();
+//     }
+// }
+
 void tex_quit_token_list(void)
 {
-    if (lmt_input_state.cur_input.index > 0) {
-        if (lmt_input_state.cur_input.token_type == backed_up_text) {
-            /* \expandafter \ignorerest */
-            tex_end_token_list();
-        }
+    if (lmt_input_state.cur_input.state != token_list_state) {
+        return;
+    }
+    if (lmt_input_state.cur_input.token_type == backed_up_text) {
+        tex_end_token_list();
+    }
+    if (lmt_input_state.cur_input.state == token_list_state) {
         tex_end_token_list();
     }
 }
@@ -861,7 +898,7 @@ void tex_cleanup_input_state(void)
             case parameter_text:
                 break;
             case template_pre_text:
-                if (lmt_input_state.align_state > interwoven_alignment_threshold) {
+                if lmt_likely(lmt_input_state.align_state > interwoven_alignment_threshold) {
                     lmt_input_state.align_state = 0;
                 } else {
                     tex_alignment_interwoven_error(7);
@@ -878,21 +915,13 @@ void tex_cleanup_input_state(void)
                 break;
             case macro_text:
                 {
+                    int has_parameters = get_token_parameters(lmt_input_state.cur_input.start);
                     tex_delete_token_reference(lmt_input_state.cur_input.start);
-                    if (get_token_preamble(lmt_input_state.cur_input.start)) {
-                        /*tex Parameters must be flushed: */
-                        int ptr = lmt_input_state.parameter_stack_data.ptr;
-                        int start = lmt_input_state.cur_input.parameter_start;
-                        while (ptr > start) {
-                            if (lmt_input_state.parameter_stack[--ptr]) {
-                                tex_flush_token_list(lmt_input_state.parameter_stack[ptr]);
-                             // lmt_input_state.parameter_stack[ptr] = null;
-                            }
-                        }
-                        lmt_input_state.parameter_stack_data.ptr = start;
+                    if (has_parameters) {
+                        tex_cleanup_parameter_stack();
                     }
-                    break;
                 }
+                break;
             default:
                 /*tex Update the reference count: */
                 tex_delete_token_reference(lmt_input_state.cur_input.start);
@@ -999,14 +1028,10 @@ void tex_append_input(halfword h)
 {
     if (h) {
         halfword n = h;
-        if (n) {
-            while (token_link(n)) {
-                n = token_link(n);
-            }
-            set_token_link(n, lmt_input_state.cur_input.loc);
-        } else {
-            set_token_link(h, lmt_input_state.cur_input.loc);
+        while (token_link(n)) {
+            n = token_link(n);
         }
+        set_token_link(n, lmt_input_state.cur_input.loc);
         lmt_input_state.cur_input.start = h;
         lmt_input_state.cur_input.loc = h;
     }
@@ -1022,9 +1047,9 @@ void tex_append_input(halfword h)
 
 void tex_begin_file_reading(void)
 {
+    int previous_top = lmt_input_state.in_stack_data.top;
     ++lmt_input_state.in_stack_data.ptr;
-    if (tex_aux_room_on_in_stack() && tex_room_in_buffer(lmt_fileio_state.io_first)) {
-        tex_aux_push_input();
+    if (tex_aux_room_on_in_stack() && tex_room_in_buffer(lmt_fileio_state.io_first) && tex_aux_push_input()) {
         lmt_input_state.cur_input.index = (short) lmt_input_state.in_stack_data.ptr;
         lmt_input_state.in_stack[lmt_input_state.cur_input.index].full_source_filename = NULL;
         lmt_input_state.in_stack[lmt_input_state.cur_input.index].end_of_file_seen = 0;
@@ -1040,6 +1065,9 @@ void tex_begin_file_reading(void)
         /*tex Prepare terminal input \SYNCTEX\ information. */
         lmt_input_state.cur_input.state_file = 0;
         lmt_input_state.cur_input.state_line = 0;
+    } else {
+        --lmt_input_state.in_stack_data.ptr;
+        lmt_input_state.in_stack_data.top = previous_top;
     }
 }
 
@@ -1210,7 +1238,7 @@ const char *tex_current_input_file_name(void)
     while (level > 0) {
         int t = lmt_input_state.input_stack[level--].name;
         if (t >= cs_offset_value) {
-            return (const char *) str_string(t);
+            return str_getconstr(t);
         }
     }
     return NULL;

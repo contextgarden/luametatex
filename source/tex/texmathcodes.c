@@ -41,29 +41,30 @@ static mathcode_state_info lmt_mathcode_state = {
 
 */
 
-# define print_hex_digit_one(A) do { \
-    if ((A) >= 10) { \
-        tex_print_char('A' + (A) - 10); \
-    } else { \
-        tex_print_char('0' + (A)); \
-    } \
-} while (0)
+static inline void print_hex_digit_one(uint8_t nibble)
+{
+    nibble &= 0x0F;
+    tex_print_char(nibble < 10 ? '0' + nibble : 'A' + (nibble - 10));
+}
 
-# define print_hex_digit_two(A) do { \
-    print_hex_digit_one((A) / 16); \
-    print_hex_digit_one((A) % 16); \
-} while (0)
+static inline void print_hex_digit_two(uint8_t value)
+{
+    print_hex_digit_one(value >> 4);
+    print_hex_digit_one(value     );
+}
 
-# define print_hex_digit_four(A) do { \
-    print_hex_digit_two((A) / 256); \
-    print_hex_digit_two((A) % 256); \
-} while (0)
+// static inline void print_hex_digit_four(uint16_t value)
+// {
+//     print_hex_digit_two((uint8_t) (value >> 8));
+//     print_hex_digit_two((uint8_t)  value      );
+// }
 
-# define print_hex_digit_six(A) do { \
-    print_hex_digit_two( (A) / 65536); \
-    print_hex_digit_two(((A) % 65536) / 256); \
-    print_hex_digit_two( (A)          % 256); \
-} while (0)
+static inline void print_hex_digit_six(uint32_t value)
+{
+    print_hex_digit_two((uint8_t) (value >> 16));
+    print_hex_digit_two((uint8_t) (value >>  8));
+    print_hex_digit_two((uint8_t)  value       );
+}
 
 /* 0xFFFFF is plenty for math */
 
@@ -97,13 +98,13 @@ void tex_show_mathcode_value(mathcodeval mval, int extcode) /* todo: format opti
 {
     tex_print_char('"');
     if (extcode == tex_mathcode) {
-        print_hex_digit_one(math_old_class_mask(mval.class_value));
-        print_hex_digit_one(math_old_family_mask(mval.family_value));
-        print_hex_digit_two(math_old_character_mask(mval.character_value));
+        print_hex_digit_one((uint8_t) math_old_class_mask(mval.class_value));
+        print_hex_digit_one((uint8_t) math_old_family_mask(mval.family_value));
+        print_hex_digit_two((uint8_t) math_old_character_mask(mval.character_value));
     } else {
-        print_hex_digit_two(mval.class_value);
+        print_hex_digit_two((uint8_t) mval.class_value);
         tex_print_char('"');
-        print_hex_digit_two(mval.family_value);
+        print_hex_digit_two((uint8_t) mval.family_value);
         tex_print_char('"');
         print_hex_digit_six(mval.character_value);
     }
@@ -141,15 +142,54 @@ mathcodeval tex_no_math_code(void)
     return (mathcodeval) { 0, 0, 0 };
 }
 
+static int tex_aux_valid_math_code(int n, mathcodeval v)
+{
+    if (v.class_value < 0 || v.class_value > max_math_class_code || v.family_value < 0 || v.family_value > max_math_family_index || v.character_value < 0) {
+        tex_handle_error(
+            normal_error_type,
+            "Invalid math code%h",
+            "I'm going to use 0 instead of that illegal code value."
+        );
+        return 0;
+    }
+    if (v.character_value > max_math_character_code && ! (v.class_value == 0 && v.family_value == 0 && v.character_value == n)) {
+        tex_handle_error(
+            normal_error_type,
+            "Invalid math character%h",
+            "The sparse math-code table stores characters in the range 0..0xFFFFF; I'm going to use 0."
+        );
+        return 0;
+    }
+    if (v.class_value == active_math_class_value && v.family_value == 0 && v.character_value == 0) {
+        return 1;
+    }
+    {
+        unsigned int packed = math_packed_character(v.class_value, v.family_value, v.character_value);
+        if (packed == MATHCODEDEFAULT || packed == MATHCODEACTIVE) {
+            tex_handle_error(
+                normal_error_type,
+                "Reserved math code%h",
+                "I'm going to use 0 instead of a value that conflicts with the sparse table markers."
+            );
+            return 0;
+        }
+    }
+    return 1;
+}
+
 void tex_set_math_code(int n, mathcodeval v, int level)
 {
     sa_tree_item item;
+    if (! tex_aux_valid_math_code(n, v)) {
+        v = tex_no_math_code();
+    }
     if (v.class_value == active_math_class_value && v.family_value == 0 && v.character_value == 0) {
         item.uint_value = MATHCODEACTIVE;
-    } else if (v.class_value == 0 && v.family_value == 0) {
-        /*tex This is rather safe because we don't decide on it. */
+    } else if (v.class_value == 0 && v.family_value == 0 && v.character_value == n) {
+        /* The default marker is key-relative, so it is safe only for an identity mapping. */
         item.uint_value = MATHCODEDEFAULT;
     } else {
+        item.uint_value = 0;
         item.math_code_value.class_value = v.class_value;
         item.math_code_value.family_value = v.family_value;
         item.math_code_value.character_value = v.character_value;
@@ -173,9 +213,6 @@ mathcodeval tex_get_math_code(int n)
         m.character_value = n;
     } else if (item.uint_value == MATHCODEACTIVE) {
         m.class_value = active_math_class_value;
-    } else if (item.math_code_value.class_value == active_math_class_value) {
-        m.class_value = active_math_class_value;
-        m.character_value = n;
     } else {
         m.class_value = (short) item.math_code_value.class_value;
         m.family_value = (short) item.math_code_value.family_value;
@@ -184,7 +221,7 @@ mathcodeval tex_get_math_code(int n)
     return m;
 }
 
-int tex_get_math_code_number(int n) /* should be unsigned */
+unsigned int tex_get_math_code_number(int n)
 {
     mathcodeval d = tex_get_math_code(n);
     return math_packed_character(d.class_value, d.family_value, d.character_value);
@@ -211,10 +248,10 @@ static void tex_aux_show_delcode(int n)
     tex_print_format("%eUdelcode=", n);
     if (tex_has_del_code(dval)) {
         tex_print_char('"');
-        print_hex_digit_two(dval.small.family_value);
+        print_hex_digit_two((uint8_t) dval.small.family_value);
         print_hex_digit_six(dval.small.character_value);
     } else {
-        tex_print_str("-1");
+        tex_print_str_len("-1", 2);
     }
 }
 
@@ -241,6 +278,18 @@ static void tex_aux_unsave_delcode(int level)
 void tex_set_del_code(int n, delcodeval v, int level)
 {
     sa_tree_item v1, v2; /* seldom all zero */
+    if (v.small.class_value < 0 || v.small.class_value > max_math_class_code || v.small.family_value < 0 || v.small.family_value > max_math_family_index || v.small.character_value < 0 || v.small.character_value > max_math_character_code ||
+        v.large.class_value < 0 || v.large.class_value > max_math_class_code || v.large.family_value < 0 || v.large.family_value > max_math_family_index || v.large.character_value < 0 || v.large.character_value > max_math_character_code ||
+        math_packed_character(v.small.class_value, v.small.family_value, v.small.character_value) == DELCODEDEFAULT) {
+        tex_handle_error(
+            normal_error_type,
+            "Invalid delimiter code%h",
+            "The sparse delimiter-code table stores characters in the range 0..0xFFFFF; I'm going to use 0."
+        );
+        v = (delcodeval) { { 0, 0, 0 }, { 0, 0, 0 } };
+    }
+    v1.uint_value = 0;
+    v2.uint_value = 0;
     v1.math_code_value.class_value = v.small.class_value;
     v1.math_code_value.family_value = v.small.family_value;
     v1.math_code_value.character_value = v.small.character_value;

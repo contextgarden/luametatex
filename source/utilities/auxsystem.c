@@ -153,3 +153,18 @@ void aux_get_date_and_time(int *minutes, int *day, int *month, int *year, int *u
     *year = tmptr->tm_year + 1900;
  /* set_interrupt_handler(); */
 }
+
+# if 0
+
+    # include <execinfo.h>  // For backtrace
+
+    void print_stack_trace()
+    {
+        void *array;
+        size_t size;
+        size = backtrace(array, 100);
+        fprintf(stderr, "stack trace:\n");
+        backtrace_symbols_fd(array, size, STDERR_FILENO);
+    }
+
+# endif

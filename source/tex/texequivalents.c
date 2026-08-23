@@ -23,9 +23,7 @@
     \startitem
         If |save_type(p) = restore_old_value|, then |save_value(p)| is a location in |eqtb| whose
         current value should be destroyed at the end of the current group and replaced by
-        |save_word(p-1)| (|save_type(p-1) == saved_eqtb|). Furthermore if |save_value(p) >= int_base|,
-        then |save_level(p)| should replace the corresponding entry in |xeq_level| (if |save_value(p)
-        < int_base|, then the level is part of |save_word(p-1)|).
+        |save_word(p)|. The saved level is in |save_level(p)|.
     \stopitem
 
     \startitem
@@ -111,8 +109,7 @@ static void tex_aux_show_eqtb(halfword n);
 static void tex_aux_diagnostic_trace(halfword p, const char *s)
 {
     tex_begin_diagnostic();
-    tex_print_levels();
-    tex_print_format("{%s ", s);
+    tex_print_format("%l{%s ", s);
     tex_aux_show_eqtb(p);
     tex_print_char('}');
     tex_end_diagnostic();
@@ -370,7 +367,7 @@ static void tex_undump_equivalents_mem_hash(dumpstream f)
         int u, d;
         undump_int(f, u);
         undump_int(f, d);
-        if (u != n_of_undefined || d != n_of_defined)  {
+        if (u != n_of_undefined || d != n_of_defined) {
             tex_fatal_undump_error("eqtb count mismatch");
         }
     }
@@ -486,22 +483,23 @@ static int tex_room_on_save_stack(void)
         lmt_save_state.save_stack_data.top = top;
         if (top > lmt_save_state.save_stack_data.allocated) {
             save_record *tmp = NULL;
-            top = lmt_save_state.save_stack_data.allocated + lmt_save_state.save_stack_data.step;
-            if (top > lmt_save_state.save_stack_data.size) {
-                top = lmt_save_state.save_stack_data.size;
+            /* or newtop for readability */
+            int new_allocated = lmt_save_state.save_stack_data.allocated + lmt_save_state.save_stack_data.step;
+            if (new_allocated > lmt_save_state.save_stack_data.size) {
+                new_allocated = lmt_save_state.save_stack_data.size;
             }
-            if (top > lmt_save_state.save_stack_data.allocated) {
-                top = lmt_save_state.save_stack_data.allocated + lmt_save_state.save_stack_data.step;
-                tmp = aux_reallocate_array(lmt_save_state.save_stack, sizeof(save_record), top, reserved_save_stack_slots);
-                lmt_save_state.save_stack = tmp;
+            if (new_allocated > lmt_save_state.save_stack_data.allocated) {
+                tmp = aux_reallocate_array(lmt_save_state.save_stack, sizeof(save_record), new_allocated, reserved_save_stack_slots);
+                if (tmp) {
+                    lmt_save_state.save_stack = tmp;
+                    lmt_save_state.save_stack_data.allocated = new_allocated;
+                }
             }
             lmt_run_memory_callback("save", tmp ? 1 : 0);
             if (! tmp) {
-                tex_overflow_error("save", top);
+                tex_overflow_error("save", new_allocated);
                 return 0;
             }
-         // memset((void *) (lmt_save_state.save_stack + lmt_save_state.save_stack_data.allocated + 1), 0, ((size_t) lmt_save_state.save_stack_data.step + reserved_save_stack_slots) * sizeof(save_record));
-            lmt_save_state.save_stack_data.allocated = top;
         }
     }
     return 1;
@@ -703,8 +701,7 @@ void tex_show_save_groups(void)
     tracing_levels_par |= tracing_levels_group;
     while (1) {
         int mode;
-        tex_print_levels();
-        tex_print_group(1);
+        tex_print_format("%l%G",1);
         if (cur_group == bottom_level_group) {
             goto DONE;
         }
@@ -716,7 +713,7 @@ void tex_show_save_groups(void)
                 mode = vmode;
             }
         } while (mode == hmode);
-        tex_print_str(": ");
+        tex_print_str_len(": ", 2);
         switch (cur_group) {
             case simple_group:
                 ++pointer;
@@ -741,9 +738,9 @@ void tex_show_save_groups(void)
                     goto FOUND1;
                 } else {
                     if (alignmentstate == 1) {
-                        tex_print_str("align entry");
+                        tex_print_str_len("align entry", 11);
                     } else {
-                        tex_print_str_esc("cr");
+                        tex_print_format("%ecr");
                     }
                     if (pointer >= alignmentstate) {
                         pointer -= alignmentstate;
@@ -754,26 +751,26 @@ void tex_show_save_groups(void)
             case no_align_group:
                 ++pointer;
                 alignmentstate = -1;
-                tex_print_str_esc("noalign");
+                tex_print_format("%enoalign");
                 goto FOUND2;
             case output_group:
-                tex_print_str_esc("output");
+                tex_print_format("%eoutput");
                 goto FOUND2;
          // maybe:
          //
          // case math_group:
          // case math_component_group:
          // case math_stack_group:
-         //      tex_print_str_esc(lmt_interface.group_code_values[cur_group].name);
+         //      tex_print_format("%E",lmt_interface.group_code_values[cur_group].name);
          //      goto FOUND2;
             case math_group:
-                tex_print_str_esc("mathsubformula");
+                tex_print_format("%emathsubformula");
                 goto FOUND2;
             case math_component_group:
-                tex_print_str_esc("mathcomponent");
+                tex_print_format("%emathcomponent");
                 goto FOUND2;
             case math_stack_group:
-                tex_print_str_esc("mathstack");
+                tex_print_format("%emathstack");
                 goto FOUND2;
             case discretionary_group:
                 tex_show_discretionary_group();
@@ -802,23 +799,24 @@ void tex_show_save_groups(void)
             case also_simple_group:
             case semi_simple_group:
                 ++pointer;
-                tex_print_str_esc("begingroup");
+                tex_print_format("%ebegingroup");
                 goto FOUND2;
          // case math_simple_group:
          //     ++pointer;
-         //     tex_print_str_esc("beginmathgroup");
+         //     tex_print_format("%ebeginmathgroup");
          //     goto FOUND2;
             case math_inline_group:
                 tex_print_char('$');
+                goto FOUND2;
             case math_display_group:
-                tex_print_char('$');
+                tex_print_str_len("$$", 2);
                 goto FOUND2;
             case math_equation_number_group:
                 tex_show_math_number_group();
                 goto FOUND2;
             case math_fence_group:
                 /* kind of ugly ... maybe also save that one */ /* todo: operator */
-                tex_print_str_esc((node_subtype(lmt_nest_state.nest[pointer + 1].delimiter) == left_fence_side) ? "left" : "middle");
+                tex_print_format("%E",(node_subtype(lmt_nest_state.nest[pointer + 1].delimiter) == left_fence_side) ? "left" : "middle");
                 goto FOUND2;
             default:
                 tex_confusion("show groups");
@@ -842,13 +840,10 @@ void tex_show_save_groups(void)
                 }
                 break;
             case global_box_flag:
-                tex_print_str_esc("global");
+                tex_print_format("%eglobal");
+                FALLTHROUGH
             case box_flag:
-                {
-                    tex_print_str_esc("setbox");
-                    tex_print_int(tex_get_packaging_context());
-                    tex_print_char('=');
-                }
+                tex_print_format("%esetbox%i=", tex_get_packaging_context());
                 break;
             case a_leaders_flag:
                 tex_print_cmd_chr(leader_cmd, a_leaders);
@@ -886,7 +881,6 @@ void tex_show_save_stack(void)
     tex_print_format("%l[savestack size %i]\n", lmt_save_state.save_stack_data.ptr);
     while (lmt_save_state.save_stack_data.ptr) {
         --lmt_save_state.save_stack_data.ptr;
-        tex_print_nlp();
         tex_print_format("%l[%i: ", lmt_save_state.save_stack_data.ptr);
         if (save_type(lmt_save_state.save_stack_data.ptr) >= saved_record_0 && save_type(lmt_save_state.save_stack_data.ptr) <= saved_record_9) {
             tex_print_format("save record %i, ", save_type(lmt_save_state.save_stack_data.ptr) - saved_record_0 + 1, save_record(lmt_save_state.save_stack_data.ptr));
@@ -1007,7 +1001,6 @@ void tex_show_save_stack(void)
         goto DONE;
       DONE:
         tex_print_char(']');
-        tex_print_nlp();
     }
     tex_print_format("%l[savestack bottom]\n");
     lmt_save_state.save_stack_data.ptr = savedptr;
@@ -1044,118 +1037,123 @@ static void tex_aux_handle_overload(const char *s, halfword cs, int overload, in
     } else {
         tex_handle_error(
             error_type,
-            "You can't redefine %s %S.",
-            s, cs,
-            NULL
+            "You can't redefine %s %S.%h",
+            s, cs
         );
     }
 }
 
-static void tex_aux_handle_overload_register(const char *s, halfword cs, int overload, int error_type, halfword index, const char *reg)
+static void tex_aux_handle_overload_register(const char *s, halfword flags, int overload, int error_type, halfword index, const char *reg)
 {
     int callback_id = lmt_callback_defined(handle_overload_callback);
     if (callback_id > 0) {
-        lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "bdSdd->", error_type == normal_error_type, overload, reg, eq_flag(cs), index);
+        lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "bdSdd->", error_type == normal_error_type, overload, reg, flags, index);
     } else {
         tex_handle_error(
             error_type,
-            "You can't redefine %s %s %i.",
-            s, reg, index,
-            NULL
+            "You can't redefine %s %s %i.%h",
+            s, reg, index
         );
     }
 }
 
-int tex_report_overload(halfword cs, int overload)
+static int tex_report_overload(halfword overload, halfword flags, halfword cs)
 {
     int error_type = overload & 1 ? warning_error_type : normal_error_type;
-    if (has_eq_flag_bits(cs, immutable_flag_bit)) {
+    if (is_immutable(flags)) {
         tex_aux_handle_overload("immutable", cs, overload, error_type);
-    } else if (has_eq_flag_bits(cs, primitive_flag_bit)) {
+    } else if (is_primitive(flags)) {
         tex_aux_handle_overload("primitive", cs, overload, error_type);
-    } else if (has_eq_flag_bits(cs, permanent_flag_bit)) {
+    } else if (is_permanent(flags)) {
         tex_aux_handle_overload("permanent", cs, overload, error_type);
-    } else if (has_eq_flag_bits(cs, frozen_flag_bit)) {
+    } else if (is_frozen(flags)) {
         tex_aux_handle_overload("frozen", cs, overload, error_type);
-    } else if (has_eq_flag_bits(cs, instance_flag_bit)) {
+    } else if (is_instance(flags)) {
         tex_aux_handle_overload("instance", cs, overload, warning_error_type);
         return 1;
     }
     return error_type == warning_error_type;
 }
 
-int tex_report_overload_register(halfword cs, int overload, halfword index, const char *str)
+static int tex_report_overload_register(halfword overload, halfword flags, halfword index, const char *str)
 {
     int error_type = overload & 1 ? warning_error_type : normal_error_type;
-    if (has_eq_flag_bits(cs, immutable_flag_bit)) {
-        tex_aux_handle_overload_register("immutable", cs, overload, error_type, index, str);
+    if (is_immutable(flags)) {
+        tex_aux_handle_overload_register("immutable", flags, overload, error_type, index, str);
     }
     return error_type == warning_error_type;
 }
 
 int tex_define_permitted(halfword cs, halfword prefixes)
 {
-    halfword overload = overload_mode_par;
-    if (! cs || ! overload || has_eq_flag_bits(cs, mutable_flag_bit)) {
+    if (! cs) {
         return 1;
-    } else if (is_overloaded(prefixes)) {
-        if (overload > 2 && has_eq_flag_bits(cs, immutable_flag_bit | permanent_flag_bit | primitive_flag_bit)) {
-            return tex_report_overload(cs, overload);
+    }  else {
+        halfword overload = overload_mode_par;
+        int flags = eq_flag(cs);
+        if (is_persistent(flags) && lmt_main_state.overload_state) {
+             /* bad */
+        } else if (! overload || is_mutable(flags)) {
+             return 1;
+        } else if (is_overloaded(prefixes)) {
+            if (overload > 2 && has_flag_bits(flags, immutable_flag_bit | permanent_flag_bit | primitive_flag_bit)) {
+                /* bad */
+            } else {
+                return 1;
+            }
+        } else if (overload > 4) {
+            if (has_flag_bits(flags, immutable_flag_bit | permanent_flag_bit | primitive_flag_bit | frozen_flag_bit | instance_flag_bit)) {
+                /* bad */
+            } else {
+                return 1;
+            }
+        } else if (overload > 2) {
+            if (has_flag_bits(flags, immutable_flag_bit | permanent_flag_bit | primitive_flag_bit | frozen_flag_bit)) {
+                /* bad */
+            } else {
+                return 1;
+            }
+        } else if (has_flag_bits(flags, immutable_flag_bit)) {
+            /* bad */
+        } else {
+            return 1;
         }
-    } else if (overload > 4) {
-        if (has_eq_flag_bits(cs, immutable_flag_bit | permanent_flag_bit | primitive_flag_bit | frozen_flag_bit | instance_flag_bit)) {
-            return tex_report_overload(cs, overload);
-        }
-    } else if (overload > 2) {
-        if (has_eq_flag_bits(cs, immutable_flag_bit | permanent_flag_bit | primitive_flag_bit | frozen_flag_bit)) {
-            return tex_report_overload(cs, overload);
-        }
-    } else if (has_eq_flag_bits(cs, immutable_flag_bit)) {
-        return tex_report_overload(cs, overload);
+        return tex_report_overload(overload, flags, cs);
     }
-    return 1;
-}
-
-int tex_overload_permitted(halfword flags)
-{
-    halfword overload = overload_mode_par;
-    if (! overload || has_flag_bits(flags, mutable_flag_bit)) {
-        return 1;
-    } else if (is_overloaded(flags)) {
-        if (overload > 2 && has_flag_bits(flags, immutable_flag_bit | permanent_flag_bit | primitive_flag_bit)) {
-            return tex_report_overload(flags, overload);
-        }
-    } else if (overload > 4) {
-        if (has_flag_bits(flags, immutable_flag_bit | permanent_flag_bit | primitive_flag_bit | frozen_flag_bit | instance_flag_bit)) {
-            return tex_report_overload(flags, overload);
-        }
-    } else if (overload > 2) {
-        if (has_flag_bits(flags, immutable_flag_bit | permanent_flag_bit | primitive_flag_bit | frozen_flag_bit)) {
-            return tex_report_overload(flags, overload);
-        }
-    } else if (has_flag_bits(flags, immutable_flag_bit)) {
-        return tex_report_overload(flags, overload);
-    }
-    return 1;
 }
 
 int tex_mutation_permitted(halfword cs)
 {
-    halfword overload = overload_mode_par;
-    if (cs && overload && has_eq_flag_bits(cs, immutable_flag_bit)) {
-        return tex_report_overload(cs, overload);
-    } else {
+    if (! cs) {
         return 1;
+    } else {
+        int flags = eq_flag(cs);
+        if (is_persistent(flags) && lmt_main_state.overload_state) {
+            /* bad */
+        } else if (overload_mode_par && is_immutable(flags)) {
+            /* bad */
+        } else {
+            return 1;
+        }
+        return tex_report_overload(overload_mode_par, flags, cs);
     }
 }
 
 int tex_register_permitted(halfword cs, halfword index, halfword cmd)
 {
-    halfword overload = overload_mode_par;
-    if (cs && overload && has_eq_flag_bits(cs, immutable_flag_bit)) {
-        return tex_report_overload_register(cs, overload, index, lmt_interface.command_names[cmd].name);
-    } else {
+    if (! cs) {
         return 1;
+    } else {
+        halfword overload = overload_mode_par;
+        int flags = eq_flag(cs);
+        if (is_persistent(flags) && lmt_main_state.overload_state) {
+            /* bad */
+        } else if (overload && is_immutable(flags)) {
+            /* bad */
+        } else {
+            return 1;
+        }
+        return tex_report_overload_register(overload, flags, index, lmt_interface.command_names[cmd].name);
     }
 }
 
@@ -1234,8 +1232,7 @@ static inline void tex_aux_eq_destroy(memoryword *w)
 /*tex
 
     To save a value of |eqtb[p]| that was established at level |l|, we can use the following
-    subroutine. This code could be simplified after the xeq cleanup so we actually use one slot
-    less per saved value.
+    subroutine. The saved |eqtb| word and its level fit in one save-stack entry.
 
 */
 
@@ -1285,31 +1282,66 @@ static inline int tex_aux_equal_eq(halfword p, singleword cmd, singleword flag, 
             case gluespec_cmd:
             case mugluespec_cmd:
                 /*tex We compare the pointer as well as the record. */
-                if (tex_same_glue(eq_value(p), chr)) {
-                    if (chr) {
-                        tex_flush_node(chr);
+                if (eq_type(p) == cmd) {
+                  // printf("GLUESPEC %i : OLD %i NEW %i\n",tex_same_glue(eq_value(p), chr),eq_value(p),chr);
+                    switch (tex_same_glue(eq_value(p), chr)) {
+                        case eq_state_different:
+                            return 0;
+                        case eq_state_same_pointer:
+                            return 1;
+                        case eq_state_same_value:
+                            if (chr) {
+                                tex_flush_node(chr);
+                            }
+                            return 1;
+                        default:
+                            return 0;
                     }
-                    return 1;
                 } else {
                     return 0;
                 }
             case mathspec_cmd:
                 /*tex Idem here. */
-                if (tex_same_mathspec(eq_value(p), chr)) {
-                    if (chr) {
-                        tex_flush_node(chr);
+                if (eq_type(p) == cmd) {
+                 // printf("MATHSPEC %i : OLD %i NEW %i\n",tex_same_mathspec(eq_value(p), chr),eq_value(p),chr);
+                    switch (tex_same_mathspec(eq_value(p), chr)) {
+                        case eq_state_different:
+                            return 0;
+                        case eq_state_same_pointer:
+                            return 1;
+                        case eq_state_same_value:
+                            if (chr) {
+                                tex_flush_node(chr);
+                            }
+                            return 1;
+                        default:
+                            return 0;
                     }
-                    return 1;
                 } else {
                     return 0;
                 }
+            /*tex
+                We probably loose more than we gain here, performance wise, due to the fact that in
+                \CONTEXT\ we first have |\foo| as |font_cmd| and replace it by |fontspec_cmd| so we
+                are always different. So I might eventually comment the next blob.
+            */
             case fontspec_cmd:
                 /*tex And here. */
-                if (tex_same_fontspec(eq_value(p), chr)) {
-                    if (chr) {
-                        tex_flush_node(chr);
+                if (eq_type(p) == cmd) {
+                 // printf("FONTSPEC %i : OLD %i NEW %i\n",tex_same_fontspec(eq_value(p), chr),eq_value(p),chr);
+                    switch (tex_same_fontspec(eq_value(p), chr)) {
+                        case eq_state_different:
+                            return 0;
+                        case eq_state_same_pointer:
+                            return 1;
+                        case eq_state_same_value:
+                            if (chr) {
+                                tex_flush_node(chr);
+                            }
+                            return 1;
+                        default:
+                            return 0;
                     }
-                    return 1;
                 } else {
                     return 0;
                 }
@@ -1330,7 +1362,7 @@ static inline int tex_aux_equal_eq(halfword p, singleword cmd, singleword flag, 
             case tolerant_semi_protected_call_cmd:
                 /*tex The initial token reference will do as it is unique. */
              // if (eq_value(p) == chr) {
-                if (eq_value(p) == chr && eq_level(p) == cur_level) {
+                if (eq_type(p) == cmd && eq_value(p) == chr && eq_level(p) == cur_level) {
                     tex_delete_token_reference(eq_value(p));
                     return 1;
                 } else {
@@ -1341,10 +1373,6 @@ static inline int tex_aux_equal_eq(halfword p, singleword cmd, singleword flag, 
             case internal_box_reference_cmd:
             case register_box_reference_cmd:
                 /*tex These are also references. The ! chr is a bit strange. Todo: test without. */
-// if (eq_type(p) == cmd && eq_value(p) == chr && chr) {
-//     printf("SAME\n");
-//     // destoy ??
-// }
                 if (eq_type(p) == cmd && eq_value(p) == chr && ! chr) {
              // if (eq_type(p) == cmd && eq_value(p) == chr && ! chr && eq_level(p) == cur_level) {
                     return 1;
@@ -1660,6 +1688,14 @@ void tex_define_again(int g, halfword p, singleword t, halfword e) /* int g -> s
         }
         tex_aux_diagnostic_trace(p, "into");
     } else {
+        if (is_global(g)) {
+            set_eq_level(p, level_one);
+        } else if (eq_level(p) != cur_level) {
+            if (cur_level > level_one && ! is_retained(g)) {
+                tex_aux_eq_save(p, eq_level(p));
+            }
+            set_eq_level(p, cur_level);
+        }
         set_eq_type(p, t);
         set_eq_value(p, e);
     }
@@ -1718,6 +1754,7 @@ static void tex_aux_just_define(int g, halfword p, halfword e)
             tex_aux_diagnostic_trace(p, "globally changing");
         }
         tex_aux_eq_destroy(&lmt_hash_state.eqtb[p]);
+        set_eq_level(p, level_one);
     } else {
         if (trace) {
             tex_aux_diagnostic_trace(p, "changing");
@@ -1755,6 +1792,8 @@ void tex_define_swapped(int g, halfword p1, halfword p2, int force)
            } else if (is_immutable(f1)) {
                goto NOTDONE;
            }
+        } else if (is_persistent(f1) && lmt_main_state.overload_state) {
+           goto NOTDONE;
         }
         if (v1 == v2)  {
             return;
@@ -1780,8 +1819,6 @@ void tex_define_swapped(int g, halfword p1, halfword p2, int force)
                     if (v2) tex_add_token_reference(v2);
                     tex_aux_just_define(g, p1, v2);
                     tex_aux_just_define(g, p2, v1);
-                    if (v1) tex_delete_token_reference(v1);
-                    if (v2) tex_delete_token_reference(v2);
                     return;
                 case internal_integer_cmd:
                     tex_assign_internal_integer_value(g, p1, v2);
@@ -1817,12 +1854,11 @@ void tex_define_swapped(int g, halfword p1, halfword p2, int force)
                         if (v2) tex_add_token_reference(v2);
                         tex_aux_just_define(g, p1, v2);
                         tex_aux_just_define(g, p2, v1);
-                        /* no delete here .. hm */
                     } else {
                         tex_handle_error(
                             normal_error_type,
                             "\\swapcsvalues not (yet) implemented for commands (%C, %C)",
-                            t1, v1, t2, v2, NULL
+                            t1, v1, t2, v2
                         );
                     }
                     return;
@@ -1833,7 +1869,7 @@ void tex_define_swapped(int g, halfword p1, halfword p2, int force)
     tex_handle_error(
         normal_error_type,
         "\\swapcsvalues requires equal commands (%C, %C), levels (%i, %i) and flags (%i, %i)",
-        t1, v1, t2, v2, l1, l2, f1, f2, NULL
+        t1, v1, t2, v2, l1, l2, f1, f2
     );
 }
 
@@ -1885,13 +1921,12 @@ void tex_word_define(int g, halfword p, halfword w)
     } else if (! is_constrained(g) && eq_value(p) == w) {
         if (trace) {
             tex_aux_diagnostic_trace(p, "reassigning");
-            return;
         }
     } else if (is_retained(g)) {
         if (trace) {
             tex_aux_diagnostic_trace(p, "retained changing");
-            set_eq_level(p, cur_level);
         }
+        set_eq_level(p, cur_level);
         eq_value(p) = w;
     } else {
         if (trace) {
@@ -2216,15 +2251,14 @@ void tex_show_cmd_chr(halfword cmd, halfword chr)
     tex_begin_diagnostic();
     if (cur_list.mode != lmt_nest_state.shown_mode) {
         tex_print_format("%l[mode: entering %M]", cur_list.mode);
-     // tex_print_nlp(); /* Probably this can go. */
         lmt_nest_state.shown_mode = cur_list.mode;
     }
     tex_print_format("%l{%C", (singleword) cmd, chr);
     if (cmd == if_test_cmd && tracing_ifs_par > 0) {
-        halfword p;
+     // halfword p;
         int n, l;
         if (tracing_commands_par >= 4) {
-            tex_print_str(": ");
+            tex_print_str_len(": ", 2);
         } else {
             tex_print_char(' ');
         }
@@ -2232,23 +2266,24 @@ void tex_show_cmd_chr(halfword cmd, halfword chr)
             n = 1;
             l = lmt_input_state.input_line;
         } else {
-            tex_print_cmd_chr(if_test_cmd, lmt_condition_state.cur_if);
+            tex_print_cmd_chr(if_test_cmd, lmt_condition_state.state.cur_if);
             tex_print_char(' ');
             n = 0;
-            l = lmt_condition_state.if_line;
+            l = lmt_condition_state.state.if_line;
         }
         /*tex
             We now also have a proper counter but this is a check for a potential mess up. If
-            als is right, |lmt_condition_state.if_nesting| often should match |n|.
+            als is right, |lmt_condition_state.level| often should match |n|.
         */
-        p = lmt_condition_state.cond_ptr;
-        while (p) {
-            ++n;
-            p = node_next(p);
-        }
+        n += lmt_condition_state.level;
+     // p = lmt_condition_state.cond_ptr;
+     // while (p) {
+     //     ++n;
+     //     p = node_next(p);
+     // }
         if (l) {
             if (tracing_commands_par >= 4) {
-                tex_print_format("(level %i, line %i, nesting %i)", n, l, lmt_condition_state.if_nesting);
+                tex_print_format("(level %i, line %i, nesting %i)", n, l, lmt_condition_state.level);
             } else {
              // tex_print_format("(level %i) entered on line %i", n, l);
                 tex_print_format("(level %i, line %i)", n, l);
@@ -2306,8 +2341,7 @@ void tex_aux_show_eqtb(halfword n)
                 tex_print_cmd_chr(internal_toks_cmd, n);
                 goto TOKS;
             case register_toks_reference_cmd:
-                tex_print_str_esc("toks");
-                tex_print_int(register_toks_number(n));
+                tex_print_format("%etoks%i", register_toks_number(n));
               TOKS:
                 tex_print_char('=');
                 tex_token_show(eq_value(n));
@@ -2316,69 +2350,61 @@ void tex_aux_show_eqtb(halfword n)
                 tex_print_cmd_chr(eq_type(n), n);
                 goto BOX;
             case register_box_reference_cmd:
-                tex_print_str_esc("box");
-                tex_print_int(register_box_number(n));
+                tex_print_format("%ebox%i", register_box_number(n));
               BOX:
                 tex_print_char('=');
                 if (eq_value(n)) {
                     tex_show_node_list(eq_value(n), 0, 1);
                     tex_print_levels();
                 } else {
-                    tex_print_str("void");
+                    tex_print_str_len("void", 4);
                 }
                 break;
             case internal_glue_reference_cmd:
                 tex_print_cmd_chr(internal_glue_cmd, n);
                 goto SKIP;
             case register_glue_reference_cmd:
-                tex_print_str_esc("skip");
-                tex_print_int(register_glue_number(n));
+                tex_print_format("%eskip%i", register_glue_number(n));
               SKIP:
-                tex_print_char('=');
                 if (tracing_nodes_par > 2) {
-                    tex_print_format("<%i>", eq_value(n));
+                    tex_print_format("=<%i>%Q", eq_value(n), eq_value(n), pt_unit);
+                } else {
+                    tex_print_format("=%Q", eq_value(n), pt_unit);
                 }
-                tex_print_spec(eq_value(n), pt_unit);
                 break;
             case internal_muglue_reference_cmd:
                 tex_print_cmd_chr(internal_muglue_cmd, n);
                 goto MUSKIP;
             case register_muglue_reference_cmd:
-                tex_print_str_esc("muskip");
-                tex_print_int(register_muglue_number(n));
+                tex_print_format("%emuskip%i", register_muglue_number(n));
               MUSKIP:
                 if (tracing_nodes_par > 2) {
-                    tex_print_format("<%i>", eq_value(n));
+                    tex_print_format("=<%i>%Q", eq_value(n), eq_value(n), mu_unit);
+                } else {
+                    tex_print_format("=%Q", eq_value(n), mu_unit);
                 }
-                tex_print_char('=');
-                tex_print_spec(eq_value(n), mu_unit);
                 break;
             case internal_integer_reference_cmd:
                 tex_print_cmd_chr(internal_integer_cmd, n);
                 goto COUNT;
             case register_integer_reference_cmd:
-                tex_print_str_esc("count");
-                tex_print_int(register_integer_number(n));
+                tex_print_format("%ecount%i", register_integer_number(n));
               COUNT:
-                tex_print_char('=');
-                tex_print_int(eq_value(n));
+                tex_print_format("=%i", eq_value(n));
                 break;
             case internal_attribute_reference_cmd:
                 tex_print_cmd_chr(internal_attribute_cmd, n);
                 goto ATTRIBUTE;
             case register_attribute_reference_cmd:
-                tex_print_str_esc("attribute");
-                tex_print_int(register_attribute_number(n));
+                tex_print_format("%eattribute%i", register_attribute_number(n));
               ATTRIBUTE:
-                tex_print_char('=');
-                tex_print_int(eq_value(n));
+                tex_print_format("=%i", eq_value(n));
                 break;
             case internal_posit_reference_cmd:
                 tex_print_cmd_chr(internal_posit_cmd, n);
                 goto POSIT;
             case register_posit_reference_cmd:
-                tex_print_str_esc("posit");
-                tex_print_int(register_posit_number(n));
+                tex_print_format("%eposit%i", register_posit_number(n));
               POSIT:
                 tex_print_char('=');
                 tex_print_posit(eq_value(n));
@@ -2387,31 +2413,22 @@ void tex_aux_show_eqtb(halfword n)
                 tex_print_cmd_chr(internal_dimension_cmd, n);
                 goto DIMEN;
             case register_dimension_reference_cmd:
-                tex_print_str_esc("dimen");
-                tex_print_int(register_dimension_number(n));
+                tex_print_format("%edimen%i", register_dimension_number(n));
               DIMEN:
-                tex_print_char('=');
-                tex_print_dimension(eq_value(n), pt_unit);
+                tex_print_format("=%p", eq_value(n));
                 break;
             case specification_reference_cmd:
-                tex_print_cmd_chr(specification_cmd, n);
-                tex_print_char('=');
                 if (eq_value(n)) {
-                 // if (tracing_nodes_par > 2) {
-                 //     tex_print_format("<%i>", eq_value(n));
-                 // }
-                    tex_print_int(specification_count(eq_value(n)));
+                    tex_print_format("%C=%i", specification_cmd, n, specification_count(eq_value(n)));
                 } else {
-                    tex_print_char('0');
+                    tex_print_format("%C=0", specification_cmd, n);
                 }
                 break;
             case unit_reference_cmd:
-                tex_print_cmd_chr(association_cmd, n);
-                tex_print_char('=');
                 if (eq_value(n)) {
-                    tex_print_str("todo");
+                    tex_print_format("%C=todo", association_cmd, n);
                 } else {
-                    tex_print_char('0');
+                    tex_print_format("%C=0", association_cmd, n);
                 }
                 break;
             default:
@@ -2527,12 +2544,7 @@ int tex_located_save_value(int id)
     }
     while (i < lmt_save_state.save_stack_data.ptr) {
         if (save_type(i) == restore_old_value_save_type && save_value(i) == id) {
-            /*
-            if (math_direction_par != save_value(i - 1)) {
-                return 1;
-            }
-            */
-            return save_value(i - 1);
+            return eq_value_field(save_word(i));
         }
         i++;
     }
@@ -2563,8 +2575,7 @@ void tex_save_stack_catch_up(void)
     lmt_save_state.save_stack_data.ptr = cur_boundary;
     while (lmt_input_state.in_stack[lmt_input_state.in_stack_data.ptr].group != lmt_save_state.save_stack_data.ptr) {
         --cur_level;
-        tex_print_nlp();
-        tex_print_format("Warning: end of file when %G is incomplete", 1);
+        tex_print_format("\nWarning: end of file when %G is incomplete", 1);
         cur_group = save_level(lmt_save_state.save_stack_data.ptr);
         lmt_save_state.save_stack_data.ptr = save_value(lmt_save_state.save_stack_data.ptr);
     }

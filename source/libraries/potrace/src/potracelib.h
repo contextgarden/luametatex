@@ -7,6 +7,13 @@
 
 # if defined(LUAMETATEX_USE_MIMALLOC)
 
+    # ifdef strdup
+        # undef strdup
+    # endif
+    # ifdef strndup
+        # undef strndup
+    # endif
+
     # include "libraries/mimalloc/include/mimalloc-override.h"
 
 # endif 

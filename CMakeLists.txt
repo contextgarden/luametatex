@@ -1,17 +1,32 @@
-# We use CMake but I bet we can also provide a simple make file for linux just because 
-# when I look what gets compiled into CMake we need very little of that (and it 
-# has a lot of dependencies - ssh related, compression, security, xml, etc), but maybe 
-# there is a lightweight version of CMake. 
+# We use CMake but I bet we can also provide a simple make file for linux just because
+# when I look what gets compiled into CMake we need very little of that (and it
+# has a lot of dependencies - ssh related, compression, security, xml, etc), but maybe
+# there is a lightweight version of CMake.
+
+# Don't use -ffast-math as we depend on sign bit nilling in mp.
 
 cmake_minimum_required(VERSION 3.10..3.28)
 
 project(luametatex VERSION 2.11 LANGUAGES C)
 
-# I need to check with Mojca of the compile farm can handle this. 
+# I need to check with Mojca of the compile farm can handle this. It currently is not that
+# critical because CMake will use a lower version if needed. But we do need to enable the
+# extensions.
 
-set(CMAKE_C_STANDARD 11)
+# set(CMAKE_C_STANDARD 11)
 # set(CMAKE_C_STANDARD 17)
-# set(CMAKE_C_STANDARD 23)
+
+if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.21)
+    set(CMAKE_C_STANDARD 23)
+elseif (CMAKE_VERSION VERSION_GREATER_EQUAL 3.12)
+    set(CMAKE_C_STANDARD 11) # for debian 9 bah
+else ()
+    set(CMAKE_C_STANDARD 11)
+endif ()
+
+set(CMAKE_C_STANDARD_REQUIRED OFF) # OFF is default
+
+# set(CMAKE_C_EXTENSIONS ON) # ON is default
 
 # https://sourceforge.net/p/predef/wiki/OperatingSystems/
 # https://sourceforge.net/p/predef/wiki/Architectures/
@@ -19,35 +34,148 @@ set(CMAKE_C_STANDARD 11)
 include(GNUInstallDirs)
 
 # Optionals (maybe have a LMT_*_TOO for each of them). We might start out with only a very few
-# optionals at some time, but for now we enable them (there is not not much code involved). The 
-# idea behind these optionals is that we have very simple (!) interfaces, delegating as much as 
+# optionals at some time, but for now we enable them (there is not not much code involved). The
+# idea behind these optionals is that we have very simple (!) interfaces, delegating as much as
 # possible to Lua. We will *not* add interfaces with many bindings because that will introduce
-# dependencies (and looking at e.g. LuaTeX build updates shows that clearly: a no-go). 
+# dependencies (and looking at e.g. LuaTeX build updates shows that clearly: a no-go).
 
 set(LMT_KPSE_TOO 1) # In case we want to manage MKII scripts (etc) with mtxrun.
 set(LMT_HB_TOO   1) # Maybe handy for Idris' font development (old converted ffi stuff)
 
-# This triggers link time optimization, which adds to compile time and gains (at most) a few 
-# percent on runtime. When set, because we're sparse, we also strip the binary. On the manual
-# we gain 2-4 percent, so not that much.
+# Options:
 
-# set(LMT_OPTIMIZE 1)
+option(LMT_DEBUG      "Build with debug symbols and no optimizations" OFF)
+option(LMT_NOOPTIMIZE "Build without link time optimization" OFF)
 
-# This makes the binary some 135K smaller so it might become the default at some point which is 
-# nice (the smaller as runner the better). After all, we don't load external (Lua) libraries 
-# anyway. 
+# Profile-guided optimization is a two-stage build.  The build script uses
+# GENERATE for the training binary and USE for the final binary.
 
-set(LMT_STRIP 1)
+set(LMT_PROFILE "OFF" CACHE STRING "Profile-guided optimization mode: OFF, GENERATE, or USE")
+set_property(CACHE LMT_PROFILE PROPERTY STRINGS OFF GENERATE USE)
+set(LMT_PROFILE_DIR "" CACHE PATH "Directory containing profile data")
 
-# When one wants to use Lua libraries, this is needed. But keep in mind that it's not supported, 
-# so we won't look into issues that could result from that. Getting a matching library is upto 
-# the user. Keep in mind that we might have set a different bytecode (luac) version during the 
-# alpha/beta stages of a Lua development version. 
+# Usually this is the same as LMT_PROFILE_DIR.  A MinGW binary launched from
+# WSL can need a Windows/UNC spelling for the directory at runtime, while GCC
+# itself still needs the WSL spelling when it consumes the data.
 
-if (EXISTS "${CMAKE_SOURCE_DIR}/source/lua/lmthelperlib.c") 
-    set(luametatex_use_helpers 1)
-    add_definitions(-DLUAMETATEX_USE_HELPERS=1)
+set(LMT_PROFILE_RUNTIME_DIR "${LMT_PROFILE_DIR}" CACHE STRING
+    "Directory spelling used by the instrumented binary at runtime"
+)
+
+string(TOUPPER "${LMT_PROFILE}" LMT_PROFILE_MODE)
+if (LMT_PROFILE_MODE STREQUAL "ON" OR LMT_PROFILE_MODE STREQUAL "TRUE")
+    # Keep the old boolean spelling useful for callers that used the former
+    # option, while giving the profile build its intended meaning.
+    set(LMT_PROFILE_MODE "GENERATE")
 endif()
+
+if (NOT LMT_PROFILE_MODE STREQUAL "OFF" AND
+    NOT LMT_PROFILE_MODE STREQUAL "GENERATE" AND
+    NOT LMT_PROFILE_MODE STREQUAL "USE")
+    message(FATAL_ERROR "LMT_PROFILE must be OFF, GENERATE, or USE")
+endif()
+
+if (NOT LMT_PROFILE_MODE STREQUAL "OFF")
+    if (LMT_DEBUG)
+        message(FATAL_ERROR "LMT_PROFILE cannot be combined with LMT_DEBUG")
+    endif()
+    if (NOT LMT_PROFILE_DIR)
+        message(FATAL_ERROR "LMT_PROFILE_DIR is required when LMT_PROFILE is enabled")
+    endif()
+
+    if (LMT_PROFILE_MODE STREQUAL "GENERATE")
+        file(MAKE_DIRECTORY "${LMT_PROFILE_DIR}")
+    elseif (NOT EXISTS "${LMT_PROFILE_DIR}/profile.ready")
+        message(FATAL_ERROR
+            "No complete profile found in ${LMT_PROFILE_DIR}; run the training build first")
+    endif()
+
+    if (MSVC)
+        message(FATAL_ERROR "LMT_PROFILE currently supports GCC and Clang GNU-style builds only")
+    elseif (CMAKE_C_COMPILER_ID STREQUAL "GNU")
+        if (LMT_PROFILE_MODE STREQUAL "GENERATE")
+            add_compile_options("-fprofile-generate=${LMT_PROFILE_RUNTIME_DIR}")
+            add_link_options("-fprofile-generate=${LMT_PROFILE_RUNTIME_DIR}")
+        else()
+            add_compile_options(
+                "-fprofile-use=${LMT_PROFILE_DIR}"
+                -fprofile-correction
+                -Wno-missing-profile
+                # Keep normal inline limits even for code not hit during training:
+                -fprofile-partial-training
+                --param=inline-unit-growth=100
+                --param=hot-bb-frequency-fraction=1000
+            )
+            add_link_options(
+                "-fprofile-use=${LMT_PROFILE_DIR}"
+                -fprofile-correction
+            )
+        endif()
+    elseif (CMAKE_C_COMPILER_ID MATCHES "Clang")
+        if (LMT_PROFILE_MODE STREQUAL "GENERATE")
+            add_compile_options(-fprofile-instr-generate)
+            add_compile_options(-Wno-profile-instr-unprofiled)
+            add_link_options(-fprofile-instr-generate)
+        else()
+            if (NOT EXISTS "${LMT_PROFILE_DIR}/luametatex.profdata")
+                message(FATAL_ERROR
+                    "No Clang profile data found at ${LMT_PROFILE_DIR}/luametatex.profdata")
+            endif()
+            add_compile_options("-fprofile-instr-use=${LMT_PROFILE_DIR}/luametatex.profdata")
+            add_compile_options(-Wno-profile-instr-unprofiled)
+            add_link_options("-fprofile-instr-use=${LMT_PROFILE_DIR}/luametatex.profdata")
+        endif()
+    else()
+        message(FATAL_ERROR "LMT_PROFILE requires a GCC or Clang C compiler")
+    endif()
+endif()
+
+if (NOT LMT_DEBUG)
+    # This triggers link time optimization, which adds to compile time and gains (at most) a few
+    # percent on runtime. When set, because we're sparse, we also strip the binary. On the manual
+    # we gain 2-4 percent, so not that much. However, as we moved to more inline function in favor
+    # of macros, link time optimizations makes sense!
+
+    if (NOT LMT_NOOPTIMIZE)
+        set(LMT_OPTIMIZE 1)
+    endif()
+
+    # This makes the binary some 135K smaller so it might become the default at some point which is
+    # nice (the smaller as runner the better). After all, we don't load external (Lua) libraries
+    # anyway.
+
+    set(LMT_STRIP 1)
+endif()
+
+# Specific adjustments for musl-gcc compiler wrapper
+
+if (CMAKE_C_COMPILER MATCHES "musl-gcc")
+    add_compile_options(-std=gnu11 -Wno-cpp)
+    add_definitions(-D_GNU_SOURCE)
+endif()
+
+if (LMT_DEBUG)
+    add_compile_options(-g -O0 -fsanitize=address)
+    add_link_options(-fsanitize=address)
+endif()
+
+if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
+
+    # Default is ~50,000,000 (bytes). Raising it allows GCC to finish tracking large node tables.
+
+    add_compile_options(--param=max-vartrack-size=100000000)
+
+endif()
+
+# This is for Mikael, Keith and Hans to play with. We use less memory but not that much compared
+# to what this mechanism used anyway. This will likely become the default.
+
+# add_definitions(-DLMT_ZBUFFER_FLOAT_RGB=1)
+
+# When one wants to use Lua libraries, this is needed. But keep in mind that it's not supported,
+# so we won't look into issues that could result from that. Getting a matching library is upto
+# the user. Keep in mind that we might have set a different bytecode (luac) version during the
+# alpha/beta stages of a Lua development version.
 
 # set(LMT_PERMIT_LUA_LIBRARIES 1)
 
@@ -61,10 +189,20 @@ if (MSVC)
 
     if (CMAKE_C_COMPILER_ID MATCHES "Clang")
 
-        add_compile_options(
-            -Wall
-            -O2
+        if (LMT_DEBUG)
+            add_compile_options(
+                -Wall
+                -g
+                -O0
+            )
+        else()
+            add_compile_options(
+                -Wall
+                -O2
+            )
+        endif()
 
+        add_compile_options(
             -Wcast-align
             -Wcast-qual
 
@@ -131,17 +269,21 @@ if (MSVC)
 
         # We always optimize ... symbols are not in the binary anyway so there is no advantage
         # (like when accessing Lua api functions). We could have an additional luametatex-lua.dll
-        # but that also creates a dependency (possible conflict). So just don't expect using 
-        # Lua libraries in luametatex. 
+        # but that also creates a dependency (possible conflict). So just don't expect using
+        # Lua libraries in luametatex.
 
-      # if (DEFINED LMT_OPTIMIZE)
+        if (NOT LMT_DEBUG)
             add_compile_options(
                 /GL # whole program link optimization
                 /Gw # whole program data optimization (a little smaller bin)
             )
-      # endif()
+        endif()
 
         add_definitions(-DLMT_COMPILER_USED="msvc")
+
+        add_compile_options(
+            /utf-8
+        )
 
     endif()
 
@@ -149,31 +291,52 @@ if (MSVC)
 
     if (CMAKE_C_COMPILER_ID MATCHES "Clang")
 
-        # why not -03
-
-        add_compile_options(
-            -O2
-        )
+        if (LMT_DEBUG)
+            add_compile_options(
+                -g
+                -O0
+            )
+        else()
+            add_compile_options(
+                -O2
+            )
+        endif()
 
         add_definitions(-DLMT_COMPILER_USED="clang")
 
     else()
 
-        add_compile_options(
-            -O3
-          # -g0
-          # -mtune=nocona # fails on arm so more testing needed
-        )
+        if (LMT_DEBUG)
+            add_compile_options(
+                -g
+                -O0
+            )
+        else()
+            add_compile_options(
+                -O3
+              # -g0
+              # -mtune=nocona # fails on arm so more testing needed
+            )
+        endif()
 
         add_definitions(-DLMT_COMPILER_USED="gcc")
 
       # add_compile_options(-pg)
       # add_link_options(-pg)
 
-      # e.g. mp crashes when we have > 4K currentpicture clips in a row 
+      # e.g. mp crashes when we have > 4K currentpicture clips in a row
 
-    # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,stack-size=1000000")
-      set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,stack-size=2621440")
+        if (MINGW)
+            add_link_options("-Wl,--stack,2621440")
+        elseif (CMAKE_HOST_SOLARIS)
+            if (CMAKE_LINKER MATCHES "gld")
+                add_link_options("-Wl,-z,stack-size=2621440")
+            else()
+                add_link_options("-Wl,-z,stacksize=2621440")
+            endif()
+        else()
+            add_link_options("-Wl,-z,stack-size=2621440")
+        endif()
 
     endif()
 
@@ -183,7 +346,7 @@ if (MSVC)
         -Wcast-align
         -Wcast-qual
 
-        # we need to check for zeros anyway as not all compiles have this 
+        # we need to check for zeros anyway as not all compiles have this
 
       # -fno-signed-zeros
       # -fno-trapping-math
@@ -198,13 +361,13 @@ if (MSVC)
     #
     # add_definitions(-D__STDC_WANT_LIB_EXT2__=1)
 
-    if ((DEFINED LMT_OPTIMIZE) OR (DEFINED LMT_STRIP))
+    if (((DEFINED LMT_OPTIMIZE) OR (DEFINED LMT_STRIP)) AND NOT LMT_DEBUG)
         if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
             # skip
         elseif (${CMAKE_SYSTEM_NAME} MATCHES "ARM64")
             # skip
         else()
-            set(CMAKE_EXE_LINKER_FLAGS "-s")
+            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s")
         endif()
     endif()
 
@@ -231,7 +394,7 @@ if (CMAKE_C_COMPILER_ID MATCHES "Clang")
         -Wno-date-time
         -Wno-format-nonliteral
         -Wno-float-equal
-      # too noisy, we just look at what gcc reports 
+      # too noisy, we just look at what gcc reports
         -Wno-unsafe-buffer-usage
         -Wno-macro-redefined
         -Wno-undef
@@ -253,12 +416,20 @@ endif()
 # This needs cmake >= 3.9 and produces a 60K smaller mingw binary but it take quite a bit of
 # runtime to get there so it should become an option (apart from testing on all builders).
 
-if (DEFINED LMT_OPTIMIZE)
+if ((DEFINED LMT_OPTIMIZE) AND NOT LMT_DEBUG)
 
     include(CheckIPOSupported)
     check_ipo_supported(RESULT ipo_supported OUTPUT ipo_message)
 
-    if (ipo_supported)
+    if (CMAKE_C_COMPILER MATCHES "musl-gcc")
+        #
+        # musl-gcc wrapper needs explicit LTO & linker plugin flags,
+        # and MUST NOT use -fwhole-program to prevent static libc symbol stripping issues.
+        add_compile_options(-flto)
+        add_link_options(-flto -fuse-linker-plugin)
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+        #
+    elseif (ipo_supported)
         #
         # We only have one program so we do it global (can become an -- option)
         #
@@ -266,6 +437,19 @@ if (DEFINED LMT_OPTIMIZE)
         #
         # mingw64: 2865664, nocona: 2819584, lto: 2835968 (around 1% gain on manual)
         #
+        set(CMAKE_C_VISIBILITY_PRESET hidden)
+
+        if (CMAKE_C_COMPILER_ID MATCHES "Clang")
+            # already -03
+            add_compile_options(-mllvm -import-instr-limit=250)
+            add_link_options(-mllvm -import-instr-limit=250)
+        elseif (CMAKE_C_COMPILER_ID STREQUAL "GNU")
+            # already -03
+            add_link_options(-fwhole-program)
+        elseif (MSVC)
+            add_link_options(/LTCG:STATUS /OPT:REF /OPT:ICF)
+        endif ()
+
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
         #
     else()
@@ -275,13 +459,13 @@ if (DEFINED LMT_OPTIMIZE)
 endif()
 
 # Mimalloc is still under development, so we only support it on a few platforms. By the time it is
-# stable we can probably remove some of the following tests. A bit of a hack:
+# stable we can probably remove some of the following tests. A bit of a hack.
 #
 # When the old osx version is dropped and armhf is upgraded we can enable unix except solaris which
 # fails. So, only osx 10.6 and rpi 32 fail. But we will probably drop 32 bit in the future anyway.
 #
-# At the beginning of 2025 on Windows 10 the gain is some 5 percent on the 650 page luametatex 
-# manual over the default memory allocator. 
+# At the beginning of 2025 on Windows 10 the gain is some 5 percent on the 650 page luametatex
+# manual over the default memory allocator.
 
 # CMAKE_HOST_SYSTEM_PROCESSOR arm64 x86_64
 
@@ -290,9 +474,12 @@ endif()
 # endif()
 
 if (CMAKE_HOST_SOLARIS)
-    # fails
+    unset(luametatex_use_mimalloc)
 elseif (MSVC)
     set(luametatex_use_mimalloc 1)
+elseif (CMAKE_C_COMPILER MATCHES "musl-gcc")
+    # Disable mimalloc for musl static builds to prevent allocator symbol collisions
+  # unset(luametatex_use_mimalloc)
 elseif (CMAKE_HOST_APPLE AND NOT (${CMAKE_C_COMPILER} MATCHES "arm"))
     # fails on the osx intel
 elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "armv7l")
@@ -324,11 +511,14 @@ include(cmake/luasocket.cmake)
 include(cmake/luaoptional.cmake)
 
 include(cmake/pplib.cmake)
+include(cmake/filib.cmake)
 include(cmake/miniz.cmake)
 include(cmake/softposit.cmake)
 include(cmake/potrace.cmake)
 include(cmake/qrcodegen.cmake)
 include(cmake/nanojpeg.cmake)
 include(cmake/triangles.cmake)
+
+# include(cmake/qhull.cmake)
 
 include(cmake/luametatex.cmake)

@@ -32,6 +32,15 @@ static int statslib_memory_mode(lua_State* L)
     return 1;
 }
 
+static int statslib_dumpstate(lua_State *L)
+{
+    lua_createtable(L, 0, dump_stat_total + 1);
+    for (int i=dump_stat_fingerprint; i <= dump_stat_total; i++) {
+        lua_set_integer_by_key(L, tex_get_dump_statistics_name(i), lmt_dump_state.statistics[i]);
+    }
+    return 1;
+}
+
 static int statslib_callbackstate(lua_State *L)
 {
     lmt_push_callback_usage(L);
@@ -60,7 +69,7 @@ static int statslib_linebreakstate(lua_State *L)
 
 static int statslib_balancestate(lua_State *L)
 {
-    lua_createtable(L, 9, 0);
+    lua_createtable(L, 0, 9);
     lua_set_integer_by_key(L, "calls",          lmt_balance_state.passes.n_of_break_calls);
     lua_set_integer_by_key(L, "first",          lmt_balance_state.passes.n_of_first_passes);
     lua_set_integer_by_key(L, "second",         lmt_balance_state.passes.n_of_second_passes);
@@ -108,7 +117,9 @@ static int statslib_texstate(lua_State *L)
         + (lua_Integer) lmt_mvl_state         .mvl_data            .allocated * (lua_Integer) lmt_mvl_state         .mvl_data            .itemsize + lmt_mvl_state         .mvl_data            .extra
     ;
     lua_createtable(L, 0, 4);
-    lua_set_integer_by_key(L, "approximate", (int) approximate);
+    lua_set_integer_by_key(L, "hashmisses",  lmt_hash_state.misses);
+    lua_set_integer_by_key(L, "hashslots",   hash_size);
+    lua_set_size_t_by_key (L, "approximate", (size_t) approximate);
     return 1;
 }
 
@@ -168,14 +179,14 @@ static int statslib_aux_memory_state(lua_State* L, memory_data *data)
     lua_set_integer_by_key(L, "min", data->minimum);
     lua_set_integer_by_key(L, "max", data->maximum);
     lua_set_integer_by_key(L, "mem", data->allocated);
-    lua_set_integer_by_key(L, "ext", data->extra);
     lua_set_integer_by_key(L, "itm", data->itemsize);
-    lua_set_integer_by_key(L, "all", data->allocated * data->itemsize + data->extra);
     lua_set_integer_by_key(L, "top", data->top - data->offset);
     lua_set_integer_by_key(L, "ptr", data->ptr - data->offset);
     lua_set_integer_by_key(L, "ini", data->initial); /*tex Can |memory_data_unset|. */
     lua_set_integer_by_key(L, "stp", data->step);
  // lua_set_integer_by_key(L, "off", data->offset);
+    lua_set_size_t_by_key (L, "ext", data->extra);
+    lua_set_size_t_by_key (L, "all", (size_t) (data->allocated * data->itemsize) + data->extra);
     return 1;
 }
 
@@ -213,7 +224,7 @@ static int statslib_readstate(lua_State *L)
 
 static int statslib_enginestate(lua_State *L)
 {
-    lua_createtable(L, 0, 15);
+    lua_createtable(L, 0, 16);
     lua_set_string_by_key (L, "logfilename",     lmt_fileio_state.log_name);
     lua_set_string_by_key (L, "banner",          lmt_engine_state.luatex_banner);
     lua_set_number_by_key (L, "version",         lmt_version_state.luatexversion);
@@ -230,8 +241,11 @@ static int statslib_enginestate(lua_State *L)
  // lua_set_integer_by_key(L, "tex_eqtb_size",   eqtb_size);
     lua_set_integer_by_key(L, "tex_memory_mode", memory_mode);
     lua_set_string_by_key (L, "used_compiler",   lmt_version_state.compiler);
+    lua_set_integer_by_key(L, "used_cversion",   lmt_version_state.cversion);
+    lua_set_boolean_by_key(L, "used_likely",     lmt_version_state.likely);
  // lua_set_string_by_key (L, "used_libc",       lmt_version_state.libc);
     lua_set_integer_by_key(L, "run_state",       lmt_main_state.run_state);
+    lua_set_integer_by_key(L, "overload_state",  lmt_main_state.overload_state);
     lua_set_boolean_by_key(L, "permit_loadlib",  lmt_engine_state.permit_loadlib);
     return 1;
 }
@@ -454,6 +468,10 @@ static int statslib_getconstants(lua_State *L)
 
     lua_set_string_by_key (L, "active_character_namespace",     active_character_namespace);
 
+    lua_set_integer_by_key(L, "sa_part_high",                   LMT_SA_HIGHPART);
+    lua_set_integer_by_key(L, "sa_part_middle",                 LMT_SA_MIDPART);
+    lua_set_integer_by_key(L, "sa_part_low",                    LMT_SA_LOWPART);
+
     return 1;
 }
 
@@ -523,7 +541,10 @@ static struct statistic_entry statslib_entries[] = {
     { .name = "luatex_verbose",     .value = (void *) &lmt_version_state.verbose,       .type = 'c' },
     /* */
     { .name = "used_compiler",      .value = (void *) &lmt_version_state.compiler,      .type = 'c' }, /* can be moved up */
+    { .name = "used_cversion",      .value = (void *) &lmt_version_state.cversion,      .type = 'g' }, /* can be moved up */
+    { .name = "used_likely",        .value = (void *) &lmt_version_state.likely,        .type = 'b' }, /* can be moved up */
     { .name = "run_state",          .value = (void *) &lmt_main_state.run_state,        .type = 'g' },
+    { .name = "overload_state",     .value = (void *) &lmt_main_state.overload_state,   .type = 'g' },
     { .name = "permit_loadlib",     .value = (void *) &lmt_engine_state.permit_loadlib, .type = 'b' },
     /* */
     { .name = "tex_memory_mode",    .value = &statslib_memory_mode,                     .type = 'f' }, /* can be moved up */
@@ -551,6 +572,8 @@ static struct statistic_entry statslib_entries_only[] = {
     { .name = "luatex_verbose",      .value = (void *) &lmt_version_state.verbose,           .type = 'c' },
     /* */                                                                                    
     { .name = "used_compiler",       .value = (void *) &lmt_version_state.compiler,          .type = 'c' },
+    { .name = "used_cversion",       .value = (void *) &lmt_version_state.cversion,          .type = 'g' },
+    { .name = "used_likely",         .value = (void *) &lmt_version_state.likely,            .type = 'b' },
 
     { .name = "lua_version_major",   .value = (void *) &lmt_version_state.luaversionmajor,   .type = 'g' },
     { .name = "lua_version_minor",   .value = (void *) &lmt_version_state.luaversionminor,   .type = 'g' },
@@ -643,6 +666,8 @@ static const struct luaL_Reg statslib_function_list[] = {
     { "getinsertstate",        statslib_insertstate        },
     { "getsparsestate",        statslib_sparsestate        },
     { "getmvlstate",           statslib_mvlstate           },
+
+    { "getdumpstate",          statslib_dumpstate          },
 
     { NULL,                    NULL                        },
 };

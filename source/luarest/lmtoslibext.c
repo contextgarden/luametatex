@@ -188,7 +188,7 @@ static int oslib_getunamefields(lua_State *L)
 static int oslib_uname(lua_State *L)
 {
     struct utsname uts;
-    if (uname(&uts) >= 0) {
+    if (uname(&uts) >= 0) { /* always true */
         lua_createtable(L,0,5);
         lua_pushstring(L, uts.sysname);
         lua_setfield(L, -2, "sysname");

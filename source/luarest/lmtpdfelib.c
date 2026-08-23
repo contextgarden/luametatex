@@ -741,11 +741,10 @@ static int pdfelib_pagestotable(lua_State *L)
     pdfe_document *p = pdfelib_aux_check_isdocument(L, 1, to_table_error);
     if (p) {
         ppdoc *d = p->document;
-        int i = 1;
-        int j = 0;
+        int    i = 0;
         lua_createtable(L, (int) ppdoc_page_count(d), 0);
         /* pages[1..n] */
-        for (ppref *r = ppdoc_first_page(d); r; r = ppdoc_next_page(d), ++i) {
+        for (ppref *r = ppdoc_first_page(d); r; r = ppdoc_next_page(d)) {
             lua_createtable(L, 3, 0);
             if (ppref_obj(r)) {
                 pdfelib_aux_pushdictionary(L, ppref_obj(r)->dict);
@@ -758,7 +757,7 @@ static int pdfelib_pagestotable(lua_State *L)
                 /* table reference */
                 lua_rawseti(L, -2, 3);
                 /* table */
-                lua_rawseti(L, -2, ++j);
+                lua_rawseti(L, -2, ++i);
                 /* pages[i] = { dictionary, size, objnum } */
             }
         }
@@ -973,7 +972,7 @@ static int pdfelib_new(lua_State *L)
             tex_normal_warning("pdfe lib", "string or lightuserdata expected");
             return 0;
     }
-    streamsize = luaL_optinteger(L, 2, streamsize);
+    streamsize = lmt_optsizet(L, 2, streamsize);
     if (streamsize > 0) {
         char *memstream = lmt_generic_malloc((unsigned) (streamsize + 1)); /* we have no hook into pdfe free */
         if (memstream) {
@@ -1060,12 +1059,12 @@ static int pdfelib_unencrypt(lua_State *L)
 {
     pdfe_document *p = pdfelib_aux_check_isdocument(L, 1, unencrypt_error);
     if (p) {
-        size_t u = 0;
-        size_t o = 0;
-        const char* user = NULL;
-        const char* owner = NULL;
         int top = lua_gettop(L);
         if (top > 1) {
+            size_t u = 0;
+            size_t o = 0;
+            const char* user = NULL;
+            const char* owner = NULL;
             if (lua_type(L,2) == LUA_TSTRING) {
                 user = lua_tolstring(L, 2, &u);
             } else {
@@ -1293,7 +1292,7 @@ static int pdfelib_getfromobject(lua_State *L)
 {
     pdfe_document *p = pdfelib_aux_check_isdocument(L, 1, get_from_error);
     if (p) {
-        ppref *rr = ppxref_find(p->document->xref, lua_tointeger(L, 2));
+        ppref *rr = ppxref_find(p->document->xref, lmt_tointeger(L, 2));
         if (rr) {
              ppobj *o = ppref_obj(rr);
              if (o) {
@@ -1309,7 +1308,7 @@ static int pdfelib_getobjectrange(lua_State *L)
 {
     pdfe_document *p = pdfelib_aux_check_isdocument(L, 1, get_from_error);
     if (p) {
-        ppref *rr = ppxref_find(p->document->xref, lua_tointeger(L, 2));
+        ppref *rr = ppxref_find(p->document->xref, lmt_tointeger(L, 2));
         if (rr) {
              lua_pushinteger(L, (lua_Integer) rr->offset);
              lua_pushinteger(L, (lua_Integer) rr->length);
@@ -1413,7 +1412,7 @@ static int pdfelib_get_value_direct(lua_State *L, void **value, pp_d_direct get_
                 break;
             case LUA_TNUMBER:
                 {
-                    size_t index = lua_tointeger(L, 2);
+                    size_t index = lmt_tosizet(L, 2);
                     lua_get_metatablelua(pdfe_array_instance);
                     if (lua_rawequal(L, -1, -2)) {
                         *value = get_a(((pdfe_array *) p)->array, index);
@@ -1464,7 +1463,7 @@ static int pdfelib_get_value_indirect(lua_State *L, void **value, pp_d_indirect 
                 break;
             case LUA_TNUMBER:
                 {
-                    size_t index = lua_tointeger(L, 2);
+                    size_t index = lmt_tosizet(L, 2);
                     lua_get_metatablelua(pdfe_array_instance);
                     if (lua_rawequal(L, -1, -2)) {
                         return get_a(((pdfe_array *) p)->array, index, value);
@@ -1687,7 +1686,7 @@ static int pdfelib_array_access(lua_State *L)
 {
     if (lua_type(L, 2) == LUA_TNUMBER) {
         pdfe_array *p = (pdfe_array *) lua_touserdata(L, 1);
-        ppint index = lua_tointeger(L, 2) - 1;
+        ppint index = lmt_tointeger(L, 2) - 1;
         ppobj *o = pparray_rget_obj(p->array, index);
         if (o) {
             return pdfelib_pushvalue(L, o);

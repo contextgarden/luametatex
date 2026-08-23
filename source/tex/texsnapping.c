@@ -51,13 +51,21 @@ int tex_snapping_content(halfword first, halfword last, snapping_specification *
                     if (! tex_has_rule_option(first, rule_option_no_snapping)) {
                         if (! ignore && (enforce || specification->method & snapping_method_rule)) {
                             if (specification->method & snapping_method_threshold) {
-                                if (rule_height(first) <= specification->top) {
-                                    rule_height(first) = specification->height;
-                                    okay = 1;
+                                if (rule_height(first) != null_flag) {
+                                    if (rule_height(first) <= specification->top) {
+                                        rule_height(first) = specification->height;
+                                        okay = 1;
+                                    }
+                                } else {
+                                    /* running height rules adapt anyway */
                                 }
-                                if (rule_depth(first) <= specification->bottom) {
-                                    rule_depth(first) = specification->depth;
-                                    okay = 1;
+                                if (rule_depth(first) != null_flag) {
+                                    if (rule_depth(first) <= specification->bottom) {
+                                        rule_depth(first) = specification->depth;
+                                        okay = 1;
+                                    }
+                                } else {
+                                    /* running depth rules adapt anyway */
                                 }
                             }
                         }
@@ -69,16 +77,16 @@ int tex_snapping_content(halfword first, halfword last, snapping_specification *
                             case begin_inline_math:
                             case begin_broken_math:
                                 if (tex_has_math_option(first, math_option_no_snapping)) {
-                                    ignore = 1;
+                                    ignore  = 1;
                                     enforce = 0;
                                 } else {
-                                    ignore = ! (specification->method & snapping_method_math);
+                                    ignore  = ! (specification->method & snapping_method_math);
                                     enforce = 1;
                                 }
                                 break;
                             case end_inline_math:
                             case end_broken_math:
-                                ignore = 0;
+                                ignore  = 0;
                                 enforce = 0;
                                 break;
                         }
@@ -86,7 +94,7 @@ int tex_snapping_content(halfword first, halfword last, snapping_specification *
                     break;
             }
             if (first == last) { 
-                return 0; 
+                return okay;
             } else {
                 first = node_next(first);
             }
@@ -105,16 +113,16 @@ int tex_snapping_indeed(halfword first, halfword last, snapping_specification *s
             switch (node_type(first)) {
                 case hlist_node:
                 case vlist_node:
-                    if (! ignore && (enforce || (specification->method & snapping_method_list) || tex_has_box_option(first, box_option_snapping))) {
+                    if (tex_has_box_option(first, box_option_no_snapping)) {
+                        /* ignore this box */
+                    } else if (! ignore && (enforce || (specification->method & snapping_method_list) || tex_has_box_option(first, box_option_snapping))) {
                         if (specification->method & snapping_method_threshold) {
                             if (box_height(first) <= specification->top && box_depth(first) <= specification->bottom) {
                                 okay = 1;
                             }
                         }
-                    } else {
-                        if (box_height(first) > specification->height || box_depth(first) > specification->depth) {
-                            return 0;
-                        }
+                    } else if (box_height(first) > specification->height || box_depth(first) > specification->depth) {
+                        return 0;
                     }
                     break;
                 case glyph_node:
@@ -133,18 +141,18 @@ int tex_snapping_indeed(halfword first, halfword last, snapping_specification *s
                  // }
                     break;
                 case rule_node:
-                    if (tex_has_rule_option(first, rule_option_snapping)) {
+                    if (tex_has_rule_option(first, rule_option_no_snapping)) {
+                        /* ignore this rule */
+                    } else if (tex_has_rule_option(first, rule_option_snapping)) {
                         if (! ignore && (enforce || specification->method & snapping_method_rule)) {
-                            if (specification->method & snapping_method_threshold) {
-                                if (rule_height(first) <= specification->top && rule_depth(first) <= specification->bottom) {
+                            /* running rule ht or dp adapts anyway */
+                            if ((rule_height(first) != null_flag && rule_height(first) <= specification->top   )
+                             && (rule_depth (first) != null_flag && rule_depth (first) <= specification->bottom)) {
                                     okay = 1;
-                                }
                             }
                         }
-                    } else { 
-                        if (rule_height(first) > specification->height || rule_depth(first) > specification->depth) {
-                            return 0;
-                        }
+                    } else if (rule_height(first) > specification->height || rule_depth(first) > specification->depth) {
+                        return 0;
                     }
                     break;
                 case math_node:
@@ -153,16 +161,16 @@ int tex_snapping_indeed(halfword first, halfword last, snapping_specification *s
                             case begin_inline_math:
                             case begin_broken_math:
                                 if (tex_has_math_option(first, math_option_snapping)) {
-                                    ignore = ! (specification->method & snapping_method_math);
+                                    ignore  = ! (specification->method & snapping_method_math);
                                     enforce = 1;
                                 } else {
-                                    ignore = 1;
+                                    ignore  = 1;
                                     enforce = 0;
                                 }
                                 break;
                             case end_inline_math:
                             case end_broken_math:
-                                ignore = 1;
+                                ignore  = 0;
                                 enforce = 0;
                                 break;
                         }
@@ -189,6 +197,14 @@ int tex_snapping_indeed(halfword first, halfword last, snapping_specification *s
     approaches.
 */
 
+/*tex
+
+    There is a pitfall here. Because we have a macro language, we cannot be sure that when we
+    have scanned a snapping then before we apply it, the related setting has been adapted. This
+    means that we have to make a copy unless it is a constant one.
+
+*/
+
 halfword tex_snapping_scan(void)
 {
     do {
@@ -199,7 +215,7 @@ halfword tex_snapping_scan(void)
             {
                 halfword snapping = eq_value(cur_cs);
                 if (node_subtype(snapping) == line_snapping_code) {
-                    return snapping;
+                    return tex_copy_specification_node(snapping);
                 }
             }
             break;
@@ -207,7 +223,7 @@ halfword tex_snapping_scan(void)
             if (cur_chr) {
                 quarterword code = (quarterword) internal_specification_number(cur_chr);
                 if (code == line_snapping_code) {
-                    return eq_value(cur_chr); /* line_snapping_par */
+                    return tex_copy_specification_node(eq_value(cur_chr)); /* line_snapping_par */
                 }
             }
             break;
@@ -378,71 +394,75 @@ void tex_snapping_done(halfword *ht, halfword *dp, halfword snapping)
 
 void tex_snapping_line(halfword box, halfword snapping)
 {
-    if (! is_box_snapped_state(box)) {
-     // tex_snapping_done(&(box_height(box)), &(box_depth(box)), snapping);
-        scaled ht = box_height(box);
-        scaled dp = box_depth(box);
-        box_natural_height(box) = ht;
-        box_natural_depth(box) = dp;
-        if (tex_has_box_option(box, box_option_no_snapping)) {
-            /* ignore */
-        } else {
-            tex_snapping_done(&ht, &dp, snapping);
-            box_height(box) = ht;
-            box_depth(box) = dp;
+    if (! tex_has_box_option(box, box_option_no_snapping)) {
+        if (! is_box_snapped_state(box)) {
+         // tex_snapping_done(&(box_height(box)), &(box_depth(box)), snapping);
+            scaled ht = box_height(box);
+            scaled dp = box_depth(box);
+            box_natural_height(box) = ht;
+            box_natural_depth(box) = dp;
+            if (tex_has_box_option(box, box_option_no_snapping)) {
+                /* ignore */
+            } else {
+                tex_snapping_done(&ht, &dp, snapping);
+                box_height(box) = ht;
+                box_depth(box) = dp;
+            }
+            set_box_snapped_state(box);
         }
-        set_box_snapped_state(box);
     }
 }
 
 halfword tex_snapping_rule(halfword rule, halfword snapping, quarterword subtype)
 {
-    switch (node_subtype(rule)) {
-        case normal_rule_subtype:
-        case empty_rule_subtype:
-            {
-                scaled oldwd = rule_width(rule);
-                scaled oldht = rule_height(rule);
-                scaled olddp = rule_depth(rule);
-                if (oldwd == null_flag || (oldht == null_flag && olddp == null_flag)) {
-                    /* Definitely not as we pack (one can use uleaders). */
-                } else {
-                    scaled newht = oldht;
-                    scaled newdp = olddp;
-                    if (oldht == null_flag) {
-                        newht = 0;
-                    }
-                    if (olddp == null_flag) {
-                        newdp = 0;
-                    }
-                    tex_snapping_done(&newht, &newdp, snapping);
-                    if (newht != oldht || newdp != olddp) {
-                        halfword prev = node_prev(rule);
-                        halfword next = node_next(rule);
-                        halfword list = tex_new_node(hlist_node, subtype);
-                        /* we could pack twice when we have a nulkl_flag */
-                        box_natural_height(list) = oldht;
-                        box_natural_depth(list) = olddp;
-                        /* */
-                        node_prev(rule) = null;
-                        node_next(rule) = null;
-                        box_list(list) = rule;
-                        tex_attach_attribute_list_copy(list, rule);
-                        tex_try_couple_nodes(prev, list);
-                        tex_try_couple_nodes(list, next);
-                        box_width(list) = oldwd;
-                        if (oldht != null_flag) {
-                            box_height(list) = newht;
+    if (! tex_has_rule_option(rule, rule_option_no_snapping)) {
+        switch (node_subtype(rule)) {
+            case normal_rule_subtype:
+            case empty_rule_subtype:
+                {
+                    scaled oldwd = rule_width(rule);
+                    scaled oldht = rule_height(rule);
+                    scaled olddp = rule_depth(rule);
+                    if (oldwd == null_flag || (oldht == null_flag && olddp == null_flag)) {
+                        /* Definitely not as we pack (one can use uleaders). */
+                    } else {
+                        scaled newht = oldht;
+                        scaled newdp = olddp;
+                        if (oldht == null_flag) {
+                            newht = 0;
                         }
-                        if (olddp != null_flag) {
-                            box_depth(list) = newdp;
+                        if (olddp == null_flag) {
+                            newdp = 0;
                         }
-                        set_box_snapped_state(list);
-                        return list;
+                        tex_snapping_done(&newht, &newdp, snapping);
+                        if (newht != oldht || newdp != olddp) {
+                            halfword prev = node_prev(rule);
+                            halfword next = node_next(rule);
+                            halfword list = tex_new_node(hlist_node, subtype);
+                            /* we could pack twice when we have a nulkl_flag */
+                            box_natural_height(list) = oldht;
+                            box_natural_depth(list) = olddp;
+                            /* */
+                            node_prev(rule) = null;
+                            node_next(rule) = null;
+                            box_list(list) = rule;
+                            tex_attach_attribute_list_copy(list, rule);
+                            tex_try_couple_nodes(prev, list);
+                            tex_try_couple_nodes(list, next);
+                            box_width(list) = oldwd;
+                            if (oldht != null_flag) {
+                                box_height(list) = newht;
+                            }
+                            if (olddp != null_flag) {
+                                box_depth(list) = newdp;
+                            }
+                            set_box_snapped_state(list);
+                            return list;
+                        }
                     }
+                    break;
                 }
-                break;
-            }
+        }
     }
     return rule;
 }

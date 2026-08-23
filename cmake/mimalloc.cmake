@@ -25,6 +25,26 @@ set(mimalloc_sources
 #     add_definitions(-DMI_OSX_INTERPOSE=1)
 # endif()
 
+set(MI_OPT_ARCH_FLAGS "")
+set(MI_ARCH "unknown")
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86|i[3456]86)$" OR CMAKE_GENERATOR_PLATFORM MATCHES "^(x86|Win32)$")
+    set(MI_ARCH "x86")
+elseif((CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|x64|amd64|AMD64)$" OR CMAKE_GENERATOR_PLATFORM STREQUAL "x64" OR "x86_64" IN_LIST CMAKE_OSX_ARCHITECTURES) AND NOT CMAKE_GENERATOR_PLATFORM STREQUAL "ARM64") # must be before arm64
+    set(MI_ARCH "x64")
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64|armv[89].?|ARM64)$" OR CMAKE_GENERATOR_PLATFORM STREQUAL "ARM64" OR "arm64" IN_LIST CMAKE_OSX_ARCHITECTURES)
+    set(MI_ARCH "arm64")
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm|armv[34567].?|ARM)$")
+    set(MI_ARCH "arm32")
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv|riscv32|riscv64)$")
+    if(CMAKE_SIZEOF_VOID_P==4)
+        set(MI_ARCH "riscv32")
+    else()
+        set(MI_ARCH "riscv64")
+    endif()
+else()
+    set(MI_ARCH ${CMAKE_SYSTEM_PROCESSOR})
+endif()
+
 set(mi_cflags "")
 set(mi_libraries "")
 
@@ -56,6 +76,13 @@ if (NOT MSVC)
         -Wno-cast-qual
     )
 endif ()
+
+if (MINGW)
+    target_compile_options(mimalloc PRIVATE
+        -Wno-array-bounds
+        -Wno-attributes
+    )
+endif()
 
 # list(APPEND mi_defines MI_LIBC_MUSL=1)
 # list(APPEND mi_cflags -Wno-static-in-inline)

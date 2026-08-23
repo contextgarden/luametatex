@@ -47,8 +47,8 @@ typedef int   (*avl_compare_func)      (void *param, const void *lhs, const void
 typedef void *(*avl_item_copy_func)    (const void *item);
 typedef void *(*avl_item_dispose_func) (void *item);
 typedef void  (*avl_item_func)         (const void *item, void *param);
-typedef void *(*avl_alloc_func)        (size_t);
-typedef void  (*avl_dealloc_func)      (void *);
+typedef void *(*avl_alloc_func)        (size_t size);
+typedef void  (*avl_dealloc_func)      (void *ptr);
 
 /* At minimum, shallow copy */
 
@@ -184,6 +184,8 @@ void *avl_find(const void *item, avl_tree t);
 */
 
 avl_size_t avl_index(const void *item, avl_tree t);
+
+void *avl_find_index(avl_size_t idx, avl_tree t);
 
 /*
     --- SPAN ITEMS ---

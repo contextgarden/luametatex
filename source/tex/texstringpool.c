@@ -87,7 +87,7 @@ string_pool_info lmt_string_pool_state = {
 static inline void tex_aux_increment_pool_string(int n)
 {
     lmt_string_pool_state.string_body_data.allocated += n;
-    if (lmt_string_pool_state.string_body_data.allocated > lmt_string_pool_state.string_body_data.size) {
+    if lmt_unlikely(lmt_string_pool_state.string_body_data.allocated > lmt_string_pool_state.string_body_data.size) {
         tex_overflow_error("poolbody", lmt_string_pool_state.string_body_data.allocated);
     }
 }
@@ -97,7 +97,7 @@ static inline void tex_aux_decrement_pool_string(int n)
     lmt_string_pool_state.string_body_data.allocated -= n;
 }
 
-static void tex_aux_flush_cur_string(void)
+static void tex_aux_flush_cur_string(void) /* how often, todo: check it */
 {
     if (lmt_string_pool_state.string_temp) {
         aux_deallocate_array(lmt_string_pool_state.string_temp);
@@ -107,10 +107,10 @@ static void tex_aux_flush_cur_string(void)
     lmt_string_pool_state.string_temp_allocated = 0;
 }
 
-void tex_reset_cur_string(void)
+void tex_reset_cur_string(void) /* how often, todo: check it */
 {
     unsigned char *tmp = aux_allocate_clear_array(sizeof(unsigned char), initial_temp_string_slots, reserved_temp_string_slots);
-    if (tmp) {
+    if lmt_likely(tmp) {
         lmt_string_pool_state.string_temp = tmp;
         lmt_string_pool_state.string_temp_top = 0;
         lmt_string_pool_state.string_temp_allocated = initial_temp_string_slots;
@@ -132,7 +132,7 @@ static int tex_aux_room_in_string(int wsize)
             size = wsize + STRING_EXTRA_AMOUNT;
         }
         tmp = aux_reallocate_array(lmt_string_pool_state.string_temp, sizeof(unsigned char), size, reserved_temp_string_slots);
-        if (tmp) {
+        if lmt_likely(tmp) {
             lmt_string_pool_state.string_temp = tmp;
             memset(tmp + lmt_string_pool_state.string_temp_top, 0, (size_t) size - lmt_string_pool_state.string_temp_top);
         } else {
@@ -149,7 +149,7 @@ static int tex_aux_room_in_string(int wsize)
 
 void tex_initialize_string_mem(void)
 {
-    int size = lmt_string_pool_state.string_pool_data.minimum;
+    int size;
     if (lmt_main_state.run_state == initializing_state) {
         size = lmt_string_pool_state.string_pool_data.minimum;
         lmt_string_pool_state.string_pool_data.ptr = cs_offset_value;
@@ -159,7 +159,7 @@ void tex_initialize_string_mem(void)
     }
     if (size > 0) {
         lstring *pool = aux_allocate_clear_array(sizeof(lstring), size, reserved_string_slots);
-        if (pool) {
+        if lmt_likely(pool) {
             lmt_string_pool_state.string_pool = pool;
             lmt_string_pool_state.string_pool_data.allocated = size;
         } else {
@@ -173,8 +173,13 @@ void tex_initialize_string_pool(void)
     unsigned char *nullstring = lmt_memory_malloc(1);
     int size = lmt_string_pool_state.string_pool_data.allocated;
     if (size && nullstring) {
-        lmt_string_pool_state.string_pool[0].s = nullstring;
+        /*
+            Watch out, |nullstring| is special because it sits at zero and the setters and getters
+            use an offset! The length is already zero.
+        */
         nullstring[0] = '\0';
+        lmt_string_pool_state.string_pool[0].uns = nullstring;
+     // lmt_string_pool_state.string_pool[0].len = 0;
         lmt_string_pool_state.string_pool_data.ptr++;
         tex_reset_cur_string();
     } else {
@@ -199,9 +204,16 @@ static int tex_aux_room_in_string_pool(int n)
                 top = lmt_string_pool_state.string_pool_data.size;
             }
             if (top > lmt_string_pool_state.string_pool_data.allocated) {
-                lmt_string_pool_state.string_pool_data.allocated = top;
-                tmp = aux_reallocate_array(lmt_string_pool_state.string_pool, sizeof(lstring), top, reserved_string_slots);
+            //  tmp = aux_reallocate_array(lmt_string_pool_state.string_pool, sizeof(lstring), top, reserved_string_slots);
+                tmp = aux_reallocate_clear_array(
+                    lmt_string_pool_state.string_pool,
+                    sizeof(lstring),
+                    top,
+                    reserved_string_slots,
+                    lmt_string_pool_state.string_pool_data.allocated + reserved_string_slots + 1
+                );
                 lmt_string_pool_state.string_pool = tmp;
+                lmt_string_pool_state.string_pool_data.allocated = top;
             }
             lmt_run_memory_callback("pool", tmp ? 1 : 0);
             if (! tmp) {
@@ -225,8 +237,9 @@ strnumber tex_make_string(void)
     if (tex_aux_room_in_string(1)) {
         int ptr = lmt_string_pool_state.string_pool_data.ptr;
         lmt_string_pool_state.string_temp[lmt_string_pool_state.string_temp_top] = '\0';
-        str_string(ptr) = lmt_string_pool_state.string_temp;
-        str_length(ptr) = lmt_string_pool_state.string_temp_top;
+        str_setunsstr(ptr, lmt_string_pool_state.string_temp);
+        str_setintlen(ptr, lmt_string_pool_state.string_temp_top);
+        str_setmod(ptr, 0);
         tex_aux_increment_pool_string(lmt_string_pool_state.string_temp_top);
         tex_reset_cur_string();
         if (tex_aux_room_in_string_pool(1)) {
@@ -241,13 +254,14 @@ strnumber tex_make_string(void)
 strnumber tex_push_string(const unsigned char *s, int l)
 {
     if (tex_aux_room_in_string_pool(1)) {
-        unsigned char *t = lmt_memory_malloc(sizeof(char) * ((size_t) l + 1));
+        char *t = lmt_memory_malloc(sizeof(char) * ((size_t) l + 1));
         if (t) {
             int ptr = lmt_string_pool_state.string_pool_data.ptr;
             memcpy(t, s, l);
             t[l] = '\0';
-            str_string(ptr) = t;
-            str_length(ptr) = l;
+            str_setchrstr(ptr, t);
+            str_setintlen(ptr, l);
+            str_setmod(ptr, 0);
             lmt_string_pool_state.string_pool_data.ptr++;
             tex_aux_increment_pool_string(l);
             return ptr;
@@ -256,15 +270,22 @@ strnumber tex_push_string(const unsigned char *s, int l)
     return get_nullstr();
 }
 
-char *tex_take_string(int *len)
+/*tex
+
+    This one is rarely used, like in |\scantokens|.
+
+*/
+
+char * tex_take_string(int *len)
 {
-    char* ptr = NULL;
+    char *ptr = NULL;
     if (tex_aux_room_in_string(1)) {
         lmt_string_pool_state.string_temp[lmt_string_pool_state.string_temp_top] = '\0';
-        if (len) {
-            *len = lmt_string_pool_state.string_temp_top;
-        }
         ptr = (char *) lmt_string_pool_state.string_temp;
+        if (len) {
+        // *len = (int) strlen(ptr);
+           *len = lmt_string_pool_state.string_temp_top;
+        }
         tex_reset_cur_string();
     }
     return ptr;
@@ -275,42 +296,56 @@ char *tex_take_string(int *len)
     The following subroutine compares string |s| with another string of the same length that appears
     in |buffer| starting at position |k|; the result is |true| if and only if the strings are equal.
     Empirical tests indicate that |str_eq_buf| is used in such a way that it tends to return |true|
-    about 80 percent of the time.
-
-    \startyping
-    unsigned char *j = str_string(s);
-    unsigned char *l = j + str_length(s);
-    while (j < l) {
-        if (*j++ != buffer[k++])
-            return 0;
-    }
-    \stoptyping
+    about 80 percent of the time. This function is actually seldom called, only when we mess with
+    primitive names in tracing. It evolved over time.
 
 */
 
-// int tex_str_eq_buf(strnumber s, int k, int n)
-// {
-//     if (s < cs_offset_value) {
-//         /* very unlikely */
-//         return buffer_to_unichar(k) == (unsigned int) s;
-//     } else {
-//         return memcmp(str_string(s), &lmt_fileio_state.io_buffer[k], n) == 0;
-//     }
-// }
+/*
 
-// int tex_str_eq_buf(strnumber s, int k, int n)
-// {
-//     if (s >= cs_offset_value) {
-//         return memcmp(str_string(s), &lmt_fileio_state.io_buffer[k], n) == 0;
-//     } else {
-//         /* very unlikely */
-//         return buffer_to_unichar(k) == (unsigned int) s;
-//     }
-// }
-
-int tex_str_eq_buf(strnumber s, int k, int n)
+int tex_str_eq_buf(strnumber s, int k, lstring_length l)
 {
-    return (s >= cs_offset_value) ? (memcmp(str_string(s), &lmt_fileio_state.io_buffer[k], n) == 0) : (buffer_to_unichar(k) == (unsigned int) s);
+    if (s >= cs_offset_value) {
+        // this is already tested
+     // if (str_getlen(s) != l) {
+     //     return 0;
+     // }
+     // if (l == 0) {
+     //     return 1;
+     // }
+        lstring_string str = str_getstr(s);
+        lstring_string buf = &lmt_fileio_state.io_buffer[k];
+        if (str[0] != buf[0]) {
+            return 0;
+        }
+        return memcmp(str, buf, l) == 0;
+    }
+    return buffer_to_unichar(k) == (unsigned int) s;
+}
+
+*/
+
+int tex_str_eq_buf(strnumber s, int k, lstring_length l)
+{
+    if (s >= cs_offset_value) {
+        // this is already tested
+     // if (str_getlen(s) != l) {
+     //     return 0;
+     // }
+     // if (l == 0) {
+     //     return 1;
+     // }
+        lstring_string str = str_getstr(s);
+        lstring_string buf = &lmt_fileio_state.io_buffer[k];
+        if (str[0] != buf[0]) {
+            return 0;
+        } if (l == 1) {
+            return 1;
+        }
+        /* memcmp will be optimized with -03 */
+        return memcmp(str+1, buf+1, l-1) == 0;
+    }
+    return buffer_to_unichar(k) == (unsigned int) s;
 }
 
 /*tex
@@ -319,9 +354,9 @@ int tex_str_eq_buf(strnumber s, int k, int n)
     assume that they have the same length.
 
     \starttyping
-    k = str_string(t);
-    j = str_string(s);
-    l = j + str_length(s);
+    k = str_getstr(t);
+    j = str_getstr(s);
+    l = j + str_getlen(s);
     while (j < l) {
         if (*j++ != *k++)
             return 0;
@@ -334,14 +369,16 @@ int tex_str_eq_str(strnumber s, strnumber t)
     if (s >= cs_offset_value) {
         if (t >= cs_offset_value) {
             /* s and t are strings, this is the most likely test */
-            return (str_length(s) == str_length(t)) && ! memcmp(str_string(s), str_string(t), str_length(s));
+            return (str_getlen(s) == str_getlen(t)) && ! memcmp(str_getstr(s),str_getstr(t),str_getlen(s));
         } else {
-            /* s is a string and t an unicode character, happens seldom */
-            return (strnumber) aux_str2uni(str_string(s)) == t;
+            int length;
+            unsigned value = aux_str2uni_len(str_getstr(s), &length);
+            return length == str_getintlen(s) && value == (unsigned) t;
         }
     } else if (t >= cs_offset_value) {
-        /* s is an unicode character and t is a string, happens seldom */
-        return (strnumber) aux_str2uni(str_string(t)) == s;
+        int length;
+        unsigned value = aux_str2uni_len(str_getstr(t), &length);
+        return length == str_getintlen(t) && value == (unsigned) s;
     } else {
         /* s and t are unicode characters */
         return s == t;
@@ -352,7 +389,20 @@ int tex_str_eq_str(strnumber s, strnumber t)
 
 int tex_str_eq_cstr(strnumber r, const char *s, size_t l)
 {
-    return (l == str_length(r)) && ! strncmp((const char *) (str_string(r)), s, l);
+    if (r == 0) {
+        return 0;
+    }
+    if (l != str_getsizlen(r)) {
+        return 0;
+    }
+    if (l == 0) {
+        return 1; /* or just skip this*/
+    }
+    const char *c = str_getconstr(r);
+    if (c[0] != s[0]) {
+        return 0;
+    }
+    return memcmp(c, s, l) == 0;
 }
 
 /*tex
@@ -395,11 +445,13 @@ strnumber tex_maketexlstring(const char *s, size_t l)
         int ptr = lmt_string_pool_state.string_pool_data.ptr;
         size_t len = l + 1;
         unsigned char *tmp = lmt_memory_malloc(len);
-        if (tmp) {
-            str_length(ptr) = l;
-            str_string(ptr) = tmp;
+        if lmt_likely(tmp) {
+            str_setsizlen(ptr, l); /* not len! */
+            str_setunsstr(ptr, tmp);
+            str_setmod(ptr, 0);
             tex_aux_increment_pool_string((int) l);
-            memcpy(tmp, s, len);
+            memcpy(tmp, s, l);
+            tmp[l] = '\0';
             if (tex_aux_room_in_string_pool(1)) {
                 lmt_string_pool_state.string_pool_data.ptr += 1;
             }
@@ -438,10 +490,10 @@ char *tex_makeclstring(int s, size_t *len)
         *len = (size_t) utf8_size(s);
         return (char *) aux_uni2str((unsigned) s);
     } else {
-        size_t l = (size_t) str_length(s);
+        size_t l = str_getsizlen(s);
         char *tmp = lmt_memory_malloc(l + 1);
-        if (tmp) {
-            memcpy(tmp, str_string(s), l);
+        if lmt_likely(tmp) {
+            memcpy(tmp, str_getstr(s), l);
             tmp[l] = '\0';
             *len = l;
             return tmp;
@@ -459,15 +511,14 @@ char *tex_makecstring(int s)
     if (s < cs_offset_value) {
         return (char *) aux_uni2str((unsigned) s);
     } else {
-        return lmt_memory_strdup((str_length(s) > 0) ? (const char *) str_string(s) : "");
+        return lmt_memory_strdup((str_getlen(s) > 0) ? (const char *) str_getconstr(s) : "");
     }
 }
 */
 
 /*tex 
-    I might eventually replace this because in quite some calls we know that we knwo that we have
-    a pointer in string space. We can kin dof predict in what cases we are below |cs_offset_value|
-    anyway. 
+    I might eventually replace this because in quite some calls we know that we have a pointer in
+    string space. We can kind of predict in what cases we are below |cs_offset_value| anyway.
 */
 
 char *tex_makecstring(int s, int *allocated)
@@ -476,7 +527,7 @@ char *tex_makecstring(int s, int *allocated)
     if (*allocated) {
         return (char *) aux_uni2str((unsigned) s);
     } else {
-        return str_length(s) > 0 ? (char *) str_string(s) : "";
+        return str_getlen(s) > 0 ? str_getchrstr(s) : "";
     }
 }
 
@@ -497,8 +548,8 @@ void tex_compact_string_pool(void)
     int n_of_strings = lmt_string_pool_state.string_pool_data.ptr - cs_offset_value;
     int max_length = 0;
     for (int j = 1; j < n_of_strings; j++) {
-        if (lmt_string_pool_state.string_pool[j].l > (unsigned int) max_length) {
-            max_length = (int) lmt_string_pool_state.string_pool[j].l;
+        if (lmt_string_pool_state.string_pool[j].len > (unsigned int) max_length) {
+            max_length = (int) lmt_string_pool_state.string_pool[j].len;
         }
     }
     lmt_string_pool_state.string_max_length = max_length;
@@ -510,8 +561,27 @@ void tex_compact_string_pool(void)
     also allocated. 
 */
 
-# define max_short_string 250
-# define no_short_string  255
+# define max_short_string  250
+# define no_short_string   255
+# define modes_array_step   64
+
+static int * tex_aux_register_mode(int *modes, int *nofmodes, int *maxnofmodes, int n)
+{
+    if (! modes) {
+        *maxnofmodes += modes_array_step;
+        modes = lmt_memory_malloc(*maxnofmodes * sizeof(int));
+    } else if (*nofmodes == *maxnofmodes) {
+        *maxnofmodes += modes_array_step;
+        modes = lmt_memory_realloc(modes, *maxnofmodes * sizeof(int));
+    }
+    if lmt_likely(modes) {
+        modes[*nofmodes] = n;
+        *nofmodes += 1;
+    } else {
+        /* fatal error */
+    }
+    return modes;
+}
 
 void tex_dump_string_pool(dumpstream f)
 {
@@ -524,24 +594,52 @@ void tex_dump_string_pool(dumpstream f)
     dump_via_int(f, n_of_strings);
     dump_via_int(f, max_length);
     dump_via_int(f, total_length);
+    /* */
+    int nofmodes    = 0;
+    int maxnofmodes = 0;
+    int *modes      = NULL;
+    /* */
     if (max_length > 0 && max_length < max_short_string) {
         /*tex We only have short strings. */
         for (int j = 0; j < n_of_strings; j++) {
-            unsigned char l = lmt_string_pool_state.string_pool[j].s ? (unsigned char) lmt_string_pool_state.string_pool[j].l : no_short_string;
+            unsigned char l = lmt_string_pool_state.string_pool[j].str ? (unsigned char) lmt_string_pool_state.string_pool[j].len : no_short_string;
             dump_uchar(f, l);
-            if (l > 0) {
-                dump_things(f, *lmt_string_pool_state.string_pool[j].s, l);
+            if (l > 0 && lmt_string_pool_state.string_pool[j].str) {
+                dump_things(f, *lmt_string_pool_state.string_pool[j].str, l);
+                if (lmt_string_pool_state.string_pool[j].mod) {
+                    modes = tex_aux_register_mode(modes, &nofmodes, &maxnofmodes, j);
+                }
             }
         }
     } else {
         /*tex We also have long strings. */
         for (int j = 0; j < n_of_strings; j++) {
-            int l = lmt_string_pool_state.string_pool[j].s ? (int) lmt_string_pool_state.string_pool[j].l : -1;
+            int l = lmt_string_pool_state.string_pool[j].str ? (int) lmt_string_pool_state.string_pool[j].len : -1;
             dump_int(f, l);
-            if (l > 0) {
-                dump_things(f, *lmt_string_pool_state.string_pool[j].s, l);
+            if (l > 0 && lmt_string_pool_state.string_pool[j].str) {
+                dump_things(f, *lmt_string_pool_state.string_pool[j].str, l);
+                if (lmt_string_pool_state.string_pool[j].mod) {
+                    modes = tex_aux_register_mode(modes, &nofmodes, &maxnofmodes, j);
+                }
             }
         }
+    }
+    dump_int(f, nofmodes);
+    if (modes) {
+        for (int i = 0; i < nofmodes; i++) {
+            int n = modes[i];
+            int mode = lmt_string_pool_state.string_pool[n].mod;
+            dump_int(f, n);
+            dump_int(f, mode);
+            # if 0
+                if (mode == lstring_active_mode) {
+                    printf("1 ACTIVE %i : %s\n",
+                        n, lmt_string_pool_state.string_pool[n].str + 3
+                    );
+                }
+            # endif
+        }
+        lmt_memory_free(modes);
     }
 }
 
@@ -561,6 +659,7 @@ void tex_undump_string_pool(dumpstream f)
     {
         int allocated = 0;
         int compact = max_length > 0 && max_length < max_short_string;
+        int nofmodes = 0;
         for (int j = 0; j < n_of_strings; j++) {
             int l;
             if (compact) {
@@ -576,11 +675,11 @@ void tex_undump_string_pool(dumpstream f)
                 /* we can overflow reserved_string_slots */
                 int n = l + 1;
                 unsigned char *s = aux_allocate_clear_array(sizeof(unsigned char), n, reserved_string_slots);
-                if (s) {
-                    lmt_string_pool_state.string_pool[j].s = s;
+                if lmt_likely(s) {
+                    lmt_string_pool_state.string_pool[j].str = (lstring_string) s;
                     undump_things(f, s[0], l);
                     s[l] = '\0';
-                    allocated += n;
+                    allocated += l;
                 } else {
                     tex_overflow_error("string pool", n);
                     l = 0;
@@ -588,10 +687,18 @@ void tex_undump_string_pool(dumpstream f)
             } else {
                 l = 0;
             }
-            lmt_string_pool_state.string_pool[j].l = l;
+            lmt_string_pool_state.string_pool[j].len = (lstring_length) l;
         }
         lmt_string_pool_state.string_body_data.allocated = allocated;
         lmt_string_pool_state.string_body_data.initial = allocated;
+        /* */
+        undump_int(f, nofmodes);
+        for (int i = 0; i < nofmodes; i++) {
+            int n, mode;
+            undump_int(f, n);
+            undump_int(f, mode);
+            lmt_string_pool_state.string_pool[n].mod = (lstring_mode) mode;
+        }
     }
 }
 
@@ -601,14 +708,15 @@ void tex_flush_str(strnumber s)
 {
     if (s > cs_offset_value) {
         /*tex Don't ever delete the null string! */
-        tex_aux_decrement_pool_string((int) str_length(s));
-        str_length(s) = 0;
-        lmt_memory_free(str_string(s));
-        str_string(s) = NULL;
+        tex_aux_decrement_pool_string(str_getintlen(s));
+        str_setlen(s, 0);
+        lmt_memory_free(str_getstr(s));
+        str_setstr(s, NULL);
+        str_setmod(s, 0);
      // string_pool_state.string_pool_data.ptr--;
     }
     /* why a loop and not in previous branch */
-    while (! str_string((lmt_string_pool_state.string_pool_data.ptr - 1))) {
+    while (! str_getstr((lmt_string_pool_state.string_pool_data.ptr - 1))) {
         lmt_string_pool_state.string_pool_data.ptr--;
     }
 }
@@ -631,10 +739,10 @@ void tex_restore_cur_string(strnumber u)
 {
     if (u) {
         /*tex Beware, we have no 0 termination here! */
-        int ul = (int) str_length(u);
+        int ul = str_getintlen(u);
         tex_aux_flush_cur_string();
-        if (tex_aux_room_in_string(u)) {
-            memcpy(lmt_string_pool_state.string_temp, str_string(u), ul);
+        if (tex_aux_room_in_string(ul)) {
+            memcpy(lmt_string_pool_state.string_temp, str_getstr(u), ul);
             lmt_string_pool_state.string_temp_allocated = ul;
             lmt_string_pool_state.string_temp_top = ul;
             tex_flush_str(u);

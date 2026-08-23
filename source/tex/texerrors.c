@@ -107,8 +107,10 @@ static void tex_aux_set_last_error_context(void)
     lmt_print_state.new_string_line = 10;
     tex_show_validity();
     tex_show_context();
+    char *captured = tex_take_string(NULL);
     lmt_memory_free(lmt_error_state.last_error_context);
-    lmt_error_state.last_error_context = tex_take_string(NULL);
+    lmt_error_state.last_error_context = captured ? lmt_memory_strdup(captured) : NULL;
+    lmt_memory_free(captured);
     lmt_print_state.selector = saved_selector;
     new_line_char_par = saved_new_line_char;
     lmt_print_state.new_string_line = saved_new_string_line;
@@ -118,8 +120,10 @@ static void tex_aux_flush_error(void)
 {
     if (lmt_error_state.in_error) {
         lmt_print_state.selector = lmt_error_state.saved_selector;
+        char *captured = tex_take_string(NULL);
         lmt_memory_free(lmt_error_state.last_error);
-        lmt_error_state.last_error = tex_take_string(NULL);
+        lmt_error_state.last_error = captured ? lmt_memory_strdup(captured) : NULL;
+        lmt_memory_free(captured);
         if (lmt_error_state.last_error) {
             int callback_id = lmt_callback_defined(show_error_message_callback);
             if (callback_id > 0) {
@@ -147,8 +151,7 @@ static void tex_aux_start_error(void)
         lmt_memory_free(lmt_error_state.last_error);
         lmt_error_state.last_error = NULL;
     } else {
-        tex_print_nlp();
-        tex_print_str("! ");
+        tex_print_format("\n! ");
     }
 }
 
@@ -255,14 +258,24 @@ static void tex_aux_jump_out(void)
 static void tex_aux_error(int type)
 {
     int callback_id = lmt_callback_defined(intercept_tex_error_callback);
+    int intercepted = lmt_lua_state.lua_instance && callback_id > 0;
     tex_aux_flush_error();
-    if (lmt_error_state.history < error_message_issued && type !=  warning_error_type) {
+    if (type == warning_error_type) {
+        if (lmt_error_state.history == spotless) {
+            lmt_error_state.history = warning_issued;
+        }
+    } else if (lmt_error_state.history < error_message_issued) {
         lmt_error_state.history = error_message_issued;
     }
-    if (lmt_lua_state.lua_instance && callback_id > 0) {
+    if (intercepted) {
         tex_aux_set_last_error_context();
         lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "dd->d", lmt_error_state.interaction, type, &lmt_error_state.interaction);
+        /*tex
+            It is up to the callback to decide what to do with errors so we reset the count. This could be an option
+            but because we don't know what happens at the \LUA\ end we play safe.
+        */
         lmt_error_state.error_count = 0;
+        /* */
         tex_terminal_update();
         switch (lmt_error_state.interaction) {
             case batch_mode: /* Q */
@@ -286,6 +299,7 @@ static void tex_aux_error(int type)
         tex_show_context();
     }
     if (type != warning_error_type) {
+        /*tex This won't happen when we use a callback as there we reset the count. */
         ++lmt_error_state.error_count;
         if (lmt_error_state.error_count == 100) {
             tex_print_message("That makes 100 errors; please try again.");
@@ -297,16 +311,12 @@ static void tex_aux_error(int type)
         We assume that the callback handles the log file too. Otherwise we put the help message in
         the log file.
     */
-    if (callback_id == 0) {
+    if (! intercepted) {
         if (lmt_error_state.interaction > batch_mode) {
             /*tex Avoid terminal output: */
             --lmt_print_state.selector;
         }
-        tex_print_nlp();
-        if (lmt_error_state.help_text) {
-            tex_print_str(lmt_error_state.help_text);
-            tex_print_nlp();
-        }
+        tex_print_format("\n%s\n", lmt_error_state.help_text ? lmt_error_state.help_text : "");
         if (lmt_error_state.interaction > batch_mode) {
             /*tex Re-enable terminal output: */
             ++lmt_print_state.selector;
@@ -361,8 +371,8 @@ void tex_fatal_error(const char *helpinfo)
     tex_aux_normalize_selector();
     tex_handle_error(
         succumb_error_type,
-        "Emergency stop",
-        helpinfo
+        "Emergency stop%h",
+        helpinfo ? helpinfo : ""
     );
 }
 
@@ -373,7 +383,7 @@ void tex_overflow_error(const char *s, int n)
     tex_aux_normalize_selector();
     tex_handle_error(
         succumb_error_type,
-        "TeX capacity exceeded, sorry [%s=%i]",
+        "TeX capacity exceeded, sorry [%s=%i]%h",
         s, n,
         "If you really absolutely need more capacity, you can ask a wizard to enlarge me."
     );
@@ -396,14 +406,14 @@ int tex_confusion(const char *s)
     if (lmt_error_state.history < error_message_issued) {
         tex_handle_error(
             succumb_error_type,
-            "This can't happen (%s)",
+            "This can't happen (%s)%h",
             s,
             "I'm broken. Please show this to someone who can fix me."
         );
     } else {
         tex_handle_error(
             succumb_error_type,
-            "I can't go on meeting you like this",
+            "I can't go on meeting you like this%h",
             "One of your faux pas seems to have wounded me deeply ... in fact, I'm barely\n"
             "conscious. Please fix it and try again."
         );
@@ -421,8 +431,7 @@ void aux_quit_the_program(void) /*tex No |tex_| prefix here! */
 {
     tex_handle_error(
         succumb_error_type,
-        "Forced stop",
-        NULL
+        "Forced stop"
     );
 }
 
@@ -453,12 +462,11 @@ int tex_normal_error(const char *t, const char *p)
 {
    if (lmt_engine_state.lua_only) {
         /*tex Normally ending up here means that we call the wrong error function. */
-        tex_emergency_message(t, p);
+        tex_emergency_message(t, "%s", p ? p : "unspecified tex error");
     } else {
         tex_aux_normalize_selector();
         if (! tex_aux_error_callback_set()) {
-            tex_print_nlp();
-            tex_print_str("! ");
+            tex_print_format("\n! ");
         }
         tex_print_str("error");
         if (t) {
@@ -478,8 +486,8 @@ void tex_normal_warning(const char *t, const char *p)
 {
    if (lmt_engine_state.lua_only) {
         /*tex Normally ending up here means that we call the wrong error function. */
-        tex_emergency_message(t, p);
-    } else if (strcmp(t, "lua") == 0) {
+        tex_emergency_message(t, "%s", p ? p : "unspecified tex warning");
+    } else if (t && strcmp(t, "lua") == 0) {
         int callback_id = lmt_callback_defined(intercept_lua_error_callback);
         int saved_new_line_char = new_line_char_par;
         new_line_char_par = 10;
@@ -489,6 +497,7 @@ void tex_normal_warning(const char *t, const char *p)
         } else {
             tex_handle_error(
                 normal_error_type,
+                "%s%h",
                 p ? p : "unspecified lua error",
                 "The lua interpreter ran into a problem, so the remainder of this lua chunk will\n"
                 "be ignored."
@@ -501,8 +510,8 @@ void tex_normal_warning(const char *t, const char *p)
             /*tex Free the last ones, */
             lmt_memory_free(lmt_error_state.last_warning);
             lmt_memory_free(lmt_error_state.last_warning_tag);
-            lmt_error_state.last_warning = lmt_memory_strdup(p);
-            lmt_error_state.last_warning_tag = lmt_memory_strdup(t);
+            lmt_error_state.last_warning = p ? lmt_memory_strdup(p) : NULL;
+            lmt_error_state.last_warning_tag = t ? lmt_memory_strdup(t) : NULL;
             lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "->");
         } else {
             tex_print_ln();
@@ -510,8 +519,8 @@ void tex_normal_warning(const char *t, const char *p)
             if (t) {
                 tex_print_format(" (%s)", t);
             }
-            tex_print_str(": ");
             if (p) {
+                tex_print_str(": ");
                 tex_print_str(p);
             }
             tex_print_ln();
@@ -528,9 +537,9 @@ int tex_formatted_error(const char *t, const char *fmt, ...)
     va_list args;
     va_start(args, fmt);
     vsnprintf(print_buffer, print_buffer_size, fmt, args);
+    va_end(args);
     return tex_normal_error(t, print_buffer);
     /*
-    va_end(args);
     return 0;
     */
 }
@@ -597,12 +606,16 @@ void tex_handle_error_message_only(
     const char *message
 )
 {
+    int callback_id = tex_aux_error_callback_set();
     tex_aux_start_error();
     tex_print_str(message);
-    if (tex_aux_error_callback_set()) {
+    if (callback_id) {
+        char *captured = tex_take_string(NULL);
+        lmt_print_state.selector = lmt_error_state.saved_selector;
         lmt_error_state.in_error = 0;
         lmt_memory_free(lmt_error_state.last_error);
-        lmt_error_state.last_error = lmt_memory_strdup(message);
+        lmt_error_state.last_error = captured ? lmt_memory_strdup(captured) : NULL;
+        lmt_memory_free(captured);
     }
 }
 
@@ -611,7 +624,7 @@ void tex_handle_error_message_only(
     We had about 15 specific tuned message handlers as a prelude to a general template based one
     and that one has arrived (we also have a print one, beginning 2021 only partially applied as
     I'm undecided). We can now call a translation callback where we remap similar to how we do it
-    in ConTeXt but I;'m nor that sure if users really need it. The english is probably the least
+    in ConTeXt but I'm not that sure if users really need it. The english is probably the least
     problematic part of an error so first I will perfect the tracing bit.
 
     Todo: a translation callback: |str, 1 => str|, or not.
@@ -620,12 +633,12 @@ void tex_handle_error_message_only(
 
 extern void tex_handle_error(error_types type, const char *fmt, ...)
 {
-    const char *str = NULL;
+    const char *help = NULL;
     va_list args;
-    va_start(args, fmt); /* hm, weird, no number */
+    va_start(args, fmt);
     tex_aux_start_error();
-    str = tex_print_format_args(fmt, args);
-    tex_aux_update_help_text(str);
+    help = tex_print_format_args(fmt, args);
+    tex_aux_update_help_text(help);
     tex_aux_do_handle_error_type(type);
     va_end(args);
 }

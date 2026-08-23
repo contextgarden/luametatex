@@ -37,7 +37,6 @@ typedef struct mysql_field {
 # define MYSQLLIB_METATABLE  "luatex.mysqllib"
 
 typedef struct mysqllib_data {
-    /*tex There is not much more than a pointer currently. */
     mysql_instance * db;
 } mysqllib_data ;
 
@@ -119,10 +118,8 @@ typedef struct mysqllib_state_info {
 } mysqllib_state_info;
 
 static mysqllib_state_info mysqllib_state = {
-
     .initialized         = 0,
     .padding             = 0,
-
     .mysql_init          = NULL,
     .mysql_real_connect  = NULL,
     .mysql_errno         = NULL,
@@ -138,7 +135,6 @@ static mysqllib_state_info mysqllib_state = {
     .mysql_fetch_fields  = NULL,
     .mysql_field_seek    = NULL,
     .mysql_close         = NULL,
-
 };
 
 static int mysqllib_initialize(lua_State * L)
@@ -175,17 +171,18 @@ static int mysqllib_initialize(lua_State * L)
 static int mysqllib_open(lua_State * L)
 {
     if (mysqllib_state.initialized) {
-        const char     * database   = luaL_checkstring(L, 1);
-        const char     * username   = luaL_optstring(L, 2, NULL);
-        const char     * password   = luaL_optstring(L, 3, NULL);
-        const char     * host       = luaL_optstring(L, 4, NULL);
-        int              port       = lmt_optinteger(L, 5, 0);
-        const char     * socket     = NULL; /* luaL_optstring(L, 6, NULL); */
-        int              flag       = 0;    /* luaL_optinteger(L, 7, 0); */
-        mysql_instance * db         = mysqllib_state.mysql_init(NULL);
+        const char     *database = luaL_checkstring(L, 1);
+        const char     *username = luaL_optstring(L, 2, NULL);
+        const char     *password = luaL_optstring(L, 3, NULL);
+        const char     *host     = luaL_optstring(L, 4, NULL);
+        int             port     = lmt_optinteger(L, 5, 0);
+        const char     *socket   = NULL; /* luaL_optstring(L, 6, NULL); */
+        int             flag     = 0;    /* luaL_optinteger(L, 7, 0); */
+        mysql_instance *db       = mysqllib_state.mysql_init(NULL);
         if (db != NULL) {
             if (mysqllib_state.mysql_real_connect(db, host, username, password, database, port, socket, flag)) {
-                mysqllib_data *data = lua_newuserdatauv(L, sizeof(data), 0);
+                /* FIX 1: Allocated full structure size, not pointer size */
+                mysqllib_data *data = lua_newuserdatauv(L, sizeof(mysqllib_data), 0);
                 data->db = db ;
                 luaL_getmetatable(L, MYSQLLIB_METATABLE);
                 lua_setmetatable(L, -2);
@@ -202,7 +199,8 @@ static int mysqllib_close(lua_State * L)
 {
     if (mysqllib_state.initialized) {
         mysqllib_data * data = luaL_checkudata(L, 1, MYSQLLIB_METATABLE);
-        if (data != NULL) {
+        /* Check data AND data->db to prevent double-free during GC */
+        if (data != NULL && data->db != NULL) {
             mysqllib_state.mysql_close(data->db);
             data->db = NULL;
         }
@@ -210,46 +208,53 @@ static int mysqllib_close(lua_State * L)
     return 0;
 }
 
-/* execute(database,querystring,callback) : x  */
+/* execute(db_handle, querystring, [callback]) */
 
 static int mysqllib_execute(lua_State * L)
 {
     if (mysqllib_state.initialized) {
         mysqllib_data * data = luaL_checkudata(L, 1, MYSQLLIB_METATABLE);
-        if (data != NULL) {
+        if (data != NULL && data->db != NULL) {
             size_t length = 0;
             const char *query = lua_tolstring(L, 2, &length);
+            int has_callback = (lua_type(L, 3) == LUA_TFUNCTION);
             if (query != NULL) {
                 int error = mysqllib_state.mysql_real_query(data->db, query, (int) length);
-                if (!error) {
+                if (! error) {
                     mysql_result * result = mysqllib_state.mysql_store_result(data->db);
                     if (result != NULL) {
-                        int nofrows = 0;
-                        int nofcolumns = 0;
-                        mysqllib_state.mysql_field_seek(result, 0);
-                        nofrows = (int) mysqllib_state.mysql_num_rows(result);
-                        nofcolumns = mysqllib_state.mysql_num_fields(result);
-                        /* This is similar to sqlite but there the callback is more indirect. */
-                        if (nofcolumns > 0 && nofrows > 0) {
+                        int nofrows = (int) mysqllib_state.mysql_num_rows(result);
+                        int nofcolumns = mysqllib_state.mysql_num_fields(result);
+                        if (nofcolumns > 0 && nofrows > 0 && has_callback) {
+                            mysqllib_state.mysql_field_seek(result, 0);
+
                             for (int r = 0; r < nofrows; r++) {
                                 mysql_row row = mysqllib_state.mysql_fetch_row(result);
-                                lua_pushvalue(L, -1);
+                                if (! row) break;
+                                /* Push callback for each iteration */
+                                lua_pushvalue(L, 3);
                                 lua_pushinteger(L, nofcolumns);
+                                /* Row values table */
                                 lua_createtable(L, nofcolumns, 0);
                                 for (int c = 0; c < nofcolumns; c++) {
-                                    lua_pushstring(L, row[c]);
+                                    if (row[c]) {
+                                        lua_pushstring(L, row[c]);
+                                    } else {
+                                        lua_pushnil(L); /* FIX 3: Safe handling for SQL NULL */
+                                    }
                                     lua_rawseti(L, -2, (lua_Integer)c + 1);
                                 }
-                                if (r) {
-                                    lua_call(L, 2, 0);
-                                } else {
+                                if (r == 0) {
+                                    /* First row gets column names as 3rd arg */
                                     mysql_field * fields = mysqllib_state.mysql_fetch_fields(result);
                                     lua_createtable(L, nofcolumns, 0);
                                     for (int c = 0; c < nofcolumns; c++) {
-                                        lua_pushstring(L, fields[c].name);
+                                        lua_pushstring(L, fields[c].name ? fields[c].name : "");
                                         lua_rawseti(L, -2, (lua_Integer)c + 1);
                                     }
                                     lua_call(L, 3, 0);
+                                } else {
+                                    lua_call(L, 2, 0);
                                 }
                             }
                         }
@@ -269,15 +274,13 @@ static int mysqllib_getmessage(lua_State * L)
 {
      if (mysqllib_state.initialized) {
          mysqllib_data * data = luaL_checkudata(L, 1, MYSQLLIB_METATABLE);
-         if (data != NULL) {
+         if (data != NULL && data->db != NULL) {
              lua_pushstring(L, mysqllib_state.mysql_error(data->db));
              return 1;
          }
      }
      return 0;
 }
-
-/* private */
 
 static int mysqllib_free(lua_State * L)
 {
@@ -291,7 +294,7 @@ static int mysqllib_tostring(lua_State * L)
     if (mysqllib_state.initialized) {
         mysqllib_data * data = luaL_checkudata(L, 1, MYSQLLIB_METATABLE);
         if (data != NULL) {
-            (void) lua_pushfstring(L, "<mysqllib-instance %p>", data);
+            (void) lua_pushfstring(L, "<mysqllib-instance %p>", data->db);
         } else {
             lua_pushnil(L);
         }

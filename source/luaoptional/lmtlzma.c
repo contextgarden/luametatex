@@ -112,16 +112,16 @@ static lzmalib_state_info lzmalib_state = {
 static int lzmalib_compress(lua_State *L)
 {
     if (lzmalib_state.initialized) {
-        size_t sourcesize = 0;
-        const char *source = luaL_checklstring(L, 1, &sourcesize);
-        int level = lmt_optinteger(L, 2, lzma_default_level);
-        int targetsize = lmt_optinteger(L, 3, lzma_default_size);
+        size_t      sourcesize = 0;
+        const char *source     = luaL_checklstring(L, 1, &sourcesize);
+        int         level      = lmt_optinteger(L, 2, lzma_default_level);
+        int         targetsize = lmt_optinteger(L, 3, lzma_default_size);
         if (level < 0 || level > 9) {
             level = lzma_default_level;
         }
         if (source) {
-            lzma_stream strm = LZMA_STREAM_INIT;
-            int errorcode = lzmalib_state.lzma_easy_encoder(&strm, level, LZMA_CHECK_CRC64);
+            lzma_stream strm      = LZMA_STREAM_INIT;
+            int         errorcode = lzmalib_state.lzma_easy_encoder(&strm, level, LZMA_CHECK_CRC64);
             if (errorcode == LZMA_OK) {
                 luaL_Buffer buffer;
                 luaL_buffinit(L, &buffer);
@@ -130,23 +130,28 @@ static int lzmalib_compress(lua_State *L)
                 if (targetsize < lzma_default_size) {
                     targetsize = lzma_default_size;
                 }
+                int success = 0;
                 while (1) {
                     char *target = luaL_prepbuffsize(&buffer, targetsize);
-                    size_t produced = strm.total_out;
+                    size_t produced = (size_t) strm.total_out;
                     strm.next_out = (uint8_t *) target;
                     strm.avail_out = targetsize;
                     errorcode = lzmalib_state.lzma_code(&strm, LZMA_FINISH);
                     produced = strm.total_out - produced;
                     luaL_addsize(&buffer, produced);
                     if (errorcode == LZMA_STREAM_END) {
-                        lzmalib_state.lzma_end(&strm);
-                        luaL_pushresult(&buffer);
-                        return 1;
+                        success = 1;
+                        break;
                     } else if (errorcode != LZMA_OK) {
-                        lzmalib_state.lzma_end(&strm);
                         break;
                     }
                 }
+                lzmalib_state.lzma_end(&strm);
+                if (success) {
+                    luaL_pushresult(&buffer);
+                    return 1;
+                }
+                /* Clean stack on error by pushing nil without leaving dangling buffer state */
             }
         }
     }
@@ -157,36 +162,40 @@ static int lzmalib_compress(lua_State *L)
 static int lzmalib_decompress(lua_State *L)
 {
     if (lzmalib_state.initialized) {
-        size_t sourcesize = 0;
-        const char *source = luaL_checklstring(L, 1, &sourcesize);
-        int targetsize = lmt_optinteger(L, 2, lzma_default_size);
+        size_t      sourcesize = 0;
+        const char *source     = luaL_checklstring(L, 1, &sourcesize);
+        int         targetsize = lmt_optinteger(L, 2, lzma_default_size);
         if (source) {
-            lzma_stream strm = LZMA_STREAM_INIT;
-            int errorcode = lzmalib_state.lzma_auto_decoder(&strm, UINT64_MAX, LZMA_CONCATENATED);
+            lzma_stream strm      = LZMA_STREAM_INIT;
+            int         errorcode = lzmalib_state.lzma_auto_decoder(&strm, UINT64_MAX, LZMA_CONCATENATED);
             if (errorcode == LZMA_OK) {
                 luaL_Buffer buffer;
                 luaL_buffinit(L, &buffer);
-                strm.next_in = (const uint8_t *) source;
+                strm.next_in  = (const uint8_t *) source;
                 strm.avail_in = sourcesize;
                 if (targetsize < lzma_default_size) {
                     targetsize = lzma_default_size;
                 }
+                int success = 0;
                 while (1) {
-                    char *target = luaL_prepbuffsize(&buffer, targetsize);
-                    size_t produced = strm.total_out;
-                    strm.next_out = (uint8_t *) target;
-                    strm.avail_out = targetsize;
-                    errorcode = lzmalib_state.lzma_code(&strm, LZMA_RUN);
-                    produced = strm.total_out - produced;
+                    char   *target   = luaL_prepbuffsize(&buffer, targetsize);
+                    size_t  produced = (size_t) strm.total_out;
+                    strm.next_out    = (uint8_t *) target;
+                    strm.avail_out   = targetsize;
+                    errorcode        = lzmalib_state.lzma_code(&strm, LZMA_RUN);
+                    produced         = strm.total_out - produced;
                     luaL_addsize(&buffer, produced);
-                    if (errorcode == LZMA_STREAM_END || produced == 0) {
-                        lzmalib_state.lzma_end(&strm);
-                        luaL_pushresult(&buffer);
-                        return 1;
+                    if (errorcode == LZMA_STREAM_END) {
+                        success = 1;
+                        break;
                     } else if (errorcode != LZMA_OK) {
-                        lzmalib_state.lzma_end(&strm);
                         break;
                     }
+                }
+                lzmalib_state.lzma_end(&strm);
+                if (success) {
+                    luaL_pushresult(&buffer);
+                    return 1;
                 }
             }
         }

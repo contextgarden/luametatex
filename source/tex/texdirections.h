@@ -111,7 +111,8 @@ extern void     tex_set_text_dir            (halfword d);
 extern void     tex_set_math_dir            (halfword d);
 extern void     tex_set_line_dir            (halfword d);
 extern void     tex_set_par_dir             (halfword d);
-extern void     tex_set_box_dir             (halfword b, singleword d);
+extern void     tex_set_box_dir             (halfword b, halfword d);
+extern halfword tex_get_box_dir             (halfword b);
 
 extern halfword tex_get_direction_from_list (halfword b);
 

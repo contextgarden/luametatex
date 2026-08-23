@@ -89,6 +89,18 @@
     I will probably reshuffle some code and maybe more some more here; once I'm sure all works out
     well.
 
+
+    canonicalize
+        resolves symlinks, .., ., and duplicate slashes natively via the OS filesystem:
+            Windows: relies on GetFinalPathNameByHandleW
+            POSIX  : uses realpath()
+
+    expandpath
+        resolves .., ., and duplicate slashes without resolving symlinks, even if the target file
+        does not exist:
+            Windows: relies on GetFullPathNameW
+            POSIX  : uses aux_utf8_normalize_posix_path()
+
 */
 
 # ifdef _WIN32
@@ -97,33 +109,39 @@
     # include <ctype.h>
     # include <stdio.h>
 
-    extern LPWSTR  aux_utf8_to_wide    (const char *utf8str);
-    extern char   *aux_utf8_from_wide  (LPWSTR widestr);
+    extern LPWSTR  aux_utf8_to_wide     (const char *utf8str);
+    extern char   *aux_utf8_from_wide   (LPWSTR widestr);
 
-    extern FILE   *aux_utf8_fopen      (const char *path, const char *mode);
-    extern FILE   *aux_utf8_popen      (const char *path, const char *mode);
-    extern int     aux_utf8_system     (const char *cmd);
-    extern int     aux_utf8_remove     (const char *name);
-    extern int     aux_utf8_rename     (const char *oldname, const char *newname);
-    extern int     aux_utf8_setargv    (char * **av, char **argv, int argc);
-    extern char   *aux_utf8_getownpath (const char *file);
-    extern char   *aux_utf8_readlink   (const char *file);
+    extern FILE   *aux_utf8_fopen       (const char *path, const char *mode);
+    extern FILE   *aux_utf8_popen       (const char *path, const char *mode);
+    extern int     aux_utf8_system      (const char *cmd);
+    extern int     aux_utf8_remove      (const char *name);
+    extern int     aux_utf8_rename      (const char *oldname, const char *newname);
+
+    extern int     aux_utf8_setargv     (char * **av, char **argv, int argc);
+    extern char   *aux_utf8_getownpath  (const char *file);
+    extern char   *aux_utf8_readlink    (const char *file);
+    extern char   *aux_utf8_canonicalize(const char *file);
+    extern char   *aux_utf8_expandpath  (const char *file);
 
 # else
 
-    # define       aux_utf8_fopen      fopen
-    # define       aux_utf8_popen      popen
-    # define       aux_utf8_system     system
-    # define       aux_utf8_remove     remove
-    # define       aux_utf8_rename     rename
+    # define       aux_utf8_fopen       fopen
+    # define       aux_utf8_popen       popen
+    # define       aux_utf8_system      system
+    # define       aux_utf8_remove      remove
+    # define       aux_utf8_rename      rename
 
-    extern int     aux_utf8_setargv    (char * **av, char **argv, int argc);
-    extern char   *aux_utf8_getownpath (const char *file);
-    extern char   *aux_utf8_readlink   (const char *file);
+    extern int     aux_utf8_setargv     (char * **av, char **argv, int argc);
+    extern char   *aux_utf8_getownpath  (const char *file);
+    extern char   *aux_utf8_readlink    (const char *file);
+    extern char   *aux_utf8_canonicalize(const char *file);
+    extern char   *aux_utf8_expandpath  (const char *file);
 
     # include <libgen.h>
 
 # endif
+
 
 # ifdef _WIN32
 

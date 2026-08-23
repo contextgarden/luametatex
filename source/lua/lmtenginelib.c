@@ -72,7 +72,8 @@ static environment_state_info lmt_environment_state = {
 
 static void enginelib_splitnames(void)
 {
-    char *p = lmt_memory_strdup(lmt_environment_state.ownpath); /*tex We need to make copies! */
+    /* Preserve context/mtxrun aliases while normalizing the path. */
+    char *p = aux_utf8_expandpath(lmt_environment_state.ownpath); /*tex We need to make copies! */
     /*
         We loose some here but not enough to worry about. Maybe eventually we will use our own
         |basename| and |dirname| anyway. I need to check if all are set to something we can 
@@ -181,7 +182,7 @@ static void enginelib_show_help(void)
         "   or: " luametatex_name_lowercase " --lua=FILE [OPTION]... \\FIRST-LINE\n"
         "   or: " luametatex_name_lowercase " --lua=FILE [OPTION]... &FMT ARGS\n"
         "\n"
-        "Run " luametatex_name_camelcase " on TEXNAME, usually creating TEXNAME.pdf. Any remaining COMMANDS"
+        "Run " luametatex_name_camelcase " on TEXNAME, usually creating TEXNAME.pdf. Any remaining COMMANDS\n"
         "are processed as luatex input, after TEXNAME is read.\n"
         "\n"
         "Alternatively, if the first non-option argument begins with a backslash,\n"
@@ -335,6 +336,7 @@ static void enginelib_show_credits(void)
         "  nanojpeg   : Martin J. Fiedler (adapted)\n"
         "  triangles  : Moller, Guigue and Devillers (adapted)\n"
         "  effects    : Ken Perlin and Stefan Gustavson (adapted)\n"
+        "  filib      : Werner Hofschuster, Walter Kraemer (adapted)\n"
         "\n"
         "The code base contains more names and references. Some libraries are partially adapted or\n"
         "have been replaced. The MetaPost library has additional functionality, some of which is\n"
@@ -352,8 +354,20 @@ static void enginelib_show_credits(void)
 # ifdef __DATE__
         "date       : " __TIME__ " | " __DATE__ "\n"
 # endif
-# ifdef LMT_COMPILER_USED
+# if defined(LMT_COMPILER_USED)
         "compiler   : " LMT_COMPILER_USED "\n"
+# else
+        "compiler   : unknown\n"
+# endif
+# if LMT_CVERSION_USED
+        "cversion   : " LMT_TOSTRING(LMT_CVERSION_USED) "\n"
+# else
+        "cversion   : unknown\n"
+# endif
+# if LMT_LIKELY_USED
+        "likely     : used\n"
+# else
+        "likely     : not used\n"
 # endif
         "lua        : " LUA_VERSION "\n"
         "luacformat : " LMT_TOSTRING(LUAC_FORMAT) "\n"
@@ -1064,6 +1078,14 @@ static int enginelib_aux_luapanic(lua_State *L)
     return tex_emergency_exit();
 }
 
+static const luaL_Reg lmt_libs_mps_function_list[] = {
+    { "_G",     luaopen_base      },
+ // { "table",  luaopen_table     },
+ // { "string", luaopen_string    },
+    { "math",   luaopen_xmath     },
+    { NULL,     NULL              },
+};
+
 static const luaL_Reg lmt_libs_lua_function_list[] = {
     { "_G",        luaopen_base      },
     { "package",   luaopen_package   },
@@ -1088,18 +1110,23 @@ static const luaL_Reg lmt_libs_extra_function_list[] = {
     { "fio",       luaopen_fio       },
     { "sio",       luaopen_sio       },
     { "sparse",    luaopen_sparse    },
+    { "bitset",    luaopen_bitset    },
     { "xzip",      luaopen_xzip      },
     { "xmath",     luaopen_xmath     },
     { "xcomplex",  luaopen_xcomplex  },
     { "xdecimal",  luaopen_xdecimal  },
+    { "xinterval", luaopen_xinterval },
     { "posit",     luaopen_posit     },
     { "vector",    luaopen_vector    },
+    { "zbuffer",   luaopen_zbuffer   },
     { "potrace",   luaopen_potrace   },
     { "qrcodegen", luaopen_qrcodegen },
     { "nanojpeg",  luaopen_nanojpeg  },
     { "effects",   luaopen_effects   },
     { "bytemap",   luaopen_bytemap   },
+    { "kdtree",    luaopen_kdtree    },
     { "serial",    luaopen_serial    },
+ // { "specific",  luaopen_specific  },
     { NULL,        NULL              },
 };
 
@@ -1121,9 +1148,7 @@ static const luaL_Reg lmt_libs_tex_function_list[] = {
     { "tex",      luaopen_tex      },
     { "token",    luaopen_token    },
     { "node",     luaopen_node     },
-# if defined(LUAMETATEX_USE_HELPERS)
     { "helper",   luaopen_helper   },
-# endif 
     { "callback", luaopen_callback },
     { "font",     luaopen_font     },
     { "language", luaopen_language },
@@ -1209,9 +1234,8 @@ static void enginelib_disable_loadlib(lua_State *L)
 
 void lmt_initialize(void)
 {
-    lua_State *L = NULL;
-    int seed = luaL_makeseed(L); /* maybe we will default to the luametatex version number */
-    L = lua_newstate(enginelib_aux_luaalloc, NULL, seed);
+    int seed = luaL_makeseed(NULL); /* maybe we will default to the luametatex version number */
+    lua_State *L = lua_newstate(enginelib_aux_luaalloc, NULL, seed);
     enginelib_initialize_memory_pool();
     if (L) {
         /*tex By default we use the generational garbage collector. */
@@ -1234,7 +1258,6 @@ void lmt_initialize(void)
         luaextend_os(L);
         luaextend_io(L);
         luaextend_string(L);
-     // luaextend_table(L);
         /*tex Loading the socket library is a bit odd (old stuff). */
         enginelib_luaopen_liblist(L, lmt_libs_socket_function_list);
         /*tex This initializes the 'tex' related libraries that have some luaonly functionality */
@@ -1263,6 +1286,30 @@ void lmt_initialize(void)
         tex_emergency_message("system", "the Lua state can't be created");
         tex_emergency_exit();
     }
+}
+
+int tex_engine_mps_initialize(int state)
+{
+    if (! lmt_engine_state.lua_only) {
+        if (state) {
+            if (! lmt_lua_state.mps_instance) {
+                int seed = luaL_makeseed(NULL);
+                lua_State *M = lua_newstate(enginelib_aux_luaalloc, NULL, seed);
+                if (M) {
+                    lua_gc(M, LUA_GCGEN, 0, 0);
+                    lua_atpanic(M, &enginelib_aux_luapanic);
+                    lua_warning(M, "@off", 0);
+                    enginelib_luaopen_liblist(M, lmt_libs_mps_function_list);
+                    lmt_lua_state.mps_instance = M;
+                    return 1;
+                }
+            }
+        } else if (lmt_lua_state.mps_instance) {
+            lua_close(lmt_lua_state.mps_instance);
+            lmt_lua_state.mps_instance = NULL;
+        }
+    }
+    return 0;
 }
 
 int lmt_traceback(lua_State *L)
@@ -1307,7 +1354,8 @@ void lmt_error(
             This should never be reached, so there is no need to close, so let's not do it and leave
             it to the operating system to clean up the memory!
         */
-        /* lua_close(L); */
+        /* if (lmt_lua_state.lua_instance) { lua_close(lmt_lua_state.lua_instance); } */
+        /* if (lmt_lua_state.mps_instance) { lua_close(lmt_lua_state.mps_instance); } */
     }
     else {
         tex_normal_warning("lua", err ? err : where);
@@ -1340,7 +1388,7 @@ void lmt_dump_engine_info(dumpstream f)
             return;
         }
     }
-    tex_normal_error("system","dumping engine info failed");
+    tex_normal_error("system", "dumping engine info failed");
 }
 
 void lmt_undump_engine_info(dumpstream f)

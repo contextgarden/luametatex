@@ -27,6 +27,9 @@
 
 # include "avl.h"
 
+# include <stddef.h>
+# include <stdint.h>
+
 # ifdef AVL_SHOW_ERROR_ON
     # define AVL_SHOW_ERROR(fmt,arg) fprintf(stderr, "! avl.c: " fmt, arg)
 # else
@@ -50,33 +53,31 @@ typedef uint32_t rbal_t;
 
 /* avl_node structure */
 
-typedef struct avl_node { /* aligned */
+typedef struct avl_node {
     struct avl_node *sub[2];
     struct avl_node *up;
     void            *item;
     rbal_t           rbal;
-    int              padding;
 } avl_node;
 
 /* avl_tree structure */
 
-struct avl_tree_ { /* aligned */
+struct avl_tree_ {
     avl_node              *root;
     avl_size_t             count;    /* how many nodes in tree rooted at [root] */
-    int                    padding;  /* alignment */
     avl_compare_func       compare;  /* compare items */
     avl_item_copy_func     copy;
     avl_item_dispose_func  dispose;
     avl_alloc_func         alloc;    /* to allocate memory (same signature as malloc) */
     avl_dealloc_func       dealloc;  /* to deallocate memory (same signature as free) */
-    void *param;
+    void                  *param;
 };
 
 # define item_compare(cmp, tree, item1, item2) (*cmp)(tree->param, item1, item2)
 
-# define sub_left(a)  (a)->sub[0]
-# define sub_right(a) (a)->sub[1]
-# define get_item(a)  (a)->item
+# define sub_left(a)  ((a)->sub[0])
+# define sub_right(a) ((a)->sub[1])
+# define get_item(a)  ((a)->item)
 
 /* RANK(a) = size of left subtree + 1 */
 
@@ -84,7 +85,7 @@ struct avl_tree_ { /* aligned */
 # define rzero(a)        (rbal(a) & ~3)
 # define get_bal(a)      (rbal(a) & 3)
 # define is_lskew(a)     (rbal(a) & 1)
-# define is_rskew(a)     (rbal(a)>>1 & 1)
+# define is_rskew(a)     (rbal(a) >> 1 & 1)
 # define set_lskew(a)    (rbal(a) |= 1)
 # define set_rskew(a)    (rbal(a) |= 2)
 # define set_skew(a,d)   (rbal(a) |= (1 << d))
@@ -353,7 +354,7 @@ static int depth(avl_node *a)
     return h;
 }
 
-static avl_node *node_first(avl_node *a)
+static inline avl_node *node_first(avl_node *a)
 {
     while (sub_left(a)) {
         a = sub_left(a);
@@ -361,7 +362,7 @@ static avl_node *node_first(avl_node *a)
     return a;
 }
 
-static avl_node *node_last(avl_node *a)
+static inline avl_node *node_last(avl_node *a)
 {
     while (sub_right(a)) {
         a = sub_right(a);
@@ -1827,11 +1828,11 @@ avl_tree avl_xload(avl_itersource src, void **pres, avl_size_t len, avl_config c
     if (src) {
         avl_tree tt = avl_create(conf->compare, conf->copy, conf->dispose, conf->alloc, conf->dealloc, tree_param);
         if (! tt) {
-            AVL_SHOW_ERROR("%s\n", "couldn't allocate new handle in avl_load()");
+            AVL_SHOW_ERROR("%s\n", "couldn't allocate new handle in avl_xload()");
             return NULL;
         } if (len) {
             if (node_load(&tt->root, src, pres, tt, tt->count = len) < 0) {
-                AVL_SHOW_ERROR("%s\n", "couldn't allocate node in avl_load()");
+                AVL_SHOW_ERROR("%s\n", "couldn't allocate node in avl_xload()");
                 node_empty(tt);
                 (*tt->dealloc)(tt);
                 return NULL;
@@ -1913,32 +1914,43 @@ avl_size_t avl_iterator_index(avl_iterator iter)
     }
 }
 
-/* Rustic: */
-
 avl_iterator avl_iterator_new(avl_tree t, avl_ini_t ini, ...)
 {
     va_list args;
     avl_iterator iter = NULL;
-    va_start(args, ini);
     if (! t) {
-        /* okay */
-    } else if ((iter = (*t->alloc) (sizeof(struct avl_iterator_)))) {
-        iter->pos = NULL;
-        iter->tree = t;
-        if (ini != AVL_ITERATOR_INI_INTREE) {
-            iter->status = (ini == AVL_ITERATOR_INI_PRE) ? AVL_ITERATOR_PRE : AVL_ITERATOR_POST;
-        } else {
-            const void *item = NULL;
-            item = va_arg(args, const void *);
-            set_pre_iterator(iter);
-            if (item == NULL) {
-                AVL_SHOW_ERROR("%s\n", "missing argument to avl_iterator_new()");
-            } else {
-                avl_iterator_seek(item, iter);
-            }
-        }
-    } else {
+        return NULL;
+    }
+    iter = (*t->alloc) (sizeof(struct avl_iterator_));
+    if (! iter) {
         AVL_SHOW_ERROR("%s\n", "couldn't create iterator");
+        return NULL;
+    }
+    iter->pos = NULL;
+    iter->tree = t;
+    va_start(args, ini);
+    switch (ini) {
+        case AVL_ITERATOR_INI_PRE:
+            set_pre_iterator(iter);
+            break;
+        case AVL_ITERATOR_INI_POST:
+            set_post_iterator(iter);
+            break;
+        case AVL_ITERATOR_INI_INTREE:
+            {
+                /* Set the default fallback if item is not found or NULL. */
+                const void *item = va_arg(args, const void *);
+                set_pre_iterator(iter);
+                if (item != NULL) {
+                    avl_iterator_seek(item, iter);
+                } else {
+                    AVL_SHOW_ERROR("%s\n", "missing argument to avl_iterator_new()");
+                }
+                break;
+            }
+        default:
+            set_pre_iterator(iter);
+            break;
     }
     va_end(args);
     return iter;

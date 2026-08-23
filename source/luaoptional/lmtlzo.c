@@ -35,47 +35,43 @@ static lzolib_state_info lzolib_state = {
 static int lzolib_compress(lua_State *L)
 {
     if (lzolib_state.initialized) {
-        char *wrkmem = lmt_memory_malloc(lzo_size_of_mem);
-        size_t sourcesize = 0;
-        const char *source = luaL_checklstring(L, 1, &sourcesize);
-        luaL_Buffer buffer;
-        size_t targetsize = lzo_output_length(sourcesize) + 100;
-        char *target = luaL_buffinitsize(L, &buffer, targetsize);
-        int result = lzolib_state.lzo1x_1_compress(source, sourcesize, target, &targetsize, wrkmem);
-        if (result == LZO_E_OK) {
-            luaL_pushresultsize(&buffer, targetsize);
-        } else {
-            lua_pushnil(L);
+        size_t      sourcesize = 0;
+        const char *source     = luaL_checklstring(L, 1, &sourcesize);
+        if (source) {
+            char        *wrkmem     = lmt_memory_malloc(lzo_size_of_mem);
+            size_t       targetsize = lzo_output_length(sourcesize) + 100;
+            luaL_Buffer  buffer;
+            char        *target     = luaL_buffinitsize(L, &buffer, targetsize);
+            int          result     = lzolib_state.lzo1x_1_compress(source, sourcesize, target, &targetsize, wrkmem);
+            lmt_memory_free(wrkmem);
+            if (result == LZO_E_OK) {
+                luaL_pushresultsize(&buffer, targetsize);
+                return 1;
+            }
         }
-        lmt_memory_free(wrkmem);
-        return 1;
-    } else {
-        return 0;
     }
+    lua_pushnil(L);
+    return 1;
 }
 
 static int lzolib_decompresssize(lua_State *L)
 {
     if (lzolib_state.initialized) {
-        size_t sourcesize = 0;
-        const char *source = luaL_checklstring(L, 1, &sourcesize);
-        size_t targetsize = luaL_checkinteger(L, 2);
+        size_t      sourcesize = 0;
+        const char *source     = luaL_checklstring(L, 1, &sourcesize);
+        size_t      targetsize = (size_t) luaL_checkinteger(L, 2);
         if (source && targetsize > 0) {
-            luaL_Buffer buffer;
-            char *target = luaL_buffinitsize(L, &buffer, targetsize);
-            int result = lzolib_state.lzo1x_decompress_safe(source, sourcesize, target, &targetsize, NULL);
+            luaL_Buffer  buffer;
+            char        *target = luaL_buffinitsize(L, &buffer, targetsize);
+            int         result  = lzolib_state.lzo1x_decompress_safe(source, sourcesize, target, &targetsize, NULL);
             if (result == LZO_E_OK) {
                 luaL_pushresultsize(&buffer, targetsize);
-            } else {
-                lua_pushnil(L);
+                return 1;
             }
-        } else {
-            lua_pushnil(L);
         }
-        return 1;
-    } else {
-        return 0;
     }
+    lua_pushnil(L);
+    return 1;
 }
 
 static int lzolib_initialize(lua_State *L)

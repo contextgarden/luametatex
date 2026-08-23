@@ -361,7 +361,12 @@ static hblib_state_info hblib_state = {
 
     .initialized                        = 0,
     .padding                            = 0,
-
+     
+    /*tex 
+    	We could let this be garbage, only |initialized| is to be set t we keep this 
+    	as reminder.
+     */ 
+     
     .hb_version_string                  = NULL,
     .hb_blob_create                     = NULL,
     .hb_blob_destroy                    = NULL,
@@ -467,14 +472,14 @@ static int hblib_get_version(lua_State * L)
 static int hblib_load_font(lua_State * L)
 {
     if (hblib_state.initialized) {
-        int id = (int) lua_tointeger(L, 1);
-        const char *str= lua_tostring(L, 2);
+        int id = lmt_tointeger(L, 1);
+        const char *str = lua_tostring(L, 2);
         int size = (int) lua_rawlen(L, 2);
-        hb_blob_t *blob = hblib_state.hb_blob_create(str, size, 0, NULL, NULL);
+        hb_blob_t *blob = hblib_state.hb_blob_create(str, size, HB_MEMORY_MODE_READONLY, NULL, NULL);
         hb_face_t *face = hblib_state.hb_face_create(blob, id);
         unsigned int scale = hblib_state.hb_face_get_upem(face);
         hb_font_t *font = hblib_state.hb_font_create(face);
-        hblib_data *data = lua_newuserdatauv(L, sizeof(data), 0);
+        hblib_data *data = lua_newuserdatauv(L, sizeof(hblib_data), 0);
         hblib_state.hb_font_set_scale(font, scale, scale);
         hblib_state.hb_ot_font_set_funcs(font);
         data->font = font;
@@ -490,12 +495,11 @@ static int hblib_load_font(lua_State * L)
 
 /* <table> = shapestring(instance, script, language, direction, { shapers }, { features }, text, reverse) */
 
-static int hblib_utf8len(const char *text, size_t size) /* todo: take from utilities */
+static int hblib_utf8len(const char *text, size_t size)
 {
-    size_t ls = size;
-    int ind = 0;
+    size_t ind = 0;
     int num = 0;
-    while (ind < (int) ls) {
+    while (ind < size) {
         unsigned char i = (unsigned char) *(text + ind);
         if (i < 0x80) {
             ind += 1;
@@ -515,14 +519,9 @@ static int hblib_utf8len(const char *text, size_t size) /* todo: take from utili
 
 static int hblib_utf32len(const char *text, size_t size)
 {
-    /* not okay, hb doesn't stop at \0 */
- /* (void) s; */
- /* return (int) size / 4; */
-    /* so we do this instead */
-    size_t ls = size;
-    int ind = 0;
+    size_t ind = 0;
     int num = 0;
-    while (ind < (int) ls) {
+    while (ind + 4 <= size) {
         unsigned char i = (unsigned char) *(text + ind);
         if (i) {
             ind += 4;
@@ -549,8 +548,9 @@ static int hblib_shape_string(lua_State * L)
 {
     if (hblib_state.initialized) {
         hblib_data *data = luaL_checkudata(L, 1, HBLIB_METATABLE);
-        if (data == NULL) {
+        if (data == NULL || data->font == NULL) {
             lua_pushnil(L);
+            return 1;
         } else {
             /* Maybe we can better take a table, so it's a yet undecided api. */
             size_t          nofscript    = 0;
@@ -560,7 +560,7 @@ static int hblib_shape_string(lua_State * L)
             size_t          nofdirection = 0;
             const char     *direction    = lua_tolstring(L, 4, &nofdirection);
             int             nofshapers   = 0;
-            const char   * *shapers      = NULL; /* slot 5 */
+            const char   **shapers      = NULL; /* slot 5 */
             int             noffeatures  = 0;
             hb_feature_t   *features     = NULL; /* slot 6 */
             size_t          noftext      = 0;
@@ -569,6 +569,8 @@ static int hblib_shape_string(lua_State * L)
             int             utfbits      = (int) luaL_optinteger(L, 9, 8);
             hb_buffer_t    *buffer       = NULL;
             /*
+	            Parse shapers - keep strings on Lua stack until shape function finishes!
+	            
                 Shapers are passed as a table; why not pass the length here too ... simpler in
                 ffi -) Maybe I'll make this more static: a general setshaper or so, which is
                 more natural than having it as argument to the shape function.
@@ -579,21 +581,17 @@ static int hblib_shape_string(lua_State * L)
             if (lua_istable(L, 5)) {
                 lua_Unsigned n = lua_rawlen(L, 5);
                 if (n > 0) {
-                 // shapers = malloc((size_t) (n + 1) * sizeof(char *));
                     shapers = calloc((size_t) (n + 1), sizeof(char *));
-                    if (shapers) {
-                        for (lua_Unsigned i = 0; i < n; i++) {
-                            lua_rawgeti(L, 5, i + 1);
-                            if (lua_isstring(L, -1)) {
-                                shapers[nofshapers] = lua_tostring(L, -1);
-                                nofshapers += 1;
-                            }
-                            lua_pop(L, 1);
-                        }
-                    } else {
-                        luaL_error(L, "optional hblib: unable to allocate shaper memory");
+                    if (!shapers) {
+                        return luaL_error(L, "optional hblib: unable to allocate shaper memory");
                     }
-                    /* sentinal */
+                    for (lua_Unsigned i = 0; i < n; i++) {
+                        lua_rawgeti(L, 5, i + 1);
+                        if (lua_isstring(L, -1)) {
+                            shapers[nofshapers] = lua_tostring(L, -1);
+                            nofshapers += 1;
+                        }
+                    }
                     shapers[nofshapers] = NULL;
                 }
             }
@@ -605,19 +603,19 @@ static int hblib_shape_string(lua_State * L)
                 lua_Unsigned n = lua_rawlen(L, 6);
                 if (n > 0) {
                     features = malloc((size_t) n * sizeof(hb_feature_t));
-                    if (features) {
-                        for (lua_Unsigned i = 0; i < n; i++) {
-                            lua_rawgeti(L, 6, i + 1);
-                            if (lua_isstring(L, -1)) {
-                                size_t l = 0;
-                                const char *s = lua_tolstring(L, -1, &l);
-                                hblib_state.hb_feature_from_string(s, (int) l, &features[noffeatures]);
-                                noffeatures += 1;
-                            }
-                            lua_pop(L, 1);
+                    if (!features) {
+                        free((void *) shapers);
+                        return luaL_error(L, "optional hblib: unable to allocate feature memory");
+                    }
+                    for (lua_Unsigned i = 0; i < n; i++) {
+                        lua_rawgeti(L, 6, i + 1);
+                        if (lua_isstring(L, -1)) {
+                            size_t l = 0;
+                            const char *s = lua_tolstring(L, -1, &l);
+                            hblib_state.hb_feature_from_string(s, (int) l, &features[noffeatures]);
+                            noffeatures += 1;
                         }
-                    } else {
-                        luaL_error(L, "optional hblib: unable to allocate feature memory");
+                        lua_pop(L, 1);
                     }
                 }
             }
@@ -632,13 +630,12 @@ static int hblib_shape_string(lua_State * L)
             } else { /* 8 */
                 hblib_state.hb_buffer_add_utf8(buffer, text, (int) noftext, 0, (int) hblib_utf8len(text, noftext));
             }
+
             hblib_state.hb_buffer_set_language(buffer, hblib_state.hb_language_from_string(language, (int) noflanguage));
             hblib_state.hb_buffer_set_script(buffer, hblib_state.hb_script_from_string(script, (int) nofscript));
             hblib_state.hb_buffer_set_direction(buffer, hblib_state.hb_direction_from_string(direction, (int) nofdirection));
             hblib_state.hb_buffer_guess_segment_properties(buffer);
-            /* Do it! */
             hblib_state.hb_shape_full(data->font, buffer, features, noffeatures, shapers);
-            /* Fixup. */
             if (reverse) {
                 hblib_state.hb_buffer_reverse(buffer);
             }
@@ -670,7 +667,7 @@ static int hblib_shape_string(lua_State * L)
                 something more? SOmethign to so with utf32 (used to be utf8 issue).
             */
             hblib_state.hb_buffer_destroy(buffer);
-            free((void *) shapers); /* we didn't make copies of the lua strings, ms compiler gives warning */
+            free((void *) shapers);
             free((void *) features);
         }
         return 1;
@@ -684,7 +681,7 @@ static int hblib_shape_string(lua_State * L)
 static int hblib_get_shapers(lua_State * L)
 {
     if (hblib_state.initialized) {
-        const char * *shapers = hblib_state.hb_shape_list_shapers();
+        const char **shapers = hblib_state.hb_shape_list_shapers();
         if (shapers) {
             int nofshapers = 0;
             lua_createtable(L, 1, 0);
@@ -710,8 +707,9 @@ static int hblib_free(lua_State * L)
 {
     if (hblib_state.initialized) {
         hblib_data *data = luaL_checkudata(L, 1, HBLIB_METATABLE);
-        if (data) {
+        if (data && data->font) {
             hblib_state.hb_font_destroy(data->font);
+            data->font = NULL;
         }
     }
     return 0;

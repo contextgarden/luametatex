@@ -13,6 +13,7 @@
 
 lua_state_info lmt_lua_state = {
     .lua_instance            = NULL,
+    .mps_instance            = NULL, /* maybe more */
     .used_bytes              = 0,
     .used_bytes_max          = 0,
     .function_table_id       = 0,

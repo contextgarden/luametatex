@@ -43,6 +43,7 @@ typedef enum lua_node_errors {
 
 typedef struct lua_state_info {
     lua_State   *lua_instance;
+    lua_State   *mps_instance;
     int          used_bytes;
     int          used_bytes_max;
     int          function_table_id;
@@ -95,9 +96,11 @@ extern int  luaopen_qrcodegen   (lua_State *L);
 extern int  luaopen_nanojpeg    (lua_State *L);
 extern int  luaopen_effects     (lua_State *L);
 extern int  luaopen_bytemap     (lua_State *L);
+extern int  luaopen_kdtree      (lua_State *L);
 extern int  luaopen_sha2        (lua_State *L);
 extern int  luaopen_sio         (lua_State *L);
 extern int  luaopen_socket_core (lua_State *L);
+extern int  luaopen_bitset      (lua_State *L);
 extern int  luaopen_sparse      (lua_State *L);
 extern int  luaopen_status      (lua_State *L);
 extern int  luaopen_tex         (lua_State *L);
@@ -105,15 +108,17 @@ extern int  luaopen_texio       (lua_State *L);
 extern int  luaopen_token       (lua_State *L);
 extern int  luaopen_xcomplex    (lua_State *L);
 extern int  luaopen_xdecimal    (lua_State *L);
+extern int  luaopen_xinterval   (lua_State *L);
 extern int  luaopen_xmath       (lua_State *L);
 extern int  luaopen_xzip        (lua_State *L);
 extern int  luaopen_serial      (lua_State *L);
 extern int  luaopen_vector      (lua_State *L);
+extern int  luaopen_zbuffer     (lua_State *L);
+//     int  luaopen_specific    (lua_State *L);
 
 extern int  luaextend_io        (lua_State *L);
 extern int  luaextend_os        (lua_State *L);
 extern int  luaextend_string    (lua_State *L);
-extern int  luaextend_table     (lua_State *L);
 extern int  luaextend_xcomplex  (lua_State *L);
 
 /*tex
@@ -259,15 +264,20 @@ extern int  luaextend_xcomplex  (lua_State *L);
 
 /*tex Used in |lmtnodelib|. */
 
-# define NODE_METATABLE_INSTANCE   "node.instance"
-# define NODE_PROPERTIES_DIRECT    "node.properties"
-# define NODE_PROPERTIES_INDIRECT  "node.properties.indirect"
-# define NODE_PROPERTIES_INSTANCE  "node.properties.instance"
+# define NODE_METATABLE_INSTANCE  "node.instance"
+# define NODE_PROPERTIES_DIRECT   "node.properties"
+# define NODE_PROPERTIES_INDIRECT "node.properties.indirect"
+# define NODE_PROPERTIES_INSTANCE "node.properties.instance"
 
 /*tex Used in |lmttokenlib|. */
 
-# define TOKEN_METATABLE_INSTANCE  "token.instance"
-# define TOKEN_METATABLE_PACKAGE   "token.package"
+# define TOKEN_METATABLE_INSTANCE "token.instance"
+# define TOKEN_METATABLE_PACKAGE  "token.package"
+
+/*tex Used in |lmtlanguagelib|. */
+
+# define LANGUAGE_METATABLE_INSTANCE  "language.instance"
+# define LANGUAGE_FUNCTIONS_REGISTRY  "language.functions"
 
 /*tex Used in |lmtepdflib|. */
 
@@ -279,9 +289,9 @@ extern int  luaextend_xcomplex  (lua_State *L);
 
 /*tex Used in |lmtmplib|. */
 
-# define MP_METATABLE_INSTANCE     "mp.instance"
-# define MP_METATABLE_FIGURE       "mp.figure"
-# define MP_METATABLE_OBJECT       "mp.object"
+# define MP_METATABLE_INSTANCE "mp.instance"
+# define MP_METATABLE_FIGURE   "mp.figure"
+# define MP_METATABLE_OBJECT   "mp.object"
 
 /*tex Used in |lmtsparselib|. */
 
@@ -293,13 +303,21 @@ extern int  luaextend_xcomplex  (lua_State *L);
 
 /* Various */
 
-# define VECTOR_METATABLE_INSTANCE  "vector"
-# define MESH_METATABLE_INSTANCE    "mesh"
-# define DECIMAL_METATABLE_INSTANCE "decimal"
-# define COMPLEX_METATABLE_INSTANCE "complex"
-# define POSIT_METATABLE_INSTANCE   "posit"
-# define BYTEMAP_METATABLE_INSTANCE "bytemap"
-# define SERIAL_METATABLE_INSTANCE  "serial"
+# define BITSET_METATABLE_INSTANCE   "bitset"
+# define VECTOR_METATABLE_INSTANCE   "vector"
+# define POINT_METATABLE_INSTANCE    "point"
+# define POINTS_METATABLE_INSTANCE   "points"
+# define NORMALS_METATABLE_INSTANCE  "normals"
+# define MESH_METATABLE_INSTANCE     "mesh"
+# define ZBUFFER_METATABLE_INSTANCE  "zbuffer"
+# define ZENTRY_METATABLE_INSTANCE   "zbuffer"
+# define DECIMAL_METATABLE_INSTANCE  "decimal"
+# define COMPLEX_METATABLE_INSTANCE  "complex"
+# define POSIT_METATABLE_INSTANCE    "posit"
+# define BYTEMAP_METATABLE_INSTANCE  "bytemap"
+# define SERIAL_METATABLE_INSTANCE   "serial"
+# define INTERVAL_METATABLE_INSTANCE "interval"
+# define KDTREE_METATABLE_INSTANCE   "kdtree"
 
 /*tex Directory scanner in |lmtfilelib|  */
 
@@ -609,6 +627,7 @@ make_lua_key_alias(L, key_char, "char");\
 make_lua_key(L, char_given);\
 make_lua_key(L, char_number);\
 make_lua_key(L, character);\
+make_lua_key(L, characterkern);\
 make_lua_key(L, characters);\
 make_lua_key(L, check);\
 make_lua_key(L, checks);\
@@ -635,6 +654,7 @@ make_lua_key(L, connectoroverlapmin);\
 make_lua_key(L, constant);\
 make_lua_key(L, constant_call);\
 make_lua_key(L, container);\
+make_lua_key(L, contour);\
 make_lua_key_alias(L, key_continue, "continue");\
 make_lua_key(L, contributehead);\
 make_lua_key(L, control);\
@@ -698,6 +718,7 @@ make_lua_key(L, disc);\
 make_lua_key(L, discpart);\
 make_lua_key(L, discretionary);\
 make_lua_key(L, discretionarypenalty);\
+make_lua_key(L, discretionaryskip);\
 make_lua_key(L, display);\
 make_lua_key(L, DisplayOperatorMinHeight);\
 make_lua_key(L, displaywidowpenalties);\
@@ -861,6 +882,7 @@ make_lua_key(L, ifstack);\
 make_lua_key(L, ignore);\
 make_lua_key(L, ignore_something);\
 make_lua_key(L, ignored);\
+make_lua_key(L, ignoredskip);\
 make_lua_key(L, image);\
 make_lua_key(L, immediate);\
 make_lua_key(L, immutable);\
@@ -883,6 +905,7 @@ make_lua_key(L, instance);\
 make_lua_key(L, integer);\
 make_lua_key(L, integer_reference);\
 make_lua_key(L, interaction);\
+make_lua_key(L, intercharacterskip);\
 make_lua_key(L, interlinepenalties);\
 make_lua_key(L, interlinepenalty);\
 make_lua_key(L, intermathskip);\
@@ -905,6 +928,7 @@ make_lua_key(L, internaldimension);\
 make_lua_key(L, internalgluespec);\
 make_lua_key(L, internalinteger);\
 make_lua_key(L, internalmugluespec);\
+make_lua_key(L, interval);\
 make_lua_key(L, invalid_char);\
 make_lua_key(L, italic);\
 make_lua_key(L, italic_correction);\
@@ -1084,6 +1108,7 @@ make_lua_key(L, NoLimitSupFactor);\
 make_lua_key(L, nomath);\
 make_lua_key(L, none);\
 make_lua_key(L, normal);\
+make_lua_key(L, normals);\
 make_lua_key(L, norule);\
 make_lua_key(L, nucleus);\
 make_lua_key(L, number);\
@@ -1128,12 +1153,14 @@ make_lua_key(L, pagediscardshead);\
 make_lua_key(L, pagehead);\
 make_lua_key(L, pageinserthead);\
 make_lua_key(L, pages);\
+make_lua_key(L, pageskip);\
 make_lua_key(L, Pages);\
 make_lua_key(L, par);\
 make_lua_key(L, parameter);\
 make_lua_key(L, parameter_reference);\
 make_lua_key(L, parameters);\
 make_lua_key(L, parfillleftskip);\
+make_lua_key(L, parfillmode);\
 make_lua_key(L, parfillrightskip);\
 make_lua_key(L, parfillskip);\
 make_lua_key(L, parindent);\
@@ -1152,6 +1179,8 @@ make_lua_key(L, penalty);\
 make_lua_key(L, permanent);\
 make_lua_key(L, phantom);\
 make_lua_key_alias(L, key_posit, "posit");\
+make_lua_key(L, point);\
+make_lua_key(L, points);\
 make_lua_key(L, post);\
 make_lua_key(L, post_linebreak);\
 make_lua_key(L, postadjust);\
@@ -1471,6 +1500,7 @@ make_lua_key(L, total);\
 make_lua_key(L, tracingbalancing);\
 make_lua_key(L, tracingparagraphs);\
 make_lua_key(L, tracingpasses);\
+make_lua_key(L, tracingraggedness);\
 make_lua_key(L, tracingfitness);\
 make_lua_key(L, trace);\
 make_lua_key(L, trailer);\
@@ -1541,14 +1571,18 @@ make_lua_key(L, woffset);\
 make_lua_key(L, word);\
 make_lua_key(L, wordpenalty);\
 make_lua_key(L, wrapup);\
+make_lua_key(L, x);\
 make_lua_key(L, xheight);\
 make_lua_key(L, xleaders);\
 make_lua_key(L, xoffset);\
 make_lua_key(L, xray);\
 make_lua_key(L, xscale);\
 make_lua_key(L, xspaceskip);\
+make_lua_key(L, y);\
 make_lua_key(L, yoffset);\
 make_lua_key(L, yscale);\
+make_lua_key(L, z);\
+make_lua_key(L, zbuffer);\
 make_lua_key(L, zerospaceskip);\
 make_lua_key_alias(L, empty_string,             "");\
 /* */ \
@@ -1559,6 +1593,9 @@ make_lua_key_alias(L, node_properties_indirect, NODE_PROPERTIES_INDIRECT);\
 make_lua_key_alias(L, token_instance,           TOKEN_METATABLE_INSTANCE);\
 make_lua_key_alias(L, token_package,            TOKEN_METATABLE_PACKAGE);\
 /* */ \
+make_lua_key_alias(L, language_instance,        LANGUAGE_METATABLE_INSTANCE);\
+make_lua_key_alias(L, language_functions,       LANGUAGE_FUNCTIONS_REGISTRY);\
+/* */ \
 make_lua_key_alias(L, sparse_instance,          SPARSE_METATABLE_INSTANCE);\
 /* */ \
 make_lua_key_alias(L, pdfe_instance,            PDFE_METATABLE_INSTANCE);\
@@ -1567,13 +1604,21 @@ make_lua_key_alias(L, pdfe_array_instance,      PDFE_METATABLE_ARRAY);\
 make_lua_key_alias(L, pdfe_stream_instance,     PDFE_METATABLE_STREAM);\
 make_lua_key_alias(L, pdfe_reference_instance,  PDFE_METATABLE_REFERENCE);\
 /* */ \
+make_lua_key_alias(L, bitset_instance,          BITSET_METATABLE_INSTANCE);\
+make_lua_key_alias(L, kdtree_instance,          KDTREE_METATABLE_INSTANCE);\
 make_lua_key_alias(L, vector_instance,          VECTOR_METATABLE_INSTANCE);\
+make_lua_key_alias(L, point_instance,           POINT_METATABLE_INSTANCE);\
+make_lua_key_alias(L, points_instance,          POINTS_METATABLE_INSTANCE);\
+make_lua_key_alias(L, normals_instance,         NORMALS_METATABLE_INSTANCE);\
 make_lua_key_alias(L, mesh_instance,            MESH_METATABLE_INSTANCE);\
+make_lua_key_alias(L, zbuffer_instance,         ZBUFFER_METATABLE_INSTANCE);\
+make_lua_key_alias(L, zentry_instance,          ZENTRY_METATABLE_INSTANCE);\
 make_lua_key_alias(L, decimal_instance,         DECIMAL_METATABLE_INSTANCE);\
 make_lua_key_alias(L, complex_instance,         COMPLEX_METATABLE_INSTANCE);\
 make_lua_key_alias(L, posit_instance,           POSIT_METATABLE_INSTANCE);\
 make_lua_key_alias(L, bytemap_instance,         BYTEMAP_METATABLE_INSTANCE);\
 make_lua_key_alias(L, serial_instance,          SERIAL_METATABLE_INSTANCE);\
+make_lua_key_alias(L, interval_instance,        INTERVAL_METATABLE_INSTANCE);\
 /* */ \
 make_lua_key_alias(L, file_handle_instance,     LUA_FILEHANDLE);\
 make_lua_key_alias(L, dir_handle_instance,      DIR_HANDLE_INSTANCE);\
@@ -1624,6 +1669,7 @@ make_lua_key(L, linecap);\
 make_lua_key(L, linejoin);\
 make_lua_key(L, make_text);\
 make_lua_key(L, math_mode);\
+make_lua_key(L, metapost);\
 make_lua_key(L, memory);\
 make_lua_key(L, miterlimit);\
 make_lua_key(L, nodes);\
@@ -1735,50 +1781,61 @@ extern lmt_keys_info lmt_keys;
 
 */
 
-//define lmt_rounded(d)            (lua_Integer)  (round(d))
-//define lmt_roundedfloat(f)       (lua_Integer)  (round((double) f))
+//define lmt_rounded(d)              (lua_Integer)    (round(d))
+//define lmt_roundedfloat(f)         (lua_Integer)    (round((double) f))
 
-# define lmt_rounded(d)            (lua_Integer)  (llround(d))
-# define lmt_roundedfloat(f)       (lua_Integer)  (llround((double) f)) 
+# define lmt_rounded(d)              (lua_Integer)    (llround(d))
+# define lmt_roundedfloat(f)         (lua_Integer)    (llround((double) f))
 
-# define lmt_tolong(L,i)           (long)         lua_tointeger(L,i)
-# define lmt_checklong(L,i)        (long)         luaL_checkinteger(L,i)
-# define lmt_optlong(L,i,j)        (long)         luaL_optinteger(L,i,j)
+# define lmt_tolong(L,i)             (long)           lua_tointeger(L,i)
+# define lmt_checklong(L,i)          (long)           luaL_checkinteger(L,i)
+# define lmt_optlong(L,i,j)          (long)           luaL_optinteger(L,i,j)
 
-# define lmt_todouble(L,i,d)       (double)       lua_tonumber(L,i)
-# define lmt_optdouble(L,i,d)      (double)       luaL_optnumber(L,i,d)
+# define lmt_todouble(L,i)           (double)         lua_tonumber(L,i)
+# define lmt_optdouble(L,i,d)        (double)         luaL_optnumber(L,i,d)
 
-# define lmt_tointeger(L,i)        (int)          lua_tointeger(L,i)
-# define lmt_checkinteger(L,i)     (int)          luaL_checkinteger(L,i)
-# define lmt_optinteger(L,i,j)     (int)          luaL_optinteger(L,i,j)
+# define lmt_tofloat(L,i)            (float)          lua_tonumber(L,i)
+# define lmt_optfloat(L,i,d)         (float)          luaL_optnumber(L,i,d)
 
-# define lmt_tounsigned(L,i)       (unsigned int) lua_tointeger(L,i)
-# define lmt_checkinteger(L,i)     (int)          luaL_checkinteger(L,i)
-# define lmt_optunsigned(L,i,j)    (unsigned int) luaL_optinteger(L,i,j)
+# define lmt_tointeger(L,i)          (int)            lua_tointeger(L,i)
+# define lmt_checkinteger(L,i)       (int)            luaL_checkinteger(L,i)
+# define lmt_optinteger(L,i,j)       (int)            luaL_optinteger(L,i,j)
 
-# define lmt_tosizet(L,i)          (size_t)       lua_tointeger(L,i)
-# define lmt_checksizet(L,i)       (size_t)       luaL_checkinteger(L,i)
-# define lmt_optsizet(L,i,j)       (size_t)       luaL_optinteger(L,i,j)
-                                                  
-# define lmt_tohalfword(L,i)       (halfword)     lua_tointeger(L,i)
-# define lmt_checkhalfword(L,i)    (halfword)     luaL_checkinteger(L,i)
-# define lmt_opthalfword(L,i,j)    (halfword)     luaL_optinteger(L,i,j)
-                                                  
-# define lmt_tofullword(L,i)       (fullword)     lua_tointeger(L,i)
-# define lmt_checkfullword(L,i)    (fullword)     luaL_checkinteger(L,i)
-# define lmt_optfullword(L,i,j)    (fullword)     luaL_optinteger(L,i,j)
-                                                  
-# define lmt_toscaled(L,i)         (scaled)       lua_tointeger(L,i)
-# define lmt_checkscaled(L,i)      (scaled)       luaL_checkinteger(L,i)
-# define lmt_optscaled(L,i,j)      (scaled)       luaL_optinteger(L,i,j)
-                                                  
-# define lmt_toquarterword(L,i)    (quarterword)  lua_tointeger(L,i)
-# define lmt_checkquarterword(L,i) (quarterword)  luaL_checkinteger(L,i)
-# define lmt_optquarterword(L,i,j) (quarterword)  luaL_optinteger(L,i,j)
-                                                  
-# define lmt_tosingleword(L,i)     (singleword)   lua_tointeger(L,i)
-# define lmt_checksingleword(L,i)  (singleword)   luaL_checkinteger(L,i)
-# define lmt_optsingleword(L,i,j)  (singleword)   luaL_optinteger(L,i,j)
+# define lmt_toshort(L,i)            (short)          lua_tointeger(L,i)
+# define lmt_checkshort(L,i)         (short)          luaL_checkinteger(L,i)
+# define lmt_optshort(L,i,j)         (short)          luaL_optinteger(L,i,j)
+
+# define lmt_tounsigned(L,i)         (unsigned int)   lua_tointeger(L,i)
+# define lmt_checkinteger(L,i)       (int)            luaL_checkinteger(L,i)
+# define lmt_optunsigned(L,i,j)      (unsigned int)   luaL_optinteger(L,i,j)
+
+# define lmt_tounsignedshort(L,i)    (unsigned short) lua_tointeger(L,i)
+# define lmt_checkunsignedshort(L,i) (unsigned short) luaL_checkinteger(L,i)
+# define lmt_optunsignedshort(L,i,j) (unsigned short) luaL_optinteger(L,i,j)
+
+# define lmt_tosizet(L,i)            (size_t)         lua_tointeger(L,i)
+# define lmt_checksizet(L,i)         (size_t)         luaL_checkinteger(L,i)
+# define lmt_optsizet(L,i,j)         (size_t)         luaL_optinteger(L,i,j)
+
+# define lmt_tohalfword(L,i)         (halfword)       lua_tointeger(L,i)
+# define lmt_checkhalfword(L,i)      (halfword)       luaL_checkinteger(L,i)
+# define lmt_opthalfword(L,i,j)      (halfword)       luaL_optinteger(L,i,j)
+
+# define lmt_tofullword(L,i)         (fullword)       lua_tointeger(L,i)
+# define lmt_checkfullword(L,i)      (fullword)       luaL_checkinteger(L,i)
+# define lmt_optfullword(L,i,j)      (fullword)       luaL_optinteger(L,i,j)
+
+# define lmt_toscaled(L,i)           (scaled)         lua_tointeger(L,i)
+# define lmt_checkscaled(L,i)        (scaled)         luaL_checkinteger(L,i)
+# define lmt_optscaled(L,i,j)        (scaled)         luaL_optinteger(L,i,j)
+
+# define lmt_toquarterword(L,i)      (quarterword)    lua_tointeger(L,i)
+# define lmt_checkquarterword(L,i)   (quarterword)    luaL_checkinteger(L,i)
+# define lmt_optquarterword(L,i,j)   (quarterword)    luaL_optinteger(L,i,j)
+
+# define lmt_tosingleword(L,i)       (singleword)     lua_tointeger(L,i)
+# define lmt_checksingleword(L,i)    (singleword)     luaL_checkinteger(L,i)
+# define lmt_optsingleword(L,i,j)    (singleword)     luaL_optinteger(L,i,j)
 
 # undef lround
 # include <math.h>
@@ -1839,7 +1896,19 @@ static inline void lua_set_integer_by_key(lua_State *L, const char *a, int b)
     lua_setfield(L, -2, a);
 }
 
-static inline void lua_set_integer_by_index(lua_State *L, int a, int b)
+static inline void lua_set_integer_by_index(lua_State *L, int a, size_t b)
+{
+    lua_pushinteger(L, b);
+    lua_rawseti(L, -2, a);
+}
+
+static inline void lua_set_size_t_by_key(lua_State *L, const char *a, size_t b)
+{
+    lua_pushinteger(L, b);
+    lua_setfield(L, -2, a);
+}
+
+static inline void lua_set_size_t_by_index(lua_State *L, int a, int b)
 {
     lua_pushinteger(L, b);
     lua_rawseti(L, -2, a);
@@ -1884,6 +1953,11 @@ static inline void lua_set_boolean_by_index(lua_State *L, int a, int b)
 static inline void lmt_string_to_buffer(const char *str)
 {
     luaL_addstring(lmt_lua_state.used_buffer, str);
+}
+
+static inline void lmt_string_to_buffer_len(const char *str, int len)
+{
+    luaL_addlstring(lmt_lua_state.used_buffer, str, len);
 }
 
 static inline void lmt_char_to_buffer(char c)

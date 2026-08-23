@@ -4,38 +4,6 @@
 
 # include "luametatex.h"
 
-/*tex
-
-    The version number can be queried with |\luatexversion| and the revision with with
-    |\luatexrevision|. Traditionally the revision can be any character and \PDFTEX\ occasionally
-    used no digits. Here we still use a character but we will stick to 0 upto 9 so users can expect
-    a number represented as string. Further comments have been moved to the manual.
-
-*/
-
-# ifndef LMT_COMPILER_USED
-    # define LMT_COMPILER_USED "unknown"
-# endif
-
-/*tex
-    It would be nice if we could test if musl is used. Comments in the web indicate that there
-    never be some macro to check for that (argument: it shouldn't matter code/api wise). Well it
-    does matter if you have to make a choice for a binary (set path to a tree), as needed in a
-    TeX distribution that ships a lot. A bit lack of imagination I guess or maybe it's only for
-    people who compile themselves. So if no one cares, I don't either. Maybe CMAKE can help some
-    day.
-*/
-
-// # ifndef LMT_LIBC_USED
-//    # if defined(__GLIBC__)
-//        # define LMT_LIBC_USED "glibc"
-//    # elif defined(__UCLIBC__)
-//        # define LMT_LIBC_USED "uclibc"
-//    # else
-//        # define LMT_LIBC_USED "unknown"
-//    # endif
-// # endif
-
 version_state_info lmt_version_state = {
     .majorversion      = luametatex_majorversion,
     .minorversion      = luametatex_minorversion,
@@ -45,7 +13,13 @@ version_state_info lmt_version_state = {
     .developmentid     = luametatex_development_id,
     .verbose           = luametatex_version_string,
     .banner            = "This is " luametatex_name_camelcase ", Version " luametatex_version_string,
+# if defined(LMT_COMPILER_USED)
     .compiler          = LMT_COMPILER_USED,
+# else
+    .compiler          = "unknown",
+# endif
+    .cversion          = LMT_CVERSION_USED,
+    .likely            = LMT_LIKELY_USED,
     .formatid          = luametatex_format_fingerprint,
     .copyright         = luametatex_copyright_holder,
     .luaversionmajor   = LUA_VERSION_MAJOR_N,

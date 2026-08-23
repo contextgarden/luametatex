@@ -129,6 +129,9 @@ halfword tex_flatten_discretionaries(halfword head, int *count, int nest)
                         }
                     } else if (current == head) {
                         head = next;
+                        if (head) {
+                            node_prev(head) = null; /*tex See end, could be delayed. */
+                        }
                     } else {
                         tex_try_couple_nodes(node_prev(current), next);
                     }
@@ -173,6 +176,9 @@ halfword tex_flatten_discretionaries(halfword head, int *count, int nest)
         }
         current = next;
     }
+ // if (head) {
+ //     node_prev(head) = null; /* Already done. */
+ // }
     return head;
 }
 
@@ -212,13 +218,12 @@ static inline void saved_discretionary_update_component(void)
 
 void tex_show_discretionary_group(void)
 {
-    tex_print_str_esc("discretionary");
-    tex_aux_show_group_count(saved_discretionary_component);
+    tex_print_format("%ediscretionary%#", saved_discretionary_component);
 }
 
 int tex_show_discretionary_record(void)
 {
-    tex_print_str("discretionary ");
+    tex_print_str_len("discretionary ", 14);
     switch (save_type(lmt_save_state.save_stack_data.ptr)) { 
        case saved_record_0:
             tex_print_format("component %i", saved_discretionary_component);
@@ -238,22 +243,22 @@ void tex_run_discretionary(void)
                 halfword d = tex_new_disc_node(normal_discretionary_code);
                 tex_tail_append(d);
                 while (1) {
-                    switch (tex_scan_character("pocbnsPOCBNS", 0, 1, 0)) {
+                    switch (tex_scan_character("pocbns", 0, 1, 0)) {
                         case 0:
                             goto DONE;
-                        case 'p': case 'P':
-                            switch (tex_scan_character("eorEOR", 0, 0, 0)) {
-                                case 'e': case 'E':
+                        case 'p':
+                            switch (tex_scan_character("eor", 0, 0, 0)) {
+                                case 'e':
                                     if (tex_scan_mandate_keyword("penalty", 2)) {
                                         set_disc_penalty(d, tex_scan_integer(0, NULL, NULL));
                                     }
                                     break;
-                                case 'o': case 'O':
+                                case 'o':
                                     if (tex_scan_mandate_keyword("postword", 2)) {
                                         set_disc_option(d, disc_option_post_word);
                                     }
                                     break;
-                                case 'r': case 'R':
+                                case 'r':
                                     if (tex_scan_mandate_keyword("preword", 2)) {
                                         set_disc_option(d, disc_option_pre_word);
                                     }
@@ -263,27 +268,27 @@ void tex_run_discretionary(void)
                                     goto DONE;
                             }
                             break;
-                        case 'b': case 'B':
+                        case 'b':
                             if (tex_scan_mandate_keyword("break", 1)) {
                                 set_disc_option(d, disc_option_prefer_break);
                             }
                             break;
-                        case 'n': case 'N':
+                        case 'n':
                             if (tex_scan_mandate_keyword("nobreak", 1)) {
                                 set_disc_option(d, disc_option_prefer_nobreak);
                             }
                             break;
-                        case 'o': case 'O':
+                        case 'o':
                             if (tex_scan_mandate_keyword("options", 1)) {
-                                set_disc_options(d, tex_scan_integer(0, NULL, NULL));
+                                set_disc_options(d, tex_scan_integer(0, NULL, NULL) & disc_option_valid);
                             }
                             break;
-                        case 'c': case 'C':
+                        case 'c':
                             if (tex_scan_mandate_keyword("class", 1)) {
                                 set_disc_class(d, tex_scan_math_class_number(0));
                             }
                             break;
-                        case 's': case 'S':
+                        case 's':
                             if (tex_scan_mandate_keyword("standalone", 1)) {
                                 set_disc_option(d, disc_option_stand_alone);
                             }
@@ -301,6 +306,7 @@ void tex_run_discretionary(void)
                 tex_push_nest();
                 cur_list.mode = restricted_hmode;
                 cur_list.space_factor = default_space_factor; /* hm, quite hard coded */
+                cur_list.space_penalty = 0;
             }
             break;
         case explicit_discretionary_code:
@@ -409,12 +415,12 @@ void tex_finish_discretionary(void)
                     // fall through
                 }
             default:
-                if (hyphenation_permitted(hyphenation_mode_par, permit_all_hyphenation_mode)) {
+                if lmt_likely(hyphenation_permitted(hyphenation_mode_par, permit_all_hyphenation_mode)) {
                     break;
                 } else {
                     tex_handle_error(
                         normal_error_type,
-                        "Improper discretionary list",
+                        "Improper discretionary list%h",
                         "Discretionary lists must contain only glyphs, boxes, rules and kerns."
                     );
                     tex_begin_diagnostic();
@@ -440,7 +446,7 @@ void tex_finish_discretionary(void)
 
         if (next) {
             node_prev(next) = null;
-            if (node_subtype(disc_node) == normal_discretionary_code && has_disc_option(discnode, disc_option_stand_alone)) {
+            if (node_subtype(discnode) == normal_discretionary_code && has_disc_option(discnode, disc_option_stand_alone)) {
                 if (tex_list_has_glyph(next)) {
                     /* maybe test direction, maybe also pass pre/post/replace as 4th argument*/
                     next = tex_handle_glyphrun(next, discretionary_group, text_direction_par);
@@ -466,10 +472,10 @@ void tex_finish_discretionary(void)
                     |return|.
                 */
                 if (next && length > 0) {
-                    if (cur_mode == mmode && ! hyphenation_permitted(hyphenation_mode_par, permit_math_replace_hyphenation_mode)) {
+                    if lmt_unlikely(cur_mode == mmode && ! hyphenation_permitted(hyphenation_mode_par, permit_math_replace_hyphenation_mode)) {
                         tex_handle_error(
                             normal_error_type,
-                            "Illegal math \\discretionary",
+                            "Illegal math \\discretionary%h",
                             "Sorry: The third part of a discretionary break must be empty, in math formulas. I\n"
                             "had to delete your third part."
                         );
@@ -510,5 +516,6 @@ void tex_finish_discretionary(void)
         tex_push_nest();
         cur_list.mode = restricted_hmode;
         cur_list.space_factor = default_space_factor;
+        cur_list.space_penalty = 0;
     }
 }

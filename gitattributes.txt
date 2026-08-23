@@ -1,0 +1,79 @@
+###############################################################################
+# 1. GLOBAL LINE ENDING RULES (Cross-Platform CRLF/LF Normalization)
+###############################################################################
+
+# Auto-detect text files and normalize line endings to LF in Git index.
+# On checkout, Git will convert to native line endings (CRLF on Win, LF on Unix).
+* text=auto
+
+# Enforce LF for all source files across all platforms (Recommended for C/C++)
+
+*.c       text eol=lf diff=cpp
+*.h       text eol=lf diff=cpp
+*.cpp     text eol=lf diff=cpp
+*.hpp     text eol=lf diff=cpp
+*.inc     text eol=lf diff=cpp
+
+# Build scripts & Config files (Must be LF on POSIX)
+
+*.sh           text eol=lf
+*.mk           text eol=lf
+Makefile       text eol=lf
+CMakeLists.txt text eol=lf
+.gitattributes text eol=lf
+.gitignore     text eol=lf
+
+# Windows specific scripts (Must keep CRLF)
+*.bat     text eol=crlf
+*.cmd     text eol=crlf
+*.ps1     text eol=crlf
+
+###############################################################################
+# 2. DOCUMENTATION & SCRIPTING LANGUAGES (TeX, Lua, Web2C, Docs)
+###############################################################################
+
+*.tex     text eol=lf diff=tex
+*.mkii    text eol=lf diff=tex
+*.mkiv    text eol=lf diff=tex
+*.mkvi    text eol=lf diff=tex
+*.mkxl    text eol=lf diff=tex
+*.mklx    text eol=lf diff=tex
+*.lua     text eol=lf
+*.lmt     text eol=lf
+*.lfg     text eol=lf
+*.llg     text eol=lf
+*.md      text eol=lf
+*.txt     text eol=lf
+
+###############################################################################
+# 3. BINARY FILES (Prevent corrupting executable/compiled assets)
+###############################################################################
+
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.ico     binary
+*.pdf     binary
+*.ttf     binary
+*.otf     binary
+*.woff    binary
+*.woff2   binary
+*.fmt     binary
+*.o       binary
+*.a       binary
+*.so      binary
+*.dll     binary
+*.exe     binary
+*.zip     binary
+*.tar.gz  binary
+
+###############################################################################
+# 4. ARCHIVE / EXPORT FILTERING
+###############################################################################
+
+# Exclude repository-only files when generating source archives (e.g. git archive)
+
+.gitignore        export-ignore
+.gitattributes    export-ignore
+.github/          export-ignore
+tests/            export-ignore

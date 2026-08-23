@@ -11,7 +11,7 @@
 
 typedef enum snapping_methods {
     snapping_method_threshold = 0x0001,
-    snapping_method_glyph     = 0x0010,
+    snapping_method_glyph     = 0x0010, /* experimental, reserved */
     snapping_method_rule      = 0x0020,
     snapping_method_list      = 0x0040,
     snapping_method_math      = 0x0080,

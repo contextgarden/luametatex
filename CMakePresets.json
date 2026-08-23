@@ -1,0 +1,83 @@
+{
+    "version": 3,
+    "configurePresets": [
+        {
+            "name": "msvc-x64-debug",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/msvc-x64-debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/../install/msvc-x64-debug"
+            }
+        },
+        {
+            "name": "msvc-x64-release",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/msvc-x64-release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/../install/msvc-x64-release"
+            }
+        },
+        {
+            "name": "msvc-x86-release",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/msvc-x86-release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/../install/msvc-x86-release"
+            }
+        },
+        {
+            "name": "msvc-x64-clang",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/msvc-x64-clang",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/../install/msvc-x64-clang"
+            }
+        },
+        {
+            "name": "msvc-arm64-release",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/msvc-arm64-release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/../install/msvc-arm64-release"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "msvc-x64-debug",
+            "configurePreset": "msvc-x64-debug",
+            "verbose": true
+        },
+        {
+            "name": "msvc-x64-release",
+            "configurePreset": "msvc-x64-release",
+            "verbose": true
+        },
+        {
+            "name": "msvc-x86-release",
+            "configurePreset": "msvc-x86-release",
+            "verbose": true
+        },
+        {
+            "name": "msvc-x64-clang",
+            "configurePreset": "msvc-x64-clang",
+            "verbose": true
+        },
+        {
+            "name": "msvc-arm64-release",
+            "configurePreset": "msvc-arm64-release",
+            "verbose": true
+        },
+    ],
+    "testPresets": [
+        {
+            "name": "msvc-x64-debug",
+            "configurePreset": "msvc-x64-debug"
+        }
+    ]
+}

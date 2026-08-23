@@ -38,24 +38,32 @@ static inline scaled tex_round_decimals_digits(const unsigned char *digits, unsi
      return (a + 1) / 2;
 }
 
+/* compatible */
+
+// static inline int tex_half_scaled(int x)
+// {
+//     return (x < 0) ? -((-x) / 2) : ((x + 1) / 2);
+// }
+
+/* equivalent */
+
+// static inline int tex_half_scaled(int x)
+// {
+//     return (x + 1) >> 1;
+// }
+
+/* safeguarded */
+
 static inline int tex_half_scaled(int x)
 {
-    return odd(x) ? ((x + 1) / 2) : (x / 2);
+    return (int) (((long long) x + 1) >> 1);
 }
 
 extern scaled tex_nx_plus_y_posit(halfword p, scaled x, scaled y);
 
 /* */
 
-static inline scaled tex_xn_over_d(scaled x, int n, int d)
-{
-    if (x == 0) {
-        return 0;
-    } else {
-        long long v = (long long) x * (long long) n;
-        return (scaled) (v / d);
-    }
-}
+extern scaled tex_xn_over_d(scaled x, int n, int d);
 
 static inline scaled tex_xn_over_d_unity(scaled x, int n)
 {
@@ -66,8 +74,6 @@ static inline scaled tex_xn_over_d_unity(scaled x, int n)
         return (scaled) (v / unity);
     }
 }
-
-
 
 static inline scaled tex_xn_over_d_factor(scaled x, int n)
 {

@@ -386,97 +386,6 @@ as locals. It's just an on-purpose side effect, not a matter of inconsistency:
 there is no tex api.
 
 --------------------------------------------------------------------------------
-todo (ongoing)
---------------------------------------------------------------------------------
-
--  All errors and warnings (lua|tex|fatal) have to be checked; what is critital
-   and what not.
--  I need to figure out why filetime differs between msvc and mingw (daylight
-   correction probably).
--  Nested runtime measurement is currently not working on unix (but it works ok
-   on microsoft windows).
--  I will check the manual for obsolete, removed and added functionality. This
-   is an ongoing effort.
--  Eventually I might do some more cleanup of the mp*.w code. For now we keep
-   w files, but who knows ...
--  A bit more reshuffling of functions to functional units is possible but that
-   happens stepwise as it's easy to introduce bug(let)s. I will occasionally go
-   over all code.
--  I might turn some more macros into functions (needs some reshuffling too)
-   because it's nicer wrt tracing issues. When we started with LuaTeX macros
-   made more sense but compilers got better. In the meantime whole program
-   optimization works okay, but we cannot do that when one also wants to load
-   modules.
--  A side track of the lack of stripping (see previous note) is that we need to
-   namespace locals more agressive ... most is done.
--  We can clean up the dependency chain i.e. header files and such but this is
-   a long term activity. It's also not that important.
--  Maybe nodememoryword vs tokenmemoryword so that the compiler can warn for a
-   mixup.
--  Remove some more (also cosmetic) side effects of mp library conversion.
--  Replace some more of the print* chains by the more compact print_format call
-   (no hurry with that one).
--  The naming between modules (token, tex, node) of functions is (historically)
-   a bit inconsistent (getfoo, get_foo etc) so I might make that better. It does
-   have some impact on compatibility but one can alias (we can provide a file).
--  Some more interface related code might get abstracted (much already done).
--  I don't mention other (either or not already rejected) ideas and experiments
-   here (like pushing/popping pagebuilder states which is messy and also demands
-   too much from the macro package end.)
--  Stepwise I'll make the complete split of command codes (chr) and subtypes.
-   This is mostly done but there are some leftovers. It also means that we no
-   longer are completely in sync with the internal original \TEX\ naming but I'll
-   try to remain close.
--  The glyph and math scale features do not yet check for overflow of maxdimen
-   but I'll add some more checks and/or impose some limitations on the scale
-   values. We have to keep in mind that TeX itself also hapilly accepts some
-   wrap around because it doesn't really crash the engine; it just can have side
-   effects.
-
---------------------------------------------------------------------------------
-todo (second phase)
---------------------------------------------------------------------------------
-
-Ideally we'd like to see more local variables (like some cur_val and such) but
-it's kind of tricky because these globals are all over the place and sometimes
-get saved and restored (so that needs careful checking), and sometimes such a
-variable is expected to be set in a nested call. It also spoils the (still
-mostly original) documentation. So, some will happen, some won't. I actually
-tested some rather drastic localization and even with tripple checking there
-were side effects, so I reverted that. (We probably end up with a mix that
-shows the intention.)
-
-Anyway, there are (and will be) some changes (return values instead of accessing
-global) that give a bit less code on the one hand (and therefore look somewhat
-cleaner) but are not always more efficient. It's all a matter of taste.
-
-I'm on and off looking at the files and their internal documentation and in the
-process rename some variables, do some extra checking, and remove unused code.
-This is a bit random activity that I started doing pending the first official
-release.
-
-Now that the math engine has been partly redone the question is: should we keep
-the font related control options? They might go away at some point and even
-support for traditional eight bit fonts might be dropped. We'll see about that.
-
-That is: we saw about it. End 2021 and beginning of 2022 Mikael Sundqvist and I
-spent quite a few months on playing around with new features: more classes, inter
-atom spacing, inter atom penalties, atom rules, a few more FontParameters, a bit
-more control on top of what we already had, etc. In the end some of the control
-already present became standardized in a way that now prefers OpenType fonts.
-Persistent issues with fonts are now dealt with on a per font basis in ConteXt
-using existing as well as new tweaking features. We started talking micro math
-typography. Old fonts are still supported but one has to configure the engine
-with respecty to the used technology. Another side effect is that we now store
-math character specifications in nodes instead of a number.
-
-It makes sense to simplify delimiters (just make them a mathchar) and get rid of 
-the large family and char. These next in size and extensibles are to be related
-anyway so one can always make a (runtime) virtual font. The main problem is that 
-we then need to refactor some tex (format) code too becuase we no longer have 
-delimiters there too.
-
---------------------------------------------------------------------------------
 dependencies
 --------------------------------------------------------------------------------
 
@@ -534,6 +443,25 @@ I will stepwise adapt some code to C23, like the native boolean types as well as
 decimal64 instead of the decimal library. This can only happen in detail when 
 all compilers that we support provide these features.  This is mostly a "when I
 see it cq. when I am in the mood I will do it" kind of activity. 
+
+--------------------------------------------------------------------------------
+llms
+--------------------------------------------------------------------------------
+
+Because (2026) the codebase is quite stable and because the various manuals are
+mostly in sync (luametatex, luametafun, lowlevel, etc) it becomes possible to
+check for issues with for instanbce codex so that is what we did as part of
+exploring possibilities and limitations of these tools. For instance: does the
+engine code match with what the manuals describe? Experiences with this are
+discussed in the usual wrap-ups, articles and presentations. But: long term
+stability wins over fashion and hypes!
+
+--------------------------------------------------------------------------------
+optimization
+--------------------------------------------------------------------------------
+
+The build script by default will use runtime linmk optimization which results in
+a some 5 percent gain and --profile can be used to gain another 5 to 10 percent.
 
 --------------------------------------------------------------------------------
 team / responsibilities

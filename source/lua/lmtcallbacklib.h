@@ -80,7 +80,9 @@ typedef enum callback_types {
     balance_boundary_callback,
     balance_insert_callback,
     page_boundary_callback,
+# if (delayed_glue_supported == 1)
     delayed_glue_callback,
+# endif
     total_callbacks,
 } callback_types;
 
@@ -102,10 +104,21 @@ typedef enum callback_options {
     callback_option_trace  = 0x02,
 } callback_options;
 
+typedef enum callback_item_contracts {
+    callback_item_input_head  = 0x01, /* normalize the input head's previous link */
+    callback_item_output_head = 0x02, /* normalize the returned head's previous link */
+    callback_item_consumes    = 0x04, /* callback owns the input, including on nil */
+    callback_item_replaces    = 0x08, /* a non-nil result transfers the old input */
+    callback_item_replacement = callback_item_input_head | callback_item_output_head | callback_item_replaces,
+    callback_item_list        = callback_item_input_head | callback_item_output_head | callback_item_consumes,
+} callback_item_contracts;
+
 typedef struct callback_item_info {
     int          value;
     int          state;
-    const char*  name;
+    const char  *name;
+    unsigned     contracts; /* node conversion and ownership contract */
+    int          reference; /* cached Lua function reference for frozen callbacks */
 } callback_item_info;
 
 typedef struct callback_state_info {
@@ -129,34 +142,25 @@ typedef enum callback_keys {
     callback_result_i_key  = 'r', /*tex a number (return value) but nil is also okay */
 } callback_keys;
 
-static inline int  lmt_callback_defined         (int i);
 
-static inline int  lmt_callback_call            (lua_State *L, int i, int o, int top);
-extern int         lmt_callback_okay            (lua_State *L, int i, int *top);
-extern void        lmt_callback_error           (lua_State *L, int top, int i);
-static inline void lmt_callback_wrapup          (lua_State *L, int top);
- 
-extern int         lmt_run_callback             (lua_State *L, int i, const char *values, ...);
-extern int         lmt_run_and_save_callback    (lua_State *L, int i, const char *values, ...);
-extern int         lmt_run_saved_callback_line  (lua_State *L, int i, int firstpos);
-extern int         lmt_run_saved_callback_close (lua_State *L, int i);
+extern int  lmt_run_callback             (lua_State *L, int i, const char *values, ...);
+extern int  lmt_run_and_save_callback    (lua_State *L, int i, const char *values, ...);
+extern int  lmt_run_saved_callback_line  (lua_State *L, int i, int firstpos);
+extern int  lmt_run_saved_callback_close (lua_State *L, int i);
+extern void lmt_destroy_saved_callback   (lua_State *L, int i);
+extern void lmt_run_memory_callback      (const char *what, int success);
+extern void lmt_push_callback_usage      (lua_State *L);
 
-extern void        lmt_destroy_saved_callback   (lua_State *L, int i);
-
-extern void        lmt_run_memory_callback      (const char *what, int success);
-
-extern void        lmt_push_callback_usage      (lua_State *L);
-
-/* The implementation: */
-
-static inline int lmt_callback_defined(
+static inline int lmt_callback_defined (
     int i
 ) { 
      /*tex There is no need to check |callback_state_disabled| because value can be used. */
-     return (lmt_callback_state.items[i].state & callback_state_disabled) ? -1 : lmt_callback_state.items[i].value; 
+     return (lmt_callback_state.items[i].state & callback_state_disabled)
+          ? -1
+          : lmt_callback_state.items[i].value;
 }
 
-static inline int lmt_callback_call(
+static inline int lmt_callback_call (
     lua_State *L, 
     int        i, 
     int        o, 
@@ -164,6 +168,18 @@ static inline int lmt_callback_call(
 ) { 
     return lua_pcallk(L, i, o, top + 2, 0, NULL); 
 }
+
+extern int lmt_callback_okay (
+    lua_State *L,
+    int        i,
+    int       *top
+);
+
+extern void lmt_callback_error (
+    lua_State *L,
+    int        top,
+    int        i
+);
 
 static inline void lmt_callback_wrapup(
     lua_State *L, 

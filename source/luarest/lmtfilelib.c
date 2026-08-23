@@ -168,7 +168,7 @@
     typedef struct dir_data {
         intptr_t handle;
         int      closed;
-        char     pattern[MY_MAXPATHLEN+1];
+        char     pattern[MY_MAXPATHLEN+5];
     } dir_data;
 
     static int get_stat(const char *s, info_struct *i)
@@ -346,7 +346,7 @@ static int filelib_chdir(lua_State *L) {
         char *path = NULL;
         size_t size = MY_MAXPATHLEN;
         while (1) {
-            path = lmt_memory_realloc(path, size);
+            path = path ? lmt_memory_realloc(path, size) : lmt_memory_malloc(size);
             if (! path) {
                 lua_pushboolean(L,0);
                 break;
@@ -361,7 +361,9 @@ static int filelib_chdir(lua_State *L) {
             }
             size *= 2;
         }
-        lmt_memory_free(path);
+        if (path) {
+            lmt_memory_free(path);
+        }
         return 1;
     }
 
@@ -909,13 +911,13 @@ static int filelib_attributes(lua_State *L)
     return 1; \
 } while(1)
 
-static int filelib_isdir          (lua_State *L) { is_whatever(L, F_OK,(S_ISDIR(info.st_mode))); }
-static int filelib_isreadabledir  (lua_State *L) { is_whatever(L, R_OK,(S_ISDIR(info.st_mode))); }
-static int filelib_iswriteabledir (lua_State *L) { is_whatever(L, W_OK,(S_ISDIR(info.st_mode))); }
+static int filelib_isdir          (lua_State *L) { is_whatever(L, F_OK, (S_ISDIR(info.st_mode))); }
+static int filelib_isreadabledir  (lua_State *L) { is_whatever(L, R_OK, (S_ISDIR(info.st_mode))); }
+static int filelib_iswriteabledir (lua_State *L) { is_whatever(L, W_OK, (S_ISDIR(info.st_mode))); }
 
-static int filelib_isfile         (lua_State *L) { is_whatever(L, F_OK,(S_ISREG(info.st_mode) || S_ISLNK(info.st_mode))); }
-static int filelib_isreadablefile (lua_State *L) { is_whatever(L, R_OK,(S_ISREG(info.st_mode) || S_ISLNK(info.st_mode))); }
-static int filelib_iswriteablefile(lua_State *L) { is_whatever(L, W_OK,(S_ISREG(info.st_mode) || S_ISLNK(info.st_mode))); }
+static int filelib_isfile         (lua_State *L) { is_whatever(L, F_OK, (S_ISREG(info.st_mode) || S_ISLNK(info.st_mode))); }
+static int filelib_isreadablefile (lua_State *L) { is_whatever(L, R_OK, (S_ISREG(info.st_mode) || S_ISLNK(info.st_mode))); }
+static int filelib_iswriteablefile(lua_State *L) { is_whatever(L, W_OK, (S_ISREG(info.st_mode) || S_ISLNK(info.st_mode))); }
 
 static int filelib_setexecutable(lua_State *L)
 {
@@ -957,6 +959,28 @@ static int filelib_symlinktarget(lua_State *L)
     return 1;
 }
 
+static int filelib_expandpath(lua_State *L)
+{
+    const char *file = aux_utf8_expandpath(luaL_checkstring(L, 1));
+    if (file) {
+        lua_pushstring(L, file);
+    } else {
+        lua_pushnil(L);
+    }
+    return 1;
+}
+
+static int filelib_canonicalize(lua_State *L)
+{
+    const char *file = aux_utf8_canonicalize(luaL_checkstring(L, 1));
+    if (file) {
+        lua_pushstring(L, file);
+    } else {
+        lua_pushnil(L);
+    }
+    return 1;
+}
+
 static const struct luaL_Reg filelib_function_list[] = {
     { "attributes",        filelib_attributes        },
     { "chdir",             filelib_chdir             },
@@ -965,6 +989,8 @@ static const struct luaL_Reg filelib_function_list[] = {
     { "mkdir",             filelib_mkdir             },
     { "rmdir",             filelib_rmdir             },
     { "touch",             filelib_touch             },
+    { "expandpath",        filelib_expandpath        },
+    { "canonicalize",      filelib_canonicalize      },
     /* */
  // { "collect",           filelib_collect           },
     /* */

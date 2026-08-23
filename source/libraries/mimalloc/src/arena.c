@@ -274,6 +274,8 @@ static mi_decl_noinline void* mi_arena_try_alloc_at(mi_arena_t* arena, size_t ar
       const size_t stat_commit_size = commit_size - mi_arena_block_size(already_committed);
       bool commit_zero = false;
       if (!_mi_os_commit_ex(p, commit_size, &commit_zero, stat_commit_size)) {
+        // set all as uncommitted on commit failure
+        _mi_bitmap_unclaim_across(arena->blocks_committed, arena->field_count, needed_bcount, bitmap_index);
         memid->initially_committed = false;
       }
       else {
@@ -392,7 +394,7 @@ static bool mi_arena_reserve(size_t req_size, bool allow_large, mi_arena_id_t *a
 
   // commit eagerly?
   bool arena_commit = false;
-  if (mi_option_get(mi_option_arena_eager_commit) == 2)      { arena_commit = _mi_os_has_overcommit(); }
+  if (mi_option_get(mi_option_arena_eager_commit) == 2)      { arena_commit = _mi_os_has_overcommit() || mi_option_is_enabled(mi_option_allow_large_os_pages); }
   else if (mi_option_get(mi_option_arena_eager_commit) == 1) { arena_commit = true; }
 
   return (mi_reserve_os_memory_ex(arena_reserve, arena_commit, allow_large, false /* exclusive? */, arena_id) == 0);
@@ -554,16 +556,22 @@ static bool mi_arena_purge_range(mi_arena_t* arena, size_t idx, size_t startidx,
   return all_purged;
 }
 
-// returns true if anything was purged
-static bool mi_arena_try_purge(mi_arena_t* arena, mi_msecs_t now, bool force)
+// returns 
+// -1 = nothing was purged 
+// 0  = nothing was purged yet because have not yet reached the expire time
+// 1  = some pages in the arena were purged
+static int mi_arena_try_purge(mi_arena_t* arena, mi_msecs_t now, bool force)
 {
   // check pre-conditions
-  if (arena->memid.is_pinned) return false;
+  if (arena->memid.is_pinned) return -1;
 
   // expired yet?
   mi_msecs_t expire = mi_atomic_loadi64_relaxed(&arena->purge_expire);
-  if (!force && (expire == 0 || expire > now)) return false;
-
+  if (!force) {
+    if (expire == 0)  return -1;
+    if (expire > now) return 0;
+  }
+  
   // reset expire (if not already set concurrently)
   mi_atomic_casi64_strong_acq_rel(&arena->purge_expire, &expire, (mi_msecs_t)0);
   _mi_stat_counter_increase(&_mi_stats_main.arena_purges, 1);
@@ -611,7 +619,7 @@ static bool mi_arena_try_purge(mi_arena_t* arena, mi_msecs_t now, bool force)
     mi_msecs_t expected = 0;
     mi_atomic_casi64_strong_acq_rel(&arena->purge_expire,&expected,_mi_clock_now() + delay);
   }
-  return any_purged;
+  return (any_purged ? 1 : -1);
 }
 
 static void mi_arenas_try_purge( bool force, bool visit_all )
@@ -621,7 +629,7 @@ static void mi_arenas_try_purge( bool force, bool visit_all )
   // check if any arena needs purging?
   const mi_msecs_t now = _mi_clock_now();
   mi_msecs_t arenas_expire = mi_atomic_loadi64_acquire(&mi_arenas_purge_expire);
-  if (!force && (arenas_expire == 0 || arenas_expire < now)) return;
+  if (!force && (arenas_expire == 0 || arenas_expire > now)) return;
 
   const size_t max_arena = mi_atomic_load_acquire(&mi_arena_count);
   if (max_arena == 0) return;
@@ -634,21 +642,26 @@ static void mi_arenas_try_purge( bool force, bool visit_all )
     mi_atomic_storei64_release(&mi_arenas_purge_expire, now + mi_arena_purge_delay());
     size_t max_purge_count = (visit_all ? max_arena : 2);
     bool all_visited = true;
+    bool any_purged = false;
     for (size_t i = 0; i < max_arena; i++) {
       mi_arena_t* arena = mi_atomic_load_ptr_acquire(mi_arena_t, &mi_arenas[i]);
       if (arena != NULL) {
-        if (mi_arena_try_purge(arena, now, force)) {
-          if (max_purge_count <= 1) {
-            all_visited = false;
-            break;
+        int purged = mi_arena_try_purge(arena, now, force);
+        if (purged >= 0) {    // purged, or not yet the expire-time reached
+          any_purged = true;
+          if (purged >= 1) {  // purged at least one page
+            if (max_purge_count <= 1) {
+              all_visited = false;
+              break;
+            }
+            max_purge_count--;
           }
-          max_purge_count--;
         }
       }
     }
-    if (all_visited) {
-      // all arena's were visited and purged: reset global expire
-      mi_atomic_storei64_release(&mi_arenas_purge_expire, 0);
+    if (all_visited && !any_purged) {
+      // all arena's were visited and nothing needed to be purged: reset global expire
+      mi_atomic_storei64_release(&mi_arenas_purge_expire, (mi_msecs_t)0);
     }
   }
 }
@@ -689,12 +702,12 @@ void _mi_arena_free(void* p, size_t size, size_t committed_size, mi_memid_t memi
 
     // checks
     if (arena == NULL) {
-      _mi_error_message(EINVAL, "trying to free from an invalid arena: %p, size %zu, memid: 0x%zx\n", p, size, memid);
+      _mi_error_message(EINVAL, "trying to free from an invalid arena: %p, size %zu, memkind: 0x%x\n", p, size, memid.memkind);
       return;
     }
     mi_assert_internal(arena->field_count > mi_bitmap_index_field(bitmap_idx));
     if (arena->field_count <= mi_bitmap_index_field(bitmap_idx)) {
-      _mi_error_message(EINVAL, "trying to free from an invalid arena block: %p, size %zu, memid: 0x%zx\n", p, size, memid);
+      _mi_error_message(EINVAL, "trying to free from an invalid arena block: %p, size %zu, memid: 0x%x\n", p, size, memid.memkind);
       return;
     }
 
@@ -819,11 +832,15 @@ static bool mi_manage_os_memory_ex2(void* start, size_t size, bool is_large, int
     _mi_warning_message("the arena size is too small (memory at %p with size %zu)\n", start, size);
     return false;
   }
+  if (size > MI_MAX_ALLOC_SIZE) {
+    _mi_error_message(EOVERFLOW, "the arena size is too large (memory at %p with size %zu)\n", start, size);
+    return false;
+  }
   if (is_large) {
     mi_assert_internal(memid.initially_committed && memid.is_pinned);
   }
   if (!_mi_is_aligned(start, MI_SEGMENT_ALIGN)) {
-    void* const aligned_start = mi_align_up_ptr(start, MI_SEGMENT_ALIGN);
+    void* const aligned_start = _mi_align_up_ptr(start, MI_SEGMENT_ALIGN);
     const size_t diff = (uint8_t*)aligned_start - (uint8_t*)start;
     if (diff >= size || (size - diff) < MI_ARENA_BLOCK_SIZE) {
       _mi_warning_message("after alignment, the size of the arena becomes too small (memory at %p with size %zu)\n", start, size);
@@ -889,7 +906,13 @@ bool mi_manage_os_memory_ex(void* start, size_t size, bool is_committed, bool is
 // Reserve a range of regular OS memory
 int mi_reserve_os_memory_ex(size_t size, bool commit, bool allow_large, bool exclusive, mi_arena_id_t* arena_id) mi_attr_noexcept {
   if (arena_id != NULL) *arena_id = _mi_arena_id_none();
-  size = _mi_align_up(size, MI_ARENA_BLOCK_SIZE); // at least one block
+  if (size < MI_MAX_ALLOC_SIZE) {
+    size = _mi_align_up(size, MI_ARENA_BLOCK_SIZE); // at least one block
+  }
+  if (size > MI_MAX_ALLOC_SIZE) {
+    _mi_error_message(EOVERFLOW, "memory reservation request is too large (size %zu)\n", size);
+    return ENOMEM;
+  }
   mi_memid_t memid;
   void* start = _mi_os_alloc_aligned(size, MI_SEGMENT_ALIGN, commit, allow_large, &memid);
   if (start == NULL) return ENOMEM;

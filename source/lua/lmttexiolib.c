@@ -16,7 +16,8 @@
 
 # include "luametatex.h"
 
-FILE *lmt_valid_file(lua_State *L) {
+FILE *lmt_valid_file(lua_State *L)
+{
     luaL_Stream *p = (luaL_Stream *) lua_touserdata(L, 1);
     if (p && lua_getmetatable(L, 1)) {
      // luaL_getmetatable(L, LUA_FILEHANDLE);
@@ -30,8 +31,7 @@ FILE *lmt_valid_file(lua_State *L) {
     return NULL;
 }
 
-typedef void (*texio_printer) (const char *);
-
+typedef void (*texio_printer_len) (const char *s, int len);
 
 static int texiolib_getselectorvalues(lua_State *L)
 {
@@ -70,7 +70,7 @@ static inline int texiolib_aux_get_selector_value(lua_State *L, int i, int *l, i
     }
 }
 
-static void texiolib_aux_print(lua_State *L, int n, texio_printer printfunction, const char *dflt)
+static void texiolib_aux_print(lua_State *L, int n, texio_printer_len printfunction, const char *dflt, int dflt_len)
 {
     int i = 1;
     int saved_selector = lmt_print_state.selector;
@@ -89,22 +89,28 @@ static void texiolib_aux_print(lua_State *L, int n, texio_printer printfunction,
                         case LUA_TBOOLEAN:
                         case LUA_TNUMBER:
                         case LUA_TSTRING:
-                            printfunction(lua_tostring(L, i));
+                            {
+                                size_t len = 0;
+                                const char *s = lua_tolstring(L, i, &len);
+                                if (s && len > 0) {
+                                    printfunction(s, (int) len);
+                                }
+                            }
                             break;
                         default:
                             luaL_error(L, "argument is not a string, number or boolean");
                     }
                     i++;
                 } while (i <= n);
-            } else if (dflt) {
-                printfunction(dflt);
+            } else if (dflt && dflt_len > 0) {
+                printfunction(dflt, dflt_len);
             }
-        break;
+            break;
     }
     lmt_print_state.selector = saved_selector;
 }
 
-static void texiolib_aux_print_selector(lua_State *L, int n, texio_printer printfunction, const char *dflt)
+static void texiolib_aux_print_selector(lua_State *L, int n, texio_printer_len printfunction, const char *dflt, int dflt_len)
 {
     int saved_selector = lmt_print_state.selector;
     texiolib_aux_get_selector_value(L, 1, &lmt_print_state.selector, no_print_selector_code);
@@ -114,6 +120,7 @@ static void texiolib_aux_print_selector(lua_State *L, int n, texio_printer print
         case terminal_selector_code:
             {
                 if (n > 1) {
+                    /*tex In \CONTEXT\ in most cases we have one string. */
                     for (int i = 2; i <= n; i++) {
                         switch (lua_type(L, i)) {
                             case LUA_TNIL:
@@ -121,14 +128,20 @@ static void texiolib_aux_print_selector(lua_State *L, int n, texio_printer print
                             case LUA_TBOOLEAN:
                             case LUA_TNUMBER:
                             case LUA_TSTRING:
-                                printfunction(lua_tostring(L, i));
+                                {
+                                    size_t len = 0;
+                                    const char *s = lua_tolstring(L, i, &len);
+                                    if (s && len > 0) {
+                                        printfunction(s, (int) len);
+                                    }
+                                }
                                 break;
                             default:
                                 luaL_error(L, "argument is not a string, number or boolean");
                         }
                     };
-                } else if (dflt) {
-                    printfunction(dflt);
+                } else if (dflt && dflt_len > 0) {
+                    printfunction(dflt, dflt_len);
                 }
                 break;
             }
@@ -136,7 +149,7 @@ static void texiolib_aux_print_selector(lua_State *L, int n, texio_printer print
     lmt_print_state.selector = saved_selector;
 }
 
-static void texiolib_aux_print_stdout(lua_State *L, const char *extra)
+static void texiolib_aux_print_stdout(lua_State *L, const char *extra, int extra_len)
 {
     int i = 1;
     int l = terminal_and_logfile_selector_code;
@@ -146,16 +159,29 @@ static void texiolib_aux_print_stdout(lua_State *L, const char *extra)
     }
     for (; i <= n; i++) {
         if (lua_isstring(L, i)) { /* or number */
-            const char *s = lua_tostring(L, i);
+            size_t s_len = 0;
+            const char *s = lua_tolstring(L, i, &s_len);
             if (l == terminal_and_logfile_selector_code || l == terminal_selector_code) {
-                fputs(extra, stdout);
-                fputs(s, stdout);
+                if (extra_len > 0) {
+                    fwrite(extra, 1, (size_t) extra_len, stdout);
+                }
+                if (s_len > 0) {
+                    fwrite(s, 1, s_len, stdout);
+                }
             }
             if (l == terminal_and_logfile_selector_code || l == logfile_selector_code) {
                 if (lmt_print_state.loggable_info) {
-                    char *v = (char*) lmt_memory_malloc(strlen(lmt_print_state.loggable_info) + strlen(extra) + strlen(s) + 1);
+                    size_t info_len = strlen(lmt_print_state.loggable_info);
+                    char *v = (char*) lmt_memory_malloc(info_len + (size_t) extra_len + s_len + 1);
                     if (v) {
-                        sprintf(v, "%s%s%s", lmt_print_state.loggable_info, extra, s);
+                        memcpy(v, lmt_print_state.loggable_info, info_len);
+                        if (extra_len > 0) {
+                            memcpy(v + info_len, extra, (size_t) extra_len);
+                        }
+                        if (s_len > 0) {
+                            memcpy(v + info_len + extra_len, s, s_len);
+                        }
+                        v[info_len + extra_len + s_len] = '\0';
                     }
                     lmt_memory_free(lmt_print_state.loggable_info);
                     lmt_print_state.loggable_info = v;
@@ -167,20 +193,20 @@ static void texiolib_aux_print_stdout(lua_State *L, const char *extra)
     }
 }
 
-static void texiolib_aux_print_nlp_str(const char *s)
+static void texiolib_aux_print_nlp_str_len(const char *s, int len)
 {
     tex_print_nlp();
-    tex_print_str(s);
+    tex_print_str_len(s, len);
 }
 
 static int texiolib_write(lua_State *L)
 {
     if (lmt_main_state.ready_already == output_disabled_state || ! lmt_fileio_state.job_name) {
-        texiolib_aux_print_stdout(L, "");
+        texiolib_aux_print_stdout(L, "", 0);
     } else {
         int n = lua_gettop(L);
         if (n > 0) {
-            texiolib_aux_print(L, n, tex_print_str, NULL);
+            texiolib_aux_print(L, n, tex_print_str_len, NULL, 0);
         } else {
             /*tex We silently ignore bogus calls. */
         }
@@ -191,11 +217,11 @@ static int texiolib_write(lua_State *L)
 static int texiolib_write_nl(lua_State *L)
 {
     if (lmt_main_state.ready_already == output_disabled_state || ! lmt_fileio_state.job_name) {
-        texiolib_aux_print_stdout(L, "\n");
+        texiolib_aux_print_stdout(L, "\n", 1);
     } else {
         int n = lua_gettop(L);
         if (n > 0) {
-            texiolib_aux_print(L, n, texiolib_aux_print_nlp_str, "\n");
+            texiolib_aux_print(L, n, texiolib_aux_print_nlp_str_len, "\n", 1);
         } else {
             /*tex We silently ignore bogus calls. */
         }
@@ -206,11 +232,11 @@ static int texiolib_write_nl(lua_State *L)
 static int texiolib_write_selector(lua_State *L)
 {
     if (lmt_main_state.ready_already == output_disabled_state || ! lmt_fileio_state.job_name) {
-        texiolib_aux_print_stdout(L, "");
+        texiolib_aux_print_stdout(L, "", 0);
     } else {
         int n = lua_gettop(L);
         if (n > 1) {
-            texiolib_aux_print_selector(L, n, tex_print_str, NULL);
+            texiolib_aux_print_selector(L, n, tex_print_str_len, NULL, 0);
         } else {
             /*tex We silently ignore bogus calls. */
         }
@@ -218,15 +244,14 @@ static int texiolib_write_selector(lua_State *L)
     return 0;
 }
 
-
 static int texiolib_write_selector_nl(lua_State *L)
 {
     if (lmt_main_state.ready_already == output_disabled_state || ! lmt_fileio_state.job_name) {
-        texiolib_aux_print_stdout(L, "\n");
+        texiolib_aux_print_stdout(L, "\n", 1);
     } else {
         int n = lua_gettop(L);
         if (n > 1) {
-            texiolib_aux_print_selector(L, n, texiolib_aux_print_nlp_str, "");
+            texiolib_aux_print_selector(L, n, texiolib_aux_print_nlp_str_len, "", 0);
         } else {
             /*tex We silently ignore bogus calls. */
         }
@@ -237,11 +262,11 @@ static int texiolib_write_selector_nl(lua_State *L)
 static int texiolib_write_selector_lf(lua_State *L)
 {
     if (lmt_main_state.ready_already == output_disabled_state || ! lmt_fileio_state.job_name) {
-        texiolib_aux_print_stdout(L, "\n");
+        texiolib_aux_print_stdout(L, "\n", 1);
     } else {
         int n = lua_gettop(L);
         if (n >= 1) {
-            texiolib_aux_print_selector(L, n, texiolib_aux_print_nlp_str, "");
+            texiolib_aux_print_selector(L, n, texiolib_aux_print_nlp_str_len, "", 0);
         } else {
             /*tex We silently ignore bogus calls. */
         }
@@ -309,7 +334,7 @@ static int texiolib_forceendoffile(lua_State *L)
 static const struct luaL_Reg texiolib_function_list[] = {
     { "write",             texiolib_write             },
     { "writenl",           texiolib_write_nl          },
-    { "write_nl",          texiolib_write_nl          }, /* depricated */
+    { "write_nl",          texiolib_write_nl          }, /*tex undocumented, depricated */
     { "writeselector",     texiolib_write_selector    },
     { "writeselectornl",   texiolib_write_selector_nl },
     { "writeselectorlf",   texiolib_write_selector_lf },
@@ -325,7 +350,7 @@ static const struct luaL_Reg texiolib_function_list[] = {
 static const struct luaL_Reg texiolib_function_list_only[] = {
     { "write",           texiolib_write             },
     { "writenl",         texiolib_write_nl          },
-    { "write_nl",        texiolib_write_nl          }, /* depricated */
+    { "write_nl",        texiolib_write_nl          }, /*tex undocumented, depricated */
     { "writeselector",   texiolib_write_selector    },
     { "writeselectornl", texiolib_write_selector_nl },
     { "writeselectorlf", texiolib_write_selector_lf },

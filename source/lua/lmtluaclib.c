@@ -36,7 +36,7 @@ static TString **tmname = NULL;
 # define LUACVOID(p)  ((const void*)(p))
 # define eventname(i) (getstr(tmname[i]))
 
-static void luaclib_aux_print_string(const TString* ts)
+static void luaclib_aux_print_string(TString* ts) /* const dropped here */
 {
     const char * s = getstr(ts);
     size_t n = tsslen(ts);

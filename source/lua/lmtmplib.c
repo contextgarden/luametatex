@@ -588,69 +588,73 @@ static int mplib_gettolerance(lua_State *L)
 
 static int mplib_aux_register_function(lua_State *L, int old_id)
 {
-    if (! (lua_isfunction(L, -1) || lua_isnil(L, -1))) {
-        return 0;
-    } else {
-        lua_pushvalue(L, -1);
-        if (old_id) {
-            luaL_unref(L, LUA_REGISTRYINDEX, old_id);
-        }
-        return luaL_ref(L, LUA_REGISTRYINDEX); /*tex |new_id| */
+    if (old_id) {
+        luaL_unref(L, LUA_REGISTRYINDEX, old_id);
+    }
+    switch (lua_type(L, -1)) {
+        case LUA_TFUNCTION:
+            /* play safe and push */
+            lua_pushvalue(L, -1);
+            return luaL_ref(L, LUA_REGISTRYINDEX); /*tex |new_id| */
+        case LUA_TNIL:
+            return 0;
+        default:
+            return 0;
     }
 }
 
 static int mplib_aux_find_file_function(lua_State *L, MP_options *options)
 {
     options->find_file_id = mplib_aux_register_function(L, options->find_file_id);
-    return (! options->find_file_id);
+    return ! options->find_file_id;
 }
 
 static int mplib_aux_run_script_function(lua_State *L, MP_options *options)
 {
     options->run_script_id = mplib_aux_register_function(L, options->run_script_id);
-    return (! options->run_script_id);
+    return ! options->run_script_id;
 }
 
 static int mplib_aux_run_internal_function(lua_State *L, MP_options *options)
 {
     options->run_internal_id = mplib_aux_register_function(L, options->run_internal_id);
-    return (! options->run_internal_id);
+    return ! options->run_internal_id;
 }
 
 static int mplib_aux_make_text_function(lua_State *L, MP_options *options)
 {
     options->make_text_id = mplib_aux_register_function(L, options->make_text_id);
-    return (! options->make_text_id);
+    return ! options->make_text_id;
 }
 
 static int mplib_aux_run_logger_function(lua_State *L, MP_options *options)
 {
     options->run_logger_id = mplib_aux_register_function(L, options->run_logger_id);
-    return (! options->run_logger_id);
+    return ! options->run_logger_id;
 }
 
 static int mplib_aux_run_overload_function(lua_State *L, MP_options *options)
 {
     options->run_overload_id = mplib_aux_register_function(L, options->run_overload_id);
-    return (! options->run_overload_id);
+    return ! options->run_overload_id;
 }
 
 static int mplib_aux_run_error_function(lua_State *L, MP_options *options)
 {
     options->run_error_id = mplib_aux_register_function(L, options->run_error_id);
-    return (! options->run_error_id);
+    return ! options->run_error_id;
 }
 
 static int mplib_aux_run_status_function(lua_State *L, MP_options *options)
 {
     options->run_status_id = mplib_aux_register_function(L, options->run_status_id);
-    return (! options->run_status_id);
+    return ! options->run_status_id;
 }
 
 static int mplib_aux_open_file_function(lua_State *L, MP_options *options)
 {
     options->open_file_id = mplib_aux_register_function(L, options->open_file_id);
-    return (! options->open_file_id);
+    return ! options->open_file_id;
 }
 
 static char *mplib_aux_find_file(MP mp, const char *fname, const char *fmode, int ftype)
@@ -670,7 +674,7 @@ static char *mplib_aux_find_file(MP mp, const char *fname, const char *fmode, in
             lua_pushstring(L, mplib_filetype_names[ftype]);
         }
         ++mplib_state.file_callbacks;
-        if (lua_pcall(L, 3, 1, 0)) {
+        if lmt_unlikely(lua_pcall(L, 3, 1, 0)) {
             tex_formatted_warning("mplib", "find file: %s", lua_tostring(L, -1));
         } else {
             s = lmt_string_from_index(L, -1);
@@ -747,6 +751,49 @@ static mp_knot mplib_aux_make_vector(lua_State *L, MP mp, vector v, int close)
     return NULL;
 }
 
+static mp_knot mplib_aux_make_points(lua_State *L, MP mp, points t, int close)
+{
+    /*tex This one is the same as vector but size and .x and .y instead. */
+
+    (void) L;
+    if (t && (t->size > 0)) {
+        mp_knot p = NULL; /*tex So we |t| for the points. */
+        mp_knot first = NULL;
+        for (long i = 0; i < t->size; i++) {
+            double x = t->data[i].x;
+            double y = t->data[i].y;
+            p = mp_append_knot_xy(mp, p, x, y, mp_explicit_knot); /* makes end point */
+            if (p) {
+                mp_set_knot_left_control(mp, p, x, y);
+                mp_set_knot_right_control(mp, p, x, y);
+                if (! first) {
+                    first = p;
+                }
+            } else {
+                /* todo: error message and cleanup from first onward */
+                return first;
+            }
+        }
+        if (close) {
+            double x = t->data[0].x;
+            double y = t->data[0].y;
+            p = mp_append_knot_xy(mp, p, x, y, mp_explicit_knot);
+            if (p) {
+                mp_set_knot_left_control(mp, p, x, y);
+                mp_set_knot_right_control(mp, p, x, y);
+            }
+        }
+        if (p && first) {
+            p->right_type = mp_explicit_knot;
+            first->left_type = mp_explicit_knot;
+            p->next = first;
+            first->prev = p;
+            return first;
+        }
+    }
+    return NULL;
+}
+
 static mp_knot mplib_aux_make_vector_t(lua_State *L, MP mp, vector v, int close)
 {
     /* { { } { } { } .. { } } */
@@ -754,8 +801,8 @@ static mp_knot mplib_aux_make_vector_t(lua_State *L, MP mp, vector v, int close)
     mp_knot first = NULL;
     unsigned n = (unsigned) lua_rawlen(L, -1);
     int f = -1;
-    double lastx; 
-    double lasty; 
+    double lastx = 0;
+    double lasty = 0;
     for (unsigned i = 1; i <= n; i++) {
         int r = lua_rawgeti(L, -1, i) == LUA_TNUMBER ? lmt_tounsigned(L, -1) : 0;
         if (r > 0 && r <= v->rows) { 
@@ -807,6 +854,14 @@ static mp_knot mplib_aux_make_vector_t(lua_State *L, MP mp, vector v, int close)
 static void mplib_aux_inject_vector(lua_State *L, MP mp, vector v)
 {
     mp_knot first = mplib_aux_make_vector(L, mp, v, 0);
+    if (first) {
+        mp_push_path_value(mp, first);
+    }
+}
+
+static void mplib_aux_inject_points(lua_State *L, MP mp, points p)
+{
+    mp_knot first = mplib_aux_make_points(L, mp, p, 0);
     if (first) {
         mp_push_path_value(mp, first);
     }
@@ -876,12 +931,20 @@ static void mplib_aux_inject_whatever(lua_State *L, MP mp, int index)
             }
         case LUA_TUSERDATA:
             {
-                vector v = vectorlib_get(L, index); /* for now we only test for vectors */
-                if (v) { 
+                vector v = vectorlib_get(L, index);
+                if (v) {
                     mplib_aux_inject_vector(L, mp, v);
+                    return;
                 }
-                break;
             }
+            {
+                points p = vectorlib_points_aux_get(L, index);
+                if (p) {
+                    mplib_aux_inject_points(L, mp, p);
+                    return;
+                }
+            }
+            break;
     }
 }
 
@@ -902,11 +965,21 @@ static char *mplib_aux_return_whatever(lua_State *L, MP mp, int index)
             {
                 luaL_Buffer b;
                 lua_Integer n = (lua_Integer) lua_rawlen(L, index);
+                index = lua_absindex(L, index);
                 luaL_buffinit(L, &b);
                 for (lua_Integer i = 1; i <= n; i++) {
-                    lua_rawgeti(L, index, i);
-                    luaL_addvalue(&b);
-                    lua_pop(L, 1);
+                    int top = lua_gettop(L);
+                    switch (lua_rawgeti(L, index, i)) {
+                        case LUA_TNUMBER:
+                        case LUA_TSTRING:
+                            luaL_addvalue(&b);
+                            /* pops */
+                            break;
+                        default:
+                         // lua_pop(L, 1);
+                            break;
+                    }
+                    lua_settop(L, top);
                 }
                 luaL_pushresult(&b);
                 return lmt_string_from_index(L, -1);
@@ -929,7 +1002,7 @@ static char *mplib_aux_run_script(MP mp, const char *str, size_t len, int n)
             lua_pushnil(L);
         }
         ++mplib_state.script_callbacks;
-        if (lua_pcall(L, 1, 2, 0)) {
+        if lmt_unlikely(lua_pcall(L, 1, 2, 0)) {
             tex_formatted_warning("mplib", "run script: %s", lua_tostring(L, -1));
         } else if (lua_toboolean(L, -1)) {
             /* value boolean */
@@ -979,7 +1052,7 @@ static char *mplib_aux_make_text(MP mp, const char *str, size_t len, int mode)
         lua_pushlstring(L, str, len);
         lua_pushinteger(L, mode);
         ++mplib_state.text_callbacks;
-        if (lua_pcall(L, 2, 1, 0)) {
+        if lmt_unlikely(lua_pcall(L, 2, 1, 0)) {
             tex_formatted_warning("mplib", "make text: %s", lua_tostring(L, -1));
         } else {
             s = lmt_string_from_index(L, -1);
@@ -999,7 +1072,7 @@ static void mplib_aux_run_logger(MP mp, int target, const char *str, size_t len)
         lua_pushinteger(L, target);
         lua_pushlstring(L, str, len);
         ++mplib_state.log_callbacks;
-        if (lua_pcall(L, 2, 0, 0)) {
+        if lmt_unlikely(lua_pcall(L, 2, 0, 0)) {
             tex_formatted_warning("mplib", "run logger: %s", lua_tostring(L, -1));
         }
         lua_settop(L, stacktop);
@@ -1017,7 +1090,7 @@ static int mplib_aux_run_overload(MP mp, int property, const char *str, int mode
         lua_pushstring(L, str);
         lua_pushinteger(L, mode);
         ++mplib_state.overload_callbacks;
-        if (lua_pcall(L, 3, 1, 0)) {
+        if lmt_unlikely(lua_pcall(L, 3, 1, 0)) {
             tex_formatted_warning("mplib", "run overload: %s", lua_tostring(L, -1));
             quit = 1;
         } else {
@@ -1038,7 +1111,7 @@ static void mplib_aux_run_error(MP mp, const char *str, const char *help, int in
         lua_pushstring(L, help);
         lua_pushinteger(L, interaction);
         ++mplib_state.error_callbacks;
-        if (lua_pcall(L, 3, 0, 0)) {
+        if lmt_unlikely(lua_pcall(L, 3, 0, 0)) {
            tex_formatted_warning("mplib", "run error: %s", lua_tostring(L, -1));
         }
         lua_settop(L, stacktop);
@@ -1052,7 +1125,7 @@ static void mplib_aux_run_status(MP mp)
         int stacktop = lua_gettop(L);
         lua_rawgeti(L, LUA_REGISTRYINDEX, mp->run_status_id);
         ++mplib_state.status_callbacks;
-        if (lua_pcall(L, 0, 0, 0)) {
+        if lmt_unlikely(lua_pcall(L, 0, 0, 0)) {
            tex_formatted_warning("mplib", "run status: %s", lua_tostring(L, -1));
         }
         lua_settop(L, stacktop);
@@ -1088,13 +1161,19 @@ static void *mplib_aux_open_file(MP mp, const char *fname, const char *fmode, in
             }
             ++mplib_state.file_callbacks;
             if (lua_pcall(L, 3, 1, 0)) {
-                *((int*) index) = 0;
+                const char *error = lua_tostring(L, -1);
+                tex_formatted_warning("mplib", "open file: %s", error ? error : "callback failed");
+                lua_settop(L, stacktop);
+                mp_memory_free(index);
+                return NULL;
             } else if (lua_istable(L, -1)) {
                 lua_pushvalue(L, -1);
                 *((int*) index) = luaL_ref(L, LUA_REGISTRYINDEX);
             } else {
                 tex_normal_warning("mplib", "open file: table expected");
-                *((int*) index) = 0;
+                lua_settop(L, stacktop);
+                mp_memory_free(index);
+                return NULL;
             }
             lua_settop(L, stacktop);
             return index;
@@ -1110,24 +1189,22 @@ static void *mplib_aux_open_file(MP mp, const char *fname, const char *fmode, in
 
 static void mplib_aux_close_file(MP mp, void *index)
 {
-    if (mp->open_file_id && index) {
+    if (index) {
         int idx = *((int*) index);
         lua_State *L = (lua_State *) mp_userdata(mp);
         int stacktop = lua_gettop(L);
-        mplib_pop_function(idx, close)
-        if (lua_isfunction(L, -1)) {
-            ++mplib_state.file_callbacks;
-            if (lua_pcall(L, 0, 0, 0)) {
-                /* no message */
-            } else {
-                /* nothing to be done here */
+        if (mp->open_file_id && idx > 0) {
+            mplib_pop_function(idx, close)
+            if (lua_isfunction(L, -1)) {
+                ++mplib_state.file_callbacks;
+                if (lua_pcall(L, 0, 0, 0)) {
+                    /* no message */
+                }
             }
         }
-        /*
-        if (index) {
-            luaL_unref(L, idx));
+        if (idx > 0) {
+            luaL_unref(L, LUA_REGISTRYINDEX, idx);
         }
-        */
         lua_settop(L, stacktop);
         mp_memory_free(index);
     }
@@ -1143,7 +1220,7 @@ static char *mplib_aux_read_file(MP mp, void *index, size_t *size)
         mplib_pop_function(idx, reader)
         if (lua_isfunction(L, -1)) {
             ++mplib_state.file_callbacks;
-            if (lua_pcall(L, 0, 1, 0)) {
+            if lmt_unlikely(lua_pcall(L, 0, 1, 0)) {
                 *size = 0;
             } else if (lua_type(L, -1) == LUA_TSTRING) {
                 s = lmt_lstring_from_index(L, -1, size);
@@ -1414,7 +1491,7 @@ static void mplib_aux_push_path(lua_State *L, mp_knot_object_node h, int ispen, 
             }
             if (! iscycle) { 
                 lua_push_key_at_index(L, open, ++i);
-            } else if (iscycle && (i == 8) && aux_is_rectange_gr(h)) {
+            } else if ((i == 8) && aux_is_rectange_gr(h)) {
                 /* todo: this can be a smaller list with only four entries */
                 lua_push_key_at_index(L, rectangle, ++i);
             } else { 
@@ -1513,7 +1590,6 @@ static void aux_mplib_knot_to_path(lua_State *L, MP mp, mp_knot h, int ispen, in
 {
     int i = 1;
     mp_knot p = h;
-    mp_knot q = h;
     int iscycle = 1;
     lua_createtable(L, ispen ? 1 : MPLIB_PATH_SIZE, ispen ? 2 : 1);
     if (compact) {
@@ -1530,6 +1606,7 @@ static void aux_mplib_knot_to_path(lua_State *L, MP mp, mp_knot h, int ispen, in
             }
         } while (p && p != h);
     } else {
+        mp_knot q = h;
         do {
             int lt = p->left_type;
             int rt = p->right_type;
@@ -1591,19 +1668,34 @@ static void aux_mplib_knot_to_path(lua_State *L, MP mp, mp_knot h, int ispen, in
 # define kind_of_expression(n) \
     lmt_optinteger(L, n, 0)
 
+// static int mplib_scan_string(lua_State *L)
+// {
+//     MP mp = mplib_aux_is_mp(L, 1);
+//     if (mp) {
+//         char *s = NULL;
+//         size_t l = 0;
+//         mp_scan_string_value(mp, kind_of_expression(2), &s, &l) ;
+//         if (s) {
+//             lua_pushlstring(L, s, l);
+//             return 1;
+//         }
+//     }
+//     lua_pushliteral(L,"");
+//     return 1;
+// }
+
 static int mplib_scan_string(lua_State *L)
 {
     MP mp = mplib_aux_is_mp(L, 1);
     if (mp) {
         char *s = NULL;
         size_t l = 0;
-        mp_scan_string_value(mp, kind_of_expression(2), &s, &l) ;
-        if (s) {
+        if (mp_scan_string_value(mp, kind_of_expression(2), &s, &l) && s) {
             lua_pushlstring(L, s, l);
             return 1;
         }
     }
-    lua_pushliteral(L,"");
+    lua_pushliteral(L, "");
     return 1;
 }
 
@@ -1782,16 +1874,16 @@ static int mplib_inject_string(lua_State *L)
     return 0;
 }
 
-// static int mplib_inject_tokens(lua_State *L)
-// {
-//     MP mp = mplib_aux_is_mp(L, 1);
-//     if (mp) {
-//         size_t l = 0;
-//         const char *s = lua_tolstring(L, 2, &l);
-//         mp_push_tokens_value(mp, s, l);
-//     }
-//     return 0;
-// }
+static int mplib_inject_tokens(lua_State *L)
+{
+    MP mp = mplib_aux_is_mp(L, 1);
+    if (mp) {
+        size_t l = 0;
+        const char *s = lua_tolstring(L, 2, &l);
+        mp_push_tokens_value(mp, s, l);
+    }
+    return 0;
+}
 
 static int mplib_inject_boolean(lua_State *L)
 {
@@ -1925,6 +2017,54 @@ static int mplib_inject_transform(lua_State *L)
     return 0;
 }
 
+static void mplib_aux_release_options(lua_State *L, MP_options *options)
+{
+    int ids[] = {
+        options->find_file_id,
+        options->run_script_id,
+        options->run_internal_id,
+        options->run_logger_id,
+        options->run_overload_id,
+        options->run_error_id,
+        options->run_warning_id,
+        options->run_status_id,
+        options->make_text_id,
+        options->open_file_id,
+    };
+    for (unsigned int i = 0; i < sizeof(ids) / sizeof(ids[0]); i++) {
+        if (ids[i]) {
+            luaL_unref(L, LUA_REGISTRYINDEX, ids[i]);
+        }
+    }
+    if (options->job_name) {
+        lmt_memory_free(options->job_name);
+        options->job_name = NULL;
+    }
+    mp_memory_free(options);
+}
+
+static void mplib_aux_finish(lua_State *L, MP mp)
+{
+    int ids[] = {
+        mp->find_file_id,
+        mp->run_script_id,
+        mp->run_internal_id,
+        mp->run_logger_id,
+        mp->run_overload_id,
+        mp->run_error_id,
+        mp->run_warning_id,
+        mp->run_status_id,
+        mp->make_text_id,
+        mp->open_file_id,
+    };
+    mp_finish(mp);
+    for (unsigned int i = 0; i < sizeof(ids) / sizeof(ids[0]); i++) {
+        if (ids[i]) {
+            luaL_unref(L, LUA_REGISTRYINDEX, ids[i]);
+        }
+    }
+}
+
 static int mplib_new(lua_State *L)
 {
     MP *mpud = lua_newuserdatauv(L, sizeof(MP *), 2);
@@ -1958,11 +2098,14 @@ static int mplib_new(lua_State *L)
                 if (lua_type(L, -2) == LUA_TSTRING) {
                     const char *s = lua_tostring(L, -2);
                     if (lua_key_eq(s, random_seed)) {
-                        options->random_seed = (int) lua_tointeger(L, -1);
+                        options->random_seed = lmt_tointeger(L, -1);
                     } else if (lua_key_eq(s, interaction)) {
                         options->interaction = luaL_checkoption(L, -1, "silent", mplib_interaction_options);
                     } else if (lua_key_eq(s, job_name)) {
                      // options->job_name = lmt_generic_strdup(lua_tostring(L, -1));
+                        if (options->job_name) {
+                            lmt_memory_free(options->job_name);
+                        }
                         options->job_name = lmt_memory_strdup(lua_tostring(L, -1));
                     } else if (lua_key_eq(s, find_file)) {
                         if (mplib_aux_find_file_function(L, options)) {
@@ -2020,13 +2163,16 @@ static int mplib_new(lua_State *L)
             }
         }
         if (! options->job_name || ! *(options->job_name)) {
-            mp_memory_free(options); /* leaks */
             tex_normal_warning("mplib", "job_name is not set");
+            mplib_aux_release_options(L, options);
+            /* lua will clean up the userdata */
             goto BAD;
         }
         mp = mp_initialize(options);
-        mp_memory_free(options); /* leaks */
         if (mp) {
+            lmt_memory_free(options->job_name);
+            options->job_name = NULL;
+            mp_memory_free(options);
             *mpud = mp;
             mplib_aux_set_bend_tolerance(L, bendtolerance);
             mplib_aux_set_move_tolerance(L, movetolerance);
@@ -2034,34 +2180,20 @@ static int mplib_new(lua_State *L)
             lua_setmetatable(L, -2);
             return 1;
         }
+        mplib_aux_release_options(L, options);
     }
   BAD:
     lua_pushnil(L);
     return 1;
 }
 
-# define mplib_collect_id(id) do { \
-    if (id) { \
-        luaL_unref(L, LUA_REGISTRYINDEX, id); \
-    } \
-} while(0)
-
 static int mplib_instance_collect(lua_State *L)
 {
     MP *mpud = mplib_aux_is_mpud(L, 1);
     if (*mpud) {
         MP mp = *mpud;
-        int run_logger_id = (mp)->run_logger_id;
-        mplib_collect_id((mp)->find_file_id);
-        mplib_collect_id((mp)->run_script_id);
-        mplib_collect_id((mp)->run_internal_id);
-        mplib_collect_id((mp)->run_overload_id);
-        mplib_collect_id((mp)->run_error_id);
-        mplib_collect_id((mp)->make_text_id);
-        mplib_collect_id((mp)->open_file_id);
-        mp_finish(mp);
+        mplib_aux_finish(L, mp);
         *mpud = NULL;
-        mplib_collect_id(run_logger_id);
     }
     return 0;
 }
@@ -2134,7 +2266,7 @@ static int mplib_finish(lua_State *L)
         int h = mp_execute(mp, NULL, 0);
         mp_run_data *res = mp_rundata(mp);
         int i = mplib_aux_wrapresults(L, mp, res, h, bendtolerance, movetolerance);
-        mp_finish(mp);
+        mplib_aux_finish(L, mp);
         *mpud = NULL;
         return i;
     } else {
@@ -2157,9 +2289,9 @@ static int mplib_gethashentry(lua_State *L)
 {
     MP *mpud = mplib_aux_is_mpud(L, 1);
     if (*mpud) {
-        MP mp = *mpud;
         char *name = (char *) lua_tostring(L, 2);
         if (name) {
+            MP mp = *mpud;
             mp_symbol s = (mp_symbol) mp_fetch_symbol(mp, name);
             if (s) {
                 mp_node q = s->type == mp_tag_command ? s->v.data.node : NULL;
@@ -2178,6 +2310,57 @@ static int mplib_gethashentry(lua_State *L)
         }
     }
     return 0;
+}
+
+/*tex
+    In the next list, the index has no meaning! Todo: also a table with more details.
+*/
+
+static int mplib_getprimitives(lua_State *L)
+{
+    int index   = 1;
+    int count   = mp_n_of_primitives();
+    int details = lua_toboolean(L, 1);
+    lua_createtable(L, count, 0);
+    for (int i = 1; i <= count; i++) {
+        mp_primitive_data data = mp_get_primitive_data(i);
+        if (data.name) {
+            if (details) {
+                lua_createtable(L, 3, 0);
+                lua_pushinteger(L, data.command);   lua_rawseti(L, -2, 1);
+                lua_pushinteger(L, data.operation); lua_rawseti(L, -2, 2);
+                lua_pushstring (L, data.name);      lua_rawseti(L, -2, 3);
+                lua_pushinteger(L, data.origin);    lua_rawseti(L, -2, 4);
+                lua_pushinteger(L, data.legacy);    lua_rawseti(L, -2, 5);
+            } else {
+             // lua_pushstring(L, strdup(data.name));
+                lua_pushstring(L, data.name);
+            }
+            lua_rawseti(L, -2, index++);
+        }
+    }
+    return 1;
+}
+
+static int mplib_getprimitiveorigins(lua_State *L)
+{
+    lua_createtable(L, 3, 1);
+    lua_push_key_at_index(L, unset,      mp_origin_unset);
+    lua_push_key_at_index(L, metapost,   mp_origin_metapost);
+    lua_push_key_at_index(L, luatex,     mp_origin_luatex);
+    lua_push_key_at_index(L, luametatex, mp_origin_luametatex);
+    return 1;
+}
+
+static int mplib_getprimitivelegacies(lua_State *L)
+{
+    lua_createtable(L, 4, 1);
+    lua_push_key_at_index(L, unset,    mp_legacy_unset);
+    lua_push_key_at_index(L, output,   mp_legacy_output);
+    lua_push_key_at_index(L, font,     mp_legacy_font);
+    lua_push_key_at_index(L, text,     mp_legacy_text);
+    lua_push_key_at_index(L, language, mp_legacy_language);
+    return 1;
 }
 
 static int mplib_gethashentries(lua_State *L)
@@ -2369,11 +2552,10 @@ static int mplib_aux_set_left_tension(lua_State *L, MP mp, mp_knot p) {
 
 static int mplib_aux_set_left_control(lua_State *L, MP mp, mp_knot p) {
     double x = (double) lua_tonumber(L, -1);
-    double y = 0;
     lua_pop(L, 1);
     lua_push_key(left_y);
     if (lua_rawget(L, -2) == LUA_TNUMBER) {
-        y = (double) lua_tonumber(L, -1);
+        double y = (double) lua_tonumber(L, -1);
         lua_pop(L, 1);
         return mp_set_knot_left_control(mp, p, x, y) ? 1 : 0;
     } else {
@@ -2455,7 +2637,8 @@ static const char * mplib_aux_with_path_indexed(lua_State *L, MP mp, int index, 
     int midcycle = 0;
     mp_knot ln = NULL;
     mp_knot rn = NULL;
-    double tension = *tense ? -1.0 : 1.0; /* todo  */
+ // double tension = *tense ? -1.0 : 1.0; /* todo  */
+    (void) tense;
     for (int i = 1; i <= numpoints; i++) {
         switch (lua_rawgeti(L, index, i)) { 
             case LUA_TTABLE:
@@ -2483,15 +2666,11 @@ static const char * mplib_aux_with_path_indexed(lua_State *L, MP mp, int index, 
                     if (*p) {
 // todo : use tension when 
                         if (*curled) {
-if (ln && ln != rn) { 
-    mp_set_knot_simple_right_curl(mp, ln);
-    mp_set_knot_simple_left_curl(mp, rn);  
-}
-ln = NULL;
-rn = NULL;
-                            if (! ln) { 
-                                ln = *p;
+                            if (ln && ln != rn) {
+                                mp_set_knot_simple_right_curl(mp, ln);
+                                mp_set_knot_simple_left_curl(mp, rn);
                             }
+                            ln = *p;
                             rn = *p;
 //                            mp_set_knot_left_tension(mp, *p, tension);
 //                            mp_set_knot_right_tension(mp, *p, tension);
@@ -2533,6 +2712,7 @@ rn = NULL;
                     } else if (lua_key_eq(s, append)) { 
                         if (*f && *l) { 
                             if (midcycle) {
+                                /* this one is stupid, we need to have a same begin and end node */
                                 (*f)->left_type = mp_explicit_knot;
                                 (*l)->right_type = mp_explicit_knot;
                                 midcycle = 0; 
@@ -2567,7 +2747,6 @@ rn = NULL;
                 {
                     break;
                 }
-
         }
         /*tex Up the next item */
         DONE:
@@ -2942,6 +3121,24 @@ static int mplib_inject_whatever(lua_State *L)
     return 0;
 }
 
+static int mplib_inject_points(lua_State *L)
+{
+    MP mp = mplib_aux_is_mp(L, 1);
+    if (mp) {
+        switch (lua_type(L, 2)) {
+            case LUA_TUSERDATA:
+                {
+                    points p = vectorlib_points_aux_get(L, 2);
+                    if (p) {
+                        mplib_aux_inject_points(L, mp, p);
+                    }
+                    break;
+                }
+        }
+    }
+    return 0;
+}
+
 static int mplib_inject_vector(lua_State *L)
 {
     MP mp = mplib_aux_is_mp(L, 1);
@@ -3086,12 +3283,12 @@ static int mplib_figure_objects(lua_State *L)
 {
     struct mp_edge_object **hh = mplib_aux_is_figure(L, 1);
     if (*hh) {
-        int i = 1;
         struct mp_graphic_object *p = (*hh)->body;
         lua_Number bendtolerance = mplib_aux_get_bend_tolerance(L, 1);
         lua_Number movetolerance = mplib_aux_get_move_tolerance(L, 1);
         MP mp = mplib_aux_get_main_instance(L, 1);
         if (mp) {
+            int i = 1;
             lua_newtable(L);
             while (p) {
                 struct mp_graphic_object **v = lua_newuserdatauv(L, sizeof(struct mp_graphic_object *), 3);
@@ -3117,23 +3314,32 @@ static int mplib_figure_objects(lua_State *L)
 static int mplib_figure_stacking(lua_State *L)
 {
     struct mp_edge_object **hh = mplib_aux_is_figure(L, 1);
-    int stacking = 0; /* This only works when before fetching objects! */
     if (*hh) {
-        struct mp_graphic_object *p = (*hh)->body;
+        int stacking = 0; /* This only works when before fetching objects! */
+        mp_graphic_object *p = (*hh)->body;
         while (p) {
-            int s = (int) ((mp_shape_object *) p)->stacking; 
-            if (s) { 
-                if (! stacking) {
-                    lua_newtable(L);
-                    stacking = 1;
-                }
-                lua_pushinteger(L, s);
-                lua_pushboolean(L, 1);
-                lua_rawset(L, -3);
+            int s = (int) ((mp_shape_object *) p)->stacking;
+            if (s) {
+                stacking = 1;
+                break;
+            } else {
+                p = p->next;
             }
-            p = p->next;
         }
-        if (stacking) { 
+        if (stacking) {
+            lua_newtable(L);
+            p = (*hh)->body;
+            while (p) {
+                int s = (int) ((mp_shape_object *) p)->stacking;
+                if (lua_rawgeti(L, -1, s) == LUA_TNIL) {
+                    lua_pop(L, 1);
+                    lua_pushboolean(L, 1);
+                    lua_rawseti(L, -2, s);
+                } else {
+                    lua_pop(L, 1);
+                }
+                p = p->next;
+            }
             return 1;
         }
     }
@@ -3416,7 +3622,7 @@ static int mplib_getfields(lua_State *L)
             }
         case LUA_TNUMBER: 
             {
-                n = (int) lua_tointeger(L, 1);
+                n = lmt_tointeger(L, 1);
                 break;
             }
         default:
@@ -3928,14 +4134,17 @@ static int mplib_expand_tex(lua_State *L)
                         if (! lmt_error_state.last_intercept) {
                             mp_push_numeric_value(mp, (double) value * (7200.0/7227.0) / 65536.0);
                             break;
-                        } else if (kind == lua_value_none_code) {
-                            head = lmt_macro_to_tok(L, 3, &tail);
-                            goto TRYAGAIN;
                         } else {
-                         // head = lmt_macro_to_tok(L, 3, &tail);
-                         // goto JUSTINCASE;
-                            lua_pushboolean(L, 0);
-                            return 1;
+                            lmt_error_state.last_intercept = 0;
+                            if (kind == lua_value_none_code) {
+                                head = lmt_macro_to_tok(L, 3, &tail);
+                                goto TRYAGAIN;
+                            } else {
+                             // head = lmt_macro_to_tok(L, 3, &tail);
+                             // goto JUSTINCASE;
+                                lua_pushboolean(L, 0);
+                                return 1;
+                            }
                         }
                     }
                 case lua_value_integer_code:
@@ -3957,6 +4166,7 @@ static int mplib_expand_tex(lua_State *L)
                             tex_get_token();
                         }
                         if (lmt_error_state.last_intercept) {
+                            lmt_error_state.last_intercept = 0;
                          // head = lmt_macro_to_tok(L, 3, &tail);
                          // goto JUSTINCASE;
                             lua_pushboolean(L, 0);
@@ -4033,11 +4243,18 @@ static int mplib_bytemap_new(lua_State *L)
                 }
             }
         }
-        lua_toboolean(L, mp_bytemap_new_by_index(mp, index, nx, ny, nz, data));
+        if (mp_bytemap_new_by_index(mp, index, nx, ny, nz, data)) {
+            lua_pushboolean(L, 1);
+        } else {
+            if (data) {
+                mp_memory_free(data);
+            }
+            lua_pushboolean(L, 0);
+        }
     } else { 
-        lua_toboolean(L, 0);
+        lua_pushboolean(L, 0);
     }
-    return 0;
+    return 1;
 }
 
 static int mplib_bytemap_set(lua_State *L)
@@ -4055,15 +4272,15 @@ static int mplib_bytemap_set(lua_State *L)
                  switch (b->nz) { 
                      case 1:
                         {
-                             b->data[y * b->nx + x] = (unsigned char) lmt_optroundnumber(L, 5, 0);
+                             b->data[y * b->nx + x] = valid_byte(lmt_optroundnumber(L, 5, 0));
                              break;
                         }
                      case 3:
                         {
-                             int o = (y * b->nx * b->nz) + x * b->nz;
-                             b->data[o++] = (unsigned char) lmt_optroundnumber(L, 5, 0);
-                             b->data[o++] = (unsigned char) lmt_optroundnumber(L, 6, 0);
-                             b->data[o  ] = (unsigned char) lmt_optroundnumber(L, 7, 0);
+                             int o = (y * b->nx * 3) + x * 3;
+                             b->data[o++] = valid_byte(lmt_optroundnumber(L, 5, 0));
+                             b->data[o++] = valid_byte(lmt_optroundnumber(L, 6, 0));
+                             b->data[o  ] = valid_byte(lmt_optroundnumber(L, 7, 0));
                              break;
                         }
                  }
@@ -4092,7 +4309,7 @@ static int mplib_bytemap_get(lua_State *L)
                         }
                     case 3:
                         {
-                            int o = (y * b->nx * b->nz) + x * b->nz;
+                            int o = (y * b->nx * 3) + x * 3;
                             lua_pushinteger(L, (int) b->data[o++]);
                             lua_pushinteger(L, (int) b->data[o++]);
                             lua_pushinteger(L, (int) b->data[o  ]);
@@ -4114,24 +4331,13 @@ static int mplib_bytemap_fill(lua_State *L)
         if (b) { 
             switch (b->nz) { 
                 case 1:
-                    memset(b->data, (unsigned char) lmt_optinteger(L, 3, 0), b->nx * b->ny);
+                    bytemap_fill_gray(b, lmt_optinteger(L, 3, 0));
                     break;
                 case 3:
                     if (lua_type(L, 4) == LUA_TNUMBER) { 
-                        unsigned char *p = b->data;
-                        b->data[0] = (unsigned char) lmt_optinteger(L, 3, 0);
-                        b->data[1] = (unsigned char) lmt_optinteger(L, 4, 0);
-                        b->data[2] = (unsigned char) lmt_optinteger(L, 5, 0);
-                        if (b->nx > 3) {
-                            for (int i = 1; i < b->nx; i++) {
-                                memcpy(p + i * 3, p, 3);
-                            }
-                            for (int i = 1; i < b->ny; i++) {
-                                memcpy(p + i * 3 * b->nx, p, 3 * b->nx);
-                            }
-                        }
+                        bytemap_fill_rgb(b, lmt_optinteger(L, 3, 0), lmt_optinteger(L, 4, 0), lmt_optinteger(L, 5, 0));
                     } else { 
-                        memset(b->data, (unsigned char) lmt_optinteger(L, 3, 0), b->nx * b->ny * 3);
+                        bytemap_fill_gray(b, lmt_optinteger(L, 3, 0));
                     }
                     break;
             }
@@ -4156,6 +4362,19 @@ static int mplib_bytemap_data(lua_State *L)
             } else { 
                 return 3;
             }
+        }
+    }
+    return 0;
+}
+
+static int mplib_bytemap_direct(lua_State *L)
+{
+    MP mp = mplib_aux_is_mp(L, 1);
+    if (mp) {
+        int index = lmt_tointeger(L, 2);
+        bytemap_data *b = mp_bytemap_get_by_index(mp, index);
+        if (b) {
+            return bytemaplib_pushed(L, b);
         }
     }
     return 0;
@@ -4193,7 +4412,10 @@ static int mplib_bytemap_downsample(lua_State *L)
         bytemap_data *target = mp_bytemap_get_by_index(mp, lmt_tointeger(L, 3));
         int r = lmt_optinteger(L, 4, 2);
         if (source && target) { 
+            size_t oldsize = (size_t) target->nx * target->ny * target->nz;
             bytemap_downsample(source, target, r);
+            mp->memory_pool[mp_bytemap_data_pool].count -= oldsize;
+            mp->memory_pool[mp_bytemap_data_pool].count += (size_t) target->nx * target->ny * target->nz;
         }
     }
     return 0;
@@ -4207,7 +4429,10 @@ static int mplib_bytemap_downgrade(lua_State *L)
         bytemap_data *target = mp_bytemap_get_by_index(mp, lmt_tointeger(L, 3));
         int r = lmt_optinteger(L, 4, 2);
         if (source && target) { 
+            size_t oldsize = (size_t) target->nx * target->ny * target->nz;
             bytemap_downgrade(source, target, r);
+            mp->memory_pool[mp_bytemap_data_pool].count -= oldsize;
+            mp->memory_pool[mp_bytemap_data_pool].count += (size_t) target->nx * target->ny * target->nz;
         }
     }
     return 0;
@@ -4253,91 +4478,97 @@ static const struct luaL_Reg mplib_instance_functions_list[] = {
 };
 
 static const struct luaL_Reg mplib_functions_list[] = {
-    { "new",                mplib_new                },
-    { "version",            mplib_version            },
+    { "new",                  mplib_new                  },
+    { "version",              mplib_version              },
     /* */                                            
-    { "getfields",          mplib_getfields          },
-    { "gettype",            mplib_gettype            },
-    { "gettypes",           mplib_gettypes           },
-    { "getcolormodels",     mplib_getcolormodels     },
-    { "getcodes",           mplib_getcodes           },
-    { "getstates",          mplib_getstates          },
-    { "getknotstates",      mplib_getknotstates      },
-    { "getobjecttypes",     mplib_getobjecttypes     },
-    { "getscantypes",       mplib_getscantypes       },
-    { "getlogtargets",      mplib_getlogtargets      },
-    { "getinternalactions", mplib_getinternalactions },
-    { "getpruneoptions",    mplib_getpruneoptions    },
-    { "getcallbackstate",   mplib_getcallbackstate   },
-    { "getresultstatus",    mplib_getresultstates    },
+    { "getfields",            mplib_getfields            },
+    { "gettype",              mplib_gettype              },
+    { "gettypes",             mplib_gettypes             },
+    { "getcolormodels",       mplib_getcolormodels       },
+    { "getcodes",             mplib_getcodes             },
+    { "getstates",            mplib_getstates            },
+    { "getknotstates",        mplib_getknotstates        },
+    { "getobjecttypes",       mplib_getobjecttypes       },
+    { "getscantypes",         mplib_getscantypes         },
+    { "getlogtargets",        mplib_getlogtargets        },
+    { "getinternalactions",   mplib_getinternalactions   },
+    { "getpruneoptions",      mplib_getpruneoptions      },
+    { "getcallbackstate",     mplib_getcallbackstate     },
+    { "getresultstates",      mplib_getresultstates      },
     /* */                                            
-    { "settolerance",       mplib_settolerance       },
-    { "gettolerance",       mplib_gettolerance       },
+    { "settolerance",         mplib_settolerance         },
+    { "gettolerance",         mplib_gettolerance         },
     /* indirect */                                   
-    { "execute",            mplib_execute            },
-    { "finish",             mplib_finish             },
-    { "showcontext",        mplib_showcontext        },
-    { "gethashentries",     mplib_gethashentries     },
-    { "gethashentry",       mplib_gethashentry       },
-    { "getstatistics",      mplib_getstatistics      },
-    { "getstatus",          mplib_getstatus          },
-    { "getscaledbits",      mplib_getscaledbits      },
-    { "solvepath",          mplib_solvepath          },
+    { "execute",              mplib_execute              },
+    { "finish",               mplib_finish               },
+    { "showcontext",          mplib_showcontext          },
+    { "gethashentries",       mplib_gethashentries       },
+    { "gethashentry",         mplib_gethashentry         },
+    { "getstatistics",        mplib_getstatistics        },
+    { "getstatus",            mplib_getstatus            },
+    { "getscaledbits",        mplib_getscaledbits        },
+    { "solvepath",            mplib_solvepath            },
     /* helpers */                                    
-    { "peninfo",            mplib_object_getpeninfo  }, /* old one */
-    { "getobjectpeninfo",   mplib_object_getpeninfo  },
-    { "getobjectdata",      mplib_object_getdata     },
-    { "getobjectstacking",  mplib_object_getstacking },
+    { "peninfo",              mplib_object_getpeninfo    }, /* old one */
+    { "getobjectpeninfo",     mplib_object_getpeninfo    },
+    { "getobjectdata",        mplib_object_getdata       },
+    { "getobjectstacking",    mplib_object_getstacking   },
     /* scanners */                                   
-    { "scannext",           mplib_scan_next          },
-    { "scanexpression",     mplib_scan_expression    },
-    { "scantoken",          mplib_scan_token         },
-    { "scansymbol",         mplib_scan_symbol        },
-    { "scanproperty",       mplib_scan_property      },
-    { "scannumeric",        mplib_scan_numeric       },
-    { "scannumber",         mplib_scan_numeric       }, /* bonus */
-    { "scaninteger",        mplib_scan_integer       },
-    { "scanboolean",        mplib_scan_boolean       },
-    { "scanstring",         mplib_scan_string        },
-    { "scanpair",           mplib_scan_pair          },
-    { "scancolor",          mplib_scan_color         },
-    { "scancmykcolor",      mplib_scan_cmykcolor     },
-    { "scantransform",      mplib_scan_transform     },
-    { "scanpath",           mplib_scan_path          },
-    { "scanpen",            mplib_scan_pen           },
+    { "scannext",             mplib_scan_next            },
+    { "scanexpression",       mplib_scan_expression      },
+    { "scantoken",            mplib_scan_token           },
+    { "scansymbol",           mplib_scan_symbol          },
+    { "scanproperty",         mplib_scan_property        },
+    { "scannumeric",          mplib_scan_numeric         },
+    { "scannumber",           mplib_scan_numeric         }, /* bonus */
+    { "scaninteger",          mplib_scan_integer         },
+    { "scanboolean",          mplib_scan_boolean         },
+    { "scanstring",           mplib_scan_string          },
+    { "scanpair",             mplib_scan_pair            },
+    { "scancolor",            mplib_scan_color           },
+    { "scancmykcolor",        mplib_scan_cmykcolor       },
+    { "scantransform",        mplib_scan_transform       },
+    { "scanpath",             mplib_scan_path            },
+    { "scanpen",              mplib_scan_pen             },
     /* skippers */                                   
-    { "skiptoken",          mplib_skip_token         },
+    { "skiptoken",            mplib_skip_token           },
     /* injectors */                                  
-    { "injectnumeric",      mplib_inject_numeric     },
-    { "injectnumber",       mplib_inject_numeric     }, /* bonus */
-    { "injectinteger",      mplib_inject_integer     },
-    { "injectboolean",      mplib_inject_boolean     },
-    { "injectstring",       mplib_inject_string      },
-    { "injectpair",         mplib_inject_pair        },
-    { "injectcolor",        mplib_inject_color       },
-    { "injectcmykcolor",    mplib_inject_cmykcolor   },
-    { "injecttransform",    mplib_inject_transform   },
-    { "injectpath",         mplib_inject_path        },
-    { "injectvector",       mplib_inject_vector      },
-    { "injectvectors",      mplib_inject_vectors     },
-    { "injectwhatever",     mplib_inject_whatever    },
- // { "injecttokens",       mplib_inject_tokens      },
+    { "injectnumeric",        mplib_inject_numeric       },
+    { "injectnumber",         mplib_inject_numeric       }, /* bonus */
+    { "injectinteger",        mplib_inject_integer       },
+    { "injectboolean",        mplib_inject_boolean       },
+    { "injectstring",         mplib_inject_string        },
+    { "injectpair",           mplib_inject_pair          },
+    { "injectcolor",          mplib_inject_color         },
+    { "injectcmykcolor",      mplib_inject_cmykcolor     },
+    { "injecttransform",      mplib_inject_transform     },
+    { "injectpath",           mplib_inject_path          },
+    { "injectvector",         mplib_inject_vector        },
+    { "injectvectors",        mplib_inject_vectors       },
+    { "injectpoints",         mplib_inject_points        },
+    { "injectwhatever",       mplib_inject_whatever      },
+    { "injecttokens",         mplib_inject_tokens        },
     /* */                                            
-    { "getlastaddtype",     mplib_getlastaddtype     },
+    { "getlastaddtype",       mplib_getlastaddtype       },
     /* tex */                                            
-    { "expandtex",          mplib_expand_tex         },
+    { "expandtex",            mplib_expand_tex           },
     /* bytemaps */                                            
-    { "newbytemap",         mplib_bytemap_new        },
-    { "setbytemap",         mplib_bytemap_set        },
-    { "getbytemap",         mplib_bytemap_get        },
-    { "fillbytemap",        mplib_bytemap_fill       },
-    { "getbytemapdata",     mplib_bytemap_data       },
-    { "setbytemapoctave",   mplib_bytemap_octave     },
-    { "processbytemap",     mplib_bytemap_process    },
-    { "downsamplebytemap",  mplib_bytemap_downsample },
-    { "downgradebytemap",   mplib_bytemap_downgrade  },
-    /* */                                            
-    { NULL,                 NULL                     },
+    { "newbytemap",           mplib_bytemap_new          },
+    { "setbytemap",           mplib_bytemap_set          },
+    { "getbytemap",           mplib_bytemap_get          },
+    { "fillbytemap",          mplib_bytemap_fill         },
+    { "getbytemapdata",       mplib_bytemap_data         },
+    { "getbytemapdirect",     mplib_bytemap_direct       },
+    { "setbytemapoctave",     mplib_bytemap_octave       },
+    { "processbytemap",       mplib_bytemap_process      },
+    { "downsamplebytemap",    mplib_bytemap_downsample   },
+    { "downgradebytemap",     mplib_bytemap_downgrade    },
+    /* */
+    { "getprimitives",        mplib_getprimitives        }, /* no instance */
+    { "getprimitiveorigins",  mplib_getprimitiveorigins  }, /* no instance */
+    { "getprimitivelegacies", mplib_getprimitivelegacies }, /* no instance */
+    /* */
+    { NULL,                   NULL                       },
 };
 
 int luaopen_mplib(lua_State *L)

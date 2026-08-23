@@ -4,7 +4,9 @@
 */
 
 # ifndef MP_H
-# define MP_H 1
+# define MP_H
+
+# include "auxcompiler.h"
 
 # include <errno.h>
 # include <string.h>
@@ -49,7 +51,7 @@ rid of the intermediate \POSTSCRIPT\ representation or add a little more abstrac
     rather future number, like 30 or so. This is to be decided.
 */
 
-# define metapost_version "3.16.02"
+# define metapost_version "3.16.03"
 
 typedef struct MP_instance *MP;
 
@@ -113,6 +115,29 @@ typedef enum mp_filetype {
     mp_filetype_program,  /* \MP\ language input */
     mp_filetype_text      /* first text file for readfrom and writeto primitives */
 } mp_filetype;
+
+typedef enum mp_origins {
+    mp_origin_unset      = 0,
+    mp_origin_metapost   = 1,
+    mp_origin_luatex     = 2,
+    mp_origin_luametatex = 3,
+} mp_origins;
+
+typedef enum mp_legacies {
+    mp_legacy_unset    = 0,
+    mp_legacy_output   = 1,
+    mp_legacy_font     = 2,
+    mp_legacy_text     = 3,
+    mp_legacy_language = 4,
+} mp_legacies;
+
+typedef struct mp_primitive_data {
+    const char    *name;
+    unsigned char  command;
+    unsigned char  operation;
+    unsigned char  origin;
+    unsigned char  legacy;
+} mp_primitive_data;
 
 typedef char *(*mp_file_finder)     (MP, const char *, const char *, int);
 typedef char *(*mp_script_runner)   (MP, const char *m, size_t len, int n);
@@ -662,8 +687,18 @@ typedef enum mp_name_type_type {
     mp_char_operation,                /* operation code for |char| */
     mp_segments_operation,            /* operation code for |segments| */
     mp_length_operation,              /* operation code for |length| */
-    mp_prune_singularities_operation,            
     mp_no_length_operation,           /* operation code for |nolength| */
+    mp_first_point_operation,
+    mp_first_pre_control_operation,
+    mp_first_post_control_operation,
+    mp_first_direction_operation,
+    mp_first_unit_direction_operation,
+    mp_last_point_operation,
+    mp_last_pre_control_operation,
+    mp_last_post_control_operation,
+    mp_last_direction_operation,
+    mp_last_unit_direction_operation,
+    mp_prune_singularities_operation,            
     mp_turning_operation,             /* operation code for |turningnumber| */
     mp_color_model_operation,         /* operation code for |colormodel| */
     mp_path_part_operation,           /* operation code for |pathpart| */
@@ -679,6 +714,7 @@ typedef enum mp_name_type_type {
     mp_sin_d_operation,               /* operation code for |sind| */
     mp_cos_d_operation,               /* operation code for |cosd| */
     mp_floor_operation,               /* operation code for |floor| */
+    mp_normalize_operation,           /* operation code for |normalize| */
     mp_uniform_deviate_operation,     /* operation code for |uniformdeviate| */
     mp_ll_corner_operation,           /* operation code for |llcorner| */
     mp_lr_corner_operation,           /* operation code for |lrcorner| */
@@ -693,7 +729,9 @@ typedef enum mp_name_type_type {
     mp_delta_precontrol_operation,    /* operation code for |deltaprecontrol| */
     mp_delta_postcontrol_operation,   /* operation code for |deltapostcontrol| */
     mp_delta_direction_operation,     /* operation code for |deltadirection| */
+    mp_delta_unit_direction_operation,/* operation code for |deltaunitdirection| */
     mp_delta_arclength_operation,     /* operation code for |deltaarclength| */
+    mp_delta_iterator_index_operation,/* operation code for |deltaiteratorindex| */
     mp_arc_length_operation,          /* operation code for |arclength| */
     mp_angle_operation,               /* operation code for |angle| */
     mp_cycle_operation,               /* operation code for |cycle| */
@@ -742,6 +780,8 @@ typedef enum mp_name_type_type {
     mp_y_scaled_operation,            /* operation code for |yscaled| */
     mp_z_scaled_operation,            /* operation code for |zscaled| */
     mp_xy_scaled_operation,           /* operation code for |xyscaled| */
+    mp_x_shifted_operation,           /* operation code for |xshifted| */
+    mp_y_shifted_operation,           /* operation code for |yshifted| */
     mp_bytemap_scaled_operation,
     mp_uncycled_operation,            /* operation code for |uncycled| */
     mp_intertimes_operation,          /* operation code for |intersectiontimes| */
@@ -756,6 +796,7 @@ typedef enum mp_name_type_type {
     mp_precontrol_operation,          /* operation code for |precontrol| */
     mp_postcontrol_operation,         /* operation code for |postcontrol| */
     mp_direction_operation,           /* operation code for |direction| */
+    mp_unit_direction_operation,      /* operation code for |unitdirection| */
     mp_last_xy_operation,       
     mp_last_x_operation,       
     mp_last_y_operation,       
@@ -766,6 +807,7 @@ typedef enum mp_name_type_type {
     mp_path_precontrol_operation,     /* operation code for |pathprecontrol| */
     mp_path_postcontrol_operation,    /* operation code for |pathpostcontrol| */
     mp_path_direction_operation,      /* operation code for |pathdirection| */
+    mp_path_unit_direction_operation, /* operation code for |pathunitdirection| */
     mp_path_state_operation,          /* operation code for |pathstate| */
     mp_path_index_operation,          /* operation code for |pathindex| */
     mp_path_lastindex_operation,      /* operation code for |pathlastindex| */
@@ -780,6 +822,7 @@ typedef enum mp_name_type_type {
     mp_arc_point_list_operation,      /* operation code for |arcpointlist| */
     mp_subarc_length_operation,       /* operation code for |subarclength| */
     mp_version_operation,             /* operation code for |mpversion| */
+    mp_iterator_index_operation,
     mp_envelope_operation,            /* operation code for |envelope| */
     mp_boundingpath_operation,        /* operation code for |boundingpath| */
     mp_bytemap_value_operation,
@@ -788,6 +831,8 @@ typedef enum mp_name_type_type {
     mp_bytemap_bounds_operation,
 } mp_name_type_type;
 
+# define mp_first_operation  mp_root_operation
+# define mp_last_operation   mp_bytemap_bounds_operation
 # define mp_min_of_operation mp_substring_operation
 
 typedef enum mp_class_codes {
@@ -949,76 +994,80 @@ typedef enum mp_stop_codes {
 
 /* types in the outer block */
 
-typedef void        (*convert_func)                      (mp_number *r);
-typedef void        (*m_log_func)                        (MP mp, mp_number *r, mp_number *a);
-typedef void        (*m_exp_func)                        (MP mp, mp_number *r, mp_number *a);
-typedef void        (*m_unif_rand_func)                  (MP mp, mp_number *ret, mp_number *x_orig);
+/* types in the outer block */
+
+typedef void        (*convert_func)                      (mp_number *A);
+typedef void        (*m_log_func)                        (MP mp, mp_number *r, const mp_number *A);
+typedef void        (*m_exp_func)                        (MP mp, mp_number *r, const mp_number *A);
+typedef void        (*m_unif_rand_func)                  (MP mp, mp_number *ret, const mp_number *x_orig);
 typedef void        (*m_norm_rand_func)                  (MP mp, mp_number *ret);
-typedef void        (*pyth_add_func)                     (MP mp, mp_number *r, mp_number *a, mp_number *b);
-typedef void        (*pyth_sub_func)                     (MP mp, mp_number *r, mp_number *a, mp_number *b);
-typedef void        (*power_of_func)                     (MP mp, mp_number *r, mp_number *a, mp_number *b);
-typedef void        (*n_arg_func)                        (MP mp, mp_number *r, mp_number *a, mp_number *b);
-typedef void        (*velocity_func)                     (MP mp, mp_number *r, mp_number *a, mp_number *b, mp_number *c, mp_number *d, mp_number *e);
-typedef int         (*ab_vs_cd_func)                     (mp_number *a, mp_number *b, mp_number *c, mp_number *d);
-typedef void        (*crossing_point_func)               (MP mp, mp_number *r, mp_number *a, mp_number *b, mp_number *c);
+typedef void        (*pyth_add_func)                     (MP mp, mp_number *r, const mp_number *A, const mp_number *B);
+typedef void        (*pyth_add3_func)                    (MP mp, mp_number *r, const mp_number *A, const mp_number *B, const mp_number *C);
+typedef void        (*pyth_sub_func)                     (MP mp, mp_number *r, mp_number *A, const mp_number *B);
+typedef void        (*power_of_func)                     (MP mp, mp_number *r, const mp_number *A, const mp_number *B);
+typedef void        (*n_arg_func)                        (MP mp, mp_number *r, const mp_number *A, const mp_number *B);
+typedef void        (*velocity_func)                     (MP mp, mp_number *r, const mp_number *A, const mp_number *B, const mp_number *C, const mp_number *D, const mp_number *E);
+typedef int         (*ab_vs_cd_func)                     (const mp_number *A, const mp_number *B, const mp_number *C, const mp_number *D);
+typedef void        (*crossing_point_func)               (MP mp, mp_number *r, const mp_number *A, const mp_number *B, const mp_number *C);
 typedef void        (*number_from_int_func)              (mp_number *A, mp_scaled_t B);
 typedef void        (*number_from_boolean_func)          (mp_number *A, mp_scaled_t B);
 typedef void        (*number_from_scaled_func)           (mp_number *A, mp_scaled_t B);
 typedef void        (*number_from_double_func)           (mp_number *A, double B);
-typedef void        (*number_from_addition_func)         (mp_number *A, mp_number *B, mp_number *C);
-typedef void        (*number_half_from_addition_func)    (mp_number *A, mp_number *B, mp_number *C);
-typedef void        (*number_from_subtraction_func)      (mp_number *A, mp_number *B, mp_number *C);
-typedef void        (*number_half_from_subtraction_func) (mp_number *A, mp_number *B, mp_number *C);
-typedef void        (*number_from_div_func)              (mp_number *A, mp_number *B, mp_number *C);
-typedef void        (*number_from_mul_func)              (mp_number *A, mp_number *B, mp_number *C);
-typedef void        (*number_from_int_div_func)          (mp_number *A, mp_number *B, mp_scaled_t C);
-typedef void        (*number_from_int_mul_func)          (mp_number *A, mp_number *B, mp_scaled_t C);
-typedef void        (*number_from_of_the_way_func)       (MP mp, mp_number *A, mp_number *t, mp_number *B, mp_number *C);
+typedef void        (*number_from_addition_func)         (mp_number *A, const mp_number *B, const mp_number *C);
+typedef void        (*number_half_from_addition_func)    (mp_number *A, const mp_number *B, const mp_number *C);
+typedef void        (*number_from_subtraction_func)      (mp_number *A, const mp_number *B, const mp_number *C);
+typedef void        (*number_half_from_subtraction_func) (mp_number *A, const mp_number *B, const mp_number *C);
+typedef void        (*number_from_div_func)              (mp_number *A, const mp_number *B, const mp_number *C);
+typedef void        (*number_from_mul_func)              (mp_number *A, const mp_number *B, const mp_number *C);
+typedef void        (*number_from_int_div_func)          (mp_number *A, const mp_number *B, mp_scaled_t C);
+typedef void        (*number_from_int_mul_func)          (mp_number *A, const mp_number *B, mp_scaled_t C);
+typedef void        (*number_from_of_the_way_func)       (MP mp, mp_number *A, const mp_number *t, const mp_number *B, const mp_number *C);
 typedef void        (*number_negate_func)                (mp_number *A);
-typedef void        (*number_add_func)                   (mp_number *A, mp_number *B);
-typedef void        (*number_subtract_func)              (mp_number *A, mp_number *B);
-typedef void        (*number_modulo_func)                (mp_number *A, mp_number *B);
+typedef void        (*number_add_func)                   (mp_number *A, const mp_number *B);
+typedef void        (*number_subtract_func)              (mp_number *A, const mp_number *B);
+typedef void        (*number_modulo_func)                (mp_number *A, const mp_number *B);
 typedef void        (*number_half_func)                  (mp_number *A);
 typedef void        (*number_double_func)                (mp_number *A);
 typedef void        (*number_abs_func)                   (mp_number *A);
-typedef void        (*number_clone_func)                 (mp_number *A, mp_number *B);
-typedef void        (*number_negated_clone_func)         (mp_number *A, mp_number *B);
-typedef void        (*number_abs_clone_func)             (mp_number *A, mp_number *B);
+typedef void        (*number_clone_func)                 (mp_number *A, const mp_number *B);
+typedef void        (*number_negated_clone_func)         (mp_number *A, const mp_number *B);
+typedef void        (*number_abs_clone_func)             (mp_number *A, const mp_number *B);
 typedef void        (*number_swap_func)                  (mp_number *A, mp_number *B);
 typedef void        (*number_add_scaled_func)            (mp_number *A, mp_scaled_t B);
 typedef void        (*number_multiply_int_func)          (mp_number *A, mp_scaled_t B);
 typedef void        (*number_divide_int_func)            (mp_number *A, mp_scaled_t B);
-typedef mp_scaled_t (*number_to_int_func)                (mp_number *A);
-typedef mp_scaled_t (*number_to_boolean_func)            (mp_number *A);
-typedef mp_scaled_t (*number_to_scaled_func)             (mp_number *A);
-typedef mp_scaled_t (*number_round_func)                 (mp_number *A);
+typedef mp_scaled_t (*number_to_int_func)                (const mp_number *A);
+typedef mp_scaled_t (*number_to_boolean_func)            (const mp_number *A);
+typedef mp_scaled_t (*number_to_scaled_func)             (const mp_number *A);
+typedef mp_scaled_t (*number_round_func)                 (const mp_number *A);
 typedef void        (*number_floor_func)                 (mp_number *A);
-typedef double      (*number_to_double_func)             (mp_number *A);
-typedef int         (*number_odd_func)                   (mp_number *A);
-typedef int         (*number_equal_func)                 (mp_number *A, mp_number *B);
-typedef int         (*number_less_func)                  (mp_number *A, mp_number *B);
-typedef int         (*number_greater_func)               (mp_number *A, mp_number *B);
-typedef int         (*number_non_equal_abs_func)         (mp_number *A, mp_number *B);
-typedef void        (*make_scaled_func)                  (MP mp, mp_number *ret, mp_number *A, mp_number *B);
-typedef void        (*make_fraction_func)                (MP mp, mp_number *ret, mp_number *A, mp_number *B);
-typedef void        (*take_fraction_func)                (MP mp, mp_number *ret, mp_number *A, mp_number *B);
-typedef void        (*take_scaled_func)                  (MP mp, mp_number *ret, mp_number *A, mp_number *B);
-typedef void        (*sin_cos_func)                      (MP mp, mp_number *A, mp_number *S, mp_number *C);
-typedef void        (*slow_add_func)                     (MP mp, mp_number *A, mp_number *S, mp_number *C);
-typedef void        (*sqrt_func)                         (MP mp, mp_number *ret, mp_number *A);
+typedef double      (*number_to_double_func)             (const mp_number *A);
+typedef int         (*number_odd_func)                   (const mp_number *A);
+typedef int         (*number_equal_func)                 (const mp_number *A, const mp_number *B);
+typedef int         (*number_less_func)                  (const mp_number *A, const mp_number *B);
+typedef int         (*number_greater_func)               (const mp_number *A, const mp_number *B);
+typedef int         (*number_non_equal_abs_func)         (const mp_number *A, const mp_number *B);
+typedef void        (*make_scaled_func)                  (MP mp, mp_number *ret, const mp_number *A, const mp_number *B);
+typedef void        (*make_fraction_func)                (MP mp, mp_number *ret, const mp_number *A, const mp_number *B);
+typedef void        (*take_fraction_func)                (MP mp, mp_number *ret, const mp_number *A, const mp_number *B);
+typedef void        (*take_scaled_func)                  (MP mp, mp_number *ret, const mp_number *A, const mp_number *B);
+typedef void        (*sin_cos_func)                      (MP mp, const mp_number *A, mp_number *S, mp_number *C);
+typedef void        (*slow_add_func)                     (MP mp, mp_number *A, const mp_number *B, const mp_number *C);
+typedef void        (*slow_sub_func)                     (MP mp, mp_number *A, const mp_number *B, const mp_number *C);
+typedef void        (*sqrt_func)                         (MP mp, mp_number *ret, const mp_number *A);
 typedef void        (*init_randoms_func)                 (MP mp, int seed);
 typedef void        (*allocate_number_func)              (MP mp, mp_number *A, mp_number_type t);
-typedef void        (*allocate_number_clone_func)        (MP mp, mp_number *A, mp_number_type t, mp_number *B);
-typedef void        (*allocate_number_abs_func)          (MP mp, mp_number *A, mp_number_type t, mp_number *B);
-typedef void        (*allocate_number_div_func)          (MP mp, mp_number *A, mp_number_type t, mp_number *B, mp_number *C);
-typedef void        (*allocate_number_mul_func)          (MP mp, mp_number *A, mp_number_type t, mp_number *B, mp_number *C);
-typedef void        (*allocate_number_add_func)          (MP mp, mp_number *A, mp_number_type t, mp_number *B, mp_number *C);
-typedef void        (*allocate_number_sub_func)          (MP mp, mp_number *A, mp_number_type t, mp_number *B, mp_number *C);
+typedef void        (*allocate_number_clone_func)        (MP mp, mp_number *A, mp_number_type t, const mp_number *B);
+typedef void        (*allocate_number_abs_func)          (MP mp, mp_number *A, mp_number_type t, const mp_number *B);
+typedef void        (*allocate_number_div_func)          (MP mp, mp_number *A, mp_number_type t, const mp_number *B, const mp_number *C);
+typedef void        (*allocate_number_mul_func)          (MP mp, mp_number *A, mp_number_type t, const mp_number *B, const mp_number *C);
+typedef void        (*allocate_number_add_func)          (MP mp, mp_number *A, mp_number_type t, const mp_number *B, const mp_number *C);
+typedef void        (*allocate_number_sub_func)          (MP mp, mp_number *A, mp_number_type t, const mp_number *B, const mp_number *C);
 typedef void        (*allocate_number_double_func)       (MP mp, mp_number *A, double B);
 typedef void        (*free_number_func)                  (MP mp, mp_number *n);
 typedef void        (*fraction_to_round_scaled_func)     (mp_number *n);
-typedef void        (*print_func)                        (MP mp, mp_number *A);
-typedef char       *(*tostring_func)                     (MP mp, mp_number *A);
+typedef void        (*print_func)                        (MP mp, const mp_number *A);
+typedef char       *(*tostring_func)                     (MP mp, const mp_number *A);
 typedef void        (*scan_func)                         (MP mp, mp_scaled_t A);
 typedef void        (*mp_free_func)                      (MP mp);
 typedef void        (*set_precision_func)                (MP mp);
@@ -1127,6 +1176,7 @@ typedef struct math_data {
     m_unif_rand_func                  md_m_unif_rand;
     m_norm_rand_func                  md_m_norm_rand;
     pyth_add_func                     md_pyth_add;
+    pyth_add3_func                    md_pyth_add3;
     pyth_sub_func                     md_pyth_sub;
     power_of_func                     md_power_of;
     fraction_to_round_scaled_func     md_fraction_to_round_scaled;
@@ -1138,6 +1188,7 @@ typedef struct math_data {
     sin_cos_func                      md_sin_cos;
     sqrt_func                         md_sqrt;
     slow_add_func                     md_slow_add;
+    slow_sub_func                     md_slow_sub;
     print_func                        md_print;
     tostring_func                     md_tostring;
     scan_func                         md_scan_numeric;
@@ -1332,25 +1383,22 @@ typedef struct mp_loop_data {
     mp_node              info;        /* iterative text of this loop */
     mp_node              type;        /* the special type of this loop, or a pointer into mem */
     mp_node              list;        /* the remaining list elements */
-    mp_node              list_start;  /* head fo the list of elements */
+    mp_node              list_start;  /* head of the list of elements */
     mp_number            old_value;   /* previous value of current arithmetic value */
     mp_number            value;       /* current arithmetic value */
     mp_number            step_size;   /* arithmetic step size */
     mp_number            final_value; /* end arithmetic value */
     struct mp_loop_data *link;        /* the enclosing loop, if any */
     mp_knot              point;
+    mp_number            index;
 } mp_loop_data;
 
-typedef struct File {
-    FILE *f;
-} File;
-
 typedef struct mp_if_data {
-    mp_variable_type        type;
-    mp_name_type_type       name_type;
-    struct mp_if_data      *link;
- // int                     hasnumber;
-    int                     if_line_field;
+    mp_variable_type   type;
+    mp_name_type_type  name_type;
+    struct mp_if_data *link;
+ // int                hasnumber;
+    int                if_line_field;
 } mp_if_data;
 
 /*tex
@@ -1437,6 +1485,7 @@ typedef enum mp_curvature_codes {
     mp_weird_curvature_code,
 } mp_curvature_codes;
 
+# define internal_data(A)         mp->internal[(A)].v.data
 # define internal_value(A)        mp->internal[(A)].v.data.n
 # define internal_string(A)       mp->internal[A].v.data.str
 # define set_internal_string(A,B) mp->internal[(A)].v.data.str=(B)
@@ -1693,9 +1742,22 @@ typedef enum mp_memory_pool_types {
     mp_max_pool,
 } mp_memory_pool_types;
 
-/* The size of stack for bisection algorithms; it should probably be left at this value. */
+/* Random generation. We might actually move this to \LUA\ at some point. */
 
-# define bistack_size 1500
+# define mp_random_KK            100                              /* the long lag  */
+# define mp_random_LL            37                               /* the short lag */
+# define mp_random_MM            (1L << 30)                       /* the modulus */
+# define mp_random_mod_diff(x,y) (((x) - (y)) & (mp_random_MM-1)) /* subtraction mod MM */
+# define mp_random_TT            70                               /* guaranteed separation between streams */
+# define mp_random_QUALITY       1009                             /* recommended quality level for high-res use */
+
+typedef struct mp_random_info {
+    long  x[mp_random_KK];
+    long  buf[mp_random_QUALITY];
+    long  dummy;
+    long  started;
+    long *ptr;
+} mp_random_info;
 
 /*tex Constants and variables per instance: */
 
@@ -1974,111 +2036,119 @@ typedef struct MP_instance {
     int                 ten_pow[10];            /* $10^0..10^9$ */
     int                 scaled_out;             /* amount of |scaled| that was taken out in |divide_scaled| */
     /*  */
+    mp_random_info      random_data;
+    /*  */
 } MP_instance;
 
 /* mp header stuff */
 
-extern void             mp_print_e_str                (MP mp, const char *s);
-//     void             mp_print_e_chr                (MP mp, unsigned char k);
-extern void             mp_show_context               (MP mp);
-extern void             mp_error                      (MP mp, const char *msg, const char *hlp);
-extern void             mp_warn                       (MP mp, const char *msg);
-extern void             mp_fatal_error                (MP mp, const char *s);
-extern void             mp_confusion                  (MP mp, const char *s);
+extern void              mp_print_e_str                (MP mp, const char *s);
+//     void              mp_print_e_chr                (MP mp, unsigned char k);
+extern void              mp_show_context               (MP mp);
+extern void              mp_error                      (MP mp, const char *msg, const char *hlp);
+extern void              mp_warn                       (MP mp, const char *msg);
+extern void              mp_fatal_error                (MP mp, const char *s);
+extern void              mp_confusion                  (MP mp, const char *s);
 
-extern void             mp_show_path                  (MP mp, mp_knot p);
+extern void              mp_show_path                  (MP mp, mp_knot p);
 
-extern int              mp_initialize_symbol_traverse (MP mp);
-extern void             mp_kill_symbol_traverse       (MP mp);
-extern void            *mp_fetch_symbol_traverse      (MP mp);
-extern void            *mp_fetch_symbol               (MP mp, char *s);
+extern int               mp_initialize_symbol_traverse (MP mp);
+extern void              mp_kill_symbol_traverse       (MP mp);
+extern void             *mp_fetch_symbol_traverse      (MP mp);
+extern void             *mp_fetch_symbol               (MP mp, char *s);
 
-extern int              mp_close_path_cycle           (MP mp, mp_knot p, mp_knot q);
-extern int              mp_close_path                 (MP mp, mp_knot q, mp_knot first);
+extern int               mp_close_path_cycle           (MP mp, mp_knot p, mp_knot q);
+extern int               mp_close_path                 (MP mp, mp_knot q, mp_knot first);
 
-extern mp_knot          mp_create_knot                (MP mp);
+extern mp_knot           mp_create_knot                (MP mp);
 
-extern mp_knot          mp_append_knot                (MP mp, mp_knot p, double x, double y);
-extern mp_knot          mp_append_knot_xy             (MP mp, mp_knot p, double x, double y, int type);
+extern mp_knot           mp_append_knot                (MP mp, mp_knot p, double x, double y);
+extern mp_knot           mp_append_knot_xy             (MP mp, mp_knot p, double x, double y, int type);
 
-extern int              mp_set_knot_curl              (MP mp, mp_knot q, double value);
-extern int              mp_set_knot_left_curl         (MP mp, mp_knot q, double value);
-extern int              mp_set_knot_right_curl        (MP mp, mp_knot q, double value);
-extern int              mp_set_knot_simple_curl       (MP mp, mp_knot q);
-extern int              mp_set_knot_simple_left_curl  (MP mp, mp_knot q);
-extern int              mp_set_knot_simple_right_curl (MP mp, mp_knot q);
-extern int              mp_set_knotpair_curls         (MP mp, mp_knot p, mp_knot q, double t1, double t2) ;
-extern int              mp_set_knotpair_tensions      (MP mp, mp_knot p, mp_knot q, double t1, double t2) ;
-extern int              mp_set_knot_left_tension      (MP mp, mp_knot p, double t1);
-extern int              mp_set_knot_right_tension     (MP mp, mp_knot p, double t1);
-extern int              mp_set_knot_left_control      (MP mp, mp_knot p, double t1, double t2);
-extern int              mp_set_knot_right_control     (MP mp, mp_knot p, double t1, double t2);
-extern int              mp_set_knotpair_controls      (MP mp, mp_knot p, mp_knot q, double x1, double y1, double x2, double y2);
-extern int              mp_set_knot_direction         (MP mp, mp_knot q, double x, double y) ;
-extern int              mp_set_knotpair_directions    (MP mp, mp_knot p, mp_knot q, double x1, double y1, double x2, double y2);
+extern int               mp_set_knot_curl              (MP mp, mp_knot q, double value);
+extern int               mp_set_knot_left_curl         (MP mp, mp_knot q, double value);
+extern int               mp_set_knot_right_curl        (MP mp, mp_knot q, double value);
+extern int               mp_set_knot_simple_curl       (MP mp, mp_knot q);
+extern int               mp_set_knot_simple_left_curl  (MP mp, mp_knot q);
+extern int               mp_set_knot_simple_right_curl (MP mp, mp_knot q);
+extern int               mp_set_knotpair_curls         (MP mp, mp_knot p, mp_knot q, double t1, double t2) ;
+extern int               mp_set_knotpair_tensions      (MP mp, mp_knot p, mp_knot q, double t1, double t2) ;
+extern int               mp_set_knot_left_tension      (MP mp, mp_knot p, double t1);
+extern int               mp_set_knot_right_tension     (MP mp, mp_knot p, double t1);
+extern int               mp_set_knot_left_control      (MP mp, mp_knot p, double t1, double t2);
+extern int               mp_set_knot_right_control     (MP mp, mp_knot p, double t1, double t2);
+extern int               mp_set_knotpair_controls      (MP mp, mp_knot p, mp_knot q, double x1, double y1, double x2, double y2);
+extern int               mp_set_knot_direction         (MP mp, mp_knot q, double x, double y) ;
+extern int               mp_set_knotpair_directions    (MP mp, mp_knot p, mp_knot q, double x1, double y1, double x2, double y2);
 
-extern int              mp_solve_path                 (MP mp, mp_knot first);
-extern void             mp_free_path                  (MP mp, mp_knot p);
+extern int               mp_solve_path                 (MP mp, mp_knot first);
+extern void              mp_free_path                  (MP mp, mp_knot p);
 
-extern double           mp_number_as_double           (MP mp, mp_number n);
+extern double            mp_number_as_double           (MP mp, mp_number n);
 
-extern void             mp_set_internal               (MP mp, char *n, char *v, int isstring);
+extern void              mp_set_internal               (MP mp, char *n, char *v, int isstring);
 
-extern  int             mp_skip_token_value           (MP mp, int token);
+extern int               mp_skip_token_value           (MP mp, int token);
 
-extern  void            mp_scan_next_value            (MP mp, int keep, int *token, int *mode, int *kind);
-extern  void            mp_scan_expr_value            (MP mp, int keep, int *kind);
-extern  void            mp_scan_token_value           (MP mp, int keep, int *token, int *mode, int *kind);
-extern  void            mp_scan_symbol_value          (MP mp, int keep, char **s, int expand);
-extern  void            mp_scan_property_value        (MP mp, int keep, int *kind, char **s, int *property, int *detail);
-extern  void            mp_scan_numeric_value         (MP mp, int primary, double *d);
-extern  void            mp_scan_boolean_value         (MP mp, int primary, int *b);
-extern  void            mp_scan_string_value          (MP mp, int primary, char **s, size_t *l);
-extern  void            mp_scan_pair_value            (MP mp, int primary, double *x, double *y);
-extern  void            mp_scan_color_value           (MP mp, int primary, double *r, double *g, double *b);
-extern  void            mp_scan_cmykcolor_value       (MP mp, int primary, double *c, double *m, double *y, double *k);
-extern  void            mp_scan_transform_value       (MP mp, int primary, double *x, double *y, double *xx, double *xy, double *yx, double *yy);
-extern  void            mp_scan_path_value            (MP mp, int primary, mp_knot *k);
+extern void              mp_scan_next_value            (MP mp, int keep, int *token, int *mode, int *kind);
+extern void              mp_scan_expr_value            (MP mp, int keep, int *kind);
+extern void              mp_scan_token_value           (MP mp, int keep, int *token, int *mode, int *kind);
+extern void              mp_scan_symbol_value          (MP mp, int keep, char **s, int expand);
+extern void              mp_scan_property_value        (MP mp, int keep, int *kind, char **s, int *property, int *detail);
+extern void              mp_scan_numeric_value         (MP mp, int primary, double *d);
+extern void              mp_scan_boolean_value         (MP mp, int primary, int *b);
+extern int               mp_scan_string_value          (MP mp, int primary, char **s, size_t *l);
+extern void              mp_scan_pair_value            (MP mp, int primary, double *x, double *y);
+extern void              mp_scan_color_value           (MP mp, int primary, double *r, double *g, double *b);
+extern void              mp_scan_cmykcolor_value       (MP mp, int primary, double *c, double *m, double *y, double *k);
+extern void              mp_scan_transform_value       (MP mp, int primary, double *x, double *y, double *xx, double *xy, double *yx, double *yy);
+extern void              mp_scan_path_value            (MP mp, int primary, mp_knot *k);
 
-extern  void            mp_push_numeric_value         (MP mp, double n);
-extern  void            mp_push_integer_value         (MP mp, int i);
-extern  void            mp_push_boolean_value         (MP mp, int b);
-extern  void            mp_push_string_value          (MP mp, const char *s, int l);
-extern  void            mp_push_pair_value            (MP mp, double x, double y);
-extern  void            mp_push_color_value           (MP mp, double r, double g, double b);
-extern  void            mp_push_cmykcolor_value       (MP mp, double c, double m, double y, double k);
-extern  void            mp_push_transform_value       (MP mp, double x, double y, double xx, double xy, double yx, double yy);
-extern  void            mp_push_path_value            (MP mp, mp_knot k);
-//      void            mp_push_tokens_value          (MP mp, const char *str, size_t length);
+extern void              mp_push_numeric_value         (MP mp, double n);
+extern void              mp_push_integer_value         (MP mp, int i);
+extern void              mp_push_boolean_value         (MP mp, int b);
+extern void              mp_push_string_value          (MP mp, const char *s, int l);
+extern void              mp_push_pair_value            (MP mp, double x, double y);
+extern void              mp_push_color_value           (MP mp, double r, double g, double b);
+extern void              mp_push_cmykcolor_value       (MP mp, double c, double m, double y, double k);
+extern void              mp_push_transform_value       (MP mp, double x, double y, double xx, double xy, double yx, double yy);
+extern void              mp_push_path_value            (MP mp, mp_knot k);
+extern void              mp_push_tokens_value          (MP mp, const char *str, size_t length);
 
-extern  void            mp_new_randoms                (MP mp);
+extern void              mp_new_randoms                (MP mp);
 
 /* library interfaces */
 
-extern MP               mp_initialize                 (MP_options *opt);
-extern  int             mp_run                        (MP mp);
-extern  int             mp_execute                    (MP mp, const char *s, size_t l);
-extern  int             mp_finish                     (MP mp);
-extern  char           *mp_metapost_version           (void);
-extern mp_run_data     *mp_rundata                    (MP mp);
-extern MP_options      *mp_options                    (void);
-extern void            *mp_userdata                   (MP mp);
-extern int              mp_status                     (MP mp);
-extern int              mp_finished                   (MP mp);
+extern MP                mp_initialize                 (MP_options *opt);
+extern int               mp_run                        (MP mp);
+extern int               mp_execute                    (MP mp, const char *s, size_t l);
+extern int               mp_finish                     (MP mp);
+extern char             *mp_metapost_version           (void);
+extern mp_run_data      *mp_rundata                    (MP mp);
+extern MP_options       *mp_options                    (void);
+extern void             *mp_userdata                   (MP mp);
+extern int               mp_status                     (MP mp);
+extern int               mp_finished                   (MP mp);
 
-extern void             mplib_shipout_backend         (MP mp, void *h);
+extern void              mplib_shipout_backend         (MP mp, void *h);
 
-extern bytemap_data    *mp_bytemap_get_by_index       (MP mp, int index);
-extern int              mp_bytemap_new_by_index       (MP mp, int index, int nx, int ny, int nz, unsigned char *data);
+extern bytemap_data     *mp_bytemap_get_by_index       (MP mp, int index);
+extern int               mp_bytemap_new_by_index       (MP mp, int index, int nx, int ny, int nz, unsigned char *data);
 
-extern void             mp_graphic_toss_object        (MP mp, mp_graphic_object_node p);
-extern void             mp_graphic_toss_objects       (MP mp, mp_edge_object_node p);
+extern void              mp_graphic_toss_object        (MP mp, mp_graphic_object_node p);
+extern void              mp_graphic_toss_objects       (MP mp, mp_edge_object_node p);
 
 /* memory management header stuff */
 
-extern void            *mp_memory_allocate            (size_t size);
-extern void            *mp_memory_clear_allocate      (size_t size);
-extern void            *mp_memory_reallocate          (void *p, size_t size);
-extern void             mp_memory_free                (void *p);
+extern void             *mp_memory_allocate            (size_t size);
+extern void             *mp_memory_clear_allocate      (size_t size);
+extern void             *mp_memory_reallocate          (void *p, size_t size);
+extern void             *mp_memory_clear_reallocate    (void *p, size_t oldsize, size_t newsize);
+extern void              mp_memory_free                (void *p);
+
+extern int               mp_error_code                 (MP mp, int n);
+
+extern int               mp_n_of_primitives            (void);
+extern mp_primitive_data mp_get_primitive_data         (int i);
 
 # endif

@@ -67,45 +67,51 @@ static int lmt_pushcomplex(lua_State *L, Complex z)
 
 /*tex We use that here: */
 
-static int xcomplexlib_cerf_erf (lua_State *L) {
+static int xcomplexlib_cerf_erf (lua_State *L)
+{
     return lmt_pushcomplex(L, cerf(lmt_tocomplex(L, 1)));
 }
 
-static int xcomplexlib_cerf_erfc (lua_State *L) {
-    return lmt_pushcomplex(L, lmt_tocomplex(L, 1));
+static int xcomplexlib_cerf_erfc (lua_State *L)
+{
+    return lmt_pushcomplex(L, cerfc(lmt_tocomplex(L, 1)));
 }
 
-static int xcomplexlib_cerf_erfcx (lua_State *L) {
+static int xcomplexlib_cerf_erfcx (lua_State *L)
+{
     return lmt_pushcomplex(L, cerfcx(lmt_tocomplex(L, 1)));
 }
 
-static int xcomplexlib_cerf_erfi (lua_State *L) {
+static int xcomplexlib_cerf_erfi (lua_State *L)
+{
     return lmt_pushcomplex(L, cerfi(lmt_tocomplex(L, 1)));
 }
 
-static int xcomplexlib_cerf_dawson (lua_State *L) {
+static int xcomplexlib_cerf_dawson (lua_State *L)
+{
     return lmt_pushcomplex(L, cdawson(lmt_tocomplex(L, 1)));
 }
 
-static int xcomplexlib_cerf_voigt (lua_State *L) {
-    lua_pushnumber(L, voigt(lua_tonumber(L, 1), lua_tonumber(L, 2), lua_tonumber(L, 3)));
+static int xcomplexlib_cerf_voigt (lua_State *L)
+{
+    double x     = luaL_checknumber(L, 1);
+    double sigma = luaL_checknumber(L, 2);
+    double gamma = luaL_checknumber(L, 3);
+    lua_pushnumber(L, voigt(x, sigma, gamma));
     return 1;
 }
 
-static int xcomplexlib_cerf_voigt_hwhm (lua_State *L) {
-    int error = 0;
-    double result = voigt_hwhm(lua_tonumber(L, 1), lua_tonumber(L, 2), &error);
+static int xcomplexlib_cerf_voigt_hwhm (lua_State *L)
+{
+    double sigma  = luaL_checknumber(L, 1);
+    double gamma  = luaL_checknumber(L, 2);
+    int    error  = 0;
+    double result = voigt_hwhm(sigma, gamma, &error);
     lua_pushnumber(L, result);
     switch (error) {
-        case 1 : 
-            tex_formatted_warning("voigt_hwhm", "bad arguments");
-            break;
-        case 2 : 
-            tex_formatted_warning("voigt_hwhm", "huge deviation");
-            break;
-        case 3 : 
-            tex_formatted_warning("voigt_hwhm", "no convergence");
-            break;
+        case 1 : tex_formatted_warning("voigt_hwhm", "bad arguments");  break;
+        case 2 : tex_formatted_warning("voigt_hwhm", "huge deviation"); break;
+        case 3 : tex_formatted_warning("voigt_hwhm", "no convergence"); break;
     }
     return 1;
 }
@@ -121,18 +127,19 @@ static struct luaL_Reg xcomplexlib_cerf_function_list[] = {
     { NULL,         NULL                        },
 };
 
-/*tex 
-    We has the wrong library name here so I bet cerf is never used after the initial need for it 
-    (by Alan). So do we need to keep it around? 
+/*tex
+    We had the wrong library name here so I bet cerf is never used after the initial need for it
+    (by Alan). So do we need to keep it around?
 */
 
 int luaextend_xcomplex(lua_State *L)
 {
-    lua_getglobal(L, "xcomplex");
-    for (const luaL_Reg *lib = xcomplexlib_cerf_function_list; lib->name; lib++) {
-        lua_pushcfunction(L, lib->func);
-        lua_setfield(L, -2, lib->name);
+    if (lua_getglobal(L, "xcomplex") == LUA_TTABLE) {
+        for (const luaL_Reg *lib = xcomplexlib_cerf_function_list; lib->name; lib++) {
+            lua_pushcfunction(L, lib->func);
+            lua_setfield(L, -2, lib->name);
+        }
     }
     lua_pop(L, 1);
-    return 1;
+    return 0;
 }

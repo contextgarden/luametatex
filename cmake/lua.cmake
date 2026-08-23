@@ -41,6 +41,9 @@ set(lua_sources
     source/luacore/luapeg/lpcset.c
     source/luacore/luapeg/lpcode.c
 
+    # here so that we don't get these alignment warnings
+
+    source/lua/lmtluaclib.c
 )
 
 add_library(lua STATIC ${lua_sources})
@@ -63,7 +66,7 @@ target_compile_definitions(lua PUBLIC
   # LUA_USE_JUMPTABLE=0
     LPEG_DEBUG
   # LUA_NOCVTS2N
-    LUA_NOBUILTIN # disable likely usage
+  # LUA_NOBUILTIN # disable likely usage
   # LUAI_ASSERT
   # LUA_STRFTIMEOPTIONS="aAbBcCdDeFgGhHIjmMnprRStTuUVwWxXyYzZ%"
   # MINSTRTABSIZE=65536

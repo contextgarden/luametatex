@@ -144,16 +144,43 @@ static inline int xcomplexlib_push(lua_State *L, Complex z)
         return xcomplexlib_push(L, _Cbuild(-creal(a), -cimag(a)));
     }
 
-    static int xcomplexlib_div(lua_State *L) {
-        Complex b = xcomplexlib_get(L, 2);
-        if (creal(b) == 0.0 || cimag(b) == 0.0) {
-            return 0;
-        } else {
-            Complex a = xcomplexlib_get(L, 1);
-            Complex t = { 1 / creal(b), 1 / cimag(b) };
-            return xcomplexlib_push(L, _Cmulcc(a, t));
-        }
+    static int xcomplexlib_conj(lua_State *L) {
+        Complex a = xcomplexlib_get(L, 1);
+        return xcomplexlib_push(L, _Cbuild(creal(a), -cimag(a)));
     }
+
+    # if (0) 
+
+        static int xcomplexlib_div(lua_State *L) {
+            Complex a = xcomplexlib_get(L, 1);
+            Complex b = xcomplexlib_get(L, 2);
+            if (creal(b) == 0.0 && cimag(b) == 0.0) {
+                return 0;
+            } else {
+                return xcomplexlib_push(L, _Cdivcc(a, b));
+            }
+        }
+
+    # else 
+
+        static int xcomplexlib_div(lua_State *L) {
+            Complex a  = xcomplexlib_get(L, 1);
+            Complex b  = xcomplexlib_get(L, 2);
+            double  br = creal(b);
+            double  bi = cimag(b);
+            if (br == 0.0 && bi == 0.0) {
+                return 0;
+            } else {
+                double ar    = creal(a);
+                double ai    = cimag(a);
+                double denom = br * br + bi * bi;
+                double res_r = (ar * br + ai * bi) / denom;
+                double res_i = (ai * br - ar * bi) / denom;
+                return xcomplexlib_push(L, _Cbuild(res_r, res_i));
+            }
+        }
+
+    # endif 
 
     static int xcomplexlib_mul(lua_State *L) {
         Complex a = xcomplexlib_get(L, 1);
@@ -192,6 +219,11 @@ static inline int xcomplexlib_push(lua_State *L, Complex z)
     static int xcomplexlib_neg(lua_State *L)
     {
         return xcomplexlib_push(L, - xcomplexlib_get(L, 1));
+    }
+
+    static int xcomplexlib_conj(lua_State *L)
+    {
+        return xcomplexlib_push(L, conj(xcomplexlib_get(L, 1)));
     }
 
     static int xcomplexlib_div(lua_State *L)
@@ -358,9 +390,9 @@ static int xcomplexlib_totable(lua_State *L)
     Complex z = xcomplexlib_get(L, 1);
     lua_createtable(L, 2, 0);
     lua_pushnumber(L, (lua_Number) creal(z));
+    lua_rawseti(L, -2, 1);
     lua_pushnumber(L, (lua_Number) cimag(z));
-    lua_rawseti(L, -3, 1);
-    lua_rawseti(L, -3, 2);
+    lua_rawseti(L, -2, 2);
     return 1;
 }
 
@@ -390,7 +422,7 @@ static const struct luaL_Reg xcomplexlib_function_list[] = {
     { "asinh",      xcomplexlib_asinh      },
     { "atan",       xcomplexlib_atan       },
     { "atanh",      xcomplexlib_atanh      },
-    { "conj",       xcomplexlib_neg        },
+    { "conj",       xcomplexlib_conj       },
     { "cos",        xcomplexlib_cos        },
     { "cosh",       xcomplexlib_cosh       },
     { "exp",        xcomplexlib_exp        },

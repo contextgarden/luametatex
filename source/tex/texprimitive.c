@@ -48,7 +48,7 @@ hash_state_info lmt_hash_state = {
         .ptr       = 0,
         .initial   = 0,
         .offset    = 0, // eqtb_size,
-        .extra     = 0, 
+        .extra     = 0,
     },
     .eqtb_data = {
         .minimum   = min_hash_size,
@@ -61,12 +61,12 @@ hash_state_info lmt_hash_state = {
         .ptr       = 0,
         .initial   = 0,
         .offset    = 0,
-        .extra     = 0, 
+        .extra     = 0,
     },
     .eqtb        = NULL,
     .no_new_cs   = 1,
-    .padding     = 0,
-    .destructors = { eq_none }, 
+    .misses      = 0,
+    .destructors = { eq_none },
 };
 
 /*tex
@@ -78,8 +78,8 @@ hash_state_info lmt_hash_state = {
     |prim_is_full|; some fields: |prim_origin_field (a)|, |prim_eq_type_field (a)| and
     |prim_equiv_field(a)|; the level of definition: |prim_origin (a)|; the command code for
     equivalent: |prim_eq_type(a)|; the equivalent value: |prim_equiv(a)|; the allocation pointer
-    for |prim|: |prim_used|; the primitives tables: |two_halves prim [(prim_size + 1)]| and
-    |memoryword prim_eqtb [(prim_size + 1)]|. The array |prim_data| works the other way around, it
+    for |prim|: |prim_used|; the primitives tables: |two_halves prim [(primitives_size + 1)]| and
+    |memoryword prim_eqtb [(primitives_size + 1)]|. The array |prim_data| works the other way around, it
     is used for |cmd, chr| to name lookups.
 
 */
@@ -88,20 +88,20 @@ primitive_state_info lmt_primitive_state;
 
 /*tex Test if all positions are occupied: */
 
-# define prim_base           1
+# define primitives_base     1
 # define reserved_hash_slots 1
 
 /*tex Initialize the memory arrays: */
 
 void tex_initialize_primitives(void)
 {
-    memset(lmt_primitive_state.prim_data, 0, sizeof(prim_info)  * (last_cmd  + 1));
-    memset(lmt_primitive_state.prim,      0, sizeof(memoryword) * (prim_size + 1));
-    memset(lmt_primitive_state.prim_eqtb, 0, sizeof(memoryword) * (prim_size + 1));
-    for (int k = 0; k <= prim_size; k++) {
+    memset(lmt_primitive_state.prim_data, 0, sizeof(primitive_info) * (last_cmd       + 1));
+    memset(lmt_primitive_state.prim,      0, sizeof(memoryword)     * (primitives_size + 1));
+    memset(lmt_primitive_state.prim_eqtb, 0, sizeof(memoryword)     * (primitives_size + 1));
+    for (int k = 0; k <= primitives_size; k++) {
         prim_eq_type(k) = undefined_cs_cmd;
     }
-    lmt_primitive_state.prim_used = prim_size;
+    lmt_primitive_state.prim_used = primitives_size;
 }
 
 void tex_initialize_hash_mem(void)
@@ -167,10 +167,10 @@ static int tex_aux_room_in_hash(void)
 
 /*tex
 
-    The value of |hash_prime| should be roughly 85\%! of |hash_size|, and it should be a prime
-    number. The theory of hashing tells us to expect fewer than two table probes, on the average,
-    when the search is successful. [See J.~S. Vitter, {\sl Journal of the ACM\/ \bf30} (1983),
-    231--258.]
+    The general hash table uses a power-of-two |hash_size| and masks the hash value. The primitive
+    table still uses |primitives_prime|. The theory of hashing tells us to expect fewer than two
+    table probes, on the average, when the search is successful. [See J.~S. Vitter, {\sl Journal
+    of the ACM\/ \bf30} (1983), 231--258.]
 
     https://en.wikipedia.org/wiki/Coalesced_hashing
     https://programming.guide/coalesced-hashing.html
@@ -178,45 +178,109 @@ static int tex_aux_room_in_hash(void)
     Because we seldom use uppercase we get many misses, multiplying a chr j[k] by k actually gives
     a better spread.
 
-    Making a \CONTEXT\ format takes some 250.000 hash calculations while the \LUAMETATEX\ manual 
+    Making a \CONTEXT\ format takes some 250.000 hash calculations while the \LUAMETATEX\ manual
     needs some 1.7 million for just over 250 pages (with an average string length of 15).
 
     The primitive hash lookups are needed when we initialize and when we lookup an internal
     variable.
 
+    Amyway, we now keep track of the misses and it looks like we have some 10% on the average, so
+    it is not that bad. Of course, if we really want to know it, we should keep track of how deep
+    we go in the chain but it's not worth the trouble (and more important: overhead), also because
+    there is not much that we can do about it.
+
 */
 
-static inline halfword tex_aux_compute_hash(const char *j, unsigned l)
-{
-    halfword h = (unsigned const char) j[0];
-    for (unsigned k = 1; k < l; k++) {
-        h = (h + h + (unsigned const char) j[k]) % hash_prime;
-    }
-    return h;
-}
+# if 0
 
-static inline halfword tex_aux_compute_primitive(const char *j, unsigned l)
-{
-    halfword h = (unsigned const char) j[0];
-    for (unsigned k = 1; k < l; k++) {
-        h = (h + h + (unsigned const char) j[k]) % prim_prime;
+    /* original tex */
+
+    static inline halfword tex_aux_compute_hash(const char *j, unsigned l)
+    {
+        halfword h = (unsigned const char) j[0];
+        for (unsigned k = 1; k < l; k++) {
+            h = (h + h + (unsigned const char) j[k]) % hash_prime;
+        }
+        return h;
     }
-    return h;
-}
+
+    static inline halfword tex_aux_compute_primitive(const char *j, unsigned l)
+    {
+        halfword h = (unsigned const char) j[0];
+        for (unsigned k = 1; k < l; k++) {
+            h = (h + h + (unsigned const char) j[k]) % primitives_prime;
+        }
+        return h;
+    }
+
+    /* improved */
+
+ // static inline halfword tex_aux_compute_hash(const char *j, unsigned l)
+ // {
+ //     halfword h = (unsigned char)j[0];
+ //     for (unsigned k = 1; k < l; k++) {
+ //         h = (h * 2) + (unsigned char) j[k];
+ //         while (h >= hash_prime) {
+ //             h -= hash_prime;
+ //         }
+ //     }
+ //     return h;
+ // }
+
+ // static inline halfword tex_aux_compute_primitive(const char *j, unsigned l)
+ // {
+ //     halfword h = (unsigned char)j[0];
+ //     for (unsigned k = 1; k < l; k++) {
+ //         h = (h * 2) + (unsigned char) j[k];
+ //         while (h >= primitives_prime) {
+ //             h -= primitives_prime;
+ //         }
+ //     }
+ //     return h;
+ // }
+
+# else
+
+    /* djb2a : standard seed 5381 */
+
+    static inline uint32_t tex_aux_hash_bytes(const char *s, size_t length)
+    {
+        const unsigned char *p = (const unsigned char *) s;
+        uint32_t h = UINT32_C(5381);
+
+        while (length--) {
+            h = h * UINT32_C(33) ^ *p++;
+        }
+        return h;
+    }
+
+    _Static_assert((hash_size       & (hash_size       - 1)) == 0,"hash_size must be a power of two");
+    _Static_assert((primitives_size & (primitives_size - 1)) == 0,"primitives_size must be a power of two");
+
+    static inline halfword tex_aux_compute_hash(const char *s, size_t length)
+    {
+        return (halfword) (tex_aux_hash_bytes(s, length) & (hash_size - 1));
+    }
+
+    static inline halfword tex_aux_compute_primitive(const char *s, size_t length)
+    {
+        return (halfword) (tex_aux_hash_bytes(s, length) % primitives_prime);
+    }
+
+# endif
 
 halfword tex_primitive_lookup(strnumber s)
 {
     /*tex The index in the |hash| array: */
     if (s >= cs_offset_value) {
-        unsigned char *j = str_string(s);
-     // unsigned l = (unsigned) str_length(s);
-        halfword l = (halfword) str_length(s);
+        lstring_string j = str_getstr(s);
+        halfword l = str_getintlen(s);
         halfword h = tex_aux_compute_primitive((char *) j, l);
-        /*tex We start searching here; note that |0 <= h < hash_prime|. */
+        /*tex We start searching here; note that |0 <= h < primitives_prime|. */
         halfword p = h + 1;
         while (1) {
          /* When using |halfword text = prim_text(p)| no intellisense warning for first test in: */
-            if ((prim_text(p) > 0) && (str_length(prim_text(p)) == (size_t) l) && tex_str_eq_str(prim_text(p), s)) {
+            if ((prim_text(p) > 0) && (str_getlen(prim_text(p)) == (size_t) l) && tex_str_eq_str(prim_text(p), s)) {
                 return p;
             } else if (prim_next(p)) {
                 p = prim_next(p);
@@ -224,13 +288,13 @@ halfword tex_primitive_lookup(strnumber s)
                 return undefined_primitive;
             } else {
                 /*tex Insert a new primitive after |p|, then make |p| point to it. */
-                if (prim_text(p) > 0) {
+                 if (prim_text(p) > 0) {
                     /*tex Search for an empty location in |prim| */
                     do {
-                        if (lmt_primitive_state.prim_used > prim_base) {
+                        if (lmt_primitive_state.prim_used > primitives_base) {
                             --lmt_primitive_state.prim_used;
                         } else {
-                            tex_overflow_error("primitive size", prim_size);
+                            tex_overflow_error("primitive size", primitives_size);
                         }
                     } while (prim_text(lmt_primitive_state.prim_used));
                     prim_next(p) = lmt_primitive_state.prim_used;
@@ -248,6 +312,15 @@ halfword tex_primitive_lookup(strnumber s)
     }
 }
 
+halfword tex_primitive_lookup_only(strnumber s)
+{
+    int saved = lmt_hash_state.no_new_cs;
+    lmt_hash_state.no_new_cs = 1;
+    halfword p = tex_primitive_lookup(s);
+    lmt_hash_state.no_new_cs = saved;
+    return p;
+}
+
 /*tex How to test a csname for primitive-ness? */
 
 /*
@@ -256,7 +329,7 @@ int tex_cs_is_primitive(strnumber csname)
     int m = prim_lookup(csname);
     if (m != undefined_primitive) {
         char *ss = makecstring(csname);
-        int n = string_locate(ss, str_length(csname), 0);
+        int n = string_locate(ss, str_getlen(csname), 0);
         lmt_memory_free(ss);
         return ((n != undefined_cs_cmd) && (eq_type(n) == prim_eq_type(m)) && (eq_value(n) == prim_equiv(m)));
     } else {
@@ -272,15 +345,15 @@ int tex_cs_is_primitive(strnumber csname)
 void tex_dump_primitives(dumpstream f)
 {
     /*
-    for (int p = 0; p <= prim_size; p++) {
+    for (int p = 0; p <= primitives_size; p++) {
         dump_mem(f, prim_state.prim[p]);
     }
-    for (int p = 0; p <= prim_size; p++) {
+    for (int p = 0; p <= primitives_size; p++) {
         dump_mem(f, prim_state.prim_eqtb[p]);
     }
     */
-    dump_things(f, lmt_primitive_state.prim[0], prim_size + 1);
-    dump_things(f, lmt_primitive_state.prim_eqtb[0], prim_size + 1);
+    dump_things(f, lmt_primitive_state.prim     [0], primitives_size + 1);
+    dump_things(f, lmt_primitive_state.prim_eqtb[0], primitives_size + 1);
     for (int p = 0; p <= last_cmd; p++) {
         dump_int(f, lmt_primitive_state.prim_data[p].offset);
         dump_int(f, lmt_primitive_state.prim_data[p].subids);
@@ -293,8 +366,8 @@ void tex_dump_primitives(dumpstream f)
 
 void tex_undump_primitives(dumpstream f)
 {
-    undump_things(f, lmt_primitive_state.prim[0], prim_size + 1);
-    undump_things(f, lmt_primitive_state.prim_eqtb[0], prim_size + 1);
+    undump_things(f, lmt_primitive_state.prim     [0], primitives_size + 1);
+    undump_things(f, lmt_primitive_state.prim_eqtb[0], primitives_size + 1);
     for (int p = 0; p <= last_cmd; p++) {
         undump_int(f, lmt_primitive_state.prim_data[p].offset);
         undump_int(f, lmt_primitive_state.prim_data[p].subids);
@@ -343,6 +416,7 @@ void tex_dump_hashtable(dumpstream f)
         dump_things(f, lmt_hash_state.hash[eqtb_size + 1], lmt_hash_state.hash_data.ptr);
     }
     dump_int(f, lmt_hash_state.eqtb_data.ptr);
+    dump_int(f, lmt_hash_state.misses);
 }
 
 void tex_undump_hashtable(dumpstream f)
@@ -366,6 +440,7 @@ void tex_undump_hashtable(dumpstream f)
             undump_things(f, lmt_hash_state.hash[eqtb_size + 1], lmt_hash_state.hash_data.ptr);
         }
         undump_int(f, lmt_hash_state.eqtb_data.ptr);
+        undump_int(f, lmt_hash_state.misses);
         lmt_hash_state.eqtb_data.initial = lmt_hash_state.eqtb_data.ptr;
         return;
     }
@@ -460,7 +535,6 @@ void tex_primitive(int origin, int legacy, const char *str, singleword cmd, half
         ss = tex_maketexstring(str);
     }
     prim_val = tex_primitive_lookup(ss);
- // prim_origin(prim_val) = (quarterword) cmd_origin;
     prim_origin(prim_val) = (singleword) origin;
     prim_legacy(prim_val) = (singleword) legacy;
     prim_eq_type(prim_val) = cmd;
@@ -481,6 +555,7 @@ void tex_primitive(int origin, int legacy, const char *str, singleword cmd, half
 static halfword tex_aux_insert_id(halfword p, const unsigned char *str, unsigned int l)
 {
     if (cs_text(p) > 0) {
+        ++lmt_hash_state.misses;
       RESTART:
         if (lmt_hash_state.hash_data.ptr < lmt_hash_state.hash_data.allocated) {
             ++lmt_hash_state.hash_data.ptr;
@@ -529,10 +604,10 @@ halfword tex_id_locate(int j, int l, int create)
 {
     /*tex The index in |hash| array: */
     halfword p = tex_aux_compute_hash((char *) (lmt_fileio_state.io_buffer + j), (unsigned) l) + hash_base;
-    /*tex We start searching here. Note that |0 <= h < hash_prime|: */
+    /*tex We start searching here. Note that |0 <= h < hash_size|: */
     while (1) {
         strnumber s = cs_text(p);
-        if ((s > 0) && (str_length(s) == (unsigned) l) && tex_str_eq_buf(s, j, l)) {
+        if ((s > 0) && (str_getintlen(s) == l) && tex_str_eq_buf(s, j, l)) {
             return p;
         } else {
             /*tex The next one in a chain: */
@@ -543,11 +618,9 @@ halfword tex_id_locate(int j, int l, int create)
                 return tex_aux_insert_id(p, (lmt_fileio_state.io_buffer + j), (unsigned) l);
             } else {
                 return undefined_control_sequence;
-             // break;
             }
         }
     }
- // return undefined_control_sequence;
 }
 
 halfword tex_id_locate_only(int j, int l)
@@ -555,8 +628,7 @@ halfword tex_id_locate_only(int j, int l)
     halfword p = tex_aux_compute_hash((char *) (lmt_fileio_state.io_buffer + j), (unsigned) l) + hash_base;
     while (p) {
         strnumber s = cs_text(p);
-        if ((s > 0) && (str_length(s) == (unsigned) l) && tex_str_eq_buf(s, j, l)) {
-     // if ((s > 0) && (str_length(s) == (unsigned) l) && memcmp(str_string(s), &lmt_fileio_state.io_buffer[j], l) == 0) {
+        if ((s > 0) && (str_getintlen(s) == l) && tex_str_eq_buf(s, j, l)) {
             return p;
         } else {
             p = cs_next(p);
@@ -567,40 +639,39 @@ halfword tex_id_locate_only(int j, int l)
 
 int tex_id_locate_steps(const char *cs)
 {
-    if (cs) { 
-        unsigned int l = (unsigned) strlen(cs);
+    if (cs) {
+        lstring_length l = (lstring_length) strlen(cs);
         halfword p = tex_aux_compute_hash(cs, l) + hash_base;
         int steps = 0;
         while (p) {
             strnumber s = cs_text(p);
             ++steps;
-            if ((s > 0) && (str_length(s) == l) && memcmp(str_string(s), cs, l) == 0) {            
+            if ((s > 0) && (str_getlen(s) == l) && memcmp(str_getstr(s), cs, l) == 0) {
                 return steps;
             } else {
                 p = cs_next(p);
             }
         }
         return -steps;
-    } else { 
-        return 0; 
+    } else {
+        return 0;
     }
 }
 
 /*tex
 
     Here is a similar subroutine for finding a primitive in the hash. This one is based on a \CCODE\
-    string.
+    string. The index in |hash| array. We start searching here. Note that |0 <= hash < hash_size|.
 
 */
 
+/* maybe inline tex_str_eq_cstr here */
+
 halfword tex_string_locate(const char *s, size_t l, int create)
 {
-    /*tex The hash code: */
-    halfword h = tex_aux_compute_hash(s, (unsigned) l);
-    /*tex The index in |hash| array. We start searching here. Note that |0 <= h < hash_prime|: */
-    halfword p = h + hash_base;
+    halfword p = tex_aux_compute_hash(s, (unsigned) l) + hash_base;
     while (1) {
-        if (cs_text(p) > 0 && tex_str_eq_cstr(cs_text(p), s, (int) l)) {
+        if (tex_str_eq_cstr(cs_text(p), s, l)) {
             return p;
         } else {
             halfword n = cs_next(p);
@@ -609,19 +680,17 @@ halfword tex_string_locate(const char *s, size_t l, int create)
             } else if (create) {
                 return tex_aux_insert_id(p, (const unsigned char *) s, (unsigned) l);
             } else {
-             // break;
                 return undefined_control_sequence;
             }
         }
     }
- // return undefined_control_sequence;
 }
 
 halfword tex_string_locate_only(const char *s, size_t l)
 {
     halfword p = tex_aux_compute_hash(s, (unsigned) l) + hash_base;
     while (p) {
-        if (cs_text(p) > 0 && tex_str_eq_cstr(cs_text(p), s, (int) l)) {
+        if (tex_str_eq_cstr(cs_text(p), s, l)) {
             return p;
         } else {
             p = cs_next(p);
@@ -650,78 +719,72 @@ halfword tex_located_string(const char *s)
 
 */
 
+/*tex
+
+    We started out with a large case this but it looks kind of inefficient so at some point I came back
+    to this and when asking gemini how a compiler optimizes this, another solution was offered. You can
+    always peek in the archive for older versions. From that it evolved again.
+
+*/
+
 static void tex_aux_print_chr_cmd(const char *s, halfword cmd, halfword chr)
 {
-    tex_print_str(s);
-    if (chr) {
-        tex_print_str(cmd == letter_cmd ? " letter " : " character ");
-        tex_print_uhex(chr);
-        tex_print_char(' ');
-        /*
-            By using the the unicode (ascii) names for some we can better support syntax
-            highlighting (which often involves parsing). The names are enclosed in single
-            quotes. For the chr codes above 128 we assume \UNICODE\ support.
-        */
-        /*tex
-            We already intercepted the line feed here so that it doesn't give a side effect here
-            in the original |tex_print_tex_str(chr)| call but we have now inlined similar code
-            but without side effects.
-        */
-        if (chr < 32 || chr == 127) {
+    if (cmd == letter_cmd) {
+        tex_print_format("%s letter %U ", s, chr);
+    } else {
+        tex_print_format("%s character %U ", s, chr);
+    }
+    if (chr < 32 || chr == 127) {
+        return;
+    }
+    /*
+        By using a fixed-width 2D array, string bytes live directly inside
+        the table itself. This eliminates pointer indirection and keeps memory
+        access contiguous in the L1 Data Cache.
+    */
+    static const char ascii_names[128][24] = { /* max length 22 + \0 padded to 24 */
+        [' ']  = "'space'",
+        ['!']  = "'exclamation mark'",
+        ['\"'] = "'quotation mark'",
+        ['#']  = "'hash tag'",
+        ['$']  = "'dollar sign'",
+        ['%']  = "'percent sign'",
+        ['&']  = "'ampersand'",
+        ['\''] = "'apostrophe'",
+        ['(']  = "'left parenthesis'",
+        [')']  = "'right parenthesis'",
+        ['*']  = "'asterisk'",
+        ['+']  = "'plus sign'",
+        [',']  = "'comma'",
+        ['-']  = "'hyphen minus'",
+        ['.']  = "'full stop'",
+        ['/']  = "'slash'",
+        [':']  = "'colon'",
+        [';']  = "'semicolon'",
+        ['<']  = "'less than sign'",
+        ['=']  = "'equal sign'",
+        ['>']  = "'more than sign'",
+        ['?']  = "'question mark'",
+        ['@']  = "'at sign'",
+        ['[']  = "'left square bracket'",
+        ['\\'] = "'backslash'",
+        [']']  = "'right square bracket'",
+        ['^']  = "'circumflex accent'",
+        ['_']  = "'low line'",
+        ['`']  = "'grave accent'",
+        ['{']  = "'left curly bracket'",
+        ['|']  = "'vertical bar'",
+        ['}']  = "'right curly bracket'",
+        ['~']  = "'tilde'",
+    };
+    if (chr < (halfword) (sizeof(ascii_names) / sizeof(ascii_names[0]))) {
+        const char *name = ascii_names[chr];
+        if (name[0] != '\0') {
+            tex_print_str(name);
             return;
-        } else if (chr <= 0x7F) {
-            switch (chr) {
-                case '\n' : tex_print_str("'line feed'");            return;
-                case '\r' : tex_print_str("'carriage return'");      return;
-                case ' '  : tex_print_str("'space'");                return;
-                case '!'  : tex_print_str("'exclamation mark'");     return;
-                case '\"' : tex_print_str("'quotation mark'");       return;
-                case '#'  : tex_print_str("'hash tag'");             return;
-                case '$'  : tex_print_str("'dollar sign'");          return;
-                case '%'  : tex_print_str("'percent sign'");         return;
-                case '&'  : tex_print_str("'ampersand'");            return;
-                case '\'' : tex_print_str("'apostrophe'");           return;
-                case '('  : tex_print_str("'left parenthesis'");     return;
-                case ')'  : tex_print_str("'right parenthesis'");    return;
-                case '*'  : tex_print_str("'asterisk'");             return;
-                case '+'  : tex_print_str("'plus sign'");            return;
-                case ','  : tex_print_str("'comma'");                return;
-                case '-'  : tex_print_str("'hyphen minus'");         return;
-                case '.'  : tex_print_str("'full stop'");            return;
-                case '/'  : tex_print_str("'slash'");                return;
-                case ':'  : tex_print_str("'colon'");                return;
-                case ';'  : tex_print_str("'semicolon'");            return;
-                case '<'  : tex_print_str("'less than sign'");       return;
-                case '='  : tex_print_str("'equal sign'");           return;
-                case '>'  : tex_print_str("'more than sign'");       return;
-                case '?'  : tex_print_str("'question mark'");        return;
-                case '@'  : tex_print_str("'at sign'");              return;
-                case '['  : tex_print_str("'left square bracket'");  return;
-                case '\\' : tex_print_str("'backslash'");            return;
-                case ']'  : tex_print_str("'right square bracket'"); return;
-                case '^'  : tex_print_str("'circumflex accent'");    return;
-                case '_'  : tex_print_str("'low line'");             return;
-                case '`'  : tex_print_str("'grave accent'");         return;
-                case '{'  : tex_print_str("'left curly bracket'");   return;
-                case '|'  : tex_print_str("'vertical bar'");         return;
-                case '}'  : tex_print_str("'right curly bracket'");  return;
-                case '~'  : tex_print_str("'tilde'");                return;
-            }
-            tex_print_char(chr);
-        } else if (chr <= 0x7FF) {
-            tex_print_char(0xC0 + (chr / 0x40));
-            tex_print_char(0x80 + (chr % 0x40));
-        } else if (chr <= 0xFFFF) {
-            tex_print_char(0xE0 +  (chr / 0x1000));
-            tex_print_char(0x80 + ((chr % 0x1000) / 0x40));
-            tex_print_char(0x80 + ((chr % 0x1000) % 0x40));
-        } else if (chr <= 0x10FFFF) {
-            tex_print_char(0xF0 +   (chr / 0x40000));
-            tex_print_char(0x80 +  ((chr % 0x40000) / 0x1000));
-            tex_print_char(0x80 + (((chr % 0x40000) % 0x1000) / 0x40));
-            tex_print_char(0x80 + (((chr % 0x40000) % 0x1000) % 0x40));
         }
     }
+    aux_uni2str_callback((unsigned) chr, &tex_print_char);
 }
 
 /*tex |\TEX82| Didn't print the |cmd,idx| information, but it may be useful. */
@@ -734,13 +797,13 @@ static void tex_aux_prim_cmd_chr(quarterword cmd, halfword idx, int is_chr)
         }
         if (idx >= 0 && idx < lmt_primitive_state.prim_data[cmd].subids) {
             if (lmt_primitive_state.prim_data[cmd].names && lmt_primitive_state.prim_data[cmd].names[idx]) {
-                tex_print_tex_str_esc(lmt_primitive_state.prim_data[cmd].names[idx]);
+                tex_print_format("%e%T", lmt_primitive_state.prim_data[cmd].names[idx]);
             } else {
                 tex_print_format("[warning: cmd %i, chr %i, no name]", cmd, idx);
             }
         } else if (cmd == internal_integer_cmd && idx < number_integer_pars) {
             /* a special case */
-            tex_print_format("[integer: chr %i, class specific]", cmd);
+            tex_print_format("[integer: chr %i, class specific]", idx);
         } else {
             tex_print_format("[warning: cmd %i, chr %i, out of range]", cmd, idx);
         }
@@ -755,10 +818,14 @@ static void tex_aux_show_lua_call(const char *what, int slot)
     if (callback_id > 0) {
         char *ss = NULL;
         int lua_retval = lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "Sd->S", what, slot, &ss);
-        if (lua_retval && ss && strlen(ss) > 0) {
-            tex_print_str(ss);
+        if (lua_retval && ss) {
+            size_t len = strlen(ss);
+            if (len > 0) {
+                tex_print_str_len(ss, (int) len);
+                lmt_memory_free(ss);
+                return;
+            }
             lmt_memory_free(ss);
-            return;
         }
     }
     tex_print_format("%s %i", what, slot);
@@ -768,65 +835,45 @@ void tex_print_cmd_flags(halfword cs, halfword cmd, int flags, int escaped)
 {
     if (flags) {
         flags = eq_flag(cs);
-        if (eq_level(cs) == level_one) { 
-            (escaped ? tex_print_str_esc : tex_print_str)("global "); 
+        if (eq_level(cs) == level_one) {
+            if (escaped) { tex_print_format("%eglobal "); } else { tex_print_str_len("global ", 7); }
         }
-        if (is_frozen   (flags)) { (escaped ? tex_print_str_esc : tex_print_str)("frozen "   ); }
-        if (is_permanent(flags)) { (escaped ? tex_print_str_esc : tex_print_str)("permanent "); }
-        if (is_immutable(flags)) { (escaped ? tex_print_str_esc : tex_print_str)("immutable "); }
-        if (is_primitive(flags)) { (escaped ? tex_print_str_esc : tex_print_str)("primitive "); }
-        if (is_mutable  (flags)) { (escaped ? tex_print_str_esc : tex_print_str)("mutable "  ); }
-        if (is_noaligned(flags)) { (escaped ? tex_print_str_esc : tex_print_str)("noaligned "); }
-        if (is_instance (flags)) { (escaped ? tex_print_str_esc : tex_print_str)("instance " ); }
-        if (is_untraced (flags)) { (escaped ? tex_print_str_esc : tex_print_str)("untraced " ); }
+        if (is_frozen(flags))   { if (escaped) { tex_print_format("%efrozen "   ); } else { tex_print_str_len("frozen ",     7); } }
+        if (is_permanent(flags)){ if (escaped) { tex_print_format("%epermanent "); } else { tex_print_str_len("permanent ", 10); } }
+        if (is_immutable(flags)){ if (escaped) { tex_print_format("%eimmutable "); } else { tex_print_str_len("immutable ", 10); } }
+        if (is_primitive(flags)){ if (escaped) { tex_print_format("%eprimitive "); } else { tex_print_str_len("primitive ", 10); } }
+        if (is_mutable(flags))  { if (escaped) { tex_print_format("%emutable "  ); } else { tex_print_str_len("mutable ",    8); } }
+        if (is_noaligned(flags)){ if (escaped) { tex_print_format("%enoaligned "); } else { tex_print_str_len("noaligned ", 10); } }
+        if (is_instance(flags)) { if (escaped) { tex_print_format("%einstance " ); } else { tex_print_str_len("instance ",   9); } }
+        if (is_untraced(flags)) { if (escaped) { tex_print_format("%euntraced " ); } else { tex_print_str_len("untraced ",   9); } }
     }
     if (is_constant_cmd(cmd)) {
-        (escaped ? tex_print_str_esc : tex_print_str)("constant " );
+        if (escaped) { tex_print_format("%econstant "); } else { tex_print_str_len("constant ", 9); }
     }
     if (is_tolerant_cmd(cmd)) {
-        (escaped ? tex_print_str_esc : tex_print_str)("tolerant " );
+        if (escaped) { tex_print_format("%etolerant "); } else { tex_print_str_len("tolerant ", 9); }
     }
     if (is_protected_cmd(cmd)) {
-        (escaped ? tex_print_str_esc : tex_print_str)("protected ");
+        if (escaped) { tex_print_format("%eprotected "); } else { tex_print_str_len("protected ", 10); }
     } else if (is_semi_protected_cmd(cmd)) {
-        (escaped ? tex_print_str_esc : tex_print_str)("semiprotected ");
+        if (escaped) { tex_print_format("%esemiprotected "); } else { tex_print_str_len("semiprotected ", 14); }
     }
 }
 
 void tex_print_cmd_chr(singleword cmd, halfword chr)
 {
     switch (cmd) {
-        case left_brace_cmd:
-            tex_aux_print_chr_cmd("begin group", cmd, chr);
-            break;
-        case right_brace_cmd:
-            tex_aux_print_chr_cmd("end group", cmd, chr);
-            break;
-        case math_shift_cmd:
-            tex_aux_print_chr_cmd("math shift", cmd, chr);
-            break;
-        case alignment_tab_cmd:
-            tex_aux_print_chr_cmd("alignment tab", cmd, chr);
-            break;
-        case parameter_cmd:
-            tex_aux_print_chr_cmd("parameter", cmd, chr);
-            break;
-        case superscript_cmd:
-            tex_aux_print_chr_cmd("superscript", cmd, chr);
-            break;
-        case subscript_cmd:
-            tex_aux_print_chr_cmd("subscript", cmd, chr);
-            break;
-        case spacer_cmd:
-            tex_aux_print_chr_cmd("blank space", cmd, chr);
-            break;
-        case letter_cmd:
-        case other_char_cmd:
-            tex_aux_print_chr_cmd("the", cmd, chr);
-            break;
-        case active_char_cmd:
-            tex_aux_print_chr_cmd("active", cmd, chr);
-            break;
+        case left_brace_cmd   : tex_aux_print_chr_cmd("begin group",   cmd, chr); break;
+        case right_brace_cmd  : tex_aux_print_chr_cmd("end group",     cmd, chr); break;
+        case math_shift_cmd   : tex_aux_print_chr_cmd("math shift",    cmd, chr); break;
+        case alignment_tab_cmd: tex_aux_print_chr_cmd("alignment tab", cmd, chr); break;
+        case parameter_cmd    : tex_aux_print_chr_cmd("parameter",     cmd, chr); break;
+        case superscript_cmd  : tex_aux_print_chr_cmd("superscript",   cmd, chr); break;
+        case subscript_cmd    : tex_aux_print_chr_cmd("subscript",     cmd, chr); break;
+        case spacer_cmd       : tex_aux_print_chr_cmd("blank space",   cmd, chr); break;
+        case letter_cmd       :
+        case other_char_cmd   : tex_aux_print_chr_cmd("the",           cmd, chr); break;
+        case active_char_cmd  : tex_aux_print_chr_cmd("active",        cmd, chr); break;
         /*
         case comment_cmd:
         case invalid_char_cmd:
@@ -834,7 +881,7 @@ void tex_print_cmd_chr(singleword cmd, halfword chr)
         */
         case end_template_cmd:
             /*tex Kind of special: |chr| points to |null_list). */
-            tex_print_str_esc("endtemplate");
+            tex_print_format("%eendtemplate");
          // tex_print_str("end of alignment template");
             break;
         case if_test_cmd:
@@ -845,8 +892,7 @@ void tex_print_cmd_chr(singleword cmd, halfword chr)
             }
             break;
         case char_given_cmd:
-            tex_print_str_esc("char");
-            tex_print_qhex(chr);
+            tex_print_format("%echar %x", chr);
             break;
         case lua_call_cmd:
             tex_aux_show_lua_call("luacall", chr);
@@ -864,11 +910,11 @@ void tex_print_cmd_chr(singleword cmd, halfword chr)
             tex_aux_show_lua_call("luavalue", chr);
             break;
         case set_font_cmd:
-            tex_print_str("select font ");
+            tex_print_str_len("select font ", 12);
             tex_print_font(chr);
             break;
         case undefined_cs_cmd:
-            tex_print_str("undefined");
+            tex_print_str_len("undefined", 9);
             break;
         case call_cmd:
         case protected_call_cmd:
@@ -878,32 +924,28 @@ void tex_print_cmd_chr(singleword cmd, halfword chr)
         case tolerant_protected_call_cmd:
         case tolerant_semi_protected_call_cmd:
             tex_print_cmd_flags(cur_cs, cur_cmd, 1, 0);
-            tex_print_str("macro");
+            tex_print_str_len("macro", 5);
             break;
         case internal_toks_cmd:
             tex_aux_prim_cmd_chr(cmd, chr, 1);
             break;
         case register_toks_cmd:
-            tex_print_str_esc("toks");
-            tex_print_int(register_toks_number(chr));
+            tex_print_format("%etoks %i", register_toks_number(chr));
             break;
         case internal_integer_cmd:
             tex_aux_prim_cmd_chr(cmd, chr, 1);
             break;
         case register_integer_cmd:
-            tex_print_str_esc("count");
-            tex_print_int(register_integer_number(chr));
+            tex_print_format("%ecount%i", register_integer_number(chr));
             break;
         case internal_attribute_cmd:
             tex_aux_prim_cmd_chr(cmd, chr, 1);
             break;
         case register_attribute_cmd:
-            tex_print_str_esc("attribute");
-            tex_print_int(register_attribute_number(chr));
+            tex_print_format("%eattribute%i", register_attribute_number(chr));
             break;
         case register_posit_cmd:
-            tex_print_str_esc("posit");
-            tex_print_int(register_posit_number(chr));
+            tex_print_format("%eposit%i", register_posit_number(chr));
             break;
         case internal_posit_cmd:
             tex_aux_prim_cmd_chr(cmd, chr, 1);
@@ -912,116 +954,118 @@ void tex_print_cmd_chr(singleword cmd, halfword chr)
             tex_aux_prim_cmd_chr(cmd, chr, 1);
             break;
         case register_dimension_cmd:
-            tex_print_str_esc("dimen");
-            tex_print_int(register_dimension_number(chr));
+            tex_print_format("%edimen%i", register_dimension_number(chr));
             break;
         case internal_glue_cmd:
             tex_aux_prim_cmd_chr(cmd, chr, 1);
             break;
         case register_glue_cmd:
-            tex_print_str_esc("skip");
-            tex_print_int(register_glue_number(chr));
+            tex_print_format("%eskip%i", register_glue_number(chr));
             break;
         case internal_muglue_cmd:
             tex_aux_prim_cmd_chr(cmd, chr, 1);
             break;
         case register_muglue_cmd:
-            tex_print_str_esc("muskip");
-            tex_print_int(register_muglue_number(chr));
+            tex_print_format("%emuskip%i", register_muglue_number(chr));
             break;
         case node_cmd:
-            tex_print_str(node_token_flagged(chr) ? "large" : "small");
-            tex_print_str(" node reference");
+            if (node_token_flagged(chr)) {
+                tex_print_str_len("large node reference", 20);
+            } else {
+                tex_print_str_len("small node reference", 20);
+            }
             break;
         case integer_cmd:
-            tex_print_str("integer ");
-            tex_print_int(chr);
+            tex_print_format("integer %i", chr);
             break;
         case dimension_cmd:
-            tex_print_str("dimension ");
-            tex_print_dimension(chr, pt_unit);
+            tex_print_format("dimension %p", chr);
             break;
         case posit_cmd:
-            tex_print_str("posit ");
+            tex_print_str_len("posit ", 6);
             tex_print_posit(chr);
             break;
         case gluespec_cmd:
-            tex_print_str("gluespec ");
+            tex_print_str_len("gluespec ", 9);
             tex_print_spec(chr, pt_unit);
             break;
         case mugluespec_cmd:
-            tex_print_str("mugluespec ");
+            tex_print_str_len("mugluespec ", 11);
             tex_print_spec(chr, mu_unit);
             break;
         case index_cmd:
-            tex_print_str("parameter ");
-            tex_print_int(chr);
+            tex_print_format("parameter %i", chr);
             break;
 # if (match_experiment)
-case integer_reference_cmd:
-    tex_print_str(node_token_flagged(chr) ? "large" : "small");
-    tex_print_str(" integer reference");
-    break;
-case dimension_reference_cmd:
-    tex_print_str(node_token_flagged(chr) ? "large" : "small");
-    tex_print_str(" dimension reference");
-    break;
-# endif 
+        case integer_reference_cmd:
+            if (node_token_flagged(chr)) {
+                tex_print_str_len("large integer reference", 23);
+            } else {
+                tex_print_str_len("small integer reference", 23);
+            }
+            break;
+        case dimension_reference_cmd:
+            if (node_token_flagged(chr)) {
+                tex_print_str_len("large dimension reference", 25);
+            } else {
+                tex_print_str_len("small dimension reference", 25);
+            }
+            break;
+# endif
         case mathspec_cmd:
             switch (node_subtype(chr)) {
                 case tex_mathcode:
-                    tex_print_str_esc("mathchar");
+                    tex_print_format("%emathchar");
                     break;
                 case umath_mathcode:
              /* case umathnum_mathcode: */
-                    tex_print_str_esc("Umathchar");
+                    tex_print_format("%eUmathchar");
                     break;
                 case mathspec_mathcode:
-                    tex_print_str("mathspec ");
+                    tex_print_str_len("mathspec ", 9);
+                    break;
             }
             tex_print_mathspec(chr);
             break;
         case fontspec_cmd:
-            /* We don't check for validity here. */
-            tex_print_str("fontspec ");
+            tex_print_str_len("fontspec ", 9);
             tex_print_fontspec(chr);
             break;
         case specificationspec_cmd:
-            /* Mo need now for more details. */
-            tex_print_str("specification ");
+            tex_print_str_len("specification ", 14);
             if (chr) {
                 switch (node_subtype(chr)) {
                     case integer_list_code:
-                        tex_print_str_esc("count");
+                        tex_print_format("%ecount");
                         break;
                     case dimension_list_code:
-                        tex_print_str_esc("dimen");
+                        tex_print_format("%edimen");
                         break;
                     case posit_list_code:
-                        tex_print_str_esc("posit");
+                        tex_print_format("%eposit");
                         break;
                     default:
                         tex_aux_prim_cmd_chr(specification_cmd, node_subtype(chr), 0);
                         break;
                 }
-            } else { 
-                tex_print_str("<unset>");
+            } else {
+                tex_print_str_len("<unset>", 7);
             }
             break;
         case deep_frozen_end_template_cmd:
             /*tex Kind of special: |chr| points to |null_list|. */
-            tex_print_str_esc("endtemplate");
+            tex_print_format("%eendtemplate");
             break;
         case deep_frozen_dont_expand_cmd:
             /*tex Kind of special. */
-            tex_print_str_esc("notexpanded");
+            tex_print_format("%enotexpanded");
             break;
         case deep_frozen_keep_constant_cmd:
             /*tex Kind of special. */
-            tex_print_str_esc("keepconstant");
+            tex_print_format("%ekeepconstant");
             break;
         case internal_box_reference_cmd:
-            tex_print_str_esc("hiddenlocalbox");
+            tex_print_format("%ehiddenlocalbox");
             break;
         default:
             /*tex These are most commands, actually. Todo: local boxes*/
@@ -1030,16 +1074,16 @@ case dimension_reference_cmd:
     }
 }
 
-int tex_primitive_found(const char *name, halfword *cmd, halfword *chr) 
+int tex_primitive_found(const char *name, halfword *cmd, halfword *chr)
 {
-    if (name) { 
+    if (name) {
         strnumber str = tex_maketexstring(name);
-        halfword prm = tex_primitive_lookup(str);
+        halfword prm = tex_primitive_lookup_only(str);
         tex_flush_str(str);
         if (prm != undefined_primitive && get_prim_origin(prm) != no_command) {
             *cmd = get_prim_eq_type(prm);
             *chr = get_prim_equiv(prm);
-            if (*cmd != undefined_cs_cmd) { 
+            if (*cmd != undefined_cs_cmd) {
                 return 1;
             }
         }
@@ -1049,23 +1093,37 @@ int tex_primitive_found(const char *name, halfword *cmd, halfword *chr)
     return 0;
 }
 
-int tex_inhibit_primitive(halfword cmd, halfword chr, int permanent)
+/*tex Engine-facing |chr| values include the command offset; metadata uses the compact index. */
+
+int tex_primitive_index(halfword cmd, halfword chr)
 {
     if (cmd >= first_cmd && cmd <= last_cmd && cmd != undefined_cs_cmd) {
-        if (chr >= 0 && chr <= lmt_primitive_state.prim_data[cmd].subids) {
-            lmt_primitive_state.prim_data[cmd].permissions[chr] = (unsigned char)
-                permanent 
-              ? (primitive_inhibited | primitive_permanent)
-              :  primitive_inhibited;
-            return 1;
-        } 
+        primitive_info *data = &lmt_primitive_state.prim_data[cmd];
+        int index = (int) chr - (int) data->offset;
+        return (index >= 0 && index < data->subids) ? index : -1;
+    }
+    return -1;
+}
+
+int tex_inhibit_primitive(halfword cmd, halfword chr, int permanent)
+{
+    int index = tex_primitive_index(cmd, chr);
+    if (index >= 0 && lmt_primitive_state.prim_data[cmd].permissions) {
+        lmt_primitive_state.prim_data[cmd].permissions[index] = (unsigned char)
+            permanent
+          ? (primitive_inhibited | primitive_permanent)
+          :  primitive_inhibited;
+        return 1;
     }
     return 0;
 }
 
 strnumber tex_primitive_name(halfword cmd, halfword chr)
 {
-    return chr < lmt_primitive_state.prim_data[cmd].subids 
-        ? lmt_primitive_state.prim_data[cmd].names[chr]
-        : null_cs;
+    int index = tex_primitive_index(cmd, chr);
+    if (index >= 0 && lmt_primitive_state.prim_data[cmd].names) {
+        strnumber name = lmt_primitive_state.prim_data[cmd].names[index];
+        return name ? name : null_cs;
+    }
+    return null_cs;
 }

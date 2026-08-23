@@ -19,7 +19,7 @@ extern mp_string  mp_rtsl                   (MP mp, const char *s, size_t l);
 extern mp_string  mp_rts                    (MP mp, const char *s);
 extern mp_string  mp_make_string            (MP mp);
 extern void       mp_append_char            (MP mp, unsigned char c);
-extern void       mp_append_str             (MP mp, const char *s);
+extern void       mp_append_str             (MP mp, const char *s, int l);
 extern void       mp_str_room               (MP mp, int wsize);
 extern void       mp_reset_cur_string       (MP mp);
 extern void       mp_flush_string           (MP mp, mp_string s);
@@ -29,7 +29,8 @@ extern int        mp_str_vs_str             (MP mp, mp_string s, mp_string t);
 extern mp_string  mp_cat                    (MP mp, mp_string a, mp_string b);
 extern mp_string  mp_chop_string            (MP mp, mp_string s, int a, int b);
 
-static inline char *mp_str (MP mp, mp_string ss) { 
+static inline char *mp_str (MP mp, mp_string ss)
+{
     (void) mp; 
     return (char *) ss->str; 
 }

@@ -6,15 +6,15 @@
 # include "lmtoptional.h"
 
 /*
-    This optional is not yet officially supported and mostly serves as playground. One problem with 
-    certificates like this is that one cannot use letsencrypt (and similar free) certificates but 
+    This optional is not yet officially supported and mostly serves as playground. One problem with
+    certificates like this is that one cannot use letsencrypt (and similar free) certificates but
     has to go for expensive, vendor locked in ones. Also, in viewers like acribat root certificates
-    are compiled in so ... in the end it's all not that useful in pdf in the perspective of open 
-    and free software. 
+    are compiled in so ... in the end it's all not that useful in pdf in the perspective of open
+    and free software.
 
-    It tooks a bit of work to get the (in the end not that much) code because searching online gives 
-    confusing and even wrong results. So in the end it came down to looking into openssl and a bit of 
-    trial and error. Therefore the following code is likely to evolve. 
+    It tooks a bit of work to get the (in the end not that much) code because searching online gives
+    confusing and even wrong results. So in the end it came down to looking into openssl and a bit of
+    trial and error. Therefore the following code is likely to evolve.
 */
 
 typedef void * BIO;
@@ -31,36 +31,36 @@ typedef struct openssllib_state_info {
     int padding;
 
     void (*OPENSSL_init_ssl) (
-        int, 
+        int,
         void *
     );
 
     PKCS7 * (*PKCS7_sign) (
         X509          *signcert,
         EVP_PKEY      *pkey,
-        X509         **certs,    
+        X509         **certs,
         BIO           *data,
         unsigned int   flags
     );
 
     int (*PKCS7_final) (
-        PKCS7 *p7, 
-        BIO   *data, 
+        PKCS7 *p7,
+        BIO   *data,
         int    flags
     );
 
     int (*i2d_PKCS7) (
-        BIO            *bp, 
+        PKCS7          *a,
         unsigned char **ppout
     );
 
     int (*i2d_PKCS7_DIGEST) (
-        BIO            *bp, 
+        PKCS7          *a,
         unsigned char **ppout
     );
 
     int (*i2d_PKCS7_bio) (
-        BIO   *bp, 
+        BIO   *bp,
         PKCS7 *a
     );
 
@@ -72,15 +72,15 @@ typedef struct openssllib_state_info {
     );
 
     void (*PKCS7_free) (
-        void *
+        PKCS7 *
     );
 
     void (*X509_free) (
-        void *
+        X509 *
     );
 
     void (*EVP_PKEY_free) (
-        void *
+        EVP_PKEY *
     );
 
     void * (*BIO_new_file) (
@@ -89,72 +89,61 @@ typedef struct openssllib_state_info {
     );
 
     void * (*BIO_new_mem_buf) (
-        const char *data,
-        int         size
+        const void *data,
+        int         len
     );
 
- // int (*BIO_reset) (
- //     void *
- // );
-
     long (*BIO_ctrl) (
-        BIO  *bp, 
-        int   cmd, 
-        long  larg, 
+        BIO  *bp,
+        int   cmd,
+        long  larg,
         void *parg
     );
 
     void (*BIO_free) (
-        void *
+        BIO *
     );
 
     X509 * (*PEM_read_bio_X509) (
         BIO             *bp,
-        X509            **x, 
-        pem_password_cb *cb, 
-        const char       *u  
+        X509            **x,
+        pem_password_cb *cb,
+        const char       *u
     );
-    
+
     EVP_PKEY * (*PEM_read_bio_PrivateKey) (
         BIO              *bp,
-        EVP_PKEY        **x,  
-        pem_password_cb  *cb, 
-        const char       *u   
+        EVP_PKEY        **x,
+        pem_password_cb  *cb,
+        const char       *u
     );
 
     int (*PKCS7_verify) (
-        PKCS7      *p7, 
-        X509       *certs, // stack 
-        X509_STORE *store, 
-        BIO        *indata, 
-        BIO        *out, 
+        PKCS7      *p7,
+        X509       *certs, // stack
+        X509_STORE *store,
+        BIO        *indata,
+        BIO        *out,
         int         flags
     );
 
-    int (*d2i_PKCS7) (
-        PKCS7      **a, 
-        const char **ppin, // constant unsigned char 
-        long         length
+    PKCS7 * (*d2i_PKCS7) (
+        PKCS7               **a,
+        const unsigned char **ppin,
+        long                  length
     );
 
-    int (*d2i_PKCS7_DIGEST) (
-        PKCS7      **a, 
-        const char **ppin, // constant unsigned char 
-        long         length
+    PKCS7 * (*d2i_PKCS7_DIGEST) (
+        PKCS7               **a,
+        const unsigned char **ppin,
+        long                  length
     );
 
- // OPENSSL_STACK (*OPENSSL_sk_new_null) (
- //     void
- // );
- //
- // int (*OPENSSL_sk_push) (
- //     OPENSSL_STACK *st, 
- //     const void    *data
- // );
- //
- // void (*OPENSSL_sk_free) (
- //     OPENSSL_STACK *st
- // );
+    void (*CRYPTO_free) (
+        void       *ptr,
+        const char *file,
+        int         line
+    );
 
 } openssllib_state_info;
 
@@ -178,11 +167,10 @@ static openssllib_state_info openssllib_state = {
     .padding                 = 0,
 
     .OPENSSL_init_ssl        = NULL,
-    .PKCS7_sign              = NULL,   
-    .PKCS7_final             = NULL,   
+    .PKCS7_sign              = NULL,
+    .PKCS7_final             = NULL,
     .i2d_PKCS7               = NULL,
     .i2d_PKCS7_bio           = NULL,
- // .SMIME_write_PKCS7       = NULL,
     .PKCS7_free              = NULL,
     .X509_free               = NULL,
     .EVP_PKEY_free           = NULL,
@@ -195,9 +183,7 @@ static openssllib_state_info openssllib_state = {
     .PKCS7_verify            = NULL,
     .d2i_PKCS7               = NULL,
     .d2i_PKCS7_DIGEST        = NULL,
- // .OPENSSL_sk_new_null     = NULL,
- // .OPENSSL_sk_push         = NULL,
- // .OPENSSL_sk_free         = NULL,
+    .CRYPTO_free             = NULL,
 
 };
 
@@ -217,7 +203,6 @@ static int openssllib_initialize(lua_State * L)
             openssllib_state.PKCS7_final             = lmt_library_find(lib_c, "PKCS7_final");
             openssllib_state.i2d_PKCS7               = lmt_library_find(lib_c, "i2d_PKCS7");
             openssllib_state.i2d_PKCS7_bio           = lmt_library_find(lib_c, "i2d_PKCS7_bio");
-         // openssllib_state.SMIME_write_PKCS7       = lmt_library_find(lib_c, "SMIME_write_PKCS7");
             openssllib_state.PKCS7_free              = lmt_library_find(lib_c, "PKCS7_free");
 
             openssllib_state.X509_free               = lmt_library_find(lib_c, "X509_free");
@@ -232,14 +217,13 @@ static int openssllib_initialize(lua_State * L)
             openssllib_state.PKCS7_verify            = lmt_library_find(lib_c, "PKCS7_verify");
             openssllib_state.d2i_PKCS7               = lmt_library_find(lib_c, "d2i_PKCS7");
             openssllib_state.d2i_PKCS7_DIGEST        = lmt_library_find(lib_c, "d2i_PKCS7_DIGEST");
-
-         // openssllib_state.OPENSSL_sk_new_null     = lmt_library_find(lib_c, "OPENSSL_sk_new_null");
-         // openssllib_state.OPENSSL_sk_push         = lmt_library_find(lib_c, "OPENSSL_sk_push");
-         // openssllib_state.OPENSSL_sk_free         = lmt_library_find(lib_c, "OPENSSL_sk_free");
+            openssllib_state.CRYPTO_free             = lmt_library_find(lib_c, "CRYPTO_free");
 
             openssllib_state.initialized = lmt_library_okay(lib_s) && lmt_library_okay(lib_c);
 
-            openssllib_state.OPENSSL_init_ssl(0, NULL);
+            if (openssllib_state.OPENSSL_init_ssl) {
+                openssllib_state.OPENSSL_init_ssl(0, NULL);
+            }
         }
     }
     lua_pushboolean(L, openssllib_state.initialized);
@@ -274,34 +258,33 @@ static int openssllib_sign(lua_State * L)
     int message = m_all_is_okay;
     if (openssllib_state.initialized) {
         if (lua_type(L, 1) == LUA_TTABLE) {
-            const char *certfile = NULL;
-            const char *datafile = NULL;
-            const char *password = NULL;
-            const char *resultfile = NULL;
-            const char *data = NULL;
+            const char    *certfile   = NULL;
+            const char    *datafile   = NULL;
+            const char    *password   = NULL;
+            const char    *resultfile = NULL;
+            const char    *data       = NULL;
             unsigned char *resultdata = NULL;
             size_t datasize = 0;
-            size_t resultsize = 0;
+            int resultsize = 0;
             if (lua_getfield(L, 1, "certfile")   == LUA_TSTRING) { certfile   = lua_tostring (L, -1);            } lua_pop(L, 1);
             if (lua_getfield(L, 1, "datafile")   == LUA_TSTRING) { datafile   = lua_tostring (L, -1);            } lua_pop(L, 1);
             if (lua_getfield(L, 1, "data")       == LUA_TSTRING) { data       = lua_tolstring(L, -1, &datasize); } lua_pop(L, 1);
             if (lua_getfield(L, 1, "password")   == LUA_TSTRING) { password   = lua_tostring (L, -1);            } lua_pop(L, 1);
             if (lua_getfield(L, 1, "resultfile") == LUA_TSTRING) { resultfile = lua_tostring (L, -1);            } lua_pop(L, 1);
             if (certfile && password && (data || datafile)) {
-                int okay = 0;
-                BIO *input = NULL;
-                BIO *output = NULL;
-                BIO *certificate = NULL;
-                X509 *x509 = NULL;
-                EVP_PKEY *key = NULL;
-                PKCS7 *p7 = NULL;
-                int flags = PKCS7_DETACHED | PKCS7_STREAM | PKCS7_BINARY; /* without PKCS7_STREAM we crash */
-                certificate = openssllib_state.BIO_new_file(certfile, "rb");
+                int       okay        = 0;
+                BIO      *input       = NULL;
+                BIO      *output      = NULL;
+                X509     *x509        = NULL;
+                EVP_PKEY *key         = NULL;
+                PKCS7    *p7          = NULL;
+                int       flags       = PKCS7_DETACHED | PKCS7_STREAM | PKCS7_BINARY;
+                BIO      *certificate = openssllib_state.BIO_new_file(certfile, "rb");
                 if (! certificate) {
                     message = m_invalid_certificate_file;
                     goto DONE;
                 }
-                x509 = openssllib_state.PEM_read_bio_X509(certificate, NULL, NULL, password);
+                x509 = openssllib_state.PEM_read_bio_X509(certificate, NULL, NULL, (void *) (uintptr_t) password);
                 if (! x509) {
                     message = m_invalid_certificate;
                     goto DONE;
@@ -310,14 +293,14 @@ static int openssllib_sign(lua_State * L)
                     message = m_unable_to_reset_file;
                     goto DONE;
                 }
-                key = openssllib_state.PEM_read_bio_PrivateKey(certificate, NULL, NULL, password);
+                key = openssllib_state.PEM_read_bio_PrivateKey(certificate, NULL, NULL, (void *) (uintptr_t) password);
                 if (! key) {
                     message = m_invalid_private_key;
                     goto DONE;
                 }
-                if (datafile) { 
+                if (datafile) {
                     input = openssllib_state.BIO_new_file(datafile, "rb");
-                } else { 
+                } else {
                     input = openssllib_state.BIO_new_mem_buf(data, (int) datasize);
                 }
                 if (! input) {
@@ -330,17 +313,12 @@ static int openssllib_sign(lua_State * L)
                     goto DONE;
                 }
                 openssllib_state.PKCS7_final(p7, input, flags);
-                if (resultfile) { 
+                if (resultfile) {
                     output = openssllib_state.BIO_new_file(resultfile, "wb");
                     if (! output) {
                         message = m_unable_to_open_output_file;
                         goto DONE;
                     }
-                 // if (! (flags & CMS_STREAM) && (BIO_reset(input) < 0)) { // no need to reset 
-                 //     message = m_unable_to_reset_file;
-                 //     goto DONE;
-                 // }
-                 // if (! openssllib_state.SMIME_write_PKCS7(output, p7, input, flags)) {
                     if (! openssllib_state.i2d_PKCS7_bio(output, p7)) {
                         message = m_unable_to_save_signature;
                         goto DONE;
@@ -359,24 +337,29 @@ static int openssllib_sign(lua_State * L)
                 if (okay) {
                     lua_pushboolean(L, 1);
                     if (resultdata && resultsize > 0) {
-                        lua_pushlstring(L, (const char *) resultdata, resultsize);
+                        lua_pushlstring(L, (const char *) resultdata, (size_t) resultsize);
+                        if (openssllib_state.CRYPTO_free) {
+                            openssllib_state.CRYPTO_free(resultdata, __FILE__, __LINE__);
+                        } else {
+                            free(resultdata);
+                        }
                         return 2;
-                    } else { 
+                    } else {
                         return 1;
                     }
                 }
             }
-        } else { 
+        } else {
             message = m_incomplete_specification;
         }
-    } else { 
+    } else {
         message = m_library_is_unitialized;
     }
     lua_pushboolean(L, 0);
-    if (message) { 
+    if (message) {
         lua_pushinteger(L, message);
         return 2;
-    } else { 
+    } else {
         return 1;
     }
 }
@@ -385,47 +368,41 @@ static int openssllib_verify(lua_State * L)
 {
     int message = m_all_is_okay;
     if (openssllib_state.initialized) {
-        const char *certfile = NULL;
-        const char *datafile = NULL;
-        const char *password = NULL;
-        const char *signature = NULL;
-        const char *data = NULL;
-        size_t signaturesize = 0;
-        size_t datasize = 0;
+        const char *certfile      = NULL;
+        const char *datafile      = NULL;
+        const char *password      = NULL;
+        const char *signature     = NULL;
+        const char *data          = NULL;
+        size_t      signaturesize = 0;
+        size_t      datasize      = 0;
         if (lua_getfield(L, 1, "certfile")  == LUA_TSTRING) { certfile  = lua_tostring (L, -1);                 } lua_pop(L, 1);
         if (lua_getfield(L, 1, "datafile")  == LUA_TSTRING) { datafile  = lua_tostring (L, -1);                 } lua_pop(L, 1);
         if (lua_getfield(L, 1, "data")      == LUA_TSTRING) { data      = lua_tolstring(L, -1, &datasize);      } lua_pop(L, 1);
         if (lua_getfield(L, 1, "signature") == LUA_TSTRING) { signature = lua_tolstring(L, -1, &signaturesize); } lua_pop(L, 1);
         if (lua_getfield(L, 1, "password")  == LUA_TSTRING) { password  = lua_tostring (L, -1);                 } lua_pop(L, 1);
-        if (certfile && password && (data || datafile)) {
-            int okay = -1;
-            PKCS7 *p7 = NULL; 
-            BIO *input = NULL; 
-            BIO *certificate = NULL;
-            X509 *x509 = NULL;
-         // OPENSSL_STACK stack = NULL;
-            int flags = PKCS7_NOVERIFY | PKCS7_BINARY;
-            certificate = openssllib_state.BIO_new_file(certfile, "rb");
+        if (certfile && password && (data || datafile) && signature) {
+            int    okay        = -1;
+            PKCS7 *p7          = NULL;
+            BIO   *input       = NULL;
+            X509  *x509        = NULL;
+            int    flags       = PKCS7_NOVERIFY | PKCS7_BINARY;
+            BIO   *certificate = openssllib_state.BIO_new_file(certfile, "rb");
             if (! certificate) {
                 message = m_invalid_certificate_file;
                 goto DONE;
             }
-            x509 = openssllib_state.PEM_read_bio_X509(certificate, NULL, NULL, password);
+            x509 = openssllib_state.PEM_read_bio_X509(certificate, NULL, NULL, (void *) (uintptr_t) password);
             if (! x509) {
                 message = m_invalid_certificate;
                 goto DONE;
             }
-         // stack = openssllib_state.OPENSSL_sk_new_null();
-         // if (! stack) { 
-         //     message = m_invalid_certificate;
-         //     goto DONE;
-         // }
-         // openssllib_state.OPENSSL_sk_push(stack, x509);
-            if (! openssllib_state.d2i_PKCS7(&p7, &signature, (long) signaturesize)) {
+            const unsigned char *p = (const unsigned char *) signature;
+            p7 = openssllib_state.d2i_PKCS7(NULL, &p, (long) signaturesize);
+            if (! p7) {
                 message = m_invalid_signature;
                 goto DONE;
             }
-            if (datafile) { 
+            if (datafile) {
                 input = openssllib_state.BIO_new_file(datafile, "rb");
             } else {
                 input = openssllib_state.BIO_new_mem_buf(data, (int) datasize);
@@ -434,38 +411,34 @@ static int openssllib_verify(lua_State * L)
                 message = m_invalid_data_file;
                 goto DONE;
             }
-//            okay = openssllib_state.PKCS7_verify(p7, stack, NULL, input, NULL, flags);
             okay = openssllib_state.PKCS7_verify(p7, NULL, NULL, input, NULL, flags);
           DONE:
             if (certificate) { openssllib_state.BIO_free(certificate);  }
             if (x509)        { openssllib_state.X509_free(x509);        }
             if (p7)          { openssllib_state.PKCS7_free(p7);         }
             if (input)       { openssllib_state.BIO_free(input);        }
-         // if (stack)       { openssllib_state.OPENSSL_sk_free(stack); }
             if (okay > 0) {
                 lua_pushboolean(L, okay);
                 return 1;
-            } else { 
+            } else {
                 message = m_invalid_signature;
             }
         }
     }
     lua_pushboolean(L, 0);
-    if (message) { 
+    if (message) {
         lua_pushinteger(L, message);
         return 2;
-    } else { 
+    } else {
         return 1;
     }
-    return 1;
 }
 
 static int openssllib_getversion(lua_State * L)
 {
     if (openssllib_state.initialized) {
-        /* todo, if ever */
         lua_pushinteger(L, 1);
-    } else { 
+    } else {
         lua_pushinteger(L, 0);
     }
     return 1;

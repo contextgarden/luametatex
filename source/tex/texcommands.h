@@ -377,8 +377,17 @@ typedef enum tex_command_code {
 # define is_tolerant_cmd(cmd)       (cmd == tolerant_call_cmd || cmd == tolerant_protected_call_cmd || cmd == tolerant_semi_protected_call_cmd)
 
 # define is_referenced_cmd(cmd)     (cmd >= call_cmd)
-# define is_nodebased_cmd(cmd)      (cmd >= gluespec_cmd && cmd <= specificationspec_cmd)
-# define is_constant_cmd(cmd)       ((cmd >= integer_cmd && cmd <= gluespec_cmd) || cmd == constant_call_cmd)
+# define is_constant_cmd(cmd)       ((cmd >= integer_cmd && cmd <= mugluespec_cmd) || cmd == constant_call_cmd)
+
+static inline int is_nodebased_cmd(halfword cmd)
+{
+    return
+        cmd == gluespec_cmd
+     || cmd == mugluespec_cmd
+     || cmd == mathspec_cmd
+     || cmd == fontspec_cmd
+     || cmd == specificationspec_cmd;
+}
 
 /*tex Once these were different numbers, no series (see archive): */
 
@@ -519,6 +528,7 @@ typedef enum convert_codes {
     detokenized_code,         /*tex command code for |\detokenized| */
     detokened_code,           /*tex command code for |\detokened| */
     roman_numeral_code,       /*tex command code for |\romannumeral| */
+    roman_numerical_code,     /*tex command code for |\romannumerical| */
     meaning_code,             /*tex command code for |\meaning| */
     meaning_full_code,        /*tex command code for |\meaningfull| */
     meaning_less_code,        /*tex command code for |\meaningless| */
@@ -539,7 +549,7 @@ typedef enum convert_codes {
 extern const unsigned char some_convert_classification[font_identifier_code+1];
 
 # define first_convert_code number_code
-# define last_convert_code  luatex_banner_code
+# define last_convert_code  font_identifier_code
 
 /*tex
     At some point we might make |token_input_code| behave like |tex_token_input_code| and get rid
@@ -601,12 +611,20 @@ typedef enum some_item_codes {
     font_char_ic_code,             /*tex |\fontcharic| */
     font_char_ta_code,             /*tex |\fontcharta| */
     font_char_ba_code,             /*tex |\fontcharba| */
+    font_char_rt_code,             /*tex |\fontcharrt| */
+    font_char_rb_code,             /*tex |\fontcharrb| */
+    font_char_lt_code,             /*tex |\fontcharlt| */
+    font_char_lb_code,             /*tex |\fontcharlb| */
     scaled_font_char_wd_code,      /*tex |\scaledfontcharwd| */
     scaled_font_char_ht_code,      /*tex |\scaledfontcharht| */
     scaled_font_char_dp_code,      /*tex |\scaledfontchardp| */
     scaled_font_char_ic_code,      /*tex |\scaledfontcharic| */
     scaled_font_char_ta_code,      /*tex |\scaledfontcharta| */
     scaled_font_char_ba_code,      /*tex |\scaledfontcharba| */
+    scaled_font_char_rt_code,      /*tex |\scaledfontcharrt| */
+    scaled_font_char_rb_code,      /*tex |\scaledfontcharrb| */
+    scaled_font_char_lt_code,      /*tex |\scaledfontcharlt| */
+    scaled_font_char_lb_code,      /*tex |\scaledfontcharlb| */
     font_spec_id_code,             /*tex |\fontspecid| */
     font_spec_scale_code,          /*tex |\fontspecscale| */
     font_spec_xscale_code,         /*tex |\fontspecxscale| */
@@ -616,6 +634,8 @@ typedef enum some_item_codes {
     font_size_code,                /*tex |\fontsize| */
     font_math_control_code,        /*tex |\fontmathcontrol| */
     font_text_control_code,        /*tex |\fonttextcontrol| */
+    text_spacing_factor_code,      /*tex |\textspacingfactor| */
+    text_spacing_penalty_code,     /*tex |\textspacingpenalty| */
     math_scale_code,               /*tex |\mathscale| */
     math_style_code,               /*tex |\mathstyle| */
     math_main_style_code,          /*tex |\mathmainstyle| */
@@ -698,7 +718,7 @@ typedef enum some_item_codes {
 
 extern const unsigned char some_item_classification[current_alignment_tabskip_code + 1];
 
-# define last_some_item_code last_page_extra_code
+# define last_some_item_code  current_alignment_tabskip_code
 
 typedef enum catcode_table_codes {
     save_cat_code_table_code,
@@ -943,7 +963,7 @@ typedef enum begin_group_codes {
     math_simple_group_code,
 } begin_group_codes;
 
-# define last_begin_group_code also_simple_group_code
+# define last_begin_group_code math_simple_group_code
 
 typedef enum end_job_codes {
     end_code,
@@ -1012,7 +1032,7 @@ typedef enum prefix_codes {
     outer_code,
 } prefix_codes;
 
-# define last_prefix_code enforced_code
+# define last_prefix_code outer_code
 
 typedef enum combine_toks_codes {
     expanded_toks_code,
@@ -1036,7 +1056,7 @@ typedef enum cs_name_codes {
     future_cs_name_code,
 } cs_name_codes;
 
-# define last_cs_name_code begin_cs_name_code
+# define last_cs_name_code future_cs_name_code
 
 typedef enum def_codes {
     expanded_def_code,
@@ -1202,6 +1222,7 @@ typedef enum local_box_codes {
 
 # define first_local_box_code local_left_box_code
 # define last_local_box_code  local_middle_box_code
+# define last_local_box_token_code local_reset_boxes_code
 
 typedef enum local_box_options {
     local_box_par_option    = 0x01,
@@ -1209,6 +1230,7 @@ typedef enum local_box_options {
     local_box_keep_option   = 0x04,
     local_box_always_option = 0x08,
     local_box_move_option   = 0x10,
+    local_box_retain_option = 0x20,
 } local_box_options;
 
 typedef enum skip_codes {
@@ -1230,6 +1252,7 @@ typedef enum charcode_codes {
     lccode_charcode,
     uccode_charcode,
     sfcode_charcode,
+    spcode_charcode,
     hccode_charcode,
     hmcode_charcode,
     amcode_charcode,
@@ -1372,7 +1395,7 @@ typedef enum kern_codes {
     non_zero_width_kern_code, /* maybe */
 } kern_codes;
 
-# define last_kern_code normal_kern_code
+# define last_kern_code v_kern_code
 
 typedef enum penalty_codes {
     normal_penalty_code,

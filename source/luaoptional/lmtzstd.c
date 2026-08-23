@@ -6,20 +6,19 @@
 # include "lmtoptional.h"
 
 # define ZSTD_DEFAULTCLEVEL 3
+# define ZSTD_CONTENTSIZE_UNKNOWN ((size_t)-1)
+# define ZSTD_CONTENTSIZE_ERROR   ((size_t)-2)
 
 typedef struct zstdlib_state_info {
 
     int initialized;
     int padding;
 
-    size_t      (*ZSTD_compressBound)           (size_t srcSize);
-    size_t      (*ZSTD_getFrameContentSize)     (const void *, size_t);
-    size_t      (*ZSTD_compress)                (void *dst, size_t dstCapacity, const void *src, size_t srcSize, int compressionLevel);
-    size_t      (*ZSTD_decompress)              (void *dst, size_t dstCapacity, const void *src, size_t compressedSize);
- /* int         (*ZSTD_minCLevel)               (void);        */
- /* int         (*ZSTD_maxCLevel)               (void);        */
- /* unsigned    (*ZSTD_isError)                 (size_t code); */
- /* const char *(*ZSTD_getErrorName)            (size_t code); */
+    size_t   (*ZSTD_compressBound)       (size_t srcSize);
+    size_t   (*ZSTD_getFrameContentSize) (const void *, size_t);
+    size_t   (*ZSTD_compress)            (void *dst, size_t dstCapacity, const void *src, size_t srcSize, int compressionLevel);
+    size_t   (*ZSTD_decompress)          (void *dst, size_t dstCapacity, const void *src, size_t compressedSize);
+    unsigned (*ZSTD_isError)             (size_t code);
 
 } zstdlib_state_info;
 
@@ -32,52 +31,56 @@ static zstdlib_state_info zstdlib_state = {
     .ZSTD_getFrameContentSize = NULL,
     .ZSTD_compress            = NULL,
     .ZSTD_decompress          = NULL,
- /* .ZSTD_minCLevel           = NULL, */
- /* .ZSTD_maxCLevel           = NULL, */
- /* .ZSTD_isError             = NULL, */
- /* .ZSTD_getErrorName        = NULL, */
+    .ZSTD_isError             = NULL,
 
 };
 
 static int zstdlib_compress(lua_State *L)
 {
     if (zstdlib_state.initialized) {
-        size_t sourcesize = 0;
-        const char *source = luaL_checklstring(L, 1, &sourcesize);
-        int level = lmt_optinteger(L, 2, ZSTD_DEFAULTCLEVEL);
-        size_t targetsize = zstdlib_state.ZSTD_compressBound(sourcesize);
-        luaL_Buffer buffer;
-        char *target = luaL_buffinitsize(L, &buffer, targetsize);
-        size_t result = zstdlib_state.ZSTD_compress(target, targetsize, source, sourcesize, level);
-        if (result > 0) {
-            luaL_pushresultsize(&buffer, result);
-        } else {
-            lua_pushnil(L);
+        size_t      sourcesize = 0;
+        const char *source     = luaL_checklstring(L, 1, &sourcesize);
+        int         level      = lmt_optinteger(L, 2, ZSTD_DEFAULTCLEVEL);
+        if (source) {
+            size_t targetsize = zstdlib_state.ZSTD_compressBound(sourcesize);
+            if (!zstdlib_state.ZSTD_isError(targetsize)) {
+                luaL_Buffer buffer;
+                char *target = luaL_buffinitsize(L, &buffer, targetsize);
+                size_t result = zstdlib_state.ZSTD_compress(target, targetsize, source, sourcesize, level);
+                if (!zstdlib_state.ZSTD_isError(result)) {
+                    luaL_pushresultsize(&buffer, result);
+                    return 1;
+                }
+            }
         }
-        return 1;
-    } else {
-        return 0;
     }
+    lua_pushnil(L);
+    return 1;
 }
 
 static int zstdlib_decompress(lua_State *L)
 {
     if (zstdlib_state.initialized) {
-        size_t sourcesize = 0;
-        const char *source = luaL_checklstring(L, 1, &sourcesize);
-        size_t targetsize = zstdlib_state.ZSTD_getFrameContentSize(source, sourcesize);
-        luaL_Buffer buffer;
-        char *target = luaL_buffinitsize(L, &buffer, targetsize);
-        size_t result = zstdlib_state.ZSTD_decompress(target, targetsize, source, sourcesize);
-        if (result > 0) {
-            luaL_pushresultsize(&buffer, result);
-        } else {
-            lua_pushnil(L);
+        size_t      sourcesize = 0;
+        const char *source     = luaL_checklstring(L, 1, &sourcesize);
+        if (source) {
+            size_t targetsize = zstdlib_state.ZSTD_getFrameContentSize(source, sourcesize);
+            /* Check that targetsize is valid and not a sentinel error/unknown code */
+            if (targetsize != ZSTD_CONTENTSIZE_UNKNOWN &&
+                targetsize != ZSTD_CONTENTSIZE_ERROR &&
+                ! zstdlib_state.ZSTD_isError(targetsize)) {
+                luaL_Buffer buffer;
+                char *target = luaL_buffinitsize(L, &buffer, targetsize);
+                size_t result = zstdlib_state.ZSTD_decompress(target, targetsize, source, sourcesize);
+                if (! zstdlib_state.ZSTD_isError(result)) {
+                    luaL_pushresultsize(&buffer, result);
+                    return 1;
+                }
+            }
         }
-        return 1;
-    } else {
-        return 0;
     }
+    lua_pushnil(L);
+    return 1;
 }
 
 static int zstdlib_initialize(lua_State *L)
@@ -92,10 +95,7 @@ static int zstdlib_initialize(lua_State *L)
             zstdlib_state.ZSTD_getFrameContentSize = lmt_library_find(lib, "ZSTD_getFrameContentSize");
             zstdlib_state.ZSTD_compress            = lmt_library_find(lib, "ZSTD_compress");
             zstdlib_state.ZSTD_decompress          = lmt_library_find(lib, "ZSTD_decompress");
-         /* zstdlib_state.ZSTD_minCLevel           = lmt_library_find(lib, "ZSTD_minCLevel"); */
-         /* zstdlib_state.ZSTD_maxCLevel           = lmt_library_find(lib, "ZSTD_maxCLevel"); */
-         /* zstdlib_state.ZSTD_isError             = lmt_library_find(lib, "ZSTD_isError"); */
-         /* zstdlib_state.ZSTD_getErrorName        = lmt_library_find(lib, "ZSTD_getErrorName"); */
+            zstdlib_state.ZSTD_isError             = lmt_library_find(lib, "ZSTD_isError");
 
             zstdlib_state.initialized = lmt_library_okay(lib);
         }

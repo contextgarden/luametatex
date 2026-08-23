@@ -323,10 +323,8 @@ typedef struct curllib_state_info {
 } curllib_state_info;
 
 static curllib_state_info curllib_state = {
-
     .initialized        = 0,
     .padding            = 0,
-
     .curl_version       = NULL,
     .curl_free          = NULL,
     .curl_easy_init     = NULL,
@@ -336,7 +334,6 @@ static curllib_state_info curllib_state = {
     .curl_easy_escape   = NULL,
     .curl_easy_unescape = NULL,
     .curl_easy_strerror = NULL,
-
 };
 
 static int curllib_initialize(lua_State * L)
@@ -374,57 +371,18 @@ static size_t curllib_write_cb(char *data, size_t n, size_t l, void *b)
     return n * l;
 }
 
-// typedef struct read_data { 
-//     union {     
-//         char       *data;
-//         const char *str;
-//     };
-//     size_t   size;
-//     size_t   position;
-// } read_data;
-
-// static size_t curllib_read_cb(char *data, size_t n, size_t l, void *b) /* size == 1 */
-// {
-//     read_data *d = (read_data *) b;
-//     /* untested */
-//     if (! d->data || d->position >= d->size) { 
-//         return 0;
-//     } else { 
-//         if (d->position + l > d->size) {
-//             l = d->size - d->position; 
-//         }
-//         data = d->data + d->position;
-//         d->position = d->position + l;
-//         return l;
-//     }
-// }
-
-/*tex
-    Always assume a table as we need to sanitize keys anyway. A former variant also accepted strings
-    but why have more code than needed.
-*/
-
 static int curllib_fetch(lua_State * L)
 {
     if (curllib_state.initialized) {
         if (lua_type(L, 1) == LUA_TTABLE) {
             curl_instance *curl = curllib_state.curl_easy_init();
-            if (curl)  {
-                int result = 0; 
-                luaL_Buffer writedata;
-             // struct read_data readdata = { 
-             //     .data     = NULL, 
-             //     .size     = 0,
-             //     .position = 0,
-             // }; 
-             // readdata.str = lua_type(L, 2) == LUA_TSTRING ? lua_tolstring(L, 2, &readdata.size) : NULL;
-                luaL_buffinit(L, &writedata);
-                curllib_state.curl_easy_setopt(curl, curl_function_base + curl_option_writefunction, &curllib_write_cb);
-                curllib_state.curl_easy_setopt(curl, curl_object_base + curl_option_writedata, &writedata);
-             // if (readdata.size) {
-             //     curllib_state.curl_easy_setopt(curl, curl_function_base + curl_option_readfunction, &curllib_read_cb);
-             //     curllib_state.curl_easy_setopt(curl, curl_object_base + curl_option_readdata, &readdata);
-             // }
+            if (curl) {
+                int result = 0;
+                /*tex
+                    We process the table options before initializing luaL_Buffer because luaL_Buffer
+                    uses the Lua stack, so running lua_next while a buffer is active corrupts stack
+                    indices!
+                */
                 lua_pushnil(L);  /* first key */
                 while (lua_next(L, 1) != 0) {
                     if (lua_type(L, -2) == LUA_TNUMBER) {
@@ -434,35 +392,36 @@ static int curllib_fetch(lua_State * L)
                                 case curl_string:
                                     if (lua_type(L, -1) == LUA_TSTRING) {
                                         curllib_state.curl_easy_setopt(curl, curl_string_base + o, lua_tostring(L, -1));
-                                    } else {
-                                     // return luaL_error(L, "curl option %d must be a string", o);
                                     }
                                     break;
                                 case curl_integer:
                                     switch (lua_type(L, -1)) {
                                         case LUA_TNUMBER:
-                                            curllib_state.curl_easy_setopt(curl, curl_integer_base + o, lua_tointeger(L, -1));
+                                            /* Explicit long cast for vararg ABI safety */
+                                            curllib_state.curl_easy_setopt(curl, curl_integer_base + o, (long) lua_tointeger(L, -1));
                                             break;
                                         case LUA_TBOOLEAN:
-                                            curllib_state.curl_easy_setopt(curl, curl_integer_base + o, lua_toboolean(L, -1));
+                                            curllib_state.curl_easy_setopt(curl, curl_integer_base + o, (long) lua_toboolean(L, -1));
                                             break;
                                         default:
-                                         // return luaL_error(L, "curl option %d must be a number of boolean", o);
                                             break;
                                     }
                                     break;
                             }
-                        } else {
-                         // return luaL_error(L, "curl option %d is invalid", o);
                         }
-                    } else {
-                     // return luaL_error(L, "curl option id should en a number");
                     }
-                    lua_pop(L, 1); /* removes 'value' and keeps 'key' for next iteration */
+                    /* removes 'value' and keeps 'key' for next iteration */
+                    lua_pop(L, 1);
                 }
+                /*tex
+                    Initialize buffer safely after all |lua_next| operations are completed.
+                */
+                luaL_Buffer writedata;
+                luaL_buffinit(L, &writedata);
+                curllib_state.curl_easy_setopt(curl, curl_function_base + curl_option_writefunction, &curllib_write_cb);
+                curllib_state.curl_easy_setopt(curl, curl_object_base   + curl_option_writedata,     &writedata);
                 result = curllib_state.curl_easy_perform(curl);
                 if (result) {
-                    /* can crash on bad specificications */
                     const char *error = curllib_state.curl_easy_strerror(result);
                     lua_pushboolean(L, 0);
                     lua_pushstring(L, error);
@@ -484,15 +443,18 @@ static int curllib_escape(lua_State * L)
     if (curllib_state.initialized) {
         curl_instance *curl = curllib_state.curl_easy_init();
         if (curl) {
-            size_t length = 0;
-            const char * url = lua_tolstring(L, 1, &length);
-            char *s = curllib_state.curl_easy_escape(curl, url, (int) length);
+            size_t      length = 0;
+            const char *url    = lua_tolstring(L, 1, &length);
+            char       *s      = curllib_state.curl_easy_escape(curl, url, (int) length);
+            int         ret    = 0;
             if (s) {
-                lua_pushstring(L,(const char *) s);
+                lua_pushstring(L, (const char *) s);
                 curllib_state.curl_free(s);
-                curllib_state.curl_easy_cleanup(curl);
-                return 1;
+                ret = 1;
             }
+            /* FIX 2: Always cleanup the curl instance, regardless of escape success */
+            curllib_state.curl_easy_cleanup(curl);
+            return ret;
         }
     }
     return 0;
@@ -503,16 +465,21 @@ static int curllib_unescape(lua_State * L)
     if (curllib_state.initialized) {
         curl_instance *curl = curllib_state.curl_easy_init();
         if (curl) {
-            size_t length = 0;
-            const char *url = lua_tolstring(L, 1, &length);
-            int l = 0;
-            char *s = curllib_state.curl_easy_unescape(curl, url, (int) length, &l);
+            size_t      length = 0;
+            const char *url    = lua_tolstring(L, 1, &length);
+            int         l      = 0;
+            char       *s      = curllib_state.curl_easy_unescape(curl, url, (int) length, &l);
+            int         ret    = 0;
             if (s) {
                 lua_pushlstring(L, s, l);
                 curllib_state.curl_free(s);
-                curllib_state.curl_easy_cleanup(curl);
-                return 1;
+                ret = 1;
             }
+            /*tex
+                We need to always cleanup the curl instance, regardless of unescape success.
+            */
+            curllib_state.curl_easy_cleanup(curl);
+            return ret;
         }
     }
     return 0;

@@ -5,12 +5,13 @@
 # ifndef LMT_UTILITIES_UNISTRING_H
 # define LMT_UTILITIES_UNISTRING_H
 
-extern unsigned char *aux_uni2str      (unsigned);
-extern unsigned       aux_str2uni      (const unsigned char *text);
-extern unsigned       aux_str2uni_len  (const unsigned char *text, int *len);
-extern char          *aux_uni2string   (char *utf8_text, unsigned ch);
-extern unsigned       aux_splitutf2uni (unsigned int *ubuf, const char *utf8buf);
-extern size_t         aux_utf8len      (const char *text, size_t size);
+extern unsigned char *aux_uni2str         (unsigned unic);
+extern void           aux_uni2str_callback(unsigned unic, void (*handle) (int));
+extern unsigned       aux_str2uni         (const unsigned char *text);
+extern unsigned       aux_str2uni_len     (const unsigned char *text, int *len);
+extern char          *aux_uni2string      (char *utf8_text, unsigned ch);
+extern unsigned       aux_splitutf2uni    (unsigned int *ubuf, const char *utf8buf);
+extern size_t         aux_utf8len         (const char *text, size_t size);
 
 # define is_utf8_follow(a)    (a >= 0x80 && a < 0xC0)
 # define utf8_size(a)         (a > 0xFFFF ? 4 : (a > 0x7FF ? 3 : (a > 0x7F ? 2 : 1)))

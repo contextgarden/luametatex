@@ -39,23 +39,34 @@ static inline halfword tex_aux_push_dir_node(halfword p, halfword d)
 
 static inline halfword tex_aux_pop_dir_node(halfword p)
 {
-    halfword n = node_next(p);
-    tex_flush_node(p); /* they can have attributes */
-    return n;
+    if (p) {
+        halfword n = node_next(p);
+        tex_flush_node(p); /* they can have attributes */
+        return n;
+    } else {
+        return null;
+    }
 }
 
 halfword tex_update_dir_state(halfword p, halfword initial)
 {
-    if (node_subtype(p) == normal_dir_subtype) {
+    if (! p) {
+        lmt_linebreak_state.dir_ptr = null;
+        return initial;
+    } else if (node_subtype(p) == normal_dir_subtype) {
         lmt_linebreak_state.dir_ptr = tex_aux_push_dir_node(lmt_linebreak_state.dir_ptr, p);
         return dir_direction(p);
-    } else {
+    } else if (lmt_linebreak_state.dir_ptr && dir_direction(lmt_linebreak_state.dir_ptr) == dir_direction(p)) {
         lmt_linebreak_state.dir_ptr = tex_aux_pop_dir_node(lmt_linebreak_state.dir_ptr);
         if (lmt_linebreak_state.dir_ptr) {
             return dir_direction(lmt_linebreak_state.dir_ptr);
         } else {
             return initial;
         }
+    } else if (lmt_linebreak_state.dir_ptr) {
+        return dir_direction(lmt_linebreak_state.dir_ptr);
+    } else {
+        return initial;
     }
 }
 
@@ -71,8 +82,9 @@ halfword tex_sanitize_dir_state(halfword first, halfword last, halfword initial)
             if (node_subtype(e) == normal_dir_subtype) {
                 lmt_linebreak_state.dir_ptr = tex_aux_push_dir_node(lmt_linebreak_state.dir_ptr, e);
             } else if (lmt_linebreak_state.dir_ptr && dir_direction(lmt_linebreak_state.dir_ptr) == dir_direction(e)) {
-                /*tex A bit strange test. */
                 lmt_linebreak_state.dir_ptr = tex_aux_pop_dir_node(lmt_linebreak_state.dir_ptr);
+            } else {
+                /*tex Go for the next slice. */
             }
         }
     }
@@ -144,7 +156,8 @@ void tex_initialize_directions(void)
 
 void tex_cleanup_directions(void)
 {
-    tex_flush_node(lmt_dir_state.text_dir_ptr); /* they can have attributes */
+    tex_flush_node_list(lmt_dir_state.text_dir_ptr); /* they can have attributes */
+    lmt_dir_state.text_dir_ptr = null;
 }
 
 halfword tex_new_dir(quarterword subtype, halfword direction)
@@ -157,6 +170,9 @@ halfword tex_new_dir(quarterword subtype, halfword direction)
 
 void tex_push_text_dir_ptr(halfword val)
 {
+    if (! lmt_dir_state.text_dir_ptr) {
+        return;
+    }
     if (tracing_direction_lists) {
         tex_begin_diagnostic();
         tex_print_format("%l[direction: push text, level %i, before]", cur_level);
@@ -183,6 +199,9 @@ void tex_push_text_dir_ptr(halfword val)
 void tex_pop_text_dir_ptr(void)
 {
     halfword text_dir_ptr = lmt_dir_state.text_dir_ptr;
+    if (! text_dir_ptr) {
+        return;
+    }
     if (tracing_direction_lists) {
         tex_begin_diagnostic();
         tex_print_format("%l[direction: pop text, level %i, before]", cur_level);
@@ -219,41 +238,53 @@ void tex_set_par_dir(halfword d)
 
 void tex_set_text_dir(halfword d)
 {
-    if (valid_direction(d)) {
+	/*tex A pointer test ha sbeen added! */ 
+    if (valid_direction(d) && lmt_dir_state.text_dir_ptr) {
         tex_inject_text_or_line_dir(d, 0);
         update_tex_text_direction(d);
         update_tex_internal_dir_state(internal_dir_state_par + 1);
     }
 }
 
-void tex_set_line_dir(halfword d)
+void tex_set_line_dir(halfword d) /* same as previous */
 {
-    if (valid_direction(d)) {
+	/*tex A pointer test ha sbeen added! */ 
+    if (valid_direction(d) && lmt_dir_state.text_dir_ptr) {
         tex_inject_text_or_line_dir(d, 1);
         update_tex_text_direction(d);
         update_tex_internal_dir_state(internal_dir_state_par + 1);
     }
 }
 
-void tex_set_box_dir(halfword b, singleword d)
+void tex_set_box_dir(halfword b, halfword d)
 {
-    if (valid_direction(d)) {
+    if (valid_direction(d) && box_register(b)) {
         box_direction(box_register(b)) = (singleword) d;
     }
 }
 
+halfword tex_get_box_dir(halfword b)
+{
+    return box_register(b) ? checked_direction_value(box_direction(box_register(b))) : 0;
+}
+
 halfword tex_get_direction_from_list(halfword l)
 {
+    halfword d = dir_lefttoright;
     while (l) {
         switch (node_type(l)) {
             case dir_node:
-                return dir_direction(l);
+                d = dir_direction(l);
+                goto DONE;
             case hlist_node:
             case vlist_node:
-                return box_direction(l);
+                d = box_direction(l);
+                goto DONE;
             default:
                 l = node_next(l);
         }
     }
-    return dir_lefttoright;
+  DONE:
+    /* We can have an unset box direction so this is consistent with elsewhere! */
+    return d == dir_righttoleft ? dir_righttoleft : dir_lefttoright;
 }

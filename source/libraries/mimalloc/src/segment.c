@@ -92,9 +92,7 @@ size_t _mi_commit_mask_committed_size(const mi_commit_mask_t* cm, size_t total) 
       count += MI_COMMIT_MASK_FIELD_BITS;
     }
     else {
-      for (; mask != 0; mask >>= 1) {  // todo: use popcount
-        if ((mask&1)!=0) count++;
-      }
+      count += mi_popcount(mask);
     }
   }
   // we use total since for huge segments each commit bit may represent a larger size
@@ -275,13 +273,23 @@ static bool mi_segment_is_valid(mi_segment_t* segment, mi_segments_tld_t* tld) {
   mi_assert_internal(segment->abandoned <= segment->used);
   mi_assert_internal(segment->thread_id == 0 || segment->thread_id == _mi_thread_id());
   mi_assert_internal(mi_commit_mask_all_set(&segment->commit_mask, &segment->purge_mask)); // can only decommit committed blocks
+
+  // [specbot S-NEW-1] segment must have at least one slice (L1, O(1))
+  mi_assert_internal(segment->segment_slices > 0);
+  // [specbot S-NEW-2] info slices must leave room for at least one data slice (L1, O(1))
+  mi_assert_internal(segment->segment_info_slices < segment->segment_slices);
+  // [specbot S-NEW-3] slice_entries must not exceed array bounds (L1, O(1))
+  mi_assert_internal(segment->slice_entries <= MI_SLICES_PER_SEGMENT);
+
   //mi_assert_internal(segment->segment_info_size % MI_SEGMENT_SLICE_SIZE == 0);
   mi_slice_t* slice = &segment->slices[0];
   const mi_slice_t* end = mi_segment_slices_end(segment);
   size_t used_count = 0;
+  size_t total_slice_count = 0;
   mi_span_queue_t* sq;
   while(slice < end) {
     mi_assert_internal(slice->slice_count > 0);
+    total_slice_count += slice->slice_count;
     mi_assert_internal(slice->slice_offset == 0);
     size_t index = mi_slice_index(slice);
     size_t maxindex = (index + slice->slice_count >= segment->slice_entries ? segment->slice_entries : index + slice->slice_count) - 1;
@@ -316,6 +324,8 @@ static bool mi_segment_is_valid(mi_segment_t* segment, mi_segments_tld_t* tld) {
     slice = &segment->slices[maxindex+1];
   }
   mi_assert_internal(slice == end);
+  // [specbot S-NEW-5] Total slice counts must sum to segment_slices (L2, O(n))
+  mi_assert_internal(total_slice_count == segment->segment_slices);
   mi_assert_internal(used_count == segment->used + 1);
   return true;
 }
@@ -693,7 +703,7 @@ static mi_slice_t* mi_segment_span_free_coalesce(mi_slice_t* slice, mi_segments_
   }
 
   // otherwise coalesce the span and add to the free span queues
-  const bool is_abandoned = (segment->thread_id == 0); // mi_segment_is_abandoned(segment);
+  const bool is_abandoned = mi_segment_is_abandoned(segment);
   size_t slice_count = slice->slice_count;
   mi_slice_t* next = slice + slice->slice_count;
   mi_assert_internal(next <= mi_segment_slices_end(segment));
@@ -863,6 +873,11 @@ static mi_segment_t* mi_segment_os_alloc( size_t required, size_t page_alignment
   if (memid.initially_committed) {
     mi_commit_mask_create_full(&commit_mask);
   }
+  else if (required > 0) {
+    // huge segments must be fully committed
+    _mi_arena_free(segment, segment_size, 0, memid);
+    return NULL;
+  }
   else {
     // at least commit the info slices
     const size_t commit_needed = _mi_divide_up((*pinfo_slices)*MI_SEGMENT_SLICE_SIZE, MI_COMMIT_SIZE);
@@ -908,22 +923,22 @@ static mi_segment_t* mi_segment_alloc(size_t required, size_t page_alignment, mi
                             tld->peak_count < (size_t)mi_option_get(mi_option_eager_commit_delay));
   const bool eager = !eager_delay && mi_option_is_enabled(mi_option_eager_commit);
   bool commit = eager || (required > 0);
-
+  
   // Allocate the segment from the OS
   mi_segment_t* segment = mi_segment_os_alloc(required, page_alignment, eager_delay, req_arena_id,
                                               &segment_slices, &info_slices, commit, tld);
   if (segment == NULL) return NULL;
 
   // zero the segment info? -- not always needed as it may be zero initialized from the OS
+  const size_t slice_entries = (segment_slices > MI_SLICES_PER_SEGMENT ? MI_SLICES_PER_SEGMENT : segment_slices);
   if (!segment->memid.initially_zero) {
     ptrdiff_t ofs    = offsetof(mi_segment_t, next);
     size_t    prefix = offsetof(mi_segment_t, slices) - ofs;
-    size_t    zsize  = prefix + (sizeof(mi_slice_t) * (segment_slices + 1)); // one more
+    size_t    zsize  = prefix + (sizeof(mi_slice_t) * (slice_entries + 1)); // one more
     _mi_memzero((uint8_t*)segment + ofs, zsize);
   }
 
   // initialize the rest of the segment info
-  const size_t slice_entries = (segment_slices > MI_SLICES_PER_SEGMENT ? MI_SLICES_PER_SEGMENT : segment_slices);
   segment->segment_slices = segment_slices;
   segment->segment_info_slices = info_slices;
   segment->thread_id = _mi_thread_id();
@@ -1683,6 +1698,7 @@ static bool mi_segment_visit_page(mi_page_t* page, bool visit_blocks, mi_block_v
   _mi_heap_area_init(&area, page);
   if (!visitor(NULL, &area, NULL, area.block_size, arg)) return false;
   if (visit_blocks) {
+    _mi_page_free_collect(page,true); // collect so the used count is accurate
     return _mi_heap_area_visit_blocks(&area, page, visitor, arg);
   }
   else {

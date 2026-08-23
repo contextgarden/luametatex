@@ -31,20 +31,27 @@ typedef struct bytecode {
 
 static bytecode *lmt_bytecode_registers = NULL;
 
+static int lmt_undump_register_int(dumpstream f, int *value)
+{
+    return undump_items(f, value, sizeof *value, 1) == 1;
+}
+
 void lmt_dump_registers(dumpstream f)
 {
     dump_int(f, lmt_lua_state.version_number);
     dump_int(f, lmt_lua_state.release_number);
     dump_int(f, lmt_lua_state.integer_size);
     dump_int(f, lmt_lua_state.bytecode_max);
+    int n = 0;
     if (lmt_bytecode_registers) {
-        int n = 0;
         for (int k = 0; k <= lmt_lua_state.bytecode_max; k++) {
             if (lmt_bytecode_registers[k].size != 0) {
                 n++;
             }
         }
-        dump_int(f, n);
+    }
+    dump_int(f, n);
+    if (lmt_bytecode_registers) {
         for (int k = 0; k <= lmt_lua_state.bytecode_max; k++) {
             bytecode b = lmt_bytecode_registers[k];
             if (b.size != 0) {
@@ -61,51 +68,103 @@ void lmt_undump_registers(dumpstream f)
     int version_number = 0;
     int release_number = 0;
     int integer_size = 0;
-    undump_int(f, version_number);
+    int bytecode_max = -1;
+    int n = 0;
+    if (! lmt_undump_register_int(f, &version_number)) {
+        tex_fatal_undump_error("bytecodes");
+        return;
+    }
     if (version_number != lmt_lua_state.version_number) {
         tex_fatal_undump_error("mismatching Lua version number");
+        return;
     }
-    undump_int(f, release_number);
+    if (! lmt_undump_register_int(f, &release_number)) {
+        tex_fatal_undump_error("bytecodes");
+        return;
+    }
     if (release_number != lmt_lua_state.release_number) {
         tex_fatal_undump_error("mismatching Lua release number");
+        return;
     }
-    undump_int(f, integer_size);
+    if (! lmt_undump_register_int(f, &integer_size)) {
+        tex_fatal_undump_error("bytecodes");
+        return;
+    }
     if (integer_size != lmt_lua_state.integer_size) {
         tex_fatal_undump_error("different integer size");
+        return;
     }
-    undump_int(f, lmt_lua_state.bytecode_max);
-    if (lmt_lua_state.bytecode_max < 0) {
-        tex_fatal_undump_error("not enough memory for undumping bytecodes"); /* old */
-    } else {
-        size_t s = (lmt_lua_state.bytecode_max + 1) * sizeof(bytecode);
-        int n = (int) s;
-        lmt_bytecode_registers = (bytecode *) lmt_memory_malloc(s);
-        if (lmt_bytecode_registers) {
-            lmt_lua_state.bytecode_bytes = n;
-            for (int j = 0; j <= lmt_lua_state.bytecode_max; j++) {
-                lmt_bytecode_registers[j].buf = NULL;
-                lmt_bytecode_registers[j].size = 0;
-                lmt_bytecode_registers[j].alloc = 0;
-            }
-            undump_int(f, n);
-            for (int j = 0; j < n; j++) {
-                unsigned char *buffer;
-                int slot, size;
-                undump_int(f, slot);
-                undump_int(f, size);
-                buffer = (unsigned char *) lmt_memory_malloc((unsigned) size); // todo: calloc 
-                if (buffer) {
-                    memset(buffer, 0, (size_t) size);
-                    undump_items(f, buffer, 1, size);
-                    lmt_bytecode_registers[slot].buf = buffer;
-                    lmt_bytecode_registers[slot].size = size;
-                    lmt_bytecode_registers[slot].alloc = size;
-                    lmt_lua_state.bytecode_bytes += size;
-                } else {
-                    tex_fatal_undump_error("not enough memory for undumping bytecodes");
-                }
-            }
+    if (! lmt_undump_register_int(f, &bytecode_max)) {
+        tex_fatal_undump_error("bytecodes");
+        return;
+    }
+    if (bytecode_max < -1 || bytecode_max > max_bytecode_index) {
+        tex_fatal_undump_error("bytecode register range");
+        return;
+    }
+    if (! lmt_undump_register_int(f, &n)) {
+        tex_fatal_undump_error("bytecodes");
+        return;
+    }
+    if (n < 0 || n > bytecode_max + 1) {
+        tex_fatal_undump_error("bytecode register count");
+        return;
+    }
+    lmt_lua_state.bytecode_max = bytecode_max;
+    lmt_lua_state.bytecode_bytes = 0;
+    if (bytecode_max < 0) {
+        lmt_bytecode_registers = NULL;
+        return;
+    }
+    size_t s = ((size_t) bytecode_max + 1) * sizeof(bytecode);
+    if (s > (size_t) INT_MAX) {
+        tex_fatal_undump_error("bytecode register memory");
+        return;
+    }
+    lmt_bytecode_registers = (bytecode *) lmt_memory_malloc(s);
+    if (! lmt_bytecode_registers) {
+        tex_fatal_undump_error("not enough memory for undumping bytecodes");
+        return;
+    }
+    memset(lmt_bytecode_registers, 0, s);
+    size_t bytecode_bytes = s;
+    lmt_lua_state.bytecode_bytes = (int) bytecode_bytes;
+    for (int j = 0; j < n; j++) {
+        unsigned char *buffer;
+        int slot, size;
+        if (! lmt_undump_register_int(f, &slot) || ! lmt_undump_register_int(f, &size)) {
+            tex_fatal_undump_error("bytecodes");
+            return;
         }
+        if (slot < 0 || slot > bytecode_max || size <= 0) {
+            tex_fatal_undump_error("bytecode register data");
+            return;
+        }
+        if (lmt_bytecode_registers[slot].buf) {
+            tex_fatal_undump_error("duplicate bytecode register");
+            return;
+        }
+        if ((size_t) size > (size_t) INT_MAX - bytecode_bytes) {
+            tex_fatal_undump_error("bytecode memory");
+            return;
+        }
+        buffer = (unsigned char *) lmt_memory_malloc((size_t) size);
+        if (! buffer) {
+            tex_fatal_undump_error("not enough memory for undumping bytecodes");
+            return;
+        }
+        if (undump_items(f, buffer, 1, (size_t) size) != (size_t) size) {
+            lmt_memory_free(buffer);
+            tex_fatal_undump_error("bytecodes");
+            return;
+        }
+        lmt_bytecode_registers[slot] = (bytecode) {
+            .buf   = buffer,
+            .size  = size,
+            .alloc = size
+        };
+        bytecode_bytes += (size_t) size;
+        lmt_lua_state.bytecode_bytes = (int) bytecode_bytes;
     }
 }
 
@@ -146,7 +205,7 @@ static int lualib_aux_writer(lua_State *L, const void *b, size_t size, void *B)
     if ((int) (buf->size + (int) size) > buf->alloc) {
         unsigned newalloc = (unsigned) (buf->alloc + (int) size + LOAD_BUF_SIZE);
         unsigned char *bb = lmt_memory_realloc(buf->buf, newalloc);
-        if (bb) {
+        if lmt_likely(bb) {
             buf->buf = bb;
             buf->alloc = newalloc;
         } else {
@@ -159,7 +218,7 @@ static int lualib_aux_writer(lua_State *L, const void *b, size_t size, void *B)
     return 0;
 }
 
-static const char *lualib_aux_reader(lua_State *L, void *ud, size_t *size)
+static const char *lualib_aux_bytecode_reader(lua_State *L, void *ud, size_t *size)
 {
     bytecode *buf = (bytecode *) ud;
     (void) L;
@@ -173,7 +232,7 @@ static int lualib_valid_bytecode(lua_State *L, int slot)
         return luaL_error(L, "bytecode register out of range");
     } else if (lualib_aux_bytecode_register_shadow_get(L, slot) || ! lmt_bytecode_registers[slot].buf) {
         return luaL_error(L, "undefined bytecode register");
-    } else if (lua_load(L, lualib_aux_reader, (void *) (lmt_bytecode_registers + slot), "bytecode", NULL)) {
+    } else if (lua_load(L, lualib_aux_bytecode_reader, (void *) (lmt_bytecode_registers + slot), "bytecode", NULL)) {
         return luaL_error(L, "bytecode register doesn't load well");
     } else {
         return 1;
@@ -207,7 +266,7 @@ static int lmt_handle_bytecode_call(lua_State *L, int slot)
         error = lua_pcall(L, 1, 0, stacktop);
         /*tex remove traceback function */
         lua_remove(L, stacktop);
-        if (error) {
+        if lmt_unlikely(error) {
             lua_gc(L, LUA_GCCOLLECT, 0);
             lmt_error(L, "bytecode call", slot, (error == LUA_ERRRUN ? 0 : 1));
         }
@@ -247,25 +306,26 @@ static int lualib_set_bytecode(lua_State *L)
 {
     int k = lmt_checkinteger(L, 1);
     int i = k + 1;
-    if ((k < 0) || (k > max_bytecode_index)) {
+    if lmt_unlikely((k < 0) || (k > max_bytecode_index)) {
         return luaL_error(L, "bytecode register out of range");
     } else {
         int ltype = lua_type(L, 2);
         int strip = lua_toboolean(L, 3);
-        if (ltype != LUA_TFUNCTION && ltype != LUA_TNIL) {
+        if lmt_unlikely(ltype != LUA_TFUNCTION && ltype != LUA_TNIL) {
             return luaL_error(L, "bytecode register should be a function or nil");
         } else {
             /*tex Later calls expect the function at the top of the stack. */
             lua_settop(L, 2);
             if (k > lmt_lua_state.bytecode_max) {
                 bytecode *r = lmt_memory_realloc(lmt_bytecode_registers, (size_t) i * sizeof(bytecode));
-                if (r) {
+                if lmt_likely(r) {
                     lmt_bytecode_registers = r;
                     lmt_lua_state.bytecode_bytes += ((int) sizeof(bytecode) * (k + 1 - (lmt_lua_state.bytecode_max > 0 ? lmt_lua_state.bytecode_max : 0)));
                     for (unsigned j = (unsigned) (lmt_lua_state.bytecode_max + 1); j <= (unsigned) k; j++) {
-                        lmt_bytecode_registers[j].buf = NULL;
-                        lmt_bytecode_registers[j].size = 0;
-                        lmt_bytecode_registers[j].alloc = 0;
+                     // lmt_bytecode_registers[j].buf = NULL;
+                     // lmt_bytecode_registers[j].size = 0;
+                     // lmt_bytecode_registers[j].alloc = 0;
+                        memset(&lmt_bytecode_registers[j], 0, sizeof(bytecode));
                     }
                     lmt_lua_state.bytecode_max = k;
                 } else {
@@ -275,14 +335,16 @@ static int lualib_set_bytecode(lua_State *L)
             if (lmt_bytecode_registers[k].buf) {
                 lmt_memory_free(lmt_bytecode_registers[k].buf);
                 lmt_lua_state.bytecode_bytes -= lmt_bytecode_registers[k].size;
-                lmt_bytecode_registers[k].size = 0;
-                lmt_bytecode_registers[k].buf = NULL;
+             // lmt_bytecode_registers[k].buf = NULL;
+             // lmt_bytecode_registers[k].size = 0;
+             // lmt_bytecode_registers[k].alloc = 0;
+                memset(&lmt_bytecode_registers[k], 0, sizeof(bytecode));
                 lua_pushnil(L);
                 lualib_aux_bytecode_register_shadow_set(L, k);
             }
             if (ltype == LUA_TFUNCTION) {
                 lmt_bytecode_registers[k].buf = lmt_memory_calloc(1, LOAD_BUF_SIZE);
-                if (lmt_bytecode_registers[k].buf) {
+                if lmt_likely(lmt_bytecode_registers[k].buf) {
                     lmt_bytecode_registers[k].alloc = LOAD_BUF_SIZE;
                  // memset(lua_bytecode_registers[k].buf, 0, LOAD_BUF_SIZE);
                     lua_dump(L, lualib_aux_writer, (void *) (lmt_bytecode_registers + k), strip);
@@ -489,7 +551,7 @@ static int lualib_get_doing_the(lua_State *L)
 /* This makes the (already old and rusty) profiler 2.5 times faster. */
 
 /*
-static lua_State *getthread (lua_State *L, int *arg) 
+static lua_State *getthread (lua_State *L, int *arg)
 {
     if (lua_isthread(L, 1)) {
         *arg = 1;
@@ -500,7 +562,7 @@ static lua_State *getthread (lua_State *L, int *arg)
     }
 }
 
-static int lualib_get_debug_info(lua_State *L) 
+static int lualib_get_debug_info(lua_State *L)
 {
     lua_Debug ar;
     int arg;
@@ -513,7 +575,7 @@ static int lualib_get_debug_info(lua_State *L)
 */
 
 /*
-static int lualib_get_debug_info(lua_State *L) 
+static int lualib_get_debug_info(lua_State *L)
 {
     if (! lua_isthread(L, 1)) {
         lua_Debug ar;
@@ -543,7 +605,7 @@ static int lualib_get_debug_info(lua_State *L)
     helpers) which for now doesn't make much sense. This is an undocumented feature.
 */
 
-static int lualib_get_debug_info(lua_State *L) 
+static int lualib_get_debug_info(lua_State *L)
 {
     if (! lua_isthread(L, 1)) { /* useless test */
         lua_Debug ar;
@@ -558,31 +620,31 @@ static int lualib_get_debug_info(lua_State *L)
     return 0;
 }
 
-/*tex 
+/*tex
 
-    This is just a byproduct of using nibbles for storing math style variant (and presets) so I 
-    decoded to keep it. 
+    This is just a byproduct of using nibbles for storing math style variant (and presets) so I
+    decoded to keep it.
 
 */
 
-static int lualib_set_nibble(lua_State *L) 
+static int lualib_set_nibble(lua_State *L)
 {
     unsigned int original = lmt_tounsigned(L, 1);
     unsigned int position = lmt_tounsigned(L, 2);
-    if (position >= 1 && position <= 8) { 
+    if (position >= 1 && position <= 8) {
         unsigned int nibble = lmt_optunsigned(L, 3, 0);
         position--;
-        lua_pushinteger(L, (original & ~(0xF << (4 * position))) | ((nibble & 0xF) << (4 * position)));   
-    } else { 
-        lua_pushinteger(L, original);   
+        lua_pushinteger(L, (original & ~(0xF << (4 * position))) | ((nibble & 0xF) << (4 * position)));
+    } else {
+        lua_pushinteger(L, original);
     }
     return 1;
 }
 
-static int lualib_get_nibble(lua_State *L) 
+static int lualib_get_nibble(lua_State *L)
 {
     unsigned int position = lmt_tounsigned(L, 2);
-    if (position >= 1 && position <= 8) { 
+    if (position >= 1 && position <= 8) {
         unsigned int original = lmt_tounsigned(L, 1);
         lua_pushinteger(L, (original >> (4 * --position)) & 0xF);
     } else {
@@ -591,35 +653,35 @@ static int lualib_get_nibble(lua_State *L)
     return 1;
 }
 
-static int lualib_add_nibble(lua_State *L) 
+static int lualib_add_nibble(lua_State *L)
 {
     unsigned int position = lmt_tounsigned(L, 2);
     unsigned int original = lmt_tounsigned(L, 1);
-    if (position >= 1 && position <= 8) { 
+    if (position >= 1 && position <= 8) {
         unsigned int nibble = ((original >> (4 * --position)) & 0xF);
         if (nibble < 0xF) {
             nibble++;
-            lua_pushinteger(L, (original & ~(0xF << (4 * position))) | ((nibble & 0xF) << (4 * position)));   
+            lua_pushinteger(L, (original & ~(0xF << (4 * position))) | ((nibble & 0xF) << (4 * position)));
             return 1;
-        } 
+        }
     }
-    lua_pushinteger(L, original);   
+    lua_pushinteger(L, original);
     return 1;
 }
 
-static int lualib_sub_nibble(lua_State *L) 
+static int lualib_sub_nibble(lua_State *L)
 {
     unsigned int position = lmt_tounsigned(L, 2);
     unsigned int original = lmt_tounsigned(L, 1);
-    if ((position >= 1) && (position <= 7)) { 
+    if ((position >= 1) && (position <= 7)) {
         unsigned int nibble = ((original >> (4 * --position)) & 0xF);
         if (nibble > 0) {
             nibble--;
-            lua_pushinteger(L, (original & ~(0xF << (4 * position))) | ((nibble & 0xF) << (4 * position)));   
+            lua_pushinteger(L, (original & ~(0xF << (4 * position))) | ((nibble & 0xF) << (4 * position)));
             return 1;
-        } 
+        }
     }
-    lua_pushinteger(L, original);   
+    lua_pushinteger(L, original);
     return 1;
 }
 
@@ -633,7 +695,7 @@ static int lualib_sub_nibble(lua_State *L)
 //      lua_settable(L, -4);
 //  }
 
-static int lualib_get_checked_keys(lua_State *L) 
+static int lualib_get_checked_keys(lua_State *L)
 {
     int category = 0; //  0=unknown 1=string 2=number 3=mixed
     if (lua_type(L, 1) == LUA_TTABLE) {
@@ -641,9 +703,9 @@ static int lualib_get_checked_keys(lua_State *L)
         lua_pushnil(L);
         while (lua_next(L, 1)) {
             index++;
-            lua_pop(L, 1);  
+            lua_pop(L, 1);
         }
-        lua_createtable(L, index, 0); 
+        lua_createtable(L, index, 0);
         index = 0;
         lua_pushnil(L);
         while (lua_next(L, 1)) {
@@ -670,85 +732,228 @@ static int lualib_get_checked_keys(lua_State *L)
             /* -3:new -2:key -1:value */
             lua_pushvalue(L, -2);
             lua_rawseti(L, -4, ++index);
-            lua_pop(L, 1);  
+            lua_pop(L, 1);
         }
         if (index < 2) {
             category = 0;
         }
-    } else { 
-        lua_createtable(L, 0, 0); 
+    } else {
+        lua_createtable(L, 0, 0);
     }
     lua_pushinteger(L, category);
     return 2;
 }
 
-static int lualib_get_string_keys(lua_State *L) 
+static int lualib_get_string_keys(lua_State *L)
 {
     int index = 0;
-    lua_createtable(L, 0, 0); 
+    lua_createtable(L, 0, 0);
     if (lua_type(L, 1) == LUA_TTABLE) {
         lua_pushnil(L);
         while (lua_next(L, 1)) {
-            if (lua_type(L, -2) != LUA_TSTRING) {
+            if (lua_type(L, -2) == LUA_TSTRING) {
                 lua_pushvalue(L, -2);
                 lua_rawseti(L, -4, ++index);
             }
-            lua_pop(L, 1);  
+            lua_pop(L, 1);
         }
     }
     lua_pushinteger(L, index);
     return 2;
 }
 
-static int lualib_get_numeric_keys(lua_State *L) 
+static int lualib_get_numeric_keys(lua_State *L)
 {
     int index = 0;
-    lua_createtable(L, 0, 0); 
+    lua_createtable(L, 0, 0);
     if (lua_type(L, 1) == LUA_TTABLE) {
         lua_pushnil(L);
         while (lua_next(L, 1)) {
-            if (lua_type(L, -2) != LUA_TNUMBER) {
+            if (lua_type(L, -2) == LUA_TNUMBER) {
                 lua_pushvalue(L, -2);
                 lua_rawseti(L, -4, ++index);
             }
-            lua_pop(L, 1);  
+            lua_pop(L, 1);
         }
     }
     lua_pushinteger(L, index);
     return 2;
 }
 
-static int lualib_get_all_keys(lua_State *L) 
+static int lualib_get_all_keys(lua_State *L)
 {
     int index = 0;
-    lua_createtable(L, 0, 0); 
     if (lua_type(L, 1) == LUA_TTABLE) {
+        /* Of course we don't know the hash count. */
+        size_t len = lua_rawlen(L, 1);
+        lua_createtable(L, (int) len, 0);
         lua_pushnil(L);
         while (lua_next(L, 1)) {
             lua_pushvalue(L, -2);
             lua_rawseti(L, -4, ++index);
-            lua_pop(L, 1);  
+            lua_pop(L, 1);
         }
+    } else {
+        lua_createtable(L, 0, 0);
     }
     lua_pushinteger(L, index);
     return 2;
 }
 
-static int lualib_compare_keys(lua_State *L) 
-{
-    /* luaL_tolstring pushes on the stack but no need to clean up here */
-    int ta = lua_type(L, 1);
-    int tb = lua_type(L, 2);
-    int result = 0;
-    if (ta == LUA_TNUMBER && tb == LUA_TNUMBER) {
-        result = lua_tonumber(L, 1) < lua_tonumber(L, 2);
-    } else { 
-        const char *a = (ta == LUA_TSTRING) ? lua_tostring(L, 1) : luaL_tolstring(L, 1, NULL);
-        const char *b = (tb == LUA_TSTRING) ? lua_tostring(L, 2) : luaL_tolstring(L, 2, NULL);
-        result = (a && b) ? strcmp(a, b) < 0 : 0;
+
+# if 0
+
+    static int lualib_compare_keys(lua_State *L)
+    {
+        /* luaL_tolstring pushes on the stack but no need to clean up here. */
+        int ta = lua_type(L, 1);
+        int tb = lua_type(L, 2);
+        int result = 0;
+        if (ta == LUA_TNUMBER && tb == LUA_TNUMBER) {
+            result = lua_tonumber(L, 1) < lua_tonumber(L, 2);
+        } else {
+            const char *a = (ta == LUA_TSTRING) ? lua_tostring(L, 1) : luaL_tolstring(L, 1, NULL);
+            const char *b = (tb == LUA_TSTRING) ? lua_tostring(L, 2) : luaL_tolstring(L, 2, NULL);
+            result = (a && b) ? strcmp(a, b) < 0 : 0;
+        }
+        lua_pushboolean(L, result);
+        return 1;
     }
-    lua_pushboolean(L, result);
+
+# else
+
+    static int lualib_compare_keys(lua_State *L)
+    {
+        int ta = lua_type(L, 1);
+        int tb = lua_type(L, 2);
+        if (ta == tb) {
+            /* Our use case is mostly integers and strings. */
+            switch (ta) {
+                case LUA_TNUMBER:
+                    if (lua_isinteger(L, 1) && lua_isinteger(L, 2)) {
+                        lua_pushboolean(L, lua_tointeger(L, 1) < lua_tointeger(L, 2));
+                    } else {
+                        lua_pushboolean(L, lua_tonumber(L, 1) < lua_tonumber(L, 2));
+                    }
+                    return 1;
+                case LUA_TSTRING:
+                    {
+                        size_t len_a, len_b;
+                        const char *a = lua_tolstring(L, 1, &len_a);
+                        const char *b = lua_tolstring(L, 2, &len_b);
+                        size_t min_len = (len_a < len_b) ? len_a : len_b;
+                        int res = memcmp(a, b, min_len);
+                        lua_pushboolean(L, res ? (res < 0) : (len_a < len_b));
+                        return 1;
+                    }
+                case LUA_TBOOLEAN:
+                    lua_pushboolean(L, lua_toboolean(L, 1) < lua_toboolean(L, 2));
+                    return 1;
+                default:
+                    break;
+            }
+        }
+        /*
+            Last resort. We can have tables as keys. For instance in packed data
+            structures.
+        */
+        if (ta == tb) {
+            /*
+                When there is no metamethod __lt we also get false. But this
+                fails on our packing code, so a no go:
+            */
+         // if (lua_compare(L, 1, 2, LUA_OPLT)) {
+         //     lua_pushboolean(L, 1);
+         // } else {
+                /* This is now the best we can do, no tostring neede. */
+                lua_pushboolean(L, lua_topointer(L, 1) < lua_topointer(L, 2));
+         //   }
+        } else {
+            /* When all fails, this is what we've left: compare types. */
+            lua_pushboolean(L, ta < tb);
+        }
+        return 1;
+    }
+
+# endif
+
+/*tex
+
+    The next one is more or less |lmt_token_call| but it might evolve, just some playground for
+    small sandboxed instances that we plug in. We only need to define functions in such an
+    instance. It is just an experiment to see if a math only instance suffers less from garbage
+    collection. Some simple experiments demonstrate that we run 10% faster even when we pass back
+    results.
+
+*/
+
+typedef struct LoadS { // name
+    const char *s;
+    size_t      size;
+} LoadS;
+
+static int lualib_aux_stringcall(lua_State *L, lua_State *M)
+{
+    if (M) {
+        LoadS ls;
+        ls.s = lua_tolstring(L, 1, &(ls.size));
+        if (ls.size > 0) {
+            int top = lua_gettop(M);
+            /* NULL is equivalent to "bt" : bytecode as well as text */
+            if lmt_likely(! luaL_loadbufferx(M, ls.s, ls.size, ls.s, NULL)) {
+                int t = lua_gettop(M);
+                int i = lua_pcall(M, 0, LUA_MULTRET, 0);
+                if lmt_unlikely(i) {
+                    const char *msg = lua_tostring(M, -1);
+                 // lua_pop(L, 1);
+                 // printf("string call, execute error: %s\n", msg);
+                    tex_normal_warning("string call, execute error", msg);
+                } else {
+                    t = lua_gettop(M) - t + 1;
+                    if (L != M) {
+                        if (t) {
+                            for (int s = -t; s < 0; s++) {
+                                switch (lua_type(M, s)) {
+                                    case LUA_TNUMBER:
+                                        lua_pushnumber(L, lua_tonumber(M, s));
+                                        break;
+                                    case LUA_TBOOLEAN:
+                                        lua_pushboolean(L, lua_toboolean(M, s));
+                                        break;
+                                    default:
+                                        lua_pushnil(L);
+                                        break;
+                                }
+                            }
+                        }
+                        lua_settop(M, top);
+                    }
+                    return t;
+                }
+            } else {
+             // printf("string call, syntax error: %s\n", ls.s);
+                tex_normal_warning("string call, syntax error", ls.s);
+            }
+            lua_settop(M, top);
+        }
+    }
+    return 0;
+}
+
+static int lualib_use_stringcall(lua_State *L)
+{
+    lua_pushboolean(L, tex_engine_mps_initialize(lua_toboolean(L, 1)));
     return 1;
+}
+
+static int lualib_lua_stringcall(lua_State *L)
+{
+    return lualib_aux_stringcall(L, lmt_lua_state.lua_instance);
+}
+
+static int lualib_mps_stringcall(lua_State *L)
+{
+    return lualib_aux_stringcall(L, lmt_lua_state.mps_instance);
 }
 
 /* */
@@ -788,6 +993,10 @@ static const struct luaL_Reg lualib_function_list[] = {
     { "getallkeys",          lualib_get_all_keys        },
     { "getcheckedkeys",      lualib_get_checked_keys    },
     { "comparekeys",         lualib_compare_keys        },
+    /* */
+    { "usestringcall",       lualib_use_stringcall      },
+    { "mpsstringcall",       lualib_mps_stringcall      },
+    { "luastringcall",       lualib_lua_stringcall      },
     /* */
     { NULL,                  NULL                       },
 };

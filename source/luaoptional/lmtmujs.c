@@ -37,8 +37,6 @@ typedef enum js_properties {
 	JS_DONTCONF = 4,
 } js_properties;
 
-/*tex A couple of status variables: */
-
 typedef struct mujslib_state_info {
 
     js_State *instance;
@@ -110,6 +108,8 @@ typedef struct mujslib_state_info {
     void         (*js_setproperty)   (js_State *J, int idx, const char *name          );
     void         (*js_defproperty)   (js_State *J, int idx, const char *name, int atts);
 
+    void         (*js_pop)           (js_State *J, int n                              );
+
     void         (*js_pushundefined) (js_State *J                                     );
     void         (*js_pushnull)      (js_State *J                                     );
     void         (*js_pushnumber)    (js_State *J, double v                           );
@@ -155,6 +155,8 @@ static mujslib_state_info mujslib_state = {
     .js_setproperty      = NULL,
     .js_defproperty      = NULL,
 
+    .js_pop              = NULL,
+
     .js_pushundefined    = NULL,
     .js_pushnull         = NULL,
     .js_pushnumber       = NULL,
@@ -170,61 +172,33 @@ static mujslib_state_info mujslib_state = {
 
 };
 
-/*tex A few callbacks: */
+/*tex
+    Callbacks & Registry: we need make sure errors don't have side effects.
+*/
 
 static int mujslib_register_function(lua_State * L, int old_id)
 {
-    if (! (lua_isfunction(L, -1) || lua_isnil(L, -1))) {
-        return 0;
-    } else {
+    if (old_id > 0) {
+        luaL_unref(L, LUA_REGISTRYINDEX, old_id);
+    }
+    if (lua_isfunction(L, -1)) {
         lua_pushvalue(L, -1);
-        if (old_id) {
-            luaL_unref(L, LUA_REGISTRYINDEX, old_id);
-        }
         return luaL_ref(L, LUA_REGISTRYINDEX);
     }
-}
-
-static int mujslib_set_find_file(lua_State *L)
-{
-    mujslib_state.find_file_id = mujslib_register_function(L, mujslib_state.find_file_id);
     return 0;
 }
 
-static int mujslib_set_open_file(lua_State *L)
-{
-    mujslib_state.open_file_id = mujslib_register_function(L, mujslib_state.open_file_id);
-    return 0;
-}
-
-static int mujslib_set_close_file(lua_State *L)
-{
-    mujslib_state.close_file_id = mujslib_register_function(L, mujslib_state.close_file_id);
-    return 0;
-}
-
-static int mujslib_set_read_file(lua_State *L)
-{
-    mujslib_state.read_file_id = mujslib_register_function(L, mujslib_state.read_file_id);
-    return 0;
-}
-
-static int mujslib_set_seek_file(lua_State *L)
-{
-    mujslib_state.seek_file_id = mujslib_register_function(L, mujslib_state.seek_file_id);
-    return 0;
-}
-
-static int mujslib_set_console(lua_State *L)
-{
-    mujslib_state.console_id = mujslib_register_function(L, mujslib_state.console_id);
-    return 0;
-}
+static int mujslib_set_find_file (lua_State *L) { mujslib_state.find_file_id  = mujslib_register_function(L, mujslib_state.find_file_id);  return 0; }
+static int mujslib_set_open_file (lua_State *L) { mujslib_state.open_file_id  = mujslib_register_function(L, mujslib_state.open_file_id);  return 0; }
+static int mujslib_set_close_file(lua_State *L) { mujslib_state.close_file_id = mujslib_register_function(L, mujslib_state.close_file_id); return 0; }
+static int mujslib_set_read_file (lua_State *L) { mujslib_state.read_file_id  = mujslib_register_function(L, mujslib_state.read_file_id);  return 0; }
+static int mujslib_set_seek_file (lua_State *L) { mujslib_state.seek_file_id  = mujslib_register_function(L, mujslib_state.seek_file_id);  return 0; }
+static int mujslib_set_console   (lua_State *L) { mujslib_state.console_id    = mujslib_register_function(L, mujslib_state.console_id);    return 0; }
 
 static char *mujslib_find_file(const char *fname, const char *fmode)
 {
     if (mujslib_state.find_file_id) {
-        lua_State *L = lmt_lua_state.lua_instance; /* todo: pass */
+        lua_State *L = lmt_lua_state.lua_instance;
         lua_rawgeti(L, LUA_REGISTRYINDEX, mujslib_state.find_file_id);
         lua_pushstring(L, fname);
         lua_pushstring(L, fmode);
@@ -245,7 +219,9 @@ static char *mujslib_find_file(const char *fname, const char *fmode)
     return NULL;
 }
 
-/*tex A few helpers: */
+/*tex
+    Here come the \TEX\ printing helpers, We go via \LUA.
+*/
 
 static void mujslib_aux_texcprint(js_State *J, int ispartial)
 {
@@ -269,18 +245,11 @@ static void mujslib_aux_texcprint(js_State *J, int ispartial)
     } else {
         tex_normal_warning("mujs", "invalid argument(s) for printing to tex");
     }
-	mujslib_state.js_pushundefined(J); /* needed ? */
+    mujslib_state.js_pushundefined(J);
 }
 
-static void mujslib_aux_texprint(js_State *J)
-{
-    mujslib_aux_texcprint(J, 0); /* full line */
-}
-
-static void mujslib_aux_texsprint(js_State *J)
-{
-    mujslib_aux_texcprint(J, 1); /* partial line */
-}
+static void mujslib_aux_texprint (js_State *J) { mujslib_aux_texcprint(J, 0); }
+static void mujslib_aux_texsprint(js_State *J) { mujslib_aux_texcprint(J, 1); }
 
 static void mujslib_aux_feedback(js_State *J, const char *category, const char *message)
 {
@@ -297,18 +266,11 @@ static void mujslib_aux_feedback(js_State *J, const char *category, const char *
             tex_print_message(message);
         }
     }
-	mujslib_state.js_pushundefined(J);
+    mujslib_state.js_pushundefined(J);
 }
 
-static void mujslib_aux_console(js_State *J)
-{
-    mujslib_aux_feedback(J, "console", mujslib_state.js_tostring(J, 1));
-}
-
-static void mujslib_aux_report(js_State *J, const char *s)
-{
-    mujslib_aux_feedback(J, "report", s);
-}
+static void mujslib_aux_console(js_State *J) { mujslib_aux_feedback(J, "console", mujslib_state.js_tostring(J, 1)); }
+static void mujslib_aux_report(js_State *J, const char *s) { mujslib_aux_feedback(J, "report", s); }
 
 /*tex
     The interfaces: for loading files a finder callback is mandate so that we keep control over 
@@ -318,7 +280,7 @@ static void mujslib_aux_report(js_State *J, const char *s)
 static int mujslib_execute(lua_State *L)
 {
     if (mujslib_state.instance) {
-	    const char *s = lua_tostring(L, 1);
+        const char *s = lua_tostring(L, 1);
         if (s) {
            mujslib_state.js_dostring(mujslib_state.instance, s);
         }
@@ -329,13 +291,13 @@ static int mujslib_execute(lua_State *L)
 static int mujslib_dofile(lua_State *L)
 {
     if (mujslib_state.instance) {
-	    const char *name = lua_tostring(L, 1);
+        const char *name = lua_tostring(L, 1);
         if (name) {
             char *found = mujslib_find_file(name, "rb");
             if (found) {
                mujslib_state.js_dofile(mujslib_state.instance, found);
+               free(found);
             }
-            free(found);
         }
     } else {
         tex_normal_warning("mujs", "missing callback: find file");
@@ -343,66 +305,39 @@ static int mujslib_dofile(lua_State *L)
     return 0;
 }
 
-static void mujslib_start(void)
-{
-    if (mujslib_state.instance) {
-        mujslib_state.js_freestate(mujslib_state.instance);
-    }
-    mujslib_state.instance = mujslib_state.js_newstate(NULL, NULL, JS_STRICT);
-    if (mujslib_state.instance) {
-        mujslib_state.js_newcfunction(mujslib_state.instance, mujslib_aux_texprint, "texprint", 2);
-        mujslib_state.js_setglobal   (mujslib_state.instance, "texprint");
-        mujslib_state.js_newcfunction(mujslib_state.instance, mujslib_aux_texsprint, "texsprint", 2);
-        mujslib_state.js_setglobal   (mujslib_state.instance, "texsprint");
-        mujslib_state.js_newcfunction(mujslib_state.instance, mujslib_aux_console, "console", 1);
-        mujslib_state.js_setglobal   (mujslib_state.instance, "console");
-        mujslib_state.js_setreport   (mujslib_state.instance, mujslib_aux_report);
-    }
-}
-
-static int mujslib_reset(lua_State *L)
-{
-    if (mujslib_state.initialized) {
-        mujslib_start();
-    }
-    lua_pushboolean(L, mujslib_state.initialized && mujslib_state.instance);
-    return 1;
-}
-
 /*tex
-    File handling: we go via the \LUA\ interface so that we have control over what happens. Another
-    benefit is that we don't need memory management when fetching data from files.
+    We need to handle and cleanup the file objects.
 */
 
 static void mujslib_file_finalize(js_State *J, void *p)
 {
-    int *id = p;
+    int *id = (int *) p;
     (void) J;
-    if (*id) {
-        lua_State *L = lmt_lua_state.lua_instance;
-        int top = lua_gettop(L);
-        lua_rawgeti(L, LUA_REGISTRYINDEX, mujslib_state.close_file_id);
-        lua_pushinteger(L, *id);
-        if (lua_pcall(L, 1, 0, 0)) {
-            tex_formatted_warning("mujs", "close file: %s\n", lua_tostring(L, -1));
+    if (id && *id) {
+        if (mujslib_state.close_file_id) {
+            lua_State *L = lmt_lua_state.lua_instance;
+            int top = lua_gettop(L);
+            lua_rawgeti(L, LUA_REGISTRYINDEX, mujslib_state.close_file_id);
+            lua_pushinteger(L, *id);
+            if (lua_pcall(L, 1, 0, 0)) {
+                tex_formatted_warning("mujs", "close file: %s\n", lua_tostring(L, -1));
+            }
+            lua_settop(L, top);
         }
-        lua_settop(L,top);
+        *id = 0; /* Clear handle to prevent double close */
+        free(id); /* FIX 2: Free heap allocation */
     }
 }
 
 static void mujslib_file_close(js_State *J)
 {
     if (mujslib_state.instance) {
-        if (mujslib_state.close_file_id) {
-    	    int *id = mujslib_state.js_touserdata(J, 0, "File");
-            if (*id) {
-                mujslib_file_finalize(J, id);
-            }
-        } else {
-            tex_normal_warning("mujs", "missing callback: close file");
+        int *id = mujslib_state.js_touserdata(J, 0, "File");
+        if (id && *id) {
+            mujslib_file_finalize(J, id);
         }
     }
-	mujslib_state.js_pushundefined(J);
+    mujslib_state.js_pushundefined(J);
 }
 
 static void mujslib_file_read(js_State *J)
@@ -410,10 +345,10 @@ static void mujslib_file_read(js_State *J)
     if (mujslib_state.instance) {
         if (mujslib_state.read_file_id) {
             int *id = mujslib_state.js_touserdata(J, 0, "File");
-            if (*id) {
-                lua_State *L = lmt_lua_state.lua_instance;
-                int top = lua_gettop(L);
-                int n = 1;
+            if (id && *id) {
+                lua_State *L   = lmt_lua_state.lua_instance;
+                int        top = lua_gettop(L);
+                int        n   = 1;
                 lua_rawgeti(L, LUA_REGISTRYINDEX, mujslib_state.read_file_id);
                 lua_pushinteger(L, *id);
                 if (mujslib_state.js_isstring(J, 1)) {
@@ -430,11 +365,11 @@ static void mujslib_file_read(js_State *J)
                     }
                 }
                 if (lua_pcall(L, n, 1, 0)) {
-                    tex_formatted_warning("mujs", "close file: %s\n", lua_tostring(L, -1));
+                    tex_formatted_warning("mujs", "read file: %s\n", lua_tostring(L, -1));
                 } else {
-                    const char *result = strdup(lua_tostring(L, -1));
+                    const char *result = lua_tostring(L, -1);
                     if (result) {
-            	        mujslib_state.js_pushstring(J, result);
+                        mujslib_state.js_pushstring(J, result);
                         lua_settop(L, top);
                         return;
                     }
@@ -445,7 +380,7 @@ static void mujslib_file_read(js_State *J)
             tex_normal_warning("mujs", "missing callback: read file");
         }
     }
-	mujslib_state.js_pushundefined(J);
+    mujslib_state.js_pushundefined(J);
 }
 
 static void mujslib_file_seek(js_State *J)
@@ -453,13 +388,12 @@ static void mujslib_file_seek(js_State *J)
     if (mujslib_state.instance) {
         if (mujslib_state.seek_file_id) {
             int *id = mujslib_state.js_touserdata(J, 0, "File");
-            if (*id) {
-                lua_State *L = lmt_lua_state.lua_instance;
-                int top = lua_gettop(L);
-                int n = 2;
+            if (id && *id) {
+                lua_State *L   = lmt_lua_state.lua_instance;
+                int        top = lua_gettop(L);
+                int        n   = 2;
                 lua_rawgeti(L, LUA_REGISTRYINDEX, mujslib_state.seek_file_id);
                 lua_pushinteger(L, *id);
-                /* no checking here */
                 lua_pushstring(L, mujslib_state.js_tostring(J, 1));
                 if (mujslib_state.js_isnumber(J, 2)) {
                     lua_pushinteger(L, mujslib_state.js_tointeger(J, 2));
@@ -468,7 +402,7 @@ static void mujslib_file_seek(js_State *J)
                 if (lua_pcall(L, n, 1, 0)) {
                     tex_formatted_warning("mujs", "seek file: %s\n", lua_tostring(L, -1));
                 } else if (lua_type(L, -1) == LUA_TNUMBER) {
-         	        mujslib_state.js_pushnumber(J, lua_tonumber(L, -1));
+                    mujslib_state.js_pushnumber(J, lua_tonumber(L, -1));
                     lua_settop(L, top);
                     return;
                 }
@@ -478,17 +412,17 @@ static void mujslib_file_seek(js_State *J)
             tex_normal_warning("mujs", "missing callback: seek file");
         }
     }
-	mujslib_state.js_pushundefined(J);
+    mujslib_state.js_pushundefined(J);
 }
 
 static void mujslib_file_new(js_State *J)
 {
     if (mujslib_state.instance) {
         if (mujslib_state.open_file_id) {
-    	    const char *name = mujslib_state.js_tostring(J, 1);
+            const char *name = mujslib_state.js_tostring(J, 1);
             if (name) {
-                lua_State *L = lmt_lua_state.lua_instance;
-                int top = lua_gettop(L);
+                lua_State *L   = lmt_lua_state.lua_instance;
+                int        top = lua_gettop(L);
                 lua_rawgeti(L, LUA_REGISTRYINDEX, mujslib_state.open_file_id);
                 lua_pushstring(L, name);
                 if (lua_pcall(L, 1, 1, 0)) {
@@ -496,14 +430,12 @@ static void mujslib_file_new(js_State *J)
                 } else {
                     int *id = malloc(sizeof(int));
                     if (id) {
-                        *((int*) id) = (int) lua_tointeger(L, -1);
+                        *id = (int) lmt_tointeger(L, -1);
                         lua_settop(L, top);
-                        if (id) {
-	                        mujslib_state.js_currentfunction(J);
-	                        mujslib_state.js_getproperty(J, -1, "prototype");
-	                        mujslib_state.js_newuserdata(J, "File", id, mujslib_file_finalize);
-                            return;
-                        }
+                        mujslib_state.js_currentfunction(J);
+                        mujslib_state.js_getproperty(J, -1, "prototype");
+                        mujslib_state.js_newuserdata(J, "File", id, mujslib_file_finalize);
+                        return;
                     }
                 }
                 lua_settop(L, top);
@@ -512,26 +444,56 @@ static void mujslib_file_new(js_State *J)
             tex_normal_warning("mujs", "missing callback: open file");
         }
     }
- 	mujslib_state.js_pushnull(J);
+    mujslib_state.js_pushnull(J);
 }
-
-/* Setting things up. */
 
 static void mujslib_file_initialize(js_State *J)
 {
-	mujslib_state.js_getglobal(J, "Object");
-	mujslib_state.js_getproperty(J, -1, "prototype");
-	mujslib_state.js_newuserdata(J, "File", stdin, NULL);
-	{
-		mujslib_state.js_newcfunction(J, mujslib_file_read, "File.prototype.read", 0);
-		mujslib_state.js_defproperty(J, -2, "read", JS_DONTENUM);
-		mujslib_state.js_newcfunction(J, mujslib_file_seek, "File.prototype.seek", 0);
-		mujslib_state.js_defproperty(J, -2, "seek", JS_DONTENUM);
-		mujslib_state.js_newcfunction(J, mujslib_file_close, "File.prototype.close", 0);
-		mujslib_state.js_defproperty(J, -2, "close", JS_DONTENUM);
-	}
-	mujslib_state.js_newcconstructor(J, mujslib_file_new, mujslib_file_new, "File", 1);
-	mujslib_state.js_defglobal(J, "File", JS_DONTENUM);
+    mujslib_state.js_getglobal(J, "Object");
+    mujslib_state.js_getproperty(J, -1, "prototype");
+    mujslib_state.js_newuserdata(J, "File", NULL, NULL);
+
+    mujslib_state.js_newcfunction(J, mujslib_file_read, "File.prototype.read", 0);
+    mujslib_state.js_defproperty(J, -2, "read", JS_DONTENUM);
+    mujslib_state.js_newcfunction(J, mujslib_file_seek, "File.prototype.seek", 0);
+    mujslib_state.js_defproperty(J, -2, "seek", JS_DONTENUM);
+    mujslib_state.js_newcfunction(J, mujslib_file_close, "File.prototype.close", 0);
+    mujslib_state.js_defproperty(J, -2, "close", JS_DONTENUM);
+
+    mujslib_state.js_newcconstructor(J, mujslib_file_new, mujslib_file_new, "File", 1);
+    mujslib_state.js_defglobal(J, "File", JS_DONTENUM);
+
+    if (mujslib_state.js_pop) {
+        mujslib_state.js_pop(J, 3);
+    }
+}
+
+static void mujslib_start(void)
+{
+    if (mujslib_state.instance) {
+        mujslib_state.js_freestate(mujslib_state.instance);
+    }
+    mujslib_state.instance = mujslib_state.js_newstate(NULL, NULL, JS_STRICT);
+    if (mujslib_state.instance) {
+        mujslib_state.js_newcfunction(mujslib_state.instance, mujslib_aux_texprint, "texprint", 2);
+        mujslib_state.js_setglobal   (mujslib_state.instance, "texprint");
+        mujslib_state.js_newcfunction(mujslib_state.instance, mujslib_aux_texsprint, "texsprint", 2);
+        mujslib_state.js_setglobal   (mujslib_state.instance, "texsprint");
+        mujslib_state.js_newcfunction(mujslib_state.instance, mujslib_aux_console, "console", 1);
+        mujslib_state.js_setglobal   (mujslib_state.instance, "console");
+        mujslib_state.js_setreport   (mujslib_state.instance, mujslib_aux_report);
+
+        mujslib_file_initialize(mujslib_state.instance);
+    }
+}
+
+static int mujslib_reset(lua_State *L)
+{
+    if (mujslib_state.initialized) {
+        mujslib_start();
+    }
+    lua_pushboolean(L, mujslib_state.initialized && mujslib_state.instance);
+    return 1;
 }
 
 static int mujslib_initialize(lua_State *L)
@@ -539,7 +501,6 @@ static int mujslib_initialize(lua_State *L)
     if (! mujslib_state.initialized) {
         const char *filename = lua_tostring(L, 1);
         if (filename) {
-
             lmt_library lib = lmt_library_load(filename);
 
             mujslib_state.js_newstate        = lmt_library_find(lib, "js_newstate");
@@ -549,6 +510,8 @@ static int mujslib_initialize(lua_State *L)
             mujslib_state.js_newcfunction    = lmt_library_find(lib, "js_newcfunction");
             mujslib_state.js_newuserdata     = lmt_library_find(lib, "js_newuserdata");
             mujslib_state.js_newcconstructor = lmt_library_find(lib, "js_newcconstructor");
+
+            mujslib_state.js_pop             = lmt_library_find(lib, "js_pop");
 
             mujslib_state.js_pushundefined   = lmt_library_find(lib, "js_pushundefined");
             mujslib_state.js_pushnull        = lmt_library_find(lib, "js_pushnull");
@@ -579,8 +542,6 @@ static int mujslib_initialize(lua_State *L)
             mujslib_state.initialized = lmt_library_okay(lib);
 
             mujslib_start();
-
-            mujslib_file_initialize(mujslib_state.instance);
         }
     }
     lua_pushboolean(L, mujslib_state.initialized && mujslib_state.instance);
@@ -588,7 +549,7 @@ static int mujslib_initialize(lua_State *L)
 }
 
 static struct luaL_Reg mujslib_function_list[] = {
-    { "initialize",   mujslib_initialize     }, 
+    { "initialize",   mujslib_initialize     },
     { "reset",        mujslib_reset          },
     { "execute",      mujslib_execute        },
     { "dofile",       mujslib_dofile         },

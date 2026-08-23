@@ -113,7 +113,7 @@ void tex_initialize_token_mem(void)
     if (size > 0) {
         tokens = aux_allocate_clear_array(sizeof(memoryword), size, reserved_token_mem_slots);
     }
-    if (tokens) {
+    if lmt_likely(tokens) {
         lmt_token_memory_state.tokens = tokens;
         lmt_token_memory_state.tokens_data.allocated = size;
     } else {
@@ -162,16 +162,41 @@ void tex_initialize_tokens(void)
     so it is not worth the trouble.
 */
 
+static halfword tex_aux_compact_token_list(halfword p, memoryword *tokens, memoryword *target, halfword *mapper, int *nc)
+{
+    if (p && mapper[p] < 0) {
+        halfword t = p;
+        halfword q = ++(*nc);
+        mapper[p] = q;
+        while (1) {
+            target[q].half1 = tokens[t].half1;
+            t = tokens[t].half0;
+            if (t) {
+                target[q].half0 = ++(*nc);
+                q = target[q].half0;
+            } else {
+                target[q].half0 = null;
+                break;
+            }
+        }
+    }
+    return p ? mapper[p] : null;
+}
+
 void tex_compact_tokens(void)
 {
-    int nc = 0;
  // memoryword *target = allocate_array(sizeof(memoryword), (size_t) token_memory_state.tokens_data.allocated, 0);
     memoryword *target = aux_allocate_clear_array(sizeof(memoryword), lmt_token_memory_state.tokens_data.allocated, 0);
     halfword *mapper = aux_allocate_array(sizeof(halfword), lmt_token_memory_state.tokens_data.allocated, 0);
-    int nofluacmds = 0;
     if (target && mapper) {
+        int nc = 0;
+        int nofluacmds = 0;
         memoryword *tokens = lmt_token_memory_state.tokens;
         memset((void *) mapper, -1, ((size_t) lmt_token_memory_state.tokens_data.allocated) * sizeof(halfword));
+        lmt_token_state.null_list = tex_aux_compact_token_list(lmt_token_state.null_list, tokens, target, mapper, &nc);
+        lmt_token_state.empty = tex_aux_compact_token_list(lmt_token_state.empty, tokens, target, mapper, &nc);
+        eq_value(deep_frozen_cs_end_template_code) = tex_aux_compact_token_list(eq_value(deep_frozen_cs_end_template_code), tokens, target, mapper, &nc);
+        eq_value(deep_frozen_cs_keep_constant_code) = tex_aux_compact_token_list(eq_value(deep_frozen_cs_keep_constant_code), tokens, target, mapper, &nc);
         for (int cs = 0; cs < (eqtb_size + lmt_hash_state.hash_data.ptr + 1); cs++) {
             switch (eq_type(cs)) {
                 case call_cmd:
@@ -187,22 +212,7 @@ void tex_compact_tokens(void)
                         halfword v = eq_value(cs); /* ref count token*/
                         if (v) {
                             if (mapper[v] < 0) {
-                             // printf("before =>"); { halfword tt = v; while (tt) { printf("%7d ",tt); tt = token_link(tt); } } printf("\n");
-                                halfword t = v;
-                                nc++;
-                                mapper[v] = nc; /* new ref count token index */
-                                while (1) {
-                                    target[nc].half1 = tokens[t].half1; /* info cq. ref count */
-                                    t = tokens[t].half0;
-                                    if (t) {
-                                        nc++;
-                                        target[nc-1].half0 = nc; /* link to next */
-                                    } else {
-                                        target[nc].half0 = null; /* link to next */
-                                        break;
-                                    }
-                                }
-                             // printf("after  =>"); { halfword tt = mapper[v]; while (tt) { printf("%7d ",tt); tt = target[tt].half0; } } printf("\n");
+                                tex_aux_compact_token_list(v, tokens, target, mapper, &nc);
                             }
                             eq_value(cs) = mapper[v];
                         }
@@ -217,7 +227,7 @@ void tex_compact_tokens(void)
                     }
             }
         }
-        lmt_token_state.empty = mapper[lmt_token_state.empty];
+        aux_deallocate_array(mapper);
      // print(dump_state.format_identifier);
         tex_print_format("tokenlist compacted from %i to %i entries, ", lmt_token_memory_state.tokens_data.top, nc);
         if (nofluacmds) {
@@ -494,23 +504,18 @@ void tex_print_meaning(halfword code)
                     case meaning_code:
                     case meaning_full_code:
                     case meaning_ful_code:
-                        tex_print_str("macro");
+                        tex_print_str_len("macro", 5);
                         if (code == meaning_ful_code) {
                             return;
                         } else {
                             goto FOLLOWUP;
                         }
                     case meaning_asis_code:
-                     // tex_print_format("%e%C %S ", def_cmd, def_code, cur_cs);
-                        tex_print_cmd_chr(def_cmd, def_code);
-                        tex_print_char(' ');
-                        tex_print_cs(cur_cs);
-                        tex_print_char(' ');
+                        tex_print_format("%C %S ", def_cmd, def_code, cur_cs);
                         if (cur_chr && token_link(cur_chr)) {
                             tex_show_token_list(token_link(cur_chr), get_token_preamble(cur_chr) ? 1 : 3, 0);
                         } else {
-                            tex_print_char('{');
-                            tex_print_char('}');
+                            tex_print_str_len("{}", 2);
                         }
                         return;
                     case meaning_les_code:
@@ -522,9 +527,7 @@ void tex_print_meaning(halfword code)
                 goto DETAILS;
             }
         case get_mark_cmd:
-            tex_print_cmd_chr((singleword) cur_cmd, cur_chr);
-            tex_print_char(':');
-            tex_print_nlp();
+            tex_print_format("%C :\n", def_cmd, cur_chr);
             tex_token_show(tex_get_some_mark(cur_chr, 0));
             return;
         case lua_value_cmd:
@@ -693,7 +696,7 @@ void tex_show_token_list(halfword p, int asis, int single)
                                 return;
                             default:
                                 if (chr == 0) {
-                                    tex_print_str("->");
+                                    tex_print_str_len("->", 2);
                                 }
                                 break;
                         }
@@ -701,11 +704,10 @@ void tex_show_token_list(halfword p, int asis, int single)
                     case ignore_something_cmd:
                         break;
                     case set_font_cmd:
-                        tex_print_format("[font->%s]", font_original(cur_val));
+                        tex_print_format("[font->%s]", font_original(chr));
                         break;
                     case end_paragraph_cmd:
-                     /* tex_print_format("%e%s", "par "); */
-                        tex_print_str_esc("par ");
+                        tex_print_format("%epar "); /* watch the space */
                         break;
                     default:
                         tex_print_str(tex_aux_special_cmd_string(cmd, chr, error_string_bad(43)));
@@ -795,16 +797,15 @@ void tex_show_token_list_context(halfword p, halfword q)
                             break;
                         }
                     case end_match_cmd:
-                        tex_print_str("->");
+                        tex_print_str_len("->", 2);
                         break;
                     case ignore_something_cmd:
                         break;
                     case set_font_cmd:
-                        tex_print_format("[font->%s]", font_original(cur_val));
+                        tex_print_format("[font->%s]", font_original(chr));
                         break;
                     case end_paragraph_cmd:
-                     /* tex_print_format("%e%s", "par "); */
-                        tex_print_str_esc("par ");
+                        tex_print_format("%epar "); /* watch the space */
                         break;
                     default:
                         tex_print_str(tex_aux_special_cmd_string(cmd, chr, error_string_bad(53)));
@@ -818,7 +819,7 @@ void tex_show_token_list_context(halfword p, halfword q)
             p = token_link(p);
         }
         if (p) {
-            tex_print_str_esc("ETC.");
+            tex_print_format("%eETC.");
         }
     }
 }
@@ -875,7 +876,7 @@ static void tex_aux_invalid_character_error(void)
 {
     tex_handle_error(
         normal_error_type,
-        "Text line contains an invalid character",
+        "Text line contains an invalid character%h",
         "A funny symbol that I can't read has just been input. Continue, and I'll forget\n"
         "that it ever happened."
     );
@@ -918,38 +919,62 @@ static inline next_line_retval tex_aux_next_line(void);
 
 */
 
-halfword tex_scan_character(const char *s, int left_brace, int skip_space, int skip_relax) // int skip_endpar
+/*
+
+
+*/
+
+static inline int charfound(const char *s, int c)
+{
+    while (*s) {
+        if (*s == c) return 1;
+        s++;
+    }
+    return 0;
+}
+
+/* fast binary search but then we need to pass the length  */
+
+// inline int charfound(const char *str, char target, int len)
+// {
+//     int left  = 0;
+//     int right = len - 1;
+//     while (left <= right) {
+//         int mid = left + (right - left) / 2;
+//         if (str[mid] == target) {
+//             return 1;
+//         } else if (str[mid] < target) {
+//             left = mid + 1;
+//         } else {
+//             right = mid - 1;
+//         }
+//     }
+//     return 0; // Character not found
+// }
+
+halfword tex_scan_character(const char *s, int left_brace, int skip_space, int skip_relax)
 {
     halfword save_cur_cs = cur_cs;
     while (1) {
         tex_get_x_token();
         switch (cur_cmd) {
             case spacer_cmd:
-                if (skip_space) {
-                    break;
-                } else {
-                    goto DONE;
-                }
+                if (skip_space) { break; }
+                else { goto DONE; }
             case relax_cmd:
-                if (skip_relax) {
-                    break;
-                } else {
-                    goto DONE;
-                }
-         // case end_paragraph_cmd:
-         //   if (skip_space) { /* skip_endpar */
-         //       break;
-         //   } else {
-         //       goto DONE;
-         //   }
+                if (skip_relax) { break; }
+                else { goto DONE; }
             case letter_cmd:
-            case other_char_cmd:
-                if (cur_chr <= 'z' && strchr(s, cur_chr)) {
+            case other_char_cmd: {
+                int c_lower = (cur_chr >= 'A' && cur_chr <= 'Z') ? (cur_chr + 32) : cur_chr;
+             // if (c_lower <= 127 && strchr(s, c_lower)) {
+                if (c_lower <= 127 && charfound(s, c_lower)) {
                     cur_cs = save_cur_cs;
-                    return cur_chr;
+                    return c_lower; // Returns normalized lowercase!
                 } else {
                     goto DONE;
                 }
+            }
             case left_brace_cmd:
                 if (left_brace) {
                     cur_cs = save_cur_cs;
@@ -971,8 +996,8 @@ void tex_aux_show_keyword_error(const char *s)
 {
     tex_handle_error(
         normal_error_type,
-        "Valid keyword expected, likely '%s'",
-        s,
+        "Valid keyword expected, likely '%s'%h",
+        s ? s : "",
         "You started a keyword but it seems to be an invalid one. The first character(s)\n"
         "might give you a clue. You might want to quit unwanted lookahead with \\relax."
     );
@@ -994,7 +1019,8 @@ int tex_scan_optional_keyword(const char *s)
         switch (cur_cmd) {
             case letter_cmd:
             case other_char_cmd:
-                if ((cur_chr == *p) || (cur_chr == *p - 'a' + 'A')) {
+             // if ((cur_chr == *p) || (cur_chr == *p - 'a' + 'A')) {
+                if ((cur_chr | 0x20) == (*p | 0x20)) {
                     if (*(++p)) {
                         done = 1;
                     } else {
@@ -1041,46 +1067,40 @@ int tex_scan_optional_keyword(const char *s)
 
 int tex_scan_mandate_keyword(const char *s, int offset)
 {
+    /* If offset > 0, we've already matched prefix characters upstream. */
     halfword save_cur_cs = cur_cs;
-    int done = 0;
- // int done = offset > 0;
-    const char *p = s + offset; /* offset always > 0 so no issue with +/- */
+    int done = (offset > 0);
+    const char *p = s + offset;
     while (*p) {
         tex_get_x_token();
         switch (cur_cmd) {
             case letter_cmd:
             case other_char_cmd:
-                if ((cur_chr == *p) || (cur_chr == *p - 'a' + 'A')) {
-                    if (*(++p)) {
+                /* Fast case-insensitive match assuming *p is lowercase. */
+                if ((cur_chr == *p) || ((cur_chr | 0x20) == *p)) {
+                    p++;
+                    if (*p) {
                         done = 1;
+                        break;
                     } else {
+                        /* Full keyword matched! */
                         cur_cs = save_cur_cs;
                         return 1;
                     }
                 } else {
                     goto BAD_NEWS;
                 }
-                break;
-         // case spacer_cmd: /* normally spaces are not pushed back */
-         // case relax_cmd:  /* normally not, should be option  */
-         //     if (done) {
-         //         back_input(cur_tok);
-         //         goto BAD_NEWS;
-         //     } else {
-         //         break;
-         //     }
-         // default:
-         //     goto BAD_NEWS;
-            case spacer_cmd: /* normally spaces are not pushed back */
+            case spacer_cmd:
                 if (done) {
+                    /* Space inside a keyword match is an error. */
                     goto BAD_NEWS;
                 } else {
+                    /* Ignore leading spaces before remaining suffix starts. */
                     break;
                 }
-                // fall through
             default:
+                /* Push back unexpected token. */
                 tex_back_input(cur_tok);
-                /* unless we accept partial keywords */
                 goto BAD_NEWS;
         }
     }
@@ -1105,7 +1125,8 @@ int tex_scan_keyword(const char *s)
         while (*s) {
             /*tex Recursion is possible here! */
             tex_get_x_token();
-            if ((cur_cmd == letter_cmd || cur_cmd == other_char_cmd) && ((cur_chr == *s) || (cur_chr == *s - 'a' + 'A'))) {
+         // if ((cur_cmd == letter_cmd || cur_cmd == other_char_cmd) && ((cur_chr == *s) || (cur_chr == *s - 'a' + 'A'))) {
+            if ((cur_cmd == letter_cmd || cur_cmd == other_char_cmd) && ((cur_chr | 0x20) == (*s | 0x20))) {
                 p = tex_store_new_token(p, cur_tok);
                 if (! h) {
                     h = p;
@@ -1139,7 +1160,8 @@ int tex_scan_partial_keyword(const char *s)
         int n = 0;
         while (*s) {
             tex_get_x_token();
-            if ((cur_cmd == letter_cmd || cur_cmd == other_char_cmd) && ((cur_chr == *s) || (cur_chr == *s - 'a' + 'A'))) {
+         // if ((cur_cmd == letter_cmd || cur_cmd == other_char_cmd) && ((cur_chr == *s) || (cur_chr == *s - 'a' + 'A'))) {
+            if ((cur_cmd == letter_cmd || cur_cmd == other_char_cmd) && ((cur_chr | 0x20) == (*s | 0x20))) {
                 n++;
                 s++;
             } else if (cur_cmd != spacer_cmd) {
@@ -1203,7 +1225,13 @@ halfword tex_active_to_cs(int c, int force)
     if (c >= 0 && c <= max_character_code) {
         char utfbytes[8] = { active_character_first, active_character_second, active_character_third, 0 };
         aux_uni2string((char *) &utfbytes[3], c);
+        /* We could have a dedicated version that includes settign the mode. */
         cs = tex_string_locate(utfbytes, (size_t) utf8_size(c) + 3, force);
+        if (cs > 0 && force) {
+            int p = cs_text(cs);
+            str_setmod(p, lstring_active_mode);
+         // printf("ACTIVE INDEED : %i 0x%X\n",p,p);
+        }
     }
     if (cs < 0) {
         cs = tex_string_locate(active_character_unknown, 4, force); /*tex Including the zero sentinel. */
@@ -1349,6 +1377,10 @@ halfword tex_active_to_cs(int c, int force)
 
 */
 
+/* prevent clang warning : arithmetic between different enumeration types */
+
+# define file_state_cmd(state,cmd) ((unsigned) state + (unsigned) cmd)
+
 static int tex_aux_get_next_file(void)
 {
   SWITCH:
@@ -1363,22 +1395,22 @@ static int tex_aux_get_next_file(void)
             cur_cmd = tex_aux_the_cat_code(cur_chr);
         }
         switch (lmt_input_state.cur_input.state + cur_cmd) {
-            case mid_line_state    + ignore_cmd:
-            case skip_blanks_state + ignore_cmd:
-            case new_line_state    + ignore_cmd:
-            case skip_blanks_state + spacer_cmd:
-            case new_line_state    + spacer_cmd:
+            case file_state_cmd(mid_line_state, ignore_cmd):
+            case file_state_cmd(skip_blanks_state, ignore_cmd):
+            case file_state_cmd(new_line_state, ignore_cmd):
+            case file_state_cmd(skip_blanks_state, spacer_cmd):
+            case file_state_cmd(new_line_state, spacer_cmd):
                 /*tex Cases where character is ignored. */
                 goto SWITCH;
-            case mid_line_state    + escape_cmd:
-            case new_line_state    + escape_cmd:
-            case skip_blanks_state + escape_cmd:
+            case file_state_cmd(mid_line_state, escape_cmd):
+            case file_state_cmd(new_line_state, escape_cmd):
+            case file_state_cmd(skip_blanks_state, escape_cmd):
                 /*tex Scan a control sequence. */
                 lmt_input_state.cur_input.state = (unsigned char) tex_aux_scan_control_sequence();
                 break;
-            case mid_line_state    + active_char_cmd:
-            case new_line_state    + active_char_cmd:
-            case skip_blanks_state + active_char_cmd:
+            case file_state_cmd(mid_line_state, active_char_cmd):
+            case file_state_cmd(new_line_state, active_char_cmd):
+            case file_state_cmd(skip_blanks_state, active_char_cmd):
                 /*tex Process an active-character. */
                 if ((lmt_input_state.scanner_status == scanner_is_tolerant || lmt_input_state.scanner_status == scanner_is_matching) && tex_pass_active_math_char(cur_chr)) {
                     /*tex We need to intercept a delimiter in arguments. */
@@ -1397,9 +1429,9 @@ static int tex_aux_get_next_file(void)
                 }
                 lmt_input_state.cur_input.state = mid_line_state;
                 break;
-            case mid_line_state    + superscript_cmd:
-            case new_line_state    + superscript_cmd:
-            case skip_blanks_state + superscript_cmd:
+            case file_state_cmd(mid_line_state, superscript_cmd):
+            case file_state_cmd(new_line_state, superscript_cmd):
+            case file_state_cmd(skip_blanks_state, superscript_cmd):
                 /*tex We need to check for multiple ^:
                     (0) always check for ^^ ^^^^ ^^^^^^^
                     (1) only check in text mode
@@ -1419,33 +1451,33 @@ static int tex_aux_get_next_file(void)
                 }
                 lmt_input_state.cur_input.state = mid_line_state;
                 break;
-            case mid_line_state    + invalid_char_cmd:
-            case new_line_state    + invalid_char_cmd:
-            case skip_blanks_state + invalid_char_cmd:
+            case file_state_cmd(mid_line_state, invalid_char_cmd):
+            case file_state_cmd(new_line_state, invalid_char_cmd):
+            case file_state_cmd(skip_blanks_state, invalid_char_cmd):
                 /*tex Decry the invalid character and |goto restart|. */
                 tex_aux_invalid_character_error();
                 /*tex Because state may be |token_list| now: */
                 return 0;
-            case mid_line_state + spacer_cmd:
+            case file_state_cmd(mid_line_state, spacer_cmd):
                 /*tex Enter |skip_blanks| state, emit a space. */
                 lmt_input_state.cur_input.state = skip_blanks_state;
                 cur_chr = ' ';
                 break;
-            case mid_line_state + end_line_cmd:
+            case file_state_cmd(mid_line_state, end_line_cmd):
                 /*tex Finish the line. See note above about dropped |\linepar|. */
                 lmt_input_state.cur_input.loc = lmt_input_state.cur_input.limit + 1;
                 cur_cmd = spacer_cmd;
                 cur_chr = ' ';
                 break;
-            case skip_blanks_state + end_line_cmd:
-            case mid_line_state    + comment_cmd:
-            case new_line_state    + comment_cmd:
-            case skip_blanks_state + comment_cmd:
+            case file_state_cmd(skip_blanks_state, end_line_cmd):
+            case file_state_cmd(mid_line_state, comment_cmd):
+            case file_state_cmd(new_line_state, comment_cmd):
+            case file_state_cmd(skip_blanks_state, comment_cmd):
                 /*tex Finish line, |goto switch|. */
                 lmt_input_state.cur_input.loc = lmt_input_state.cur_input.limit + 1;
                 goto SWITCH;
         # if (0) /*tex Experiment, see commented in |texequivalents.h| and |texcommands.c|. */
-            case mid_line_state    + comment_cmd:
+            case file_state_cmd(mid_line_state, comment_cmd):
                 switch (comment_mode_par) { 
                     case 0: 
                         /*tex Explicit zero test. */
@@ -1473,7 +1505,7 @@ static int tex_aux_get_next_file(void)
                 cur_cmd = other_char_cmd;
                 break;
         # endif 
-            case new_line_state + end_line_cmd:
+            case file_state_cmd(new_line_state, end_line_cmd):
                 if (! auto_paragraph_mode(auto_paragraph_go_on)) {
                     lmt_input_state.cur_input.loc = lmt_input_state.cur_input.limit + 1;
                 }
@@ -1489,42 +1521,42 @@ static int tex_aux_get_next_file(void)
                     cur_chr = eq_value(cur_cs);
                 }
                 break;
-            case skip_blanks_state + left_brace_cmd:
-            case new_line_state    + left_brace_cmd:
+            case file_state_cmd(skip_blanks_state, left_brace_cmd):
+            case file_state_cmd(new_line_state, left_brace_cmd):
                 lmt_input_state.cur_input.state = mid_line_state;
                 ++lmt_input_state.align_state;
                 break;
-            case mid_line_state + left_brace_cmd:
+            case file_state_cmd(mid_line_state, left_brace_cmd):
                 ++lmt_input_state.align_state;
                 break;
-            case skip_blanks_state + right_brace_cmd:
-            case new_line_state    + right_brace_cmd:
+            case file_state_cmd(skip_blanks_state, right_brace_cmd):
+            case file_state_cmd(new_line_state, right_brace_cmd):
                 lmt_input_state.cur_input.state = mid_line_state;
                 --lmt_input_state.align_state;
                 break;
-            case mid_line_state + right_brace_cmd:
+            case file_state_cmd(mid_line_state, right_brace_cmd):
                 --lmt_input_state.align_state;
                 break;
-            case mid_line_state + math_shift_cmd:
-            case mid_line_state + alignment_tab_cmd:
-            case mid_line_state + parameter_cmd:
-            case mid_line_state + subscript_cmd:
-            case mid_line_state + letter_cmd:
-            case mid_line_state + other_char_cmd:
+            case file_state_cmd(mid_line_state, math_shift_cmd):
+            case file_state_cmd(mid_line_state, alignment_tab_cmd):
+            case file_state_cmd(mid_line_state, parameter_cmd):
+            case file_state_cmd(mid_line_state, subscript_cmd):
+            case file_state_cmd(mid_line_state, letter_cmd):
+            case file_state_cmd(mid_line_state, other_char_cmd):
                 break;
             /*
-            case skip_blanks_state + math_shift_cmd:
-            case skip_blanks_state + alignment_tab_cmd:
-            case skip_blanks_state + parameter_cmd:
-            case skip_blanks_state + subscript_cmd:
-            case skip_blanks_state + letter_cmd:
-            case skip_blanks_state + other_char_cmd:
-            case new_line_state    + math_shift_cmd:
-            case new_line_state    + alignment_tab_cmd:
-            case new_line_state    + parameter_cmd:
-            case new_line_state    + subscript_cmd:
-            case new_line_state    + letter_cmd:
-            case new_line_state    + other_char_cmd:
+            case file_state_cmd(skip_blanks_state, math_shift_cmd):
+            case file_state_cmd(skip_blanks_state, alignment_tab_cmd):
+            case file_state_cmd(skip_blanks_state, parameter_cmd):
+            case file_state_cmd(skip_blanks_state, subscript_cmd):
+            case file_state_cmd(skip_blanks_state, letter_cmd):
+            case file_state_cmd(skip_blanks_state, other_char_cmd):
+            case file_state_cmd(new_line_state, math_shift_cmd):
+            case file_state_cmd(new_line_state, alignment_tab_cmd):
+            case file_state_cmd(new_line_state, parameter_cmd):
+            case file_state_cmd(new_line_state, subscript_cmd):
+            case file_state_cmd(new_line_state, letter_cmd):
+            case file_state_cmd(new_line_state, other_char_cmd):
             */
             default:
                 lmt_input_state.cur_input.state = mid_line_state;
@@ -1568,50 +1600,119 @@ static int tex_aux_get_next_file(void)
 
 */
 
-# define is_hex(a) ((a >= '0' && a <= '9') || (a >= 'a' && a <= 'f'))
+// # define is_hex(a) ((a >= '0' && a <= '9') || (a >= 'a' && a <= 'f'))
+
+// static inline halfword tex_aux_two_hex_to_cur_chr(int c1, int c2)
+//  {
+//    return
+//         0x10 * (c1 <= '9' ? c1 - '0' : c1 - 'a' + 10)
+//       + 0x01 * (c2 <= '9' ? c2 - '0' : c2 - 'a' + 10);
+//  }
+
+// static inline halfword tex_aux_four_hex_to_cur_chr(int c1, int c2,int c3, int c4)
+// {
+//    return
+//          0x1000 * (c1 <= '9' ? c1 - '0' : c1 - 'a' + 10)
+//        + 0x0100 * (c2 <= '9' ? c2 - '0' : c2 - 'a' + 10)
+//        + 0x0010 * (c3 <= '9' ? c3 - '0' : c3 - 'a' + 10)
+//        + 0x0001 * (c4 <= '9' ? c4 - '0' : c4 - 'a' + 10);
+// }
+
+// static inline halfword tex_aux_six_hex_to_cur_chr(int c1, int c2, int c3, int c4, int c5, int c6)
+// {
+//    return
+//          0x100000 * (c1 <= '9' ? c1 - '0' : c1 - 'a' + 10)
+//        + 0x010000 * (c2 <= '9' ? c2 - '0' : c2 - 'a' + 10)
+//        + 0x001000 * (c3 <= '9' ? c3 - '0' : c3 - 'a' + 10)
+//        + 0x000100 * (c4 <= '9' ? c4 - '0' : c4 - 'a' + 10)
+//        + 0x000010 * (c5 <= '9' ? c5 - '0' : c5 - 'a' + 10)
+//        + 0x000001 * (c6 <= '9' ? c6 - '0' : c6 - 'a' + 10);
+//
+// }
+
+/* If uppercase was an option ...
+
+# define is_hex(a) (((a) >= '0' && (a) <= '9') || \
+                    ((a) >= 'a' && (a) <= 'f') || \
+                    ((a) >= 'A' && (a) <= 'F'))
+
+static inline int hex_digit(int c)
+{
+    return (c <= '9') ? (c - '0') : ((c | 0x20) - 'a' + 10);
+}
+
+static inline int hex_to_val(int c)
+{
+    return (c <= '9') ? (c - '0') : ((c | 0x20) - 'a' + 10);
+}
 
 static inline halfword tex_aux_two_hex_to_cur_chr(int c1, int c2)
- {
-   return
-        0x10 * (c1 <= '9' ? c1 - '0' : c1 - 'a' + 10)
-      + 0x01 * (c2 <= '9' ? c2 - '0' : c2 - 'a' + 10);
- }
+{
+    return (hex_to_val(c1) <<  4) | hex_to_val(c2);
+}
 
-static inline halfword tex_aux_four_hex_to_cur_chr(int c1, int c2,int c3, int c4)
- {
-   return
-         0x1000 * (c1 <= '9' ? c1 - '0' : c1 - 'a' + 10)
-       + 0x0100 * (c2 <= '9' ? c2 - '0' : c2 - 'a' + 10)
-       + 0x0010 * (c3 <= '9' ? c3 - '0' : c3 - 'a' + 10)
-       + 0x0001 * (c4 <= '9' ? c4 - '0' : c4 - 'a' + 10);
+static inline halfword tex_aux_four_hex_to_cur_chr(int c1, int c2, int c3, int c4)
+{
+    return (hex_to_val(c1) << 12) | (hex_to_val(c2) <<  8) |
+           (hex_to_val(c3) <<  4) |  hex_to_val(c4);
 }
 
 static inline halfword tex_aux_six_hex_to_cur_chr(int c1, int c2, int c3, int c4, int c5, int c6)
 {
-   return
-         0x100000 * (c1 <= '9' ? c1 - '0' : c1 - 'a' + 10)
-       + 0x010000 * (c2 <= '9' ? c2 - '0' : c2 - 'a' + 10)
-       + 0x001000 * (c3 <= '9' ? c3 - '0' : c3 - 'a' + 10)
-       + 0x000100 * (c4 <= '9' ? c4 - '0' : c4 - 'a' + 10)
-       + 0x000010 * (c5 <= '9' ? c5 - '0' : c5 - 'a' + 10)
-       + 0x000001 * (c6 <= '9' ? c6 - '0' : c6 - 'a' + 10);
+    return (hex_to_val(c1) << 20) | (hex_to_val(c2) << 16) |
+           (hex_to_val(c3) << 12) | (hex_to_val(c4) <<  8) |
+           (hex_to_val(c5) <<  4) |  hex_to_val(c6);
+}
 
+... but it's stricly lowercase, so:
+
+*/
+
+# define is_hex(a) (((a) >= '0' && (a) <= '9') || ((a) >= 'a' && (a) <= 'f'))
+
+static inline int hex_digit(int c)
+{
+    return (c <= '9') ? (c - '0') : (c - 'a' + 10);
+}
+
+static inline halfword tex_aux_two_hex_to_cur_chr(int c1, int c2)
+{
+    return (hex_digit(c1) << 4) | hex_digit(c2);
+}
+
+static inline halfword tex_aux_four_hex_to_cur_chr(int c1, int c2, int c3, int c4)
+{
+    return (hex_digit(c1) << 12) | (hex_digit(c2) << 8) |
+           (hex_digit(c3) << 4)  |  hex_digit(c4);
+}
+
+static inline halfword tex_aux_six_hex_to_cur_chr(int c1, int c2, int c3, int c4, int c5, int c6)
+{
+    return (hex_digit(c1) << 20) | (hex_digit(c2) << 16) |
+           (hex_digit(c3) << 12) | (hex_digit(c4) << 8)  |
+           (hex_digit(c5) << 4)  |  hex_digit(c6);
+}
+
+static inline int tex_aux_buffer_char(int loc, int offset)
+{
+    int position = loc + offset;
+    return position <= lmt_input_state.cur_input.limit ? lmt_fileio_state.io_buffer[position] : -1;
 }
 
 static int tex_aux_process_sup_mark(void)
 {
-    if (cur_chr == lmt_fileio_state.io_buffer[lmt_input_state.cur_input.loc]) {
+    if (cur_chr == tex_aux_buffer_char(lmt_input_state.cur_input.loc, 0)) {
         if (lmt_input_state.cur_input.loc < lmt_input_state.cur_input.limit) {
-            if ((cur_chr == lmt_fileio_state.io_buffer[lmt_input_state.cur_input.loc + 1]) && (cur_chr == lmt_fileio_state.io_buffer[lmt_input_state.cur_input.loc + 2])) {
-                if ((cur_chr == lmt_fileio_state.io_buffer[lmt_input_state.cur_input.loc + 3]) && (cur_chr == lmt_fileio_state.io_buffer[lmt_input_state.cur_input.loc + 4])) {
+            if ((cur_chr == tex_aux_buffer_char(lmt_input_state.cur_input.loc, 1)) && (cur_chr == tex_aux_buffer_char(lmt_input_state.cur_input.loc, 2))) {
+                if ((cur_chr == tex_aux_buffer_char(lmt_input_state.cur_input.loc, 3)) && (cur_chr == tex_aux_buffer_char(lmt_input_state.cur_input.loc, 4))) {
                     if ((lmt_input_state.cur_input.loc + 10) <= lmt_input_state.cur_input.limit) {
                         /*tex |^^^^^^XXXXXX| */
-                        int c1 = lmt_fileio_state.io_buffer[lmt_input_state.cur_input.loc +  5];
-                        int c2 = lmt_fileio_state.io_buffer[lmt_input_state.cur_input.loc +  6];
-                        int c3 = lmt_fileio_state.io_buffer[lmt_input_state.cur_input.loc +  7];
-                        int c4 = lmt_fileio_state.io_buffer[lmt_input_state.cur_input.loc +  8];
-                        int c5 = lmt_fileio_state.io_buffer[lmt_input_state.cur_input.loc +  9];
-                        int c6 = lmt_fileio_state.io_buffer[lmt_input_state.cur_input.loc + 10];
+                        int c1 = tex_aux_buffer_char(lmt_input_state.cur_input.loc, 5);
+                        int c2 = tex_aux_buffer_char(lmt_input_state.cur_input.loc, 6);
+                        int c3 = tex_aux_buffer_char(lmt_input_state.cur_input.loc, 7);
+                        int c4 = tex_aux_buffer_char(lmt_input_state.cur_input.loc, 8);
+                        int c5 = tex_aux_buffer_char(lmt_input_state.cur_input.loc, 9);
+                        int c6 = tex_aux_buffer_char(lmt_input_state.cur_input.loc, 10);
                         if (is_hex(c1) && is_hex(c2) && is_hex(c3) && is_hex(c4) && is_hex(c5) && is_hex(c6)) {
                             lmt_input_state.cur_input.loc += 11;
                             cur_chr = tex_aux_six_hex_to_cur_chr(c1, c2, c3, c4, c5, c6);
@@ -1619,23 +1720,21 @@ static int tex_aux_process_sup_mark(void)
                         } else {
                             tex_handle_error(
                                 normal_error_type,
-                                "^^^^^^ needs six hex digits",
-                                NULL
+                                "^^^^^^ needs six hex digits"
                             );
                         }
                     } else {
                         tex_handle_error(
                             normal_error_type,
-                            "^^^^^^ needs six hex digits, end of input",
-                            NULL
+                            "^^^^^^ needs six hex digits, end of input"
                         );
                     }
                 } else if ((lmt_input_state.cur_input.loc + 6) <= lmt_input_state.cur_input.limit) {
                 /*tex |^^^^XXXX| */
-                    int c1 = lmt_fileio_state.io_buffer[lmt_input_state.cur_input.loc + 3];
-                    int c2 = lmt_fileio_state.io_buffer[lmt_input_state.cur_input.loc + 4];
-                    int c3 = lmt_fileio_state.io_buffer[lmt_input_state.cur_input.loc + 5];
-                    int c4 = lmt_fileio_state.io_buffer[lmt_input_state.cur_input.loc + 6];
+                    int c1 = tex_aux_buffer_char(lmt_input_state.cur_input.loc, 3);
+                    int c2 = tex_aux_buffer_char(lmt_input_state.cur_input.loc, 4);
+                    int c3 = tex_aux_buffer_char(lmt_input_state.cur_input.loc, 5);
+                    int c4 = tex_aux_buffer_char(lmt_input_state.cur_input.loc, 6);
                     if (is_hex(c1) && is_hex(c2) && is_hex(c3) && is_hex(c4)) {
                         lmt_input_state.cur_input.loc += 7;
                         cur_chr = tex_aux_four_hex_to_cur_chr(c1, c2, c3, c4);
@@ -1643,21 +1742,19 @@ static int tex_aux_process_sup_mark(void)
                     } else {
                         tex_handle_error(
                             normal_error_type,
-                            "^^^^ needs four hex digits",
-                            NULL
+                            "^^^^ needs four hex digits"
                         );
                     }
                 } else {
                     tex_handle_error(
                         normal_error_type,
-                        "^^^^ needs four hex digits, end of input",
-                        NULL
+                        "^^^^ needs four hex digits, end of input"
                     );
                 }
             } else if ((lmt_input_state.cur_input.loc + 2) <= lmt_input_state.cur_input.limit) {
                 /*tex |^^XX| */
-                int c1 = lmt_fileio_state.io_buffer[lmt_input_state.cur_input.loc + 1];
-                int c2 = lmt_fileio_state.io_buffer[lmt_input_state.cur_input.loc + 2];
+                int c1 = tex_aux_buffer_char(lmt_input_state.cur_input.loc, 1);
+                int c2 = tex_aux_buffer_char(lmt_input_state.cur_input.loc, 2);
                 if (is_hex(c1) && is_hex(c2)) {
                     lmt_input_state.cur_input.loc += 3;
                     cur_chr = tex_aux_two_hex_to_cur_chr(c1, c2);
@@ -1666,8 +1763,8 @@ static int tex_aux_process_sup_mark(void)
             }
             /*tex The single character case: */
             {
-                int c1 = lmt_fileio_state.io_buffer[lmt_input_state.cur_input.loc + 1];
-                if (c1 < 0x80) {
+                int c1 = tex_aux_buffer_char(lmt_input_state.cur_input.loc, 1);
+                if (c1 >= 0 && c1 < 0x80) {
                     lmt_input_state.cur_input.loc = lmt_input_state.cur_input.loc + 2;
                  // if (is_hex(c1) && (lmt_input_state.cur_input.loc <= lmt_input_state.cur_input.limit)) {
                  //     int c2 = fileio_state.io_buffer[lmt_input_state.cur_input.loc];
@@ -1734,63 +1831,59 @@ static int tex_aux_check_expanded_code(int *kk, halfword *chr)
     } else {
         int k = *kk;
         /* chr is the ^ character or an equivalent one */
-        if (lmt_fileio_state.io_buffer[k] == *chr && k < lmt_input_state.cur_input.limit) {
+        if (k < lmt_input_state.cur_input.limit && tex_aux_buffer_char(k, 0) == *chr ) {
             int d = 1;
             int l;
-            if ((*chr == lmt_fileio_state.io_buffer[k + 1]) && (*chr == lmt_fileio_state.io_buffer[k + 2])) {
-                if ((*chr == lmt_fileio_state.io_buffer[k + 3]) && (*chr == lmt_fileio_state.io_buffer[k + 4])) {
+            if ((*chr == tex_aux_buffer_char(k, 1)) && (*chr == tex_aux_buffer_char(k, 2))) {
+                if ((*chr == tex_aux_buffer_char(k, 3)) && (*chr == tex_aux_buffer_char(k, 4))) {
                     if ((k + 10) <= lmt_input_state.cur_input.limit) {
-                        int c1 = lmt_fileio_state.io_buffer[k + 6 - 1];
-                        int c2 = lmt_fileio_state.io_buffer[k + 6    ];
-                        int c3 = lmt_fileio_state.io_buffer[k + 6 + 1];
-                        int c4 = lmt_fileio_state.io_buffer[k + 6 + 2];
-                        int c5 = lmt_fileio_state.io_buffer[k + 6 + 3];
-                        int c6 = lmt_fileio_state.io_buffer[k + 6 + 4];
+                        int c1 = tex_aux_buffer_char(k, 5);
+                        int c2 = tex_aux_buffer_char(k, 6);
+                        int c3 = tex_aux_buffer_char(k, 7);
+                        int c4 = tex_aux_buffer_char(k, 8);
+                        int c5 = tex_aux_buffer_char(k, 9);
+                        int c6 = tex_aux_buffer_char(k, 10);
                         if (is_hex(c1) && is_hex(c2) && is_hex(c3) && is_hex(c4) && is_hex(c5) && is_hex(c6)) {
                             d = 6;
                             *chr = tex_aux_six_hex_to_cur_chr(c1, c2, c3, c4, c5, c6);
                         } else {
                             tex_handle_error(
                                 normal_error_type,
-                                "^^^^^^ needs six hex digits",
-                                NULL
+                                "^^^^^^ needs six hex digits"
                             );
                         }
                     } else {
                         tex_handle_error(
                             normal_error_type,
-                            "^^^^^^ needs six hex digits, end of input",
-                            NULL
+                            "^^^^^^ needs six hex digits, end of input"
                         );
                     }
                 } else if ((k + 6) <= lmt_input_state.cur_input.limit) {
-                    int c1 = lmt_fileio_state.io_buffer[k + 4 - 1];
-                    int c2 = lmt_fileio_state.io_buffer[k + 4    ];
-                    int c3 = lmt_fileio_state.io_buffer[k + 4 + 1];
-                    int c4 = lmt_fileio_state.io_buffer[k + 4 + 2];
+                    int c1 = tex_aux_buffer_char(k, 3);
+                    int c2 = tex_aux_buffer_char(k, 4);
+                    int c3 = tex_aux_buffer_char(k, 5);
+                    int c4 = tex_aux_buffer_char(k, 6);
                     if (is_hex(c1) && is_hex(c2) && is_hex(c3) && is_hex(c4)) {
                         d = 4;
                         *chr = tex_aux_four_hex_to_cur_chr(c1, c2, c3, c4);
                     } else {
                         tex_handle_error(
                             normal_error_type,
-                            "^^^^ needs four hex digits",
-                            NULL
+                            "^^^^ needs four hex digits"
                         );
                     }
                 } else {
                     tex_handle_error(
                         normal_error_type,
-                        "^^^^ needs four hex digits, end of input",
-                        NULL
+                        "^^^^ needs four hex digits, end of input"
                     );
                 }
             } else {
-                int c1 = lmt_fileio_state.io_buffer[k + 1];
-                if (c1 < 0x80) { /* really ? */
+                int c1 = tex_aux_buffer_char(k, 1);
+                if (c1 >= 0 && c1 < 0x80) { /* really ? */
                     d = 1;
                     if (is_hex(c1) && (k + 2) <= lmt_input_state.cur_input.limit) {
-                        int c2 = lmt_fileio_state.io_buffer[k + 2];
+                        int c2 = tex_aux_buffer_char(k, 2);
                         if (is_hex(c2)) {
                             d = 2;
                             *chr = tex_aux_two_hex_to_cur_chr(c1, c2);
@@ -1800,6 +1893,8 @@ static int tex_aux_check_expanded_code(int *kk, halfword *chr)
                     } else {
                         *chr = (c1 < 0x40 ? c1 + 0x40 : c1 - 0x40);
                     }
+                } else {
+                    return 0;
                 }
             }
             if (d > 2) {
@@ -1918,25 +2013,25 @@ static void tex_aux_check_validity(void)
         case scanner_is_skipping:
             tex_handle_error(
                 condition_error_type,
-                "The file ended while I was skipping conditional text.",
+                "The file ended while I was skipping conditional text.%h",
                 "This kind of error happens when you say '\\if...' and forget the\n"
                 "matching '\\fi'. It can also be that you  use '\\orelse' or '\\orunless\n'"
                 "in the wrong way. Or maybe a forbidden control sequence was encountered."
             );
             break;
         case scanner_is_defining:
-            tex_handle_error(runaway_error_type, "The file ended when scanning a definition.", NULL);
+            tex_handle_error(runaway_error_type, "The file ended when scanning a definition.");
             break;
         case scanner_is_matching:
-            tex_handle_error(runaway_error_type, "The file ended when scanning an argument.", NULL);
+            tex_handle_error(runaway_error_type, "The file ended when scanning an argument.");
             break;
         case scanner_is_tolerant:
             break;
         case scanner_is_aligning:
-            tex_handle_error(runaway_error_type, "The file ended when scanning an alignment preamble.", NULL);
+            tex_handle_error(runaway_error_type, "The file ended when scanning an alignment preamble.");
             break;
         case scanner_is_absorbing:
-            tex_handle_error(runaway_error_type, "The file ended when absorbing something.", NULL);
+            tex_handle_error(runaway_error_type, "The file ended when absorbing something.");
             break;
     }
 }
@@ -2017,12 +2112,11 @@ static inline next_line_retval tex_aux_next_line(void)
                                     /* we could link them and avoid one input level */
                                     tex_back_input(token_val(ignore_cmd, node_token_lsb(result)));
                                     tex_reinsert_token(token_val(node_cmd, node_token_msb(result)));
-                                    return next_line_restart;
                                 } else {
                                     /*tex |0x10FFFF == 1114111| */
                                     tex_back_input(token_val(node_cmd, result));
-                                    return next_line_restart;
                                 }
+                                return next_line_restart;
                             default:
                                 lmt_token_state.force_eof = 1;
                                 break;
@@ -2136,7 +2230,7 @@ static inline next_line_retval tex_aux_next_line(void)
                 tex_open_log_file();
                 break;
         }
-        tex_handle_error(eof_error_type, "end of file encountered", NULL);
+        tex_handle_error(eof_error_type, "end of file encountered");
         /*tex Just in case it is not handled in a callback: */
         if (lmt_error_state.interaction > nonstop_mode) {
             tex_fatal_error("aborting job");
@@ -2467,10 +2561,10 @@ void tex_get_x_or_protected(void)
 
 static halfword lmt_str_toks(lstring b) /* returns head */
 {
-    unsigned char *k = (unsigned char *) b.s;
+    unsigned char *k = (unsigned char *) b.str;
     halfword head = null;
     halfword tail = head;
-    while (k < (unsigned char *) b.s + b.l) {
+    while (k < (unsigned char *) (b.str + b.len)) {
         int tl;
         halfword t = aux_str2uni_len(k, &tl);
         k += tl;
@@ -2510,9 +2604,9 @@ halfword tex_str_toks(lstring s, halfword *tail)
 {
     halfword h = null;
     halfword p = null;
-    if (s.s) {
-        unsigned char *k = s.s;
-        unsigned char *l = k + s.l;
+    if (s.str) {
+        unsigned char *k = (unsigned char *) s.str;
+        unsigned char *l = (unsigned char *) (k + s.len);
         while (k < l) {
             int tl;
             halfword t = aux_str2uni_len(k, &tl);
@@ -2529,7 +2623,7 @@ halfword tex_str_toks(lstring s, halfword *tail)
         }
     }
     if (tail) {
-        *tail = null;
+        *tail = p;
     }
     return h;
 }
@@ -2574,9 +2668,12 @@ halfword tex_cur_str_toks(halfword *tail)
 
 halfword tex_str_scan_toks(int ct, lstring ls)
 {
+    if (! ls.str || ! ls.len) {
+        return null;
+    }
     /*tex index into string */
-    unsigned char *k = ls.s;
-    unsigned char *l = k + ls.l;
+    unsigned char *k = (unsigned char *) ls.str;
+    unsigned char *l = (unsigned char *) (k + ls.len);
     /*tex tail of the token list */
     halfword h = null;
     halfword p = null;
@@ -2589,30 +2686,38 @@ halfword tex_str_scan_toks(int ct, lstring ls)
         cc = tex_get_cat_code(ct, t);
         if (cc == 0) {
             /*tex We have a potential control sequence so we check for it. */
+            halfword escape = t;
             int lname = 0 ;
             int s = 0 ;
-            int c = 0 ;
             unsigned char *name = k ;
             while (k < l) {
+                int c = 0 ;
                 t = (halfword) aux_str2uni_len((const unsigned char *) k, &s);
                 c = tex_get_cat_code(ct, t);
-                if (c == 11) {
+                if (c == letter_cmd) {
                     k += s ;
                     lname += s ;
-                } else if (c == 10) {
+                } else if (c == spacer_cmd) {
                     /*tex We ignore a trailing space like normal scanning does. */
+                    if (lname == 0) {
+                        lname += s ;
+                    }
                     k += s ;
                     break ;
                 } else {
+                    if (lname == 0) {
+                        lname += s ;
+                        k += s ;
+                    }
                     break ;
                 }
             }
-            if (s > 0) {
+            if (lname > 0) {
                 /*tex We have a potential |\cs|. */
                 halfword cs = tex_string_locate_only((const char *) name, lname);
                 if (cs == undefined_control_sequence) {
                     /*tex Let's play safe and backtrack. */
-                    t += cc * (1<<21);
+                    t = escape + cc * (1<<21);
                     k = name ;
                 } else {
                     t = cs_token_flag + cs;
@@ -2622,7 +2727,7 @@ halfword tex_str_scan_toks(int ct, lstring ls)
                     Just a character with some meaning, so |\unknown| becomes effectively
                     |\unknown| assuming that |\\| has some useful meaning of course.
                 */
-                t += cc * (1 << 21);
+                t = escape + cc * (1 << 21);
                 k = name ;
             }
         } else {
@@ -2646,6 +2751,18 @@ static void tex_aux_set_toks_register(halfword loc, singleword cmd, halfword t, 
     halfword ref = get_reference_token();
     set_token_link(ref, t);
     tex_define((g > 0) ? global_flag_bit : 0, loc, cmd == internal_toks_cmd ? internal_toks_reference_cmd : register_toks_reference_cmd, ref);
+}
+
+static void tex_aux_set_toks_register_reference(halfword loc, singleword cmd, halfword ref, int g)
+{
+    if (ref == eq_value(loc) && ! g) {
+        return;
+    } else {
+        if (ref) {
+            tex_add_token_reference(ref);
+        }
+        tex_define((g > 0) ? global_flag_bit : 0, loc, cmd == internal_toks_cmd ? internal_toks_reference_cmd : register_toks_reference_cmd, ref);
+    }
 }
 
 static halfword tex_aux_append_copied_toks_list(halfword loc, singleword cmd, int g, halfword s, halfword t, halfword *tail)
@@ -2729,11 +2846,54 @@ typedef enum combine_operations {
     combine_prepend,
 } combine_operations;
 
+static void tex_aux_combine_owned_toks_list(halfword loc, singleword cmd, int g, combine_operations operation, halfword source, halfword target)
+{
+    if (source) {
+        halfword source_body = token_link(source);
+        halfword target_body = target ? token_link(target) : null;
+        switch (operation) {
+            case combine_assign:
+                tex_aux_set_toks_register(loc, cmd, source_body, g);
+                token_link(source) = null;
+                break;
+            case combine_append:
+            case combine_prepend:
+                if (source_body) {
+                    if (! target_body) {
+                        if (! g && target && immediate_permitted(loc, target)) {
+                            set_token_link(target, source_body);
+                            token_link(source) = null;
+                        } else {
+                            tex_aux_append_copied_toks_list(loc, cmd, g, target_body, source_body, NULL);
+                        }
+                    } else if (! g && immediate_permitted(loc, target)) {
+                        if (operation == combine_append) {
+                            halfword p = tex_tail_of_token_list(target_body);
+                            token_link(p) = source_body;
+                        } else {
+                            halfword p = tex_tail_of_token_list(source_body);
+                            token_link(p) = target_body;
+                            set_token_link(target, source_body);
+                        }
+                        token_link(source) = null;
+                    } else if (operation == combine_append) {
+                        tex_aux_append_copied_toks_list(loc, cmd, g, target_body, source_body, NULL);
+                    } else {
+                        tex_aux_append_copied_toks_list(loc, cmd, g, source_body, target_body, NULL);
+                    }
+                }
+                break;
+        }
+        tex_flush_token_list(source);
+    }
+}
+
 void tex_run_combine_the_toks(int force)
 {
     halfword source = null;
     halfword target = null;
-    halfword append, expand, global;
+    combine_operations append;
+    halfword expand, global;
     halfword nt, ns;
     halfword slot; 
     singleword cmd;
@@ -2772,59 +2932,7 @@ void tex_run_combine_the_toks(int force)
         } while (cur_cmd == spacer_cmd);
         if (cur_cmd == left_brace_cmd) {
             source = expand ? tex_scan_toks_expand(1, NULL, 0, 0) : tex_scan_toks_normal(1, NULL);
-            /*tex The action. */
-            if (source) {
-                if (target) {
-                    halfword s = token_link(source);
-                    if (s) {
-                        halfword t = token_link(target);
-                        if (! t) {
-                            /*tex Can this happen? */
-                            set_token_link(target, s);
-                            token_link(source) = null;
-                        } else {
-                            switch (append) {
-                                case combine_assign:
-                                    goto ASSIGN_1;
-                                case 1:
-                                    /*append */
-                                    if (immediate_permitted(nt,target)) {
-                                     // halfword p = tex_tail_of_node_list(t);
-                                        halfword p = t; 
-                                        while (token_link(p)) {
-                                            p = token_link(p);
-                                        }
-                                        token_link(p) = s;
-                                        token_link(source) = null;
-                                    } else {
-                                        tex_aux_append_copied_toks_list(nt, cmd, global, t, s, NULL);
-                                    }
-                                    break;
-                                case 2:
-                                    /* prepend */
-                                    if (immediate_permitted(nt,target)) {
-                                     // halfword p = tex_tail_of_node_list(s);
-                                        halfword p = s;
-                                        while (token_link(p)) {
-                                            p = token_link(p);
-                                        }
-                                        token_link(source) = null;
-                                        set_token_link(p, t);
-                                        set_token_link(target, s);
-                                    } else {
-                                        tex_aux_append_copied_toks_list(nt, cmd, global, s, t, NULL);
-                                    }
-                                    break;
-                            }
-                        }
-                    }
-                } else {
-                    ASSIGN_1:
-                    tex_aux_set_toks_register(nt, cmd, token_link(source), global);
-                    token_link(source) = null;
-                }
-                tex_flush_token_list(source);
-            }
+            tex_aux_combine_owned_toks_list(nt, cmd, global, append, source, target);
         } else {
             /* cf luatex we don't handle expand here */
             if (cur_cmd == register_toks_cmd) {
@@ -2836,66 +2944,41 @@ void tex_run_combine_the_toks(int force)
             }
             /*tex The action. */
             source = toks_register(ns);
-            if (source) {
-                if (target) {
-                    if (expand) {
-                        halfword defref = lmt_input_state.def_ref;
-                        tex_back_input(right_brace_token + '}');
-                        tex_begin_token_list(source, token_text);
-                        source = tex_scan_toks_expand(1, NULL, 0, 1);
-                        lmt_input_state.def_ref = defref;
-                        switch (append) {
-                            case combine_assign:
-                                eq_value(nt) = source;
-                                break;
-                            case combine_append:
-                                if (immediate_permitted(nt, target)) {
-                                    halfword p = tex_tail_of_token_list(token_link(target));
-                                    token_link(p) = token_link(source);
-                                } else {
-                                    halfword tail;
-                                    tex_aux_append_copied_toks_list(nt, cmd, global, target, null, &tail);
-                                    token_link(tail) = token_link(source);
-                                }
-                                tex_put_available_token(source);
-                                break;
-                            case combine_prepend:
-                                if (immediate_permitted(nt, target)) {
-                                    halfword p = tex_tail_of_token_list(token_link(source));
-                                    token_link(p) = token_link(target);
-                                    token_link(target) = token_link(source);
-                                } else {
-                                    halfword head = tex_aux_append_copied_toks_list(nt, cmd, global, target, null, NULL);
-                                    halfword tail = tex_tail_of_token_list(token_link(source));
-                                    token_link(tail) = token_link(head);
-                                    token_link(head) = token_link(source);
-                                }
-                                tex_put_available_token(source);
-                                break;
-                        }
-                    } else {
-                        halfword t = token_link(target);
-                        halfword s = token_link(source);
-                        switch (append) {
-                            case combine_assign:
-                                tex_add_token_reference(source);
-                                eq_value(nt) = source;
-                                break;
-                            case combine_append:
-                                if (immediate_permitted(nt, target)) {
-                                    halfword p = tex_tail_of_token_list(t);
+            if (expand) {
+                if (source) {
+                    halfword defref = lmt_input_state.def_ref;
+                    tex_back_input(right_brace_token + '}');
+                    tex_begin_token_list(source, token_text);
+                    source = tex_scan_toks_expand(1, NULL, 0, 1);
+                    lmt_input_state.def_ref = defref;
+                } else {
+                    source = get_reference_token();
+                }
+                tex_aux_combine_owned_toks_list(nt, cmd, global, append, source, target);
+            } else {
+                halfword source_body = source ? token_link(source) : null;
+                halfword target_body = target ? token_link(target) : null;
+                switch (append) {
+                    case combine_assign:
+                        tex_aux_set_toks_register_reference(nt, cmd, source, global);
+                        break;
+                    case combine_append:
+                    case combine_prepend:
+                        if (source_body) {
+                            if (! target_body) {
+                                tex_aux_set_toks_register_reference(nt, cmd, source, global);
+                            } else if (! global && immediate_permitted(nt, target)) {
+                                if (append == combine_append) {
+                                    halfword p = tex_tail_of_token_list(target_body);
+                                    halfword s = source_body;
                                     while (s) {
                                         p = tex_store_new_token(p, token_info(s));
                                         s = token_link(s);
                                     }
                                 } else {
-                                    tex_aux_append_copied_toks_list(nt, cmd, global, t, s, NULL);
-                                }
-                                break;
-                            case combine_prepend:
-                                if (immediate_permitted(nt, target)) {
                                     halfword h = null;
                                     halfword p = null;
+                                    halfword s = source_body;
                                     while (s) {
                                         p = tex_store_new_token(p, token_info(s));
                                         if (! h) {
@@ -2903,25 +2986,16 @@ void tex_run_combine_the_toks(int force)
                                         }
                                         s = token_link(s);
                                     }
-                                    set_token_link(p, t);
+                                    set_token_link(p, target_body);
                                     set_token_link(target, h);
-                                } else {
-                                    tex_aux_append_copied_toks_list(nt, cmd, global, s, t, NULL);
                                 }
-                                break;
+                            } else if (append == combine_append) {
+                                tex_aux_append_copied_toks_list(nt, cmd, global, target_body, source_body, NULL);
+                            } else {
+                                tex_aux_append_copied_toks_list(nt, cmd, global, source_body, target_body, NULL);
+                            }
                         }
-                    }
-                } else if (expand) {
-                    halfword defref = lmt_input_state.def_ref;
-                    tex_back_input(right_brace_token + '}');
-                    tex_begin_token_list(source, token_text);
-                    source = tex_scan_toks_expand(1, NULL, 0, 1);
-                    eq_value(nt) = source;
-                    lmt_input_state.def_ref = defref;
-                } else {
-                    // set_toks_register(nt, source, global);
-                    tex_add_token_reference(source);
-                    eq_value(nt) = source;
+                        break;
                 }
             }
         }
@@ -3066,7 +3140,7 @@ void tex_run_convert_tokens(halfword code)
             {
              /* We can use:  tex_aux_lua_call(convert_cmd, v); */
                 halfword v = tex_scan_integer(0, NULL, NULL);
-                if (v > 0) {
+                if lmt_likely(v > 0) {
                     strnumber u = tex_save_cur_string();
                     lmt_token_state.luacstrings = 0;
                     lmt_function_call(v, 0);
@@ -3082,7 +3156,7 @@ void tex_run_convert_tokens(halfword code)
         case lua_bytecode_code:
             {
                 halfword v = tex_scan_integer(0, NULL, NULL);
-                if (v < 0 || v > 65535) {
+                if lmt_unlikely(v < 0 || v > 65535) {
                     tex_normal_error("luabytecode", "invalid number");
                 } else {
                     strnumber u = tex_save_cur_string();
@@ -3157,6 +3231,7 @@ void tex_run_convert_tokens(halfword code)
              an |\edef|, which {\em is} rather efficient, so we're good anyway. The upgraded code
              can be found in the archive.
         */
+     /* */
         case string_code:
         case cs_string_code:
         case cs_active_code:
@@ -3314,11 +3389,12 @@ void tex_run_convert_tokens(halfword code)
                 break;
             }
         case roman_numeral_code:
+        case roman_numerical_code:
             {
                 int saved_selector;
                 halfword v = tex_scan_integer(0, NULL, NULL);
                 push_selector;
-                tex_print_roman_int(v);
+                tex_print_roman_int(v, code == roman_numerical_code);
                 pop_selector;
                 break;
             }
@@ -3371,13 +3447,13 @@ void tex_run_convert_tokens(halfword code)
              /* halfword result = tex_scan_toks_expand(0, NULL, code == lua_token_string_code); */
              /* lmt_token_state.in_lua_escape = 1; */
                 escape_char_par = '\\';
-                str.s = (unsigned char *) tex_tokenlist_to_tstring(result, 0, &length, 0, 0, 0, 0, 1); /* single hashes */
-                str.l = (unsigned) length;
+                str.str = (lstring_string) tex_tokenlist_to_tstring(result, 0, &length, 0, 0, 0, 0, 1); /* single hashes */
+                str.len = (lstring_length) length;
              /* lmt_token_state.in_lua_escape = saved_in_lua_escape; */
                 escape_char_par = saved_escape_char;
                 tex_delete_token_reference(result); /* boils down to flush_list */
                 tex_unsave_full_scanner_status(&saved_full_status);
-                if (str.l) {
+                if (str.len) {
                     result = lmt_str_toks(str);
                     tex_begin_inserted_list(result);
                 }
@@ -3484,7 +3560,8 @@ strnumber tex_the_convert_string(halfword c, int i)
             tex_print_posit_5(i);
             break;
         case roman_numeral_code:
-            tex_print_roman_int(i);
+        case roman_numerical_code:
+            tex_print_roman_int(i, c == roman_numerical_code);
             break;
         case to_character_code:
             tex_print_tex_str(i);
@@ -3522,7 +3599,7 @@ strnumber tex_the_convert_string(halfword c, int i)
 
 strnumber tex_tokens_to_string(halfword p)
 {
-    if (lmt_print_state.selector == new_string_selector_code) {
+    if lmt_unlikely(lmt_print_state.selector == new_string_selector_code) {
         tex_normal_error("tokens", "tokens_to_string() called while selector = new_string");
         return get_nullstr();
     } else {
@@ -3621,7 +3698,10 @@ static void tex_aux_append_esc_to_buffer(const char *s)
     tex_aux_append_str_to_buffer(s);
 }
 
-# define is_cat_letter(a)  (tex_aux_the_cat_code(aux_str2uni(str_string((a)))) == letter_cmd)
+static inline int is_cat_letter(int a)
+{
+    return tex_aux_the_cat_code(aux_str2uni(str_getstr(a))) == letter_cmd;
+}
 
 /* make two versions: macro and not */
 
@@ -3631,12 +3711,12 @@ char *tex_tokenlist_to_tstring(int pp, int inhibit_par, int *siz, int skippreamb
         /*tex We need to go beyond the reference. */
         int p = token_link(pp);
         if (p) {
-            int e = escape_char_par;  /*tex The serialization of the escape, normally a backlash. */
-            int n = 0;                /*tex The character after |#|, so |#0| upto |#9| */
-            int min = 0;
-            int max = lmt_token_memory_state.tokens_data.top;
-            int skip = 0;
-            int tail = p;
+            int e     = escape_char_par;  /*tex The serialization of the escape, normally a backlash. */
+            int n     = 0;                /*tex The character after |#|, so |#0| upto |#9| */
+            int min   = 0;
+            int max   = lmt_token_memory_state.tokens_data.top;
+            int skip  = 0;
+            int tail  = p;
             int count = 0;
             if (lmt_token_state.bufmax > default_buffer_size) {
                 /* Let's start fresh and small. */
@@ -3653,12 +3733,12 @@ char *tex_tokenlist_to_tstring(int pp, int inhibit_par, int *siz, int skippreamb
                 skip = get_token_preamble(pp);
             }
             while (p) {
-                if (p < min || p > max) {
+                if lmt_unlikely(p < min || p > max) {
                     tex_aux_append_str_to_buffer(error_string_clobbered(31));
                     break;
                 } else {
                     int info = token_info(p);
-                    if (info < 0) {
+                    if lmt_unlikely(info < 0) {
                         /*tex Unlikely, will go after checking (maybe \LUA\ user mess up). */
                         tex_aux_append_str_to_buffer(error_string_bad(32));
                     } else if (info < cs_token_flag) {
@@ -3739,7 +3819,7 @@ char *tex_tokenlist_to_tstring(int pp, int inhibit_par, int *siz, int skippreamb
                                 break;
                             case end_paragraph_cmd:
                                 if (! inhibit_par && (auto_paragraph_mode(auto_paragraph_text))) {
-                                    tex_aux_append_esc_to_buffer("par");
+                                    tex_aux_append_esc_to_buffer(nospace ? "par" : "par ");
                                 }
                                 break;
                             case deep_frozen_keep_constant_cmd:
@@ -3760,15 +3840,13 @@ char *tex_tokenlist_to_tstring(int pp, int inhibit_par, int *siz, int skippreamb
                     } else if (! (inhibit_par && info == lmt_token_state.par_token)) {
                         int q = info - cs_token_flag;
                         if (q < hash_base) {
-                            if (q == null_cs) {
+                            if lmt_likely(q == null_cs) {
                                 tex_aux_append_esc_to_buffer("csname");
                                 tex_aux_append_esc_to_buffer("endcsname");
                             } else {
                                 tex_aux_append_str_to_buffer(error_string_impossible(34));
                             }
-                        } else if (eqtb_out_of_range(q)) {
-                            tex_aux_append_str_to_buffer(error_string_impossible(35));
-                        } else {
+                        } else if (! eqtb_out_of_range(q)) {
                             strnumber txt = cs_text(q);
                             if (txt  < 0 || txt  >= lmt_string_pool_state.string_pool_data.ptr) {
                                 tex_aux_append_str_to_buffer(error_string_nonexistent(36));
@@ -3798,6 +3876,8 @@ char *tex_tokenlist_to_tstring(int pp, int inhibit_par, int *siz, int skippreamb
                                     lmt_memory_free(sh);
                                 }
                             }
+                        } else {
+                            tex_aux_append_str_to_buffer(error_string_impossible(35));
                         }
                     }
                     tail = p;
@@ -3820,7 +3900,7 @@ char *tex_tokenlist_to_tstring(int pp, int inhibit_par, int *siz, int skippreamb
                 *siz = lmt_token_state.bufloc;
             }
             if (wipe) {
-                tex_flush_token_list_head_tail(pp, tail, count);
+                tex_flush_token_list_head_tail(pp, tail, count + 1);
             }
             return lmt_token_state.buffer;
         } else {
@@ -4108,7 +4188,7 @@ void tex_dump_token_mem(dumpstream f)
         It doesn't pay off to prune the available list. We save less than 10K if we do this and
         it assumes a sequence at the end. It doesn't help that the list is in reverse order so
         we just dump the lot. But we do check the allocated size. We cheat a bit in reducing
-        the ptr so that we can set the the initial counter on loading.
+        the ptr so that we can set the initial counter on loading.
     */
     halfword p = lmt_token_memory_state.available;
     halfword u = lmt_token_memory_state.tokens_data.top + 1;

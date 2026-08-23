@@ -9,10 +9,8 @@
 
 typedef struct gslib_state_info {
 
-    int         initialized;
-    int         padding;
-    luaL_Buffer outbuffer;
-    luaL_Buffer errbuffer;
+    int initialized;
+    int padding;
 
     int (*gsapi_new_instance) (
         void **pinstance,
@@ -36,44 +34,38 @@ typedef struct gslib_state_info {
 
     int (*gsapi_set_stdio) (
         void *instance,
-        int (*stdin_fn )(void *caller_handle, char       *buf, int len),
-        int (*stdout_fn)(void *caller_handle, const char *str, int len),
-        int (*stderr_fn)(void *caller_handle, const char *str, int len)
+        int (*stdin_fn ) (void *caller_handle, char       *buf, int len),
+        int (*stdout_fn) (void *caller_handle, const char *str, int len),
+        int (*stderr_fn) (void *caller_handle, const char *str, int len)
     );
 
-    /*
-    int (*gsapi_run_string_begin)       (void *instance, int user_errors, int *pexit_code);
-    int (*gsapi_run_string_continue)    (void *instance, const char *str, unsigned int length, int user_errors, int *pexit_code);
-    int (*gsapi_run_string_end)         (void *instance, int user_errors, int *pexit_code);
-    int (*gsapi_run_string_with_length) (void *instance, const char *str, unsigned int length, int user_errors, int *pexit_code);
-    int (*gsapi_run_string)             (void *instance, const char *str, int user_errors, int *pexit_code);
-    int (*gsapi_run_file)               (void *instance, const char *file_name, int user_errors, int *pexit_code);
-    int (*gsapi_exit)                   (void *instance);
-    */
+    int (*gsapi_exit) (
+        void *instance
+    );
 
 } gslib_state_info;
 
 static gslib_state_info gslib_state = {
-
-    .initialized                  = 0,
-    .padding                      = 0,
- /* .outbuffer                    = NULL, */
- /* .errbuffer                    = NULL, */
-
-    .gsapi_new_instance           = NULL,
-    .gsapi_delete_instance        = NULL,
-    .gsapi_set_arg_encoding       = NULL,
-    .gsapi_init_with_args         = NULL,
-    .gsapi_set_stdio              = NULL,
-
+    .initialized           = 0,
+    .padding               = 0,
+    .gsapi_new_instance    = NULL,
+    .gsapi_delete_instance = NULL,
+    .gsapi_set_arg_encoding= NULL,
+    .gsapi_init_with_args  = NULL,
+    .gsapi_set_stdio       = NULL,
+    .gsapi_exit            = NULL,
 };
+
+typedef struct gslib_callback_ctx {
+    luaL_Buffer *outbuffer;
+    luaL_Buffer *errbuffer;
+} gslib_callback_ctx;
 
 static int gslib_initialize(lua_State * L)
 {
     if (! gslib_state.initialized) {
         const char *filename = lua_tostring(L, 1);
         if (filename) {
-
             lmt_library lib = lmt_library_load(filename);
 
             gslib_state.gsapi_new_instance     = lmt_library_find(lib, "gsapi_new_instance");
@@ -81,27 +73,30 @@ static int gslib_initialize(lua_State * L)
             gslib_state.gsapi_set_arg_encoding = lmt_library_find(lib, "gsapi_set_arg_encoding");
             gslib_state.gsapi_init_with_args   = lmt_library_find(lib, "gsapi_init_with_args");
             gslib_state.gsapi_set_stdio        = lmt_library_find(lib, "gsapi_set_stdio");
+            gslib_state.gsapi_exit             = lmt_library_find(lib, "gsapi_exit");
 
-            gslib_state.initialized = lmt_library_okay(lib);
+            gslib_state.initialized = lmt_library_okay(lib) && gslib_state.gsapi_exit != NULL;
         }
     }
     lua_pushboolean(L, gslib_state.initialized);
     return 1;
 }
 
-/* We could have a callback for stdout and error. */
-
 static int gslib_stdout(void * caller_handle, const char *str, int len)
 {
-    (void) caller_handle;
-    luaL_addlstring(&gslib_state.outbuffer, str, len);
+    gslib_callback_ctx *ctx = (gslib_callback_ctx *) caller_handle;
+    if (ctx && ctx->outbuffer) {
+        luaL_addlstring(ctx->outbuffer, str, len);
+    }
     return len;
 }
 
 static int gslib_stderr(void * caller_handle, const char *str, int len)
 {
-    (void) caller_handle;
-    luaL_addlstring(&gslib_state.errbuffer, str, len);
+    gslib_callback_ctx *ctx = (gslib_callback_ctx *) caller_handle;
+    if (ctx && ctx->errbuffer) {
+        luaL_addlstring(ctx->errbuffer, str, len);
+    }
     return len;
 }
 
@@ -109,53 +104,68 @@ static int gslib_execute(lua_State * L)
 {
     if (gslib_state.initialized) {
         if (lua_type(L, 1) == LUA_TTABLE) {
-            size_t n = (int) lua_rawlen(L, 1);
+            size_t n = lua_rawlen(L, 1);
             if (n > 0) {
-                void *instance = NULL;
-                int result = gslib_state.gsapi_new_instance(&instance, NULL);
-                if (result >= 0) {
-                    /*tex
-                        Strings are not yet garbage colected. We add some slack. Here MSVC wants
-                        |char**| and gcc wants |const char**| i.e.\ doesn't like a castso we just
-                        accept the less annoying MSVC warning.
-                    */
-                    const char** arguments = malloc((n + 2) * sizeof(char*));
-                    if (arguments) {
-                        int m = 1;
-                        /*tex This is a kind of dummy. */
-                        arguments[0] = "ghostscript";
-                        luaL_buffinit(L, &gslib_state.outbuffer);
-                        luaL_buffinit(L, &gslib_state.errbuffer);
-                        gslib_state.gsapi_set_stdio(instance, NULL, &gslib_stdout, &gslib_stderr);
-                        for (size_t i = 1; i <= n; i++) {
-                            lua_rawgeti(L, 1, i);
-                            switch (lua_type(L, -1)) {
-                                case LUA_TSTRING:
-                                case LUA_TNUMBER:
-                                {
-                                    size_t l = 0;
-                                    const char *s = lua_tolstring(L, -1, &l);
-                                    if (l > 0) {
-                                        arguments[m] = s;
-                                        m += 1;
-                                    }
-                                }
-                                break;
-                            }
-                            lua_pop(L, 1);
-                        }
-                        arguments[m] = NULL;
-                        result = gslib_state.gsapi_set_arg_encoding(instance, GS_ARG_ENCODING_UTF8);
-                        result = gslib_state.gsapi_init_with_args(instance, m, arguments);
-                        gslib_state.gsapi_delete_instance(instance);
-                        /* Nothing done with the array cells! No gc done yet anyway. */
-                        free((void *) arguments);
-                        lua_pushboolean(L, result >= 0);
-                        luaL_pushresult(&gslib_state.outbuffer);
-                        luaL_pushresult(&gslib_state.errbuffer);
-                        return 3;
-                    }
+                const char** arguments = malloc((n + 2) * sizeof(char*));
+                if (! arguments) {
+                    return 0;
                 }
+                /*tex
+                    Collect arguments safely from \LUA\ before initializing buffers.
+                */
+                int m = 1;
+                arguments[0] = "ghostscript";
+                for (size_t i = 1; i <= n; i++) {
+                    lua_rawgeti(L, 1, i);
+                    switch (lua_type(L, -1)) {
+                        case LUA_TSTRING:
+                        case LUA_TNUMBER:
+                        {
+                            size_t l = 0;
+                            const char *s = lua_tolstring(L, -1, &l);
+                            if (l > 0) {
+                                arguments[m] = s;
+                                m += 1;
+                            }
+                        }
+                        break;
+                    }
+                    lua_pop(L, 1);
+                }
+                arguments[m] = NULL;
+                /*tex
+                    Initialize local buffers & instance.
+                */
+                luaL_Buffer outbuf, errbuf;
+                gslib_callback_ctx ctx = { .outbuffer = &outbuf, .errbuffer = &errbuf };
+                void *instance = NULL;
+                int result = gslib_state.gsapi_new_instance(&instance, &ctx);
+                if (result >= 0) {
+                    luaL_buffinit(L, &outbuf);
+
+                    gslib_state.gsapi_set_stdio(instance, NULL, &gslib_stdout, &gslib_stderr);
+                    gslib_state.gsapi_set_arg_encoding(instance, GS_ARG_ENCODING_UTF8);
+
+                    result = gslib_state.gsapi_init_with_args(instance, m, arguments);
+
+                    /* ALWAYS exit GS session if init succeeded or attempted */
+                    gslib_state.gsapi_exit(instance);
+                    gslib_state.gsapi_delete_instance(instance);
+                    free((void *) arguments);
+                    /*tex
+                        Push results to Lua in sequential buffer order.
+                    */
+                    lua_pushboolean(L, result >= 0);
+                    luaL_pushresult(&outbuf);
+                    /*tex
+                        Initialize and build error buffer string separately to ensure stack isolation.
+                    */
+                    luaL_buffinit(L, &errbuf);
+                    luaL_pushresult(&errbuf);
+                    return 3;
+                }
+
+                free((void *) arguments);
             }
         }
     }

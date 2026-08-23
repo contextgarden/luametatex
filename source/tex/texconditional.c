@@ -12,6 +12,12 @@
     they give less noise when tracing macros. It's also possible to let \LUA\ code behave like
     a test.
 
+    After being on the agenda fot years I finally decided to replace the node based stack by a
+    dedicated one in order to get a more efficient push and pop (we have more to save and restore
+    than in regular \TEX).
+
+    todo: some loops can use level instead of ptr
+
 */
 
 /*tex
@@ -40,18 +46,40 @@
 */
 
 condition_state_info lmt_condition_state = {
-    .cond_ptr      = null,
-    .cur_if        = 0,
-    .if_limit      = 0,
-    .cur_unless    = 0,
-    .if_unless     = 0,
-    .if_step       = 0,
-    .unused        = 0,
-    .if_line       = 0,
-    .if_nesting    = 0,
-    .skip_line     = 0,
-    .chk_integer   = 0,
-    .chk_dimension = 0,
+    .level          = 0,
+    .state = {
+        .cur_if     = 0,
+        .if_limit   = 0,
+        .cur_unless = 0,
+        .if_unless  = 0,
+        .if_step    = 0,
+        .unused     = 0,
+        .if_line    = 0,
+    },
+    .skip_line      = 0,
+    .chk_integer    = 0,
+    .chk_dimension  = 0,
+# if condition_node_stack == 1
+    .cond_ptr       = null,
+# else
+    .stack          = NULL,
+    .stack_size     = 0,
+    .stack_step     = 0x0100,
+    .stack_max      = 0xFFFF,
+    .stack_data     = {
+        .minimum   = 0x0100,
+        .maximum   = 0xFFFF,
+        .size      = 0x0100,
+        .step      = 0x0100,
+        .allocated = 0,
+        .itemsize  = sizeof(condition_state),
+        .top       = 0,
+        .ptr       = 0,
+        .initial   = memory_data_unset,
+        .offset    = 0,
+        .extra     = 0,
+    },
+# endif
 };
 
 /*tex
@@ -153,13 +181,13 @@ static int tex_aux_pass_text_x(int tracing_ifs, int tracing_commands)
                             tex_show_cmd_chr(cur_cmd, cur_chr);
                         }
                         tex_get_next_non_spacer();
-                        if (lmt_condition_state.if_limit == if_code) {
-                            if (cur_cmd == if_test_cmd && cur_chr >= first_real_if_test_code) {
+                        if (lmt_condition_state.state.if_limit == if_code) {
+                            if lmt_likely(cur_cmd == if_test_cmd && cur_chr >= first_real_if_test_code) {
                                 /* okay */
                             } else {
                                 tex_handle_error(
                                     normal_error_type,
-                                    unless ? "No condition after \\orunless" : "No condition after \\orelse",
+                                    unless ? "No condition after \\orunless" : "No condition after \\orelse%h",
                                     "I'd expected a proper if test command."
                                 );
                             }
@@ -191,6 +219,8 @@ static int tex_aux_pass_text_x(int tracing_ifs, int tracing_commands)
 
 */
 
+# if condition_node_stack == 1
+
 static void tex_aux_if_warning(void)
 {
     /*tex Do we need a warning? */
@@ -205,6 +235,7 @@ static void tex_aux_if_warning(void)
             while ((lmt_input_state.input_stack[lmt_input_state.base_ptr].state == token_list_state) || (lmt_input_state.input_stack[lmt_input_state.base_ptr].index > index)) {
                 --lmt_input_state.base_ptr;
             }
+            /* hm, still a hard coded 17 */
             if (lmt_input_state.input_stack[lmt_input_state.base_ptr].name > 17) {
                 warning = true;
             }
@@ -214,7 +245,7 @@ static void tex_aux_if_warning(void)
     }
     if (warning) {
         tex_begin_diagnostic();
-        tex_print_format("%l[conditional: end of %C%L of a different file]", if_test_cmd, lmt_condition_state.cur_if, lmt_condition_state.if_line);
+        tex_print_format("%l[conditional: end of %C%L of a different file]", if_test_cmd, lmt_condition_state.state.cur_if, lmt_condition_state.state.if_line);
         tex_end_diagnostic();
         if (tracing_nesting_par > 1) {
             tex_show_context();
@@ -225,33 +256,83 @@ static void tex_aux_if_warning(void)
     }
 }
 
+# else
+
+static void tex_aux_if_warning(void)
+{
+    /*tex Do we need a warning? */
+    bool warning = false;
+    int index = lmt_input_state.in_stack_data.ptr;
+    lmt_input_state.base_ptr = lmt_input_state.input_stack_data.ptr;
+    /*tex Store current state. */
+    lmt_input_state.input_stack[lmt_input_state.base_ptr] = lmt_input_state.cur_input;
+    while (lmt_input_state.in_stack[index].if_ptr == lmt_condition_state.cond_ptr) {
+        /*tex Set variable |w| to. */
+        if (tracing_nesting_par > 0) {
+            while ((lmt_input_state.input_stack[lmt_input_state.base_ptr].state == token_list_state) || (lmt_input_state.input_stack[lmt_input_state.base_ptr].index > index)) {
+                --lmt_input_state.base_ptr;
+            }
+            /* hm, still a hard coded 17 */
+            if (lmt_input_state.input_stack[lmt_input_state.base_ptr].name > 17) {
+                warning = true;
+            }
+        }
+        lmt_input_state.in_stack[index].if_ptr = lmt_condition_state.cond_ptr - 1;
+        --index;
+    }
+    if (warning) {
+        tex_begin_diagnostic();
+        tex_print_format("%l[conditional: end of %C%L of a different file]", if_test_cmd, lmt_condition_state.state.cur_if, lmt_condition_state.state.if_line);
+        tex_end_diagnostic();
+        if (tracing_nesting_par > 1) {
+            tex_show_context();
+        }
+        if (lmt_error_state.history == spotless) {
+            lmt_error_state.history = warning_issued;
+        }
+    }
+}
+
+
+# endif
+
 /*tex 
     We can consider a dedicated condition stack so that we can copy faster. Or we can just emulate
     an if node in |lmt_condition_state|. 
 */
 
+# if condition_node_stack == 1
+
 static void tex_aux_push_condition_stack(int code, int unless)
 {
     halfword p = tex_get_node_type(if_node_size, if_node);
     node_next(p) = lmt_condition_state.cond_ptr;
-    if_limit_type(p) = (quarterword) lmt_condition_state.if_limit;
-    if_limit_subtype(p) = (quarterword) lmt_condition_state.cur_if;
-    if_limit_step(p) = (singleword) lmt_condition_state.cur_unless;
-    if_limit_unless(p) = (singleword) lmt_condition_state.if_unless;
-    if_limit_stepunless(p) = (singleword) lmt_condition_state.if_unless;
-    if_limit_line(p) = lmt_condition_state.if_line;
-    lmt_condition_state.cond_ptr = p;
-    lmt_condition_state.cur_if = (quarterword) cur_chr;
-    lmt_condition_state.cur_unless = (singleword) unless;
-    lmt_condition_state.if_step = (singleword) code;
-    lmt_condition_state.if_limit = if_code;
-    lmt_condition_state.if_line = lmt_input_state.input_line;
-    ++lmt_condition_state.if_nesting;
+    if_limit_type(p)       = (quarterword) lmt_condition_state.state.if_limit;
+    if_limit_subtype(p)    = (quarterword) lmt_condition_state.state.cur_if;
+    if_limit_step(p)       = (singleword)  lmt_condition_state.state.if_step;
+    if_limit_unless(p)     = (singleword)  lmt_condition_state.state.cur_unless;
+    if_limit_stepunless(p) = (singleword)  lmt_condition_state.state.if_unless;
+    if_limit_line(p)       = lmt_condition_state.state.if_line;
+    lmt_condition_state.cond_ptr         = p;
+    lmt_condition_state.state.cur_if     = (quarterword) cur_chr;
+    lmt_condition_state.state.cur_unless = (singleword) unless;
+    lmt_condition_state.state.if_step    = (singleword) code;
+    lmt_condition_state.state.if_limit   = if_code;
+    lmt_condition_state.state.if_line    = lmt_input_state.input_line;
+    ++lmt_condition_state.level;
 }
 
 static void tex_aux_pop_condition_stack(void)
 {
     halfword p;
+    if (! lmt_condition_state.cond_ptr) {
+        tex_handle_error(normal_error_type,
+            "Extra %C%h",
+            if_test_cmd, cur_chr,
+            "I'm ignoring this; it doesn't match any \\if."
+        );
+        return;
+    }
     if (lmt_input_state.in_stack[lmt_input_state.in_stack_data.ptr].if_ptr == lmt_condition_state.cond_ptr) {
         /*tex
             Conditionals are possibly not properly nested with files. This test can become an
@@ -260,16 +341,75 @@ static void tex_aux_pop_condition_stack(void)
         tex_aux_if_warning();
     }
     p = lmt_condition_state.cond_ptr;
-    --lmt_condition_state.if_nesting;
-    lmt_condition_state.if_line = if_limit_line(p);
-    lmt_condition_state.cur_if = if_limit_subtype(p);
-    lmt_condition_state.cur_unless = if_limit_unless(p);
-    lmt_condition_state.if_step = if_limit_step(p);
-    lmt_condition_state.if_unless = if_limit_stepunless(p);
-    lmt_condition_state.if_limit = if_limit_type(p);
-    lmt_condition_state.cond_ptr = node_next(p);
+    --lmt_condition_state.level;
+    lmt_condition_state.state.if_limit   = if_limit_type(p);
+    lmt_condition_state.state.cur_if     = if_limit_subtype(p);
+    lmt_condition_state.state.if_step    = if_limit_step(p);
+    lmt_condition_state.state.cur_unless = if_limit_unless(p);
+    lmt_condition_state.state.if_unless  = if_limit_stepunless(p);
+    lmt_condition_state.state.if_line    = if_limit_line(p);
+    lmt_condition_state.cond_ptr   = node_next(p);
     tex_free_node(p, if_node_size);
 }
+
+# else
+
+/* We waste slot 0 (for now). */
+
+static void tex_aux_push_condition_stack(int code, int unless)
+{
+    if (! lmt_condition_state.stack || lmt_condition_state.cond_ptr >= lmt_condition_state.stack_size - 1) {
+        int stack_size = lmt_condition_state.stack_size + lmt_condition_state.stack_step;
+        if (lmt_condition_state.cond_ptr + 1 > lmt_condition_state.stack_max) {
+            tex_overflow_error("conditionals", lmt_condition_state.stack_max);
+            return;
+        }
+        if (stack_size > lmt_condition_state.stack_max + 1) {
+            stack_size = lmt_condition_state.stack_max + 1;
+        }
+        {
+            condition_state *stack = lmt_memory_realloc(lmt_condition_state.stack, stack_size * sizeof(condition_state));
+            if (! stack) {
+                tex_overflow_error("conditionals", stack_size);
+                return;
+            }
+            lmt_condition_state.stack = stack;
+            lmt_condition_state.stack_size = stack_size;
+        }
+    }
+    lmt_condition_state.cond_ptr++;
+ // lmt_condition_state.level++;
+    lmt_condition_state.stack[lmt_condition_state.cond_ptr] = lmt_condition_state.state;
+    lmt_condition_state.state.cur_if     = (quarterword) cur_chr;
+    lmt_condition_state.state.cur_unless = (singleword) unless;
+    lmt_condition_state.state.if_step    = (singleword) code;
+    lmt_condition_state.state.if_limit   = if_code;
+    lmt_condition_state.state.if_line    = lmt_input_state.input_line;
+}
+
+static void tex_aux_pop_condition_stack(void)
+{
+    if (lmt_condition_state.cond_ptr <= 0) {
+        tex_handle_error(normal_error_type,
+            "Extra %C%h",
+            if_test_cmd, cur_chr,
+            "I'm ignoring this; it doesn't match any \\if."
+        );
+        return;
+    }
+    if (lmt_input_state.in_stack[lmt_input_state.in_stack_data.ptr].if_ptr == lmt_condition_state.cond_ptr) {
+        /*tex
+            Conditionals are possibly not properly nested with files. This test can become an
+            option.
+        */
+        tex_aux_if_warning();
+    }
+    lmt_condition_state.state = lmt_condition_state.stack[lmt_condition_state.cond_ptr];
+    lmt_condition_state.cond_ptr--;
+ // lmt_condition_state.level--;
+}
+
+# endif
 
 /*
     void tex_quit_fi(void) 
@@ -283,10 +423,12 @@ static void tex_aux_pop_condition_stack(void)
     |cond_ptr|.
 */
 
+# if condition_node_stack == 1
+
 static inline void tex_aux_change_if_limit(int l, halfword p)
 {
     if (p == lmt_condition_state.cond_ptr) {
-        lmt_condition_state.if_limit = (quarterword) l;
+        lmt_condition_state.state.if_limit = (quarterword) l;
     } else {
         halfword q = lmt_condition_state.cond_ptr;
         while (q) {
@@ -300,6 +442,29 @@ static inline void tex_aux_change_if_limit(int l, halfword p)
         tex_confusion("if");
     }
 }
+
+# else
+
+static inline void tex_aux_change_if_limit(int l, halfword p)
+{
+    if (p == lmt_condition_state.cond_ptr) {
+        lmt_condition_state.state.if_limit = (quarterword) l;
+    } else {
+        halfword q = lmt_condition_state.cond_ptr;
+        while (q) {
+            // next(p)
+            if (q - 1 == p) {
+                lmt_condition_state.stack[q].if_limit = (quarterword) l;
+                return;
+            } else {
+                q--;
+            }
+        }
+        tex_confusion("if");
+    }
+}
+
+# endif
 
 /*tex
 
@@ -328,7 +493,7 @@ static void tex_aux_get_x_token_or_active_char(void)
  // if (cur_cmd == relax_cmd && cur_chr == no_expand_flag && tex_is_active_cs(cs_text(cur_cs))) {
     if (cur_cmd == relax_cmd && cur_chr == no_expand_relax_code && tex_is_active_cs(cs_text(cur_cs))) {
         cur_cmd = active_char_cmd;
-        cur_chr = active_cs_value(cs_text(cur_tok - cs_token_flag));
+        cur_chr = tex_active_cs_value(cs_text(cur_tok - cs_token_flag));
     }
 }
 
@@ -341,7 +506,7 @@ static void tex_aux_get_x_token_or_active_char(void)
 
 static void tex_aux_missing_equal_error(int code)
 {
-    tex_handle_error(back_error_type, "Missing = inserted for %C", if_test_cmd, code,
+    tex_handle_error(back_error_type, "Missing = inserted for %C%h", if_test_cmd, code,
         "I was expecting to see '<', '=', or '>'. Didn't."
     );
 }
@@ -364,25 +529,31 @@ static void tex_aux_missing_equal_error(int code)
 
 static void tex_aux_show_if_state(halfword code, halfword case_value)
 {
+    static const char * const if_state_names[] = {
+        [if_case_code]           = "case",
+        [if_chk_int_code]        = "chknum",
+        [if_chk_integer_code]    = "chknumber",
+        [if_chk_intexpr_code]    = "numexpr",
+        [if_val_int_code]        = "numval",
+        [if_cmp_int_code]        = "cmpnum",
+        [if_chk_dim_code]        = "chkdim",
+        [if_chk_dimension_code]  = "chkdimension",
+        [if_chk_dimexpr_code]    = "dimexpr",
+        [if_val_dim_code]        = "dimval",
+        [if_cmp_dim_code]        = "cmpdim",
+        [if_math_parameter_code] = "mathparameter",
+        [if_math_style_code]     = "mathstyle",
+        [if_arguments_code]      = "arguments",
+        [if_parameters_code]     = "parameters",
+        [if_parameter_code]      = "parameter",
+    };
+    const char *name = NULL;
+    if (code >= first_if_case_code && code <= last_if_case_code) {
+        name = if_state_names[code];
+    }
     tex_begin_diagnostic();
     tex_print_levels();
-    switch (code) {
-        case if_chk_int_code       : tex_print_format("{chknum %i}",        case_value); break;
-        case if_chk_integer_code   : tex_print_format("{chknumber %i}",     case_value); break;
-        case if_val_int_code       : tex_print_format("{numval %i}",        case_value); break;
-        case if_cmp_int_code       : tex_print_format("{cmpnum %i}",        case_value); break;
-        case if_chk_dim_code       : tex_print_format("{chkdim %i}",        case_value); break;
-        case if_chk_dimension_code : tex_print_format("{chkdimension %i}",  case_value); break;
-        case if_val_dim_code       : tex_print_format("{dimval %i}",        case_value); break;
-        case if_cmp_dim_code       : tex_print_format("{cmpdim %i}",        case_value); break;
-        case if_case_code          : tex_print_format("{case %i}",          case_value); break;
-        case if_math_parameter_code: tex_print_format("{mathparameter %i}", case_value); break;
-        case if_math_style_code    : tex_print_format("{mathstyle %i}",     case_value); break;
-        case if_arguments_code     : tex_print_format("{arguments %i}",     case_value); break;
-        case if_parameter_code     : tex_print_format("{parameter %i}",     case_value); break;
-        case if_parameters_code    : tex_print_format("{parameters %i}",    case_value); break;
-        default                    : tex_print_format("{todo %i}",          case_value); break;
-    }
+    tex_print_format("{%s %i}", name ? name : "userdefined", case_value);
     tex_end_diagnostic();
 }
 
@@ -473,7 +644,7 @@ static halfword tex_aux_count_tok(int once)
     lmt_input_state.scanner_status = scanner_is_normal;
     p = tex_get_token();
     q = tex_aux_grab_toks(0, 0, &qhead);
-    if (p == q) {
+    if (q && p == token_info(q)) {
         result = 1;
     } else {
         while (q) {
@@ -497,14 +668,14 @@ static halfword tex_aux_count_tok(int once)
 static halfword tex_aux_count_toks(int once, int expand)
 {
     halfword phead = null;
-    halfword p;
+    halfword qhead = null;
+    halfword p, q;
     halfword result = 0;
     int save_scanner_status = lmt_input_state.scanner_status;
     lmt_input_state.scanner_status = scanner_is_normal;
     p = tex_aux_grab_toks(expand, expand, &phead);
+    q = tex_aux_grab_toks(expand, expand, &qhead);
     if (p) {
-        halfword qhead = null;
-        halfword q = tex_aux_grab_toks(expand, expand, &qhead);
         if (p == q) {
             result = 1;
         } else {
@@ -521,7 +692,7 @@ static halfword tex_aux_count_toks(int once, int expand)
                     p = token_link(p);
                     if (token_chr(pt) == token_chr(qt)) {
                         q = token_link(q);
-                    } else {
+                    } else if (p) {
                         pt = token_info(p);
                         goto AGAIN;
                     }
@@ -532,15 +703,15 @@ static halfword tex_aux_count_toks(int once, int expand)
                 }
                 if (! p) {
                     ++result;
-                    if (once) { 
+                    if (once) {
                         break;
                     }
                 }
             }
         }
-        if (qhead) {
-            tex_flush_token_list(qhead);
-        }
+    }
+    if (qhead) {
+        tex_flush_token_list(qhead);
     }
     if (phead) {
         tex_flush_token_list(phead);
@@ -667,6 +838,9 @@ static inline halfword tex_aux_scan_comparison(int code)
                     case 0x2265: return negate ? comparison_less        : comparison_not_less; 
                     case 0x2270: return negate ? comparison_greater     : comparison_not_greater;
                     case 0x2271: return negate ? comparison_less        : comparison_not_less; 
+                    default:
+                        tex_aux_missing_equal_error(code);
+                        return 0;
                 }
             case spacer_cmd: 
                 continue;
@@ -710,8 +884,8 @@ void tex_conditional_if(halfword code, int unless)
     /*tex Either process |\ifcase| or set |b| to the value of a boolean condition. */
   HERE:
     /*tex We can get back here so we need to make sure result is always set! */
-    lmt_condition_state.if_step = (singleword) code;
-    lmt_condition_state.if_unless = (singleword) unless;
+    lmt_condition_state.state.if_step   = (singleword) code;
+    lmt_condition_state.state.if_unless = (singleword) unless;
     switch (code) {
         case if_char_code:
         case if_cat_code:
@@ -769,8 +943,8 @@ void tex_conditional_if(halfword code, int unless)
                 scaled n0 = tex_scan_integer(0, NULL, NULL);
                 scaled n1 = tex_scan_integer(0, NULL, NULL);
                 scaled n2 = tex_scan_integer(0, NULL, NULL);
-                result = n1 - n2;
-                result = result == 0 ? 1 : (result > 0 ? result <= n0 : -result <= n0);
+                long long delta = (long long) n1 - (long long) n2;
+                result = delta == 0 ? 1 : (delta > 0 ? delta <= n0 : -delta <= n0);
             }
             goto RESULT;
         case if_posit_code:
@@ -793,8 +967,8 @@ void tex_conditional_if(halfword code, int unless)
                     case comparison_less       : result = tex_posit_lt(n1,n2); break;
                     case comparison_greater    : result = tex_posit_gt(n1,n2); break;
                     case comparison_not_equal  : result = tex_posit_ne(n1,n2); break;
-                    case comparison_not_less   : result = tex_posit_gt(n1,n2); break;
-                    case comparison_not_greater: result = tex_posit_lt(n1,n2); break;
+                    case comparison_not_less   : result = tex_posit_ge(n1,n2); break;
+                    case comparison_not_greater: result = tex_posit_le(n1,n2); break;
                     case comparison_element    : result = tex_posit_eq(tex_integer_to_posit(tex_posit_to_integer(n1) & tex_posit_to_integer(n2)).v,n1); break;
                     case comparison_not_element: result = tex_posit_ne(tex_integer_to_posit(tex_posit_to_integer(n1) & tex_posit_to_integer(n2)).v,n1); break;
                 }
@@ -851,7 +1025,7 @@ void tex_conditional_if(halfword code, int unless)
             }
             goto RESULT;
         case if_odd_code:
-            result = odd(tex_scan_integer(0, NULL, NULL));
+            result = odd_int(tex_scan_integer(0, NULL, NULL));
             goto RESULT;
         case if_vmode_code:
             result = is_v_mode(cur_list.mode);
@@ -902,8 +1076,6 @@ void tex_conditional_if(halfword code, int unless)
                 } else {
                     while (p && q) {
                         if (token_info(p) != token_info(q)) {
-                         // p = null;
-                         // break;
                             result = 0;
                             goto IFTOKDONE;
                         } else {
@@ -986,8 +1158,6 @@ void tex_conditional_if(halfword code, int unless)
                     } else {
                         while (p && q) {
                             if (token_info(p) != token_info(q)) {
-                             // p = null;
-                             // break;
                                 result = 0;
                                 goto IFXDONE;
                             } else {
@@ -1035,16 +1205,18 @@ void tex_conditional_if(halfword code, int unless)
                 goto CASECHECK;
             }
         case if_chk_intexpr_code: /* numeric result check */
-            lmt_error_state.intercept = 1;
-            lmt_error_state.last_intercept = 0;
-            lmt_condition_state.chk_integer = tex_scan_expr(integer_val_level);
-            result = lmt_error_state.last_intercept ? check_error : check_okay;
-            if (result == check_okay) { 
-                tex_aux_check_strict(&result);
+            {
+                lmt_error_state.intercept = 1;
+                lmt_error_state.last_intercept = 0;
+                lmt_condition_state.chk_integer = tex_scan_expr(integer_val_level);
+                result = lmt_error_state.last_intercept ? check_error : check_okay;
+                if (result == check_okay) {
+                    tex_aux_check_strict(&result);
+                }
+                lmt_error_state.intercept = 0;
+                lmt_error_state.last_intercept = 0;
+                goto CASECHECK;
             }
-            lmt_error_state.intercept = 0;
-            lmt_error_state.last_intercept = 0;
-            goto CASECHECK;
         case if_val_int_code:
             {
                 lmt_error_state.intercept = 1;
@@ -1071,7 +1243,6 @@ void tex_conditional_if(halfword code, int unless)
                 result = lmt_error_state.last_intercept ? check_error : check_okay;
                 lmt_error_state.intercept = 0;
                 lmt_error_state.last_intercept = 0;
-             /* goto CASE; */
                 goto CASECHECK;
             }
         case if_chk_dimension_code:
@@ -1085,24 +1256,25 @@ void tex_conditional_if(halfword code, int unless)
                 }
                 lmt_error_state.intercept = 0;
                 lmt_error_state.last_intercept = 0;
-             /* goto CASE; */
                 goto CASECHECK;
             }
         case if_chk_dimexpr_code: /* dimension result check */
-            lmt_error_state.intercept = 1;
-            lmt_error_state.last_intercept = 0;
-            lmt_condition_state.chk_dimension = tex_scan_expr(dimension_val_level);
-            result = lmt_error_state.last_intercept ? check_error : check_okay;
-            if (result == check_okay) { 
-                tex_aux_check_strict(&result);
+            {
+                lmt_error_state.intercept = 1;
+                lmt_error_state.last_intercept = 0;
+                lmt_condition_state.chk_dimension = tex_scan_expr(dimension_val_level);
+                result = lmt_error_state.last_intercept ? check_error : check_okay;
+                if (result == check_okay) {
+                    tex_aux_check_strict(&result);
+                }
+                lmt_error_state.intercept = 0;
+                lmt_error_state.last_intercept = 0;
+                goto CASECHECK;
             }
-            lmt_error_state.intercept = 0;
-            lmt_error_state.last_intercept = 0;
-            goto CASECHECK;
         /* too messy as it expects a { } so best use \ifchkdimension 
-         case if_chk_dimexpression_code:
-         case if_chk_dimensionexpr_code: // alias
-          // lmt_condition_state.chk_dimension = tex_scanned_expression(dimension_val_level);
+        case if_chk_dimexpression_code:
+        case if_chk_dimensionexpr_code: // alias
+             // lmt_condition_state.chk_dimension = tex_scanned_expression(dimension_val_level);
         */
         case if_val_dim_code:
             {
@@ -1201,21 +1373,26 @@ void tex_conditional_if(halfword code, int unless)
                      /* case constrained_code   : */                                            
                     }
                 } else {
-                    int fl; 
+                    int fl;
+                    int actual = flag;
                     tex_back_input(cur_tok);
-                    fl = tex_scan_integer(1, NULL, NULL); 
-                    result = (flag & fl) == fl;
-                    if (! result) {
-                        if (is_protected(fl)) {
-                            result = is_protected_cmd(eq_type(cs));
-                        } else if (is_semiprotected(fl)) {
-                            result = is_semi_protected_cmd(eq_type(cs));
-                        } else if (is_tolerant(fl)) {
-                            result = is_tolerant_cmd(eq_type(cs));
-                        } else if (is_global(fl)) {
-                            result = eq_level(cs) == level_one;
-                        }
+                    fl = tex_scan_integer(1, NULL, NULL);
+                    if (eq_level(cs) == level_one) {
+                        actual |= global_flag_bit;
                     }
+                    if (is_tolerant_cmd(eq_type(cs))) {
+                        actual |= tolerant_flag_bit;
+                    }
+                    if (is_protected_cmd(eq_type(cs))) {
+                        actual |= protected_flag_bit;
+                    }
+                    if (is_semi_protected_cmd(eq_type(cs))) {
+                        actual |= semiprotected_flag_bit;
+                    }
+                    if (is_constant_cmd(eq_type(cs))) {
+                        actual |= constant_flag_bit;
+                    }
+                    result = (actual & fl) == fl;
                 }
                 goto RESULT;
             }
@@ -1263,6 +1440,7 @@ void tex_conditional_if(halfword code, int unless)
                             goto EMPTY_CHECK_AGAIN;
                         } else {
                             result = 0;
+                            break;
                         }
                     case specification_cmd:
                         result = (cur_chr && eq_value(cur_chr)) ? 0 : 1;
@@ -1412,7 +1590,7 @@ void tex_conditional_if(halfword code, int unless)
             {
                 halfword n1 = tex_scan_integer(0, NULL, NULL);
                 halfword n2 = tex_scan_integer(0, NULL, NULL);
-                result = n1 & n2 ? 1 : 0;
+                result = (n1 & n2) ? 1 : 0;
                 goto RESULT;
             }
         default:
@@ -1459,7 +1637,7 @@ void tex_conditional_if(halfword code, int unless)
        It is too messy to support |\unless| for case variants although for |\ifparameter| we do 
        support it (there are only a few outcomes there).
     */
-    if (unless) {
+    if lmt_unlikely(unless) {
         /*tex This could be a helper as we do this a few more times. */
         halfword online = tracing_online_par;
         tracing_online_par = 1;
@@ -1545,7 +1723,7 @@ void tex_conditional_if(halfword code, int unless)
                 } else {
                     tex_handle_error(
                         normal_error_type,
-                        "Extra \\or",
+                        "Extra \\or%h",
                         "I'm ignoring this; it doesn't match any \\if."
                     );
                 }
@@ -1559,8 +1737,8 @@ void tex_conditional_if(halfword code, int unless)
         tex_aux_pop_condition_stack();
     } else {
         /*tex Wait for |\fi|. */
-//lmt_condition_state.if_step = code;
-        lmt_condition_state.if_limit = fi_code;
+//lmt_condition_state.state.if_step = code;
+        lmt_condition_state.state.if_limit = fi_code;
     }
 }
 
@@ -1576,15 +1754,23 @@ void tex_conditional_fi_or_else(void)
     if (tracing_ifs && tracing_commands_par <= 1) {
         tex_show_cmd_chr(if_test_cmd, cur_chr);
     }
+    if (! lmt_condition_state.cond_ptr) {
+        tex_handle_error(normal_error_type,
+            "Extra %C%h",
+            if_test_cmd, cur_chr,
+            "I'm ignoring this; it doesn't match any \\if."
+        );
+        return;
+    }
     if (cur_chr == or_else_code || cur_chr == or_unless_code) {
         tex_get_next_non_spacer();
-    } else if (cur_chr > lmt_condition_state.if_limit) {
-        if (lmt_condition_state.if_limit == if_code) {
+    } else if (cur_chr > lmt_condition_state.state.if_limit) {
+        if lmt_likely(lmt_condition_state.state.if_limit == if_code) {
             /*tex The condition is not yet evaluated. */
             tex_insert_relax_and_cur_cs();
         } else {
             tex_handle_error(normal_error_type,
-                "Extra %C",
+                "Extra %C%h",
                 if_test_cmd, cur_chr,
                 "I'm ignoring this; it doesn't match any \\if."
             );
@@ -1613,7 +1799,7 @@ void tex_conditional_fi_or_else(void)
 void tex_conditional_unless(void)
 {
     tex_get_token();
-    if (cur_cmd == if_test_cmd) {
+    if lmt_likely(cur_cmd == if_test_cmd) {
         if (tracing_commands_par > 1) {
             tex_show_cmd_chr(cur_cmd, cur_chr);
         }
@@ -1622,35 +1808,41 @@ void tex_conditional_unless(void)
         }
     } else {
         tex_handle_error(back_error_type,
-            "You can't use '\\unless' before '%C'",
+            "You can't use '\\unless' before '%C'%h",
             cur_cmd, cur_chr,
             "Continue, and I'll forget that it ever happened."
         );
     }
 }
 
+# if condition_node_stack == 1
+
 void tex_show_ifs(void)
 {
     if (lmt_condition_state.cond_ptr) {
-        /*tex First we determine the |\if ... \fi| nesting. */
-        int n = 0;
-        {
-            /*tex We start at the tail of a token list to show. */
-            halfword p = lmt_condition_state.cond_ptr;
-            do {
-                ++n;
-                p = node_next(p);
-            } while (p);
-        }
+        /*tex
+            First we determine the |\if ... \fi| nesting. This is kind of old as we know the
+            nesting level.
+        */
+        int n = lmt_condition_state.level;
+     // int n = 0;
+     // {
+     //     /*tex We start at the tail of a token list to show. */
+     //     halfword p = lmt_condition_state.cond_ptr;
+     //     do {
+     //         ++n;
+     //         p = node_next(p);
+     //     } while (p);
+     // }
         /*tex Now reporting can start. */
         {
-            halfword cond_ptr = lmt_condition_state.cond_ptr;
-            int cur_if = lmt_condition_state.cur_if;
-            int cur_unless = lmt_condition_state.cur_unless;
-            int if_step = lmt_condition_state.if_step;
-            int if_unless = lmt_condition_state.if_unless;
-            int if_line = lmt_condition_state.if_line;
-            int if_limit = lmt_condition_state.if_limit;
+            halfword cond_ptr   = lmt_condition_state.cond_ptr;
+            int      cur_if     = lmt_condition_state.state.cur_if;
+            int      cur_unless = lmt_condition_state.state.cur_unless;
+            int      if_step    = lmt_condition_state.state.if_step;
+            int      if_unless  = lmt_condition_state.state.if_unless;
+            int      if_line    = lmt_condition_state.state.if_line;
+            int      if_limit   = lmt_condition_state.state.if_limit;
             do {
                 if (cur_unless) {
                     if (if_line) {
@@ -1694,20 +1886,20 @@ void tex_show_ifs(void)
                     }
                 }
                 --n;
-                cur_if = if_limit_subtype(cond_ptr);
-                cur_unless = if_limit_unless(cond_ptr);;
-                if_step = if_limit_step(cond_ptr);;
-                if_unless = if_limit_stepunless(cond_ptr);;
-                if_line = if_limit_line(cond_ptr);;
-                if_limit = if_limit_type(cond_ptr);;
-                cond_ptr = node_next(cond_ptr);
+                cur_if     = if_limit_subtype(cond_ptr);
+                cur_unless = if_limit_unless(cond_ptr);
+                if_step    = if_limit_step(cond_ptr);
+                if_unless  = if_limit_stepunless(cond_ptr);
+                if_line    = if_limit_line(cond_ptr);
+                if_limit   = if_limit_type(cond_ptr);
+                cond_ptr   = node_next(cond_ptr);
                 if (cond_ptr) {
                     tex_print_levels();
                 }
             } while (cond_ptr);
         }
     } else {
-        tex_print_str("[conditional: none active]");
+        tex_print_str_len("[conditional: none active]", 26);
     }
 }
 
@@ -1716,25 +1908,115 @@ void tex_conditional_catch_up(void)
     condition_state_info saved_condition_state = lmt_condition_state;
     while (lmt_input_state.in_stack[lmt_input_state.in_stack_data.ptr].if_ptr != lmt_condition_state.cond_ptr) {
         /* todo, more info */
-        tex_print_nlp();
-        tex_print_format("Warning: end of file when %C", if_test_cmd, lmt_condition_state.cur_if);
-        if (lmt_condition_state.if_limit == fi_code) {
-            tex_print_str_esc("else");
+        tex_print_format("\nWarning: end of file when %C", if_test_cmd, lmt_condition_state.state.cur_if);
+        if (lmt_condition_state.state.if_limit == fi_code) {
+            tex_print_format("%eelse");
         }
-        if (lmt_condition_state.if_line) {
-            tex_print_format(" entered on line %i", lmt_condition_state.if_line);
+        if (lmt_condition_state.state.if_line) {
+            tex_print_format(" entered on line %i", lmt_condition_state.state.if_line);
         }
-        tex_print_str(" is incomplete");
-        lmt_condition_state.cur_if = if_limit_subtype(lmt_condition_state.cond_ptr);
-        lmt_condition_state.cur_unless = if_limit_unless(lmt_condition_state.cond_ptr);
-        lmt_condition_state.if_step = if_limit_step(lmt_condition_state.cond_ptr);
-        lmt_condition_state.if_unless = if_limit_stepunless(lmt_condition_state.cond_ptr);
-        lmt_condition_state.if_limit = if_limit_type(lmt_condition_state.cond_ptr);
-        lmt_condition_state.if_line = if_limit_line(lmt_condition_state.cond_ptr);
-        lmt_condition_state.cond_ptr = node_next(lmt_condition_state.cond_ptr);
+        tex_print_str_len(" is incomplete", 14);
+        lmt_condition_state.state.cur_if     = if_limit_subtype(lmt_condition_state.cond_ptr);
+        lmt_condition_state.state.cur_unless = if_limit_unless(lmt_condition_state.cond_ptr);
+        lmt_condition_state.state.if_step    = if_limit_step(lmt_condition_state.cond_ptr);
+        lmt_condition_state.state.if_unless  = if_limit_stepunless(lmt_condition_state.cond_ptr);
+        lmt_condition_state.state.if_limit   = if_limit_type(lmt_condition_state.cond_ptr);
+        lmt_condition_state.state.if_line    = if_limit_line(lmt_condition_state.cond_ptr);
+        lmt_condition_state.cond_ptr   = node_next(lmt_condition_state.cond_ptr);
     }
     lmt_condition_state = saved_condition_state;
 }
+
+# else
+
+void tex_show_ifs(void)
+{
+    if (lmt_condition_state.cond_ptr) {
+        /*tex
+            First we determine the |\if ... \fi| nesting. This is kind of old as we know the
+            nesting level.
+        */
+        int n = lmt_condition_state.level;
+        /*tex Now reporting can start. */
+        condition_state *s = &lmt_condition_state.state;
+        while (n > 0) {
+            if (s->cur_unless) {
+                if (s->if_line) {
+                    tex_print_format("[conditional: level %i, current %C %C, limit %C, %sstep %C, line %i]",
+                        n,
+                        expand_after_cmd, expand_unless_code,
+                        if_test_cmd, s->cur_if,
+                        if_test_cmd, s->if_limit,
+                        s->if_unless ? "unless " : "",
+                        if_test_cmd, s->if_step,
+                        s->if_line
+                   );
+                } else {
+                    tex_print_format("[conditional: level %i, current %C %C, limit %C, %sstep %C]",
+                        n,
+                        expand_after_cmd, expand_unless_code,
+                        if_test_cmd, s->cur_if,
+                        if_test_cmd, s->if_limit,
+                        s->if_unless ? "unless " : "",
+                        if_test_cmd, s->if_step
+                    );
+                }
+            } else {
+                if (s->if_line) {
+                    tex_print_format("[conditional: level %i, current %C, limit %C, %sstep %C, line %i]",
+                        n,
+                        if_test_cmd, s->cur_if,
+                        if_test_cmd, s->if_limit,
+                        s->if_unless ? "unless " : "",
+                        if_test_cmd, s->if_step,
+                        s->if_line
+                    );
+                } else {
+                    tex_print_format("[conditional: level %i, current %C, limit %C, %sstep %C]",
+                        n,
+                        if_test_cmd, s->cur_if,
+                        if_test_cmd, s->if_limit,
+                        s->if_unless ? "unless " : "",
+                        if_test_cmd, s->if_step
+                    );
+                }
+            }
+            s = &lmt_condition_state.stack[n--];
+            if (n > 0) {
+                tex_print_levels();
+            }
+        }
+    } else {
+        tex_print_str_len("[conditional: none active]", 26);
+    }
+}
+
+void tex_conditional_catch_up(void)
+{
+    condition_state_info saved_condition_state = lmt_condition_state;
+    while (lmt_input_state.in_stack[lmt_input_state.in_stack_data.ptr].if_ptr != lmt_condition_state.cond_ptr) {
+        /* todo, more info */
+        tex_print_format("\nWarning: end of file when %C", if_test_cmd, lmt_condition_state.state.cur_if);
+        if (lmt_condition_state.state.if_limit == fi_code) {
+            tex_print_format("%eelse");
+        }
+        if (lmt_condition_state.state.if_line) {
+            tex_print_format(" entered on line %i", lmt_condition_state.state.if_line);
+        }
+        tex_print_str_len(" is incomplete", 14);
+        /* todo : no need to restore all of them as we ditch them afterwards */
+        lmt_condition_state.state.cur_if     = lmt_condition_state.stack[lmt_condition_state.cond_ptr].cur_if;
+        lmt_condition_state.state.cur_unless = lmt_condition_state.stack[lmt_condition_state.cond_ptr].cur_unless;
+        lmt_condition_state.state.if_step    = lmt_condition_state.stack[lmt_condition_state.cond_ptr].if_step;
+        lmt_condition_state.state.if_unless  = lmt_condition_state.stack[lmt_condition_state.cond_ptr].if_unless;
+        lmt_condition_state.state.if_limit   = lmt_condition_state.stack[lmt_condition_state.cond_ptr].if_limit;
+        lmt_condition_state.state.if_line    = lmt_condition_state.stack[lmt_condition_state.cond_ptr].if_line;
+        lmt_condition_state.cond_ptr--;
+    }
+    lmt_condition_state = saved_condition_state;
+}
+
+# endif
 
 /*tex 
 
@@ -1760,3 +2042,79 @@ void tex_conditional_after_fi(void)
     tex_back_input(t);
 }
 */
+
+# if condition_node_stack == 1
+
+void tex_initialize_conditionals(void)
+{
+    /* nothing */
+}
+
+void tex_cleanup_conditionals(void)
+{
+    /* nothing */
+}
+
+int tex_checkup_conditionals(int badrun)
+{
+    while (lmt_condition_state.cond_ptr) {
+        halfword t;
+        if (lmt_condition_state.state.if_line != 0) {
+            tex_print_format("(\\end occurred when %C on line %i was incomplete)", if_test_cmd, lmt_condition_state.state.cur_if, lmt_condition_state.state.if_line);
+            badrun = 2;
+        } else {
+            tex_print_format("(\\end occurred when %C was incomplete)", if_test_cmd, lmt_condition_state.state.cur_if);
+            badrun = 3;
+        }
+        lmt_condition_state.state.if_line = if_limit_line(lmt_condition_state.cond_ptr);
+        lmt_condition_state.state.cur_if = if_limit_subtype(lmt_condition_state.cond_ptr);
+        t = lmt_condition_state.cond_ptr;
+        lmt_condition_state.cond_ptr = node_next(lmt_condition_state.cond_ptr);
+        tex_flush_node(t);
+    }
+    return badrun;
+}
+
+# else
+
+void tex_initialize_conditionals(void)
+{
+    if (! lmt_condition_state.stack) {
+        int stack_size = lmt_condition_state.stack_step;
+        condition_state *stack = lmt_memory_malloc(stack_size * sizeof(condition_state));
+        if (stack) {
+            lmt_condition_state.stack = stack;
+            lmt_condition_state.stack_size = stack_size;
+        } else {
+            tex_overflow_error("conditionals", stack_size);
+        }
+    }
+}
+
+void tex_cleanup_conditionals(void)
+{
+    if (lmt_condition_state.stack) {
+        lmt_memory_free(lmt_condition_state.stack);
+        lmt_condition_state.stack = NULL;
+    }
+}
+
+int tex_checkup_conditionals(int badrun)
+{
+    if (lmt_condition_state.stack) {
+        while (lmt_condition_state.cond_ptr > 0) {
+            if (lmt_condition_state.state.if_line != 0) {
+                tex_print_format("(\\end occurred when %C on line %i was incomplete)", if_test_cmd, lmt_condition_state.state.cur_if, lmt_condition_state.state.if_line);
+                badrun = 2;
+            } else {
+                tex_print_format("(\\end occurred when %C was incomplete)", if_test_cmd, lmt_condition_state.state.cur_if);
+                badrun = 3;
+            }
+            lmt_condition_state.state = lmt_condition_state.stack[lmt_condition_state.cond_ptr];
+            lmt_condition_state.cond_ptr--;
+        }
+    }
+    return badrun;
+}
+
+# endif

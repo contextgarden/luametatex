@@ -221,9 +221,10 @@ math_parameter_set_defaults,
     /* */
     math_parameter_last = 255,
     math_parameter_atom_pairs_first = math_parameter_last             + 1,
-    math_parameter_atom_pairs_last  = math_parameter_atom_pairs_first + (max_n_of_math_classes * max_n_of_math_classes),
+    /* The range endpoints are inclusive: a 64x64 table has 4096 entries. */
+    math_parameter_atom_pairs_last  = math_parameter_atom_pairs_first + (max_n_of_math_classes * max_n_of_math_classes) - 1,
     math_parameter_atom_rules_first = math_parameter_atom_pairs_last  + 1,
-    math_parameter_atom_rules_last  = math_parameter_atom_rules_first + (max_n_of_math_classes * max_n_of_math_classes),
+    math_parameter_atom_rules_last  = math_parameter_atom_rules_first + (max_n_of_math_classes * max_n_of_math_classes) - 1,
     /* a special private one */
  //  math_parameter_reset_spacing,
  //  math_parameter_set_spacing,
@@ -591,7 +592,7 @@ typedef enum math_skip_modes {
 /*tex All kind of helpers: */
 
 # define math_use_current_family_code math_component_variable_code
-# define fam_par_in_range(fam)        ((fam >= 0) && (cur_fam_par < max_n_of_math_families))
+# define fam_par_in_range(fam)        ((fam         >= 0) && (fam         < max_n_of_math_families))
 # define cur_fam_par_in_range         ((cur_fam_par >= 0) && (cur_fam_par < max_n_of_math_families))
 
 extern halfword tex_size_of_style                (halfword style);

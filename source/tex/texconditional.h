@@ -80,17 +80,6 @@ typedef enum if_test_codes {
     if_x_code,               /*tex |\ifx| */
     if_true_code,            /*tex |\iftrue| */
     if_false_code,           /*tex |\iffalse| */
-    if_chk_int_code,         /*tex |\ifchknum| */
-    if_chk_integer_code,     /*tex |\ifchknumber| */
-    if_chk_intexpr_code,     /*tex |\ifnumexpr| */
-    if_val_int_code,         /*tex |\ifnumval| */
-    if_cmp_int_code,         /*tex |\ifcmpnum| */
-    if_chk_dim_code,         /*tex |\ifchkdim| */
-    if_chk_dimension_code,   /*tex |\ifchkdimension| */
-    if_chk_dimexpr_code,     /*tex |\ifdimexpr| */
-    if_val_dim_code,         /*tex |\ifdimval| */
-    if_cmp_dim_code,         /*tex |\ifcmpdim| */
-    if_case_code,            /*tex |\ifcase| */
     if_defined_code,         /*tex |\ifdefined| */
     if_csname_code,          /*tex |\ifcsname| */
     if_in_csname_code,       /*tex |\ifincsname| */
@@ -103,11 +92,6 @@ typedef enum if_test_codes {
     if_numexpression_code,   /*tex |\ifnumexpression| */
     if_dimexpression_code,   /*tex |\ifdimexpression| */
     if_last_named_cs_code,   /*tex |\iflastnamedcs| */
-    if_math_parameter_code,  /*tex |\ifmathparameter| */
-    if_math_style_code,      /*tex |\ifmathstyle| */
-    if_arguments_code,       /*tex |\ifarguments| */
-    if_parameters_code,      /*tex |\ifparameters| */
-    if_parameter_code,       /*tex |\ifparameter| */
     if_has_tok_code,         /*tex |\ifhastok| */
     if_has_toks_code,        /*tex |\ifhastoks| */
     if_has_xtoks_code,       /*tex |\ifhasxtoks| */
@@ -118,37 +102,92 @@ typedef enum if_test_codes {
     if_list_code,            /*tex |\iflist| */
     if_specification_code,   /*tex |\ifspecification| */
     if_bitwise_and_code,     /*tex |\ifbitwiseand| */
+    /* case results */
+    if_case_code,            /*tex |\ifcase| */
+    if_chk_int_code,         /*tex |\ifchknum| */
+    if_chk_integer_code,     /*tex |\ifchknumber| */
+    if_chk_intexpr_code,     /*tex |\ifnumexpr| */
+    if_val_int_code,         /*tex |\ifnumval| */
+    if_cmp_int_code,         /*tex |\ifcmpnum| */
+    if_chk_dim_code,
+    if_chk_dimension_code,   /*tex |\ifchkdimension| */
+    if_chk_dimexpr_code,     /*tex |\ifdimexpr| */
+ /* if_chk_dimexpression_code, */
+ /* if_chk_dimensionexpr_code, */
+    if_val_dim_code,         /*tex |\ifdimval| */
+    if_cmp_dim_code,         /*tex |\ifcmpdim| */
+    if_math_parameter_code,  /*tex |\ifmathparameter| */
+    if_math_style_code,      /*tex |\ifmathstyle| */
+    if_arguments_code,       /*tex |\ifarguments| */
+    if_parameters_code,      /*tex |\ifparameters| */
+    if_parameter_code,       /*tex |\ifparameter| */
+    /* till here */
 } if_test_codes;
 
-# define first_if_test_code fi_code
-# define last_if_test_code  if_bitwise_and_code
+# define first_if_case_code      if_case_code
+# define last_if_case_code       if_parameter_code
+
+# define first_if_test_code      fi_code
+# define last_if_test_code       if_parameter_code
 
 # define first_real_if_test_code if_char_code
-# define last_real_if_test_code  if_bitwise_and_code
+# define last_real_if_test_code  if_parameter_code
+
+# define condition_node_stack 0
+
+typedef struct condition_state {
+    quarterword if_limit;   /* 2 bytes */ /*tex upper bound on |fi_or_else| codes */
+    quarterword cur_if;     /* 2 bytes */ /*tex type of conditional being worked on */
+    singleword  cur_unless; /* 1 byte  */
+    singleword  if_unless;  /* 1 byte  */
+    singleword  if_step;    /* 1 byte  */
+    singleword  unused;     /* 1 byte  */
+    halfword    if_line;    /* 4 bytes */ /*tex line where that conditional began */
+} condition_state;
+
+# if condition_node_stack == 1
 
 typedef struct condition_state_info {
-    halfword    cond_ptr;      /*tex top of the condition stack */
-    quarterword cur_if;        /*tex type of conditional being worked on */
-    quarterword if_limit;      /*tex upper bound on |fi_or_else| codes */
-    singleword  cur_unless;
-    singleword  if_unless;
-    singleword  if_step;
-    singleword  unused;
-    halfword    if_line;       /*tex line where that conditional began */
-    halfword    if_nesting;
-    halfword    skip_line;     /*tex skipping began here */
-    halfword    chk_integer;
-    scaled      chk_dimension;
+    halfword        cond_ptr; /*tex top of the condition stack */
+    condition_state state;
+    halfword        level;
+    halfword        skip_line;
+    halfword        chk_integer;
+    scaled          chk_dimension;
 } condition_state_info ;
+
+# else
+
+typedef struct condition_state_info {
+    union {
+        halfword     level;    /*tex traditional tex speak */
+        halfword     cond_ptr; /*tex top of the condition stack */
+    };
+    condition_state  state;
+    halfword         skip_line;
+    halfword         chk_integer;
+    scaled           chk_dimension;
+    /* todo: statistics, see scanner */
+    condition_state *stack;
+    int              stack_size;
+    int              stack_step;
+    int              stack_max;
+    memory_data      stack_data;
+} condition_state_info ;
+
+# endif
 
 extern condition_state_info lmt_condition_state;
 
-extern void tex_conditional_if         (halfword code, int unless);
-extern void tex_conditional_fi_or_else (void);
-extern void tex_conditional_unless     (void);
-extern void tex_show_ifs               (void);
-extern void tex_conditional_catch_up   (void);
-/*     void tex_quit_fi                (void); */
-/*     void tex_conditional_after_fi   (void); */
+extern void tex_conditional_if          (halfword code, int unless);
+extern void tex_conditional_fi_or_else  (void);
+extern void tex_conditional_unless      (void);
+extern void tex_show_ifs                (void);
+extern void tex_conditional_catch_up    (void);
+/*     void tex_quit_fi                 (void); */
+/*     void tex_conditional_after_fi    (void); */
+extern void tex_initialize_conditionals (void);
+extern int  tex_checkup_conditionals    (int badrun);
+extern void tex_cleanup_conditionals    (void);
 
 # endif

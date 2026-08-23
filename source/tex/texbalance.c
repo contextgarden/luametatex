@@ -144,7 +144,7 @@ static scaled tex_aux_checked_shrink(halfword p)
             lmt_balance_state.no_shrink_error_yet = 0;
             tex_handle_error(
                 infinite_shrink_error_type,
-                "Infinite glue shrinkage found in a (balance) slot",
+                "Infinite glue shrinkage found in a (balance) slot%h",
                 "The (balance) slot just ended includes some glue that has infinite shrinkability.\n"
             );
         }
@@ -174,14 +174,14 @@ static void tex_aux_clean_up_the_memory(void)
     lmt_balance_state.passive = null;
 }
 
-static inline void tex_aux_set_target_to_source(scaled target[], const scaled source[])
+static inline void tex_aux_set_target_to_source(scaled * restrict target, const scaled * restrict source)
 {
     for (int i = total_advance_amount; i <= total_shrink_amount; i++) {
         target[i] = source[i];
     }
 }
 
-static inline void tex_aux_add_to_target_from_delta(scaled target[], halfword delta)
+static inline void tex_aux_add_to_target_from_delta(scaled * restrict target, halfword delta)
 {
     target[total_advance_amount] += delta_field_total_glue(delta);
     target[total_stretch_amount] += delta_field_total_stretch(delta);
@@ -192,7 +192,7 @@ static inline void tex_aux_add_to_target_from_delta(scaled target[], halfword de
     target[total_shrink_amount]  += delta_field_total_shrink(delta);
 }
 
-static inline void tex_aux_sub_delta_from_target(scaled target[], halfword delta)
+static inline void tex_aux_sub_delta_from_target(scaled * restrict target, halfword delta)
 {
     target[total_advance_amount] -= delta_field_total_glue(delta);
     target[total_stretch_amount] -= delta_field_total_stretch(delta);
@@ -214,7 +214,7 @@ static inline void tex_aux_add_to_delta_from_delta(halfword target, halfword sou
     delta_field_total_shrink(target)       += delta_field_total_shrink(source);
 }
 
-static inline void tex_aux_set_delta_from_difference(halfword delta, const scaled source_1[], const scaled source_2[])
+static inline void tex_aux_set_delta_from_difference(halfword delta, const scaled * restrict source_1, const scaled * restrict source_2)
 {
     delta_field_total_glue(delta)         = (source_1[total_advance_amount] - source_2[total_advance_amount]);
     delta_field_total_stretch(delta)      = (source_1[total_stretch_amount] - source_2[total_stretch_amount]);
@@ -225,7 +225,7 @@ static inline void tex_aux_set_delta_from_difference(halfword delta, const scale
     delta_field_total_shrink(delta)       = (source_1[total_shrink_amount]  - source_2[total_shrink_amount]);
 }
 
-static inline void tex_aux_add_delta_from_difference(halfword delta, const scaled source_1[], const scaled source_2[])
+static inline void tex_aux_add_delta_from_difference(halfword delta, const scaled * restrict source_1, const scaled * restrict source_2)
 {
     delta_field_total_glue(delta)         += (source_1[total_advance_amount] - source_2[total_advance_amount]);
     delta_field_total_stretch(delta)      += (source_1[total_stretch_amount] - source_2[total_stretch_amount]);
@@ -495,7 +495,7 @@ static void tex_check_skips_shortfall(const balance_properties *properties, half
         *shortfall -= e;
     }
     if (1) { // ! tex_glue_is_zero(page_bottomskip)) {
-        halfword c = node_prev(current);
+        halfword c = current ? node_prev(current) : tex_tail_of_node_list(first);
         scaled d = 0;
         scaled e = 0;
         while (c) {
@@ -1012,8 +1012,9 @@ static inline int tex_aux_emergency(const balance_properties *properties)
 
 static scaled tex_check_balance_quality(scaled shortfall, scaled *overfull, scaled *underfull, halfword *verdict, halfword *classified)
 {
-    halfword active = active_break_node(lmt_balance_state.best_bet);
-    halfword passive = passive_prev_break(active);
+    halfword active = lmt_balance_state.best_bet;
+    halfword final_passive = active_break_node(active);
+    halfword passive = passive_prev_break(final_passive);
     int result = 1;
     /* last page ... */
     switch (active_quality(active)) {
@@ -1058,8 +1059,8 @@ static scaled tex_check_balance_quality(scaled shortfall, scaled *overfull, scal
             passive = passive_prev_break(passive);
         }
     } else {
-        if (passive_demerits(active) > *verdict) {
-            *verdict = passive_demerits(active);
+        if (passive_demerits(final_passive) > *verdict) {
+            *verdict = passive_demerits(final_passive);
             result = 2;
         }
         if (-shortfall > *overfull) {
@@ -1165,33 +1166,33 @@ static int tex_aux_set_sub_pass_parameters(
     lmt_balance_state.extra_background_stretch = properties->emergency_stretch;
     lmt_balance_state.background[total_stretch_amount] += properties->emergency_stretch;
     /* */
- // if (okay & passes_emergencyshrink_okay) {
- //     halfword v = tex_get_balance_passes_emergencyshrink(passes, subpass);
- //     if (v) {
- //         properties->emergency_shrink = v;
- //         properties->original_shrink = v; /* ! */
- //     } else {
- //         properties->emergency_shrink = properties->original_shrink;
- //     }
- // } else {
- //     properties->emergency_shrink = properties->original_shrink;
- // }
- // if (lmt_balance_state.emergency_factor) {
- //     properties->emergency_shrink = tex_xn_over_d_factor(properties->original_shrink, lmt_balance_state.emergency_factor);
- // } else {
- //     properties->emergency_shrink = 0;
- // }
+    if (okay & passes_emergencyshrink_okay) {
+        halfword v = tex_get_balance_passes_emergencyshrink(passes, subpass);
+        if (v) {
+            properties->emergency_shrink = v;
+            properties->original_shrink = v; /* ! */
+        } else {
+            properties->emergency_shrink = properties->original_shrink;
+        }
+    } else {
+        properties->emergency_shrink = properties->original_shrink;
+    }
+    if (lmt_balance_state.emergency_factor) {
+        properties->emergency_shrink = tex_xn_over_d_factor(properties->original_shrink, lmt_balance_state.emergency_factor);
+    } else {
+        properties->emergency_shrink = 0;
+    }
     if (okay & passes_additional_okay) {
         if (okay & passes_balancepenalty_okay) {
             properties->penalty = tex_get_balance_passes_pagepenalty(passes,subpass);
         }
         if (okay & passes_adjdemerits_okay) {
-            properties->adj_demerits = tex_get_passes_adjdemerits(passes, subpass);
+            properties->adj_demerits = tex_get_balance_passes_adjdemerits(passes, subpass);
             tex_aux_set_adjacent_demerits(properties);
         }
         if (okay & passes_fitnessclasses_okay) { 
             if (tex_get_balance_passes_fitnessclasses(passes, subpass)) {
-                properties->fitness_classes = tex_get_passes_fitnessclasses(passes, subpass);
+                properties->fitness_classes = tex_get_balance_passes_fitnessclasses(passes, subpass);
             }
         }
         if (okay & passes_balancechecks_okay) {
@@ -1211,32 +1212,34 @@ static int tex_aux_set_sub_pass_parameters(
         # define is_okay(a) ((okay & a) == a ? ">" : " ")
 
         tex_begin_diagnostic();
-        tex_print_format("%l[balance: values used in subpass %i]\n", subpass);
-        tex_print_str("  --------------------------------\n");
-        tex_print_format("  use criteria          %s\n", subpass >= passes_first_final(passes) ? "true" : "false");
+        tex_print_format ("%l[balance: values used in subpass %i]\n", subpass);
+        tex_print_str_len("  --------------------------------\n", 35);
+        tex_print_format ("  use criteria          %s\n", subpass >= passes_first_final(passes) ? "true" : "false");
         if (features & passes_test_set) {
-            tex_print_str("  --------------------------------\n");
-            if (features & passes_if_emergency_stretch) { tex_print_str("  if emergency stretch true\n"); }
-            if (features & passes_if_looseness)         { tex_print_str("  if looseness         true\n"); }
+            tex_print_str_len("  --------------------------------\n", 35);
+            if (features & passes_if_emergency_stretch) { tex_print_str_len("  if emergency stretch true\n", 28); }
+            if (features & passes_if_emergency_shrink)  { tex_print_str_len("  if emergency shrink  true\n", 28); }
+            if (features & passes_if_looseness)         { tex_print_str_len("  if looseness         true\n", 28); }
         }
-        tex_print_str("  --------------------------------\n");
-        tex_print_format("%s threshold            %p\n", is_okay(passes_threshold_okay), tex_get_balance_passes_threshold(passes, subpass));
+        tex_print_str_len("  --------------------------------\n", 35);
+        tex_print_format ("%s threshold            %p\n", is_okay(passes_threshold_okay), tex_get_balance_passes_threshold(passes, subpass));
      // tex_print_format("%s demerits             %i\n", is_okay(passes_demerits_okay), tex_get_balance_passes_demerits(passes, subpass));
-        tex_print_str("  --------------------------------\n");
-        tex_print_format("%s tolerance            %i\n", is_okay(passes_tolerance_okay), properties->tolerance);
-        tex_print_format("%s looseness            %i\n", is_okay(passes_looseness_okay), properties->looseness);
-        tex_print_str("  --------------------------------\n");
-        tex_print_format("%s adjdemerits          %i\n", is_okay(passes_adjdemerits_okay), properties->adj_demerits);
-        tex_print_str("  --------------------------------\n");
-        tex_print_format("%s originalstretch      %p\n", is_okay(passes_emergencystretch_okay), properties->original_stretch);
-        tex_print_format("%s emergencystretch     %p\n", is_okay(passes_emergencystretch_okay), properties->emergency_stretch);
-     // tex_print_format("%s originalshrink       %p\n", is_okay(passes_emergencyshrink_okay), properties->original_shrink);
-     // tex_print_format("%s emergencyshrink      %p\n", is_okay(passes_emergencyshrink_okay), properties->emergency_shrink);
-        tex_print_format("%s emergencyfactor      %i\n", is_okay(passes_emergencyfactor_okay), tex_get_balance_passes_emergencyfactor(passes, subpass));
-        tex_print_format("%s emergencypercentage  %i\n", is_okay(passes_emergencypercentage_okay), lmt_balance_state.emergency_percentage);
-        tex_print_str("  --------------------------------\n");
+        tex_print_str_len("  --------------------------------\n", 35);
+        tex_print_format ("%s tolerance            %i\n", is_okay(passes_tolerance_okay), properties->tolerance);
+        tex_print_format ("%s looseness            %i\n", is_okay(passes_looseness_okay), properties->looseness);
+        tex_print_str_len("  --------------------------------\n", 35);
+        tex_print_format ("%s adjdemerits          %i\n", is_okay(passes_adjdemerits_okay), properties->adj_demerits);
+        tex_print_str_len("  --------------------------------\n", 35);
+        tex_print_format ("%s originalstretch      %p\n", is_okay(passes_emergencystretch_okay), properties->original_stretch);
+        tex_print_format ("%s emergencystretch     %p\n", is_okay(passes_emergencystretch_okay), properties->emergency_stretch);
+        tex_print_format ("%s originalshrink       %p\n", is_okay(passes_emergencyshrink_okay), properties->original_shrink);
+        tex_print_format ("%s emergencyshrink      %p\n", is_okay(passes_emergencyshrink_okay), properties->emergency_shrink);
+        tex_print_format ("%s emergencyfactor      %i\n", is_okay(passes_emergencyfactor_okay), tex_get_balance_passes_emergencyfactor(passes, subpass));
+        tex_print_format ("%s emergencypercentage  %i\n", is_okay(passes_emergencypercentage_okay), lmt_balance_state.emergency_percentage);
+        tex_print_str_len("  --------------------------------\n", 35);
         tex_end_diagnostic();
     }
+    success = 1;
     return success;
 }
 
@@ -1255,21 +1258,21 @@ static inline int tex_aux_next_subpass(const balance_properties *properties, hal
         halfword features = tex_get_balance_passes_features(passes, subpass);
         if (features & passes_test_set) {
             if (features & passes_if_emergency_stretch) {
-                if (! ( (properties->original_stretch || tex_get_balance_passes_emergencystretch(passes, subpass)) && tex_get_balance_passes_emergencyfactor(passes, subpass) ) ) {
+                if (! ( (properties->original_stretch || tex_get_balance_passes_emergencystretch(passes, subpass) || tex_get_balance_passes_emergencypercentage(passes, subpass)) && tex_get_balance_passes_emergencyfactor(passes, subpass) ) ) {
                     if (tracing) {
                         tex_aux_skip_message(passes, subpass, nofsubpasses, "emergency stretch");
                     }
                     continue;
                 }
             }
-         // if (features & passes_if_emergency_shrink) {
-         //     if (! ( (properties->original_shrink || tex_get_balance_passes_emergencyshrink(passes, subpass)) && tex_get_balance_passes_emergencyfactor(passes, subpass) ) ) {
-         //         if (tracing) {
-         //             tex_aux_skip_message(passes, subpass, nofsubpasses, "emergency shrink");
-         //         }
-         //         continue;
-         //     }
-         // }
+            if (features & passes_if_emergency_shrink) {
+                if (! ( (properties->original_shrink || tex_get_balance_passes_emergencyshrink(passes, subpass)) && tex_get_balance_passes_emergencyfactor(passes, subpass) ) ) {
+                    if (tracing) {
+                        tex_aux_skip_message(passes, subpass, nofsubpasses, "emergency shrink");
+                    }
+                    continue;
+                }
+            }
             if (features & passes_if_looseness) {
                 if (! properties->looseness) {
                     if (tracing) {
@@ -1433,7 +1436,7 @@ static void tex_aux_trace_penalty(halfword current, const char *action)
     tex_begin_diagnostic();
     tex_print_format("%l[balance: penalty, slot %i, amount %i, total %p, %s]",
         lmt_balance_state.current_slot_number, 
-        penalty_amount(current),
+        node_type(current) == penalty_node ? penalty_amount(current) : glue_penalty(current),
         lmt_balance_state.active_height[total_advance_amount],
         action
     );
@@ -1470,6 +1473,13 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                 }
                 break;
             case glue_node:
+//                if (tex_has_glue_option(current, glue_option_has_penalty) && glue_penalty(current)) {
+//                    halfword penalty = glue_penalty(current);
+//                    if (tracing) {
+//                        tex_aux_trace_penalty(current, "trying");
+//                    }
+//                    tex_aux_try_break(properties, penalty, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
+//                } else
                 if (tex_aux_valid_glue_break(current)) {
                     if (tracing) {
                         tex_aux_trace_glue(current, "trying");
@@ -1654,28 +1664,29 @@ void tex_balance_preset(balance_properties *properties)
     if (! balance_fitness_classes) {
         balance_fitness_classes = tex_default_fitness_classes();
     }
-    properties->tracing_balancing = tracing_balancing_par;
-    properties->tracing_fitness   = tracing_fitness_par;
-    properties->tracing_passes    = tracing_passes_par;
-    properties->tolerance         = balance_tolerance_par;
-    properties->pretolerance      = -1; /* we skip when the same */
-    properties->vsize             = balance_vsize_par;
-    properties->topskip           = balance_top_skip_par;
-    properties->bottomskip        = balance_bottom_skip_par;
-    properties->emergency_stretch = balance_emergency_stretch_par;
-    properties->emergency_shrink  = balance_emergency_shrink_par;
-    properties->original_stretch  = 0;
-    properties->original_shrink   = 0;
-    properties->looseness         = balance_looseness_par;
-    properties->adj_demerits      = balance_adj_demerits_par;
-    properties->shape             = balance_shape_par; 
-    properties->fitness_classes   = balance_fitness_classes;
-    properties->passes            = balance_passes_par;   
-    properties->penalty           = balance_penalty_par;
-    properties->max_adj_demerits  = 0;
-    properties->checks            = balance_checks_par;
-    properties->packing           = packing_exactly;
-    properties->trial             = 0;
+    properties->tracing_balancing  = tracing_balancing_par;
+    properties->tracing_fitness    = tracing_fitness_par;
+    properties->tracing_passes     = tracing_passes_par;
+    properties->tracing_raggedness = tracing_raggedness_par;
+    properties->tolerance          = balance_tolerance_par;
+    properties->pretolerance       = -1; /* we skip when the same */
+    properties->vsize              = balance_vsize_par;
+    properties->topskip            = balance_top_skip_par;
+    properties->bottomskip         = balance_bottom_skip_par;
+    properties->emergency_stretch  = balance_emergency_stretch_par;
+    properties->emergency_shrink   = balance_emergency_shrink_par;
+    properties->original_stretch   = 0;
+    properties->original_shrink    = 0;
+    properties->looseness          = balance_looseness_par;
+    properties->adj_demerits       = balance_adj_demerits_par;
+    properties->shape              = balance_shape_par;
+    properties->fitness_classes    = balance_fitness_classes;
+    properties->passes             = balance_passes_par;
+    properties->penalty            = balance_penalty_par;
+    properties->max_adj_demerits   = 0;
+    properties->checks             = balance_checks_par;
+    properties->packing            = packing_exactly;
+    properties->trial              = 0;
 }
 
 void tex_balance_reset(balance_properties *properties)
@@ -1797,7 +1808,7 @@ void tex_balance(balance_properties *properties, halfword head)
     halfword first = node_next(temp_head);
     /*tex Some helpers use temp_head so we need to use that! */
     properties->original_stretch = properties->emergency_stretch;
-    properties->original_shrink = properties->emergency_shrink;
+    properties->original_shrink  = properties->emergency_shrink;
     lmt_balance_state.just_box                 = 0;
     lmt_balance_state.no_shrink_error_yet      = 1;
     lmt_balance_state.threshold                = properties->pretolerance;
@@ -1858,7 +1869,7 @@ void tex_balance(balance_properties *properties, halfword head)
     tex_aux_set_looseness(properties);
     if (properties->tracing_balancing > 1) {
         tex_begin_diagnostic();
-        tex_print_str("%l[balance: original] ");
+        tex_print_format("%l[balance: original] ");
         tex_short_display(first);
         tex_end_diagnostic();
     }
@@ -1868,7 +1879,7 @@ void tex_balance(balance_properties *properties, halfword head)
         if (properties->tracing_balancing > 0 || properties->tracing_passes > 0) {
             if (specification_presets(passes)) {
                 tex_begin_diagnostic();
-                tex_print_str("%l[balance: specification presets]");
+                tex_print_format("%l[balance: specification presets]");
                 tex_end_diagnostic();
             }
         }
@@ -1910,16 +1921,17 @@ void tex_balance(balance_properties *properties, halfword head)
                     break;
                 } else {
                     pass = balance_final_pass;
-                    /* fall through */
                 }
+                FALLTHROUGH
             case balance_final_pass:
                 lmt_balance_state.passes.n_of_final_passes++;
                 if (properties->tracing_balancing > 0 || properties->tracing_passes > 0) {
                     tex_begin_diagnostic();
-                    tex_print_format("%l[balance: final pass, used tolerance %i, used emergency stretch %p]", lmt_balance_state.threshold, properties->emergency_stretch);
+                    tex_print_format("%l[balance: final pass, used tolerance %i, used emergency stretch %p, used emergency shrink %p]", lmt_balance_state.threshold, properties->emergency_stretch, properties->emergency_shrink);
                     // tex_end_diagnostic();
                 }
                 lmt_balance_state.background[total_stretch_amount] += properties->emergency_stretch;
+                lmt_balance_state.background[total_shrink_amount] += properties->emergency_shrink;
                 break;
             case balance_specification_pass:
                 if (specification_presets(passes)) {
@@ -2059,7 +2071,6 @@ void tex_balance(balance_properties *properties, halfword head)
     }
   INDEED:
     if (properties->looseness && (! tracing_looseness_par) && (properties->looseness != lmt_balance_state.actual_looseness)) {
-        tex_print_nlp();
         tex_print_format("%l[looseness: page %i, requested %i, actual %i]\n", lmt_balance_state.best_page - 1, properties->looseness, lmt_balance_state.actual_looseness);
     }
     lmt_balance_state.total_inserts_found += lmt_balance_state.inserts_found; 
@@ -2182,7 +2193,9 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
                             height = box_height(current);
                             if (box_discardable(current)) {
                                 extra = box_discardable(current);
-                                box_discardable(current) = 0;
+                                if (! properties->trial) {
+                                    box_discardable(current) = 0;
+                                }
                             } else if ((box_options(current) & box_option_discardable) && (options & balance_step_option_top)) {
                                 discard = box_total(current);
                                 extra = -discard;
@@ -2192,7 +2205,9 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
                             height = rule_height(current); 
                             if (rule_discardable(current)) {
                                 extra = rule_discardable(current);
-                                rule_discardable(current) = 0;
+                                if (! properties->trial) {
+                                    rule_discardable(current) = 0;
+                                }
                             } else if ((rule_options(current) & rule_option_discardable) && (options & balance_step_option_top)) {
                                 discard = rule_total(current);
                                 extra = -discard;
@@ -2218,7 +2233,7 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
                     case hlist_node:
                     case vlist_node:
                         depth = box_depth(last); 
-                        if ((box_options(last) & box_option_discardable) && (options & balance_step_option_top)) {
+                        if ((box_options(last) & box_option_discardable) && (options & balance_step_option_bottom)) {
                             discard += box_total(last);
                         }
                         break;
@@ -2314,9 +2329,8 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
             tex_aux_update_height_and_skips(properties, page, &target, &topskip, &bottomskip, &options, 1);
             discardable = first && first == last && (
                 (node_type(last) == rule_node  && (rule_options(last) & rule_option_discardable)) 
-             || (node_type(last) == vlist_node && (box_options(last)  & box_option_discardable ))
+             || ((node_type(last) == vlist_node || node_type(last) == hlist_node) && (box_options(last)  & box_option_discardable ))
             );
-//            if (first && ! tex_glue_is_zero(topskip)) { 
             if (first) { 
                 halfword current = first;
                 scaled height = 0; 
@@ -2521,10 +2535,10 @@ static void tex_aux_check_balance_penalties(halfword tail)
                         prev = node_prev(prev);
                         break;
                     case penalty_node:
-                        if (node_subtype(tail) != linebreak_penalty_subtype) {
+                        if (node_subtype(prev) != linebreak_penalty_subtype) {
                             /*tex For now. */
                             prev = node_prev(prev);
-                        } else if (tex_has_penalty_option(penalty, penalty_option_final_balance)) {
+                        } else if (tex_has_penalty_option(prev, penalty_option_final_balance)) {
                             /*tex We already added these penalties. */
                             return;
                         } else {
@@ -2569,7 +2583,7 @@ extern halfword tex_vbalance (
     } else if (node_type(box) != vlist_node) {
         tex_handle_error(
             normal_error_type,
-            "\\vbalance needs a \\vbox",
+            "\\vbalance needs a \\vbox%h",
             "The box you are trying to split is an \\hbox. I can't split such a box, so I''ll\n"
             "leave it alone."
         );
@@ -2578,9 +2592,12 @@ extern halfword tex_vbalance (
         halfword head = box_list(box);
         halfword result = null;
         if (head) {
-            halfword tail = tex_tail_of_node_list(head);
             balance_properties properties;
             tex_push_nest();
+            if (trial) {
+                head = tex_copy_node_list(head, null);
+            }
+            halfword tail = tex_tail_of_node_list(head);
             node_next(temp_head) = head;
             tex_balance_preset(&properties);
             properties.packing = mode; 
@@ -2588,11 +2605,22 @@ extern halfword tex_vbalance (
             tex_aux_check_balance_penalties(tail);
             tex_balance(&properties, head);
             tex_balance_reset(&properties);
+            if (trial) {
+                tex_flush_node_list(node_next(temp_head));
+                node_next(temp_head) = null;
+            }
             /* zero dimensions because we can overflow */
             result = tex_new_node(vlist_node, balance_list);
-            box_list(result) = node_next(cur_list.head);
+
+            halfword list = node_next(cur_list.head);
+            if (list) {
+                node_prev(list) = null;
+            }
+            box_list(result) = list;
             node_next(cur_list.head) = null;
-            node_next(temp_head) = null;
+
+         // node_next(temp_head) = null;
+
             tex_pop_nest();
             if (lmt_balance_state.inserts_found) {
                 box_balance_state(result) |= balance_state_inserts;
@@ -2654,7 +2682,7 @@ static halfword tex_aux_locate_balance_target(halfword n, halfword subtype, half
             }
         } 
         return null;
-    } else if (box && node_type(box) == vlist_node && node_subtype(box) == subtype) { 
+    } else if (node_type(box) == vlist_node && node_subtype(box) == subtype) {
         return box; 
     } else {
         return null;
@@ -2665,6 +2693,7 @@ halfword tex_vbalanced(
     halfword n
 ) 
 {
+    halfword registered = box_register(n); /* keep it in case we error */
     halfword box = tex_aux_locate_balance_target(n, balance_list, 0); // no descend 
     if (box < 0) {
         return null;
@@ -2711,11 +2740,11 @@ halfword tex_vbalanced(
     }
     tex_handle_error(
         normal_error_type,
-        "\\vbalanced needs a \\vbox result from \\vbalance",
+        "\\vbalanced needs a \\vbox result from \\vbalance%h",
         "The box you are trying to fetch from is not the result of \\vbalance, so to play safe I''ll\n"
         "wipe it."
     );
-    tex_flush_node(box);
+    tex_flush_node(registered); /* now we can dispose */
     box_register(n) = null;
     return null;
 }
@@ -2837,7 +2866,7 @@ void tex_vbalanced_discard(
     } else {
         tex_handle_error(
             normal_error_type,
-            "\\vbalancediscard needs a \\vbox result from \\vbalance",
+            "\\vbalancediscard needs a \\vbox result from \\vbalance%h",
             "The box you are trying to cleanup is not the result of \\vbalance."
         );
     }
@@ -2882,7 +2911,7 @@ halfword tex_vbalanced_insert(
     } else {
         tex_handle_error(
             normal_error_type,
-            "\\vbalanceinsert needs a \\vbox result from \\vbalanced",
+            "\\vbalanceinsert needs a \\vbox result from \\vbalanced%h",
             "The box you are trying to get inserts from is not the result of \\vbalanced."
         );
     }
@@ -3008,8 +3037,9 @@ void tex_vbalanced_deinsert(
                                     halfword insert = tex_copy_node(temp);
                                     insert_list(insert) = head;
                                     insert_total_height(insert) = 0;
-                                    tex_couple_nodes(current, head);
                                     node_next(head) = null;
+                                    node_prev(head) = null;
+                                    tex_couple_nodes(current, insert);
                                     last = null;
                                     current = insert; 
                                     break;
@@ -3026,7 +3056,7 @@ void tex_vbalanced_deinsert(
     } else {
         tex_handle_error(
             normal_error_type,
-            "\\vbalancedeinsert needs a \\vbox result from \\vbalance",
+            "\\vbalancedeinsert needs a \\vbox result from \\vbalance%h",
             "The box you are trying to process inserts from is not the result of \\vbalance."
         );
     }
@@ -3051,6 +3081,7 @@ static halfword tex_aux_compact_insert(halfword insert, halfword boxhead)
     halfword tail = null;
     halfword prev = null;
     halfword next = null;
+    scaled total = insert_total_height(insert);
     halfword belongs_to = insert_belongs_to(insert);
     halfword current = node_prev(insert);
     while (current && tex_aux_compact_insert_belongs_to(current, belongs_to)) {
@@ -3066,8 +3097,7 @@ static halfword tex_aux_compact_insert(halfword insert, halfword boxhead)
     prev = node_prev(first);
     next = node_next(last);
     while (current) { 
-        halfword next = node_next(current);
-        int islast = current == last;
+        halfword following = node_next(current);
         switch (node_type(current)) {
             case kern_node:
             case glue_node: 
@@ -3082,45 +3112,46 @@ static halfword tex_aux_compact_insert(halfword insert, halfword boxhead)
                 tail = current;
                 switch (node_type(current)) {
                     case kern_node:
-                        insert_total_height(insert) += kern_amount(current);
+                        total += kern_amount(current);
                         break;
                     case glue_node: 
-                        insert_total_height(insert) += glue_amount(current);
+                        total += glue_amount(current);
                         break;
                 }
                 break;
             case insert_node:
                 { 
                     halfword list = insert_list(current);
-                    if (head) { 
-                        tex_couple_nodes(tail, list);
-                    } else { 
-                        head = list;
-                    } 
-                    tail = list;
+                    if (list) {
+                        if (head) {
+                            tex_couple_nodes(tail, list);
+                        } else {
+                            head = list;
+                            node_prev(head) = null;
+                        }
+                        tail = tex_tail_of_node_list(list);
+                    }
                     if (current == insert) {
-                        insert_list(current) = head;
+                        insert_list(insert) = null;
                     } else {
-                        insert_total_height(insert) += insert_total_height(current);
+                        total += insert_total_height(current);
                         insert_list(current) = null;    
                         tex_flush_node(current);
                     }
                 }
                 break;
         }
-        if (islast) { 
+        if (current == last) {
             break;  
         } else { 
-            current = next;
+            current = following;
         }
     }
-    tex_couple_nodes(insert, next);
-    if (prev) {
-        tex_couple_nodes(prev, insert);
-        return boxhead;
-    } else {
-        return insert;
-    }
+    insert_list(insert) = head;
+    insert_total_height(insert) = total;
+    tex_try_couple_nodes(prev, insert);
+    tex_try_couple_nodes(insert, next);
+    return prev ? boxhead : insert;
 }
 
 void tex_vbalanced_reinsert(
@@ -3170,7 +3201,7 @@ void tex_vbalanced_reinsert(
     } else { 
         tex_handle_error(
             normal_error_type,
-            "\\vbalancereinsert needs a \\vbox result from \\vbalanced",
+            "\\vbalancereinsert needs a \\vbox result from \\vbalanced%h",
             "The box you are trying to process inserts from is not the result of \\vbalanced."
         );
     }

@@ -108,9 +108,8 @@ static int kpselib_aux_valid_progname(lua_State *L)
 
 static int kpselib_set_program_name(lua_State *L)
 {
-    (void) L;
     if (kpselib_state.initialized) {
-        const char *exe_name = luaL_checkstring(L, 1);
+        const char *exe_name  = luaL_checkstring(L, 1);
         const char *prog_name = luaL_optstring(L, 2, exe_name);
         if (kpselib_state.prognameset) {
             kpselib_state.lib_kpse_reset_program_name(prog_name);
@@ -125,10 +124,10 @@ static int kpselib_set_program_name(lua_State *L)
 static int kpselib_find_file(lua_State *L)
 {
     if (kpselib_aux_valid_progname(L)) {
-        unsigned filetype = kpse_tex_format;
-        int mustexist = 0;
-        const char *filename = luaL_checkstring(L, 1);
-        int top = lua_gettop(L);
+        unsigned    filetype  = kpse_tex_format;
+        int         mustexist = 0;
+        const char *filename  = luaL_checkstring(L, 1);
+        int         top       = lua_gettop(L);
         for (int i = 2; i <= top; i++) {
             switch (lua_type(L, i)) {
                 case LUA_TBOOLEAN:
@@ -146,11 +145,14 @@ static int kpselib_find_file(lua_State *L)
                 filetype = kpse_tex_format;
             }
         }
-        lua_pushstring(L, kpselib_state.lib_kpse_find_file(filename, filetype, mustexist));
-        return 1;
-    } else {
-        return 0;
+        char *res = kpselib_state.lib_kpse_find_file(filename, filetype, mustexist);
+        if (res) {
+            lua_pushstring(L, res);
+            return 1;
+        }
     }
+    lua_pushnil(L);
+    return 1;
 }
 
 /*
@@ -163,10 +165,9 @@ static int kpselib_find_files(lua_State *L)
     if (kpselib_aux_valid_progname(L)) {
         const char *userpath = luaL_checkstring(L, 1);
         const char *filename = luaL_checkstring(L, 2);
-        char *filepath = kpselib_state.lib_kpse_path_expand(userpath);
+        char       *filepath = kpselib_state.lib_kpse_path_expand(userpath);
         if (filepath) {
             char **result = kpselib_state.lib_kpse_all_path_search(filepath, filename);
-         /* free(filepath); */ /* crashes, so it looks like def kpse keeps it */
             if (result) {
                 lua_Integer r = 0;
                 lua_newtable(L);
@@ -174,67 +175,82 @@ static int kpselib_find_files(lua_State *L)
                     lua_pushstring(L, result[r]);
                     lua_rawseti(L, -2, ++r);
                 }
-             /* free(result); */ /* idem */
                 return 1;
             }
-        } else {
-         /* free(filepath); */ /* idem */
         }
     }
-    return 0;
+    lua_pushnil(L);
+    return 1;
 }
 
 static int kpselib_expand_path(lua_State *L)
 {
     if (kpselib_aux_valid_progname(L)) {
-        lua_pushstring(L, kpselib_state.lib_kpse_path_expand(luaL_checkstring(L, 1)));
-        return 1;
-    } else {
-        return 0;
+        char *res = kpselib_state.lib_kpse_path_expand(luaL_checkstring(L, 1));
+        if (res) {
+            lua_pushstring(L, res);
+            return 1;
+        }
     }
+    lua_pushnil(L);
+    return 1;
 }
 
 static int kpselib_expand_braces(lua_State *L)
 {
     if (kpselib_aux_valid_progname(L)) {
-        lua_pushstring(L, kpselib_state.lib_kpse_brace_expand(luaL_checkstring(L, 1)));
-    return 1;
-    } else {
-        return 0;
+        char *res = kpselib_state.lib_kpse_brace_expand(luaL_checkstring(L, 1));
+        if (res) {
+            lua_pushstring(L, res);
+            return 1;
+        }
     }
+    lua_pushnil(L);
+    return 1;
 }
 
 static int kpselib_expand_var(lua_State *L)
 {
     if (kpselib_aux_valid_progname(L)) {
-        lua_pushstring(L, kpselib_state.lib_kpse_var_expand(luaL_checkstring(L, 1)));
-        return 1;
-    } else {
-        return 0;
+        char *res = kpselib_state.lib_kpse_var_expand(luaL_checkstring(L, 1));
+        if (res) {
+            lua_pushstring(L, res);
+            return 1;
+        }
     }
+    lua_pushnil(L);
+    return 1;
 }
 
 static int kpselib_var_value(lua_State *L)
 {
     if (kpselib_aux_valid_progname(L)) {
-        lua_pushstring(L, kpselib_state.lib_kpse_var_value(luaL_checkstring(L, 1)));
-        return 1;
-    } else {
-        return 0;
+        char *res = kpselib_state.lib_kpse_var_value(luaL_checkstring(L, 1));
+        if (res) {
+            lua_pushstring(L, res);
+            return 1;
+        }
     }
+    lua_pushnil(L);
+    return 1;
 }
 
 static int kpselib_readable_file(lua_State *L)
 {
     if (kpselib_aux_valid_progname(L)) {
-        /* Why the dup? */
-        char *name = strdup(luaL_checkstring(L, 1));
-        lua_pushstring(L, kpselib_state.lib_kpse_readable_file(name));
-        free(name);
-        return 1;
-    } else {
-        return 0;
+        const char *input = luaL_checkstring(L, 1);
+        char       *name  = strdup(input);
+        if (name) {
+            char *res = kpselib_state.lib_kpse_readable_file(name);
+            free(name);
+            if (res) {
+                lua_pushstring(L, res);
+                return 1;
+            }
+        }
     }
+    lua_pushnil(L);
+    return 1;
 }
 
 static int kpselib_get_file_types(lua_State *L)
@@ -250,9 +266,9 @@ static int kpselib_get_file_types(lua_State *L)
             }
         }
         return 1;
-    } else {
-        return 0;
     }
+    lua_pushnil(L);
+    return 1;
 }
 
 static int kpselib_initialize(lua_State *L)

@@ -177,9 +177,10 @@
 */
 
 main_state_info lmt_main_state = {
-    .run_state     = production_state,
-    .ready_already = output_disabled_state,
-    .start_time    = 0.0,
+    .run_state      = production_state,
+    .overload_state = 0,
+    .ready_already  = output_disabled_state,
+    .start_time     = 0.0,
 };
 
 /*tex
@@ -225,7 +226,7 @@ main_state_info lmt_main_state = {
 
 */
 
-static void final_cleanup(int code);
+static int final_cleanup(int code);
 
 void tex_main_body(void)
 {
@@ -330,6 +331,8 @@ void tex_main_body(void)
 
     tex_initialize_inputstack();
 
+    tex_initialize_conditionals();
+
     if (lmt_main_state.run_state == initializing_state) {
         /* We start out fresh. */
     } else if (tex_load_fmt_file()) {
@@ -366,7 +369,12 @@ void tex_main_body(void)
         fitness_classes_par = tex_default_fitness_classes(); 
     }
     par_passes_par = null;
-    par_passes_exception_par = null;
+
+    if (par_passes_exception_par) {
+        /*tex Can be loaded by the undump, constants are kept, so: */
+        tex_flush_specification_node(par_passes_exception_par);
+        par_passes_exception_par = null;
+    }
 
     line_snapping_par = null;
 
@@ -376,17 +384,18 @@ void tex_main_body(void)
         tex_check_job_name(ptr);
         tex_open_log_file();
         tex_engine_get_config_string("firstline", &fln);
-        if (fln) {
-            tex_any_string_start(fln); /* experiment, see context lmtx */
-        }
         if (ptr) {
             tex_start_input(ptr, null);
-        } else if (! fln) {
+        }
+        if (fln) {
+            tex_any_string_start(fln);
+            lmt_memory_free(fln);
+            fln = NULL;
+        } else if (!ptr) {
             tex_emergency_message("startup error", "no input found, quitting");
             tex_emergency_exit();
         }
     }
-
     /*tex 
         We assume that |ignore_depth_criterion_par| is unchanged. If needed we can always do 
         this: 
@@ -406,9 +415,9 @@ void tex_main_body(void)
  //     }
  //     final_cleanup(dump);
  // }
-    final_cleanup(tex_main_control());
+    int badrun = final_cleanup(tex_main_control());
 
-    tex_close_files_and_terminate(0);
+    tex_close_files_and_terminate(badrun != 0);
 
     tex_normal_exit();
 }
@@ -533,9 +542,11 @@ void tex_close_files_and_terminate(int error)
     We get to the |final_cleanup| routine when |\end| or |\dump| has been scanned and it's all
     over now.
 
+    todo: symbol names for badrun values
+
 */
 
-static void final_cleanup(int dump)
+static int final_cleanup(int dump)
 {
     int badrun = 0;
     if (! lmt_fileio_state.job_name) {
@@ -557,21 +568,7 @@ static void final_cleanup(int dump)
         tex_show_save_groups();
         badrun = 1;
     }
-    while (lmt_condition_state.cond_ptr) {
-        halfword t;
-        if (lmt_condition_state.if_line != 0) {
-            tex_print_format("(\\end occurred when %C on line %i was incomplete)", if_test_cmd, lmt_condition_state.cur_if, lmt_condition_state.if_line);
-            badrun = 2;
-        } else {
-            tex_print_format("(\\end occurred when %C was incomplete)");
-            badrun = 3;
-        }
-        lmt_condition_state.if_line = if_limit_line(lmt_condition_state.cond_ptr);
-        lmt_condition_state.cur_if = node_subtype(lmt_condition_state.cond_ptr);
-        t = lmt_condition_state.cond_ptr;
-        lmt_condition_state.cond_ptr = node_next(lmt_condition_state.cond_ptr);
-        tex_flush_node(t);
-    }
+    badrun = tex_checkup_conditionals(badrun);
     if (lmt_print_state.selector == terminal_and_logfile_selector_code && lmt_callback_defined(stop_run_callback) == 0) {
         if ((lmt_error_state.history == warning_issued) || (lmt_error_state.history != spotless && lmt_error_state.interaction < error_stop_mode)) {
             lmt_print_state.selector = terminal_selector_code;
@@ -623,5 +620,12 @@ static void final_cleanup(int dump)
         */
         lmt_run_callback(lmt_lua_state.lua_instance, stop_run_callback, "d->", badrun);
     }
+    /*tex
+        Real late as we can have nexted files to check.
+    */
+    tex_cleanup_conditionals();
+    if (badrun && lmt_callback_defined(stop_run_callback) <= 0 && lmt_error_state.history < error_message_issued) {
+        lmt_error_state.history = error_message_issued;
+    }
+    return badrun;
 }
-

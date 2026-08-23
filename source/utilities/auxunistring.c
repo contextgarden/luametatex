@@ -20,10 +20,14 @@ unsigned aux_str2uni(const unsigned char *text)
     } else if (text[0] <= 0xDF) {
         if (text[1] >= 0x80 && text[1] < 0xC0) {
             return (unsigned) (((text[0] & 0x1F) << 6) | (text[1] & 0x3F));
+        } else {
+            return 0xFFFD;
         }
     } else if (text[0] <= 0xEF) {
         if (text[1] >= 0x80 && text[1] < 0xC0 && text[2] >= 0x80 && text[2] < 0xC0) {
             return (unsigned) (((text[0] & 0xF) << 12) | ((text[1] & 0x3F) << 6) | (text[2] & 0x3F));
+        } else {
+            return 0xFFFD;
         }
     } else if (text[0] <= 0xF7) {
         if (text[1] <  0x80 || text[2] <  0x80 || text[3] <  0x80 ||
@@ -51,11 +55,17 @@ unsigned aux_str2uni_len(const unsigned char *text, int *len)
         if (text[1] >= 0x80 && text[1] < 0xC0) {
             *len = 2;
             return (unsigned) (((text[0] & 0x1F) << 6) | (text[1] & 0x3F));
+        } else {
+            *len = 1;
+            return 0xFFFD;
         }
     } else if (text[0] <= 0xEF) {
         if (text[1] >= 0x80 && text[1] < 0xC0 && text[2] >= 0x80 && text[2] < 0xC0) {
             *len = 3;
             return (unsigned) (((text[0] & 0xF) << 12) | ((text[1] & 0x3F) << 6) | (text[2] & 0x3F));
+        } else {
+            *len = 1;
+            return 0xFFFD;
         }
     } else if (text[0] <= 0xF7) {
         if (text[1] <  0x80 || text[2] <  0x80 || text[3] <  0x80 ||
@@ -69,9 +79,10 @@ unsigned aux_str2uni_len(const unsigned char *text, int *len)
             *len = 4;
             return (unsigned) (w1 * 0x400 + w2 + 0x10000);
         }
+    } else {
+        *len = 1;
+        return 0xFFFD;
     }
-    *len = 1;
-    return 0xFFFD;
 }
 
 unsigned char *aux_uni2str(unsigned unic)
@@ -104,6 +115,28 @@ unsigned char *aux_uni2str(unsigned unic)
         }
     }
     return buf;
+}
+
+void aux_uni2str_callback(unsigned unic, void (*handle) (int))
+{
+    if (unic < 0x80) {
+        handle((unsigned char) unic);
+    } else if (unic < 0x800) {
+        handle((unsigned char) (0xC0 | (unic >> 6)));
+        handle((unsigned char) (0x80 | (unic & 0x3F)));
+    } else if (unic < 0x10000) {
+        handle((unsigned char) (0xE0 | (unic >> 12)));
+        handle((unsigned char) (0x80 | ((unic >> 6) & 0x3F)));
+        handle((unsigned char) (0x80 | (unic & 0x3F)));
+    } else if (unic < 0x110000) {
+        int u;
+        unic -= 0x10000;
+        u = (int) (((unic & 0xF0000) >> 16) + 1);
+        handle((unsigned char) (0xF0 | (u >> 2)));
+        handle((unsigned char) (0x80 | ((u & 3) << 4) | ((unic & 0xF000) >> 12)));
+        handle((unsigned char) (0x80 | ((unic & 0xFC0) >> 6)));
+        handle((unsigned char) (0x80 | (unic & 0x3F)));
+    }
 }
 
 /*tex
@@ -149,6 +182,7 @@ unsigned aux_splitutf2uni(unsigned int *ubuf, const char *utf8buf)
     const unsigned char *pt = (const unsigned char *) utf8buf;
     const unsigned char *end = pt + len;
     while (pt < end && *pt != '\0' && upt < uend) {
+        /*
         if (*pt <= 0x7F) {
             *upt = *pt++;
         } else if (*pt <= 0xDF) {
@@ -164,6 +198,11 @@ unsigned aux_splitutf2uni(unsigned int *ubuf, const char *utf8buf)
             *upt = (unsigned int) (w1 * 0x400 + w2 + 0x10000);
             pt += 4;
         }
+        ++upt;
+        */
+        int ulen;
+        *upt = aux_str2uni_len(pt, &ulen);
+        pt += ulen;
         ++upt;
     }
     *upt = 0; /*tex We have integers here, so assigning |\0| is a bit misleading. */

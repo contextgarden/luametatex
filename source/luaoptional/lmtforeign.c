@@ -24,7 +24,7 @@
     also need to provide libraries at the contextgarden.
 
     The basics of an interface as used in this module (running over specs) is given in the \LUA\
-    manual\ and we also use it for callbacks in \LUATEX\ and therefore \LUAMETATEX. There we use
+    manual and we also use it for callbacks in \LUATEX\ and therefore \LUAMETATEX. There we use
     varargs but here specification if converted into a recipe that libffi will bind to a function.
     Some code below looks like the code in alien (after all I took a good look at it). The ffi
     part is filtered from the ffi.h.in file. The interfaces are sort of what we do with other
@@ -85,35 +85,11 @@ typedef enum ffi_types {
     ffi_int64_type,
     ffi_struct_type,
     ffi_pointer_type,
-    ffi_complex_type, /* unsupported */
+    ffi_complex_type,
     ffi_last_type,
 } ffi_types;
 
-/*
-    The libffi api document says that the size and alignment should be zero but somehow we do crash
-    when we set the size to some value. Only size_t is now system dependent (e.g. on 32 bit windows
-    it's different).
-
-    We only need to support the architectures and operating systems that the ecosystem runs on so we
-    check a bit differently. We just don't want all these dependencies in the source tree. We have:
-
-    -- 32 64 bit intel linux | freebsd | openbsd
-    --    64 bit intel osx
-    -- 32 64 bit intel windows mingw
-    --    64 bit windows msvc
-    --    64 bit arm msvc
-    -- 32 64 bit arm (rpi etc)
-    --    64 bit arm darwin
-
-*/
-
-# if PTRDIFF_MAX == 65535
-#   define ffi_size_t_type ffi_uint16_type
-# elif PTRDIFF_MAX == 2147483647
-#   define ffi_size_t_type ffi_uint32_type
-# elif PTRDIFF_MAX == 9223372036854775807
-#   define ffi_size_t_type ffi_uint64_type
-# elif defined(_WIN64)
+# if UINTPTR_MAX == 0xffffffffffffffffULL
 #   define ffi_size_t_type ffi_uint64_type
 # else
 #   define ffi_size_t_type ffi_uint32_type
@@ -124,7 +100,6 @@ typedef enum ffi_types {
 typedef enum ffi_abi {
 
 # if defined (X86_WIN64)
-
     FFI_FIRST_ABI = 0,
     FFI_WIN64,            /* sizeof(long double) == 8  - microsoft compilers */
     FFI_GNUW64,           /* sizeof(long double) == 16 - GNU compilers */
@@ -136,7 +111,6 @@ typedef enum ffi_abi {
 # endif
 
 # elif defined (X86_64) || (defined (__x86_64__) && defined (X86_DARWIN))
-
     FFI_FIRST_ABI = 1,
     FFI_UNIX64,
     FFI_WIN64,
@@ -146,7 +120,6 @@ typedef enum ffi_abi {
     FFI_DEFAULT_ABI = FFI_UNIX64
 
 # elif defined (X86_WIN32)
-
     FFI_FIRST_ABI = 0,
     FFI_SYSV      = 1,
     FFI_STDCALL   = 2,
@@ -159,7 +132,6 @@ typedef enum ffi_abi {
     FFI_DEFAULT_ABI = FFI_MS_CDECL
 
 # else
-
     FFI_FIRST_ABI = 0,
     FFI_SYSV      = 1,
     FFI_THISCALL  = 3,
@@ -170,7 +142,6 @@ typedef enum ffi_abi {
     FFI_MS_CDECL  = 8,
     FFI_LAST_ABI,
     FFI_DEFAULT_ABI = FFI_SYSV
-
 #endif
 
 } ffi_abi;
@@ -223,7 +194,6 @@ typedef struct foreign_state_info {
     ffi_type ffi_type_double;
     ffi_type ffi_type_pointer;
     ffi_type ffi_type_size_t;
-
 
 } foreign_state_info;
 
@@ -329,11 +299,6 @@ typedef struct foreign_library {
     int      padding;
 } foreign_library;
 
-typedef enum foreign_states {
-    foreign_state_initialized,
-    foreign_state_registered,
-} foreign_states;
-
 typedef struct foreign_function {
     foreign_library *library;
     char            *name;
@@ -365,19 +330,19 @@ typedef struct foreign_pointer {
 */
 
 
-#ifdef WIN32
-# ifndef WINDOWS
-#  define WINDOWS
+# ifdef WIN32
+    # ifndef WINDOWS
+        # define WINDOWS
+    # endif
 # endif
-#endif
 
-#if !defined(WINDOWS) || defined(_WIN64)
-#define FFI_STDCALL FFI_DEFAULT_ABI
-#endif
+# if ! defined(WINDOWS) || defined(_WIN64)
+    # define FFI_STDCALL FFI_DEFAULT_ABI
+# endif
 
-#ifdef __APPLE__
-#define FFI_SYSV FFI_DEFAULT_ABI
-#endif
+# ifdef __APPLE__
+    # define FFI_SYSV FFI_DEFAULT_ABI
+# endif
 
 typedef struct foreign_abi_entry {
     const char *name;
@@ -395,7 +360,6 @@ static foreign_abi_entry foreign_abi_map[] = {
 typedef enum foreign_library_uv_slots {
     library_name_uv      = 1,
     library_registry_uv  = 2,
-
 } foreign_library_uv_slots;
 
 typedef enum foreign_function_uv_slots {
@@ -468,7 +432,6 @@ static int foreignlib_pointer_gc(lua_State *L)
     foreign_pointer *pointer = foreignlib_pointer_check(L, 1);
     if (pointer->state == foreign_pointer_state_buffer) {
         lmt_memory_free(pointer->ptr);
-        /* not needed: */
         pointer->state = foreign_pointer_state_regular;
         pointer->ptr = NULL;
     }
@@ -484,7 +447,7 @@ static int foreignlib_type_found(lua_State *L, int slot, int dflt)
     switch (lua_type(L, slot)) {
         case LUA_TNUMBER:
             {
-                int i = (int) lua_tointeger(L, slot);
+                int i = lmt_tointeger(L, slot);
                 if (i >= 0 && i < foreign_type_max) {
                     return i;
                 }
@@ -509,7 +472,7 @@ static int foreignlib_abi_found(lua_State *L, int slot, int dflt)
     switch (lua_type(L, slot)) {
         case LUA_TNUMBER:
             {
-                int i = (int) lua_tointeger(L, slot);
+                int i = lmt_tointeger(L, slot);
                 if (i >= 0 && i < foreign_abi_max) {
                     return foreign_abi_map[i].abi;
                 }
@@ -712,7 +675,7 @@ static int foreignlib_library_register(lua_State *L)
         } else {
             return luaL_error(L, "foreign: specification table expected");
         }
-    ALLOCATION_ERROR:
+      ALLOCATION_ERROR:
         return foreignlib_allocation_error(L);
     } else {
         return foreignlib_not_yet_initialized(L);
@@ -775,12 +738,12 @@ static int foreignlib_library_available(lua_State *L)
 
 static int foreignlib_function_call(lua_State *L)
 {
-    int nofreturnvalues = 1; /* we always return at least nil */
-    foreign_function *function = foreignlib_function_check(L, 1);
-    ffi_cif *cif = &(function->cif);
-    int nofarguments = lua_gettop(L) - 1;
-    void **arguments = NULL;
-    int luacall = 0;
+    int                nofreturnvalues = 1; /* we always return at least nil */
+    foreign_function  *function        = foreignlib_function_check(L, 1);
+    ffi_cif           *cif             = &(function->cif);
+    int                nofarguments    = lua_gettop(L) - 1;
+    void             **arguments       = NULL;
+    int                luacall         = 0;
     if (nofarguments != function->nofarguments) {
         return luaL_error(L, "foreign: function '%s' expects %d arguments", function->name, function->nofarguments);
     }
@@ -794,7 +757,7 @@ static int foreignlib_function_call(lua_State *L)
         if (arguments) {
             for (int i = 0; i < nofarguments; i++) {
                 void *argument = NULL;
-                int slot = i + 2;
+                int   slot     = i + 2;
                 switch (function->arguments[i]) {
                     case foreign_type_byte     : argument = lmt_memory_malloc(sizeof(char));               *((char               *) argument) = (signed char)        lua_tointeger(L, slot); break;
                     case foreign_type_char     : argument = lmt_memory_malloc(sizeof(unsigned char));      *((unsigned char      *) argument) = (unsigned char)      lua_tointeger(L, slot); break;
@@ -865,8 +828,8 @@ static int foreignlib_function_call(lua_State *L)
                         {
                             argument = lmt_memory_malloc(sizeof(int *));
                             if (argument) {
-                                *((int **) argument) = lmt_memory_malloc(sizeof(int));
-                                **((int **) argument) = (int) lua_tointeger(L, slot);
+                                 *((int **) argument) = lmt_memory_malloc(sizeof(int));
+                                **((int **) argument) = lmt_tointeger(L, slot);
                                 nofreturnvalues++;
                                 break;
                             } else {
@@ -877,7 +840,7 @@ static int foreignlib_function_call(lua_State *L)
                         {
                             argument = lmt_memory_malloc(sizeof(unsigned int *));
                             if (argument) {
-                                *((unsigned int **) argument) = lmt_memory_malloc(sizeof(unsigned int));
+                                 *((unsigned int **) argument) = lmt_memory_malloc(sizeof(unsigned int));
                                 **((unsigned int **) argument) = (unsigned int) lua_tointeger(L, slot);
                                 nofreturnvalues++;
                                 break;
@@ -889,7 +852,7 @@ static int foreignlib_function_call(lua_State *L)
                         {
                             argument = lmt_memory_malloc(sizeof(double *));
                             if (argument) {
-                                *((double **) argument) = lmt_memory_malloc(sizeof(double));
+                                 *((double **) argument) = lmt_memory_malloc(sizeof(double));
                                 **((double **) argument) = (double) lua_tonumber(L, slot);
                                 nofreturnvalues++;
                                 break;
@@ -940,7 +903,7 @@ static int foreignlib_function_call(lua_State *L)
                     foreign_pointer *pointer = (foreign_pointer *) lua_newuserdatauv(L, sizeof(foreign_pointer), 0);
                     luaL_getmetatable(L, FOREIGN_METATABLE_POINTER);
                     lua_setmetatable(L, -2);
-                    pointer->ptr = ptr;
+                    pointer->ptr   = ptr;
                     pointer->state = foreign_pointer_state_regular;
                 } else {
                     lua_pushnil(L);
@@ -952,13 +915,25 @@ static int foreignlib_function_call(lua_State *L)
     }
     for (int i = 0; i < nofarguments; i++) {
         switch (function->arguments[i]) {
-            case foreign_type_reference_to_char  : lua_pushinteger(L, **(char         **) arguments[i]); break;
-            case foreign_type_reference_to_int   : lua_pushinteger(L, **(int          **) arguments[i]); break;
-            case foreign_type_reference_to_uint  : lua_pushinteger(L, **(unsigned int **) arguments[i]); break;
-            case foreign_type_reference_to_double: lua_pushnumber (L, **(double       **) arguments[i]); break;
+            case foreign_type_reference_to_char  :
+                lua_pushinteger(L, **(char **) arguments[i]);
+                lmt_memory_free(*(char **) arguments[i]);
+                break;
+            case foreign_type_reference_to_int   :
+                lua_pushinteger(L, **(int **) arguments[i]);
+                lmt_memory_free(*(int **) arguments[i]);
+                break;
+            case foreign_type_reference_to_uint  :
+                lua_pushinteger(L, **(unsigned int **) arguments[i]);
+                lmt_memory_free(*(unsigned int **) arguments[i]);
+                break;
+            case foreign_type_reference_to_double:
+                lua_pushnumber (L, **(double **) arguments[i]);
+                lmt_memory_free(*(double **) arguments[i]);
+                break;
             default: break;
         }
-        lmt_memory_free(arguments[i]); /* not needed for pointers when we just use pointer */
+        lmt_memory_free(arguments[i]);
     }
     lmt_memory_free(arguments);
     if (luacall) {
@@ -988,15 +963,13 @@ static int foreignlib_function_gc(lua_State *L)
     return 0;
 }
 
-/* */
-
 static int foreignlib_newbuffer(lua_State *L)
 {
-    size_t size = lua_tointeger(L, 1);
+    size_t           size    = lmt_tosizet(L, 1);
     foreign_pointer *pointer = (foreign_pointer *) lua_newuserdatauv(L, sizeof(foreign_pointer), 0);
     luaL_getmetatable(L, FOREIGN_METATABLE_POINTER);
     lua_setmetatable(L, -2);
-    pointer->ptr = lmt_memory_malloc(size);
+    pointer->ptr   = lmt_memory_malloc(size);
     pointer->state = foreign_pointer_state_buffer;
     return 1;
 }
@@ -1005,14 +978,14 @@ static int foreignlib_getbuffer(lua_State *L)
 {
     foreign_pointer *pointer = foreignlib_pointer_check(L, 1);
     if (pointer && pointer->state == foreign_pointer_state_buffer && pointer->ptr) {
-        size_t size = lua_tointeger(L, 2);
+        size_t size = lmt_tosizet(L, 2);
         if (size > 0) {
             lua_pushlstring(L, pointer->ptr, size);
         } else {
             lua_pushnil(L);
         }
         lmt_memory_free(pointer->ptr);
-        pointer->ptr = NULL;
+        pointer->ptr   = NULL;
         pointer->state = foreign_pointer_state_regular;
     } else {
         lua_pushnil(L);
@@ -1039,7 +1012,6 @@ static int foreignlib_totable(lua_State *L)
                         void **ptr = pointer->ptr;
                         if (ptr) {
                             lua_Integer r = 0;
-                            lua_newtable(L);
                             if (size < 0) {
                                 while (ptr[r]) {
                                     lua_pushstring(L, ptr[r]);
@@ -1151,10 +1123,8 @@ static int foreignlib_initialize(lua_State * L)
 {
     if (! foreign_state.initialized) {
         if (lmt_engine_state.permit_loadlib) {
-            /*tex Just an experiment. */
-            const char *filename = lua_tostring(L, 1); /* libffi */
+            const char *filename = lua_tostring(L, 1);
             if (filename) {
-
                 lmt_library lib = lmt_library_load(filename);
 
                 foreign_state.ffi_prep_cif = lmt_library_find(lib, "ffi_prep_cif");
@@ -1179,7 +1149,7 @@ static struct luaL_Reg foreignlib_function_list[] = {
     { "types",      foreignlib_types      },
     { "newbuffer",  foreignlib_newbuffer  },
     { "getbuffer",  foreignlib_getbuffer  },
-    { "abivalues",  foreignlib_abivalues  }, /* mostly for diagnostics */
+    { "abivalues",  foreignlib_abivalues  },
     { "totable",    foreignlib_totable    },
     { NULL,         NULL                  },
 };

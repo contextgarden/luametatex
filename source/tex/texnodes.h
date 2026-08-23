@@ -180,6 +180,8 @@ typedef struct node_memory_state_info {
     int          lua_properties_level;
     halfword     attribute_cache;
     halfword     max_used_attribute;
+    halfword     min_set_attribute;
+    halfword     max_set_attribute;
 # if track_attributes
     int          max_tracked_attribute;
 # endif 
@@ -411,6 +413,13 @@ extern void     tex_undump_specification_data (dumpstream f);
     lines so that the \TEX shop environment could use that script/method (bidirectional); hopefully
     other viewers and editors will follow.
 
+    In \LUATEX\ and therefore \LUAMETATEX\ we have glyph nodes that are larger than the corresponding
+    character nodes in other engines. This means that we don't use the usual memory optimization
+    techniques and therefore also have file/line fields in these nodes. This permits better support
+    for synchronization than using glue and kerns to deduce where textual content sits. It might also
+    be the reason why syncyhrozation is so sensitive wrt \CONTEXT, because otherwise heuristics have
+    to be used.
+
 */
 
 /*
@@ -460,7 +469,7 @@ extern void     tex_undump_specification_data (dumpstream f);
 
 # define attribute_list_node_size 2
 # define attribute_list_count(a)  memone(a,1)
-# define attribute_list_unset(a)  memtwo(a,1)
+# define attribute_list_unset(a)  memtwo(a,1) /* we could set a bit for the first 32 */
 # define attribute_list_reset(a)  lvalue(a,1)
 
 # define attribute_node_size      2
@@ -549,6 +558,8 @@ typedef enum glue_subtypes {
     space_skip_glue,
     xspace_skip_glue,
     zero_space_skip_glue,
+    inter_character_skip_glue,
+    discretionary_skip_glue,
     par_fill_left_skip_glue,
     par_fill_right_skip_glue,
     par_init_left_skip_glue,
@@ -596,7 +607,7 @@ typedef enum skip_glue_codes_alias {
 # define glue_leader_ptr(a)    memone(a,5) /* not in spec */
 # define glue_font(a)          memtwo(a,5) /* not in spec */ /* when inter_math_skip_glue: parameter */
 # define glue_data(a)          memone(a,6) /* not in spec */ /* user field */
-# define glue_reserved(a)      memtwo(a,6) /* not in spec */ /* user field */
+# define glue_penalty(a)       memtwo(a,6) /* not in spec */
 # define glue_callback(a)      memone(a,7) /* not in spec */ /* flatten leaders */
 # define glue_belongs_to(a)    memtwo(a,7) /* not in spec */ /* balancing */
 
@@ -611,8 +622,11 @@ typedef enum glue_option_codes {
     glue_option_reset_discardable = 0x0040,
     glue_option_non_discardable   = 0x0080,
     glue_option_in_insert         = 0x0100,
-    glue_option_delay             = 0x0200,
+    glue_option_has_penalty       = 0x0200,
     glue_option_has_parskip       = 0x0400,
+    glue_option_ragged_done       = 0x0800,
+    glue_option_is_space          = 0x1000,
+//  glue_option_delay             = 0x2000,
 } glue_option_codes;
 
 static inline void tex_set_glue_option    (halfword a, halfword r) { glue_options(a) = r; }
@@ -678,52 +692,53 @@ static inline int tex_math_glue_is_zero(halfword g)
 static inline int tex_same_glue(halfword a, halfword b)
 {
     return
-        (a == b) /* same glue specs or both zero */
-     || (a && b && glue_amount(a)        == glue_amount(b)
-                && glue_stretch(a)       == glue_stretch(b)
-                && glue_shrink(a)        == glue_shrink(b)
-                && glue_stretch_order(a) == glue_stretch_order(b)
-                && glue_shrink_order(a)  == glue_shrink_order(b)
-        )
+        (a == b) ? eq_state_same_pointer :
+        (a && b
+           && glue_amount(a)        == glue_amount(b)
+           && glue_stretch(a)       == glue_stretch(b)
+           && glue_shrink(a)        == glue_shrink(b)
+           && glue_stretch_order(a) == glue_stretch_order(b)
+           && glue_shrink_order(a)  == glue_shrink_order(b)
+        ) ? eq_state_same_value : eq_state_different;
     ;
 }
 
 static inline void tex_reset_glue_to_zero(halfword target)
 {
     if (target) {
-        glue_amount(target) = 0;
-        glue_stretch(target) = 0;
-        glue_shrink(target) = 0;
+        glue_amount(target)        = 0;
+        glue_stretch(target)       = 0;
+        glue_shrink(target)        = 0;
         glue_stretch_order(target) = 0;
-        glue_shrink_order(target) = 0;
+        glue_shrink_order(target)  = 0;
     }
 }
 
 static inline void tex_reset_math_glue_to_zero(halfword target)
 {
     if (target) {
-        math_amount(target) = 0;
-        math_stretch(target) = 0;
-        math_shrink(target) = 0;
+        math_amount(target)        = 0;
+        math_stretch(target)       = 0;
+        math_shrink(target)        = 0;
         math_stretch_order(target) = 0;
-        math_shrink_order(target) = 0;
+        math_shrink_order(target)  = 0;
     }
 }
 
 static inline void tex_copy_glue_values(halfword target, halfword source)
 {
     if (source) {
-        glue_amount(target) = glue_amount(source);
-        glue_stretch(target) = glue_stretch(source);
-        glue_shrink(target) = glue_shrink(source);
+        glue_amount(target)        = glue_amount(source);
+        glue_stretch(target)       = glue_stretch(source);
+        glue_shrink(target)        = glue_shrink(source);
         glue_stretch_order(target) = glue_stretch_order(source);
-        glue_shrink_order(target) = glue_shrink_order(source);
+        glue_shrink_order(target)  = glue_shrink_order(source);
     } else {
-        glue_amount(target) = 0;
-        glue_stretch(target) = 0;
-        glue_shrink(target) = 0;
+        glue_amount(target)        = 0;
+        glue_stretch(target)       = 0;
+        glue_shrink(target)        = 0;
         glue_stretch_order(target) = 0;
-        glue_shrink_order(target) = 0;
+        glue_shrink_order(target)  = 0;
     }
 }
 
@@ -746,15 +761,16 @@ static inline int tex_is_par_init_glue(halfword n)
 */
 
 typedef enum kern_subtypes {
-    explicit_kern_subtype,      /*tex from |\kern| */
-    accent_kern_subtype,        /*tex from accents */
+    explicit_kern_subtype,         /*tex from |\kern| */
+    accent_kern_subtype,           /*tex from accents */
     font_kern_subtype,
-    italic_kern_subtype,        /*tex from |\/| */
+    italic_kern_subtype,           /*tex from |\/| */
     left_margin_kern_subtype,
     right_margin_kern_subtype,
     left_correction_kern_subtype,
     right_correction_kern_subtype,
-    space_font_kern_subtype,    /*tex for tracing only */
+    character_kern_subtype,        /*tex for tracing only */
+    space_font_kern_subtype,       /*tex for tracing only */
     explicit_math_kern_subtype,
     math_shape_kern_subtype,
     left_math_slack_kern_subtype,
@@ -1038,48 +1054,53 @@ typedef enum list_balance_states {
     balance_state_uinserts = 0x4,
 } list_balance_states;
 
+typedef enum list_continuation_states {
+    continuation_state_left  = 0x1,
+    continuation_state_right = 0x2,
+} list_continuation_states;
+
 // todo: reorder memone and memtwo (but also check adjust then)
 
-# define box_node_size         18
-# define box_width(a)          memtwo(a,2)
-# define box_w_offset(a)       memone(a,2)
-# define box_depth(a)          memtwo(a,3)
-# define box_d_offset(a)       memone(a,3)
-# define box_height(a)         memtwo(a,4)
-# define box_h_offset(a)       memone(a,4)
-# define box_list(a)           memtwo(a,5)   /* 5 = list_offset */
-# define box_shift_amount(a)   memone(a,5)
-# define box_glue_order(a)     memtwo(a,6)
-# define box_glue_sign(a)      memone00(a,6)
-# define box_balance_state(a)  memone01(a,6)
-# define box_content_state(a)  memone02(a,6)
-# define box_anchoring(a)      memone03(a,6)
-# define box_glue_set(a)       dvalue(a,7)   /* So we reserve a whole memory word! */
-# define box_direction(a)      memtwo00(a,8) /* We could encode it as geometry but not now. */
-# define box_package_state(a)  memtwo01(a,8)
-# define box_options(a)        memtwo02(a,8)
-# define box_geometry(a)       memtwo03(a,8)
-# define box_orientation(a)    memone(a,8)   /* Also used for size in alignments. */
-# define box_x_offset(a)       memtwo(a,9)
-# define box_y_offset(a)       memone(a,9)
-# define box_pre_migrated(a)   memtwo(a,10)
-# define box_post_migrated(a)  memone(a,10)
-# define box_pre_adjusted(a)   memtwo(a,11)
-# define box_post_adjusted(a)  memone(a,11)
-# define box_source_anchor(a)  memtwo(a,12)
-# define box_target_anchor(a)  memone(a,12)
-# define box_anchor(a)         memtwo(a,13)
-# define box_index(a)          memone(a,13)
-# define box_except(a)         memtwo(a,14)
-# define box_exdepth(a)        memone(a,14)
-# define box_discardable(a)    memtwo(a,15)  /* internal usage */
-# define box_reserved(a)       memone(a,15)  /* internal usage */
-# define box_natural_height(a) memtwo(a,16)
-# define box_natural_depth(a)  memone(a,16)
-# define box_input_file(a)     memtwo(a,17)
-# define box_input_line(a)     memone(a,17)
-
-# define box_tail(a)          box_reserved(a) /* see alignments */
+# define box_node_size          19
+# define box_width(a)           memtwo(a,2)
+# define box_w_offset(a)        memone(a,2)
+# define box_depth(a)           memtwo(a,3)
+# define box_d_offset(a)        memone(a,3)
+# define box_height(a)          memtwo(a,4)
+# define box_h_offset(a)        memone(a,4)
+# define box_list(a)            memtwo(a,5)    /* 5 = list_offset */
+# define box_shift_amount(a)    memone(a,5)
+# define box_glue_order(a)      memtwo(a,6)
+# define box_glue_sign(a)       memone00(a,6)
+# define box_balance_state(a)   memone01(a,6)
+# define box_content_state(a)   memone02(a,6)
+# define box_anchoring(a)       memone03(a,6)
+# define box_glue_set(a)        dvalue(a,7)    /* So we reserve a whole memory word! */
+# define box_direction(a)       memtwo00(a,8)  /* We could encode it as geometry but not now. */
+# define box_package_state(a)   memtwo01(a,8)
+# define box_geometry(a)        memtwo02(a,8)
+# define box_continuation(a)    memtwo03(a,8)
+# define box_orientation(a)     memone(a,8)    /* Also used for size in alignments. */
+# define box_x_offset(a)        memtwo(a,9)
+# define box_y_offset(a)        memone(a,9)
+# define box_pre_migrated(a)    memtwo(a,10)
+# define box_post_migrated(a)   memone(a,10)
+# define box_pre_adjusted(a)    memtwo(a,11)
+# define box_post_adjusted(a)   memone(a,11)
+# define box_source_anchor(a)   memtwo(a,12)
+# define box_target_anchor(a)   memone(a,12)
+# define box_anchor(a)          memtwo(a,13)
+# define box_index(a)           memone(a,13)
+# define box_except(a)          memtwo(a,14)
+# define box_exdepth(a)         memone(a,14)
+# define box_discardable(a)     memtwo(a,15)   /* internal usage */
+# define box_tail(a)            memone(a,15)   /* internal usage, alignment */
+# define box_natural_height(a)  memtwo(a,16)
+# define box_natural_depth(a)   memone(a,16)
+# define box_short(a)           memtwo(a,17)   /* depends on subtype, here line */
+# define box_options(a)         memone(a,17)
+# define box_input_file(a)      memtwo(a,18)
+# define box_input_line(a)      memone(a,18)
 
 # define box_total(a) (box_height(a) + box_depth(a)) /* Here we add, with glyphs we maximize. */
 
@@ -1120,12 +1141,12 @@ typedef enum package_states {
     /* maybe vcenter */
 } package_states;
 
-typedef enum package_dimension_states {
+typedef enum package_dimension_states { /* todo: own field */
     package_dimension_not_set  = 0x00,
-    package_dimension_size_set = 0x10, /* used in alignments */
+    package_dimension_size_set = 0x10,  /* used in alignments */
 } package_dimension_states;
 
-typedef enum package_leader_states { /* we can use one of the reserved */
+typedef enum package_leader_states {    /* todo: own field */
     package_u_leader_not_set = 0x00,
     package_u_leader_set     = 0x20,
     package_u_leader_delayed = 0x40,
@@ -1151,20 +1172,21 @@ typedef enum box_anchoring {
 # define set_box_snapped_state(p)   box_content_state(p) |= snapped_content_state
 # define is_box_snapped_state(p)    ((box_content_state(p) & snapped_content_state) == snapped_content_state)
 
-typedef enum box_option_flags {
-    box_option_no_math_axis = 0x01,
-    box_option_discardable  = 0x02,
-    box_option_keep_spacing = 0x04,
-    box_option_snapping     = 0x08,
-    box_option_no_snapping  = 0x10,
-    box_option_no_profiling = 0x20,
-    box_option_align_split  = 0x40,
- // box_option_synchronize  = 0x80,
+typedef enum box_option_flags { /* halfword */
+    box_option_no_math_axis    = 0x0001,
+    box_option_discardable     = 0x0002,
+    box_option_keep_spacing    = 0x0004,
+    box_option_snapping        = 0x0008,
+    box_option_no_kerning      = 0x0010, /* a bonus for me */
+    box_option_no_snapping     = 0x0020,
+    box_option_no_profiling    = 0x0040, /* a bonus for me */
+    box_option_align_split     = 0x0080,
+ // box_option_synchronize     = 0x0100,
 } box_option_flags;
 
-static inline void tex_set_box_option    (halfword a, halfword r) { box_options(a) = r; }
-static inline void tex_add_box_option    (halfword a, halfword r) { box_options(a) |= r; }
-static inline void tex_remove_box_option (halfword a, halfword r) { box_options(a) &= ~r; }
+static inline void tex_set_box_option    (halfword a, halfword r) { box_options(a)  =   r; }
+static inline void tex_add_box_option    (halfword a, halfword r) { box_options(a) |=   r; }
+static inline void tex_remove_box_option (halfword a, halfword r) { box_options(a) &= ~ r; }
 static inline int  tex_has_box_option    (halfword a, halfword r) { return (box_options(a) & r) == r; }
 
 /*tex
@@ -1244,39 +1266,34 @@ typedef enum rule_option_codes {
     rule_option_keep_spacing  = 0x20,
     rule_option_snapping      = 0x40,
     rule_option_no_snapping   = 0x80,
-    rule_option_valid         = 0x8F,
+    rule_option_valid         = 0xFF,
 } rule_option_codes;
 
 # define last_rule_subtype spacing_rule_subtype
 # define first_rule_code   normal_rule_code
 # define last_rule_code    strut_rule_code
 
-# define rule_node_size         9
-# define rule_width(a)          memtwo(a,2)
-# define rule_x_offset(a)       memone(a,2)
-# define rule_depth(a)          memtwo(a,3)
-# define rule_y_offset(a)       memone(a,3)
-# define rule_height(a)         memtwo(a,4)
-# define rule_data(a)           memone(a,4)  /* used for linewidth */
-# define rule_options(a)        memtwo(a,5)
-# define rule_thickness(a)      memone(a,5)  /* future see data */
-# define rule_left(a)           memone(a,6)  /* depends on subtype */
-# define rule_right(a)          memtwo(a,6)  /* depends on subtype */
-# define rule_extra_1(a)        memone(a,7)  /* depends on subtype */
-# define rule_extra_2(a)        memtwo(a,7)  /* depends on subtype */
-# define rule_discardable(a)    memone(a,8)  /* internal usage */
-# define rule_snapping(a)       memtwo(a,8)
-
-# define rule_line_on         rule_extra_1 /* for user rules */
-# define rule_line_off        rule_extra_2 /* for user rules */
-
-# define rule_strut_font      rule_extra_1 /* for strut rules */
-# define rule_strut_character rule_extra_2 /* for strut rules */
-
-# define rule_virtual_width   rule_left
-# define rule_virtual_height  rule_right
-# define rule_virtual_depth   rule_extra_1 /* we could use rule_reserved instead */
-# define rule_virtual_unused  rule_extra_2
+# define rule_node_size          12
+# define rule_width(a)           memtwo(a,2)
+# define rule_x_offset(a)        memone(a,2)
+# define rule_depth(a)           memtwo(a,3)
+# define rule_y_offset(a)        memone(a,3)
+# define rule_height(a)          memtwo(a,4)
+# define rule_data(a)            memone(a,4)
+# define rule_options(a)         memtwo(a,5)
+# define rule_thickness(a)       memone(a,5)
+# define rule_left(a)            memone(a,6)  /* rule_top */
+# define rule_right(a)           memtwo(a,6)  /* rule_bottom */
+# define rule_line_on(a)         memone(a,7)
+# define rule_line_off(a)        memtwo(a,7)
+# define rule_discardable(a)     memone(a,8)  /* internal usage */
+# define rule_snapping(a)        memtwo(a,8)
+# define rule_strut_font(a)      memone(a,9)
+# define rule_strut_character(a) memtwo(a,9)
+# define rule_virtual_width(a)   memone(a,10)
+# define rule_virtual_height(a)  memtwo(a,10)
+# define rule_virtual_depth(a)   memone(a,11)
+# define rule_virtual_unused(a)  memtwo(a,11)
 
 # define rule_total(a) (rule_height(a) + rule_depth(a))
 
@@ -1379,6 +1396,8 @@ static inline int  tex_has_rule_option    (halfword a, halfword r) { return (rul
 # define glyph_left(a)       memone(a,11)
 # define glyph_right(a)      memtwo(a,11)
 
+# define glyph_margins(p)    (-(glyph_left(p) + glyph_right(p)))
+
 # define glyph_x_offset(a)   memone(a,12)
 # define glyph_y_offset(a)   memtwo(a,12)
 
@@ -1432,8 +1451,12 @@ static inline int  tex_has_rule_option    (halfword a, halfword r) { return (rul
 # define set_glyph_rhmin(a,b)      glyph_rhmin(a) = ((singleword) (b))
 # define set_glyph_hyphenate(a,b)  glyph_hyphenate(a) = ((halfword) (b))
 # define set_glyph_options(a,b)    glyph_options(a) = ((halfword) (b))
-# define set_glyph_discpart(a,b)   glyph_discpart(a) = (glyph_discpart(a) | (singleword)  ((b) & 0xF)      )
-# define set_glyph_discafter(a,b)  glyph_discpart(a) = (glyph_discpart(a) | (singleword) (((b) & 0xF) << 4))
+
+//define set_glyph_discpart(a,b)   glyph_discpart(a) = (glyph_discpart(a) | (singleword)  ((b) & 0xF)      )
+//define set_glyph_discafter(a,b)  glyph_discpart(a) = (glyph_discpart(a) | (singleword) (((b) & 0xF) << 4))
+
+# define set_glyph_discpart(a,b)   (glyph_discpart(a) = (singleword) ((glyph_discpart(a) & 0xF0) |  ((b) & 0x0F)      ))
+# define set_glyph_discafter(a,b)  (glyph_discpart(a) = (singleword) ((glyph_discpart(a) & 0x0F) | (((b) & 0x0F) << 4)))
 
 # define get_glyph_dohyph(a) (hyphenation_permitted(glyph_hyphenate(a), syllable_hyphenation_mode ) || hyphenation_permitted(glyph_hyphenate(a), force_handler_hyphenation_mode))
 # define get_glyph_uchyph(a) (hyphenation_permitted(glyph_hyphenate(a), uppercase_hyphenation_mode) || hyphenation_permitted(glyph_hyphenate(a), force_handler_hyphenation_mode))
@@ -1856,15 +1879,16 @@ typedef enum fontspec_states {
 static inline int tex_same_fontspec(halfword a, halfword b)
 {
     return
-        (a == b)
-     || (a && b && font_spec_state(a)      == font_spec_state(b)
-                && font_spec_identifier(a) == font_spec_identifier(b)
-                && font_spec_scale(a)      == font_spec_scale(b)
-                && font_spec_x_scale(a)    == font_spec_x_scale(b)
-                && font_spec_y_scale(a)    == font_spec_y_scale(b)
-                && font_spec_slant(a)      == font_spec_slant(b)
-                && font_spec_weight(a)     == font_spec_weight(b)
-        )
+        (a == b) ? eq_state_same_pointer :
+        (a && b
+           && font_spec_state(a)      == font_spec_state(b)
+           && font_spec_identifier(a) == font_spec_identifier(b)
+           && font_spec_scale(a)      == font_spec_scale(b)
+           && font_spec_x_scale(a)    == font_spec_x_scale(b)
+           && font_spec_y_scale(a)    == font_spec_y_scale(b)
+           && font_spec_slant(a)      == font_spec_slant(b)
+           && font_spec_weight(a)     == font_spec_weight(b)
+        ) ? eq_state_same_value : eq_state_different;
     ;
 }
 
@@ -1886,14 +1910,15 @@ static inline int tex_same_fontspec(halfword a, halfword b)
 static inline int tex_same_mathspec(halfword a, halfword b)
 {
     return
-        (a == b)
-     || (a && b && math_spec_class(a)      == math_spec_class(b)
-                && math_spec_family(a)     == math_spec_family(b)
-                && math_spec_character(a)  == math_spec_character(b)
-                && math_spec_properties(a) == math_spec_properties(b)
-                && math_spec_group(a)      == math_spec_group(b)
-                && math_spec_index(a)      == math_spec_index(b)
-        )
+        (a == b) ? eq_state_same_pointer :
+        (a && b
+           && math_spec_class(a)      == math_spec_class(b)
+           && math_spec_family(a)     == math_spec_family(b)
+           && math_spec_character(a)  == math_spec_character(b)
+           && math_spec_properties(a) == math_spec_properties(b)
+           && math_spec_group(a)      == math_spec_group(b)
+           && math_spec_index(a)      == math_spec_index(b)
+        ) ? eq_state_same_value : eq_state_different;
     ;
 }
 
@@ -1901,7 +1926,7 @@ static inline int tex_same_mathspec(halfword a, halfword b)
     Here are some more stack related nodes.
 */
 
-# define align_stack_node_size                19
+# define align_stack_node_size                20
 # define align_stack_align_ptr(a)             memone(a,1)
 # define align_stack_cur_align(a)             memtwo(a,1)
 # define align_stack_preamble(a)              memone(a,2)
@@ -1921,7 +1946,7 @@ static inline int tex_same_mathspec(halfword a, halfword b)
 # define align_stack_options(a)               memone(a,9)
 # define align_stack_attr_list(a)             memtwo(a,9)
 # define align_stack_callback(a)              memone(a,10)
-# define align_stack_min_height(a)            memone(a,10)
+# define align_stack_min_height(a)            memtwo(a,10)
 # define align_stack_min_depth(a)             memone(a,11)
 # define align_stack_tabskip_amount(a)        memtwo(a,11)
 # define align_stack_row_number(a)            memone(a,12)
@@ -1939,6 +1964,9 @@ static inline int tex_same_mathspec(halfword a, halfword b)
 # define align_stack_row_source(a)            memtwo(a,17)
 # define align_stack_row_target(a)            memone(a,18)
 # define align_stack_row_anchor(a)            memtwo(a,18)
+
+# define align_stack_cell_source(a)           memone(a,19)
+# define align_stack_row_state_set(a)         memtwo(a,19)
 
 /*tex
     If nodes are for nesting conditionals. We have more state information that in (for instance)
@@ -1982,6 +2010,7 @@ static inline int tex_same_mathspec(halfword a, halfword b)
 # define specification_anything_2(a) memtwo(a,3)
 
 /*tex
+
     We now define some math related nodes (and noads) and start with style and choice nodes. Style
     nodes can be smaller, the information is encoded in |subtype|, but choice nodes are on-the-spot
     converted to style nodes with slack. The advantage is that we don't run into issues when a choice
@@ -2038,6 +2067,8 @@ typedef enum simple_choice_subtypes {
     We accept a little waste of space in order to get nicer code. After all, math is not that
     demanding. Although delimiter, accent, fraction and radical share the same structure we do use
     specific field names because of clarity. Not all fields are used always.
+
+    Needs updating:
 
     \starttabulate[|l|l|l|l|l|l|]
     \FL
@@ -2122,7 +2153,7 @@ typedef enum simple_choice_subtypes {
 # define noad_supshift(a)     memtwo(a,11) /* continuation */
 # define noad_script_kern(a)  memone(a,12) /* continuation */
 # define noad_primeshift(a)   memtwo(a,12) /* continuation */
-# define noad_reserved(a)     memone(a,13)
+# define noad_callback(a)     memone(a,13)
 # define noad_extra_attr(a)   memtwo(a,13)
 # define noad_extra_2(a)      memone(a,14)
 # define noad_extra_1(a)      memtwo(a,14)
@@ -2267,7 +2298,7 @@ typedef enum noad_options {
 # define noad_option_single                     (uint64_t) 0x0000020000000000
 # define noad_option_no_rule                    (uint64_t) 0x0000040000000000
 # define noad_option_auto_middle                (uint64_t) 0x0000080000000000
-# define noad_option_reflected                  (uint64_t) 0x0000100000000000
+# define noad_option_reflected                  (uint64_t) 0x0000100000000000 /* put the (top) rule at the bottom */
 # define noad_option_continuation               (uint64_t) 0x0000200000000000 /* relates to script continuation */
 # define noad_option_inherit_class              (uint64_t) 0x0000400000000000 /* idem */
 # define noad_option_discard_shape_kern         (uint64_t) 0x0000800000000000 /* idem */
@@ -2290,6 +2321,20 @@ static inline void tex_set_noad_option    (halfword a, uint64_t r) { noad_option
 static inline void tex_add_noad_option    (halfword a, uint64_t r) { noad_options(a) |= r; }
 static inline void tex_remove_noad_option (halfword a, uint64_t r) { noad_options(a) &= ~r; }
 static inline int  tex_has_noad_option    (halfword a, uint64_t r) { return (noad_options(a) & r) == r; }
+
+static inline int is_noad(halfword n)
+{
+    switch (node_type(n)) {
+        case simple_noad:
+        case accent_noad:
+        case radical_noad:
+        case fence_noad:
+        case fraction_noad:
+            return 1;
+        default:
+            return 0;
+    }
+}
 
 static inline int has_noad_no_script_option(halfword n, halfword option)
 {
@@ -2793,6 +2838,7 @@ typedef enum par_codes {                   /* extrahyphenpenalty : in parpass   
     par_single_line_penalty_code,
     par_hyphen_penalty_code,
     par_ex_hyphen_penalty_code,
+    par_par_fill_mode_code,
     par_n_of_codes,
 } par_codes;
 
@@ -2855,6 +2901,7 @@ static int par_category_to_codes[par_n_of_codes] = { /* explicit size is check *
     par_single_line_penalty_category, // par_single_line_penalty_code
     par_hyphen_penalty_category,      // par_hyphen_penalty_code
     par_hyphen_penalty_category,      // par_ex_hyphen_penalty_code
+    par_skip_category,                // par_fill_mode_code
 };
 
 typedef enum par_options {
@@ -2863,6 +2910,12 @@ typedef enum par_options {
     par_snap_option        = 0x04,
     par_always_option      = 0x08,
 } par_options;
+
+typedef enum par_fillmodes {
+    par_left_fill_mode  = 0x01,
+    par_right_fill_mode = 0x02,
+    par_both_fill_mode  = 0x03,
+} par_fillmodes;
 
 /*tex Make sure that |max_chain_size| is large enough to have this huge node! */
 
@@ -2939,7 +2992,7 @@ typedef enum par_options {
 # define par_right_twin_demerits(a)      memtwo(a,34)
 # define par_orphan_line_factors(a)      memone(a,34)
 # define par_line_snapping(a)            memtwo(a,35)
-# define par_reserved(a)                 memone(a,35)
+# define par_par_fill_mode(a)            memone(a,35) /* can be single */
 
 /*
     At some point we will have this (array with double values), depends on the outcome of an
@@ -3029,8 +3082,8 @@ static inline int  tex_par_to_be_set        (halfword state, halfword what) { re
 # define active_total_demerits(a)          memtwo(a,2)   /*tex the quantity that \TEX\ minimizes */
 # define active_short(a)                   memone(a,3)   /*tex |shortfall| of this line */
 # define active_glue(a)                    memtwo(a,3)   /*tex corresponding glue stretch or shrink */
-# define active_deficiency(a)              memone(a,4)   /* last line related, normally we can use the passive one */
-# define active_quality(a)                 memtwo(a,4)   /* last line related, normally we can use the passive one */
+# define active_deficiency(a)              memone(a,4)   /*tex last line related, normally we can use the passive one */
+# define active_quality(a)                 memtwo(a,4)   /*tex last line related, normally we can use the passive one */
 # define active_n_of_fitness_classes(a)    memone(a,5)
 # define active_hang_l_index(a)            memtwo0(a,5)
 # define active_hang_r_index(a)            memtwo1(a,5)
@@ -3038,8 +3091,7 @@ static inline int  tex_par_to_be_set        (halfword state, halfword what) { re
 # define active_page_number(a)             memone(a,1)
 # define active_page_height(a)             memone(a,2)
 
-//define passive_node_size                 13
-# define passive_node_size                 14
+# define passive_node_size                 15
 # define passive_fitness(a)                memone1(a,0)
 # define passive_prev_break(a)             memone(a,1)   /*tex points to passive node that should precede this one */
 # define passive_cur_break(a)              memtwo(a,1)   /*tex in passive node, points to position of this breakpoint */
@@ -3069,6 +3121,9 @@ static inline int  tex_par_to_be_set        (halfword state, halfword what) { re
 # define passive_hang_r_after(a)           memone1(a,13)
 # define passive_hang_l_index(a)           memtwo0(a,13)
 # define passive_hang_r_index(a)           memtwo1(a,13)
+
+# define passive_short(a)                  memone(a,14)
+# define passive_line_width(a)             memtwo(a,14)
 
 # define delta_node_size                   6
 # define delta_field_total_glue(d)         memone(d,1)
@@ -3170,14 +3225,6 @@ extern void     tex_copy_node_properties          (halfword target, halfword sou
 # define get_attribute_list(target) \
     node_attr(target)
 
-/*
-# define add_attribute_reference(a) do { \
-    if (a && a != attribute_cache_disabled) { \
-        ++attribute_count(a); \
-    } \
-} while (0)
-*/
-
 static inline void add_attribute_reference(halfword a)
 {
  // if (a && a != attribute_cache_disabled) {
@@ -3185,14 +3232,6 @@ static inline void add_attribute_reference(halfword a)
         ++attribute_list_count(a);
     }
 }
-
-/*
-# define delete_attribute_reference(a) do { \
-    if (a && a != attribute_cache_disabled) { \
-        tex_dereference_attribute_list(a); \
-    } \
-} while (0)
-*/
 
 static inline void delete_attribute_reference(halfword a)
 {
@@ -3202,22 +3241,14 @@ static inline void delete_attribute_reference(halfword a)
     }
 }
 
-# define remove_attribute_list(target) do { \
-    halfword old_a = node_attr(target); \
-    delete_attribute_reference(old_a); \
-    node_attr(target) = null; \
-} while (0)
-
-/*
 static inline void remove_attribute_list(halfword target)
 {
     halfword a_old = node_attr(target);
     if (a_old && a_old != attribute_cache_disabled) {
-        dereference_attribute_list(a_old);
+        tex_dereference_attribute_list(a_old);
     }
     node_attr(target) = null;
 }
-*/
 
 /* This can be dangerous: */
 
@@ -3303,6 +3334,7 @@ extern void     tex_flush_node               (halfword n);
 extern halfword tex_copy_node_list           (halfword n, halfword e);
 extern halfword tex_copy_node                (halfword n);
 extern halfword tex_copy_node_only           (halfword n);
+extern halfword tex_copy_node_just           (halfword n);
 extern halfword tex_copy_specification_node  (halfword n);
 extern void     tex_flush_specification_node (halfword n);
 /*     halfword tex_fix_node_list            (halfword n); */
@@ -3476,4 +3508,3 @@ extern halfword tex_get_special_node_list (special_node_list_types list, halfwor
 extern void     tex_set_special_node_list (special_node_list_types list, halfword head);
 
 # endif
-

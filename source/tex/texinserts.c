@@ -72,13 +72,12 @@ static inline void saved_inserts_initialize(void)
 
 void tex_show_insert_group(void)
 {
-    tex_print_str_esc("insert");
-    tex_print_int(saved_insert_index);
+    tex_print_format("%einsert%i", saved_insert_index);
 }
 
 int tex_show_insert_record(void)
 {
-    tex_print_str("insert ");
+    tex_print_str_len("insert ", 7);
     switch (saved_type(0)) { 
        case saved_record_0:
             tex_print_format("index %i", saved_insert_index);       // saved_value_1(0)
@@ -97,14 +96,15 @@ int tex_show_insert_record(void)
 
 void tex_initialize_inserts(void)
 {
-    insert_record *tmp = aux_allocate_clear_array(sizeof(insert_record), lmt_insert_state.insert_data.minimum, 1);
+    /*tex The legacy path also uses these records for its distance cache. */
+    insert_record *tmp = aux_allocate_clear_array(sizeof(insert_record), max_insert_size, 1);
     if (tmp) {
         lmt_insert_state.inserts = tmp;
-        lmt_insert_state.insert_data.allocated = lmt_insert_state.insert_data.minimum;
-        lmt_insert_state.insert_data.top = lmt_insert_state.insert_data.minimum;
+        lmt_insert_state.insert_data.allocated = max_insert_size;
+        lmt_insert_state.insert_data.top = max_insert_size;
         lmt_insert_state.insert_data.ptr = 0;
     } else {
-        tex_overflow_error("inserts", lmt_insert_state.insert_data.minimum);
+        tex_overflow_error("inserts", max_insert_size);
     }
 }
 
@@ -117,14 +117,14 @@ int tex_valid_insert_id(halfword n)
 {
     switch (lmt_insert_state.mode) {
         case index_insert_mode:
-            return (n >= 0 && n <= max_box_register_index);
+            return (n >= 0 && n <= max_insert_size);
         case class_insert_mode:
             if (n <= 0) {
                 tex_handle_error(
                     normal_error_type,
-                    "In \\insertmode 2 you can't use zero as index.",
-                    NULL
+                    "In \\insertmode 2 you can't use zero as index."
                 );
+                return 0;
             } else if (n <= lmt_insert_state.insert_data.ptr) {
                 return 1;
             } else if (n < lmt_insert_state.insert_data.top) {
@@ -362,9 +362,11 @@ void tex_set_insert_width(halfword i, scaled v)
 void tex_set_insert_content(halfword i, halfword v) 
 {
     /* can have old pointer to list */
-    switch (lmt_insert_state.mode) {
-        case index_insert_mode: insert_content(i) = v; break;
-        case class_insert_mode: if (tex_valid_insert_id(i)) { lmt_insert_state.inserts[i].content = v; } break;
+    if (tex_valid_insert_id(i)) {
+        switch (lmt_insert_state.mode) {
+            case index_insert_mode: insert_content(i) = v; break;
+            case class_insert_mode: lmt_insert_state.inserts[i].content = v; break;
+        }
     }
 }
 
@@ -429,14 +431,18 @@ void tex_wipe_insert(halfword i)
 halfword lmt_get_insert_distance(halfword i, int first, int top, int dis)
 {
     halfword distance = null;
+    int callback_distance = 0;
     int callback_id = lmt_callback_defined(insert_distance_callback);
     if (callback_id > 0) {
         lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddbb->N", i, 1, first, top, &distance);
+        callback_distance = distance != null;
     }
     if (dis && ! distance) {
         switch (lmt_insert_state.mode) {
             case index_insert_mode:
-                distance = insert_distance(i);
+                if (tex_valid_insert_id(i)) {
+                    distance = insert_distance(i);
+                }
                 break;
             case class_insert_mode:
                 if (tex_valid_insert_id(i)) {
@@ -445,8 +451,12 @@ halfword lmt_get_insert_distance(halfword i, int first, int top, int dis)
                 break;
         }
     }
-    // maybe null
-    return distance ? tex_copy_node(distance) : tex_new_glue_spec_node(null);
+    if (distance) {
+        /*tex A callback result is transferred; stored engine glue is copied. */
+        return callback_distance ? distance : tex_copy_node(distance);
+    } else {
+        return tex_new_glue_spec_node(null);
+    }
 }
 
 halfword lmt_set_insert_distance(halfword i, halfword head)
@@ -455,7 +465,13 @@ halfword lmt_set_insert_distance(halfword i, halfword head)
     if (callback_id > 0) {
         halfword newhead = null;
         lmt_run_callback(lmt_lua_state.lua_instance, callback_id, "ddN->N", i, 2, head, &newhead);
-        return head;
+        if (newhead && newhead != head) {
+            /*tex A replacement transfers the old list to this wrapper. */
+            tex_flush_node_list(head);
+            return newhead;
+        } else {
+            return head;
+        }
     } else {
         return head;
     }
@@ -485,13 +501,22 @@ halfword tex_scan_insert_index(void)
     switch (lmt_insert_state.mode) {
         case unset_insert_mode:
             lmt_insert_state.mode = index_insert_mode;
-            // fall-through
+            FALLTHROUGH
         case index_insert_mode:
             index = tex_scan_box_register_number();
-            if (index == output_box_par) {
+            if (index > max_insert_size) {
                 tex_handle_error(
                     normal_error_type,
-                    "You can't \\insert%i",
+                    "Insert index (%i) should be in the range 0..%i%h",
+                    index,
+                    max_insert_size,
+                    "I'm changing to \\insert0."
+                );
+                index = 0;
+            } else if (index == output_box_par) {
+                tex_handle_error(
+                    normal_error_type,
+                    "You can't \\insert%i%h",
                     output_box_par,
                     "I'm changing to \\insert0; box \\outputbox is special."
                 );
@@ -515,7 +540,7 @@ void tex_set_insert_mode(halfword mode)
     } else if (mode != lmt_insert_state.mode) {
         tex_handle_error(
             normal_error_type,
-            "Bad \\insertmode (%i)",
+            "Bad \\insertmode (%i)%h",
             mode,
             "This mode can be set once and has value 1 or 2. It will be automatically\n"
             "set when \\insert is used."
@@ -559,26 +584,34 @@ void tex_dump_insert_data(dumpstream f) {
     dump_int(f, lmt_insert_state.mode);
     dump_int(f, lmt_insert_state.insert_data.ptr);
     dump_int(f, lmt_insert_state.insert_data.top);
-    dump_things(f, lmt_insert_state.inserts[0], lmt_insert_state.insert_data.ptr);
+    dump_things(f, lmt_insert_state.inserts[0], lmt_insert_state.insert_data.ptr + 1);
 }
 
 void tex_undump_insert_data(dumpstream f) {
     insert_record *tmp;
+    int size;
     undump_int(f, lmt_insert_state.mode);
     undump_int(f, lmt_insert_state.insert_data.ptr);
     undump_int(f, lmt_insert_state.insert_data.top);
-    tmp = aux_allocate_clear_array(sizeof(insert_record), lmt_insert_state.insert_data.top, 1);
+    size = lmt_insert_state.insert_data.top;
+    if (size < max_insert_size) {
+        size = max_insert_size;
+        if (lmt_insert_state.mode != class_insert_mode) {
+            lmt_insert_state.insert_data.top = size;
+        }
+    }
+    tmp = aux_allocate_clear_array(sizeof(insert_record), size, 1);
     if (tmp) {
         lmt_insert_state.inserts = tmp;
-        lmt_insert_state.insert_data.allocated = lmt_insert_state.insert_data.top;
-        undump_things(f, lmt_insert_state.inserts[0], lmt_insert_state.insert_data.ptr);
+        lmt_insert_state.insert_data.allocated = size;
+        undump_things(f, lmt_insert_state.inserts[0], lmt_insert_state.insert_data.ptr + 1);
     } else {
-        tex_overflow_error("inserts", lmt_insert_state.insert_data.top);
+        tex_overflow_error("inserts", size);
     }
 }
 
 /*tex
-    Inserts, not the easiest mechanism and a candicate for more opening up.
+    Inserts, not the easiest mechanism and a candidate for more opening up.
 */
 
 void tex_run_insert(void)
@@ -588,21 +621,21 @@ void tex_run_insert(void)
     halfword data = 0;
     halfword index = -1;
     while (1) {
-        switch (tex_scan_character("cdiCDI", 1, 1, 1)) {
+        switch (tex_scan_character("cdi", 1, 1, 1)) {
             case 0:
                 goto DONE;
-            case 'c': case 'C':
+            case 'c':
                 if (tex_scan_mandate_keyword("callback", 1)) {
                     callback = tex_scan_integer(0, NULL, NULL);
                 }
                 break;
-            case 'd': case 'D':
+            case 'd':
                 /* identifier */
                 if (tex_scan_mandate_keyword("data", 1)) {
                     data = tex_scan_integer(0, NULL, NULL);
                 }
                 break;
-            case 'i': case 'I':
+            case 'i':
                 if (tex_scan_mandate_keyword("index", 1)) {
                     index = tex_scan_insert_index();
                 }
@@ -675,8 +708,8 @@ void tex_finish_insert_group(void)
             insert_total_height(insert) = box_total(p);
             insert_list(insert) = box_list(p);
             insert_split_top(insert) = q;
-            insert_max_depth(insert) = has_insert_option(index, insert_option_maxdepth) ? d : maxdepth;
-            insert_float_cost(insert) = has_insert_option(index, insert_option_penalty) ? f : floating;
+            insert_max_depth(insert) = has_insert_option(index, insert_option_maxdepth) ? maxdepth : d;
+            insert_float_cost(insert) = has_insert_option(index, insert_option_penalty) ? floating : f;
             insert_line_height(insert) = tex_get_insert_line_height(index);
             insert_line_depth(insert) = tex_get_insert_line_depth(index);
             insert_stretch(insert) = tex_get_insert_stretch(index);
@@ -809,8 +842,8 @@ scaled tex_insert_height(halfword node)
     return 0;
 }
 
-# define set_bit(bits,n) bits[n/8] |= (1 << (index % 8))
-# define get_bit(bits,n) (1 & (bits[index/8] >> (n % 8)))
+# define set_bit(bits,n) ((bits)[(n) / 8] |= (unsigned char) (1u << ((n) % 8)))
+# define get_bit(bits,n) (1u & ((unsigned char) (bits)[(n) / 8] >> ((n) % 8)))
 
 void tex_insert_reset_distances(void)
 {
@@ -828,7 +861,7 @@ void tex_insert_reset_distances(void)
 
 scaled tex_insert_distances(halfword first, halfword last, scaled *stretch, scaled *shrink)
 {
-    char bits[(max_n_of_inserts/8)+1] = { 0 }; /* brrr */
+    unsigned char bits[(max_n_of_inserts/8)+1] = { 0 }; /* brrr */
     int isfirst = 1;
     scaled amount = 0;
     halfword c = first; 
@@ -1005,9 +1038,10 @@ int tex_insert_is_dummy(halfword current)
 
 int tex_insert_is_top(halfword index)
 {
-    for (int index = 0; index <= lmt_insert_state.insert_data.top; index++) {
-        if (lmt_insert_state.inserts[index].category & insert_category_page) {
-            if (lmt_insert_state.inserts[index].placed) {
+    (void) index;
+    for (int i = 0; i <= lmt_insert_state.insert_data.top; i++) {
+        if (lmt_insert_state.inserts[i].category & insert_category_page) {
+            if (lmt_insert_state.inserts[i].placed) {
                 return 0;
             }
         }

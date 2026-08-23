@@ -27,14 +27,46 @@ typedef enum bytemap_reductions {
     bytemap_reduction_minmax   = 2,
 } bytemap_reductions;
 
+typedef enum bytemap_models {
+    bytemap_gray = 0,
+    bytemap_rgb  = 1,
+    bytemap_rgba = 2,
+    bytemap_cmyk = 3,
+} bytemap_models;
+
+typedef struct bytemap_slot {
+    union {
+        unsigned      value;
+        unsigned char slot[4];
+        struct {
+            unsigned char r;
+            unsigned char g;
+            unsigned char b;
+            unsigned char a;
+        };
+        struct {
+            unsigned char c;
+            unsigned char m;
+            unsigned char y;
+            unsigned char k;
+        };
+    };
+} bytemap_slot;
+
 typedef struct bytemap_data {
-    unsigned char *data;
-    int            nx;
-    int            ny;
-    int            nz;
-    int            ox;
-    int            oy;
-    int            options; 
+    union {
+        unsigned char *data; /* nz = 1|3 */ /* nz = 1|3 */
+        unsigned char *gray;                /* nz = 1   */
+        bytemap_slot  *rgba;                /* nz = 4   */
+        bytemap_slot  *cmyk;                /* nz = 4   */
+    };
+    int nx;
+    int ny;
+    int nz;
+    int ox;
+    int oy;
+    int options;
+    int model;
 } bytemap_data;
 
 # define bm_current_y(ny,y)  (ny-y-1)
@@ -82,13 +114,19 @@ extern void   bytemap_set_rgb        (bytemap_data *bytemap, int x, int y, int r
 extern void   bytemap_set_gray_add   (bytemap_data *bytemap, int x, int y, int s1, int s2, int s3);
 extern void   bytemap_set_gray_min   (bytemap_data *bytemap, int x, int y, int s1, int s2, int s3);
 
+extern void   bytemap_fill_gray      (bytemap_data *bytemap, int s);
+extern void   bytemap_fill_rgb       (bytemap_data *bytemap, int r, int g, int b);
+
 /*tex beware: returns an allocated copy*/
 
 extern int    bytemap_get_byte       (bytemap_data *bytemap, int x, int y, int z);
 extern void   bytemap_get_bytes      (bytemap_data *bytemap, int x, int y, unsigned char *b1, unsigned char *b2, unsigned char *b3);
 extern char * bytemap_get_value      (bytemap_data *bytemap, int *nx, int *ny, int *nz);
+extern double bytemap_get_luminance  (bytemap_data *bytemap, int x, int y);
 
 extern void   bytemap_downsample     (bytemap_data *source, bytemap_data *target, int r);
 extern void   bytemap_downgrade      (bytemap_data *source, bytemap_data *target, int r);
+extern void   bytemap_filter         (bytemap_data *source, bytemap_data *target, int wx, int wy, double *map);
+extern void   bytemap_overlay        (bytemap_data *source, bytemap_data *target, int sx, int sy, int tx, int ty, int nx, int ny);
 
 # endif
