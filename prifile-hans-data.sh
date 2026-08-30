@@ -1,4 +1,4 @@
-# This setup is a generic one.
+# This setup is a generic one used on my linux boxes.
 
 export LMT_SETUP_CMD=
 

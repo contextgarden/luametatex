@@ -50,6 +50,7 @@ typedef struct print_state_info {
     int            font_in_short_display; /*tex an internal font number */
     FILE          *saved_logfile;
     int            saved_logfile_offset;
+    int            nesting_depth;
 } print_state_info;
 
 extern print_state_info lmt_print_state;

@@ -19,6 +19,7 @@ print_state_info lmt_print_state = {
      .font_in_short_display = 0,
      .saved_logfile         = NULL,
      .saved_logfile_offset  = 0,
+     .nesting_depth         = 0,
 };
 
 /*tex
@@ -1576,6 +1577,16 @@ static void tex_print_padding(void)
     }
 }
 
+static void tex_print_nesting(int n)
+{
+    static const char periods[32] = "................................";
+    while (n > 0) {
+        int chunk = (n > 32) ? 32 : n;
+        tex_print_str_len(periods, chunk);
+        n -= chunk;
+    }
+}
+
 void tex_print_levels(void)
 {
     int l0 = tracing_levels_par;
@@ -1893,6 +1904,12 @@ inline const char *tex_print_format_args(const char *format, va_list args)
                     case '%':
                         {
                             tex_print_char('%');
+                            break;
+                        }
+                    case '.':
+                        {
+                            int n = va_arg(args, int);
+                            tex_print_nesting(n);
                             break;
                         }
                     default:

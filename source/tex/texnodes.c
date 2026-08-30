@@ -68,8 +68,9 @@ node_memory_state_info lmt_node_memory_state = {
         .offset    = 0,
         .extra     = 0,
     },
+    /* these are not really memory states: todo: node_state_info */
     .reserved                   = 0,
-    .padding                    = 0,
+    .print_nesting              = 0,
     .node_properties_id         = 0,
     .lua_properties_level       = 0,
     .attribute_cache            = 0,
@@ -2984,11 +2985,17 @@ void tex_print_node_list(halfword p, const char *what, int threshold, int max)
 {
     if (p) {
         if (what) {
-            tex_print_format("%l..%E", what);
+            lmt_node_memory_state.print_nesting++;
+            tex_print_format("%l%.%E", lmt_node_memory_state.print_nesting, what);
         } else {
             /*tex This happens in math. */
         }
+        lmt_node_memory_state.print_nesting++;
         tex_show_node_list(p, threshold, max); // show_box_depth_par, show_box_breadth_par
+        lmt_node_memory_state.print_nesting--;
+        if (what) {
+            lmt_node_memory_state.print_nesting--;
+        }
     }
 }
 
@@ -3211,7 +3218,7 @@ void tex_show_node_list(halfword p, int threshold, int max)
             max = 5;
         }
         while (p) {
-            tex_print_format("%l..");
+            tex_print_format("%l%.", lmt_node_memory_state.print_nesting);
             ++n;
             if (n > max) {
                 /*tex Time to stop. */
@@ -3656,7 +3663,7 @@ void tex_show_node_list(halfword p, int threshold, int max)
                     break;
                 case align_record_node:
                     tex_print_token_list(NULL, align_record_pre_part(p)); /*tex No ref count token here. */
-                    tex_print_format("%l..<content>");
+                    tex_print_format("%l..<content>"); /* one level */
                     tex_print_token_list(NULL, align_record_post_part(p)); /*tex No ref count token here. */
                     break;
                 case temp_node:

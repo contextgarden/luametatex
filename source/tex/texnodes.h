@@ -175,7 +175,7 @@ typedef struct node_memory_state_info {
     halfword     free_chain[max_chain_size];
     memory_data  nodes_data;
     int          reserved; /*tex There are some predefined nodes. */
-    int          padding;
+    int          print_nesting;
     int          node_properties_id;
     int          lua_properties_level;
     halfword     attribute_cache;

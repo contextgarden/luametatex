@@ -321,6 +321,8 @@ if [ "$PROFILE" -eq 1 ]; then
 else
     run_cmake() {
         cmake $NINJA $CMAKE_PLATFORM_ARGS $EXTRA_CMAKE_ARGS \
+            "-DLMT_DEBUG=$DEBUG" \
+            "-DLMT_NOOPTIMIZE=$NOOPTIMIZE" \
             -S "$ROOT_DIR" \
             -B "$BUILD_DIR"
     }

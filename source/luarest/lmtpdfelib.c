@@ -932,13 +932,18 @@ static int pdfelib_open(lua_State *L)
 static int pdfelib_openfile(lua_State *L)
 {
     luaL_Stream *fs = ((luaL_Stream *) luaL_checkudata(L, 1, LUA_FILEHANDLE));
-    FILE *f = (fs->closef) ? fs->f : NULL;
-    if (f && aux_pdfelib_open(L, f)) {
-        /*tex We trick \LUA\ in believing the file is closed. */
+    if (fs) {
+        FILE *f = (fs->closef) ? fs->f : NULL;
+        /*tex We trick \LUA\ in believing the file is closed because the lib will do that. */
         fs->closef = NULL;
-        return 1;
+        if (f && aux_pdfelib_open(L, f)) {
+            return 1;
+        } else {
+         /* tex_normal_warning("pdfe lib", "no valid file handle"); */ /* the caller should handle it */
+            return 0;
+        }
     } else {
-     /* tex_normal_warning("pdfe lib", "no valid file handle"); */ /* the caller should handle it */
+     /* tex_normal_warning("pdfe lib", "no valid file userdata"); */ /* the caller should handle it */
         return 0;
     }
 }
