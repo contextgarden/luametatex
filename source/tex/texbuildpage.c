@@ -86,7 +86,7 @@ static inline int tex_aux_catch_insert_overflow(void)
     return insert_options_par & insert_option_check_height;
 }
 
-static void tex_aux_fire_up (halfword c);
+static void tex_aux_fire_up(halfword c);
 
 /*tex
 

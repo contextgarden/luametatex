@@ -165,12 +165,6 @@
         }
     */
 
-    typedef struct dir_data {
-        intptr_t handle;
-        int      closed;
-        char     pattern[MY_MAXPATHLEN+5];
-    } dir_data;
-
     static int get_stat(const char *s, info_struct *i)
     {
         LPWSTR w = aux_utf8_to_wide(s);
@@ -266,12 +260,6 @@
 
     # define info_struct     struct stat
     # define utime_struct    struct utimbuf
-
-    typedef struct dir_data {
-        DIR  *handle;
-        int   closed;
-        char  pattern[MY_MAXPATHLEN+1];
-    } dir_data;
 
     # define get_stat        stat
     # define mk_dir(p)       (mkdir((p), S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IXOTH))
@@ -432,16 +420,111 @@ static int filelib_rmdir(lua_State *L)
     return 1;
 }
 
-/*
+
+static int filelib_moreweird(lua_State *L)
+{
+    static const char *weird = "~`!#$%^&*()={}[]:;\"'|<>,?\n\r\t";
+    const char *str = lua_tostring(L, 1);
+    lua_pushboolean(L, str ? str[0] == '.' || strpbrk(str, weird) != NULL : 1);
+    return 1;
+}
+
+static int filelib_lessweird(lua_State *L)
+{
+    static const char *weird = "~`#$%^&*:;\"\'||<>,?\n\r\t";
+    const char *str = lua_tostring(L, 1);
+    lua_pushboolean(L, str ? str[0] == '.' || strpbrk(str, weird) != NULL : 1);
+    return 1;
+}
+
+/*tex
+
     The directory iterator returns multiple values:
 
     for name, mode, size, mtime in dir(path) do ... end
 
-    For practical reasons we keep the metatable the same.
+*/
+
+/*tex
+
+    On unix we cannot get the size and time in one go without interference. Also, not all file
+    systems return this field. So eventually we might not do this on unix and revert to the
+    slower method at the lua end when DT_DIR is undefined. After a report from the mailing
+    list about symbolic link issues this is what Taco and I came up with. The |_less| variant
+    is mainly there because in \UNIX\ we then can avoid a costly |stat| when we don't need the
+    details (only a symlink demands such a |stat|).
 
 */
 
-# ifdef _WIN32
+/*tex
+
+    For quite a while we used the first variant but when I asked Gemini it became clear that
+    we can assume the more efficient accessors to be available. Most linux file systems have
+    fast stat methods and in windows we can get the utf name more efficient and can avoid 8.3
+    handling. So, per 2026-08 we upgraded the iterator.
+
+    Another (small) optimization is to not pass |.| and |..| to the scanner because these make
+    no sense. It saves a stat and some allocations.
+*/
+
+/*tex
+
+    It happens that one can run into complaints about generating the \CONTEXT\ file databases,
+    often by non \CONTEXT\ users. The arguments are kind of weird and make little sense when
+    you consider what goes on. Also, it doesn't concern the normal distibution but a large
+    setup like texlive. Here is a break down. The numbers are on a wsl subsystem so on a bare
+    metal setup we have even less of an issue. In the \CONTEXT\ distribution we're talking about
+    neglectable times, when disk I/O is cached, second digits after the comma.
+
+    A 2026 tl setup has 241.000 files on about 17,600 directories and an |mtxrun --generate|
+    takes 2.75 seconds (cached I/O on WSL) or 7.36 seconds (uncached disk I/O) and according
+    to Gemini that is \quotation {an exceptionally strong result}.
+
+    When we run |mktexlsr| after that, it needs 0.700 seconds to complete the job. It just
+    lists the files and directories and where |mtxrun| prepares the dabase for lookups, that
+    is delegated to kpse when \CONTEXT\ is not used. Also, serializing and compiling to
+    bytecode add overhead. Actually, the 2 more seconds are used for that. We're using a 2018
+    laptop (windows 11 with wsl) when testing this. Both the \LUA\ and plain text files that
+    contain the information are quite large.
+
+    When we do a cold run, that is: uncached disk I/O, a |mktexlsr| needs over 5 seconds which
+    isn't nothing either. Now here is the thing. Say that we update texlive. If after an update
+    we first run |mtxrun| than that one will will populate the cache, in our case we talk of
+    directories and attributes. A later |mktexlsr| will benefit from that! If we first run
+    |mktexlsr| that one does the heavy lifting and |mtxrun| might benefit. Order matters here
+    and that is never taken into account when I read complaints. In fact, not running
+    |mtxrun --generate| and delaying that actually makes it worse. If \CONTEXT, because it
+    comes early in the alphabet is done first it is always the loser!
+
+    A similar argument can be held for making formats. This also involves lookups and files
+    and again caching plays a role here. Seeing what format generation does (logging) can give
+    the impression of it being slow, and the few seconds needed then gain attention, while a
+    hidden generation of other formats taking minutes seems to give the impression of speed.
+
+    In the end, and this is the bottom line here, it all depends on order and caching, and the
+    code involved in the scanning is not really the problem: it's efficient and fast. Messing
+    with it, assuming an improvement, is asking for problems and obsuring the facts. It also
+    sort of demonstrates ignorance. But then, reading about performance issues in \TEX\ and
+    its ecosystem are often kind of weird (and off).
+
+    As a side note: there are reasons why, right from the start of \LUATEX, and even in the
+    former \PDFTEX\ times, in the \CONTEXT\ runners we found ways to optimize file lookups:
+    there was time that pre-ssd disk access really forced us to get around the multi-second
+    engine file lookups on large distributions. It actually is why we started with the
+    minimal ones.
+
+*/
+
+# if 0
+
+  # ifdef _WIN32
+
+    typedef struct dir_data {
+        intptr_t handle;
+        int      closed;
+        int      details;
+        char     pattern[MY_MAXPATHLEN+5];
+    } dir_data;
 
     static inline int push_entry(lua_State *L, struct _wfinddata_t file_data, int details)
     {
@@ -465,7 +548,7 @@ static int filelib_rmdir(lua_State *L)
     static int filelib_aux_dir_iterator(lua_State *L)
     {
         struct _wfinddata_t file_data;
-        int details = 1;
+        int details;
      // dir_data *d = (dir_data *) luaL_checkudata(L, 1, DIR_METATABLE);
         dir_data *d = (dir_data *) lua_touserdata(L, 1);
         if (d && lua_getmetatable(L, 1)) {
@@ -479,9 +562,7 @@ static int filelib_rmdir(lua_State *L)
             /* some fatal error */
             return 0;
         }
-        lua_getiuservalue(L, 1, 1);
-        details = lua_toboolean(L, -1);
-        lua_pop(L, 1);
+        details = d->details;
         luaL_argcheck(L, d->closed == 0, 1, "closed directory");
         if (d->handle == 0L) {
             /* first entry */
@@ -509,7 +590,7 @@ static int filelib_rmdir(lua_State *L)
     static int filelib_aux_dir_close(lua_State *L)
     {
         dir_data *d = (dir_data *) lua_touserdata(L, 1);
-        if (!d->closed && d->handle) {
+        if (! d->closed && d->handle) {
             _findclose(d->handle);
         }
         d->closed = 1;
@@ -519,143 +600,37 @@ static int filelib_rmdir(lua_State *L)
     static int filelib_dir(lua_State *L)
     {
         const char *path = luaL_checkstring(L, 1);
-        int detail = lua_type(L, 2) == LUA_TBOOLEAN ? lua_toboolean(L, 2) : 1;
+        int details = lua_type(L, 2) == LUA_TBOOLEAN ? lua_toboolean(L, 2) : 1;
         dir_data *d;
         lua_pushcfunction(L, filelib_aux_dir_iterator);
-        d = (dir_data *) lua_newuserdatauv(L, sizeof(dir_data), 1);
-        lua_pushboolean(L, detail);
-        lua_setiuservalue(L, -2, 1);
+        d = (dir_data *) lua_newuserdatauv(L, sizeof(dir_data), 0);
         lua_get_metatablelua(dir_handle_instance);
         lua_setmetatable(L, -2);
-        d->closed = 0;
-        d->handle = 0L;
-        if (path && strlen(path) > MY_MAXPATHLEN-2) {
+        d->closed  = 0;
+        d->details = details;
+        d->handle  = 0L;
+        if (strlen(path) > MY_MAXPATHLEN-2) {
             luaL_error(L, "path too long: %s", path);
         } else {
-            sprintf(d->pattern, "%s/*", path ? path : "."); /* brrr */
+            sprintf(d->pattern, "%s/*", path); /* brrr */
         }
         return 2;
     }
 
- // static int filelib_collect(lua_State *L)
- // {
- //     const char *path = lua_tostring(L, 1);
- //     if (path) { 
- //         if (strlen(path) > MY_MAXPATHLEN-2) {
- //             luaL_error(L, "path too long: %s", path);
- //         } else {
- //             LPWSTR s;
- //             intptr_t handle;
- //             struct _wfinddata_t file_data;
- //             char pattern[MY_MAXPATHLEN+1];
- //             sprintf(pattern, "%s/*", path ? path : "."); /* brrr */
- //             s = aux_utf8_to_wide(pattern);
- //             handle = _wfindfirst(s, &file_data);
- //             if (handle != -1L) {
- //                 int noffiles = 0;
- //                 int nofdirectories = 0;
- //                 lua_createtable(L, 4, 0); /* files */
- //                 lua_createtable(L, 0, 0); /* dirs  */
- //                 do {
- //                     char *s = aux_utf8_from_wide(file_data.name);
- //                     if (S_ISSUB(file_data.attrib)) {
- //                         if (strcmp(s, "..") != 0 && strcmp(s, ".") != 0) {
- //                             lua_pushstring(L, s);
- //                             lua_rawseti(L, -2, ++nofdirectories);
- //                         }
- //                     } else {
- //                         lua_pushstring(L, s);
- //                         lua_rawseti(L, -3, ++noffiles);
- //                     }
- //                     lmt_memory_free(s);
- //                 } while (_wfindnext(handle, &file_data) != -1L); 
- //                 _findclose(handle);
- //                 return 2;
- //             } else { 
- //                 _findclose(handle);
- //             }
- //         }
- //     }
- //     lua_pushnil(L);
- //     lua_pushnil(L);
- //     return 2;
- // }
+  # else
 
- // static int filelib_aux_collect(lua_State *L, const char *path, int noffiles)
- // {
- //     if (path) { 
- //         if (strlen(path) > MY_MAXPATHLEN-2) {
- //             luaL_error(L, "path too long: %s", path);
- //         } else {
- //             LPWSTR s;
- //             intptr_t handle;
- //             struct _wfinddata_t file_data;
- //             char pattern[MY_MAXPATHLEN+1];
- //             sprintf(pattern, "%s/*", path ? path : "."); /* brrr */
- //             s = aux_utf8_to_wide(pattern);
- //             handle = _wfindfirst(s, &file_data);
- //             if (handle != -1L) {
- //                 do {
- //                     char *s = aux_utf8_from_wide(file_data.name);
- //                     if (S_ISSUB(file_data.attrib)) {
- //                         if (strcmp(s, "..") != 0 && strcmp(s, ".") != 0) {
- //                             char complete[5*MY_MAXPATHLEN+1]; /* utf filename */
- //                             if (path) { 
- //                                 sprintf(complete, "%s/%s", path, s); /* brrr */
- //                                 noffiles = filelib_aux_collect(L, complete, noffiles);
- //                             } else {
- //                                 noffiles = filelib_aux_collect(L, s, noffiles);
- //                             }
- //                         }
- //                     } else {
- //                         char complete[5*MY_MAXPATHLEN+1]; /* utf filename */
- //                         if (path) { 
- //                             sprintf(complete, "%s/%s", path, s); /* brrr */
- //                             lua_pushstring(L, complete);
- //                         } else { 
- //                             lua_pushstring(L, s);
- //                         }
- //                         lua_rawseti(L, -2, ++noffiles);
- //                     }
- //                     lmt_memory_free(s);
- //                 } while (_wfindnext(handle, &file_data) != -1L); 
- //                 _findclose(handle);
- //             }
- //             _findclose(handle);
- //         }
- //     }
- //     return noffiles;
- // }
- //
- // static int filelib_collect(lua_State *L)
- // {
- //     const char *path = lua_tostring(L, 1);
- //     lua_createtable(L, 0, 0);
- //     if (path) { 
- //         filelib_aux_collect(L, path, 0);
- //     }
- //     return 1;
- // }
-
-# else
-
-    /*tex
-
-        On unix we cannot get the size and time in one go without interference. Also, not all file
-        systems return this field. So eventually we might not do this on unix and revert to the
-        slower method at the lua end when DT_DIR is undefined. After a report from the mailing
-        list about symbolic link issues this is what Taco and I came up with. The |_less| variant
-        is mainly there because in \UNIX\ we then can avoid a costly |stat| when we don't need the
-        details (only a symlink demands such a |stat|).
-
-    */
+    typedef struct dir_data {
+        DIR  *handle;
+        int   closed;
+        int   details;
+        char  pattern[MY_MAXPATHLEN+1];
+    } dir_data;
 
     static int filelib_aux_dir_iterator(lua_State *L)
     {
         struct dirent *entry;
         dir_data *d;
-        int details = 1;
-        lua_pushcfunction(L, filelib_aux_dir_iterator);
+        int details;
     //  d = (dir_data *) luaL_checkudata(L, 1, DIR_HANDLE_INSTANCE);
         d = (dir_data *) lua_touserdata(L, 1);
         if (d && lua_getmetatable(L, 1)) {
@@ -669,25 +644,22 @@ static int filelib_rmdir(lua_State *L)
             /* some fatal error */
             return 0;
         }
-        /* */
-        lua_getiuservalue(L, 1, 1);
-        details = lua_toboolean(L, -1);
-        lua_pop(L, 1);
+        details = d->details;
         luaL_argcheck(L, d->closed == 0, 1, "closed directory");
         entry = readdir (d->handle);
         if (entry) {
             lua_pushstring(L, entry->d_name);
-# ifdef _DIRENT_HAVE_D_TYPE
-            if (! details) {
-                if (entry->d_type == DT_DIR) {
-                    lua_push_key(directory);
-                    return 2;
-                } else if (entry->d_type == DT_REG) {
-                    lua_push_key(file);
-                    return 2;
+            # ifdef _DIRENT_HAVE_D_TYPE
+                if (! details) {
+                    if (entry->d_type == DT_DIR) {
+                        lua_push_key(directory);
+                        return 2;
+                    } else if (entry->d_type == DT_REG) {
+                        lua_push_key(file);
+                        return 2;
+                    }
                 }
-            }
-# endif
+            # endif
             /*tex We can have a symlink and/or we need the details an dfor both we need to |get_stat|. */
             {
                 info_struct info;
@@ -732,21 +704,271 @@ static int filelib_rmdir(lua_State *L)
     static int filelib_dir(lua_State *L)
     {
         const char *path = luaL_checkstring(L, 1);
+        int details = lua_type(L, 2) == LUA_TBOOLEAN ? lua_toboolean(L, 2) : 1;
         dir_data *d;
         lua_pushcfunction(L, filelib_aux_dir_iterator);
-        d = (dir_data *) lua_newuserdatauv(L, sizeof(dir_data), 1);
-        lua_pushboolean(L, lua_type(L, 2) == LUA_TBOOLEAN ? lua_toboolean(L, 2) : 1);
-        lua_setiuservalue(L, -2, 1);
+        d = (dir_data *) lua_newuserdatauv(L, sizeof(dir_data), 0);
         lua_get_metatablelua(dir_handle_instance);
         lua_setmetatable(L, -2);
         d->closed = 0;
-        d->handle = opendir(path ? path : ".");
+        d->details = details;
+        d->handle = opendir(path);
         if (! d->handle) {
             luaL_error(L, "cannot open %s: %s", path, strerror(errno));
         }
-        snprintf(d->pattern, MY_MAXPATHLEN, "%s", path ? path : ".");
+        snprintf(d->pattern, MY_MAXPATHLEN, "%s", path);
         return 2;
     }
+
+  # endif
+
+# else
+
+  # ifdef _WIN32
+
+    # include <windows.h>
+    # include <fileapi.h>
+
+    # ifdef MAX_PATH
+        # define MY_MAXPATHLEN MAX_PATH
+    # else
+        # define MY_MAXPATHLEN 255
+    # endif
+
+    typedef struct dir_data {
+        HANDLE           handle;
+        int              closed;
+        int              details;
+        WIN32_FIND_DATAW fd;
+        wchar_t          pattern[MY_MAXPATHLEN + 5];
+    } dir_data;
+
+    /* helper to convert wide string to UTF-8 using stack allocation */
+
+    static inline void push_utf8_filename(lua_State *L, const wchar_t *wstr) {
+        char utf8buf[MY_MAXPATHLEN * 4];
+        int len = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, utf8buf, sizeof(utf8buf), NULL, NULL);
+        if (len > 0) {
+            lua_pushlstring(L, utf8buf, len - 1);
+        } else {
+            lua_pushliteral(L, "");
+        }
+    }
+
+    static inline int push_entry(lua_State *L, const WIN32_FIND_DATAW *fd, int details)
+    {
+        push_utf8_filename(L, fd->cFileName);
+        if (fd->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            lua_push_key(directory);
+        } else {
+            lua_push_key(file);
+        }
+        if (details) {
+            /* convert FILETIME to 64-bit Unix epoch time */
+            ULARGE_INTEGER ull;
+            ull.LowPart = fd->ftLastWriteTime.dwLowDateTime;
+            ull.HighPart = fd->ftLastWriteTime.dwHighDateTime;
+            lua_Integer mtime = (lua_Integer) ((ull.QuadPart - 116444736000000000ULL) / 10000000ULL);
+            /* combine high/low size bytes */
+            lua_Integer size = ((lua_Integer)fd->nFileSizeHigh << 32) | fd->nFileSizeLow;
+            lua_pushinteger(L, size);
+            lua_pushinteger(L, mtime);
+            return 4;
+        } else {
+            return 2;
+        }
+    }
+
+    static int filelib_aux_dir_iterator(lua_State *L)
+    {
+        dir_data *d = (dir_data *) lua_touserdata(L, 1);
+        if (! d || d->closed) {
+            return 0;
+        }
+        if (d->handle == INVALID_HANDLE_VALUE) {
+            /* first entry */
+            d->handle = FindFirstFileExW(
+                d->pattern,
+                FindExInfoBasic, /* skips short 8.3 filename retrieval */
+                &d->fd,
+                FindExSearchNameMatch,
+                NULL,
+                0
+            );
+            if (d->handle == INVALID_HANDLE_VALUE) {
+                d->closed = 1;
+                return 0;
+            }
+        } else {
+            /* next entries */
+            if (! FindNextFileW(d->handle, &d->fd)) {
+                FindClose(d->handle);
+                d->handle = INVALID_HANDLE_VALUE;
+                d->closed = 1;
+                return 0;
+            }
+        }
+        /* Fast check to filter out "." and ".." */
+        while (d->fd.cFileName[0] == L'.' &&
+              (d->fd.cFileName[1] == L'\0' || (d->fd.cFileName[1] == L'.' && d->fd.cFileName[2] == L'\0')))
+        {
+            if (! FindNextFileW(d->handle, &d->fd)) {
+                FindClose(d->handle);
+                d->handle = INVALID_HANDLE_VALUE;
+                d->closed = 1;
+                return 0;
+            }
+        }
+        return push_entry(L, &d->fd, d->details);
+    }
+
+    static int filelib_aux_dir_close(lua_State *L)
+    {
+        dir_data *d = (dir_data *) lua_touserdata(L, 1);
+        if (d && ! d->closed && d->handle != INVALID_HANDLE_VALUE) {
+            FindClose(d->handle);
+            d->handle = INVALID_HANDLE_VALUE;
+        }
+        if (d) {
+            d->closed = 1;
+        }
+        return 0;
+    }
+
+    static int filelib_dir(lua_State *L)
+    {
+        const char *path = luaL_checkstring(L, 1);
+        int details = (lua_type(L, 2) == LUA_TBOOLEAN) ? lua_toboolean(L, 2) : 1;
+        lua_pushcfunction(L, filelib_aux_dir_iterator);
+        dir_data *d = (dir_data *) lua_newuserdatauv(L, sizeof(dir_data), 0);
+        lua_get_metatablelua(dir_handle_instance);
+        lua_setmetatable(L, -2);
+        d->closed  = 0;
+        d->details = details;
+        d->handle  = INVALID_HANDLE_VALUE;
+        char pattern_utf8[MY_MAXPATHLEN + 5];
+        if (path && strlen(path) > MY_MAXPATHLEN - 3) {
+            luaL_error(L, "path too long: %s", path);
+        } else {
+            snprintf(pattern_utf8, sizeof(pattern_utf8), "%s/*", path ? path : ".");
+            MultiByteToWideChar(CP_UTF8, 0, pattern_utf8, -1, d->pattern, MY_MAXPATHLEN + 5);
+        }
+        return 2;
+    }
+
+  # else
+
+    /* POSIX & Linux */
+
+    # include <unistd.h>
+    # include <dirent.h>
+    # include <fcntl.h>
+    # include <sys/types.h>
+
+    # ifdef MAXPATHLEN
+        # define MY_MAXPATHLEN MAXPATHLEN
+    # else
+        # define MY_MAXPATHLEN 255
+    # endif
+
+    # define info_struct struct stat
+
+    typedef struct dir_data {
+        DIR *handle;
+        int  closed;
+        int  details;
+        int  dfd;     /* file descriptor for fstatat */
+    } dir_data;
+
+    static int filelib_aux_dir_iterator(lua_State *L)
+    {
+        struct dirent *entry;
+        dir_data *d = (dir_data *) lua_touserdata(L, 1);
+        if (! d || d->closed) {
+            return 0;
+        }
+        /* Loop until we find an entry that is NOT "." or ".." */
+        while ((entry = readdir(d->handle)) != NULL) {
+            if (entry->d_name[0] == '.' &&
+               (entry->d_name[1] == '\0' || (entry->d_name[1] == '.' && entry->d_name[2] == '\0'))) {
+                continue;
+            }
+            break;
+        }
+        if (! entry) {
+            closedir(d->handle);
+            d->closed = 1;
+            return 0;
+        }
+        lua_pushstring(L, entry->d_name);
+        # ifdef _DIRENT_HAVE_D_TYPE
+            /* fast: avoid stat if we don't need details and type is known */
+            if (! d->details) {
+                if (entry->d_type == DT_DIR) {
+                    lua_push_key(directory);
+                    return 2;
+                } else if (entry->d_type == DT_REG) {
+                    lua_push_key(file);
+                    return 2;
+                }
+            }
+        # endif
+        /* slower: fstatat relative lookup (avoids snprintf overhead) */
+        info_struct info;
+        if (fstatat(d->dfd, entry->d_name, &info, 0) == 0) {
+            if (S_ISDIR(info.st_mode)) {
+                lua_push_key(directory);
+            } else if (S_ISREG(info.st_mode) || S_ISLNK(info.st_mode)) {
+                lua_push_key(file);
+            } else {
+                lua_pushnil(L);
+                return 2;
+            }
+            if (d->details) {
+                lua_pushinteger(L, (lua_Integer) info.st_size);
+                lua_pushinteger(L, (lua_Integer) info.st_mtime);
+                return 4;
+            }
+        } else {
+            lua_pushnil(L);
+        }
+        return 2;
+    }
+
+    static int filelib_aux_dir_close(lua_State *L)
+    {
+        dir_data *d = (dir_data *) lua_touserdata(L, 1);
+        if (d && ! d->closed && d->handle) {\
+            /* closedir also closes internal fd */
+            closedir(d->handle);
+            d->handle = NULL;
+        }
+        if (d) {
+            d->closed = 1;
+        }
+        return 0;
+    }
+
+    static int filelib_dir(lua_State *L)
+    {
+        const char *path = luaL_checkstring(L, 1);
+        int details = (lua_type(L, 2) == LUA_TBOOLEAN) ? lua_toboolean(L, 2) : 1;
+        lua_pushcfunction(L, filelib_aux_dir_iterator);
+        dir_data *d = (dir_data *) lua_newuserdatauv(L, sizeof(dir_data), 0);
+        lua_get_metatablelua(dir_handle_instance);
+        lua_setmetatable(L, -2);
+        d->closed  = 0;
+        d->details = details;
+        d->handle  = opendir(path ? path : ".");
+        if (! d->handle) {
+            luaL_error(L, "cannot open %s: %s", path, strerror(errno));
+        }
+        /* obtain file descriptor for lightweight fstatat operations */
+        d->dfd = dirfd(d->handle);
+        return 2;
+    }
+
+  # endif
 
 # endif
 
@@ -776,7 +998,7 @@ static int dir_create_meta(lua_State *L)
         static char perms[10] = "---------";
         /* persistent change hence the for loop */
         for (int i = 0; i < 9; i++) {
-            perms[i]='-';
+            perms[i] = '-';
         }
         if (mode & _S_IREAD)  { perms[0] = 'r'; perms[3] = 'r'; perms[6] = 'r'; }
         if (mode & _S_IWRITE) { perms[1] = 'w'; perms[4] = 'w'; perms[7] = 'w'; }
@@ -791,7 +1013,7 @@ static int dir_create_meta(lua_State *L)
         static char perms[10] = "---------";
         /* persistent change hence the for loop */
         for (int i = 0; i < 9; i++) {
-            perms[i]='-';
+            perms[i] = '-';
         }
         if (mode & S_IRUSR) perms[0] = 'r';
         if (mode & S_IWUSR) perms[1] = 'w';
@@ -982,35 +1204,37 @@ static int filelib_canonicalize(lua_State *L)
 }
 
 static const struct luaL_Reg filelib_function_list[] = {
-    { "attributes",        filelib_attributes        },
-    { "chdir",             filelib_chdir             },
-    { "currentdir",        filelib_currentdir        },
-    { "dir",               filelib_dir               },
-    { "mkdir",             filelib_mkdir             },
-    { "rmdir",             filelib_rmdir             },
-    { "touch",             filelib_touch             },
-    { "expandpath",        filelib_expandpath        },
-    { "canonicalize",      filelib_canonicalize      },
+    { "attributes",      filelib_attributes        },
+    { "chdir",           filelib_chdir             },
+    { "currentdir",      filelib_currentdir        },
+    { "dir",             filelib_dir               },
+    { "mkdir",           filelib_mkdir             },
+    { "rmdir",           filelib_rmdir             },
+    { "touch",           filelib_touch             },
+    { "expandpath",      filelib_expandpath        },
+    { "canonicalize",    filelib_canonicalize      },
     /* */
- // { "collect",           filelib_collect           },
+    { "link",            filelib_link              },
+    { "symlink",         filelib_symlink           },
+    { "setexecutable",   filelib_setexecutable     },
+    { "symlinktarget",   filelib_symlinktarget     },
     /* */
-    { "link",              filelib_link              },
-    { "symlink",           filelib_symlink           },
-    { "setexecutable",     filelib_setexecutable     },
-    { "symlinktarget",     filelib_symlinktarget     }, 
+    { "isdir",           filelib_isdir             },
+    { "isfile",          filelib_isfile            },
+    { "iswriteabledir",  filelib_iswriteabledir    },
+    { "iswriteablefile", filelib_iswriteablefile   },
+    { "isreadabledir",   filelib_isreadabledir     },
+    { "isreadablefile",  filelib_isreadablefile    },
     /* */
-    { "isdir",             filelib_isdir             },
-    { "isfile",            filelib_isfile            },
-    { "iswriteabledir",    filelib_iswriteabledir    },
-    { "iswriteablefile",   filelib_iswriteablefile   },
-    { "isreadabledir",     filelib_isreadabledir     },
-    { "isreadablefile",    filelib_isreadablefile    },
+    { "lessweird",       filelib_lessweird         },
+    { "moreweird",       filelib_moreweird         },
     /* */
-    { NULL,                NULL                      },
+    { NULL,              NULL                      },
 };
 
-int luaopen_filelib(lua_State *L) {
+int luaopen_filelib(lua_State *L)
+{
     dir_create_meta(L);
-    luaL_newlib(L,filelib_function_list);
+    luaL_newlib(L, filelib_function_list);
     return 1;
 }
