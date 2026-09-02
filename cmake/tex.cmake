@@ -54,7 +54,8 @@ set(tex_sources
     source/luarest/lmtpotrace.c
     source/luarest/lmtqrcodegen.c
     source/luarest/lmtnanojpeg.c
-    source/luarest/lmtserial.c
+    source/luarest/lmtseriallib.c
+    source/luarest/lmtprocesslib.c
     source/luarest/lmtvectorlib.c
     source/luarest/lmtbytemaplib.c
     source/luarest/lmteffectslib.c

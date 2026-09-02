@@ -1126,6 +1126,7 @@ static const luaL_Reg lmt_libs_extra_function_list[] = {
     { "bytemap",   luaopen_bytemap   },
     { "kdtree",    luaopen_kdtree    },
     { "serial",    luaopen_serial    },
+    { "process",   luaopen_process   },
  // { "specific",  luaopen_specific  },
     { NULL,        NULL              },
 };

@@ -4,7 +4,7 @@
 
 # include "luametatex.h"
 
-/*tex See |lmtinterface.h| for |SERIALL_METATABLE_INSTANCE|. */
+/*tex See |lmtinterface.h| for |SERIAL_METATABLE_INSTANCE|. */
 
 # ifdef _WIN32
 
@@ -289,7 +289,8 @@ static int seriallib_close(lua_State *L) /* maybe use the onclose method */
     return 0;
 }
 
-static int seriallib_tostring(lua_State *L) {
+static int seriallib_tostring(lua_State *L) 
+{
     serial_data * serial = seriallib_aux_valid(L, 1);
     if (serial && ! serial->closed) {
         const char *port;
@@ -334,4 +335,3 @@ int luaopen_serial(lua_State *L)
     lua_settable(L, -3);
     return 1;
 }
-
