@@ -449,7 +449,7 @@ static int lualib_get_exitcode(lua_State *L)
 
 # ifdef _WIN32
 
-#   define clock_inittime()
+    # define clock_inittime()
 
     static int lualib_get_preciseticks(lua_State *L)
     {
@@ -469,12 +469,12 @@ static int lualib_get_exitcode(lua_State *L)
 
 # else
 
-#   if (defined(__MACH__) && ! defined(CLOCK_PROCESS_CPUTIME_ID))
+    # if (defined(__MACH__) && ! defined(CLOCK_PROCESS_CPUTIME_ID))
 
         /* https://stackoverflow.com/questions/5167269/clock-gettime-alternative-in-mac-os-x */
 
-#       include <mach/mach_time.h>
-#       define CLOCK_PROCESS_CPUTIME_ID 1
+        # include <mach/mach_time.h>
+        # define CLOCK_PROCESS_CPUTIME_ID 1
 
         static double conversion_factor;
 
@@ -498,17 +498,18 @@ static int lualib_get_exitcode(lua_State *L)
             return 0;
         }
 
-#   else
+    # else
 
-#       define clock_inittime()
+        # define clock_inittime()
 
-#   endif
+    # endif
 
     static int lualib_get_preciseticks(lua_State *L)
     {
         struct timespec t;
-        clock_gettime(CLOCK_PROCESS_CPUTIME_ID,&t);
-        lua_pushnumber(L, t.tv_sec*1000000000.0 + t.tv_nsec);
+     // clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &t);
+        clock_gettime(CLOCK_MONOTONIC, &t);
+        lua_pushnumber(L, t.tv_sec * 1000000000.0 + t.tv_nsec);
         return 1;
     }
 

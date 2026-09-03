@@ -113,6 +113,7 @@ extern int  luaopen_xmath       (lua_State *L);
 extern int  luaopen_xzip        (lua_State *L);
 extern int  luaopen_serial      (lua_State *L);
 extern int  luaopen_process     (lua_State *L);
+extern int  luaopen_timer       (lua_State *L);
 extern int  luaopen_vector      (lua_State *L);
 extern int  luaopen_zbuffer     (lua_State *L);
 //     int  luaopen_specific    (lua_State *L);
@@ -318,6 +319,7 @@ extern int  luaextend_xcomplex  (lua_State *L);
 # define BYTEMAP_METATABLE_INSTANCE  "bytemap"
 # define SERIAL_METATABLE_INSTANCE   "serial"
 # define PROCESS_METATABLE_INSTANCE  "process"
+# define TIMER_METATABLE_INSTANCE    "timer"
 # define INTERVAL_METATABLE_INSTANCE "interval"
 # define KDTREE_METATABLE_INSTANCE   "kdtree"
 
@@ -1621,6 +1623,7 @@ make_lua_key_alias(L, posit_instance,           POSIT_METATABLE_INSTANCE);\
 make_lua_key_alias(L, bytemap_instance,         BYTEMAP_METATABLE_INSTANCE);\
 make_lua_key_alias(L, serial_instance,          SERIAL_METATABLE_INSTANCE);\
 make_lua_key_alias(L, process_instance,         PROCESS_METATABLE_INSTANCE);\
+make_lua_key_alias(L, timer_instance,           TIMER_METATABLE_INSTANCE);\
 make_lua_key_alias(L, interval_instance,        INTERVAL_METATABLE_INSTANCE);\
 /* */ \
 make_lua_key_alias(L, file_handle_instance,     LUA_FILEHANDLE);\

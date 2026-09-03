@@ -1127,6 +1127,7 @@ static const luaL_Reg lmt_libs_extra_function_list[] = {
     { "kdtree",    luaopen_kdtree    },
     { "serial",    luaopen_serial    },
     { "process",   luaopen_process   },
+    { "timer",     luaopen_timer     },
  // { "specific",  luaopen_specific  },
     { NULL,        NULL              },
 };
