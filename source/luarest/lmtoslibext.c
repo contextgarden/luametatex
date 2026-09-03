@@ -234,6 +234,23 @@ static int oslib_uname(lua_State *L)
         return 1;
     }
 
+# else
+
+    static int oslib_gettimeofday(lua_State *L)
+    {
+        double v;
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        v = (double) tv.tv_sec + (double) tv.tv_usec / 1000000.0;
+        /*tex Float: */
+        lua_pushnumber(L, v);
+        return 1;
+    }
+
+# endif
+
+# ifdef _WIN32
+
     static int oslib_enableansi(lua_State *L)
     {
         int done = 0;
@@ -258,17 +275,6 @@ static int oslib_uname(lua_State *L)
     }
 
 # else
-
-    static int oslib_gettimeofday(lua_State *L)
-    {
-        double v;
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
-        v = (double) tv.tv_sec + (double) tv.tv_usec / 1000000.0;
-        /*tex Float: */
-        lua_pushnumber(L, v);
-        return 1;
-    }
 
     static int oslib_enableansi(lua_State *L)
     {

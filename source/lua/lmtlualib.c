@@ -445,6 +445,8 @@ static int lualib_get_exitcode(lua_State *L)
     successive calls can be used to calculate a delta with a previous call. When the number is fed
     into |getpreciseseconds(n)| a number is returned representing seconds.
 
+    We can consider a 64 bit integer variant which avoids some calculations when we benchmark with
+    the debugger.
 */
 
 # ifdef _WIN32
@@ -469,40 +471,40 @@ static int lualib_get_exitcode(lua_State *L)
 
 # else
 
-    # if (defined(__MACH__) && ! defined(CLOCK_PROCESS_CPUTIME_ID))
+ // # if (defined(__MACH__) && ! defined(CLOCK_PROCESS_CPUTIME_ID))
+ //
+ //     /* https://stackoverflow.com/questions/5167269/clock-gettime-alternative-in-mac-os-x */
+ //
+ //     # include <mach/mach_time.h>
+ //     # define CLOCK_PROCESS_CPUTIME_ID 1
+ //
+ //     static double conversion_factor;
+ //
+ //     static void clock_inittime()
+ //     {
+ //         mach_timebase_info_data_t timebase;
+ //         mach_timebase_info(&timebase);
+ //         conversion_factor = (double) timebase.numer / (double) timebase.denom;
+ //     }
+ //
+ //     static int clock_gettime(int clk_id, struct timespec *t)
+ //     {
+ //         uint64_t time;
+ //         double nseconds, seconds;
+ //         (void) clk_id; /* please the compiler */
+ //         time = mach_absolute_time();
+ //         nseconds = ((double) time * conversion_factor);
+ //         seconds  = ((double) time * conversion_factor / 1e9);
+ //         t->tv_sec = seconds;
+ //         t->tv_nsec = nseconds;
+ //         return 0;
+ //     }
 
-        /* https://stackoverflow.com/questions/5167269/clock-gettime-alternative-in-mac-os-x */
+ // # else
 
-        # include <mach/mach_time.h>
-        # define CLOCK_PROCESS_CPUTIME_ID 1
+    # define clock_inittime()
 
-        static double conversion_factor;
-
-        static void clock_inittime()
-        {
-            mach_timebase_info_data_t timebase;
-            mach_timebase_info(&timebase);
-            conversion_factor = (double) timebase.numer / (double) timebase.denom;
-        }
-
-        static int clock_gettime(int clk_id, struct timespec *t)
-        {
-            uint64_t time;
-            double nseconds, seconds;
-            (void) clk_id; /* please the compiler */
-            time = mach_absolute_time();
-            nseconds = ((double) time * conversion_factor);
-            seconds  = ((double) time * conversion_factor / 1e9);
-            t->tv_sec = seconds;
-            t->tv_nsec = nseconds;
-            return 0;
-        }
-
-    # else
-
-        # define clock_inittime()
-
-    # endif
+ // # endif
 
     static int lualib_get_preciseticks(lua_State *L)
     {
