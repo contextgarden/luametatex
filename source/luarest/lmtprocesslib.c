@@ -502,7 +502,18 @@ static void processlib_callback(
     # define MAX_ARGS 64
 
     /*tex
-        Here we need to splti the arguments: |context "foo.tex" --crap --foo="oof foo"|.
+        Here we need to split the arguments, so
+
+             context "foo.tex" --crap --foo="oof foo"
+
+        has to become:
+
+            context
+            foo.tex
+            --crap
+            --foo="oof foo"
+
+        but we need to check that.
     */
 
     static int parse_command(char *cmd, char **argv)
@@ -511,6 +522,7 @@ static void processlib_callback(
         char *p         = cmd;
         int   in_quotes = 0;
         while (*p && argc < MAX_ARGS - 1) {
+            /* we normally only have spaces in context but there can be multiple */
             while (*p && (*p == ' ' || *p == '\t')) {
                 p++;
             }
@@ -525,23 +537,22 @@ static void processlib_callback(
             while (*p) {
                 if (*p == '"') {
                     /* quote right after '=': treat the quotes as literal characters */
-                    if (!in_quotes && dst > argv[argc - 1] && *(dst - 1) == '=') {
+                    if (! in_quotes && dst > argv[argc - 1] && *(dst - 1) == '=') {
                         quote_is_literal = 1;
                     }
-
                     if (quote_is_literal) {
                         /* keep the quote character in the output */
                         *dst++ = *p++;
-                        in_quotes = !in_quotes;
+                        in_quotes = ! in_quotes;
                         if (! in_quotes) {
                             quote_is_literal = 0; /* reset state on closing quote */
                         }
                     } else {
                         /* outer wrapper quote: strip it */
-                        in_quotes = !in_quotes;
+                        in_quotes = ! in_quotes;
                         p++;
                     }
-                } else if ((*p == ' ' || *p == '\t') && !in_quotes) {
+                } else if ((*p == ' ' || *p == '\t') && ! in_quotes) {
                     p++;   /* skip space */
                     break; /* end current argument */
                 } else {

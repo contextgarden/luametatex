@@ -14,9 +14,11 @@
 # include <stdbool.h>
 
 typedef struct timer {
+    uint64_t start;
     uint64_t total;
-    uint64_t initial;
-    bool     running;
+    uint32_t timing;
+    uint32_t padding;
+    uint64_t offset;
 } timer;
 
 # if defined(_WIN32) || defined(_WIN64)
@@ -30,14 +32,21 @@ typedef struct timer {
         return (uint64_t) counter.QuadPart;
     }
 
-    inline static double ticks_to_ms(uint64_t ticks)
+    inline static double ticks_to_seconds(uint64_t ticks)
+    {
+        LARGE_INTEGER freq;
+        QueryPerformanceFrequency(&freq);
+        return ((double) ticks) / (double) freq.QuadPart;
+    }
+
+    inline static double ticks_to_milli_seconds(uint64_t ticks)
     {
         LARGE_INTEGER freq;
         QueryPerformanceFrequency(&freq);
         return ((double) ticks * 1000.0) / (double) freq.QuadPart;
     }
 
-    inline static double ticks_to_us(uint64_t ticks)
+    inline static double ticks_to_micro_seconds(uint64_t ticks)
     {
         LARGE_INTEGER freq;
         QueryPerformanceFrequency(&freq);
@@ -53,7 +62,16 @@ typedef struct timer {
         return mach_absolute_time();
     }
 
-    inline static double ticks_to_ms(uint64_t ticks)
+    inline static double ticks_to_seconds(uint64_t ticks)
+    {
+        static mach_timebase_info_data_t timebase;
+        if (timebase.denom == 0) {
+            mach_timebase_info(&timebase);
+        }
+        return ((double) ticks * timebase.numer / timebase.denom) / 1000000000.0;
+    }
+
+    inline static double ticks_to_milli_seconds(uint64_t ticks)
     {
         static mach_timebase_info_data_t timebase;
         if (timebase.denom == 0) {
@@ -62,7 +80,7 @@ typedef struct timer {
         return ((double) ticks * timebase.numer / timebase.denom) / 1000000.0;
     }
 
-    inline static double ticks_to_us(uint64_t ticks)
+    inline static double ticks_to_micro_seconds(uint64_t ticks)
     {
         static mach_timebase_info_data_t timebase;
         if (timebase.denom == 0) {
@@ -82,12 +100,17 @@ typedef struct timer {
         return ((uint64_t) ts.tv_sec * 1000000000ULL) + (uint64_t) ts.tv_nsec;
     }
 
-    inline static double ticks_to_ms(uint64_t ticks)
+    inline static double ticks_to_seconds(uint64_t ticks)
+    {
+        return (double) ticks / 1000000000.0;
+    }
+
+    inline static double ticks_to_milli_seconds(uint64_t ticks)
     {
         return (double) ticks / 1000000.0;
     }
 
-    inline static double ticks_to_us(uint64_t ticks)
+    inline static double ticks_to_micro_seconds(uint64_t ticks)
     {
         return (double) ticks / 1000.0;
     }
@@ -113,9 +136,7 @@ static int timerlib_new(lua_State *L)
     if (t) {
         lua_get_metatablelua(timer_instance);
         lua_setmetatable(L, -2);
-        t->total   = 0;
-        t->initial = 0;
-        t->running = false;
+        memset(t, 0, sizeof(timer));
     } else {
         tex_formatted_error("process lib", "out of memory");
         lua_pushnil(L); /* never seen as we abort */
@@ -126,9 +147,12 @@ static int timerlib_new(lua_State *L)
 static int timerlib_start(lua_State *L)
 {
     timer *t = timerlib_aux_valid(L, 1);
-    if (t && ! t->running) {
-        t->initial = get_ticks();
-        t->running = true;
+    if (t && ! t->timing) {
+        t->start   = get_ticks();
+        t->timing += 1;
+        if (lua_toboolean(L, 2)) {
+            t->total = 0;
+        }
     }
     return 0;
 }
@@ -136,10 +160,15 @@ static int timerlib_start(lua_State *L)
 static int timerlib_stop(lua_State *L)
 {
     timer *t = timerlib_aux_valid(L, 1);
-    if (t && t->running) {
-        uint64_t now = get_ticks();
-        t->total += (now - t->initial);
-        t->running = false;
+    if (t) {
+        if (t->timing == 1) {
+            uint64_t stop = get_ticks();
+            t->total  += (stop - t->start);
+            t->timing  = 0;
+            t->start   = 0;
+        } else if (t->timing) {
+            t->timing -= 1;
+        }
     }
     return 0;
 }
@@ -148,11 +177,30 @@ static int timerlib_reset(lua_State *L)
 {
     timer *t = timerlib_aux_valid(L, 1);
     if (t) {
-        t->total   = 0;
-        t->initial = 0;
-        t->running = false;
+        memset(t, 0, sizeof(timer));
     }
     return 0;
+}
+
+static int timerlib_setoffset(lua_State *L)
+{
+    timer *t = timerlib_aux_valid(L, 1);
+    if (t && t->start) {
+        t->offset = lmt_optunsigned(L, 1, 0) * t->start;
+    }
+    return 0;
+}
+
+static int timerlib_current(lua_State *L)
+{
+    timer *t = timerlib_aux_valid(L, 1);
+    if (t) {
+        uint64_t current = get_ticks() - t->start - t->offset;
+        lua_pushnumber(L, ticks_to_seconds(current));
+    } else {
+        lua_pushnil(L);
+    }
+    return 1;
 }
 
 static int timerlib_elapsed(lua_State *L)
@@ -160,10 +208,40 @@ static int timerlib_elapsed(lua_State *L)
     timer *t = timerlib_aux_valid(L, 1);
     if (t) {
         uint64_t total = t->total;
-        if (t->running) {
-            total += (get_ticks() - t->initial);
+        if (t->timing) {
+            total += (get_ticks() - t->start - t->offset);
         }
-        lua_pushnumber(L, lua_toboolean(L, 2) ? ticks_to_us(total) : ticks_to_ms(total));
+        lua_pushnumber(L, ticks_to_seconds(total));
+    } else {
+        lua_pushnil(L);
+    }
+    return 1;
+}
+
+static int timerlib_elapsed_ms(lua_State *L)
+{
+    timer *t = timerlib_aux_valid(L, 1);
+    if (t) {
+        uint64_t total = t->total;
+        if (t->timing) {
+            total += (get_ticks() - t->start - t->offset);
+        }
+        lua_pushnumber(L, ticks_to_milli_seconds(total));
+    } else {
+        lua_pushnil(L);
+    }
+    return 1;
+}
+
+static int timerlib_elapsed_us(lua_State *L)
+{
+    timer *t = timerlib_aux_valid(L, 1);
+    if (t) {
+        uint64_t total = t->total;
+        if (t->timing) {
+            total += (get_ticks() - t->start - t->offset);
+        }
+        lua_pushnumber(L, ticks_to_micro_seconds(total));
     } else {
         lua_pushnil(L);
     }
@@ -174,7 +252,7 @@ static int timerlib_tostring(lua_State *L)
 {
     timer *t = timerlib_aux_valid(L, 1);
     if (t) {
-        lua_pushfstring(L, "<timer %p>", t);
+        lua_pushfstring(L, "<timer %p : %d>", t, t->timing);
         return 1;
     } else {
         return 0;
@@ -262,16 +340,21 @@ static int timerlib_sleepms(lua_State *L)
 
 static const struct luaL_Reg timerlib_function_list[] = {
     /* management */
-    { "new",      timerlib_new      },
-    { "start",    timerlib_start    },
-    { "stop",     timerlib_stop     },
-    { "reset",    timerlib_reset    },
-    { "elapsed",  timerlib_elapsed  },
-    { "tostring", timerlib_tostring },
+    { "new",       timerlib_new        },
+    { "start",     timerlib_start      },
+    { "stop",      timerlib_stop       },
+    { "reset",     timerlib_reset      },
+    { "setoffset", timerlib_setoffset  },
+    { "current",   timerlib_current    },
+    { "elapsed",   timerlib_elapsed    },
+    { "elapsedms", timerlib_elapsed_ms },
+    { "elapsedus", timerlib_elapsed_us },
+    { "elapsedμs", timerlib_elapsed_us }, /* easter egg */
+    { "tostring",  timerlib_tostring   },
     /* */
-    { "sleepms",  timerlib_sleepms  },
+    { "sleepms",   timerlib_sleepms    },
     /* */
-    { NULL,       NULL              },
+    { NULL,        NULL                },
 };
 
 int luaopen_timer(lua_State *L)
