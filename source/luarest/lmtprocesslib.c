@@ -612,16 +612,25 @@ static void processlib_callback(
         /* child process */
         if (pid == 0) {
             if (nulled) {
-                int devnull = open("/dev/null", O_WRONLY);
-                if (devnull != -1) {
-                    dup2(devnull, STDOUT_FILENO);
-                    dup2(devnull, STDERR_FILENO);
+                int devnull = open("/dev/null", O_RDWR);
+                if (devnull == -1) {
+                    _exit(127);
+                }
+                if (dup2(devnull, STDIN_FILENO) == -1
+                    || dup2(devnull, STDOUT_FILENO) == -1
+                    || dup2(devnull, STDERR_FILENO) == -1) {
+                    _exit(127);
+                }
+                if (devnull > STDERR_FILENO) {
                     close(devnull);
                 }
             } else {
                 close(pipefd[0]);                /* close unused read end */
-                dup2(pipefd[1], STDOUT_FILENO);  /* redirect standard output */
-                dup2(pipefd[1], STDERR_FILENO);  /* redirect standard error */
+                /* redirect standard output and standard error */
+                if (dup2(pipefd[1], STDOUT_FILENO) == -1
+                    || dup2(pipefd[1], STDERR_FILENO) == -1) {
+                    _exit(127);
+                }
                 close(pipefd[1]);                /* close duplicate handle */
             }
 
@@ -663,9 +672,8 @@ static void processlib_callback(
             if (callback && process && process->length > 0) {
                 processlib_callback(L, process, NULL, 0, 1);
             }
-            lua_pushnil(L);
-            lua_pushboolean(L, 1);
-            return 2;
+            lua_pushboolean(L, 1); /* we're done */
+            return 1;
         }
 
         char buf[buffersize];
@@ -677,7 +685,7 @@ static void processlib_callback(
         if (n > 0) {
             if (callback) {
                 processlib_callback(L, process, buf, (size_t) n, 0);
-                lua_pushboolean(L, 1);
+                lua_pushboolean(L, 0); /* we continue */
                 return 1;
             } else {
                 lua_pushlstring(L, buf, n);
@@ -688,16 +696,14 @@ static void processlib_callback(
             if (callback && process->length > 0) {
                 processlib_callback(L, process, NULL, 0, 1);
             }
-            lua_pushnil(L);
-            lua_pushboolean(L, 1);
-            return 2;
+            lua_pushboolean(L, 1); /* we're done */
+            return 1;
         } else if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            lua_pushnil(L);
+            lua_pushboolean(L, 0); /* we continue */
             return 1;
         } else {
-            lua_pushnil(L);
-            lua_pushboolean(L, 1);
-            return 2;
+            lua_pushboolean(L, 1); /* we're done */
+            return 1;
         }
     }
 
