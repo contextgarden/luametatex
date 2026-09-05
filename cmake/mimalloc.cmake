@@ -62,6 +62,9 @@ target_include_directories(mimalloc PRIVATE
 
 target_compile_definitions(mimalloc PRIVATE
     MIMALLOC_LARGE_OS_PAGES=1
+# MIMALLOC_ARENA_EAGER_COMMIT=2
+# MIMALLOC_PURGE_DELAY=5000
+# MIMALLOC_ALLOW_THP=1
     MI_DEBUG=0
     MI_SECURE=0
     NDEBUG=0

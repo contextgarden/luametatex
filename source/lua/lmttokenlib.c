@@ -599,6 +599,8 @@ static lstring_string tokenlib_aux_get_cs_text(int cs, int *allocated)
     }
 }
 
+// When we're running in the hundreds of thousands we will use pointer comparison.
+
 static inline lua_token *tokenlib_aux_maybe_istoken(lua_State *L, int ud)
 {
     lua_token *t = lua_touserdata(L, ud);

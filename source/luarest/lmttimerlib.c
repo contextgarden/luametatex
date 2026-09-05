@@ -263,7 +263,7 @@ static int timerlib_setoffset(lua_State *L)
 {
     timer *t = timerlib_aux_valid(L, 1);
     if (t && t->start) {
-        t->offset = lmt_optunsigned(L, 1, 0) * t->start;
+        t->offset = lmt_optunsigned(L, 2, 0) * t->start;
     }
     return 0;
 }
@@ -434,41 +434,81 @@ static const struct luaL_Reg timerlib_function_list[] = {
     { NULL,        NULL                },
 };
 
-int luaopen_timer(lua_State *L)
-{
-    luaL_newmetatable(L, TIMER_METATABLE_INSTANCE);
-    lua_newtable(L);
-
 # if timer_mt_method == 1
 
-    G_TIMER_METATABLE_PTR = lua_topointer(L, -1);
+    int luaopen_timer(lua_State *L)
+    {
+        luaL_newmetatable(L, TIMER_METATABLE_INSTANCE);
 
-    luaL_setfuncs(L, timerlib_function_list, 0);
+        G_TIMER_METATABLE_PTR = lua_topointer(L, -1);
+
+        lua_newtable(L);
+        luaL_setfuncs(L, timerlib_function_list, 0);
+
+        lua_pushliteral(L, "__index");
+        lua_pushvalue(L, -2);
+        lua_settable(L, -3);
+
+        lua_pushliteral(L, "__tostring");
+        lua_pushliteral(L, "tostring");
+        lua_gettable(L, -3);
+        lua_settable(L, -3);
+
+        lua_pushliteral(L, "__name");
+        lua_pushliteral(L, "timer");
+        lua_settable(L, -3);
+
+        return 1;
+    }
 
 # elif timer_mt_method == 2
 
-    lua_pushvalue(L, -2);
-    luaL_setfuncs(L, timerlib_function_list, 1); /* upvalue 1 */
+    int luaopen_timer(lua_State *L)
+    {
+        luaL_newmetatable(L, TIMER_METATABLE_INSTANCE);
+        lua_newtable(L);
+        lua_pushvalue(L, -2);
+        luaL_setfuncs(L, timerlib_function_list, 1); /* upvalue 1 */
+
+        lua_pushliteral(L, "__index");
+        lua_pushvalue(L, -2);
+        lua_settable(L, -4);
+
+        lua_pushliteral(L, "__tostring");
+        lua_pushliteral(L, "tostring");
+        lua_gettable(L, -3);
+        lua_settable(L, -4);
+
+        lua_pushliteral(L, "__name");
+        lua_pushliteral(L, "timer");
+        lua_settable(L, -4);
+
+        lua_remove(L, -2); /* remove metatable */ /* no need to store it */
+        return 1;
+    }
 
 # else
 
-    luaL_setfuncs(L, timerlib_function_list, 0);
+    int luaopen_timer(lua_State *L)
+    {
+        luaL_newmetatable(L, TIMER_METATABLE_INSTANCE);
+        lua_newtable(L);
+        luaL_setfuncs(L, timerlib_function_list, 0);
+
+        lua_pushliteral(L, "__index");
+        lua_pushvalue(L, -2);
+        lua_settable(L, -3);
+
+        lua_pushliteral(L, "__tostring");
+        lua_pushliteral(L, "tostring");
+        lua_gettable(L, -3);
+        lua_settable(L, -3);
+
+        lua_pushliteral(L, "__name");
+        lua_pushliteral(L, "timer");
+        lua_settable(L, -3);
+
+        return 1;
+    }
 
 # endif
-
-    lua_pushliteral(L, "__index");
-    lua_pushvalue(L, -2);
-    lua_settable(L, -4);
-
-    lua_pushliteral(L, "__tostring");
-    lua_pushliteral(L, "tostring");
-    lua_gettable(L, -3);
-    lua_settable(L, -4);
-
-    lua_pushliteral(L, "__name");
-    lua_pushliteral(L, "timer");
-    lua_settable(L, -4);
-
-    lua_remove(L, -2); /* remove metatable */
-    return 1;
-}
