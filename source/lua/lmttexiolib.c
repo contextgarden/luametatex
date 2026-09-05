@@ -16,20 +16,43 @@
 
 # include "luametatex.h"
 
-FILE *lmt_valid_file(lua_State *L)
-{
-    luaL_Stream *p = (luaL_Stream *) lua_touserdata(L, 1);
-    if (p && lua_getmetatable(L, 1)) {
-     // luaL_getmetatable(L, LUA_FILEHANDLE);
-        lua_get_metatablelua(file_handle_instance);
-        if (! lua_rawequal(L, -1, -2)) {
-            p = NULL;
+# define file_mt_method 1
+
+# if file_mt_method == 1
+
+    static const void *G_FILEHANDLE_METATABLE_PTR = NULL;
+
+    FILE *lmt_valid_file(lua_State *L)
+    {
+        luaL_Stream *p = (luaL_Stream *) lua_touserdata(L, 1);
+        if (p && lua_getmetatable(L, 1)) {
+            if (lua_topointer(L, -1) != G_FILEHANDLE_METATABLE_PTR) {
+                p = NULL;
+            }
+            lua_pop(L, 1);
+            return (p && p->closef) ? p->f : NULL;
         }
-        lua_pop(L, 2);
-        return (p && (p)->closef) ? p->f : NULL;
+        return NULL;
     }
-    return NULL;
-}
+
+# else
+
+    FILE *lmt_valid_file(lua_State *L)
+    {
+        luaL_Stream *p = (luaL_Stream *) lua_touserdata(L, 1);
+        if (p && lua_getmetatable(L, 1)) {
+         // luaL_getmetatable(L, LUA_FILEHANDLE);
+            lua_get_metatablelua(file_handle_instance);
+            if (! lua_rawequal(L, -1, -2)) {
+                p = NULL;
+            }
+            lua_pop(L, 2);
+            return (p && (p)->closef) ? p->f : NULL;
+        }
+        return NULL;
+    }
+
+# endif
 
 typedef void (*texio_printer_len) (const char *s, int len);
 
@@ -361,5 +384,10 @@ int luaopen_texio(lua_State *L)
 {
     lua_newtable(L);
     luaL_setfuncs(L, lmt_engine_state.lua_only ? texiolib_function_list_only : texiolib_function_list, 0);
+# if file_mt_method == 1
+    luaL_getmetatable(L, LUA_FILEHANDLE);
+    G_FILEHANDLE_METATABLE_PTR = lua_topointer(L, -1);
+    lua_pop(L, 1);
+# endif
     return 1;
 }

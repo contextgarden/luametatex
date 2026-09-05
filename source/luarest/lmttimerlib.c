@@ -13,6 +13,18 @@
 # include <stdint.h>
 # include <stdbool.h>
 
+/*
+    In practice there is no real differenc unless we go into the millions. But it is anice example
+    anyway so we keep it.
+
+    1 = fastest
+    2 = fast
+    0 = regular
+
+*/
+
+# define timer_mt_method 1
+
 typedef struct timer {
     uint64_t start;
     uint64_t total;
@@ -117,36 +129,101 @@ typedef struct timer {
 
 # endif
 
-static inline timer * timerlib_aux_valid(lua_State *L, int i)
-{
-    timer * t = lua_touserdata(L, i);
-    if (t && lua_getmetatable(L, i)) {
-        lua_get_metatablelua(timer_instance);
-        if (! lua_rawequal(L, -1, -2)) {
-            t = NULL;
-        }
-        lua_pop(L, 2);
-    }
-    return t;
-}
+# if timer_mt_method == 1
 
-static int timerlib_new(lua_State *L)
-{
-    timer *t = lua_newuserdatauv(L, sizeof(timer), 0);
-    if (t) {
-        lua_get_metatablelua(timer_instance);
-        lua_setmetatable(L, -2);
-        memset(t, 0, sizeof(timer));
-    } else {
-        tex_formatted_error("process lib", "out of memory");
-        lua_pushnil(L); /* never seen as we abort */
+    static const void *G_TIMER_METATABLE_PTR = NULL;
+
+    static inline timer * timerlib_aux_valid(lua_State *L, int i)
+    {
+        timer * t = lua_touserdata(L, i);
+        if (t && lua_getmetatable(L, i)) {
+            /* compare the stack top's raw C pointer directly against the cached pointer */
+            if (lua_topointer(L, -1) != G_TIMER_METATABLE_PTR) {
+                t = NULL;
+            }
+            lua_pop(L, 1); /* Only 1 pop required! */
+        }
+        return t;
     }
-    return 1;
-}
+
+    static int timerlib_new(lua_State *L)
+    {
+        timer *t = lua_newuserdatauv(L, sizeof(timer), 0);
+        if (t) {
+            luaL_getmetatable(L, TIMER_METATABLE_INSTANCE);
+            lua_setmetatable(L, -2);
+            memset(t, 0, sizeof(timer));
+        } else {
+            tex_formatted_error("process lib", "out of memory");
+            lua_pushnil(L);
+        }
+        return 1;
+    }
+
+# elif timer_mt_method == 2
+
+    static inline timer * timerlib_aux_valid(lua_State *L, int i)
+    {
+        timer * t = lua_touserdata(L, i);
+        if (t && lua_getmetatable(L, i)) {
+            /* upvalue 1 holds the metatable directly */
+            lua_pushvalue(L, lua_upvalueindex(1));
+            if (! lua_rawequal(L, -1, -2)) {
+                t = NULL;
+            }
+            lua_pop(L, 2);
+        }
+        return t;
+    }
+
+    static int timerlib_new(lua_State *L)
+    {
+        timer *t = lua_newuserdatauv(L, sizeof(timer), 0);
+        if (t) {
+            lua_pushvalue(L, lua_upvalueindex(1));
+            lua_setmetatable(L, -2);
+            memset(t, 0, sizeof(timer));
+        } else {
+            tex_formatted_error("process lib", "out of memory");
+            lua_pushnil(L); /* never seen as we abort */
+        }
+        return 1;
+    }
+
+# else
+
+    static inline timer * timerlib_aux_valid(lua_State *L, int i)
+    {
+        timer * t = lua_touserdata(L, i);
+        if (t && lua_getmetatable(L, i)) {
+            lua_get_metatablelua(timer_instance);
+            if (! lua_rawequal(L, -1, -2)) {
+                t = NULL;
+            }
+            lua_pop(L, 2);
+        }
+        return t;
+    }
+
+    static int timerlib_new(lua_State *L)
+    {
+        timer *t = lua_newuserdatauv(L, sizeof(timer), 0);
+        if (t) {
+            lua_get_metatablelua(timer_instance);
+            lua_setmetatable(L, -2);
+            memset(t, 0, sizeof(timer));
+        } else {
+            tex_formatted_error("process lib", "out of memory");
+            lua_pushnil(L); /* never seen as we abort */
+        }
+        return 1;
+    }
+
+# endif
 
 static int timerlib_start(lua_State *L)
 {
-    timer *t = timerlib_aux_valid(L, 1);
+   timer *t = timerlib_aux_valid(L, 1);
     if (t && ! t->timing) {
         t->start   = get_ticks();
         t->timing += 1;
@@ -360,16 +437,38 @@ static const struct luaL_Reg timerlib_function_list[] = {
 int luaopen_timer(lua_State *L)
 {
     luaL_newmetatable(L, TIMER_METATABLE_INSTANCE);
+    lua_newtable(L);
+
+# if timer_mt_method == 1
+
+    G_TIMER_METATABLE_PTR = lua_topointer(L, -1);
+
     luaL_setfuncs(L, timerlib_function_list, 0);
+
+# elif timer_mt_method == 2
+
+    lua_pushvalue(L, -2);
+    luaL_setfuncs(L, timerlib_function_list, 1); /* upvalue 1 */
+
+# else
+
+    luaL_setfuncs(L, timerlib_function_list, 0);
+
+# endif
+
     lua_pushliteral(L, "__index");
     lua_pushvalue(L, -2);
-    lua_settable(L, -3);
+    lua_settable(L, -4);
+
     lua_pushliteral(L, "__tostring");
     lua_pushliteral(L, "tostring");
     lua_gettable(L, -3);
-    lua_settable(L, -3);
+    lua_settable(L, -4);
+
     lua_pushliteral(L, "__name");
     lua_pushliteral(L, "timer");
-    lua_settable(L, -3);
+    lua_settable(L, -4);
+
+    lua_remove(L, -2); /* remove metatable */
     return 1;
 }

@@ -360,7 +360,18 @@ static void processlib_callback(
             memcpy(cmd_mutable, cmd_constant, len + 1);
         }
 
-        BOOL result = CreateProcessA(NULL, cmd_mutable, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi);
+        BOOL result = CreateProcessA(
+            NULL,
+            cmd_mutable,      // has to be writable
+            NULL,
+            NULL,
+            TRUE,             // inherit handles
+            CREATE_NO_WINDOW, // instead of 0
+            NULL,
+            NULL,
+            &si,
+            &pi
+        );
 
         lmt_memory_free(cmd_mutable);
 
