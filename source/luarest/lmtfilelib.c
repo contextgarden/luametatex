@@ -645,10 +645,19 @@ static int filelib_lessweird(lua_State *L)
     # include <fcntl.h>
     # include <sys/types.h>
 
+    /* for apple: : at some point we will drop it */
     # if defined(AT_FDCWD) && defined(AT_SYMLINK_NOFOLLOW)
         # define HAVE_FSTATAT 1
     # else
         # define HAVE_FSTATAT 0
+    # endif
+
+    /* for solaris: at some point we will drop it */
+    # ifndef _XOPEN_SOURCE
+        # define _XOPEN_SOURCE 700
+    # endif
+    # if ! defined(dirfd) && defined(__sun)
+        # define dirfd(dirp) ((dirp)->dd_fd)
     # endif
 
     typedef struct dir_data {
