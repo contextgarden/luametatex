@@ -645,11 +645,20 @@ static int filelib_lessweird(lua_State *L)
     # include <fcntl.h>
     # include <sys/types.h>
 
+    # if defined(AT_FDCWD) && defined(AT_SYMLINK_NOFOLLOW)
+        # define HAVE_FSTATAT 1
+    # else
+        # define HAVE_FSTATAT 0
+    # endif
+
     typedef struct dir_data {
         DIR *handle;
         int  closed;
         int  details;
         int  dfd;
+    # if ! HAVE_FSTATAT
+        char path[MY_MAXPATHLEN]; /* Only allocated on older OS/SDK targets */
+    # endif
     } dir_data;
 
     static int filelib_aux_dir_next(lua_State *L, dir_data *d)
@@ -685,11 +694,21 @@ static int filelib_lessweird(lua_State *L)
             }
         # endif
         info_struct info;
-        int stat_res = fstatat(d->dfd, entry->d_name, &info, 0);
+        int stat_res;
+    # if HAVE_FSTATAT
+        stat_res = fstatat(d->dfd, entry->d_name, &info, 0);
         if (stat_res != 0) {
             /* target fails (e.g. broken link), inspect link itself */
             stat_res = fstatat(d->dfd, entry->d_name, &info, AT_SYMLINK_NOFOLLOW);
         }
+    # else
+        char pathbuf[MY_MAXPATHLEN];
+        snprintf(pathbuf, sizeof(pathbuf), "%s/%s", d->path, entry->d_name);
+        stat_res = stat(pathbuf, &info);
+        if (stat_res != 0) {
+            stat_res = lstat(pathbuf, &info);
+        }
+    # endif
         if (stat_res == 0) {
             if (S_ISDIR(info.st_mode)) {
                 lua_push_key(directory);
@@ -758,6 +777,10 @@ static int filelib_lessweird(lua_State *L)
         d->closed  = 0;
         d->details = details;
         d->handle  = opendir(path ? path : ".");
+    # if ! HAVE_FSTATAT
+        strncpy(d->path, target_path, MY_MAXPATHLEN - 1);
+        d->path[MY_MAXPATHLEN - 1] = '\0';
+    # endif
         if (! d->handle) {
             luaL_error(L, "cannot open %s: %s", path, strerror(errno));
         }
