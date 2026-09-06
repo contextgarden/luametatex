@@ -30,6 +30,8 @@ extern int         tex_engine_run_config_function (const char *name);
 extern void        tex_engine_set_memory_data     (const char *name, memory_data *data);
 extern void        tex_engine_set_limits_data     (const char *name, limits_data *data);
 
+ /* todo: move lmt_make_table elsewhere */
+
 extern void        lmt_make_table                 (lua_State *L, const char *tab, const char *mttab, lua_CFunction getfunc, lua_CFunction setfunc);
 extern int         lmt_traceback                  (lua_State *L);
 extern void        lmt_error                      (lua_State *L, const char *where, int detail, int fatal);

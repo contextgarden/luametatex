@@ -2010,7 +2010,7 @@ static int io_gobble(lua_State *L)
 
 # if _WIN32
 
-#   define tolstream(L) ((LStream *)luaL_checkudata(L, 1, LUA_FILEHANDLE))
+    # define tolstream(L) ((LStream *)luaL_checkudata(L, 1, LUA_FILEHANDLE))
 
     static int l_checkmode(const char *mode) {
         return (

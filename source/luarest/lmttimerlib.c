@@ -346,6 +346,10 @@ static int timerlib_tostring(lua_State *L)
 
     # include <windows.h>
 
+    # ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
+        # define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002 /* older mingw */
+    # endif
+
     inline static void timerlib_aux_sleep(uint32_t ms)
     {
         HANDLE hTimer = CreateWaitableTimerExW(

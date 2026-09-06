@@ -852,7 +852,7 @@ void tex_engine_check_configuration(void)
     tex_engine_run_config_function("init");
 }
 
-void lmt_make_table(
+void lmt_make_table( /* todo: move elsewhere */
     lua_State     *L,
     const char    *tab,
     const char    *mttab,

@@ -21,7 +21,10 @@
 
     The code is a bit messy because snippets come from suggestions from e.g. Gemini as well as
     searching.  We have a bit special interface wrt commands, polling, flushing but eventually we
-    get there. This kind of platform specific code is not really nice to deal with.
+    get there. This kind of platform specific code is not really nice to deal with. With the search
+    engines trying to be intelligent it's harder to figure out these interfaces but oen can just
+    ignore most. It actually is handy to query for the more obscure api calls but because answers
+    differ one has to be on the edge: don't expect generated code to work.
 
 */
 
@@ -35,6 +38,27 @@
 // close ( process )                            : exit_code
 
 # define buffersize 4096 // 16384
+
+/*tex
+
+    Contrary to the already present |popen| interface here we start a process with or without a pipe
+    (which is again just a file). By nulling we avoid overhead in discarding and \TEX\ has it's own
+    log file anyway. Once opened, we can poll what processes have output pending. We then either
+    handle this in \LUA, or we stay at the \CCODE\ end and let a callback deal with lines. This saves
+    copying strings and restarting a poll. When a process is ended, the poller returns so that we can
+    close the process and start a new one at the \LUA\ end, where we do the housekeeping.
+
+    There are subtle differences between POSIX and Windows, for instance in passing the commands. We
+    assume proper quoting at the \LUA\ end because there it is known what we are dealing with. On
+    Windows we pass a copy of the command (because the string can be messed with) and in POSIX we
+    create an array of pointers, so there we need to be clever with quotes. Because (unless we null)
+    we feedback lines we keep a buffer for pending output.
+
+    On Windows we can emulate forking or we can be a bit more native. In any case, the spawn is less
+    efficient so we never saturate the hardware. We keep both code paths so that at some point we can
+    test a bit more.
+
+*/
 
 # ifdef _WIN32
 
@@ -73,7 +97,8 @@
 # endif
 
 /*tex
-    We share this one, because it doesn't set any values in the data structure.
+    We share this one, because it doesn't set any values in the data structure. We could use pointer
+    comparison here but the number of checks is not that large.
 */
 
 static inline process_data * processlib_aux_valid(lua_State *L, int i)
@@ -185,11 +210,11 @@ static void processlib_callback(
         }
 
         char buf[buffersize];
-        DWORD avail   = 0;
-        DWORD bytes   = 0;
-        BOOL  peek_ok = PeekNamedPipe(process->read, NULL, 0, NULL, &avail, NULL);
+        DWORD available = 0;
+        DWORD bytes     = 0;
+        BOOL  okay      = PeekNamedPipe(process->read, NULL, 0, NULL, &available, NULL);
 
-        if (! peek_ok) {
+        if (! okay) {
             DWORD err = GetLastError();
             if (err == ERROR_BROKEN_PIPE || err == ERROR_PIPE_NOT_CONNECTED) {
                 if (callback && process->length > 0) {
@@ -203,7 +228,7 @@ static void processlib_callback(
             }
         }
 
-        if (avail > 0) {
+        if (available > 0) {
             if (ReadFile(process->read, buf, sizeof(buf), &bytes, NULL) && bytes > 0) {
                 if (callback) {
                     processlib_callback(L, process, buf, (size_t) bytes, 0);
@@ -218,8 +243,8 @@ static void processlib_callback(
 
         DWORD exit_code;
         if (GetExitCodeProcess(process->process, &exit_code) && exit_code != STILL_ACTIVE) {
-            PeekNamedPipe(process->read, NULL, 0, NULL, &avail, NULL);
-            if (avail == 0) {
+            PeekNamedPipe(process->read, NULL, 0, NULL, &available, NULL);
+            if (available == 0) {
                 if (callback && process->length > 0) {
                     processlib_callback(L, process, NULL, 0, 1);
                 }
@@ -447,10 +472,10 @@ static void processlib_callback(
                         }
                         continue;
                     }
-                    DWORD avail   = 0;
-                    BOOL  peek_ok = PeekNamedPipe(process->read, NULL, 0, NULL, &avail, NULL);
+                    DWORD available = 0;
+                    BOOL  okay      = PeekNamedPipe(process->read, NULL, 0, NULL, &available, NULL);
                     /* Pipe has data to read */
-                    if (peek_ok && avail > 0) {
+                    if (okay && available > 0) {
                         lua_pushinteger(L, i);
                         lua_rawseti(L, -2, index++);
                         ready++;
@@ -458,7 +483,7 @@ static void processlib_callback(
                     }
                     /* check if pipe is broken (EOF) or process has terminated */
                     DWORD err    = GetLastError();
-                    BOOL  broken = ! peek_ok && (err == ERROR_BROKEN_PIPE || err == ERROR_PIPE_NOT_CONNECTED);
+                    BOOL  broken = ! okay && (err == ERROR_BROKEN_PIPE || err == ERROR_PIPE_NOT_CONNECTED);
                     BOOL  dead   = (WaitForSingleObject(process->process, 0) == WAIT_OBJECT_0);
                     if (broken || dead) {
                         /* mark as ready so caller knows to read (which will hit EOF) or close */

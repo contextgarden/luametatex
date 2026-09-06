@@ -451,8 +451,6 @@ static int lualib_get_exitcode(lua_State *L)
 
 # ifdef _WIN32
 
-    # define clock_inittime()
-
     static int lualib_get_preciseticks(lua_State *L)
     {
         LARGE_INTEGER t;
@@ -469,42 +467,29 @@ static int lualib_get_exitcode(lua_State *L)
         return 1;
     }
 
+# elif defined(__APPLE__)
+
+    # include <mach/mach_time.h>
+
+    static int lualib_get_preciseticks(lua_State *L)
+    {
+        static mach_timebase_info_data_t timebase = { 0, 0 };
+        if (timebase.denom == 0) {
+            mach_timebase_info(&timebase);
+        }
+        uint64_t elapsed = mach_absolute_time();
+        uint64_t ns = elapsed * timebase.numer / timebase.denom;
+        lua_pushnumber(L, (double)ns);
+        return 1;
+    }
+
+    static int lualib_get_preciseseconds(lua_State *L)
+    {
+        lua_pushnumber(L, ((double) luaL_optnumber(L, 1, 0)) / 1000000000.0);
+        return 1;
+    }
+
 # else
-
- // # if (defined(__MACH__) && ! defined(CLOCK_PROCESS_CPUTIME_ID))
- //
- //     /* https://stackoverflow.com/questions/5167269/clock-gettime-alternative-in-mac-os-x */
- //
- //     # include <mach/mach_time.h>
- //     # define CLOCK_PROCESS_CPUTIME_ID 1
- //
- //     static double conversion_factor;
- //
- //     static void clock_inittime()
- //     {
- //         mach_timebase_info_data_t timebase;
- //         mach_timebase_info(&timebase);
- //         conversion_factor = (double) timebase.numer / (double) timebase.denom;
- //     }
- //
- //     static int clock_gettime(int clk_id, struct timespec *t)
- //     {
- //         uint64_t time;
- //         double nseconds, seconds;
- //         (void) clk_id; /* please the compiler */
- //         time = mach_absolute_time();
- //         nseconds = ((double) time * conversion_factor);
- //         seconds  = ((double) time * conversion_factor / 1e9);
- //         t->tv_sec = seconds;
- //         t->tv_nsec = nseconds;
- //         return 0;
- //     }
-
- // # else
-
-    # define clock_inittime()
-
- // # endif
 
     static int lualib_get_preciseticks(lua_State *L)
     {
@@ -1065,6 +1050,5 @@ int luaopen_lua(lua_State *L)
         lua_pushstring(L, lmt_engine_state.startup_filename);
         lua_setfield(L, -2, "startupfile");
     }
-    clock_inittime();
     return 1;
 }
