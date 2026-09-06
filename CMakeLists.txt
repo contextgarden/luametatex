@@ -328,13 +328,16 @@ if (MSVC)
 
         if (MINGW)
             add_link_options("-Wl,--stack,2621440")
-        elseif (CMAKE_HOST_SOLARIS)
-            if (CMAKE_LINKER MATCHES "gld")
-                add_link_options("-Wl,-z,stack-size=2621440")
-            else()
+        elseif (SOLARIS OR CMAKE_SYSTEM_NAME MATCHES "SunOS")
+            if (CMAKE_SYSTEM_PROCESSOR MATCHES "^(sparc|sparc64)")
+                # Legacy/native SPARC linker option
                 add_link_options("-Wl,-z,stacksize=2621440")
+            else()
+                # x86, x86_64 (amd64), and GNU ld on Solaris
+                add_link_options("-Wl,-z,stack-size=2621440")
             endif()
         else()
+            # Linux, BSDs, and general ELF
             add_link_options("-Wl,-z,stack-size=2621440")
         endif()
 
