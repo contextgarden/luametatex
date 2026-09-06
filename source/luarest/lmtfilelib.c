@@ -776,11 +776,12 @@ static int filelib_lessweird(lua_State *L)
         lua_setmetatable(L, -2);
         d->closed  = 0;
         d->details = details;
-        d->handle  = opendir(path ? path : ".");
+        const char *target_path = path ? path : ".";
     # if ! HAVE_FSTATAT
         strncpy(d->path, target_path, MY_MAXPATHLEN - 1);
         d->path[MY_MAXPATHLEN - 1] = '\0';
     # endif
+        d->handle = opendir(target_path);
         if (! d->handle) {
             luaL_error(L, "cannot open %s: %s", path, strerror(errno));
         }
