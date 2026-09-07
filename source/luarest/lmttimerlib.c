@@ -263,17 +263,31 @@ static int timerlib_setoffset(lua_State *L)
 {
     timer *t = timerlib_aux_valid(L, 1);
     if (t && t->start) {
-        t->offset = lmt_optunsigned(L, 2, 0) * t->start;
+        t->offset = lmt_optunsigned(L, 2, 0) * (get_ticks() - t->start);
     }
     return 0;
+}
+
+static int timerlib_istiming(lua_State *L)
+{
+    timer *t = timerlib_aux_valid(L, 1);
+    if (t) {
+        lua_pushboolean(L, t->timing);
+    } else {
+        lua_pushnil(L);
+    }
+    return 1;
 }
 
 static int timerlib_current(lua_State *L)
 {
     timer *t = timerlib_aux_valid(L, 1);
     if (t) {
-        uint64_t current = get_ticks() - t->start - t->offset;
-        lua_pushnumber(L, ticks_to_seconds(current));
+        uint64_t total = t->total;
+        if (t->timing) {
+            total += (get_ticks() - t->start);
+        }
+        lua_pushnumber(L, ticks_to_seconds(total - t->offset));
     } else {
         lua_pushnil(L);
     }
@@ -284,11 +298,7 @@ static int timerlib_elapsed(lua_State *L)
 {
     timer *t = timerlib_aux_valid(L, 1);
     if (t) {
-        uint64_t total = t->total;
-        if (t->timing) {
-            total += (get_ticks() - t->start - t->offset);
-        }
-        lua_pushnumber(L, ticks_to_seconds(total));
+        lua_pushnumber(L, ticks_to_seconds(t->total - t->offset));
     } else {
         lua_pushnil(L);
     }
@@ -299,11 +309,7 @@ static int timerlib_elapsed_ms(lua_State *L)
 {
     timer *t = timerlib_aux_valid(L, 1);
     if (t) {
-        uint64_t total = t->total;
-        if (t->timing) {
-            total += (get_ticks() - t->start - t->offset);
-        }
-        lua_pushnumber(L, ticks_to_milli_seconds(total));
+        lua_pushnumber(L, ticks_to_milli_seconds(t->total - t->offset));
     } else {
         lua_pushnil(L);
     }
@@ -314,11 +320,7 @@ static int timerlib_elapsed_us(lua_State *L)
 {
     timer *t = timerlib_aux_valid(L, 1);
     if (t) {
-        uint64_t total = t->total;
-        if (t->timing) {
-            total += (get_ticks() - t->start - t->offset);
-        }
-        lua_pushnumber(L, ticks_to_micro_seconds(total));
+        lua_pushnumber(L, ticks_to_micro_seconds(t->total - t->offset));
     } else {
         lua_pushnil(L);
     }
@@ -426,6 +428,7 @@ static const struct luaL_Reg timerlib_function_list[] = {
     { "stop",      timerlib_stop       },
     { "reset",     timerlib_reset      },
     { "setoffset", timerlib_setoffset  },
+    { "istiming",  timerlib_istiming   },
     { "current",   timerlib_current    },
     { "elapsed",   timerlib_elapsed    },
     { "elapsedms", timerlib_elapsed_ms },
