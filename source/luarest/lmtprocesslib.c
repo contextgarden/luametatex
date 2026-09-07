@@ -32,10 +32,18 @@
 
 /*tex See |lmtinterface.h| for |PROCESS_METATABLE_INSTANCE|. */
 
-// open  ( command, nulled )                    : process
-// poll  ( { process, process, ... }, timeout ) : ready_table
-// read  ( process, [callback] )                : string (continue) | false (continue) | true (eof, exit)
-// close ( process )                            : exit_code
+// open  ( command, nulled )           : process (userdata)
+// poll  ( { process, ... }, timeout ) : output/exit (table with indices of first table)
+// read  ( process, [callback] )       : string (continue) | false (continue) | true (eof/exit)
+// close ( process )                   : exitcode (integer)
+
+/*tex 
+
+    A too large buffer can make pending output of other processes pile up. When we run multiple \TEX\
+    jobs in parallel, often the output interweaves nicely. This is why we introduced callbacks so 
+    that we can stay at the \CCODE\ end. So, 4096 *or even less) is plenty. 
+
+*/
 
 # define buffersize 4096 // 16384
 
@@ -221,11 +229,10 @@ static void processlib_callback(
                     processlib_callback(L, process, NULL, 0, 1);
                 }
                 lua_pushboolean(L, 1); /* we're done */
-                return 1;
             } else {
                 lua_pushboolean(L, 0); /* we continue */
-                return 1;
             }
+            return 1;
         }
 
         if (available > 0) {
@@ -233,11 +240,10 @@ static void processlib_callback(
                 if (callback) {
                     processlib_callback(L, process, buf, (size_t) bytes, 0);
                     lua_pushboolean(L, 0); /* we continue */
-                    return 1;
                 } else {
                     lua_pushlstring(L, buf, bytes); /* some data */
-                    return 1;
                 }
+                return 1;
             }
         }
 
@@ -304,25 +310,22 @@ static void processlib_callback(
                 if (callback) {
                     processlib_callback(L, process, buf, (size_t) bytes_read, 0);
                     lua_pushboolean(L, 0); /* we continue */
-                    return 1;
                 } else {
                     lua_pushlstring(L, buf, bytes_read); /* some data */
-                    return 1;
                 }
             } else {
                 DWORD err = GetLastError();
                 if (! ok && (err == ERROR_NO_DATA || err == ERROR_MORE_DATA)) {
                     lua_pushboolean(L, 1); /* we continue */
-                    return 1;
                 } else {
                     /* broken pipe or EOF */
                     if (callback && process->length > 0) {
                         processlib_callback(L, process, NULL, 0, 1);
                     }
                     lua_pushboolean(L, 1); /* we're done */
-                    return 1;
                 }
             }
+            return 1;
      // }
     }
 
@@ -453,8 +456,8 @@ static void processlib_callback(
             return 1;
         }
         /*tex
-            We could validate the userdat in the table once and then avoid repetitive
-            checking of the userdata.
+            We could validate the userdata in the table once and then avoid repetitive checking of 
+            the userdata.
         */
         while (1) {
             int ready = 0;
@@ -496,7 +499,7 @@ static void processlib_callback(
             if (ready > 0 || timeout == 0) {
                 break;
             }
-            if (timeout != (ULONGLONG)-1 && (GetTickCount64() - start) >= timeout) {
+            if (timeout != (ULONGLONG) -1 && (GetTickCount64() - start) >= timeout) {
                 break;
             }
             Sleep(5); /* rounded to 15 ms */
@@ -540,7 +543,7 @@ static void processlib_callback(
     /*tex
         Here we need to split the arguments, so
 
-             context "foo.tex" --crap --foo="oof foo"
+            context "foo.tex" --crap --foo="oof foo"
 
         has to become:
 
@@ -577,11 +580,12 @@ static void processlib_callback(
                         quote_is_literal = 1;
                     }
                     if (quote_is_literal) {
-                        /* keep the quote character in the output */
+                        /* we keep the quote character */
                         *dst++ = *p++;
                         in_quotes = ! in_quotes;
                         if (! in_quotes) {
-                            quote_is_literal = 0; /* reset state on closing quote */
+                            /* we arrived at the closing quote */
+                            quote_is_literal = 0;
                         }
                     } else {
                         /* outer wrapper quote: strip it */
@@ -589,13 +593,17 @@ static void processlib_callback(
                         p++;
                     }
                 } else if ((*p == ' ' || *p == '\t') && ! in_quotes) {
-                    p++;   /* skip space */
-                    break; /* end current argument */
+                    /* skip space */
+                    p++;
+                    /* go one with the next argument */
+                    break;
                 } else {
-                    *dst++ = *p++; /* copy regular character in-place */
+                    /* copy a regular character */
+                    *dst++ = *p++;
                 }
             }
-            *dst = '\0'; /* null-terminate the current argument */
+            /* end the current argument */
+            *dst = '\0';
         }
         argv[argc] = NULL;
         return argc;
@@ -652,25 +660,22 @@ static void processlib_callback(
                 if (devnull == -1) {
                     _exit(127);
                 }
-                if (dup2(devnull, STDIN_FILENO) == -1
-                    || dup2(devnull, STDOUT_FILENO) == -1
-                    || dup2(devnull, STDERR_FILENO) == -1) {
+                if (dup2(devnull, STDIN_FILENO) == -1 || dup2(devnull, STDOUT_FILENO) == -1 || dup2(devnull, STDERR_FILENO) == -1) {
                     _exit(127);
                 }
                 if (devnull > STDERR_FILENO) {
                     close(devnull);
                 }
             } else {
-                close(pipefd[0]);                /* close unused read end */
-                /* redirect standard output and standard error */
-                if (dup2(pipefd[1], STDOUT_FILENO) == -1
-                    || dup2(pipefd[1], STDERR_FILENO) == -1) {
+                close(pipefd[0]);  /* close unused read end */
+                if (dup2(pipefd[1], STDOUT_FILENO) == -1 || dup2(pipefd[1], STDERR_FILENO) == -1) {
+                    /* redirect standard output and standard error */
                     _exit(127);
                 }
-                close(pipefd[1]);                /* close duplicate handle */
+                close(pipefd[1]);  /* close duplicate handle */
             }
 
-            execvp(argv[0], argv);               /* replace process image */
+            execvp(argv[0], argv); /* replace process image */
             _exit(127);
         }
 
@@ -722,10 +727,8 @@ static void processlib_callback(
             if (callback) {
                 processlib_callback(L, process, buf, (size_t) n, 0);
                 lua_pushboolean(L, 0); /* we continue */
-                return 1;
             } else {
                 lua_pushlstring(L, buf, n);
-                return 1;
             }
         } else if (n == 0) {
             /* EOF reached */
@@ -733,14 +736,12 @@ static void processlib_callback(
                 processlib_callback(L, process, NULL, 0, 1);
             }
             lua_pushboolean(L, 1); /* we're done */
-            return 1;
         } else if (errno == EAGAIN || errno == EWOULDBLOCK) {
             lua_pushboolean(L, 0); /* we continue */
-            return 1;
         } else {
             lua_pushboolean(L, 1); /* we're done */
-            return 1;
         }
+        return 1;
     }
 
     static inline int processlib_aux_reap(process_data *process)
