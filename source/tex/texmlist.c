@@ -1093,7 +1093,8 @@ static halfword tex_aux_char_box(halfword fnt, int chr, halfword att, scaled *ic
             scaled amount = target - 2 * margin;
             if (amount > 0) {
                 glyph_x_scale(glyph) = lround((double) glyph_x_scale(glyph) * amount/whd.wd);
-                glyph_x_offset(glyph) = (whd.wd - amount)/2;
+                // test case: \dm{\widehat{a+b+c+d} = \widetilde{u+v+w+x+y}}
+             // glyph_x_offset(glyph) += (whd.wd - amount)/2;
                 whd = tex_char_whd_from_glyph(glyph);
                 box_width(box) = whd.wd;
                 if (isscaled) {
@@ -1105,7 +1106,8 @@ static halfword tex_aux_char_box(halfword fnt, int chr, halfword att, scaled *ic
         /* we need a test case for this */
         if ((shrink && (whd.wd > target)) || (stretch && (whd.wd < target))) { // we need to keep an eye on it
             glyph_x_scale(glyph) = lround((double) glyph_x_scale(glyph) * target/whd.wd);
-         // glyph_x_offset(glyph) = (whd.wd - target)/2;
+            // test case: \dm{\widehat{a+b+c+d} = \widetilde{u+v+w+x+y}}
+         // glyph_x_offset(glyph) += (whd.wd - target)/2;
             whd = tex_char_whd_from_glyph(glyph);
             box_width(box) = whd.wd;
             if (isscaled) {

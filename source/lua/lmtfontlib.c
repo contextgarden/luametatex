@@ -28,11 +28,13 @@
  */
 
 
-void lmt_fontlib_initialize(void) {
+void lmt_fontlib_initialize(void)
+{
     /* nothing */
 }
 
-static int valid_math_parameter(lua_State *L, int narg) {
+static int valid_math_parameter(lua_State *L, int narg)
+{
     const char *s = lua_tostring(L, narg);
     if (s) {
         for (int i = 1; lmt_interface.math_font_parameter_values[i].name; i++) {
@@ -1062,7 +1064,8 @@ static int fontlib_getfontspec(lua_State *L)
     return 0;
 }
 
-static int fontlib_getmathindex(lua_State *L) {
+static int fontlib_getmathindex(lua_State *L)
+{
     halfword index = -1; 
     switch (lua_type(L, 1)) { 
         case LUA_TSTRING:
