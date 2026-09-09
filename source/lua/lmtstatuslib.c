@@ -49,7 +49,7 @@ static int statslib_callbackstate(lua_State *L)
 
 static int statslib_linebreakstate(lua_State *L)
 {
-    lua_createtable(L, n_of_par_context_codes + 3, 0);
+    lua_createtable(L, n_of_par_context_codes + 5, 0);
     for (int i = 0; i < n_of_par_context_codes; i++) {
         lua_push_key_by_index(lmt_interface.par_context_values[i].lua);
         lua_createtable(L, 0, 5);
@@ -64,6 +64,8 @@ static int statslib_linebreakstate(lua_State *L)
     lua_set_integer_by_key(L, "lefttwins",   lmt_linebreak_state.n_of_left_twins);
     lua_set_integer_by_key(L, "righttwins",  lmt_linebreak_state.n_of_right_twins);
     lua_set_integer_by_key(L, "doubletwins", lmt_linebreak_state.n_of_double_twins);
+    lua_set_integer_by_key(L, "brokenlines", lmt_linebreak_state.n_of_broken_lines);
+    lua_set_integer_by_key(L, "textlines",   lmt_linebreak_state.n_of_text_lines);
     return 1;
 }
 

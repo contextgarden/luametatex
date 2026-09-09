@@ -71,8 +71,12 @@ typedef struct break_passes {
     int n_of_final_passes;
     int n_of_specification_passes;
     int n_of_sub_passes;
+    /* for now global */
     int n_of_left_twins; 
     int n_of_right_twins; 
+    int n_of_double_twins;
+    int n_of_broken_lines;
+    int n_of_text_lines;
 } break_passes;
 
 typedef enum linebreak_trace_counters { 
@@ -157,6 +161,8 @@ typedef struct linebreak_state_info {
     int          n_of_left_twins;
     int          n_of_right_twins;
     int          n_of_double_twins;
+    int          n_of_broken_lines;
+    int          n_of_text_lines;
     halfword     internal_par_node;
     halfword     emergency_left_skip;
     halfword     emergency_right_skip;

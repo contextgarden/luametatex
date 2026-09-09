@@ -234,6 +234,8 @@ linebreak_state_info lmt_linebreak_state = {
     .n_of_left_twins              = 0,
     .n_of_right_twins             = 0,
     .n_of_double_twins            = 0,
+    .n_of_broken_lines            = 0,
+    .n_of_text_lines              = 0,
     .internal_par_node            = null,
     .current_line_number          = 0,
     .has_orphans                  = 0,
@@ -6403,6 +6405,7 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
                         }
                         cur_disc = r;
                         disc_break = 1;
+                        ++lmt_linebreak_state.n_of_broken_lines;
                     }
                     break;
                 case kern_node:
@@ -6762,9 +6765,13 @@ static void tex_aux_post_line_break(const line_break_properties *properties, hal
             to avoid redundant operations.
         */
         if (normalize_line_mode_option(flatten_discretionaries_mode)) {
-            int count = 0;
-            q = tex_flatten_discretionaries(q, &count, 0); /* there is no need to nest */
+            int count     = 0;
+            int hasglyphs = 0;
+            q = tex_flatten_discretionaries(q, &count, &hasglyphs, 0); /* there is no need to nest */
             cur_disc = null;
+            if (hasglyphs) {
+                ++lmt_linebreak_state.n_of_text_lines;
+            }
             if (properties->tracing_paragraphs > 1) {
                 tex_begin_diagnostic();
                 tex_print_format("%l[linebreak: flatten, line %i, count %i]", cur_line, count);

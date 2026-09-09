@@ -102,10 +102,11 @@ disc (pre post replace) disc
 
 */
 
-halfword tex_flatten_discretionaries(halfword head, int *count, int nest)
+halfword tex_flatten_discretionaries(halfword head, int *count, int *hasglyphs, int nest)
 {
     halfword current = head;
-    halfword after = 0;
+    halfword after   = 0;
+    int      glyphs  = 0;
     while (current) {
         halfword next = node_next(current);
         switch (node_type(current)) {
@@ -146,13 +147,14 @@ halfword tex_flatten_discretionaries(halfword head, int *count, int nest)
                     set_glyph_discafter(current, after);
                     after = 0;
                 }
+                glyphs = 1;
                 break;
             case hlist_node:
             case vlist_node:
                 if (nest) {
                     halfword list = box_list(current);
                     if (list) {
-                        box_list(current) = tex_flatten_discretionaries(list, count, nest);
+                        box_list(current) = tex_flatten_discretionaries(list, count, hasglyphs, nest);
                     }
                 }
                 break;
@@ -179,6 +181,9 @@ halfword tex_flatten_discretionaries(halfword head, int *count, int nest)
  // if (head) {
  //     node_prev(head) = null; /* Already done. */
  // }
+    if (hasglyphs) {
+        *hasglyphs = glyphs;
+    }
     return head;
 }
 
@@ -450,7 +455,7 @@ void tex_finish_discretionary(void)
                 if (tex_list_has_glyph(next)) {
                     /* maybe test direction, maybe also pass pre/post/replace as 4th argument*/
                     next = tex_handle_glyphrun(next, discretionary_group, text_direction_par);
-                    next = tex_flatten_discretionaries(next, NULL, 1);
+                    next = tex_flatten_discretionaries(next, NULL, NULL, 1);
                 }
             }
         }

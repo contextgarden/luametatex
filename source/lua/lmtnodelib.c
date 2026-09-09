@@ -11744,7 +11744,7 @@ static int nodelib_direct_flattendiscretionaries(lua_State *L)
     int count = 0;
     halfword head = nodelib_valid_direct_from_index(L, 1);
     if (head) {
-        head = tex_flatten_discretionaries(head, &count, lua_toboolean(L, 2)); /* nest */
+        head = tex_flatten_discretionaries(head, &count, NULL, lua_toboolean(L, 2)); /* nest */
     } else {
         head = null;
     }
