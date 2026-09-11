@@ -194,10 +194,10 @@ extern halfword lmt_uinsert_callback(
     scaled   amount
 );
 
-extern scaled lmt_italic_correction_callback(
-    halfword glyph,
-    scaled   kern,
-    halfword subtype
+extern int lmt_italic_correction_callback(
+    halfword  glyph,
+    scaled   *kern,
+    halfword  subtype
 );
 
 # endif

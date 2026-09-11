@@ -3476,8 +3476,10 @@ static void tex_aux_run_text_italic_correction(void)
                         We pass the identified value but in the case of \OPENTYPE\ fonts or slant
                         control we have to cook up some value ourselves (if at all). 
                     */
-                    kern = lmt_italic_correction_callback(tail, kern, subtype);
-                    if (kern || ! tex_has_glyph_option(tail, glyph_option_no_zero_italic_correction)) { 
+                    int inject = lmt_italic_correction_callback(tail, &kern, subtype);
+                    if (inject) {
+                        break;
+                    } else if (kern || ! tex_has_glyph_option(tail, glyph_option_no_zero_italic_correction)) {
                         break;
                     } else { 
                         return;
@@ -3488,8 +3490,8 @@ static void tex_aux_run_text_italic_correction(void)
                     Just in case we want this but here checking has to be done in the callback 
                     unless we check replace and post here. 
                 */
-                kern = lmt_italic_correction_callback(tail, 0, subtype);
-                if (kern) { 
+                kern = 0;
+                if (lmt_italic_correction_callback(tail, &kern, subtype)) {
                     break;
                 } else { 
                     return;
@@ -3509,7 +3511,8 @@ static void tex_aux_run_text_italic_correction(void)
         assign a returned value but ... in the end these correction kerns are just signals. 
     */
     if (subtype != italic_kern_subtype) {
-        lmt_italic_correction_callback(cur_list.tail, kern, subtype);
+        /* we leave the kern untouched */
+        lmt_italic_correction_callback(cur_list.tail, &kern, subtype);
     }
 }
 

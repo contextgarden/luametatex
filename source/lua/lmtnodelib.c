@@ -14607,10 +14607,10 @@ void lmt_insert_par_callback(
     }
 }
 
-scaled lmt_italic_correction_callback(
-    halfword glyph,
-    scaled   kern,
-    halfword subtype
+int lmt_italic_correction_callback(
+    halfword  glyph,
+    scaled   *kern,
+    halfword  subtype
 )
 {
     int callback_id = lmt_callback_defined(italic_correction_callback);
@@ -14620,16 +14620,18 @@ scaled lmt_italic_correction_callback(
         if (lmt_callback_okay(L, callback_id, &top)) {
             int i;
             lmt_push_node_to_callback(L, glyph);
-            lua_pushinteger(L, kern);
+            lua_pushinteger(L, *kern);
             lua_pushinteger(L, subtype);
-            i = lmt_callback_call(L, 3, 1, top);
+            i = lmt_callback_call(L, 3, 2, top);
             if lmt_unlikely(i) {
                 lmt_callback_error(L, top, i);
             } else {
-                kern = lmt_tohalfword(L, -1);
+                int inject = lua_toboolean(L, -1);
+                *kern = lmt_tohalfword(L, -2);
                 lmt_callback_wrapup(L, top);
+                return inject;
             }
         }
     }
-    return kern;
+    return 1;
 }
