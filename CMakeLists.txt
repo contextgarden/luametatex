@@ -155,8 +155,11 @@ if (CMAKE_C_COMPILER MATCHES "musl-gcc")
 endif()
 
 if (LMT_DEBUG)
-    add_compile_options(-g -O0 -fsanitize=address)
-    add_link_options(-fsanitize=address)
+    if (NOT MINGW)
+        # fails with mingw
+        add_compile_options(-g -O0 -fsanitize=address)
+        add_link_options(-fsanitize=address)
+    endif()
 endif()
 
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU")

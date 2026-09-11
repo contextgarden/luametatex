@@ -3,6 +3,7 @@
 */
 
 /*tex
+
     The \CLANGUAGE\ interface looks quite a bit like the \LUA\ interface. This module will only
     provide print-to-tex functions and no other interfacing. It really makes no sense to provide
     more. An interesting lightweight interface could map onto \LUA\ calls but there is no gain
@@ -14,7 +15,9 @@
     url: https://mujs.com/index.html
 
     Keep in mind: we don't have a \JAVASCRIPT\ interpreter embedded because this is just a small
-    minimal interface to code that {\em can} be loaded at runtime, if present at all.
+    minimal interface to code that {\em can} be loaded at runtime, if present at all. When we
+    added this the library was some 250 K, now (2026) it's about 500K. As we use mimalloc we also
+    have to plug in a memory handler (esp when we link time optimize we can get crashes otherwise).
 
 */
 
@@ -23,18 +26,26 @@
 
 typedef struct js_State js_State;
 
-typedef void (*js_CFunction) (js_State *J);
-typedef void (*js_Report)    (js_State *J, const char *message);
-typedef void (*js_Finalize)  (js_State *J, void *p);
+# ifndef JS_CALL
+    # if defined(_WIN32)
+        # define JS_CALL __cdecl
+    # else
+        # define JS_CALL
+    # endif
+# endif
+
+typedef void (JS_CALL *js_CFunction) (js_State *J);
+typedef void (JS_CALL *js_Report)    (js_State *J, const char *message);
+typedef void (JS_CALL *js_Finalize)  (js_State *J, void *p);
 
 typedef enum js_states {
-	JS_STRICT = 1,
+    JS_STRICT = 1,
 } js_states;
 
 typedef enum js_properties {
-	JS_READONLY = 1,
-	JS_DONTENUM = 2,
-	JS_DONTCONF = 4,
+    JS_READONLY = 1,
+    JS_DONTENUM = 2,
+    JS_DONTCONF = 4,
 } js_properties;
 
 typedef struct mujslib_state_info {
@@ -109,6 +120,7 @@ typedef struct mujslib_state_info {
     void         (*js_defproperty)   (js_State *J, int idx, const char *name, int atts);
 
     void         (*js_pop)           (js_State *J, int n                              );
+    void         (*js_rot)           (js_State *J, int n                              );
 
     void         (*js_pushundefined) (js_State *J                                     );
     void         (*js_pushnull)      (js_State *J                                     );
@@ -156,6 +168,7 @@ static mujslib_state_info mujslib_state = {
     .js_defproperty      = NULL,
 
     .js_pop              = NULL,
+    .js_rot              = NULL,
 
     .js_pushundefined    = NULL,
     .js_pushnull         = NULL,
@@ -171,6 +184,19 @@ static mujslib_state_info mujslib_state = {
     .js_isundefined      = NULL,
 
 };
+
+static void *mujs_alloc_func(void *actx, void *ptr, int size)
+{
+    (void) actx;
+    if (size == 0) {
+        lmt_memory_free(ptr);
+        return NULL;
+    } else if (! ptr) {
+        return lmt_memory_malloc((size_t) size);
+    } else {
+        return lmt_memory_realloc(ptr, (size_t) size);
+    }
+}
 
 /*tex
     Callbacks & Registry: we need make sure errors don't have side effects.
@@ -208,7 +234,7 @@ static char *mujslib_find_file(const char *fname, const char *fmode)
             char *s = NULL;
             const char *x = lua_tostring(L, -1);
             if (x) {
-                s = strdup(x);
+                s = lmt_memory_strdup(x);
             }
             lua_pop(L, 1);
             return s;
@@ -221,6 +247,7 @@ static char *mujslib_find_file(const char *fname, const char *fmode)
 
 /*tex
     Here come the \TEX\ printing helpers, We go via \LUA.
+    Note: Index 0 is 'this', Index 1 is the 1st parameter.
 */
 
 static void mujslib_aux_texcprint(js_State *J, int ispartial)
@@ -296,7 +323,7 @@ static int mujslib_dofile(lua_State *L)
             char *found = mujslib_find_file(name, "rb");
             if (found) {
                mujslib_state.js_dofile(mujslib_state.instance, found);
-               free(found);
+               lmt_memory_free(found);
             }
         }
     } else {
@@ -313,8 +340,8 @@ static void mujslib_file_finalize(js_State *J, void *p)
 {
     int *id = (int *) p;
     (void) J;
-    if (id && *id) {
-        if (mujslib_state.close_file_id) {
+    if (id) {
+        if (*id && mujslib_state.close_file_id) {
             lua_State *L = lmt_lua_state.lua_instance;
             int top = lua_gettop(L);
             lua_rawgeti(L, LUA_REGISTRYINDEX, mujslib_state.close_file_id);
@@ -324,8 +351,8 @@ static void mujslib_file_finalize(js_State *J, void *p)
             }
             lua_settop(L, top);
         }
-        *id = 0; /* Clear handle to prevent double close */
-        free(id); /* FIX 2: Free heap allocation */
+        *id = 0;
+        lmt_memory_free(id); /* Safely free memory once when garbage collected */
     }
 }
 
@@ -334,7 +361,17 @@ static void mujslib_file_close(js_State *J)
     if (mujslib_state.instance) {
         int *id = mujslib_state.js_touserdata(J, 0, "File");
         if (id && *id) {
-            mujslib_file_finalize(J, id);
+            if (mujslib_state.close_file_id) {
+                lua_State *L = lmt_lua_state.lua_instance;
+                int top = lua_gettop(L);
+                lua_rawgeti(L, LUA_REGISTRYINDEX, mujslib_state.close_file_id);
+                lua_pushinteger(L, *id);
+                if (lua_pcall(L, 1, 0, 0)) {
+                    tex_formatted_warning("mujs", "close file: %s\n", lua_tostring(L, -1));
+                }
+                lua_settop(L, top);
+            }
+            *id = 0; /* Mark as closed without free(); finalizer will free pointer */
         }
     }
     mujslib_state.js_pushundefined(J);
@@ -423,19 +460,31 @@ static void mujslib_file_new(js_State *J)
             if (name) {
                 lua_State *L   = lmt_lua_state.lua_instance;
                 int        top = lua_gettop(L);
+                int        n   = 1;
                 lua_rawgeti(L, LUA_REGISTRYINDEX, mujslib_state.open_file_id);
                 lua_pushstring(L, name);
-                if (lua_pcall(L, 1, 1, 0)) {
+                if (mujslib_state.js_isstring(J, 2)) {
+                    lua_pushstring(L, mujslib_state.js_tostring(J, 2));
+                    n = 2;
+                }
+                if (lua_pcall(L, n, 1, 0)) {
                     tex_formatted_warning("mujs", "open file: %s\n", lua_tostring(L, -1));
                 } else {
-                    int *id = malloc(sizeof(int));
-                    if (id) {
-                        *id = (int) lmt_tointeger(L, -1);
-                        lua_settop(L, top);
-                        mujslib_state.js_currentfunction(J);
-                        mujslib_state.js_getproperty(J, -1, "prototype");
-                        mujslib_state.js_newuserdata(J, "File", id, mujslib_file_finalize);
-                        return;
+                    int fid = (int) lmt_tointeger(L, -1);
+                    if (fid > 0) {
+                        int *id = lmt_memory_malloc(sizeof(int));
+                        if (id) {
+                            *id = fid;
+                            lua_settop(L, top);
+                            mujslib_state.js_currentfunction(J);
+                            mujslib_state.js_getproperty(J, -1, "prototype");
+                            mujslib_state.js_newuserdata(J, "File", id, mujslib_file_finalize);
+                            if (mujslib_state.js_rot && mujslib_state.js_pop) {
+                                mujslib_state.js_rot(J, 3); /* Rotates top element 3 steps down */
+                                mujslib_state.js_pop(J, 2); /* Pops remaining 2 temporary items */
+                            }
+                            return;
+                        }
                     }
                 }
                 lua_settop(L, top);
@@ -444,7 +493,7 @@ static void mujslib_file_new(js_State *J)
             tex_normal_warning("mujs", "missing callback: open file");
         }
     }
-    mujslib_state.js_pushnull(J);
+    mujslib_state.js_pushundefined(J);
 }
 
 static void mujslib_file_initialize(js_State *J)
@@ -464,7 +513,7 @@ static void mujslib_file_initialize(js_State *J)
     mujslib_state.js_defglobal(J, "File", JS_DONTENUM);
 
     if (mujslib_state.js_pop) {
-        mujslib_state.js_pop(J, 3);
+        mujslib_state.js_pop(J, 1);
     }
 }
 
@@ -473,7 +522,7 @@ static void mujslib_start(void)
     if (mujslib_state.instance) {
         mujslib_state.js_freestate(mujslib_state.instance);
     }
-    mujslib_state.instance = mujslib_state.js_newstate(NULL, NULL, JS_STRICT);
+    mujslib_state.instance = mujslib_state.js_newstate(mujs_alloc_func, NULL, JS_STRICT);
     if (mujslib_state.instance) {
         mujslib_state.js_newcfunction(mujslib_state.instance, mujslib_aux_texprint, "texprint", 2);
         mujslib_state.js_setglobal   (mujslib_state.instance, "texprint");
@@ -512,6 +561,7 @@ static int mujslib_initialize(lua_State *L)
             mujslib_state.js_newcconstructor = lmt_library_find(lib, "js_newcconstructor");
 
             mujslib_state.js_pop             = lmt_library_find(lib, "js_pop");
+            mujslib_state.js_rot             = lmt_library_find(lib, "js_rot");
 
             mujslib_state.js_pushundefined   = lmt_library_find(lib, "js_pushundefined");
             mujslib_state.js_pushnull        = lmt_library_find(lib, "js_pushnull");
@@ -542,6 +592,7 @@ static int mujslib_initialize(lua_State *L)
             mujslib_state.initialized = lmt_library_okay(lib);
 
             mujslib_start();
+
         }
     }
     lua_pushboolean(L, mujslib_state.initialized && mujslib_state.instance);
