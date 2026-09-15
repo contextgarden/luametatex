@@ -155,17 +155,18 @@
     char *aux_utf8_getownpath(const char *file)
     {
         if (file) {
-            char *path = NULL;
-            char  buffer[MAX_PATH];
-            GetModuleFileName(NULL, buffer, sizeof(buffer));
-            path = lmt_memory_strdup(buffer);
-            if (path && strlen(path) > 0) {
-                for (size_t i = 0; i < strlen(path); i++) {
-                    if (path[i] == '\\') {
-                        path[i] = '/';
+            wchar_t wbuffer[MAX_PATH];
+            DWORD wlen = GetModuleFileNameW(NULL, wbuffer, MAX_PATH);
+            if (wlen > 0) {
+                char *path = aux_utf8_from_wide(wbuffer);
+                if (path && *path) {
+                    for (size_t i = 0; path[i] != '\0'; i++) {
+                        if (path[i] == '\\') {
+                            path[i] = '/';
+                        }
                     }
+                    return path;
                 }
-                return path;
             }
         }
         return lmt_memory_strdup(".");

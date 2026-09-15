@@ -114,21 +114,21 @@ static int sqlitelib_callback(void *ud, int nofcolumns, char **values, char **fi
 {
     callback_context *ctx = (callback_context *) ud;
     lua_State        *L   = ctx->L;
-    /* Duplicate the function sitting at index 3 */
+    /* duplicate the function sitting at index 3 */
     lua_pushvalue(L, 3);
     if (nofcolumns > 0 && values != NULL) {
-        /* Values table */
+        /* values table */
         lua_createtable(L, nofcolumns, 0);
         for (int i = 0; i < nofcolumns; i++) {
             lua_pushstring(L, values[i]);
-            lua_rawseti(L, -2, (lua_Integer)i + 1);
+            lua_rawseti(L, -2, (lua_Integer) i + 1);
         }
-        /* Send header fields only on the first row */
+        /* header fields only on the first row */
         if (ctx->row_count == 0 && fields != NULL) {
             lua_createtable(L, nofcolumns, 0);
             for (int i = 0; i < nofcolumns; i++) {
                 lua_pushstring(L, fields[i]);
-                lua_rawseti(L, -2, (lua_Integer)i + 1);
+                lua_rawseti(L, -2, (lua_Integer) i + 1);
             }
             lua_call(L, 2, 0); /* callback(values, fields) */
         } else {
