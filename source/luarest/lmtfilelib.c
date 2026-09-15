@@ -35,6 +35,7 @@
 */
 
 # include "../lua/lmtinterface.h"
+# include "../utilities/auxcompiler.h"
 # include "../utilities/auxmemory.h"
 # include "../utilities/auxfile.h"
 
@@ -1032,6 +1033,204 @@ static int filelib_canonicalize(lua_State *L)
     return 1;
 }
 
+/*tex
+    We also need to overload |loadfile| and |dofile|. We could do this only for windows but we
+    might add something here so let's just always do it. (We never do stdin.) We also need to
+    handle the package loader. So, here are variants on the \LUA\ functions.
+
+    We can actually decide to plug in our own error message handler.
+*/
+
+# define FILELIB_BUFFERSIZE 4096
+
+int filelib_loadfilex(
+    lua_State  *L,
+    const char *filename,
+    const char *mode
+)
+{
+    FILE *f = NULL;
+    if (filename == NULL) {
+        f = stdin;
+        filename = "=stdin";
+    } else {
+# if defined (_WIN32)
+        wchar_t *wfilename = aux_utf8_to_wide(filename);
+        if (wfilename) {
+            f = _wfopen(wfilename, L"rb");
+            lmt_memory_free(wfilename);
+        }
+# else
+        f = fopen(filename, "rb");
+# endif
+    }
+    if (f == NULL) {
+        lua_pushfstring(L, "cannot open %s: file not found or unreadable", filename);
+        return LUA_ERRFILE;
+    }
+    char *buffer = NULL;
+    size_t read_bytes = 0;
+    if (f != stdin) {
+        /* Regular file: seek to calculate size in advance */
+        long size = 0;
+        if (fseek(f, 0, SEEK_END) == 0) {
+            size = ftell(f);
+            fseek(f, 0, SEEK_SET);
+        }
+        if (size < 0) {
+            fclose(f);
+            lua_pushfstring(L, "cannot seek %s", filename);
+            return LUA_ERRFILE;
+        }
+        buffer = lmt_memory_malloc(size > 0 ? size : 1);
+        if (! buffer) {
+            fclose(f);
+            lua_pushliteral(L, "not enough memory to read file");
+            return LUA_ERRMEM;
+        }
+        if (size > 0) {
+            read_bytes = fread(buffer, 1, size, f);
+        }
+        fclose(f);
+    } else {
+        /* stdin / stream: dynamically expand buffer in chunks */
+        size_t capacity = FILELIB_BUFFERSIZE;
+        buffer = lmt_memory_malloc(capacity);
+        if (! buffer) {
+            lua_pushliteral(L, "not enough memory to read stdin");
+            return LUA_ERRMEM;
+        }
+        size_t nread = 0;
+        while ((nread = fread(buffer + read_bytes, 1, FILELIB_BUFFERSIZE, stdin)) > 0) {
+            read_bytes += nread;
+            if (read_bytes + FILELIB_BUFFERSIZE > capacity) {
+                capacity *= 2;
+                char *new_buf = lmt_memory_realloc(buffer, capacity);
+                if (! new_buf) {
+                    lmt_memory_free(buffer);
+                    lua_pushliteral(L, "not enough memory while reading stdin");
+                    return LUA_ERRMEM;
+                }
+                buffer = new_buf;
+            }
+        }
+    }
+    char *chunkname = NULL;
+    if (filename[0] == '=' || filename[0] == '@') {
+        chunkname = lmt_memory_strdup(filename);
+    } else {
+        chunkname = lmt_memory_malloc(strlen(filename) + 2);
+        sprintf(chunkname, "@%s", filename);
+    }
+    int status = luaL_loadbufferx(L, buffer, read_bytes, chunkname, mode);
+    lmt_memory_free(buffer);
+    lmt_memory_free(chunkname);
+    return status;
+}
+
+static int filelib_loadfile(lua_State *L)
+{
+    const char *filename = luaL_optstring(L, 1, NULL);
+    const char *mode     = luaL_optstring(L, 2, NULL);
+    int status = filelib_loadfilex(L, filename, mode);
+    if (status == LUA_OK) {
+        return 1; /* function */
+    } else {
+        lua_pushnil(L);
+        lua_insert(L, -2); /* nil, error_message */
+        return 2;
+    }
+}
+
+static int filelib_dofile(lua_State *L)
+{
+    const char *filename = luaL_optstring(L, 1, NULL);
+    if (lmt_unlikely(filelib_loadfilex(L, filename, "bt") != LUA_OK)) {
+        return lua_error(L);
+    } else {
+        lua_replace(L, 1);
+        lua_settop(L, 1);
+        lua_call(L, 0, LUA_MULTRET);
+        return lua_gettop(L);
+    }
+}
+
+static const char *filelib_searchpath(
+    lua_State  *L,
+    const char *name,
+    const char *path,
+    const char *sep,
+    const char *dirsep
+)
+{
+    luaL_Buffer b;
+    luaL_buffinit(L, &b);
+    if (*sep != '\0' && strchr(name, *sep) != NULL) {
+        name = luaL_gsub(L, name, sep, dirsep);
+    }
+    while (*path != '\0') {
+        const char *sub = strchr(path, '?');
+        if (sub != NULL) {
+            luaL_addlstring(&b, path, sub - path);
+            luaL_addstring(&b, name);
+            path = sub + 1;
+        }
+        const char *next = strchr(path, ';');
+        if (next == NULL) {
+            luaL_addstring(&b, path);
+            path = ""; /* ends the loop on the next iteration */
+        } else {
+            luaL_addlstring(&b, path, next - path);
+            path = next + 1; /* jumps past the semicolon */
+        }
+        luaL_pushresult(&b);
+        const char *filename = lua_tostring(L, -1);
+# if defined(_WIN32)
+        wchar_t *wfilename = aux_utf8_to_wide(filename);
+        if (wfilename) {
+            FILE *f = _wfopen(wfilename, L"r");
+            lmt_memory_free(wfilename);
+            if (f) {
+                fclose(f);
+                return filename; /* Found! File path left at top of stack */
+            }
+        }
+# else
+        FILE *f = fopen(filename, "r");
+        if (f) {
+            fclose(f);
+            return filename;
+        }
+# endif
+        lua_pop(L, 1); /* next path */
+        luaL_buffinit(L, &b);
+    }
+    lua_pushfstring(L, "no file '%s'", name);
+    return NULL;
+}
+
+static int filelib_package_searcher_file(lua_State *L)
+{
+    const char *name = luaL_checkstring(L, 1);
+    lua_getfield(L, lua_upvalueindex(1), "path");
+    if (! lua_isstring(L, -1)) {
+        lua_pushfstring(L, "no 'package.path'");
+        return 1;
+    } else {
+        const char *filename = filelib_searchpath(L, name, lua_tostring(L, -1), "-", "/");
+        if (filename == NULL) {
+            return 1; // error message
+        } else if (filelib_loadfilex(L, filename, "bt") == LUA_OK) {
+            lua_pushstring(L, filename);
+            return 2; // chunk and filename
+        } else {
+            return luaL_error(L, "error loading module '%s' from file '%s':\n\t%s", name, filename, lua_tostring(L, -1));
+        }
+    }
+}
+
+/* */
+
 static const struct luaL_Reg filelib_function_list[] = {
     { "attributes",      filelib_attributes        },
     { "chdir",           filelib_chdir             },
@@ -1063,6 +1262,25 @@ static const struct luaL_Reg filelib_function_list[] = {
 
 int luaopen_filelib(lua_State *L)
 {
+    /* */
+    lua_pushcfunction(L, filelib_loadfile);
+    lua_setglobal(L, "loadfile");
+    /* */
+    lua_pushcfunction(L, filelib_dofile);
+    lua_setglobal(L, "dofile");
+    /* */
+    lua_getglobal(L, "package");
+    if (lua_istable(L, -1)) {
+        lua_getfield(L, -1, "searchers");
+        if (lua_istable(L, -1)) {
+            lua_pushvalue(L, -2);
+            lua_pushcclosure(L, filelib_package_searcher_file, 1);
+            lua_rawseti(L, -2, 2);
+        }
+        lua_pop(L, 1); // searchers
+    }
+    lua_pop(L, 1); // package
+    /* */
     dir_create_meta(L);
     luaL_newlib(L, filelib_function_list);
     return 1;

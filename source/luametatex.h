@@ -359,6 +359,8 @@ extern version_state_info lmt_version_state;
 # include "lua/lmtluaclib.h"
 # include "lua/lmttexlib.h"
 # include "lua/lmtenginelib.h"
+
+# include "luarest/lmtfilelib.h"
 # include "luarest/lmtvectorlib.h"
 # include "luarest/lmteffectslib.h"
 # include "luarest/lmtbytemaplib.h"

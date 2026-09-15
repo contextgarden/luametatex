@@ -698,7 +698,7 @@ void tex_engine_initialize(int ac, char **av)
         int stacktop = lua_gettop(L);
         lua_pushcfunction(L, lmt_traceback);
         /* No traceback could be a security option. */
-        if (luaL_loadfile(L, lmt_engine_state.startup_filename)) {
+        if (filelib_loadfilex(L, lmt_engine_state.startup_filename, NULL)) {
             lua_remove(L, stacktop + 1);
             tex_emergency_message("lua error", "startup file: %s", lmt_error_string(L, -1));
             lmt_traceback(L);
