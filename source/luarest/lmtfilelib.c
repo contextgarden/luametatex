@@ -1034,11 +1034,21 @@ static int filelib_canonicalize(lua_State *L)
 }
 
 /*tex
+
     We also need to overload |loadfile| and |dofile|. We could do this only for windows but we
     might add something here so let's just always do it. (We never do stdin.) We also need to
     handle the package loader. So, here are variants on the \LUA\ functions.
 
-    We can actually decide to plug in our own error message handler.
+    We can actually decide to plug in our own error message handler. Of course we use the helpers
+    we already made before (proven wide name handling in windows). We have to deal with the bom
+    (okay) as well as the shebang line (unix specific so we might drop that). Contrary to Lua
+    here we do that in the buffer. Because not all helpers in the original are public the error
+    handling is inline.
+
+    We can still decide to kick out stdin handling because we never do that. The shebang handling
+    makes little sense but we need it becasue otherwise some tikz files can't be loaded, so for
+    now we keep it.
+
 */
 
 # define FILELIB_BUFFERSIZE 4096
@@ -1065,13 +1075,13 @@ int filelib_loadfilex(
 # endif
     }
     if (f == NULL) {
-        lua_pushfstring(L, "cannot open %s: file not found or unreadable", filename);
+        lua_pushfstring(L, "file '%s' is not found or unreadable", filename);
         return LUA_ERRFILE;
     }
     char *buffer = NULL;
-    size_t read_bytes = 0;
+    size_t bytes = 0;
     if (f != stdin) {
-        /* Regular file: seek to calculate size in advance */
+        /* we need to get the size */
         long size = 0;
         if (fseek(f, 0, SEEK_END) == 0) {
             size = ftell(f);
@@ -1079,17 +1089,17 @@ int filelib_loadfilex(
         }
         if (size < 0) {
             fclose(f);
-            lua_pushfstring(L, "cannot seek %s", filename);
+            lua_pushfstring(L, "file '%s' can't be accessed (seek)", filename);
             return LUA_ERRFILE;
         }
         buffer = lmt_memory_malloc(size > 0 ? size : 1);
         if (! buffer) {
             fclose(f);
-            lua_pushliteral(L, "not enough memory to read file");
+            lua_pushfstring(L, "there is not enough memory to load file '%s'", filename);
             return LUA_ERRMEM;
         }
         if (size > 0) {
-            read_bytes = fread(buffer, 1, size, f);
+            bytes = fread(buffer, 1, size, f);
         }
         fclose(f);
     } else {
@@ -1097,18 +1107,18 @@ int filelib_loadfilex(
         size_t capacity = FILELIB_BUFFERSIZE;
         buffer = lmt_memory_malloc(capacity);
         if (! buffer) {
-            lua_pushliteral(L, "not enough memory to read stdin");
+            lua_pushliteral(L, "there is not enough memory to completely read 'stdin'");
             return LUA_ERRMEM;
         }
         size_t nread = 0;
-        while ((nread = fread(buffer + read_bytes, 1, FILELIB_BUFFERSIZE, stdin)) > 0) {
-            read_bytes += nread;
-            if (read_bytes + FILELIB_BUFFERSIZE > capacity) {
+        while ((nread = fread(buffer + bytes, 1, FILELIB_BUFFERSIZE, stdin)) > 0) {
+            bytes += nread;
+            if (bytes + FILELIB_BUFFERSIZE > capacity) {
                 capacity *= 2;
                 char *new_buf = lmt_memory_realloc(buffer, capacity);
                 if (! new_buf) {
                     lmt_memory_free(buffer);
-                    lua_pushliteral(L, "not enough memory while reading stdin");
+                    lua_pushliteral(L, "there is not enough memory while reading 'stdin'");
                     return LUA_ERRMEM;
                 }
                 buffer = new_buf;
@@ -1122,7 +1132,24 @@ int filelib_loadfilex(
         chunkname = lmt_memory_malloc(strlen(filename) + 2);
         sprintf(chunkname, "@%s", filename);
     }
-    int status = luaL_loadbufferx(L, buffer, read_bytes, chunkname, mode);
+    /* deal with the BOM and shebang as in skipcomment in lauxlib.c */
+    const char *data = buffer;
+    size_t size = bytes;
+    /* kind of skipBOM lauxlib.c, here in the buffer */
+    if (size >= 3 && (unsigned char) data[0] == 0xEF && (unsigned char) data[1] == 0xBB && (unsigned char) data[2] == 0xBF) {
+        data += 3;
+        size -= 3;
+    }
+    /* kind of skipcomment in lauxlib.c, here in the buffer */
+    if (size > 0 && data[0] == '#') {
+        /* we need to retain the '\n' for proper line numbering */
+        while (size > 0 && data[0] != '\n') {
+            data++;
+            size--;
+        }
+    }
+    /* */
+    int status = luaL_loadbufferx(L, data, size, chunkname, mode);
     lmt_memory_free(buffer);
     lmt_memory_free(chunkname);
     return status;
@@ -1192,7 +1219,7 @@ static const char *filelib_searchpath(
             lmt_memory_free(wfilename);
             if (f) {
                 fclose(f);
-                return filename; /* Found! File path left at top of stack */
+                return filename; /* file path left at top of stack */
             }
         }
 # else
@@ -1219,10 +1246,10 @@ static int filelib_package_searcher_file(lua_State *L)
     } else {
         const char *filename = filelib_searchpath(L, name, lua_tostring(L, -1), "-", "/");
         if (filename == NULL) {
-            return 1; // error message
+            return 1; /* error message */
         } else if (filelib_loadfilex(L, filename, "bt") == LUA_OK) {
             lua_pushstring(L, filename);
-            return 2; // chunk and filename
+            return 2; /* chunk and filename */
         } else {
             return luaL_error(L, "error loading module '%s' from file '%s':\n\t%s", name, filename, lua_tostring(L, -1));
         }
