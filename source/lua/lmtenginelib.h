@@ -5,6 +5,12 @@
 # ifndef LMT_LUAINIT_H
 # define LMT_LUAINIT_H
 
+typedef enum permits_shebang_modes {
+    load_shebang_disabled = 0x00,
+    load_shebang_enabled  = 0x01,
+    load_shebang_blocked  = 0x02, /* permanent */
+} permit_shebang_modes;
+
 typedef struct engine_state_info {
     int         lua_init;
     int         lua_only;
@@ -15,6 +21,7 @@ typedef struct engine_state_info {
     char       *dump_name; /* could move to dump_state */
     int         utc_time;  /* kind of obsolete, could be a callback */
     int         permit_loadlib;
+    int         permit_shebang;
 } engine_state_info;
 
 extern engine_state_info lmt_engine_state;

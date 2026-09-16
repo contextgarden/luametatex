@@ -14,6 +14,7 @@ engine_state_info lmt_engine_state = {
     .dump_name        = NULL,
     .utc_time         = 0,
     .permit_loadlib   = 0,
+    .permit_shebang   = load_shebang_enabled,
 };
 
 /*tex
@@ -207,10 +208,8 @@ static void enginelib_show_help(void)
         "Alternate behaviour models can be obtained by special switches\n"
         "\n"
         "  --luaonly           run a lua file, then exit\n"
-        "\n"
-        "Loading libraries from Lua is blocked unless one explicitly permits it:\n"
-        "\n"
         "  --permitloadlib     permit loading of external libraries\n"
+        "  --blockshebang      permanently disable shebang parsing in loaded Lua files\n"
         "\n"
         "See the reference manual for more information about the startup process.\n"
         "\n"
@@ -531,6 +530,8 @@ static void enginelib_parse_options(void)
             }
         } else if (! lmt_engine_state.permit_loadlib && strcmp(lmt_environment_state.flag, "permitloadlib") == 0) {
             lmt_engine_state.permit_loadlib = 1;
+        } else if (! lmt_engine_state.permit_loadlib && strcmp(lmt_environment_state.flag, "blockshebang") == 0) {
+            lmt_engine_state.permit_shebang = load_shebang_blocked;
         } else if (strcmp(lmt_environment_state.flag, "ini") == 0) {
             lmt_main_state.run_state = initializing_state;
         } else if (strcmp(lmt_environment_state.flag, "help") == 0) {
@@ -613,9 +614,10 @@ static void enginelib_set_locale(void)
 
 static void enginelib_update_options(void)
 {
-    int starttime = -1;
-    int utc = -1;
-    int permitloadlib =  -1;
+    int starttime     = -1;
+    int utc           = -1;
+    int permitloadlib = -1;
+    int blockshebang  = -1;
     if (! lmt_environment_state.input_name) {
         tex_engine_get_config_string("jobname", &lmt_environment_state.input_name);
     }
@@ -633,6 +635,10 @@ static void enginelib_update_options(void)
     tex_engine_get_config_boolean("permitloadlib", &permitloadlib);
     if (permitloadlib >= 0) {
         lmt_engine_state.permit_loadlib = permitloadlib;
+    }
+    tex_engine_get_config_boolean("blockshebang", &blockshebang);
+    if (blockshebang >= 0) {
+        lmt_engine_state.permit_shebang = load_shebang_blocked;
     }
 }
 

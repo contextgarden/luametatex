@@ -34,10 +34,7 @@
 
 */
 
-# include "../lua/lmtinterface.h"
-# include "../utilities/auxcompiler.h"
-# include "../utilities/auxmemory.h"
-# include "../utilities/auxfile.h"
+# include "luametatex.h"
 
 /* Standard access mode constants */
 
@@ -1045,13 +1042,12 @@ static int filelib_canonicalize(lua_State *L)
     here we do that in the buffer. Because not all helpers in the original are public the error
     handling is inline.
 
-    We deliberately nto implement dtsin support but we need to handle the shebang line even if
-    it makes makes little sense because otherwise some tikz files can't be loaded, but we might
-    eventually drop it.
+    We deliberately don't implement stdin support but we need to handle the shebang line even if
+    it makes makes little sense because otherwise some tikz files can't be loaded. The reason why
+    we offer the option to block it (|--blockshebang| and/or a setter) us that it permits us to
+    identify these issues.
 
 */
-
-# define CHECK_SHEBANG 1
 
 int filelib_loadfilex(
     lua_State  *L,
@@ -1114,21 +1110,46 @@ int filelib_loadfilex(
         data += 3;
         bytes -= 3;
     }
-# if CHECK_SHEBANG == 1
     /* kind of skipcomment in lauxlib.c, here in the buffer */
+    int status = LUA_ERRFILE;
     if (bytes > 0 && data[0] == '#') {
-        /* we need to retain the '\n' for proper line numbering */
-        while (bytes > 0 && data[0] != '\n') {
-            data++;
-            bytes--;
+        if (lmt_engine_state.permit_shebang == load_shebang_enabled) {
+            /* we need to retain the '\n' for proper line numbering */
+            while (bytes > 0 && data[0] != '\n') {
+                data++;
+                bytes--;
+            }
+        } else {
+            lua_pushfstring(L, "unexpected shebang line found in file '%s'", filename);
+            lmt_memory_free(buffer);
+            lmt_memory_free(chunkname);
+            goto DONE;
         }
     }
-# endif
     /* */
-    int status = luaL_loadbufferx(L, data, bytes, chunkname, mode);
+    status = luaL_loadbufferx(L, data, bytes, chunkname, mode);
+  DONE:
     lmt_memory_free(buffer);
     lmt_memory_free(chunkname);
     return status;
+}
+
+static int filelib_setloadshebang(lua_State *L)
+{
+    if (lmt_engine_state.permit_shebang != load_shebang_blocked) {
+        int permission = lua_tointeger(L, 1);
+        switch (permission) {
+            case load_shebang_disabled:
+            case load_shebang_enabled:
+            case load_shebang_blocked:
+                lmt_engine_state.permit_shebang = permission;
+                break;
+            default:
+                /* error, silently recover */
+                break;
+        }
+    }
+    return 0;
 }
 
 static int filelib_loadfile(lua_State *L)
@@ -1259,6 +1280,8 @@ static const struct luaL_Reg filelib_function_list[] = {
     /* */
     { "lessweird",       filelib_lessweird         },
     { "moreweird",       filelib_moreweird         },
+    /* */
+    { "setloadshebang",  filelib_setloadshebang    },
     /* */
     { NULL,              NULL                      },
 };

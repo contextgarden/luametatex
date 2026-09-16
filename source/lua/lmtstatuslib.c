@@ -9,6 +9,7 @@
     is here has been redone, also because we want different statistics.
 
 */
+
 # include "luametatex.h"
 
 # define STATS_METATABLE "tex.stats"
@@ -249,6 +250,7 @@ static int statslib_enginestate(lua_State *L)
     lua_set_integer_by_key(L, "run_state",       lmt_main_state.run_state);
     lua_set_integer_by_key(L, "overload_state",  lmt_main_state.overload_state);
     lua_set_boolean_by_key(L, "permit_loadlib",  lmt_engine_state.permit_loadlib);
+    lua_set_boolean_by_key(L, "permit_shebang",  lmt_engine_state.permit_shebang);
     return 1;
 }
 
@@ -548,6 +550,7 @@ static struct statistic_entry statslib_entries[] = {
     { .name = "run_state",          .value = (void *) &lmt_main_state.run_state,        .type = 'g' },
     { .name = "overload_state",     .value = (void *) &lmt_main_state.overload_state,   .type = 'g' },
     { .name = "permit_loadlib",     .value = (void *) &lmt_engine_state.permit_loadlib, .type = 'b' },
+    { .name = "permit_shebang",     .value = (void *) &lmt_engine_state.permit_shebang, .type = 'b' },
     /* */
     { .name = "tex_memory_mode",    .value = &statslib_memory_mode,                     .type = 'f' }, /* can be moved up */
     /* */
