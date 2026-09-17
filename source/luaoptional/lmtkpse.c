@@ -277,7 +277,7 @@ static int kpselib_initialize(lua_State *L)
         const char *filename = lua_tostring(L, 1);
         if (filename) {
 
-            lmt_library lib = lmt_library_load(filename);
+            lmt_library lib = lmt_library_load(L, filename);
 
             kpselib_state.lib_kpse_set_program_name   = lmt_library_find(lib, "kpse_set_program_name");
             kpselib_state.lib_kpse_reset_program_name = lmt_library_find(lib, "kpse_reset_program_name");

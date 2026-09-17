@@ -194,8 +194,8 @@ static int openssllib_initialize(lua_State * L)
         const char *filename_s = lua_tostring(L, 2);
         if (filename_c && filename_s) {
 
-            lmt_library lib_c = lmt_library_load(filename_c);
-            lmt_library lib_s = lmt_library_load(filename_s);
+            lmt_library lib_c = lmt_library_load(L, filename_c);
+            lmt_library lib_s = lmt_library_load(L, filename_s);
 
             openssllib_state.OPENSSL_init_ssl        = lmt_library_find(lib_s, "OPENSSL_init_ssl");
 

@@ -27,6 +27,7 @@ set(tex_sources
     source/lua/lmttexlib.c
     source/lua/lmttokenlib.c
     source/lua/lmtnodelib.c
+    source/lua/lmtsecuritylib.c
     source/lua/lmtenginelib.c
     source/lua/lmtfontlib.c
     source/lua/lmtstatuslib.c

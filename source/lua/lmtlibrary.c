@@ -35,10 +35,10 @@ void lmt_library_register(lua_State *L, const char *name, luaL_Reg functions[])
     lua_pop(L, 1);
 }
 
-lmt_library lmt_library_load(const char *filename)
+lmt_library lmt_library_load(lua_State *L, const char *filename)
 {
     lmt_library lib = { .lib = NULL };
-    if (filename && strlen(filename)) {
+    if (filename && strlen(filename) && lmt_valid_target(L, security_library, filename, security_load_library)) {
         lib.lib = lmt_library_open_indeed(filename);
         lib.okay = lib.lib != NULL;
         if (! lib.okay) {
@@ -76,7 +76,7 @@ static int librarylib_load(lua_State *L)
         const char *filename = lua_tostring(L, 1);
         const char *openname = lua_tostring(L, 2);
         if (filename && openname) {
-            lmt_library lib = lmt_library_load(filename);
+            lmt_library lib = lmt_library_load(L, filename);
             if (lmt_library_okay(lib)) {
                 lua_CFunction target = lmt_library_find_indeed(lib.lib, openname);
                 if (target) {

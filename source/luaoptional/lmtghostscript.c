@@ -66,7 +66,7 @@ static int gslib_initialize(lua_State * L)
     if (! gslib_state.initialized) {
         const char *filename = lua_tostring(L, 1);
         if (filename) {
-            lmt_library lib = lmt_library_load(filename);
+            lmt_library lib = lmt_library_load(L, filename);
 
             gslib_state.gsapi_new_instance     = lmt_library_find(lib, "gsapi_new_instance");
             gslib_state.gsapi_delete_instance  = lmt_library_find(lib, "gsapi_delete_instance");

@@ -137,7 +137,7 @@ static int postgresslib_initialize(lua_State * L)
         const char *filename = lua_tostring(L, 1);
         if (filename != NULL) {
 
-            lmt_library lib = lmt_library_load(filename);
+            lmt_library lib = lmt_library_load(L, filename);
 
             postgresslib_state.PQsetdbLogin   = lmt_library_find(lib, "PQsetdbLogin");
             postgresslib_state.PQstatus       = lmt_library_find(lib, "PQstatus");

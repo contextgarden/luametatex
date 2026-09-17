@@ -2440,14 +2440,17 @@ static void mp_free_instance(MP mp)
         mp->write_filehandles = NULL;
         mp->write_filenames = NULL;
     }
-    mp_memory_free(mp->jump_buffer);
-    /*tex  free table entries */
+    if (mp->jump_buffer != NULL) {
+        mp_memory_free(mp->jump_buffer);
+        mp->jump_buffer = NULL;
+    }
+    /*tex free table entries */
     mp_free_symbolic_node(mp, mp->spec_head);
     mp_free_symbolic_node(mp, mp->temp_head);
     mp_free_symbolic_node(mp, mp->hold_head);
     mp_free_value_node(mp, mp->end_attr);
     mp_free_dash_node(mp, mp->null_dash);
-    mp_free_dep_node(mp, mp->dep_head, 0); /* 1 */
+    mp_free_value_node(mp, (mp_node) mp->dep_head);
     mp_free_symbolic_node(mp, mp->cur_mod_);
     mp_free_value_node(mp, mp->bad_vardef);
     mp_free_number(cur_exp_value_number);

@@ -81,7 +81,7 @@ static int gmlib_initialize(lua_State * L)
         const char *filename1 = lua_tostring(L, 1);
         const char *filename2 = lua_tostring(L, 2);
         if (filename1) {
-            lmt_library lib = lmt_library_load(filename1);
+            lmt_library lib = lmt_library_load(L, filename1);
 
             gmlib_state.gm_InitializeMagick = lmt_library_find(lib, "InitializeMagick");
             gmlib_state.gm_DestroyMagick    = lmt_library_find(lib, "DestroyMagick");
@@ -89,7 +89,7 @@ static int gmlib_initialize(lua_State * L)
             gmlib_state.initialized = lmt_library_okay(lib);
         }
         if (gmlib_state.initialized && filename2) {
-            lmt_library lib = lmt_library_load(filename2);
+            lmt_library lib = lmt_library_load(L, filename2);
 
             gmlib_state.gm_NewMagickWand       = lmt_library_find(lib, "NewMagickWand");
             gmlib_state.gm_DestroyMagickWand   = lmt_library_find(lib, "DestroyMagickWand");

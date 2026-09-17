@@ -342,7 +342,7 @@ static int curllib_initialize(lua_State * L)
         const char *filename = lua_tostring(L, 1);
         if (filename) {
 
-            lmt_library lib = lmt_library_load(filename);
+            lmt_library lib = lmt_library_load(L, filename);
 
             curllib_state.curl_version       = lmt_library_find(lib, "curl_version");
             curllib_state.curl_free          = lmt_library_find(lib, "curl_free");

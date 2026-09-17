@@ -408,7 +408,7 @@ static int hblib_initialize(lua_State * L)
         const char *filename = lua_tostring(L, 1);
         if (filename) {
 
-            lmt_library lib = lmt_library_load(filename);
+            lmt_library lib = lmt_library_load(L, filename);
 
             hblib_state.hb_version_string                  = lmt_library_find(lib, "hb_version_string");
             hblib_state.hb_language_from_string            = lmt_library_find(lib, "hb_language_from_string");

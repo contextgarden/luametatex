@@ -131,7 +131,7 @@ typedef struct timer {
 
 # if timer_mt_method == 1
 
-    static const void *G_TIMER_METATABLE_PTR = NULL;
+    static const void * G_TIMER_METATABLE_PTR = NULL;
 
     static inline timer * timerlib_aux_valid(lua_State *L, int i)
     {
@@ -141,7 +141,7 @@ typedef struct timer {
             if (lua_topointer(L, -1) != G_TIMER_METATABLE_PTR) {
                 t = NULL;
             }
-            lua_pop(L, 1); /* Only 1 pop required! */
+            lua_pop(L, 1); /* only 1 pop required */
         }
         return t;
     }

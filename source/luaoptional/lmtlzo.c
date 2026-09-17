@@ -80,7 +80,7 @@ static int lzolib_initialize(lua_State *L)
         const char *filename = lua_tostring(L, 1);
         if (filename) {
 
-            lmt_library lib = lmt_library_load(filename);
+            lmt_library lib = lmt_library_load(L, filename);
 
             lzolib_state.lzo1x_1_compress      = lmt_library_find(lib, "lzo1x_1_compress");
             lzolib_state.lzo1x_decompress_safe = lmt_library_find(lib, "lzo1x_decompress_safe");

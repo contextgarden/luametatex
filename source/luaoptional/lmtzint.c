@@ -480,7 +480,7 @@ static int zintlib_initialize(lua_State * L)
         const char *filename = lua_tostring(L, 1);
         if (filename) {
 
-            lmt_library lib = lmt_library_load(filename);
+            lmt_library lib = lmt_library_load(L, filename);
 
             zintlib_state.ZBarcode_Version                  = lmt_library_find(lib, "ZBarcode_Version");
             zintlib_state.ZBarcode_Create                   = lmt_library_find(lib, "ZBarcode_Create");

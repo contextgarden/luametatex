@@ -337,6 +337,13 @@ static void processlib_callback(
 
     static int processlib_open(lua_State *L)
     {
+        size_t len;
+        const char *cmd_constant = lua_tolstring(L, 1, &len);
+
+        if (! cmd_constant || ! lmt_valid_target(L, security_executable, cmd_constant, security_open_process)) {
+            return 0;
+        }
+
         int nulled = lua_toboolean(L, 2);
 
         HANDLE hRead  = NULL;
@@ -374,9 +381,7 @@ static void processlib_callback(
         si.hStdError   = nulled ? hNull : hWrite;
         si.dwFlags    |= STARTF_USESTDHANDLES;
 
-        size_t len;
-        const char *cmd_constant = lua_tolstring(L, 1, &len);
-        char       *cmd_mutable  = lmt_memory_malloc(len + 1);
+        char *cmd_mutable  = lmt_memory_malloc(len + 1);
 
         if (! cmd_mutable) {
             if (hRead)  CloseHandle(hRead);
@@ -611,10 +616,15 @@ static void processlib_callback(
 
     static int processlib_open(lua_State *L)
     {
-        char       *argv[MAX_ARGS];
-        size_t      len;
+        size_t len;
         const char *cmd_constant = lua_tolstring(L, 1, &len);
-        char       *cmd_mutable  = lmt_memory_malloc(len + 1);
+
+        if (! cmd_constant || ! lmt_valid_target(L, security_executable, cmd_constant, security_open_process)) {
+            return 0;
+        }
+
+        char *argv[MAX_ARGS];
+        char *cmd_mutable  = lmt_memory_malloc(len + 1);
 
         if (! cmd_mutable) {
             tex_formatted_warning("process lib", "out of memory");

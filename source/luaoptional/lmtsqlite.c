@@ -64,7 +64,7 @@ static int sqlitelib_initialize(lua_State * L)
     if (! sqlitelib_state.initialized) {
         const char *filename = lua_tostring(L, 1);
         if (filename) {
-            lmt_library lib = lmt_library_load(filename);
+            lmt_library lib = lmt_library_load(L, filename);
 
             sqlitelib_state.sqlite3_initialize = lmt_library_find(lib, "sqlite3_initialize");
             sqlitelib_state.sqlite3_open       = lmt_library_find(lib, "sqlite3_open");
@@ -86,7 +86,7 @@ static int sqlitelib_open(lua_State * L)
 {
     if (sqlitelib_state.initialized) {
         const char *filename = lua_tostring(L, 1);
-        if (filename != NULL) {
+        if (filename && lmt_valid_target(L, security_readable, filename, security_open_database)) {
             sqlitelib_data *data = lua_newuserdatauv(L, sizeof(*data), 0);
             if (! sqlitelib_state.sqlite3_open(filename, &(data->db))) {
                 luaL_getmetatable(L, SQLITELIB_METATABLE);

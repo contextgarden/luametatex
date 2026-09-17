@@ -20,20 +20,6 @@
 */
 # include "luametatex.h"
 
-# ifdef _WIN32
-
-    # define lua_popen(L,c,m)   ((void)L, _popen(c,m))
-    # define lua_pclose(L,file) ((void)L, _pclose(file))
-
-# else
-
-    # define lua_popen(L,c,m)   ((void)L, fflush(NULL), popen(c,m))
-    # define lua_pclose(L,file) ((void)L, pclose(file))
-
-# endif
-
-/* Mojca: we need to sort this out! */
-
 # ifdef LUA_USE_POSIX
 
     # define l_fseek(f,o,w) fseeko(f,o,w)
@@ -2008,98 +1994,162 @@ static int io_gobble(lua_State *L)
     return 1;
 }
 
-# if _WIN32
+# define tolstream(L) ((LStream *) luaL_checkudata(L, 1, LUA_FILEHANDLE))
 
-    # define tolstream(L) ((LStream *)luaL_checkudata(L, 1, LUA_FILEHANDLE))
+/*
+    single arw | single + | only b's at the end
 
-    static int l_checkmode(const char *mode) {
-        return (
-             mode 
-         && *mode != '\0'
-         && strchr("rwa", *(mode++))
-         && (*mode != '+' || ((void)(++mode), 1))
-         && (strspn(mode, "b") == strlen(mode))
-        );
+    r rb w w+ w+b a+bb
+*/
+
+static int l_checkmode(const char *mode)
+{
+    return (
+         mode
+     && *mode != '\0'
+     && strchr("rwa", *(mode++))
+     && (*mode != '+' || ((void) (++mode), 1))
+     && (strspn(mode, "b") == strlen(mode))
+    );
+}
+
+typedef luaL_Stream LStream;
+
+static LStream *newprefile(lua_State *L)
+{
+    LStream *p = (LStream *) lua_newuserdatauv(L, sizeof(LStream), 0);
+    p->closef = NULL;
+    luaL_setmetatable(L, LUA_FILEHANDLE);
+    return p;
+}
+
+static int io_fclose(lua_State *L)
+{
+    LStream *p = tolstream(L);
+    int res = fclose(p->f);
+    return luaL_fileresult(L, (res == 0), NULL);
+}
+
+static LStream *newfile(lua_State *L)
+{
+    LStream *p = newprefile(L);
+    p->f = NULL;
+    p->closef = &io_fclose;
+    return p;
+}
+
+/*tex
+    Watch out: |+| means update so |w+| and |r+| open files for reading and writing.
+*/
+
+static int io_aux_check_access(lua_State *L, const char **filename, const char **mode, int action)
+{
+    *filename = luaL_checkstring(L, 1);
+    *mode     = luaL_optstring(L, 2, "r");
+    luaL_argcheck(L, l_checkmode(*mode), 2, "invalid mode");
+    int is_write = (strchr(*mode, 'w') != NULL || strchr(*mode, 'a') != NULL || strchr(*mode, '+') != NULL);
+    int is_read  = (strchr(*mode, 'r') != NULL                               || strchr(*mode, '+') != NULL);
+    if (is_read && ! lmt_valid_target(L, security_readable, *filename, action)) {
+        errno = EACCES;
+        return 0;
     }
-
-    typedef luaL_Stream LStream;
-
-    static LStream *newprefile(lua_State *L) {
-        LStream *p = (LStream *)lua_newuserdatauv(L, sizeof(LStream), 0);
-        p->closef = NULL;
-        luaL_setmetatable(L, LUA_FILEHANDLE);
-        return p;
+    if (is_write && ! lmt_valid_target(L, security_writeable, *filename, action)) {
+        errno = EACCES;
+        return 0;
     }
+    return 1;
+}
 
-    static int io_fclose(lua_State *L) {
-        LStream *p = tolstream(L);
-        int res = fclose(p->f);
-        return luaL_fileresult(L, (res == 0), NULL);
+static int io_open(lua_State *L)
+{
+    const char *filename, *mode;
+    if (! io_aux_check_access(L, &filename, &mode, security_open_file)) {
+        return luaL_fileresult(L, 0, filename);
     }
-
-    static LStream *newfile(lua_State *L) {
-        /*tex Watch out: lua 5.4 has different closers. */
-        LStream *p = newprefile(L);
-        p->f = NULL;
-        p->closef = &io_fclose;
-        return p;
-    }
-
-    static int io_open(lua_State *L)
-    {
-        const char *filename = luaL_checkstring(L, 1);
-        const char *mode = luaL_optstring(L, 2, "r");
-        LStream *p = newfile(L);
-        const char *md = mode;  /* to traverse/check mode */
-        luaL_argcheck(L, l_checkmode(md), 2, "invalid mode");
-        p->f = aux_utf8_fopen(filename, mode);
-        return (p->f) ? 1 : luaL_fileresult(L, 0, filename);
-    }
-
-    static int io_pclose(lua_State *L) {
-        LStream *p = tolstream(L);
-        return luaL_execresult(L, _pclose(p->f));
-    }
-
-    static int io_popen(lua_State *L)
-    {
-        const char *filename = luaL_checkstring(L, 1);
-        const char *mode = luaL_optstring(L, 2, "r");
-        LStream *p = newprefile(L);
-        p->f = aux_utf8_popen(filename, mode);
-        p->closef = &io_pclose;
-        return (p->f) ? 1 : luaL_fileresult(L, 0, filename);
-    }
-
-    int luaextend_io(lua_State *L)
-    {
-        lua_getglobal(L, "io");
-        lua_pushcfunction(L, io_open);  lua_setfield(L, -2, "open");
-        lua_pushcfunction(L, io_popen); lua_setfield(L, -2, "popen");
-        lua_pushcfunction(L, io_gobble); lua_setfield(L, -2, "gobble");
-        lua_pop(L, 1);
-         /*tex
-            Larger doesn't work and limits to 512 but then no amount is okay as there's always more
-            to demand.
-        */
-        _setmaxstdio(2048);
-        return 1;
-    }
-
+    LStream *p = newfile(L);
+# ifdef _WIN32
+    p->f = aux_utf8_fopen(filename, mode);
 # else
-
- // int luaextend_io(lua_State *L)
- // {
- //     (void) L;
- //     return 1;
- // }
-
-    int luaextend_io(lua_State *L)
-    {
-        lua_getglobal(L, "io");
-        lua_pushcfunction(L, io_gobble); lua_setfield(L, -2, "gobble");
-        lua_pop(L, 1);
-        return 1;
-    }
-
+    p->f = fopen(filename, mode);
 # endif
+    return (p->f) ? 1 : luaL_fileresult(L, 0, filename);
+}
+
+static int io_pclose(lua_State *L)
+{
+    LStream *p = tolstream(L);
+# ifdef _WIN32
+    int stat = _pclose(p->f);
+# else
+    int stat = pclose(p->f);
+# endif
+    return luaL_execresult(L, stat);
+}
+
+static int io_popen(lua_State *L)
+{
+    const char *filename, *mode;
+    if (! io_aux_check_access(L, &filename, &mode, security_open_pipe)) {
+        return luaL_fileresult(L, 0, filename);
+    }
+    LStream *p = newprefile(L);
+# ifdef _WIN32
+    /* strip '+' and map 'a' -> 'w' to prevent parameter validation aborts */
+    char win_mode[8];
+    int idx = 0;
+    for (const char *m = mode; *m != '\0' && idx < (int) sizeof(win_mode) - 1; m++) {
+        if (*m == '+') { \
+            /* drop the read/write update modifier */
+            continue;
+        } else if (*m == 'a') {
+            /* convert append to write */
+            win_mode[idx++] = 'w';
+        } else {
+            /* keep the mode */
+            win_mode[idx++] = *m;
+        }
+    }
+    win_mode[idx] = '\0';
+    p->f = aux_utf8_popen(filename, win_mode);
+# else
+    p->f = popen(filename, mode);
+# endif
+    p->closef = &io_pclose;
+    return (p->f) ? 1 : luaL_fileresult(L, 0, filename);
+}
+
+# ifndef _WIN32
+    # include <sys/resource.h>
+# endif
+
+int luaextend_io(lua_State *L)
+{
+    lua_getglobal(L, "io");
+    lua_pushcfunction(L, io_open);   lua_setfield(L, -2, "open");
+    lua_pushcfunction(L, io_popen);  lua_setfield(L, -2, "popen");
+    lua_pushcfunction(L, io_gobble); lua_setfield(L, -2, "gobble");
+    lua_pop(L, 1);
+# ifdef _WIN32
+    if (_setmaxstdio(2048) < 0) {
+        /*tex
+            More than this doesn't work and if we can't raise that much we fall back to 512. It
+            looks like normally we're fine. For \TEX\ these limits mostly concerns image inclusion.
+        */
+        _setmaxstdio(512);
+    }
+# else
+    /*tex
+        We raise the soft limit on POSIX systems to 2048 or keep the maximum allowed hard limit.
+    */
+    struct rlimit rl;
+    if (getrlimit(RLIMIT_NOFILE, &rl) == 0) {
+        if (rl.rlim_cur < 2048) {
+            rlim_t target = 2048;
+            /* cannot exceed hard limit (rlim_max) without root privileges */
+            rl.rlim_cur = (rl.rlim_max < target) ? rl.rlim_max : target;
+            setrlimit(RLIMIT_NOFILE, &rl);
+        }
+    }
+# endif
+    return 1;
+}

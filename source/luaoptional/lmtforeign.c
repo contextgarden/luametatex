@@ -1125,7 +1125,7 @@ static int foreignlib_initialize(lua_State * L)
         if (lmt_engine_state.permit_loadlib) {
             const char *filename = lua_tostring(L, 1);
             if (filename) {
-                lmt_library lib = lmt_library_load(filename);
+                lmt_library lib = lmt_library_load(L, filename);
 
                 foreign_state.ffi_prep_cif = lmt_library_find(lib, "ffi_prep_cif");
                 foreign_state.ffi_call     = lmt_library_find(lib, "ffi_call"    );

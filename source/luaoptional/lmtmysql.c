@@ -143,7 +143,7 @@ static int mysqllib_initialize(lua_State * L)
         const char *filename = lua_tostring(L, 1);
         if (filename != NULL) {
 
-            lmt_library lib = lmt_library_load(filename);
+            lmt_library lib = lmt_library_load(L, filename);
 
             mysqllib_state.mysql_init          = lmt_library_find(lib, "mysql_init" );
             mysqllib_state.mysql_real_connect  = lmt_library_find(lib, "mysql_real_connect" );

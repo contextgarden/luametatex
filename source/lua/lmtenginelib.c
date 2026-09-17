@@ -1134,6 +1134,7 @@ static const luaL_Reg lmt_libs_extra_function_list[] = {
     { "serial",    luaopen_serial    },
     { "process",   luaopen_process   },
     { "timer",     luaopen_timer     },
+    { "security",  luaopen_security  },
  // { "specific",  luaopen_specific  },
     { NULL,        NULL              },
 };
@@ -1277,6 +1278,8 @@ void lmt_initialize(void)
         if (! lmt_engine_state.permit_loadlib) {
             enginelib_disable_loadlib(L);
         }
+        /*tex Provide at least some protection. */
+        lmt_disable_debug(L, 0);
         /*tex Optional stuff. */
         luaopen_optional(L);
         /*tex This initializes the 'metapost' related libraries. */

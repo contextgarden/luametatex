@@ -68,7 +68,7 @@ static int imlib_initialize(lua_State * L)
         const char *filename2 = lua_tostring(L, 2);
         if (filename1) {
 
-            lmt_library lib = lmt_library_load(filename1);
+            lmt_library lib = lmt_library_load(L, filename1);
 
             imlib_state.im_AcquireImageInfo     = lmt_library_find(lib, "AcquireImageInfo");
             imlib_state.im_DestroyImageInfo     = lmt_library_find(lib, "DestroyImageInfo");
@@ -80,7 +80,7 @@ static int imlib_initialize(lua_State * L)
         }
         if (imlib_state.initialized && filename2) {
 
-            lmt_library lib = lmt_library_load(filename2);
+            lmt_library lib = lmt_library_load(L, filename2);
 
             imlib_state.im_MagickCommandGenesis = lmt_library_find(lib, "MagickCommandGenesis");
             imlib_state.im_ConvertImageCommand  = lmt_library_find(lib, "ConvertImageCommand");

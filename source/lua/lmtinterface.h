@@ -39,11 +39,51 @@ typedef enum lua_node_errors {
     lua_get_node_error,
     lua_set_ignore_error,
     lua_get_ignore_error,
-} lua_node_errors ;
+} lua_node_errors;
+
+typedef enum security_actions {
+    security_generic_action   = 0x00,
+    /* */
+    security_remove_directory = 0x01,
+    security_change_directory = 0x02,
+    security_create_directory = 0x03,
+    /* */
+    security_remove_file      = 0x04,
+    security_rename_file      = 0x05,
+    security_open_file        = 0x06,
+    /* */
+    security_open_pipe        = 0x07,
+    security_open_process     = 0x08,
+    /* */
+    security_link_object      = 0x09,
+    security_touch_object     = 0x0A,
+    /* */
+    security_load_script_file = 0x0B,
+    /* */
+    security_set_executable   = 0x0C,
+    security_run_executable   = 0x0D,
+    /* */
+    security_load_library     = 0x0E,
+    /* */
+    security_open_database    = 0x0F,
+} security_actions;
+
+typedef enum security_targets {
+    security_generic    = 0x00,
+    security_readable   = 0x01,
+    security_writeable  = 0x02,
+    security_executable = 0x03,
+    security_library    = 0x04,
+    security_loadable   = 0x05,
+} security_targets;
+
+# define n_of_security_targets 6
 
 typedef struct lua_state_info {
     lua_State   *lua_instance;
     lua_State   *mps_instance;
+    luaL_Buffer *used_buffer;
+    int          security_checkers[n_of_security_targets];
     int          used_bytes;
     int          used_bytes_max;
     int          function_table_id;
@@ -60,7 +100,6 @@ typedef struct lua_state_info {
     int          bytecode_max;
     int          version_number;
     int          release_number;
-    luaL_Buffer *used_buffer;
     int          integer_size;
     int          last_node_error;
     int          ignore_node_error;
@@ -114,6 +153,7 @@ extern int  luaopen_xzip        (lua_State *L);
 extern int  luaopen_serial      (lua_State *L);
 extern int  luaopen_process     (lua_State *L);
 extern int  luaopen_timer       (lua_State *L);
+extern int  luaopen_security    (lua_State *L);
 extern int  luaopen_vector      (lua_State *L);
 extern int  luaopen_zbuffer     (lua_State *L);
 //     int  luaopen_specific    (lua_State *L);

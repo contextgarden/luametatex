@@ -561,7 +561,7 @@ static int mujslib_initialize(lua_State *L)
     if (! mujslib_state.initialized) {
         const char *filename = lua_tostring(L, 1);
         if (filename && *filename) {
-            lmt_library lib = lmt_library_load(filename);
+            lmt_library lib = lmt_library_load(L, filename);
 
             mujslib_state.js_newstate        = lmt_library_find(lib, "js_newstate");
             mujslib_state.js_freestate       = lmt_library_find(lib, "js_freestate");

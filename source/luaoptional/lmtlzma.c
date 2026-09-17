@@ -210,7 +210,7 @@ static int lzmalib_initialize(lua_State *L)
         const char *filename = lua_tostring(L, 1);
         if (filename) {
 
-            lmt_library lib = lmt_library_load(filename);
+            lmt_library lib = lmt_library_load(L, filename);
 
             lzmalib_state.lzma_auto_decoder = lmt_library_find(lib, "lzma_auto_decoder");
             lzmalib_state.lzma_easy_encoder = lmt_library_find(lib, "lzma_easy_encoder");

@@ -58,7 +58,7 @@ typedef void *lmt_library_function;
 extern void                 lmt_library_register   (lua_State *L, const char *name, luaL_Reg functions[]);
 extern void                 lmt_library_initialize (lua_State *L);
 
-extern lmt_library          lmt_library_load       (const char *filename);
+extern lmt_library          lmt_library_load       (lua_State *L, const char *filename);
 extern lmt_library_function lmt_library_find       (lmt_library lib, const char *source);
 extern int                  lmt_library_okay       (lmt_library lib);
 

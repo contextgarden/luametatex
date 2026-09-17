@@ -176,7 +176,7 @@ static int lz4lib_initialize(lua_State *L)
         const char *filename = lua_tostring(L, 1);
         if (filename) {
 
-            lmt_library lib = lmt_library_load(filename);
+            lmt_library lib = lmt_library_load(L, filename);
 
             lz4lib_state.LZ4_compressBound               = lmt_library_find(lib, "LZ4_compressBound");
             lz4lib_state.LZ4_compress_fast               = lmt_library_find(lib, "LZ4_compress_fast");

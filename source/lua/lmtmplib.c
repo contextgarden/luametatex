@@ -2031,9 +2031,10 @@ static void mplib_aux_release_options(lua_State *L, MP_options *options)
         options->make_text_id,
         options->open_file_id,
     };
-    for (unsigned int i = 0; i < sizeof(ids) / sizeof(ids[0]); i++) {
-        if (ids[i]) {
+    for (unsigned int i = 0; i < 10; i++) {
+        if (ids[i] && ids[i] != LUA_NOREF) {
             luaL_unref(L, LUA_REGISTRYINDEX, ids[i]);
+            ids[i] = LUA_NOREF;
         }
     }
     if (options->job_name) {
@@ -2058,9 +2059,10 @@ static void mplib_aux_finish(lua_State *L, MP mp)
         mp->open_file_id,
     };
     mp_finish(mp);
-    for (unsigned int i = 0; i < sizeof(ids) / sizeof(ids[0]); i++) {
-        if (ids[i]) {
+    for (unsigned int i = 0; i < 10; i++) {
+        if (ids[i] && ids[i] != LUA_NOREF) {
             luaL_unref(L, LUA_REGISTRYINDEX, ids[i]);
+            ids[i] = LUA_NOREF;
         }
     }
 }

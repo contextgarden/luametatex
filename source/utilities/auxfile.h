@@ -115,6 +115,7 @@
     extern FILE   *aux_utf8_fopen       (const char *path, const char *mode);
     extern FILE   *aux_utf8_popen       (const char *path, const char *mode);
     extern int     aux_utf8_system      (const char *cmd);
+
     extern int     aux_utf8_remove      (const char *name);
     extern int     aux_utf8_rename      (const char *oldname, const char *newname);
 
@@ -126,19 +127,20 @@
 
 # else
 
+    # include <libgen.h>
+
     # define       aux_utf8_fopen       fopen
     # define       aux_utf8_popen       popen
     # define       aux_utf8_system      system
-    # define       aux_utf8_remove      remove
-    # define       aux_utf8_rename      rename
+
+    extern int     aux_utf8_remove      (const char *name);
+    extern int     aux_utf8_rename      (const char *oldname, const char *newname);
 
     extern int     aux_utf8_setargv     (char * **av, char **argv, int argc);
     extern char   *aux_utf8_getownpath  (const char *file);
     extern char   *aux_utf8_readlink    (const char *file);
     extern char   *aux_utf8_canonicalize(const char *file);
     extern char   *aux_utf8_expandpath  (const char *file);
-
-    # include <libgen.h>
 
 # endif
 

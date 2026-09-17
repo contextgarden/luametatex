@@ -89,7 +89,7 @@ static int zstdlib_initialize(lua_State *L)
         const char *filename = lua_tostring(L, 1);
         if (filename) {
 
-            lmt_library lib = lmt_library_load(filename);
+            lmt_library lib = lmt_library_load(L, filename);
 
             zstdlib_state.ZSTD_compressBound       = lmt_library_find(lib, "ZSTD_compressBound");
             zstdlib_state.ZSTD_getFrameContentSize = lmt_library_find(lib, "ZSTD_getFrameContentSize");
