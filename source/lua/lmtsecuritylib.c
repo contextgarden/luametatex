@@ -18,7 +18,7 @@ static void securitylib_initialize(lua_State *L)
 
 static int securitylib_setchecker(lua_State *L)
 {
-    int target = (int) luaL_checkinteger(L, 1);
+    int target = lmt_tointeger(L, 1);
     luaL_checktype(L, 2, LUA_TFUNCTION);
     if (! security_target_okay(target)) {
         return luaL_error(L, "second argument must be a valid target");
@@ -64,9 +64,9 @@ bool lmt_valid_target(lua_State *L, int target, const char *str, int action)
 
 static int securitylib_checked(lua_State *L)
 {
-    int         target = (int) luaL_checkinteger(L, 1);
-    const char *str    = luaL_checkstring(L, 2);
-    int         action = luaL_optinteger(L, 3, 0);
+    int         target = lmt_tointeger(L, 1);
+    const char *str    = lmt_checkstring(L, 2);
+    int         action = lmt_optinteger(L, 3, 0);
     lua_pushboolean(L, lmt_valid_target(L, target, str, action));
     return 1;
 }

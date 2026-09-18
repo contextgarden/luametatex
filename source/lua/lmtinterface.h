@@ -13,9 +13,15 @@
     we also create \LUA\ string entries which speeds up the interfacing.
 
 */
+
+# undef lround
+
 # include "lua.h"
 # include "lauxlib.h"
 # include "lualib.h"
+# include <stdint.h>
+# include <math.h>
+# include <limits.h>
 
 /*tex Just in case: */
 
@@ -1827,87 +1833,215 @@ extern lmt_keys_info lmt_keys;
 
 */
 
-//define lmt_rounded(d)              (lua_Integer)    (round(d))
-//define lmt_roundedfloat(f)         (lua_Integer)    (round((double) f))
+static inline int8_t lmt_clamped_int8(lua_Integer v)
+{
+    if (v > INT8_MAX) {
+        return INT8_MAX;
+    }
+    if (v < INT8_MIN) {
+        return INT8_MIN;
+    }
+    return (int8_t) v;
+}
 
-# define lmt_rounded(d)              (lua_Integer)    (llround(d))
-# define lmt_roundedfloat(f)         (lua_Integer)    (llround((double) f))
+static inline uint8_t lmt_clamped_uint8(lua_Integer v)
+{
+    if (v < 0) {
+        return 0;
+    }
+    if (v > UINT8_MAX) {
+        return UINT8_MAX;
+    }
+    return (uint8_t) v;
+}
 
-# define lmt_tolong(L,i)             (long)           lua_tointeger(L,i)
-# define lmt_checklong(L,i)          (long)           luaL_checkinteger(L,i)
-# define lmt_optlong(L,i,j)          (long)           luaL_optinteger(L,i,j)
+static inline short lmt_clamped_short(lua_Integer v)
+{
+    return (v > SHRT_MAX) ? SHRT_MAX : ((v < SHRT_MIN) ? SHRT_MIN : (short) v);
+}
 
-# define lmt_todouble(L,i)           (double)         lua_tonumber(L,i)
-# define lmt_optdouble(L,i,d)        (double)         luaL_optnumber(L,i,d)
+static inline unsigned short lmt_clamped_ushort(lua_Integer v)
+{
+    if (v < 0) {
+        return 0;
+    }
+    if ((uint64_t) v > USHRT_MAX) {
+        return USHRT_MAX;
+    }
+    return (unsigned short) v;
+}
 
-# define lmt_tofloat(L,i)            (float)          lua_tonumber(L,i)
-# define lmt_optfloat(L,i,d)         (float)          luaL_optnumber(L,i,d)
+static inline int lmt_clamped_int(lua_Integer v)
+{
+    return (v > INT_MAX) ? INT_MAX  : ((v < INT_MIN) ? INT_MIN  : (int)   v);
+}
 
-# define lmt_tointeger(L,i)          (int)            lua_tointeger(L,i)
-# define lmt_checkinteger(L,i)       (int)            luaL_checkinteger(L,i)
-# define lmt_optinteger(L,i,j)       (int)            luaL_optinteger(L,i,j)
+static inline unsigned int lmt_clamped_uint(lua_Integer v)
+{
+    if (v < 0) {
+        return 0;
+    }
+    if ((uint64_t) v > UINT_MAX) {
+        return UINT_MAX;
+    }
+    return (unsigned int) v;
+}
 
-# define lmt_toshort(L,i)            (short)          lua_tointeger(L,i)
-# define lmt_checkshort(L,i)         (short)          luaL_checkinteger(L,i)
-# define lmt_optshort(L,i,j)         (short)          luaL_optinteger(L,i,j)
+static inline long lmt_clamped_long(lua_Integer v)
+{
+    return (v > LONG_MAX) ? LONG_MAX : ((v < LONG_MIN) ? LONG_MIN : (long)  v);
+}
 
-# define lmt_tounsigned(L,i)         (unsigned int)   lua_tointeger(L,i)
-# define lmt_checkinteger(L,i)       (int)            luaL_checkinteger(L,i)
-# define lmt_optunsigned(L,i,j)      (unsigned int)   luaL_optinteger(L,i,j)
+static inline size_t lmt_clamped_sizet(lua_Integer v)
+{
+    if (v < 0) {
+        return 0;
+    }
+# if LUA_MAXINTEGER > SIZE_MAX
+    if ((uint64_t) v > SIZE_MAX) {
+        return SIZE_MAX;
+    }
+# endif
+    return (size_t)v;
+}
 
-# define lmt_tounsignedshort(L,i)    (unsigned short) lua_tointeger(L,i)
-# define lmt_checkunsignedshort(L,i) (unsigned short) luaL_checkinteger(L,i)
-# define lmt_optunsignedshort(L,i,j) (unsigned short) luaL_optinteger(L,i,j)
+static inline float lmt_clamped_float(double v)
+{
+    if (v >  FLT_MAX) return  FLT_MAX;
+    if (v < -FLT_MAX) return -FLT_MAX;
+    return (float) v;
+}
 
-# define lmt_tosizet(L,i)            (size_t)         lua_tointeger(L,i)
-# define lmt_checksizet(L,i)         (size_t)         luaL_checkinteger(L,i)
-# define lmt_optsizet(L,i,j)         (size_t)         luaL_optinteger(L,i,j)
+static inline lua_Integer lmt_clamped_round(double d)
+{
+   /*tex The zero optimization needs testing, adds extra branch. */
+    if (d == 0.0) {
+        return 0;
+    }
+    if (isnan(d)) {
+        return 0;
+    }
+    if (d >= (double) LUA_MAXINTEGER) {
+        return LUA_MAXINTEGER;
+    }
+    if (d <= (double) LUA_MININTEGER) {
+        return LUA_MININTEGER;
+    }
+    return (lua_Integer) llround(d);
+}
 
-# define lmt_tohalfword(L,i)         (halfword)       lua_tointeger(L,i)
-# define lmt_checkhalfword(L,i)      (halfword)       luaL_checkinteger(L,i)
-# define lmt_opthalfword(L,i,j)      (halfword)       luaL_optinteger(L,i,j)
+# define lmt_clamped_byte        lmt_clamped_int8
 
-# define lmt_tofullword(L,i)         (fullword)       lua_tointeger(L,i)
-# define lmt_checkfullword(L,i)      (fullword)       luaL_checkinteger(L,i)
-# define lmt_optfullword(L,i,j)      (fullword)       luaL_optinteger(L,i,j)
+# define lmt_clamped_halfword    lmt_clamped_int
+# define lmt_clamped_scaled      lmt_clamped_int
+# define lmt_clamped_quarterword lmt_clamped_short
+# define lmt_clamped_singleword  lmt_clamped_byte
 
-# define lmt_toscaled(L,i)           (scaled)         lua_tointeger(L,i)
-# define lmt_checkscaled(L,i)        (scaled)         luaL_checkinteger(L,i)
-# define lmt_optscaled(L,i,j)        (scaled)         luaL_optinteger(L,i,j)
+# define lmt_toint64(L,i)            (int64_t) lua_tointeger(L, i)
+# define lmt_checkint64(L,i)         (int64_t) luaL_checkinteger(L, i)
+# define lmt_optint64(L,i,j)         (int64_t) luaL_optinteger(L, i, j)
 
-# define lmt_toquarterword(L,i)      (quarterword)    lua_tointeger(L,i)
-# define lmt_checkquarterword(L,i)   (quarterword)    luaL_checkinteger(L,i)
-# define lmt_optquarterword(L,i,j)   (quarterword)    luaL_optinteger(L,i,j)
+# define lmt_touint64(L,i)           (uint64_t) lua_tointeger(L, i)
+# define lmt_checkuint64(L,i)        (uint64_t) luaL_checkinteger(L, i)
+# define lmt_optuint64(L,i,j)        (uint64_t) luaL_optinteger(L, i, j)
 
-# define lmt_tosingleword(L,i)       (singleword)     lua_tointeger(L,i)
-# define lmt_checksingleword(L,i)    (singleword)     luaL_checkinteger(L,i)
-# define lmt_optsingleword(L,i,j)    (singleword)     luaL_optinteger(L,i,j)
+# define lmt_rounded(d)              lmt_clamped_round((double) (d))
+# define lmt_roundedfloat(f)         lmt_clamped_round((double) (f))
 
-# undef lround
-# include <math.h>
+# define lmt_todouble(L,i)           (double) lua_tonumber(L,i)
+# define lmt_optdouble(L,i,j)        (double) luaL_optnumber(L,i,j)
+
+# define lmt_tofloat(L,i)            lmt_clamped_float(lua_tonumber(L,i))
+# define lmt_checkfloat(L,i)         lmt_clamped_float(luaL_checknumber(L,i))
+# define lmt_optfloat(L,i,j)         lmt_clamped_float(luaL_optnumber(L,i,j))
+
+# define lmt_tolong(L,i)             lmt_clamped_long(lua_tointeger(L,i))
+# define lmt_checklong(L,i)          lmt_clamped_long(luaL_checkinteger(L,i))
+# define lmt_optlong(L,i,j)          lmt_clamped_long(luaL_optinteger(L,i,j))
+
+# define lmt_tointeger(L,i)          lmt_clamped_int(lua_tointeger(L,i))
+# define lmt_checkinteger(L,i)       lmt_clamped_int(luaL_checkinteger(L,i))
+# define lmt_optinteger(L,i,j)       lmt_clamped_int(luaL_optinteger(L,i,j))
+
+# define lmt_toshort(L,i)            lmt_clamped_short(lua_tointeger(L,i))
+# define lmt_checkshort(L,i)         lmt_clamped_short(luaL_checkinteger(L,i))
+# define lmt_optshort(L,i,j)         lmt_clamped_short(luaL_optinteger(L,i,j))
+
+# define lmt_tounsigned(L,i)         lmt_clamped_uint(lua_tointeger(L,i))
+# define lmt_checkunsigned(L,i)      lmt_clamped_uint(luaL_checkinteger(L,i))
+# define lmt_optunsigned(L,i,j)      lmt_clamped_uint(luaL_optinteger(L,i,j))
+
+# define lmt_tounsignedshort(L,i)    lmt_clamped_ushort(lua_tointeger(L,i))
+# define lmt_checkunsignedshort(L,i) lmt_clamped_ushort(luaL_checkinteger(L,i))
+# define lmt_optunsignedshort(L,i,j) lmt_clamped_ushort(luaL_optinteger(L,i,j))
+
+# define lmt_tosizet(L,i)            lmt_clamped_sizet(lua_tointeger(L,i))
+# define lmt_checksizet(L,i)         lmt_clamped_sizet(luaL_checkinteger(L,i))
+# define lmt_optsizet(L,i,j)         lmt_clamped_sizet(luaL_optinteger(L,i,j))
+
+# define lmt_tofullword(L,i)         (fullword) lua_tointeger(L,i)
+# define lmt_checkfullword(L,i)      (fullword) luaL_checkinteger(L,i)
+# define lmt_optfullword(L,i,j)      (fullword) luaL_optinteger(L,i,j)
+
+# define lmt_tohalfword(L,i)         lmt_clamped_halfword(lua_tointeger(L,i))
+# define lmt_checkhalfword(L,i)      lmt_clamped_halfword(luaL_checkinteger(L,i))
+# define lmt_opthalfword(L,i,j)      lmt_clamped_halfword(luaL_optinteger(L,i,j))
+
+# define lmt_toscaled(L,i)           lmt_clamped_scaled(lua_tointeger(L,i))
+# define lmt_checkscaled(L,i)        lmt_clamped_scaled(luaL_checkinteger(L,i))
+# define lmt_optscaled(L,i,j)        lmt_clamped_scaled(luaL_optinteger(L,i,j))
+
+# define lmt_toquarterword(L,i)      lmt_clamped_quarterword(lua_tointeger(L,i))
+# define lmt_checkquarterword(L,i)   lmt_clamped_quarterword(luaL_checkinteger(L,i))
+# define lmt_optquarterword(L,i,j)   lmt_clamped_quarterword(luaL_optinteger(L,i,j))
+
+# define lmt_tosingleword(L,i)       lmt_clamped_singleword(lua_tointeger(L,i))
+# define lmt_checksingleword(L,i)    lmt_clamped_singleword(luaL_checkinteger(L,i))
+# define lmt_optsingleword(L,i,j)    lmt_clamped_singleword(luaL_optinteger(L,i,j))
+
+# define lmt_checkstring luaL_checkstring
+# define lmt_optstring   luaL_optstring
+
+# ifdef _WIN32
+
+    # include <windows.h>
+
+    static inline DWORD lmt_clamped_dword(lua_Integer v)
+    {
+        if (v < 0) {
+            return 0;
+        }
+        if ((uint64_t) v > UINT32_MAX) {
+            return UINT32_MAX;
+        }
+        return (DWORD) v;
+    }
+
+    # define lmt_todword(L,i)    lmt_clamped_dword(lua_tointeger(L,i))
+    # define lmt_checkdword(L,i) lmt_clamped_dword(luaL_checkinteger(L,i))
+
+# endif
+
+/*tex These can also be used for halfwords! */
 
 static inline int lmt_roundnumber(lua_State *L, int i)
 {
-    double n = lua_tonumber(L, i);
-    return n == 0.0 ? 0 : lround(n);
+    return lmt_clamped_int(lmt_clamped_round(lua_tonumber(L, i)));
 }
 
 static inline unsigned int lmt_uroundnumber(lua_State *L, int i)
 {
-    double n = lua_tonumber(L, i);
-    return n == 0.0 ? 0 : (unsigned int) lround(n);
+    return lmt_clamped_uint(lmt_clamped_round(lua_tonumber(L, i)));
 }
 
 static inline int lmt_optroundnumber(lua_State *L, int i, int dflt)
 {
-    double n = luaL_optnumber(L, i, dflt);
-    return n == 0.0 ? 0 : lround(n);
+    return lmt_clamped_int(lmt_clamped_round(luaL_optnumber(L, i, dflt)));
 }
 
-static inline int lmt_opturoundnumber(lua_State *L, int i, int dflt)
+static inline unsigned int lmt_opturoundnumber(lua_State *L, int i, int dflt)
 {
-    double n = luaL_optnumber(L, i, dflt);
-    return n == 0.0 ? 0 : (unsigned int) lround(n);
+    return lmt_clamped_uint(lmt_clamped_round(luaL_optnumber(L, i, dflt)));
 }
 
 static inline double lmt_number_from_table(lua_State *L, int i, int j, lua_Number d)

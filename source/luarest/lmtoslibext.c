@@ -288,13 +288,12 @@ static int oslib_uname(lua_State *L)
 
 static int oslib_execute(lua_State *L)
 {
-    const char *cmd = luaL_optstring(L, 1, NULL);
-    if (cmd) {
-        // todo: lmt_valid_target(L, security_executable, cmd, security_run_executable)
-        lua_pushinteger(L, aux_utf8_system(cmd) || lmt_error_state.default_exit_code);
-    } else {
-        lua_pushinteger(L, 0);
+    const char *cmd = lmt_optstring(L, 1, NULL);
+    int okay = 0;
+    if (cmd && lmt_valid_target(L, security_executable, cmd, security_run_executable)) {
+        okay = aux_utf8_system(cmd) || lmt_error_state.default_exit_code;
     }
+    lua_pushinteger(L, okay);
     return 1;
 }
 

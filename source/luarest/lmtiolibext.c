@@ -2042,18 +2042,30 @@ static LStream *newfile(lua_State *L)
     Watch out: |+| means update so |w+| and |r+| open files for reading and writing.
 */
 
-static int io_aux_check_access(lua_State *L, const char **filename, const char **mode, int action)
+static inline int io_aux_check_open(lua_State *L, const char **filename, const char **mode)
 {
     *filename = luaL_checkstring(L, 1);
     *mode     = luaL_optstring(L, 2, "r");
     luaL_argcheck(L, l_checkmode(*mode), 2, "invalid mode");
     int is_write = (strchr(*mode, 'w') != NULL || strchr(*mode, 'a') != NULL || strchr(*mode, '+') != NULL);
     int is_read  = (strchr(*mode, 'r') != NULL                               || strchr(*mode, '+') != NULL);
-    if (is_read && ! lmt_valid_target(L, security_readable, *filename, action)) {
+    if (is_read && ! lmt_valid_target(L, security_readable, *filename, security_open_file)) {
         errno = EACCES;
         return 0;
     }
-    if (is_write && ! lmt_valid_target(L, security_writeable, *filename, action)) {
+    if (is_write && ! lmt_valid_target(L, security_writeable, *filename, security_open_file)) {
+        errno = EACCES;
+        return 0;
+    }
+    return 1;
+}
+
+static inline int io_aux_check_popen(lua_State *L, const char **filename, const char **mode)
+{
+    *filename = luaL_checkstring(L, 1);
+    *mode     = luaL_optstring(L, 2, "r");
+    luaL_argcheck(L, l_checkmode(*mode), 2, "invalid mode");
+    if (! lmt_valid_target(L, security_executable, *filename, security_open_pipe)) {
         errno = EACCES;
         return 0;
     }
@@ -2063,7 +2075,7 @@ static int io_aux_check_access(lua_State *L, const char **filename, const char *
 static int io_open(lua_State *L)
 {
     const char *filename, *mode;
-    if (! io_aux_check_access(L, &filename, &mode, security_open_file)) {
+    if (! io_aux_check_open(L, &filename, &mode)) {
         return luaL_fileresult(L, 0, filename);
     }
     LStream *p = newfile(L);
@@ -2089,7 +2101,7 @@ static int io_pclose(lua_State *L)
 static int io_popen(lua_State *L)
 {
     const char *filename, *mode;
-    if (! io_aux_check_access(L, &filename, &mode, security_open_pipe)) {
+    if (! io_aux_check_popen(L, &filename, &mode)) {
         return luaL_fileresult(L, 0, filename);
     }
     LStream *p = newprefile(L);
