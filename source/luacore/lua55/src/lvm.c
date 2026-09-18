@@ -925,7 +925,7 @@ void luaV_finishOp (lua_State *L) {
 ** Macros for arithmetic/bitwise/comparison opcodes in 'luaV_execute'
 **
 ** All these macros are to be used exclusively inside the main
-** iterpreter loop (function luaV_execute) and may access directly
+** interpreter loop (function luaV_execute) and may access directly
 ** the local variables of that function (L, i, pc, ci, etc.).
 ** ===================================================================
 */
@@ -1117,7 +1117,7 @@ void luaV_finishOp (lua_State *L) {
 
 
 
-#define updatetrap(ci)  (trap = ci->u.l.trap)
+#define updatetrap(ci)  (trap = cast_int(ci->u.l.trap))
 
 #define updatebase(ci)	(base = ci->func.p + 1)
 
@@ -1211,7 +1211,7 @@ void luaV_execute (lua_State *L, CallInfo *ci) {
 #include "ljumptab.h"
 #endif
  startfunc:
-  trap = L->hookmask;
+  trap = cast_int(L->hookmask);
  returning:  /* trap already set */
   cl = ci_func(ci);
   k = cl->p->k;

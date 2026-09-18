@@ -150,7 +150,7 @@ LUA_API lua_Hook lua_gethook (lua_State *L) {
 
 
 LUA_API int lua_gethookmask (lua_State *L) {
-  return L->hookmask;
+  return cast_int(L->hookmask);
 }
 
 

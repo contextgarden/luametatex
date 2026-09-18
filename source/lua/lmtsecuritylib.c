@@ -83,8 +83,22 @@ void lmt_disable_debug(lua_State *L, int complete)
         }
         /* pop package.loaded: */
     } else if (lua_getglobal(L, "debug") == LUA_TTABLE) {
-        lua_pushnil(L);
-        lua_setfield(L, -2, "getregistry");
+        lua_pushnil(L); lua_setfield(L, -2, "debug"       );
+        lua_pushnil(L); lua_setfield(L, -2, "getuservalue");
+        lua_pushnil(L); lua_setfield(L, -2, "gethook"     );
+     /* lua_pushnil(L); lua_setfield(L, -2, "getinfo"     ); */ /* so we can profile */
+        lua_pushnil(L); lua_setfield(L, -2, "getlocal"    );
+        lua_pushnil(L); lua_setfield(L, -2, "getregistry" );
+        lua_pushnil(L); lua_setfield(L, -2, "getmetatable");
+        lua_pushnil(L); lua_setfield(L, -2, "getupvalue"  );
+        lua_pushnil(L); lua_setfield(L, -2, "upvaluejoin" );
+        lua_pushnil(L); lua_setfield(L, -2, "upvalueid"   );
+        lua_pushnil(L); lua_setfield(L, -2, "setuservalue");
+     /* lua_pushnil(L); lua_setfield(L, -2, "sethook"     ); */ /* so we can profile */
+        lua_pushnil(L); lua_setfield(L, -2, "setlocal"    );
+        lua_pushnil(L); lua_setfield(L, -2, "setmetatable");
+        lua_pushnil(L); lua_setfield(L, -2, "setupvalue"  );
+     /* lua_pushnil(L); lua_setfield(L, -2, "traceback"   ); */ /* harmless */
         /* pop debug: */
     }
     lua_pop(L, 1);

@@ -404,6 +404,20 @@ static int oslib_rename(lua_State *L)
 
 # endif
 
+/*tex
+
+    This makes no sense in the perspective of \LUAMETATEX\ where it can interfere with
+    multi-lingual rendering. We mostly communicate in English anyway. Elsewhere we force
+    the C locale.
+
+*/
+
+static int oslib_setlocale(lua_State *L)
+{
+    (void) L;
+    return 0;
+}
+
 static const luaL_Reg oslib_function_list[] = {
     { "sleep",          oslib_sleep          },
     { "uname",          oslib_uname          },
@@ -412,6 +426,7 @@ static const luaL_Reg oslib_function_list[] = {
     { "execute",        oslib_execute        }, /* security : todo */
     { "rename",         oslib_rename         }, /* security : writeable */
     { "remove",         oslib_remove         }, /* security : writeable */
+    { "setlocale",      oslib_setlocale      },
 # ifdef _WIN32
     { "getenv",         oslib_getenv         },
 # endif

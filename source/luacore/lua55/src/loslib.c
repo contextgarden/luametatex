@@ -345,11 +345,22 @@ static int os_date (lua_State *L) {
 }
 
 
+static int os_time_aux (lua_State *L, time_t t, int err) {
+  if (err || t != (time_t)(l_timet)t)
+    return luaL_error(L,
+                  "time result cannot be represented in this installation");
+  l_pushtime(L, t);
+  return 1;
+}
+
+
 static int os_time (lua_State *L) {
-  time_t t;
-  if (lua_isnoneornil(L, 1))  /* called without args? */
-    t = time(NULL);  /* get current time */
+  if (lua_isnoneornil(L, 1)) {  /* called without args? */
+    time_t t = time(NULL);  /* get current time; error if it is -1 */
+    return os_time_aux(L, t, (t == (time_t)(-1)));
+  }
   else {
+    time_t t;
     struct tm ts;
     luaL_checktype(L, 1, LUA_TTABLE);
     lua_settop(L, 1);  /* make sure table is at the top */
@@ -360,14 +371,12 @@ static int os_time (lua_State *L) {
     ts.tm_min = getfield(L, "min", 0, 0);
     ts.tm_sec = getfield(L, "sec", 0, 0);
     ts.tm_isdst = getboolfield(L, "isdst");
+    ts.tm_wday = -1;  /* if call succeeds, it will set this value */
     t = mktime(&ts);
     setallfields(L, &ts);  /* update fields with normalized values */
+    /* error if tm_wday was not set */
+    return os_time_aux(L, t, ts.tm_wday == -1);
   }
-  if (t != (time_t)(l_timet)t || t == (time_t)(-1))
-    return luaL_error(L,
-                  "time result cannot be represented in this installation");
-  l_pushtime(L, t);
-  return 1;
 }
 
 
@@ -407,17 +416,17 @@ static int os_exit (lua_State *L) {
 
 
 static const luaL_Reg syslib[] = {
-  {"clock",     os_clock},
-  {"date",      os_date},
-  {"difftime",  os_difftime},
-  {"execute",   os_execute},
-  {"exit",      os_exit},
-  {"getenv",    os_getenv},
-  {"remove",    os_remove},
-  {"rename",    os_rename},
+  {"clock", os_clock},
+  {"date", os_date},
+  {"difftime", os_difftime},
+  {"execute", os_execute},
+  {"exit", os_exit},
+  {"getenv", os_getenv},
+  {"remove", os_remove},
+  {"rename", os_rename},
   {"setlocale", os_setlocale},
-  {"time",      os_time},
-  {"tmpname",   os_tmpname},
+  {"time", os_time},
+  {"tmpname", os_tmpname},
   {NULL, NULL}
 };
 
