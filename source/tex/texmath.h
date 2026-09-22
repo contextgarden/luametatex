@@ -50,6 +50,11 @@ typedef enum math_sizes {
 
 # define undefined_math_parameter max_dimension
 
+typedef enum variable_family_modes {
+    math_variable_mode_keep  = -2,
+    math_variable_mode_unset = -1,
+} variable_family_modes;
+
 typedef enum math_indirect_types {
     indirect_math_unset,
     indirect_math_regular,

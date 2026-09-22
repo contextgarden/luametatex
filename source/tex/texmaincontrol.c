@@ -6680,6 +6680,17 @@ void tex_assign_internal_integer_value(int a, halfword p, int val)
             }
             tex_word_define(a, p, val);
             break;
+        case variable_family_code:
+            if (val == math_variable_mode_keep || val == math_variable_mode_unset) {
+                /* we're okay */
+            } else if (fam_par_in_range(val)) {
+                /* we're okay */
+            } else {
+                /* just silently ignore */
+                break;
+            }
+            tex_word_define(a, p, val);
+            break;
         default:
           DEFINE:
             tex_word_define(a, p, val);
@@ -7465,7 +7476,7 @@ void tex_initialize_variables(void)
         post_inline_penalty_par = max_integer;
         pre_short_inline_penalty_par = max_integer;
         post_short_inline_penalty_par = max_integer;
-        variable_family_par = -1, 
+        variable_family_par = math_variable_mode_keep,
         ignore_depth_criterion_par = ignore_depth;
         script_space_before_factor_par = scaling_factor;
         script_space_between_factor_par = scaling_factor;

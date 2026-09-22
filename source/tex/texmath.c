@@ -1205,7 +1205,11 @@ static quarterword tex_aux_set_math_char(halfword target, mathcodeval *mval, mat
 {
     halfword hmcode = tex_get_hm_code(mval->character_value);
     math_kernel_character(target) = mval->character_value;
-    if (variable_family_par == -2) {
+    /*tex
+        We default to |math_variable_mode_keep| because it makes most sense for us but other
+        macro packages might like |math_variable_mode_unset| more.
+    */
+    if (variable_family_par == math_variable_mode_keep) {
         /*tex For those (read: context) who want to use this variable class as intended. */
         math_kernel_family(target) = cur_fam_par_in_range ? cur_fam_par : mval->family_value;
         node_subtype(target) = mval->class_value;
@@ -1213,7 +1217,8 @@ static quarterword tex_aux_set_math_char(halfword target, mathcodeval *mval, mat
         /*tex For CMS chairman MS, so that he can answer a ltx question someplace. */
         math_kernel_family(target) = cur_fam_par_in_range ? cur_fam_par : mval->family_value;
         node_subtype(target) = ordinary_noad_subtype;
-    } else if (mval->family_value == variable_family_par) {
+    } else if (mval->family_value == variable_family_par && fam_par_in_range(variable_family_par)) {
+        /*tex Actually we know that we're in range as |mval| is, but let's be explicit here. */
         math_kernel_family(target) = cur_fam_par_in_range ? cur_fam_par : mval->family_value;
         node_subtype(target) = mval->class_value;
     } else {
