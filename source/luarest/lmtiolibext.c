@@ -1485,6 +1485,10 @@ static int siolib_readbytes(lua_State *L)
     }
 }
 
+/*tex
+    When we fail, we return nil.
+*/
+
 static int fiolib_readcline(lua_State *L)
 {
     FILE *f = lmt_valid_file(L);
@@ -1571,8 +1575,9 @@ static int siolib_readcline(lua_State *L)
   BAD:
     siolib_done(L, mode, 1);
     lua_pushnil(L);
-    lua_pushinteger(L, p + 1);
-    return 2;
+ // lua_pushinteger(L, p + 1);
+ // return 2;
+    return 1;
 }
 
 static int fiolib_readcstring(lua_State *L)
@@ -1649,8 +1654,9 @@ static int siolib_readcstring(lua_State *L)
   BAD:
     siolib_done(L, mode, 1);
     lua_pushnil(L);
-    lua_pushinteger(L, p + 1);
-    return 2;
+ // lua_pushinteger(L, p + 1);
+ // return 2;
+    return 1;
 }
 
 /* will be completed */

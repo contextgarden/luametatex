@@ -77,14 +77,6 @@
     tens of thousands iterations. 
 */
 
-# if defined(PATH_MAX)
-    # define MY_MAXPATHLEN PATH_MAX
-# elif defined(MAXPATHLEN)
-    # define MY_MAXPATHLEN MAXPATHLEN
-# else
-    # define MY_MAXPATHLEN 255
-# endif
-
 # ifdef _WIN32
 
     # include <direct.h>
@@ -94,6 +86,31 @@
     # include <sys/locking.h>
     # include <sys/utime.h>
     # include <fcntl.h>
+
+# else
+
+    # include <unistd.h>
+    # include <dirent.h>
+    # include <fcntl.h>
+    # include <sys/types.h>
+    # include <utime.h>
+    # include <sys/param.h>
+
+# endif
+
+/*tex
+    After the included these can be known:
+*/
+
+# if defined(PATH_MAX)
+    # define MY_MAXPATHLEN PATH_MAX
+# elif defined(MAXPATHLEN)
+    # define MY_MAXPATHLEN MAXPATHLEN
+# else
+    # define MY_MAXPATHLEN 255
+# endif
+
+# ifdef _WIN32
 
     # ifndef FIND_FIRST_EX_LARGE_FETCH
         # define FIND_FIRST_EX_LARGE_FETCH 0x02
@@ -160,27 +177,36 @@
 
     static inline int mk_symlink(const char *t, const char *f)
     {
-        LPWSTR wt = aux_utf8_to_wide(t); /* Existing Target */
-        LPWSTR wf = aux_utf8_to_wide(f); /* New Link Name  */
-        /* Win32 takes (NewLink, ExistingTarget, Flags) */
-        /* 0x2 = SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE */
-        int r = CreateSymbolicLinkW(wf, wt, 0x2) != 0;
+        LPWSTR wt = aux_utf8_to_wide(t);
+        LPWSTR wf = aux_utf8_to_wide(f);
+        int r = 0;
+        if (wt && wf) {
+            DWORD flags = 0x2; /* SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE */
+            DWORD attr  = GetFileAttributesW(wt);
+            if (attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_DIRECTORY)) {
+                flags |= 0x1;  /* SYMBOLIC_LINK_FLAG_DIRECTORY */
+            }
+            /* Win32 takes (NewLink, ExistingTarget, Flags) */
+            r = CreateSymbolicLinkW(wf, wt, flags) != 0;
+            if (! r && GetLastError() == ERROR_INVALID_PARAMETER && (flags & 0x2)) {
+                r = CreateSymbolicLinkW(wf, wt, flags & ~0x2) != 0;
+            }
+        }
         lmt_memory_free(wt);
         lmt_memory_free(wf);
-        return r == 0;
+        return r;
     }
-
+    
     /* POSIX link(target, linkpath) -> Hard Link */
 
     static inline int mk_link(const char *t, const char *f)
     {
-        LPWSTR wt = aux_utf8_to_wide(t); /* Existing Target */
-        LPWSTR wf = aux_utf8_to_wide(f); /* New Link Name  */
-        /* Win32 takes (NewLink, ExistingTarget, Reserved) */
-        int r = CreateHardLinkW(wf, wt, NULL) != 0;
+        LPWSTR wt = aux_utf8_to_wide(t);
+        LPWSTR wf = aux_utf8_to_wide(f);
+        int r = (wt && wf) ? (CreateHardLinkW(wf, wt, NULL) != 0) : 0;
         lmt_memory_free(wt);
         lmt_memory_free(wf);
-        return r == 0;
+        return r;
     }
 
     static inline int ch_to_exec(const char *s, mode_t n)
@@ -210,13 +236,6 @@
 # else
 
     /* POSIX */
-
-    # include <unistd.h>
-    # include <dirent.h>
-    # include <fcntl.h>
-    # include <sys/types.h>
-    # include <utime.h>
-    # include <sys/param.h>
 
     typedef struct stat   info_struct;
     typedef struct utimbuf utime_struct;
@@ -258,9 +277,22 @@
         return chmod(s, mode) == 0;
     }
 
+ // static inline int set_utime(const char *s, utime_struct *b)
+ // {
+ //     return utime(s, b) == 0;
+ // }
+
     static inline int set_utime(const char *s, utime_struct *b)
     {
-        return utime(s, b) == 0;
+        int r = utime(s, b);
+        if (r != 0 && errno == ENOENT) {
+            FILE *f = fopen(s, "ab");
+            if (f) {
+                fclose(f);
+                r = utime(s, b);
+            }
+        }
+        return r == 0;
     }
 
 # endif
@@ -300,11 +332,13 @@ static int filelib_chdir(lua_State *L)
         int size = 256;
         while (1) {
             LPWSTR temp = lmt_memory_realloc(wpath, size * sizeof(WCHAR));
-            wpath = temp;
-            if (! wpath) {
+            if (! temp) {
+                lmt_memory_free(wpath);
                 lua_pushboolean(L, 0);
-                break;
-            } else if (_wgetcwd(wpath, size)) {
+                return 1;
+            }
+            wpath = temp;
+            if (_wgetcwd(wpath, size)) {
                 char *path = aux_utf8_from_wide(wpath);
                 lua_pushstring(L, path);
                 lmt_memory_free(path);
@@ -327,16 +361,15 @@ static int filelib_chdir(lua_State *L)
         char *path = NULL;
         size_t size = MY_MAXPATHLEN;
         while (1) {
-            char *next_path = lmt_memory_realloc(path, size);
-            if (! next_path) {
+            char *temp = lmt_memory_realloc(path, size);
+            if (! temp) {
                 if (path) {
                     lmt_memory_free(path); /* Free original buffer if realloc fails */
                 }
                 lua_pushboolean(L, 0);
                 return 1;
             }
-            path = next_path;
-
+            path = temp;
             if (getcwd(path, size)) {
                 lua_pushstring(L, path);
                 lmt_memory_free(path); /* Clean up allocated buffer before returning */
@@ -409,7 +442,7 @@ static int filelib_mkdir(lua_State *L)
 /*
     This function removes a directory (non-recursive).
 
-    success = mkdir(name)
+    success = rmdir(name)
 */
 
 static int filelib_rmdir(lua_State *L)
@@ -433,7 +466,7 @@ static int filelib_moreweird(lua_State *L)
 
 static int filelib_lessweird(lua_State *L)
 {
-    static const char *weird = "~`#$%^&*:;\"\'||<>,?\n\r\t";
+    static const char *weird = "~`#$%^&*:;\"\'|<>,?\n\r\t";
     const char *str = lua_tostring(L, 1);
     lua_pushboolean(L, str ? str[0] == '.' || strpbrk(str, weird) != NULL : 1);
     return 1;
@@ -525,10 +558,12 @@ static int filelib_lessweird(lua_State *L)
         if (details) {
             /* convert FILETIME to 64-bit Unix epoch time */
             ULARGE_INTEGER ull;
-            ull.LowPart = fd->ftLastWriteTime.dwLowDateTime;
+            ull.LowPart  = fd->ftLastWriteTime.dwLowDateTime;
             ull.HighPart = fd->ftLastWriteTime.dwHighDateTime;
             /* the magic number is 100 nanoseconds between 1601 and 1970 */
-            lua_Integer mtime = (lua_Integer) ((ull.QuadPart - 116444736000000000ULL) / 10000000ULL);
+            lua_Integer mtime = ull.QuadPart >= 116444736000000000ULL
+                ? (lua_Integer) ((ull.QuadPart - 116444736000000000ULL) / 10000000ULL)
+                : 0;
             lua_Integer size = ((lua_Integer)fd->nFileSizeHigh << 32) | fd->nFileSizeLow;
             lua_pushinteger(L, size);
             lua_pushinteger(L, mtime);
@@ -581,12 +616,16 @@ static int filelib_lessweird(lua_State *L)
     static inline dir_data *filelib_aux_valid_dir(lua_State *L)
     {
         dir_data *d = (dir_data *) lua_touserdata(L, 1);
-        if (d && lua_getmetatable(L, 1)) {
-            lua_get_metatablelua(dir_handle_instance);
-            if (! lua_rawequal(L, -1, -2)) {
+        if (d) {
+            if (lua_getmetatable(L, 1))    {
+                lua_get_metatablelua(dir_handle_instance);
+                if (! lua_rawequal(L, -1, -2)) {
+                   d = NULL;
+                }
+                lua_pop(L, 2);
+            } else {
                d = NULL;
             }
-            lua_pop(L, 2);
         }
         return d;
     }
@@ -600,14 +639,14 @@ static int filelib_lessweird(lua_State *L)
     static int filelib_aux_dir_method(lua_State *L)
     {
         dir_data *d = (dir_data *) luaL_checkudata(L, 1, DIR_HANDLE_INSTANCE);
- //     dir_data *d = filelib_aux_valid_dir(L);
+     /* dir_data *d = filelib_aux_valid_dir(L); */ /* faster */
         return d ? filelib_aux_dir_next(L, d) : 0;
     }
 
     static int filelib_aux_dir_close(lua_State *L)
     {
         dir_data *d = (dir_data *) luaL_checkudata(L, 1, DIR_HANDLE_INSTANCE);
- //     dir_data *d = filelib_aux_valid_dir(L);
+     /* dir_data *d = filelib_aux_valid_dir(L); */ /* faster */
         if (d && ! d->closed && d->handle != INVALID_HANDLE_VALUE) {
             FindClose(d->handle);
             d->handle = INVALID_HANDLE_VALUE;
@@ -622,24 +661,31 @@ static int filelib_lessweird(lua_State *L)
     {
         const char *path = luaL_checkstring(L, 1);
         int details = (lua_type(L, 2) == LUA_TBOOLEAN) ? lua_toboolean(L, 2) : 1;
+        if (! path || path[0] == '\0') {
+            path = ".";
+        }
         dir_data *d = (dir_data *) lua_newuserdatauv(L, sizeof(dir_data), 0);
         lua_get_metatablelua(dir_handle_instance);
         lua_setmetatable(L, -2);
         d->closed  = 0;
         d->details = details;
         d->handle  = INVALID_HANDLE_VALUE;
-        if (!path) {
-            path = ".";
-        }
-        /* Convert path directly to wide string */
+        /* Convert path to wide string */
         int len = MultiByteToWideChar(CP_UTF8, 0, path, -1, d->pattern, MY_MAXPATHLEN);
         if (len <= 0) {
             luaL_error(L, "path conversion failed or too long: %s", path);
             return 0;
         }
-        /* Remove trailing slashes (e.g., "foo/" or "foo\") before appending "\*" */
-        while (len > 1 && (d->pattern[len - 2] == L'/' || d->pattern[len - 2] == L'\\')) {
+        /* Trim trailing slashes (except for root like "C:\" or "\") */
+        while (len > 2 && (d->pattern[len - 2] == L'/' || d->pattern[len - 2] == L'\\') && d->pattern[len - 3] != L':') {
             len--;
+        }
+        d->pattern[len - 1] = L'\0';
+        /* Validate directory existence and type (matches POSIX opendir check) */
+        DWORD attr = GetFileAttributesW(d->pattern);
+        if (attr == INVALID_FILE_ATTRIBUTES || ! (attr & FILE_ATTRIBUTE_DIRECTORY)) {
+            luaL_error(L, "cannot open %s: %s", path, (attr == INVALID_FILE_ATTRIBUTES) ? "no such directory" : "not a directory");
+            return 0;
         }
         /* Append "\*" for FindFirstFileExW */
         d->pattern[len - 1] = L'\\';
@@ -678,8 +724,9 @@ static int filelib_lessweird(lua_State *L)
         DIR *handle;
         int  closed;
         int  details;
+    # if HAVE_FSTATAT
         int  dfd;
-    # if ! HAVE_FSTATAT
+    # else
         char path[MY_MAXPATHLEN]; /* Only allocated on older OS/SDK targets */
     # endif
     } dir_data;
@@ -701,7 +748,9 @@ static int filelib_lessweird(lua_State *L)
             closedir(d->handle);
             d->closed = 1;
             d->handle = NULL;
+        # if HAVE_FSTATAT
             d->dfd    = -1;
+        # endif
             return 0;
         }
         lua_pushstring(L, entry->d_name);
@@ -752,12 +801,16 @@ static int filelib_lessweird(lua_State *L)
     static inline dir_data *filelib_aux_valid_dir(lua_State *L)
     {
         dir_data *d = (dir_data *) lua_touserdata(L, 1);
-        if (d && lua_getmetatable(L, 1)) {
-            lua_get_metatablelua(dir_handle_instance);
-            if (! lua_rawequal(L, -1, -2)) {
+        if (d) { 
+            if (lua_getmetatable(L, 1)) {
+                lua_get_metatablelua(dir_handle_instance);
+                if (! lua_rawequal(L, -1, -2)) {
+                   d = NULL;
+                }
+                lua_pop(L, 2);
+            } else {
                d = NULL;
             }
-            lua_pop(L, 2);
         }
         return d;
     }
@@ -771,21 +824,23 @@ static int filelib_lessweird(lua_State *L)
     static int filelib_aux_dir_method(lua_State *L)
     {
         dir_data *d = (dir_data *) luaL_checkudata(L, 1, DIR_HANDLE_INSTANCE);
- //     dir_data *d = filelib_aux_valid_dir(L);
+     /* dir_data *d = filelib_aux_valid_dir(L); */ /* faster */
         return d ? filelib_aux_dir_next(L, d) : 0;
     }
 
     static int filelib_aux_dir_close(lua_State *L)
     {
         dir_data *d = (dir_data *) luaL_checkudata(L, 1, DIR_HANDLE_INSTANCE);
- //     dir_data *d = filelib_aux_valid_dir(L);
+     /* dir_data *d = filelib_aux_valid_dir(L); */ /* faster */
         if (d && ! d->closed && d->handle) {
             closedir(d->handle);
         }
         if (d) {
             d->closed = 1;
             d->handle = NULL;
+    # if HAVE_FSTATAT
             d->dfd    = -1;
+    # endif
         }
         return 0;
     }
@@ -808,7 +863,9 @@ static int filelib_lessweird(lua_State *L)
         if (! d->handle) {
             luaL_error(L, "cannot open %s: %s", path, strerror(errno));
         }
+    # if HAVE_FSTATAT
         d->dfd = dirfd(d->handle);
+    # endif
         lua_pushvalue(L, -1);
         lua_pushcclosure(L, filelib_aux_dir_iterator, 1);
         lua_insert(L, -2);
@@ -817,7 +874,7 @@ static int filelib_lessweird(lua_State *L)
 
 # endif
 
-static int dir_create_meta(lua_State *L)
+static int dir_create_metatable(lua_State *L)
 {
     luaL_newmetatable(L, DIR_HANDLE_INSTANCE);
     lua_newtable(L);
@@ -828,6 +885,7 @@ static int dir_create_meta(lua_State *L)
     lua_setfield(L, -2, "__index");
     lua_pushcfunction(L, filelib_aux_dir_close);
     lua_setfield(L, -2, "__gc");
+    lua_pop(L, 1);
     return 1;
 }
 
@@ -1045,9 +1103,10 @@ static int filelib_setexecutable(lua_State *L)
 
 static int filelib_symlinktarget(lua_State *L)
 {
-    const char *file = aux_utf8_readlink(luaL_checkstring(L, 1));
+    char *file = aux_utf8_readlink(luaL_checkstring(L, 1));
     if (file) {
         lua_pushstring(L, file);
+        lmt_memory_free(file);
     } else { 
         lua_pushnil(L);
     }
@@ -1056,9 +1115,10 @@ static int filelib_symlinktarget(lua_State *L)
 
 static int filelib_expandpath(lua_State *L)
 {
-    const char *file = aux_utf8_expandpath(luaL_checkstring(L, 1));
+    char *file = aux_utf8_expandpath(luaL_checkstring(L, 1));
     if (file) {
         lua_pushstring(L, file);
+        lmt_memory_free(file);
     } else {
         lua_pushnil(L);
     }
@@ -1067,9 +1127,10 @@ static int filelib_expandpath(lua_State *L)
 
 static int filelib_canonicalize(lua_State *L)
 {
-    const char *file = aux_utf8_canonicalize(luaL_checkstring(L, 1));
+    char *file = aux_utf8_canonicalize(luaL_checkstring(L, 1));
     if (file) {
         lua_pushstring(L, file);
+        lmt_memory_free(file);
     } else {
         lua_pushnil(L);
     }
@@ -1241,20 +1302,35 @@ static const char *filelib_searchpath(
         name = luaL_gsub(L, name, sep, dirsep);
     }
     while (*path != '\0') {
-        const char *sub = strchr(path, '?');
+     // const char *sub = strchr(path, '?');
+     // if (sub != NULL) {
+     //     luaL_addlstring(&b, path, sub - path);
+     //     luaL_addstring(&b, name);
+     //     path = sub + 1;
+     // }
+     // const char *next = strchr(path, ';');
+     // if (next == NULL) {
+     //     luaL_addstring(&b, path);
+     //     path = ""; /* ends the loop on the next iteration */
+     // } else {
+     //     luaL_addlstring(&b, path, next - path);
+     //     path = next + 1; /* jumps past the semicolon */
+     // }
+        const char *next = strchr(path, ';');
+        size_t templen = next ? (size_t) (next - path) : strlen(path);
+        const char *sub = memchr(path, '?', templen);
         if (sub != NULL) {
             luaL_addlstring(&b, path, sub - path);
             luaL_addstring(&b, name);
-            path = sub + 1;
-        }
-        const char *next = strchr(path, ';');
-        if (next == NULL) {
-            luaL_addstring(&b, path);
-            path = ""; /* ends the loop on the next iteration */
+            luaL_addlstring(&b, sub + 1, (path + templen) - (sub + 1));
         } else {
-            luaL_addlstring(&b, path, next - path);
-            path = next + 1; /* jumps past the semicolon */
+            luaL_addlstring(&b, path, templen);
         }
+        path += templen;
+        if (*path == ';') {
+            path++;
+        }
+        /* */
         luaL_pushresult(&b);
         const char *filename = lua_tostring(L, -1);
 # if defined(_WIN32)
@@ -1289,7 +1365,7 @@ static int filelib_package_searcher_file(lua_State *L)
         lua_pushfstring(L, "no 'package.path'");
         return 1;
     } else {
-        const char *filename = filelib_searchpath(L, name, lua_tostring(L, -1), "-", "/");
+        const char *filename = filelib_searchpath(L, name, lua_tostring(L, -1), ".", "/");
         if (filename == NULL) {
             return 1; /* error message */
         } else if (filelib_loadfilex(L, filename, "bt") == LUA_OK) {
@@ -1355,7 +1431,7 @@ int luaopen_filelib(lua_State *L)
     }
     lua_pop(L, 1); // package
     /* */
-    dir_create_meta(L);
+    dir_create_metatable(L);
     luaL_newlib(L, filelib_function_list);
     return 1;
 }
