@@ -21,8 +21,8 @@ set(mimalloc_sources
 
 # if (MI_OSX_ZONE)
 #     list(APPEND mimalloc_sources source/libraries/mimalloc/src/prim/osx/alloc-override-zone.c)
-#     add_definitions(-DMI_OSX_ZONE=1)
-#     add_definitions(-DMI_OSX_INTERPOSE=1)
+#     add_compile_definitions(MI_OSX_ZONE=1)
+#     add_compile_definitions(MI_OSX_INTERPOSE=1)
 # endif()
 
 set(MI_OPT_ARCH_FLAGS "")

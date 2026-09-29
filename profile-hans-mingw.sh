@@ -20,8 +20,8 @@ export LMT_CONTEXT_BIN=/mnt/c/data/develop/tex-context/tex/texmf-win64/bin
 
 # Here is where the latest manuals are.
 
-export LMT_MANUAL_LUAMETATEX=$CONTEXTROOT/manuals/mkiv/external/luametatex/luametatex.tex
-export LMT_MANUAL_LUAMETAFUN=$CONTEXTROOT/manuals/mkiv/external/luametafun/luametafun.tex
-export LMT_MANUAL_MATHINCONTEXT=$CONTEXTROOT/manuals/mkiv/external/mathincontext/mathincontext.tex
+export    LMT_MANUAL_LUAMETATEX=$CONTEXTROOT/manuals/mkxl/external/luametatex/luametatex.tex
+export    LMT_MANUAL_LUAMETAFUN=$CONTEXTROOT/manuals/mkxl/external/luametafun/luametafun.tex
+export LMT_MANUAL_MATHINCONTEXT=$CONTEXTROOT/manuals/mkxl/external/mathincontext/mathincontext.tex
 
 printenv | grep LMT

@@ -163,6 +163,7 @@ extern int  luaopen_security    (lua_State *L);
 extern int  luaopen_vector      (lua_State *L);
 extern int  luaopen_zbuffer     (lua_State *L);
 //     int  luaopen_specific    (lua_State *L);
+extern int  luaopen_client      (lua_State *L);
 
 extern int  luaextend_io        (lua_State *L);
 extern int  luaextend_os        (lua_State *L);

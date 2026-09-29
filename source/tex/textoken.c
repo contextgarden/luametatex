@@ -834,11 +834,12 @@ void tex_show_token_list_context(halfword p, halfword q)
 static inline halfword get_unichar_from_buffer(int *b)
 {
     halfword a = (halfword) ((const unsigned char) *(lmt_fileio_state.io_buffer + *b));
-    if (a <= 0x80) {
+    if (a < 0x80) {
         *b += 1;
     } else {
         int al;
-        a = (halfword) aux_str2uni_len(lmt_fileio_state.io_buffer + *b, &al);
+        size_t available = (size_t) (lmt_input_state.cur_input.limit - *b + 1);
+        a = (halfword) aux_str2uni_len(lmt_fileio_state.io_buffer + *b, available, &al);
         *b += al;
     }
     return a;
@@ -2528,7 +2529,7 @@ void tex_get_x_or_protected(void)
 //     /*tex new node being added to the token list via |store_new_token| */
 //     while (s < se) {
 //         int tl;
-//         halfword t = (halfword) aux_str2uni_len((const unsigned char *) s, &tl);
+//         halfword t = (halfword) aux_str2uni_len((const unsigned char *) s, strlen(s), &tl);
 //         s += tl;
 //         if (t == ' ') {
 //             t = space_token;
@@ -2566,7 +2567,7 @@ static halfword lmt_str_toks(lstring b) /* returns head */
     halfword tail = head;
     while (k < (unsigned char *) (b.str + b.len)) {
         int tl;
-        halfword t = aux_str2uni_len(k, &tl);
+        halfword t = aux_str2uni_len(k, (size_t) ((unsigned char *) (b.str + b.len) - k), &tl);
         k += tl;
         if (t == ' ') {
             t = space_token;
@@ -2609,7 +2610,7 @@ halfword tex_str_toks(lstring s, halfword *tail)
         unsigned char *l = (unsigned char *) (k + s.len);
         while (k < l) {
             int tl;
-            halfword t = aux_str2uni_len(k, &tl);
+            halfword t = aux_str2uni_len(k, (size_t) (l - k), &tl);
             if (t == ' ') {
                 t = space_token;
             } else {
@@ -2639,7 +2640,7 @@ halfword tex_cur_str_toks(halfword *tail)
         while (k < l) {
             /*tex token being appended */
             int tl;
-            halfword t = aux_str2uni_len(k, &tl);
+            halfword t = aux_str2uni_len(k, (size_t) (l - k), &tl);
             if (t == ' ') {
                 t = space_token;
             } else {
@@ -2681,7 +2682,7 @@ halfword tex_str_scan_toks(int ct, lstring ls)
         int cc;
         /*tex token being appended */
         int lt;
-        halfword t = aux_str2uni_len(k, &lt);
+        halfword t = aux_str2uni_len(k, (size_t) (l - k), &lt);
         k += lt;
         cc = tex_get_cat_code(ct, t);
         if (cc == 0) {
@@ -2692,7 +2693,7 @@ halfword tex_str_scan_toks(int ct, lstring ls)
             unsigned char *name = k ;
             while (k < l) {
                 int c = 0 ;
-                t = (halfword) aux_str2uni_len((const unsigned char *) k, &s);
+                t = (halfword) aux_str2uni_len((const unsigned char *) k, (size_t) (l - k), &s);
                 c = tex_get_cat_code(ct, t);
                 if (c == letter_cmd) {
                     k += s ;
@@ -4086,7 +4087,7 @@ halfword tex_parse_str_to_tok(halfword head, halfword *tail, halfword ct, const 
         while (str < se) {
             /*tex hh: |str2uni| could return len too (also elsewhere) */
             int ul;
-            halfword u = (halfword) aux_str2uni_len((const unsigned char *) str, &ul);
+            halfword u = (halfword) aux_str2uni_len((const unsigned char *) str, (size_t) (se - str), &ul);
             halfword t = null;
             halfword cc = tex_get_cat_code(ct, u);
             str += ul;
@@ -4102,7 +4103,7 @@ halfword tex_parse_str_to_tok(halfword head, halfword *tail, halfword ct, const 
                         const char *name  = str;
                         while (str < se) {
                             int s;
-                            halfword u = (halfword) aux_str2uni_len((const unsigned char *) str, &s);
+                            halfword u = (halfword) aux_str2uni_len((const unsigned char *) str, (size_t) (se - str), &s);
                             int c = tex_get_cat_code(ct, u);
                             if (c == letter_cmd) {
                                 str += s;

@@ -15,13 +15,14 @@ typedef enum curl_option_type {
     curl_string   = 2,
     curl_function = 3, /* ignored */
     curl_offset   = 4, /* ignored */
+    curl_slist    = 5, /* httpheaders, quote, etc., array of char pointers */
 } curl_option_type;
 
 /*tex At the \LUA\ end we can have a mapping of useful ones, */
 
 static const int curl_options[] = {
     curl_ignore,    /*   0 */
-    curl_string,    /*   1 file | writedata */
+    curl_string,    /*   1 file | writedata | response */
     curl_string,    /*   2 url */
     curl_integer,   /*   3 port */
     curl_string,    /*   4 proxy */
@@ -43,12 +44,12 @@ static const int curl_options[] = {
     curl_integer,   /*  20 low_speed_time */
     curl_integer,   /*  21 resume_from */
     curl_string,    /*  22 cookie */
-    curl_string,    /*  23 httpheader | rtspheader */
+    curl_slist,     /*  23 httpheader | rtspheader */
     curl_string,    /*  24 httppost */
     curl_string,    /*  25 sslcert */
     curl_string,    /*  26 keypasswd */
     curl_integer,   /*  27 crlf */
-    curl_string,    /*  28 quote */
+    curl_slist,     /*  28 quote */
     curl_string,    /*  29 writeheader | headerdata */
     curl_ignore,    /*  30 */
     curl_string,    /*  31 cookiefile */
@@ -59,7 +60,7 @@ static const int curl_options[] = {
     curl_string,    /*  36 customrequest */
     curl_string,    /*  37 stderr */
     curl_ignore,    /*  38 */
-    curl_string,    /*  39 postquote */
+    curl_slist,     /*  39 postquote */
     curl_string,    /*  40 writeinfo */
     curl_integer,   /*  41 verbose */
     curl_integer,   /*  42 header */
@@ -90,7 +91,7 @@ static const int curl_options[] = {
     curl_ignore,    /*  67 */
     curl_integer,   /*  68 maxredirs */
     curl_integer,   /*  69 filetime */
-    curl_string,    /*  70 telnetoptions */
+    curl_slist,     /*  70 telnetoptions */
     curl_integer,   /*  71 maxconnects */
     curl_integer,   /*  72 closepolicy */
     curl_ignore,    /*  73 */
@@ -113,7 +114,7 @@ static const int curl_options[] = {
     curl_integer,   /*  90 sslengine_default */
     curl_integer,   /*  91 dns_use_global_cache */
     curl_integer,   /*  92 dns_cache_timeout */
-    curl_string,    /*  93 prequote */
+    curl_slist,     /*  93 prequote */
     curl_function,  /*  94 debugfunction */
     curl_string,    /*  95 debugdata */
     curl_integer,   /*  96 cookiesession */
@@ -124,7 +125,7 @@ static const int curl_options[] = {
     curl_integer,   /* 101 proxytype */
     curl_string,    /* 102 accept_encoding */
     curl_string,    /* 103 private */
-    curl_string,    /* 104 http200aliases */
+    curl_slist,     /* 104 http200aliases */
     curl_integer,   /* 105 unrestricted_auth */
     curl_integer,   /* 106 ftp_use_eprt */
     curl_integer,   /* 107 httpauth */
@@ -207,7 +208,7 @@ static const int curl_options[] = {
     curl_function,  /* 184 ssh_keyfunction */
     curl_string,    /* 185 ssh_keydata */
     curl_string,    /* 186 mail_from */
-    curl_string,    /* 187 mail_rcpt */
+    curl_slist,     /* 187 mail_rcpt */
     curl_integer,   /* 188 ftp_use_pret */
     curl_integer,   /* 189 rtsp_request */
     curl_string,    /* 190 rtsp_session_id */
@@ -223,7 +224,7 @@ static const int curl_options[] = {
     curl_function,  /* 200 fnmatch_function */
     curl_string,    /* 201 chunk_data */
     curl_string,    /* 202 fnmatch_data */
-    curl_string,    /* 203 resolve */
+    curl_slist,     /* 203 resolve */
     curl_string,    /* 204 tlsauth_username */
     curl_string,    /* 205 tlsauth_password */
     curl_string,    /* 206 tlsauth_type */
@@ -320,20 +321,31 @@ typedef struct curllib_state_info {
         curl_error_code errcode
     );
 
+    void* (*curl_slist_append) (
+        void       *list,
+        const char *string
+    );
+
+    void (*curl_slist_free_all) (
+        void *list
+    );
+
 } curllib_state_info;
 
 static curllib_state_info curllib_state = {
-    .initialized        = 0,
-    .padding            = 0,
-    .curl_version       = NULL,
-    .curl_free          = NULL,
-    .curl_easy_init     = NULL,
-    .curl_easy_cleanup  = NULL,
-    .curl_easy_perform  = NULL,
-    .curl_easy_setopt   = NULL,
-    .curl_easy_escape   = NULL,
-    .curl_easy_unescape = NULL,
-    .curl_easy_strerror = NULL,
+    .initialized         = 0,
+    .padding             = 0,
+    .curl_version        = NULL,
+    .curl_free           = NULL,
+    .curl_easy_init      = NULL,
+    .curl_easy_cleanup   = NULL,
+    .curl_easy_perform   = NULL,
+    .curl_easy_setopt    = NULL,
+    .curl_easy_escape    = NULL,
+    .curl_easy_unescape  = NULL,
+    .curl_easy_strerror  = NULL,
+    .curl_slist_append   = NULL,
+    .curl_slist_free_all = NULL,
 };
 
 static int curllib_initialize(lua_State * L)
@@ -344,15 +356,17 @@ static int curllib_initialize(lua_State * L)
 
             lmt_library lib = lmt_library_load(L, filename);
 
-            curllib_state.curl_version       = lmt_library_find(lib, "curl_version");
-            curllib_state.curl_free          = lmt_library_find(lib, "curl_free");
-            curllib_state.curl_easy_init     = lmt_library_find(lib, "curl_easy_init");
-            curllib_state.curl_easy_cleanup  = lmt_library_find(lib, "curl_easy_cleanup");
-            curllib_state.curl_easy_perform  = lmt_library_find(lib, "curl_easy_perform");
-            curllib_state.curl_easy_setopt   = lmt_library_find(lib, "curl_easy_setopt");
-            curllib_state.curl_easy_escape   = lmt_library_find(lib, "curl_easy_escape");
-            curllib_state.curl_easy_unescape = lmt_library_find(lib, "curl_easy_unescape");
-            curllib_state.curl_easy_strerror = lmt_library_find(lib, "curl_easy_strerror");
+            curllib_state.curl_version        = lmt_library_find(lib, "curl_version");
+            curllib_state.curl_free           = lmt_library_find(lib, "curl_free");
+            curllib_state.curl_easy_init      = lmt_library_find(lib, "curl_easy_init");
+            curllib_state.curl_easy_cleanup   = lmt_library_find(lib, "curl_easy_cleanup");
+            curllib_state.curl_easy_perform   = lmt_library_find(lib, "curl_easy_perform");
+            curllib_state.curl_easy_setopt    = lmt_library_find(lib, "curl_easy_setopt");
+            curllib_state.curl_easy_escape    = lmt_library_find(lib, "curl_easy_escape");
+            curllib_state.curl_easy_unescape  = lmt_library_find(lib, "curl_easy_unescape");
+            curllib_state.curl_easy_strerror  = lmt_library_find(lib, "curl_easy_strerror");
+            curllib_state.curl_slist_append   = lmt_library_find(lib, "curl_slist_append");
+            curllib_state.curl_slist_free_all = lmt_library_find(lib, "curl_slist_free_all");
 
             curllib_state.initialized = lmt_library_okay(lib);
         }
@@ -377,7 +391,9 @@ static int curllib_fetch(lua_State * L)
         if (lua_type(L, 1) == LUA_TTABLE) {
             curl_instance *curl = curllib_state.curl_easy_init();
             if (curl) {
-                int result = 0;
+                int   result = 0;
+                void *slists[16];
+                int   num_slists = 0;
                 /*tex
                     We process the table options before initializing luaL_Buffer because luaL_Buffer
                     uses the Lua stack, so running lua_next while a buffer is active corrupts stack
@@ -407,6 +423,29 @@ static int curllib_fetch(lua_State * L)
                                             break;
                                     }
                                     break;
+                                case curl_slist:
+                                    if (curllib_state.curl_slist_append) {
+                                        void *slist = NULL;
+                                        if (lua_type(L, -1) == LUA_TTABLE) {
+                                            size_t len = lua_rawlen(L, -1);
+                                            for (size_t i = 1; i <= len; i++) {
+                                                lua_rawgeti(L, -1, i);
+                                                if (lua_type(L, -1) == LUA_TSTRING) {
+                                                    slist = curllib_state.curl_slist_append(slist, lua_tostring(L, -1));
+                                                }
+                                                lua_pop(L, 1);
+                                            }
+                                        } else if (lua_type(L, -1) == LUA_TSTRING) {
+                                            slist = curllib_state.curl_slist_append(slist, lua_tostring(L, -1));
+                                        }
+                                        if (slist) {
+                                            curllib_state.curl_easy_setopt(curl, curl_object_base + o, slist);
+                                            if (num_slists < 16) {
+                                                slists[num_slists++] = slist;
+                                            }
+                                        }
+                                    }
+                                    break;
                             }
                         }
                     }
@@ -430,6 +469,11 @@ static int curllib_fetch(lua_State * L)
                     luaL_pushresult(&writedata);
                     result = 1;
                 }
+                if (curllib_state.curl_slist_free_all) {
+                    for (int i = 0; i < num_slists; i++) {
+                        curllib_state.curl_slist_free_all(slists[i]);
+                    }
+                }
                 curllib_state.curl_easy_cleanup(curl);
                 return result;
             }
@@ -452,7 +496,7 @@ static int curllib_escape(lua_State * L)
                 curllib_state.curl_free(s);
                 ret = 1;
             }
-            /* FIX 2: Always cleanup the curl instance, regardless of escape success */
+            /* Always cleanup the curl instance, regardless of escape success */
             curllib_state.curl_easy_cleanup(curl);
             return ret;
         }

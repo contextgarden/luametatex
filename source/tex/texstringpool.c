@@ -372,12 +372,12 @@ int tex_str_eq_str(strnumber s, strnumber t)
             return (str_getlen(s) == str_getlen(t)) && ! memcmp(str_getstr(s),str_getstr(t),str_getlen(s));
         } else {
             int length;
-            unsigned value = aux_str2uni_len(str_getstr(s), &length);
+            unsigned value = aux_str2uni_len(str_getstr(s), str_getsizlen(s), &length);
             return length == str_getintlen(s) && value == (unsigned) t;
         }
     } else if (t >= cs_offset_value) {
         int length;
-        unsigned value = aux_str2uni_len(str_getstr(t), &length);
+        unsigned value = aux_str2uni_len(str_getstr(t), str_getsizlen(t), &length);
         return length == str_getintlen(t) && value == (unsigned) s;
     } else {
         /* s and t are unicode characters */

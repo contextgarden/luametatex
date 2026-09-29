@@ -32,3 +32,11 @@ CHECK_C_COMPILER_FLAG("-Wno-discarded-qualifiers" limited_support)
 if (limited_support)
     target_compile_options(luarest PRIVATE -Wno-discarded-qualifiers)
 endif()
+
+# HTTP(S) support independent of the socket library:
+
+if (WIN32)
+    target_link_libraries(luarest PRIVATE
+        winhttp
+    )
+endif()

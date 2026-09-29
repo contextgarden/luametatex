@@ -64,6 +64,7 @@ set(tex_sources
     source/luarest/lmtzbufferlib.c
     source/luarest/lmtkdtreelib.c
   # source/luarest/lmtspecificlib.c
+    source/luarest/lmtclientlib.c
 
     source/tex/texalign.c
     source/tex/texarithmetic.c

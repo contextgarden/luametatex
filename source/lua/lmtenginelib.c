@@ -1136,6 +1136,7 @@ static const luaL_Reg lmt_libs_extra_function_list[] = {
     { "timer",     luaopen_timer     },
     { "security",  luaopen_security  },
  // { "specific",  luaopen_specific  },
+    { "client",    luaopen_client    },
     { NULL,        NULL              },
 };
 

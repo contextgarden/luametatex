@@ -151,7 +151,7 @@ endif()
 
 if (CMAKE_C_COMPILER MATCHES "musl-gcc")
     add_compile_options(-std=gnu11 -Wno-cpp)
-    add_definitions(-D_GNU_SOURCE)
+    add_compile_definitions(_GNU_SOURCE)
 endif()
 
 if (LMT_DEBUG)
@@ -173,7 +173,7 @@ endif()
 # This is for Mikael, Keith and Hans to play with. We use less memory but not that much compared
 # to what this mechanism used anyway. This will likely become the default.
 
-# add_definitions(-DLMT_ZBUFFER_FLOAT_RGB=1)
+# add_compile_definitions(LMT_ZBUFFER_FLOAT_RGB=1)
 
 # When one wants to use Lua libraries, this is needed. But keep in mind that it's not supported,
 # so we won't look into issues that could result from that. Getting a matching library is upto
@@ -185,7 +185,7 @@ endif()
 if (DEFINED LMT_PERMIT_LUA_LIBRARIES)
     unset(LMT_STRIP)
     unset(LMT_OPTIMIZE)
-    add_definitions(-DLMT_PERMIT_LUA_LIBRARIES="yes")
+    add_compile_definitions(LMT_PERMIT_LUA_LIBRARIES="yes")
 endif ()
 
 if (MSVC)
@@ -218,9 +218,9 @@ if (MSVC)
             -Wno-shadow
         )
 
-        add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+        add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 
-        add_definitions(-DLMT_COMPILER_USED="clang")
+        add_compile_definitions(LMT_COMPILER_USED="clang")
 
     else()
 
@@ -282,7 +282,7 @@ if (MSVC)
             )
         endif()
 
-        add_definitions(-DLMT_COMPILER_USED="msvc")
+        add_compile_definitions(LMT_COMPILER_USED="msvc")
 
         add_compile_options(
             /utf-8
@@ -305,7 +305,7 @@ if (MSVC)
             )
         endif()
 
-        add_definitions(-DLMT_COMPILER_USED="clang")
+        add_compile_definitions(LMT_COMPILER_USED="clang")
 
     else()
 
@@ -322,7 +322,7 @@ if (MSVC)
             )
         endif()
 
-        add_definitions(-DLMT_COMPILER_USED="gcc")
+        add_compile_definitions(LMT_COMPILER_USED="gcc")
 
       # add_compile_options(-pg)
       # add_link_options(-pg)
@@ -360,7 +360,7 @@ if (MSVC)
 
     # for c17
     #
-    # add_definitions(-D__STDC_WANT_LIB_EXT2__=1)
+    # add_compile_definitions(__STDC_WANT_LIB_EXT2__=1)
 
     if (((DEFINED LMT_OPTIMIZE) OR (DEFINED LMT_STRIP)) AND NOT LMT_DEBUG)
         if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
@@ -408,10 +408,10 @@ endif()
 # Not that tested (converted ffi originals):
 
 if ((DEFINED LMT_KPSE_TOO))
-    add_definitions(-DLMT_KPSE_TOO=1)
+    add_compile_definitions(LMT_KPSE_TOO=1)
 endif()
 if ((DEFINED LMT_HB_TOO))
-    add_definitions(-DLMT_HB_TOO=1)
+    add_compile_definitions(LMT_HB_TOO=1)
 endif()
 
 # This needs cmake >= 3.9 and produces a 60K smaller mingw binary but it take quite a bit of
@@ -497,8 +497,8 @@ include_directories(${CMAKE_ROOT}/source)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/source)
 
 if ((DEFINED luametatex_use_mimalloc))
-    add_definitions(-DLUAMETATEX_USE_MIMALLOC=1)
-  # add_definitions(-DMIMALLOC_RESET_DELAY=250)
+    add_compile_definitions(LUAMETATEX_USE_MIMALLOC=1)
+  # add_compile_definitions(MIMALLOC_RESET_DELAY=250)
   # set(luametatex_use_mimalloc 1)
     include(cmake/mimalloc.cmake)
 endif()

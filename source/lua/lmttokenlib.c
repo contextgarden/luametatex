@@ -551,7 +551,7 @@ halfword lmt_token_list_from_lua(lua_State *L, int slot)
                         default:
                             {
                                 int kl;
-                                int k = (int) aux_str2uni_len((const unsigned char *) (s + i), &kl);
+                                int k = (int) aux_str2uni_len((const unsigned char *) (s + i), j - i, &kl);
                                 i = i + kl - 1;
                                 tok = token_val(other_char_cmd, k);
                                 break;
@@ -818,10 +818,10 @@ static void tokenlib_aux_to_token(lua_State *L, int i, int m, int *head, int *ta
                 size_t l = 0;
                 const char *s = lua_tolstring(L, i, &l);
                 const unsigned char *p = (const unsigned char *) s;
-                size_t n = aux_utf8len(s, l);
-                for (size_t j = 0; j < n; j++) {
+                const unsigned char *end = p + l;
+                while (p < end) {
                     int xl;
-                    halfword x = tex_get_available_token(tokenlib_aux_to_token_val(aux_str2uni_len(p, &xl)));
+                    halfword x = tex_get_available_token(tokenlib_aux_to_token_val(aux_str2uni_len(p, (size_t) (end - p), &xl)));
                     if (*head) {
                         token_link(*tail) = x;
                     } else {

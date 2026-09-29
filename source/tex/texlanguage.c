@@ -1359,9 +1359,10 @@ static int tex_aux_hnj_hyphen_hyphenate(
 
 /* we can also check the original */
 
-static int tex_aux_still_okay(halfword f, halfword l, halfword r, int n, const char *utf8original) {
+static int tex_aux_still_okay(halfword f, halfword l, halfword r, int n, const char *utf8original, size_t utf8length) {
     if (_valid_node_(f) && _valid_node_(l) && node_next(l) == r) {
         int i = 0;
+        const char *utf8end = utf8original + utf8length;
         while (f) {
             ++i;
             if (node_type(f) != glyph_node) {
@@ -1369,7 +1370,7 @@ static int tex_aux_still_okay(halfword f, halfword l, halfword r, int n, const c
                 return 0;
             } else {
                 int cl; 
-                halfword c = (halfword) aux_str2uni_len((const unsigned char *) utf8original, &cl);
+                halfword c = (halfword) aux_str2uni_len((const unsigned char *) utf8original, (size_t) (utf8end - utf8original), &cl);
                 utf8original += cl;
                 if (! (c && c == glyph_character(f))) {
                     tex_normal_warning("language", "the hyphenated word contains different characters, skipping");
@@ -1699,7 +1700,7 @@ void tex_hyphenate_list(halfword head, halfword tail)
                                             lmt_memory_free(replacement);
                                             replacement = NULL;
                                         } else if (replacement) {
-                                            if (tex_aux_still_okay(start, word_end, r, word_length, utf8original)) {
+                                            if (tex_aux_still_okay(start, word_end, r, word_length, utf8original, (size_t) (utf8ori - utf8original))) {
                                                 goto EXCEPTIONS2;
                                             } else {
                                                 goto PICKUP;
@@ -1724,13 +1725,13 @@ void tex_hyphenate_list(halfword head, halfword tail)
                                                     }
                                                     goto PICKUP;
                                                 case 2:
-                                                    if (tex_aux_still_okay(start, word_end, r, word_length, utf8original)) {
+                                                    if (tex_aux_still_okay(start, word_end, r, word_length, utf8original, (size_t) (utf8ori - utf8original))) {
                                                         goto EXCEPTIONS1;
                                                     } else {
                                                         goto PICKUP;
                                                     }
                                                 case 3:
-                                                    if (tex_aux_still_okay(start, word_end, r, word_length, utf8original)) {
+                                                    if (tex_aux_still_okay(start, word_end, r, word_length, utf8original, (size_t) (utf8ori - utf8original))) {
                                                         goto PATTERNS;
                                                     } else {
                                                         goto PICKUP;
