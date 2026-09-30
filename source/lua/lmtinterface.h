@@ -1893,6 +1893,22 @@ static inline long lmt_clamped_long(lua_Integer v)
     return (v > LONG_MAX) ? LONG_MAX : ((v < LONG_MIN) ? LONG_MIN : (long)  v);
 }
 
+static inline unsigned long lmt_clamped_ulong(lua_Integer v)
+{
+    if (v < 0) {
+        return 0UL;
+    }
+    if ((lua_Unsigned) v > ULONG_MAX) {
+        return ULONG_MAX;
+    }
+    return (unsigned long) v;
+}
+
+// static inline unsigned long lmt_clamped_ulong(lua_Unsigned v)
+// {
+//     return (v > ULONG_MAX) ? ULONG_MAX : (unsigned long) v;
+// }
+
 static inline size_t lmt_clamped_sizet(lua_Integer v)
 {
     if (v < 0) {
@@ -1959,6 +1975,10 @@ static inline lua_Integer lmt_clamped_round(double d)
 # define lmt_tolong(L,i)             lmt_clamped_long(lua_tointeger(L,i))
 # define lmt_checklong(L,i)          lmt_clamped_long(luaL_checkinteger(L,i))
 # define lmt_optlong(L,i,j)          lmt_clamped_long(luaL_optinteger(L,i,j))
+
+# define lmt_toulong(L,i)            lmt_clamped_ulong(lua_tointeger(L,i))
+# define lmt_checkulong(L,i)         lmt_clamped_ulong(luaL_checkinteger(L,i))
+# define lmt_optulong(L,i,j)         lmt_clamped_ulong(luaL_optinteger(L,i,j))
 
 # define lmt_tointeger(L,i)          lmt_clamped_int(lua_tointeger(L,i))
 # define lmt_checkinteger(L,i)       lmt_clamped_int(luaL_checkinteger(L,i))
