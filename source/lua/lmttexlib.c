@@ -7414,7 +7414,7 @@ static const double texlib_sp_epsilon = 0.5;
 
 static inline bool texlib_aux_equal(double a, double b, double eps)
 {
-    return fabs(a - b) <= texlib_sp_epsilon;
+    return fabs(a - b) <= eps;
 }
 
 static int texlib_equal(lua_State *L)

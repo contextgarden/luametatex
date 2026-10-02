@@ -1256,6 +1256,7 @@ static inline int tex_aux_valid_extensible(halfword result)
 static halfword tex_made_extensible(halfword node, halfword fnt, halfword chr, halfword size, scaled width, scaled height, scaled depth, scaled linewidth, scaled axis, scaled exheight, scaled emwidth, int horizontal, halfword callback)
 {
     int callback_id = lmt_callback_defined(make_extensible_callback);
+    (void) horizontal; /* not yet / no longer used */
     if (callback_id > 0) {
         halfword boxed = null;
         lmt_run_callback(lmt_lua_state.lua_instance, callback_id,

@@ -141,14 +141,19 @@
     # define FALLTHROUGH ((void) 0);
 # endif
 
-# if (! defined(__STDC_VERSION__) || __STDC_VERSION__ < 199901L) && ! defined(hypot)
+# if (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L) || defined(_MSC_VER)
 
-    static inline double hypot(double x, double y)
+    # define lmt_hypot hypot
+
+# else
+
+    static inline double lmt_hypot(double x, double y)
     {
         double ax = fabs(x);
         double ay = fabs(y);
-        if (ax == 0.0 && ay == 0.0) return 0.0;
-        if (ax > ay) {
+        if (ax == 0.0 && ay == 0.0) {
+            return 0.0;
+        } else if (ax > ay) {
             double r = ay / ax;
             return ax * sqrt(1.0 + r * r);
         } else {

@@ -72,6 +72,10 @@ typedef enum security_actions {
     security_load_library     = 0x0E,
     /* */
     security_open_database    = 0x0F,
+    /* */
+    security_launch_command   = 0x10,
+    /* */
+    security_http_request     = 0x11,
 } security_actions;
 
 typedef enum security_targets {
@@ -81,9 +85,11 @@ typedef enum security_targets {
     security_executable = 0x03,
     security_library    = 0x04,
     security_loadable   = 0x05,
+    security_launchable = 0x06,
+    security_client     = 0x07,
 } security_targets;
 
-# define n_of_security_targets 6
+# define n_of_security_targets 8
 
 typedef struct lua_state_info {
     lua_State   *lua_instance;

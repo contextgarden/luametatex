@@ -122,7 +122,7 @@
 # define luametatex_release          10
 # define luametatex_version_string   "2.11.10"
 # define luametatex_version_number   211.10
-# define luametatex_development_id   20260923
+# define luametatex_development_id   20261002
 # define luametatex_name_camelcase   "LuaMetaTeX"
 # define luametatex_name_lowercase   "luametatex"
 # define luametatex_copyright_holder "Taco Hoekwater, Hans Hagen, Wolfgang Schuster & Mikael Sundqvist"
@@ -187,11 +187,12 @@ extern version_state_info lmt_version_state;
 # include <sys/stat.h>
 # include <stdbool.h>
 # include <limits.h>
+# include <fcntl.h>
 
 # ifdef _WIN32
+ // # define WIN32_LEAN_AND_MEAN
     # include <windows.h>
     # include <winerror.h>
-    # include <fcntl.h>
     # include <io.h>
 # else
     # include <unistd.h>
