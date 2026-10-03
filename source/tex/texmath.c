@@ -1875,7 +1875,7 @@ static void tex_aux_enter_display_math(halfword cmd, int where)
                 indent = 0;
             }
         } else if ((hang_indent_par != 0) && (((hang_after_par >= 0) && (cur_list.prev_graf + 2 > hang_after_par)) || (cur_list.prev_graf + 1 < -hang_after_par))) {
-            halfword hangindent = swap_hang_indent(pre_display_direction_par, hang_indent_par);
+            scaled hangindent = swap_hang_indent(pre_display_direction_par, hang_indent_par);
             width = hsize_par - abs(hangindent);
             indent = hangindent > 0 ? hangindent : 0;
         } else {
@@ -4359,7 +4359,7 @@ void tex_run_math_fraction(void)
         halfword symbolattrlist = null;
         fullword options = 0;
         halfword mathclass = fraction_noad_subtype;
-        halfword rulethickness = preset_rule_thickness;
+        scaled rulethickness = preset_rule_thickness;
         int ruledone = 0;
         fraction_h_factor(fraction) = scaling_factor;
         fraction_v_factor(fraction) = scaling_factor;
@@ -5905,7 +5905,7 @@ void tex_run_math_shift(void)
 
 */
 
-void tex_finish_display_alignment(halfword head, halfword tail, halfword prevdepth)
+void tex_finish_display_alignment(halfword head, halfword tail, scaled prevdepth)
 {
     tex_handle_assignments();
   AGAIN:

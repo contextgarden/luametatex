@@ -728,7 +728,7 @@ extern void     tex_finish_math_choice         (void);
 extern void     tex_finish_math_fraction       (void);
 extern void     tex_finish_math_radical        (void);
 extern void     tex_finish_math_operator       (void);
-extern void     tex_finish_display_alignment   (halfword head, halfword tail, halfword prevdepth);
+extern void     tex_finish_display_alignment   (halfword head, halfword tail, scaled prevdepth);
 
 extern void     tex_show_math_fraction_group   (void);
 extern void     tex_show_math_radical_group    (void);
