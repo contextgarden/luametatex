@@ -830,11 +830,12 @@ void lmt_nodelib_initialize(void) {
     set_value_entry_val(lmt_node_fields_rule, 15, integer_field,   off);
     set_value_entry_val(lmt_node_fields_rule, 16, integer_field,   thickness);
 
-    lmt_node_fields_style = lmt_aux_allocate_value_info(3);
+    lmt_node_fields_style = lmt_aux_allocate_value_info(4);
 
     set_value_entry_val(lmt_node_fields_style, 0, attribute_field, attr);
     set_value_entry_val(lmt_node_fields_style, 1, integer_field,   style);
     set_value_entry_val(lmt_node_fields_style, 2, integer_field,   scale);
+    set_value_entry_val(lmt_node_fields_style, 3, integer_field,   glyphscale);
 
     lmt_node_fields_parameter = lmt_aux_allocate_value_info(3);
 
@@ -3665,6 +3666,9 @@ void tex_show_node_list(halfword p, int threshold, int max)
                     tex_print_token_list(NULL, align_record_pre_part(p)); /*tex No ref count token here. */
                     tex_print_format("%l..<content>"); /* one level */
                     tex_print_token_list(NULL, align_record_post_part(p)); /*tex No ref count token here. */
+                    break;
+                case style_node:
+                    tex_print_format(", style %i, scale %i, glyphscale", style_style(p), style_scale(p), style_glyph_scale(p));
                     break;
                 case temp_node:
                     break;

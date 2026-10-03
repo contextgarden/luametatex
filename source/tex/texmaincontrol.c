@@ -113,6 +113,7 @@ static void tex_aux_fixup_math_and_unsave(void)
     int saved_math_scale = internal_math_scale_par;
     tex_unsave();
     if (cur_mode == mmode) { 
+        /* We could combine these in one node but let's keep it simple. */
         if (saved_math_style >= 0 && saved_math_style != cur_list.math_style) {
             halfword noad = tex_new_node(style_node, (quarterword) saved_math_style);
             cur_list.math_style = saved_math_style;
@@ -121,6 +122,7 @@ static void tex_aux_fixup_math_and_unsave(void)
         if (saved_math_scale != cur_list.math_scale) {
             halfword noad = tex_new_node(style_node, scaled_math_style);
             style_scale(noad) = saved_math_scale;
+            style_glyph_scale(noad) = glyph_scale_par;
             cur_list.math_scale = saved_math_scale;
             tex_tail_append(noad);
         }

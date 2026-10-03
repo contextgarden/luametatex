@@ -2139,6 +2139,9 @@ static int nodelib_direct_getscale(lua_State *L)
             case style_node:
                 lua_pushinteger(L, style_scale(n));
                 return 1;
+                /*tex When we need it: */
+             // lua_pushinteger(L, style_glyph_scale(n));
+             // return 2;
         }
     }
     return 0;
@@ -2165,6 +2168,10 @@ static int nodelib_direct_setscale(lua_State *L)
                  //     style_scale(n) = scaling_factor;
                  // }
                 }
+                /*tex When we need it: */
+             // if (lua_type(L, 3) == LUA_TNUMBER) {
+             //     style_glyph_scale(n) = (halfword) lmt_roundnumber(L, 3);
+             // }
                 break;
         }
     }
@@ -8821,6 +8828,8 @@ static int nodelib_common_getfield(lua_State *L, int direct, halfword n)
                                 lmt_push_math_style_name(L, style_style(n));
                             } else if (lua_key_eq(s, scale)) {
                                 lua_pushinteger(L, style_scale(n));
+                            } else if (lua_key_eq(s, glyphscale)) {
+                                lua_pushinteger(L, style_glyph_scale(n));
                             } else {
                                 goto CANTGET;
                             }
@@ -9619,6 +9628,8 @@ static int nodelib_common_setfield(lua_State *L, int direct, halfword n)
                                 style_style(n) = (quarterword) lmt_get_math_style(L, 2, text_style);
                             } else if (lua_key_eq(s, scale)) {
                                 style_scale(n) = (halfword) lmt_roundnumber(L, 3);
+                            } else if (lua_key_eq(s, glyphscale)) {
+                                style_glyph_scale(n) = (halfword) lmt_roundnumber(L, 3);
                             } else {
                                 /* return nodelib_cantset(L, n, s); */
                             }

@@ -361,10 +361,14 @@ static inline halfword tex_aux_set_style_to_size(halfword style)
     }
 }
 
-static inline void tex_aux_set_current_math_scale(halfword scale)
+static inline void tex_aux_set_current_math_scale(halfword scale, halfword glyphscale)
 {
-    glyph_scale_par = scale;
-    lmt_math_state.scale = glyph_scale_par;
+    lmt_math_state.scale = scale;
+    if (scale != 0) {
+        glyph_scale_par = scale;
+    } else if (glyphscale != 0) {
+        glyph_scale_par = glyphscale;
+    }
 }
 
 static inline void tex_aux_set_current_math_size(halfword style)
@@ -377,7 +381,7 @@ static inline void tex_aux_make_style(halfword current, halfword *current_style,
     halfword style = node_subtype(current);
     switch (style) {
         case scaled_math_style:
-            tex_aux_set_current_math_scale(style_scale(current));
+            tex_aux_set_current_math_scale(style_scale(current), style_glyph_scale(current));
             break;
         default:
             if (is_valid_math_style(style)) {
@@ -386,6 +390,7 @@ static inline void tex_aux_make_style(halfword current, halfword *current_style,
                 }
                 tex_aux_set_current_math_size(style);
                 if (current_mu) {
+                    /* Here 18.0 is still hardcoded! */
                     *current_mu = scaledround(tex_get_math_parameter(style, math_parameter_quad, NULL) / 18.0);
                  // *current_mu = scaledround((double) tex_get_math_quad_style(style) / 18.0);
                 }
@@ -7570,10 +7575,10 @@ static void tex_mlist_to_hlist_preroll_radicals(mliststate *state)
 {
     halfword current = state->mlist;
     halfword current_style = state->main_style;
-    halfword height = 0;
-    halfword depth = 0;
+    scaled height = 0;
+    scaled depth = 0;
     tex_aux_set_current_math_size(current_style);
-    tex_aux_set_current_math_scale(state->scale);
+    tex_aux_set_current_math_scale(state->scale, 0);
     if (tracing_math_par >= 2) {
         tex_aux_show_math_list("[math: radical sizing pass, level %i]", state->mlist);
     }
@@ -7656,7 +7661,7 @@ static void tex_mlist_to_hlist_preroll_dimensions(mliststate *state)
     int blockrulebased = 0;
     /*tex We set the math unit width corresponding to |size|: */
     tex_aux_set_current_math_size(current_style);
-    tex_aux_set_current_math_scale(state->scale);
+    tex_aux_set_current_math_scale(state->scale, 0);
  // current_mu = tex_get_math_quad_size_scaled(lmt_math_state.size);
     current_mu = tex_get_math_quad_size_unscaled(lmt_math_state.size);
     if (tracing_math_par >= 2) {
@@ -8112,7 +8117,7 @@ static void tex_mlist_to_hlist_size_fences(mliststate *state)
     scaled height = 0;
     scaled depth = 0;
     tex_aux_set_current_math_size(current_style);
-    tex_aux_set_current_math_scale(state->scale);
+    tex_aux_set_current_math_scale(state->scale, 0);
     if (tracing_math_par >= 2) {
         tex_aux_show_math_list("[math: fence sizing pass, level %i]", state->mlist);
     }
@@ -8182,7 +8187,7 @@ static void tex_mlist_to_hlist_finalize_list(mliststate *state)
     int nestingfactor = scaling_factor;
     node_next(p) = null;
     tex_aux_set_current_math_size(current_style);
-    tex_aux_set_current_math_scale(state->scale);
+    tex_aux_set_current_math_scale(state->scale, 0);
     current_mu = tex_get_math_quad_size_unscaled(lmt_math_state.size); /* not _scaled */
     if (math_penalties_mode_par) {
         state->penalties = 1; /* move to caller ? */

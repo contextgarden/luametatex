@@ -904,6 +904,7 @@ make_lua_key(L, glueset);\
 make_lua_key(L, gluesign);\
 make_lua_key(L, gluespec);\
 make_lua_key(L, glyph);\
+make_lua_key(L, glyphscale);\
 make_lua_key(L, group);\
 make_lua_key(L, h);\
 make_lua_key(L, halign);\
