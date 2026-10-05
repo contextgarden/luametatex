@@ -978,7 +978,7 @@ static void tex_aux_scan_box(int boxcontext, int optional_equal, scaled shift, h
 static void tex_aux_run_move(void) 
 {
     int code = cur_chr;
-    halfword val = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+    scaled val = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
     tex_aux_scan_box(direct_box_flag, 0, code == move_forward_code ? val : - val, -1, 0, 0);
 }
 
@@ -3177,7 +3177,7 @@ static void tex_aux_run_head_for_vmode(void)
 /*
 static void tex_aux_run_kern(void)
 {
-    halfword val = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+    scaled val = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
     tex_tail_append(tex_new_kern_node(val, explicit_kern));
 }
 */
@@ -3216,7 +3216,7 @@ static void tex_aux_run_kern(void)
 
 static void tex_aux_run_mkern(void)
 {
-    halfword val = tex_scan_dimension(1, 0, 0, 0, NULL, NULL);
+    scaled val = tex_scan_dimension(1, 0, 0, 0, NULL, NULL);
     tex_tail_append(tex_new_kern_node(val, explicit_math_kern_subtype));
 }
 
@@ -3487,6 +3487,7 @@ static void tex_aux_run_text_italic_correction(void)
                         return;
                     }
                 }
+                break;
             case disc_node: 
                 /*tex 
                     Just in case we want this but here checking has to be done in the callback 

@@ -100,6 +100,8 @@
 
 */
 
+# define lmt_float_math 1
+
 # include "utilities/auxcompiler.h"
 
 # include "tex/textypes.h"
@@ -190,7 +192,10 @@ extern version_state_info lmt_version_state;
 # include <fcntl.h>
 
 # ifdef _WIN32
- // # define WIN32_LEAN_AND_MEAN
+    /* no old stuff: */
+    # define WIN32_LEAN_AND_MEAN
+ // # include <winsock2.h> /* has to be done before <windows.h> */
+ // # include <ws2tcpip.h>
     # include <windows.h>
     # include <winerror.h>
     # include <io.h>

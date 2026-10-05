@@ -14,19 +14,22 @@ static void securitylib_initialize(lua_State *L)
     (void) L;
     for (int i = 0; i < n_of_security_targets; i++) {
         lmt_lua_state.security_checkers[i] = LUA_NOREF;
+        lmt_lua_state.security_states  [i] = security_state_unset;
     }
 }
 
 static int securitylib_setchecker(lua_State *L)
 {
     int target = lmt_tointeger(L, 1);
+    int freeze = ! lua_toboolean(L, 3);
     luaL_checktype(L, 2, LUA_TFUNCTION);
     if (! security_target_okay(target)) {
         return luaL_error(L, "first argument must be a valid target");
-    } else if (lmt_lua_state.security_checkers[target] != LUA_NOREF) {
+    } else if (lmt_lua_state.security_states[target] == security_state_frozen) {
         return luaL_error(L, "security checker for target %d is frozen and cannot be (re)set", target);
     } else {
         lmt_lua_state.security_checkers[target] = luaL_ref(L, LUA_REGISTRYINDEX);
+        lmt_lua_state.security_states  [target] = freeze ? security_state_frozen :security_state_set;
         return 0;
     }
 }

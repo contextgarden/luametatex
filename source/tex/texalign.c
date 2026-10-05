@@ -271,7 +271,7 @@ typedef struct alignment_row_state {
     scaled   yoffset;
     scaled   xmove;
     scaled   ymove;
-    halfword shift;
+    scaled   shift;
     halfword source;
     halfword target;
     halfword anchor;
@@ -306,7 +306,7 @@ typedef struct alignment_state_info {
     halfword column_number;
     halfword last_row_number;
     halfword last_column_number;
-    halfword tabskip_amount;
+    scaled   tabskip_amount;
     /* */
     alignment_row_state row_state; 
 } alignment_state_info ;
@@ -2129,7 +2129,7 @@ static void tex_aux_prune_align_two(void)
 */
 
 typedef struct alignment_split_state {
-    halfword glueamount;
+    scaled   glueamount;
     int      glueused;
     halfword penalty;
     halfword padding;
@@ -2398,7 +2398,7 @@ static void tex_aux_split_align(void)
             int maxlines = tex_aux_get_maxlines(&state, rowptr);
             if (maxlines > 1) {
                 halfword curptr = rowptr;
-                halfword amount = 0;
+                scaled amount = 0;
                 halfword prvptr = node_prev(rowptr);
                 if (prvptr && node_type(prvptr) == glue_node) {
                     switch (node_subtype(prvptr)) {
@@ -2485,7 +2485,7 @@ static void tex_aux_finish_align(void)
     halfword reverse = lmt_alignment_state.options & align_option_reverse;
     halfword callback = lmt_alignment_state.options & align_option_callback;
     halfword discard = normalize_line_mode_option(discard_zero_tab_skips_mode) || (lmt_alignment_state.options & align_option_discard);
-    halfword amount = 0;
+    scaled amount = 0;
     halfword mode = 0;
     /*tex The |align_group| was for individual entries: */
     if (cur_group != align_group) {
@@ -2582,7 +2582,7 @@ static void tex_aux_finish_align(void)
                     |r|, according as |link(r) = n| or |link(r) > n| or |link(r) < n|.
 
                 */
-                halfword t = box_width(q) + glue_amount(node_next(q));
+                scaled t = box_width(q) + glue_amount(node_next(q));
                 halfword n = 1;
                 halfword r = align_record_span_ptr(q);
                 halfword s = end_span;

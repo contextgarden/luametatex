@@ -89,6 +89,12 @@ typedef enum security_targets {
     security_client     = 0x07,
 } security_targets;
 
+typedef enum security_states {
+    security_state_unset,
+    security_state_set,
+    security_state_frozen,
+} security_states;
+
 # define n_of_security_targets 8
 
 typedef struct lua_state_info {
@@ -96,6 +102,7 @@ typedef struct lua_state_info {
     lua_State   *mps_instance;
     luaL_Buffer *used_buffer;
     int          security_checkers[n_of_security_targets];
+    int          security_states[n_of_security_targets];
     int          used_bytes;
     int          used_bytes_max;
     int          function_table_id;
@@ -170,6 +177,7 @@ extern int  luaopen_vector      (lua_State *L);
 extern int  luaopen_zbuffer     (lua_State *L);
 //     int  luaopen_specific    (lua_State *L);
 extern int  luaopen_client      (lua_State *L);
+extern int  luaopen_server      (lua_State *L);
 
 extern int  luaextend_io        (lua_State *L);
 extern int  luaextend_os        (lua_State *L);
