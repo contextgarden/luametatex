@@ -11,6 +11,7 @@ set(utilities_sources
     source/utilities/auxbytemaps.c
     source/utilities/auxkdtree2d.c
     source/utilities/auxkdtree3d.c
+    source/utilities/auxserialize.c
 
     source/libraries/hnj/hnjhyphen.c
 )

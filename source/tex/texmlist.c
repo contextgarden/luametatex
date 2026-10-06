@@ -471,14 +471,25 @@ static inline scaled limited_scaled(long l) {
     }
 }
 
-static inline scaled limited_rounded(double d) {
-    long l = scaledround(d);
+static inline scaled limited_scaled_ll(long long l) {
     if (l > max_dimension) {
         return max_dimension;
     } else if (l < -max_dimension) {
         return -max_dimension;
     } else {
         return (scaled) l;
+    }
+}
+
+static inline scaled limited_rounded(double d) {
+    if (isnan(d)) {
+        return 0;
+    } else if (d >= (double) max_dimension) {
+        return max_dimension;
+    } else if (d <= (double) -max_dimension) {
+        return -max_dimension;
+    } else {
+        return (scaled) lround(d);
     }
 }
 
@@ -545,7 +556,7 @@ static inline int tex_aux_math_engine_control(halfword fnt, halfword control)
         if (! scale) return 0;
         double gs = glyph_scale_par   ? glyph_scale_par   : 1000.0;
         double gx = glyph_x_scale_par ? glyph_x_scale_par : 1000.0;
-        return limited_rounded(0.000000001 * gs * gx * (double)v * (double)scale);
+        return limited_rounded(0.000000001 * gs * gx * (double) v * (double) scale);
     }
 
     static inline scaled tex_aux_math_given_x_scaled(scaled v)
@@ -560,7 +571,7 @@ static inline int tex_aux_math_engine_control(halfword fnt, halfword control)
         if (! scale) return 0;
         double gs = glyph_scale_par   ? glyph_scale_par   : 1000.0;
         double gy = glyph_y_scale_par ? glyph_y_scale_par : 1000.0;
-        return limited_rounded(0.000000001 * gs * gy * (double)v * (double)scale);
+        return limited_rounded(0.000000001 * gs * gy * (double) v * (double) scale);
     }
 
     static inline scaled tex_aux_math_given_y_scaled(scaled v)
@@ -575,7 +586,6 @@ static inline int tex_aux_math_engine_control(halfword fnt, halfword control)
         scaled scale = tex_get_math_parameter(style, math_parameter_x_scale, NULL);
         double gs = glyph_scale_par   ? glyph_scale_par   : 1000.0;
         double gx = glyph_x_scale_par ? glyph_x_scale_par : 1000.0;
-        // 0.000000001 = 1 / (1000 * 1000 * 1000)
         return limited_rounded(0.000000001 * gs * gx * (double) value * (double) scale);
     }
 
@@ -623,7 +633,6 @@ static inline int tex_aux_math_engine_control(halfword fnt, halfword control)
         double fx = tex_get_math_font_x_scale(f, size);
         double gs = glyph_scale_par   ? glyph_scale_par   : 1000.0;
         double gx = glyph_x_scale_par ? glyph_x_scale_par : 1000.0;
-        // Combine terms to avoid tiny 1e-12 literal underflow
         double font_factor  = (fs ? fs : 1000.0) * (fx ? fx : 1000.0);
         double glyph_factor = gs * gx;
         return limited_rounded(0.000000000001 * font_factor * glyph_factor * (double) v);
@@ -645,22 +654,22 @@ static inline int tex_aux_math_engine_control(halfword fnt, halfword control)
 
     static inline scaled tex_aux_math_math_scale(scaled v)
     {
-        return tex_aux_scale_1000(v, lmt_math_state.scale);
+        return tex_aux_scale_1000_default(v, lmt_math_state.scale);
     }
 
     static inline scaled tex_aux_math_glyph_scale(scaled v)
     {
-        return tex_aux_scale_1000(v, glyph_scale_par);
+        return tex_aux_scale_1000_default(v, glyph_scale_par);
     }
 
     static inline scaled tex_aux_math_glyph_x_scale(scaled v)
     {
-        return tex_aux_scale_1000(v, glyph_x_scale_par);
+        return tex_aux_scale_1000_default(v, glyph_x_scale_par);
     }
 
     static inline scaled tex_aux_math_glyph_y_scale(scaled v)
     {
-        return tex_aux_scale_1000(v, glyph_y_scale_par);
+        return tex_aux_scale_1000_default(v, glyph_y_scale_par);
     }
 
     static inline scaled tex_aux_math_glyph_weight(scaled v)
@@ -671,7 +680,14 @@ static inline int tex_aux_math_engine_control(halfword fnt, halfword control)
     static inline scaled tex_aux_math_x_scaled(scaled v, int style)
     {
         scaled scale = tex_get_math_parameter(style, math_parameter_x_scale, NULL);
-        return tex_aux_scale_1e9(v, glyph_scale_par ? glyph_scale_par : glyph_x_scale_par, scale);
+        return limited_scaled_ll(tex_aux_round_product(
+            v,
+            glyph_scale_par   ? glyph_scale_par   : 1000,
+            glyph_x_scale_par ? glyph_x_scale_par : 1000,
+            scale,
+            1,
+            1000000000
+        ));
     }
 
     static inline scaled tex_aux_math_given_x_scaled(scaled v)
@@ -682,7 +698,14 @@ static inline int tex_aux_math_engine_control(halfword fnt, halfword control)
     static inline scaled tex_aux_math_y_scaled(scaled v, int style)
     {
         scaled scale = tex_get_math_parameter(style, math_parameter_y_scale, NULL);
-        return tex_aux_scale_1e9(v, glyph_scale_par ? glyph_scale_par : glyph_y_scale_par, scale);
+        return limited_scaled_ll(tex_aux_round_product(
+            v,
+            glyph_scale_par   ? glyph_scale_par   : 1000,
+            glyph_y_scale_par ? glyph_y_scale_par : 1000,
+            scale,
+            1,
+            1000000000
+        ));
     }
 
     static inline scaled tex_aux_math_given_y_scaled(scaled v)
@@ -694,18 +717,28 @@ static inline int tex_aux_math_engine_control(halfword fnt, halfword control)
     {
         scaled value = tex_get_math_parameter(style, param, NULL);
         scaled scale = tex_get_math_parameter(style, math_parameter_x_scale, NULL);
-        long long gs = glyph_scale_par   ? glyph_scale_par   : 1000LL;
-        long long gx = glyph_x_scale_par ? glyph_x_scale_par : 1000LL;
-        return tex_aux_scale_1e9(value, (gs * gx + 500LL) / 1000LL, scale);
+        return limited_scaled_ll(tex_aux_round_product(
+            value,
+            glyph_scale_par   ? glyph_scale_par   : 1000,
+            glyph_x_scale_par ? glyph_x_scale_par : 1000,
+            scale,
+            1,
+            1000000000
+        ));
     }
 
     scaled tex_math_parameter_y_scaled(int style, int param)
     {
         scaled value = tex_get_math_parameter(style, param, NULL);
         scaled scale = tex_get_math_parameter(style, math_parameter_y_scale, NULL);
-        long long gs = glyph_scale_par   ? glyph_scale_par   : 1000LL;
-        long long gy = glyph_y_scale_par ? glyph_y_scale_par : 1000LL;
-        return tex_aux_scale_1e9(value, (gs * gy + 500LL) / 1000LL, scale);
+        return limited_scaled_ll(tex_aux_round_product(
+            value,
+            glyph_scale_par   ? glyph_scale_par   : 1000,
+            glyph_y_scale_par ? glyph_y_scale_par : 1000,
+            scale,
+            1,
+            1000000000
+        ));
     }
 
     static inline scaled tex_aux_scale_math_dimension(scaled v, scaled scale, scaled axis_scale)
@@ -715,9 +748,7 @@ static inline int tex_aux_math_engine_control(halfword fnt, halfword control)
         long long a = axis_scale ? (long long) axis_scale : 1000LL;
         if (s == 1000LL && a == 1000LL) return v;
 
-        long long prod = (long long) v * s * a;
-        return (scaled) ((prod >= 0) ? (prod + 500000LL) / 1000000LL
-                                     : (prod - 500000LL) / 1000000LL);
+        return limited_scaled_ll(tex_aux_round_product(v, s, a, 1, 1, 1000000));
     }
 
     static inline scaled tex_aux_math_axis(halfword size)
@@ -739,20 +770,14 @@ static inline int tex_aux_math_engine_control(halfword fnt, halfword control)
     static inline scaled tex_aux_math_font_glyph_scale(scaled v, long long fs, long long fx, long long gs, long long gy)
     {
         if (! v) return 0;
-        long long font_factor  = (fs ? fs : 1000LL) * (fx ? fx : 1000LL);
-        long long glyph_factor = (gs ? gs : 1000LL) * (gy ? gy : 1000LL);
-
-# if defined(__SIZEOF_INT128__)
-        __int128 num = (__int128) font_factor * glyph_factor * v;
-        return (scaled) ((num >= 0) ? (num + 500000000000LL) / 1000000000000LL
-                                    : (num - 500000000000LL) / 1000000000000LL);
-# else
-        /* Two-stage division to avoid 64-bit overflow while preserving precision */
-        long long combined = (font_factor * glyph_factor + 500000LL) / 1000000LL;
-        long long prod = combined * (long long) v;
-        return (scaled) ((prod >= 0) ? (prod + 500000LL) / 1000000LL
-                                    : (prod - 500000LL) / 1000000LL);
-# endif
+        return limited_scaled_ll(tex_aux_round_product(
+            v,
+            fs ? fs : 1000LL,
+            fx ? fx : 1000LL,
+            gs ? gs : 1000LL,
+            gy ? gy : 1000LL,
+            1000000000000LL
+        ));
     }
 
     static inline scaled tex_aux_math_x_size_scaled(halfword f, scaled v, halfword size)
@@ -1588,6 +1613,7 @@ halfword tex_make_extensible(halfword fnt, halfword chr, scaled target, scaled m
         back code.
     */
     while (max_natural < target && n_of_extenders > 0) {
+        scaled previous_natural = max_natural;
         overlap = 0;
         max_natural = 0;
         with_extenders++;
@@ -1675,6 +1701,10 @@ halfword tex_make_extensible(halfword fnt, halfword chr, scaled target, scaled m
                     }
                 }
             }
+        }
+        if (max_natural <= previous_natural) {
+            tex_formatted_error("fonts", "non-increasing extensible character %i in font %i", chr, fnt);
+            break;
         }
     }
     /*tex
@@ -8550,7 +8580,8 @@ static void tex_mlist_to_hlist_finalize_list(mliststate *state)
                     default:
                         break;
                 }
-                break;
+                /* Ordinary math glue is picked up below together with boundary nodes. */
+                FALLTHROUGH
             case boundary_node:
                 if (node_subtype(current) == math_boundary) {
                     halfword l = boundary_data(current);

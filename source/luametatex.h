@@ -100,7 +100,7 @@
 
 */
 
-# define lmt_float_math 1
+# define lmt_float_math 0
 
 # include "utilities/auxcompiler.h"
 
@@ -316,6 +316,7 @@ extern version_state_info lmt_version_state;
 # include "utilities/auxsparsearray.h"
 # include "utilities/auxunistring.h"
 # include "utilities/auxfile.h"
+# include "utilities/auxserialize.h"
 
 # include "libraries/hnj/hnjhyphen.h"
 

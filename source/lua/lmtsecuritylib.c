@@ -21,16 +21,20 @@ static void securitylib_initialize(lua_State *L)
 static int securitylib_setchecker(lua_State *L)
 {
     int target = lmt_tointeger(L, 1);
-    int freeze = ! lua_toboolean(L, 3);
-    luaL_checktype(L, 2, LUA_TFUNCTION);
-    if (! security_target_okay(target)) {
-        return luaL_error(L, "first argument must be a valid target");
-    } else if (lmt_lua_state.security_states[target] == security_state_frozen) {
-        return luaL_error(L, "security checker for target %d is frozen and cannot be (re)set", target);
+    if (lua_type(L, 2) == LUA_TFUNCTION) {
+        int freeze = ! lua_toboolean(L, 3);
+        lua_settop(L, 2);
+        if (! security_target_okay(target)) {
+            return luaL_error(L, "first argument must be a valid target");
+        } else if (lmt_lua_state.security_states[target] == security_state_frozen) {
+            return luaL_error(L, "security checker for target %d is frozen and cannot be (re)set", target);
+        } else {
+            lmt_lua_state.security_checkers[target] = luaL_ref(L, LUA_REGISTRYINDEX);
+            lmt_lua_state.security_states  [target] = freeze ? security_state_frozen : security_state_set;
+            return 0;
+        }
     } else {
-        lmt_lua_state.security_checkers[target] = luaL_ref(L, LUA_REGISTRYINDEX);
-        lmt_lua_state.security_states  [target] = freeze ? security_state_frozen :security_state_set;
-        return 0;
+        return luaL_error(L, "second argument must be a function");
     }
 }
 

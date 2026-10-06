@@ -159,16 +159,15 @@ static inline int tex_aux_apply_base_ligaturing(halfword n)
         if (! v) return 0;
         long long ls = glyph_scale(l);   long long lx = glyph_x_scale(l);
         long long rs = glyph_scale(r);   long long rx = glyph_x_scale(r);
-        long long sl = (ls ? ls : 1000LL) * (lx ? lx : 1000LL);
-        long long sr = (rs ? rs : 1000LL) * (rx ? rx : 1000LL);
+        long long sl = ls ? ls : 1000LL;
+        long long xl = lx ? lx : 1000LL;
+        long long sr = rs ? rs : 1000LL;
+        long long xr = rx ? rx : 1000LL;
 
-        if (sl == 1000000LL && sr == 1000000LL) {
+        if (sl == 1000LL && xl == 1000LL && sr == 1000LL && xr == 1000LL) {
             return v; /* Fast path */
         }
-
-        long long prod = (sl + sr) * (long long) v;
-        return (scaled) ((prod >= 0) ? (prod + 1000000LL) / 2000000LL
-                                     : (prod - 1000000LL) / 2000000LL);
+        return (scaled) tex_aux_round_sum_products(v, sl, xl, sr, xr, 2000000LL);
     }
 
 # endif

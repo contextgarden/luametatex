@@ -6071,7 +6071,7 @@ static void tex_aux_define_all_math_parameters(int size, int param, scaled value
 
     static inline scaled tex_aux_get_font_math_quantity(scaled scale, halfword v)
     {
-        return tex_aux_scale_1000(scale, v);
+        return (v && scale) ? tex_aux_scale_1000(v, scale) : 0;
     }
 
 # endif
@@ -6895,25 +6895,13 @@ void tex_run_math_italic_correction(void) {
     static inline scaled tex_aux_math_scale_x_value(scaled value, scaled scale)
     {
         if (! value || ! scale) return 0;
-        long long gs = glyph_scale_par   ? glyph_scale_par   : 1000;
-        long long gx = glyph_x_scale_par ? glyph_x_scale_par : 1000;
-        if (gs == 1000 && gx == 1000 && scale == 1000) {
-            return value;
-        }
-        long long num = gs * gx * (long long) value * (long long) scale;
-        return (scaled) ((num >= 0 ? num + 500000000LL : num - 500000000LL) / 1000000000LL);
+        return tex_aux_scale_1e9(value, glyph_scale_par, glyph_x_scale_par, scale);
     }
 
     static inline scaled tex_aux_math_scale_y_value(scaled value, scaled scale)
     {
         if (! value || ! scale) return 0;
-        long long gs = glyph_scale_par   ? glyph_scale_par   : 1000;
-        long long gy = glyph_y_scale_par ? glyph_y_scale_par : 1000;
-        if (gs == 1000 && gy == 1000 && scale == 1000) {
-            return value;
-        }
-        long long num = gs * gy * (long long) value * (long long) scale;
-        return (scaled) ((num >= 0 ? num + 500000000LL : num - 500000000LL) / 1000000000LL);
+        return tex_aux_scale_1e9(value, glyph_scale_par, glyph_y_scale_par, scale);
     }
 
     scaled tex_get_math_x_parameter(int style, int param)
@@ -6982,7 +6970,7 @@ void tex_run_math_italic_correction(void) {
         scaled value = tex_aux_get_font_math_parameter(scale, font, param);
         if (value == undefined_math_parameter) return undefined_math_parameter;
         if (! value) return 0;
-        return tex_aux_scale_1000(value, glyph_scale_par);
+        return tex_aux_scale_1000_default(value, glyph_scale_par);
     }
 
     scaled tex_get_font_math_y_parameter(int font, int size, int param)

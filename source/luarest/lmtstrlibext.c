@@ -736,21 +736,67 @@ static int strlib_utflength(lua_State *L)
 //     return 1;
 // }
 
-# ifndef MIN_INTEGER
-    # define MIN_INTEGER -2147483648.0
-    # define MAX_INTEGER  2147483647.0
-# endif
+// # ifndef MIN_INTEGER
+//     # define MIN_INTEGER -2147483648.0
+//     # define MAX_INTEGER  2147483647.0
+// # endif
+//
+// static int strlib_format_f6(lua_State *L)
+// {
+//     double n = luaL_optnumber(L, 1, 0.0);
+//     /* Fast paths for standard constants */
+//     if (n == 0.0) {
+//      // if (signbit(n)) {
+//      //     lua_pushliteral(L, "-0");
+//      // } else {
+//             lua_pushliteral(L, "0");
+//      // }
+//         return 1;
+//     } else if (n == 1.0) {
+//         lua_pushliteral(L, "1");
+//         return 1;
+//     } else {
+//         char s[64];
+//         int len;
+//         if (fmod(n, 1.0) == 0.0 && n >= MIN_INTEGER && n <= MAX_INTEGER) {
+//             len = snprintf(s, sizeof(s), "%ld", (long) n);
+//             lua_pushlstring(L, s, (size_t) len);
+//             return 1;
+//         } else {
+//             if (lua_type(L, 2) == LUA_TSTRING) {
+//                 const char *f = lua_tostring(L, 2);
+//                 len = snprintf(s, sizeof(s), f, n);
+//             } else {
+//                 len = snprintf(s, sizeof(s), "%.6f", n);
+//             }
+//             if (len <= 0 || len >= (int) sizeof(s)) {
+//                 lua_pushliteral(L, "0");
+//                 return 1;
+//             }
+//             char *dot = strchr(s, '.');
+//             if (dot) {
+//                 char *ptr = s + len - 1;
+//                 while (ptr > dot && *ptr == '0') {
+//                     ptr--;
+//                 }
+//                 if (ptr == dot) {
+//                     ptr--;
+//                 }
+//                 len = (int) (ptr - s + 1);
+//             }
+//         }
+//         lua_pushlstring(L, s, (size_t) len);
+//         return 1;
+//     }
+// }
+
+# include <inttypes.h>
 
 static int strlib_format_f6(lua_State *L)
 {
     double n = luaL_optnumber(L, 1, 0.0);
-    /* Fast paths for standard constants */
     if (n == 0.0) {
-     // if (signbit(n)) {
-     //     lua_pushliteral(L, "-0");
-     // } else {
-            lua_pushliteral(L, "0");
-     // }
+        lua_pushliteral(L, "0");
         return 1;
     } else if (n == 1.0) {
         lua_pushliteral(L, "1");
@@ -758,34 +804,144 @@ static int strlib_format_f6(lua_State *L)
     } else {
         char s[64];
         int len;
-        if (fmod(n, 1.0) == 0.0 && n >= MIN_INTEGER && n <= MAX_INTEGER) {
-            len = snprintf(s, sizeof(s), "%ld", (long) n);
+        /* do we have an integer within 53-bit float precision */
+        if (fmod(n, 1.0) == 0.0 && n >= -9007199254740992.0 && n <= 9007199254740992.0) {
+            len = snprintf(s, sizeof(s), "%" PRId64, (lua_Integer) n);
             lua_pushlstring(L, s, (size_t) len);
             return 1;
-        } else {
-            if (lua_type(L, 2) == LUA_TSTRING) {
-                const char *f = lua_tostring(L, 2);
-                len = snprintf(s, sizeof(s), f, n);
-            } else {
-                len = snprintf(s, sizeof(s), "%.6f", n);
+        }
+        /* default */
+        const char *fmt = "%.6f";
+        if (lua_type(L, 2) == LUA_TSTRING) {
+            /* maybe check size? */
+            fmt = lua_tostring(L, 2);
+        }
+        /* we fit */
+        len = snprintf(s, sizeof(s), fmt, n);
+        /* check anyway */
+        if (len <= 0 || len >= (int) sizeof(s)) {
+            lua_pushliteral(L, "0");
+            return 1;
+        }
+        /* remove trailing zeros after decimal point */
+        char *dot = strchr(s, '.');
+        if (dot) {
+            char *ptr = s + len - 1;
+            while (ptr > dot && *ptr == '0') {
+                ptr--;
             }
+            if (ptr == dot) {
+                ptr--;
+            }
+            len = (int) (ptr - s + 1);
+        }
+        lua_pushlstring(L, s, (size_t) len);
+        return 1;
+    }
+}
+
+static int strlib_format_g6(lua_State *L)
+{
+    double n = luaL_optnumber(L, 1, 0.0);
+    if (n == 0.0) {
+        lua_pushliteral(L, "0");
+        return 1;
+    } else if (n == 1.0) {
+        lua_pushliteral(L, "1");
+        return 1;
+    } else {
+        char s[64];
+        int len;
+        /* if too large or too small (e.g., >= 1e6 or < 1e-4), use exponential notation */
+        double abs_n = fabs(n);
+        if (abs_n >= 1e6 || abs_n < 1e-4) {
+            /* Format as scientific notation with 6 decimal places */
+            len = snprintf(s, sizeof(s), "%.6e", n);
             if (len <= 0 || len >= (int) sizeof(s)) {
                 lua_pushliteral(L, "0");
                 return 1;
             }
+            char *e_ptr = strchr(s, 'e');
             char *dot = strchr(s, '.');
-            if (dot) {
-                char *ptr = s + len - 1;
+            if (dot && e_ptr && dot < e_ptr) {
+                char *ptr = e_ptr - 1;
                 while (ptr > dot && *ptr == '0') {
                     ptr--;
                 }
                 if (ptr == dot) {
                     ptr--;
                 }
-                len = (int) (ptr - s + 1);
+                /* shift exponential suffix up to touch trimmed mantissa */
+                size_t mantissa_len = (size_t)(ptr - s + 1);
+                size_t exponent_len = strlen(e_ptr);
+                memmove(s + mantissa_len, e_ptr, exponent_len + 1);
+                len = (int)(mantissa_len + exponent_len);
             }
+            lua_pushlstring(L, s, (size_t) len);
+            return 1;
+        }
+        if (fmod(n, 1.0) == 0.0 && n >= -9007199254740992.0 && n <= 9007199254740992.0) {
+            len = snprintf(s, sizeof(s), "%" PRId64, (lua_Integer) n);
+            lua_pushlstring(L, s, (size_t) len);
+            return 1;
+        }
+        const char *fmt = "%.6f";
+        if (lua_type(L, 2) == LUA_TSTRING) {
+            fmt = lua_tostring(L, 2);
+        }
+        len = snprintf(s, sizeof(s), fmt, n);
+        if (len <= 0 || len >= (int) sizeof(s)) {
+            lua_pushliteral(L, "0");
+            return 1;
+        }
+        char *dot = strchr(s, '.');
+        if (dot) {
+            char *ptr = s + len - 1;
+            while (ptr > dot && *ptr == '0') {
+                ptr--;
+            }
+            if (ptr == dot) {
+                ptr--;
+            }
+            len = (int) (ptr - s + 1);
         }
         lua_pushlstring(L, s, (size_t) len);
+        return 1;
+    }
+}
+
+static int strlib_format_fd(lua_State *L)
+{
+    double n = luaL_optnumber(L, 1, 0.0);
+    int    m = (int) luaL_optinteger(L, 2, 6);
+    if (n == 0.0) {
+        lua_pushliteral(L, "0");
+        return 1;
+    } else if (n == 1.0) {
+        lua_pushliteral(L, "1");
+        return 1;
+    } else {
+        char str[128];
+        int len = double_to_string_f(n, str, m);
+        lua_pushlstring(L, str, (size_t) len);
+        return 1;
+    }
+}
+
+static int strlib_format_gd(lua_State *L)
+{
+    double n = luaL_optnumber(L, 1, 0.0);
+    int    m = (int) luaL_optinteger(L, 2, 6);
+    if (n == 0.0) {
+        lua_pushliteral(L, "0");
+        return 1;
+    } else if (n == 1.0) {
+        lua_pushliteral(L, "1");
+        return 1;
+    } else {
+        char str[128];
+        int len = double_to_string_g(n, str, m);
+        lua_pushlstring(L, str, (size_t) len);
         return 1;
     }
 }
@@ -825,45 +981,6 @@ static int strlib_format_f6(lua_State *L)
     }
 
 # endif
-
-// static inline unsigned char strlib_aux_hexdigit(unsigned char n)
-// {
-//     return (n < 10 ? '0' : 'A' - 10) + n;
-// }
-//
-// static int strlib_format_tounicode16(lua_State *L)
-// {
-//     lua_Integer u = lua_tointeger(L, 1);
-//     if (invalid_unicode(u)) {
-//         /* privates are valid but we don't want them */
-//         lua_pushliteral(L, "FFFD");
-//     } else if (u < 0xD7FF || (u >= 0xDFFF && u <= 0xFFFF)) {
-//         /* basic multilingual plane: single 16-bit word */
-//         char s[4] ;
-//         s[3] = strlib_aux_hexdigit((unsigned char) ((u & 0x000F) >>  0));
-//         s[2] = strlib_aux_hexdigit((unsigned char) ((u & 0x00F0) >>  4));
-//         s[1] = strlib_aux_hexdigit((unsigned char) ((u & 0x0F00) >>  8));
-//         s[0] = strlib_aux_hexdigit((unsigned char) ((u & 0xF000) >> 12));
-//         lua_pushlstring(L, s, 4);
-//     } else {
-//         /* supplementary planes (U+10000 .. U+10FFFF): UTF-16 surrogate pair */
-//         unsigned u1, u2;
-//         char     s[8] ;
-//         u = u - 0x10000; /* negative when invalid range */
-//         u1 = (unsigned) (u >> 10)   + 0xD800; /* high surrogate */
-//         u2 = (unsigned) (u % 0x400) + 0xDC00; /* low  surrogate */
-//         s[3] = strlib_aux_hexdigit((unsigned char) ((u1 & 0x000F) >>  0));
-//         s[2] = strlib_aux_hexdigit((unsigned char) ((u1 & 0x00F0) >>  4));
-//         s[1] = strlib_aux_hexdigit((unsigned char) ((u1 & 0x0F00) >>  8));
-//         s[0] = strlib_aux_hexdigit((unsigned char) ((u1 & 0xF000) >> 12));
-//         s[7] = strlib_aux_hexdigit((unsigned char) ((u2 & 0x000F) >>  0));
-//         s[6] = strlib_aux_hexdigit((unsigned char) ((u2 & 0x00F0) >>  4));
-//         s[5] = strlib_aux_hexdigit((unsigned char) ((u2 & 0x0F00) >>  8));
-//         s[4] = strlib_aux_hexdigit((unsigned char) ((u2 & 0xF000) >> 12));
-//         lua_pushlstring(L, s, 8);
-//     }
-//     return 1;
-// }
 
 static const char hex_digits[] = "0123456789ABCDEF";
 
@@ -1027,51 +1144,6 @@ static int strlib_format_toutf32(lua_State *L)
     str, nil, nil   : check bom, default to little endian 
 */
 
-// static int strlib_utf16toutf8(lua_State *L)
-// {
-//     size_t ls = 0;
-//     const char *s = lua_tolstring(L, 1, &ls);
-//     if (ls % 2) {
-//         --ls;
-//     }
-//     if (ls) {
-//         luaL_Buffer b;
-//         int more = 0;
-//         int be = 1;
-//         size_t i = 0;
-//         luaL_buffinitsize(L, &b, ls * 2); /* unlikely to be larger if we have latin */
-//         if (lua_type(L, 2) == LUA_TBOOLEAN) {
-//             be = lua_toboolean(L, 2);
-//         } else if (s[0] == '\xFE' && s[1] == '\xFF') {
-//             be = 1;
-//             i += 2;
-//         } else if (s[0] == '\xFF' && s[1] == '\xFE') {
-//             be = 0;
-//            i += 2;
-//        } else {
-//            be = lua_toboolean(L, 3);
-//        }
-//        while (i < ls) {
-//            unsigned char l = (unsigned char) s[i++];
-//            unsigned char r = (unsigned char) s[i++];
-//            unsigned now = be ? 256 * l + r : l + 256 * r;
-//            if (more) {
-//                now = (more - 0xD800) * 0x400 + (now - 0xDC00) + 0x10000;
-//                more = 0;
-//                strlib_aux_add_utfchar(&b, now);
-//            } else if (now >= 0xD800 && now <= 0xDBFF) {
-//                more = now;
-//            } else {
-//                strlib_aux_add_utfchar(&b, now);
-//            }
-//        }
-//        luaL_pushresult(&b);
-//    } else {
-//         lua_pushliteral(L, "");
-//     }
-//     return 1;
-// }
-
 static int strlib_utf16toutf8(lua_State *L)
 {
     size_t ls = 0;
@@ -1211,122 +1283,10 @@ static int strlib_pack_rows_columns(lua_State* L)
     single ones but we might as well also handle \type {X X X}. This code is not that critical and
     was introduced when we wanted flexible bitmap definition in \METAPOST\ and \LUA\ as part of the
     \type {potrace} experiments.
-*/
 
-// static int strlib_hextocharacters(lua_State *L)
-// {
-//     size_t ls = 0;
-//     const char *s = lua_tolstring(L, 1, &ls);
-//     if (ls > 0) {
-//         luaL_Buffer b;
-//         luaL_buffinitsize(L, &b, ls/2);
-//         while (1) {
-//             unsigned char first = *s++;
-//             switch (first) {
-//                 case ' ': case '\n': case '\r': case '\t':
-//                     continue;
-//                 case '\0':
-//                     goto DONE;
-//                 default:
-//                     {
-//                         unsigned char second = *s++;
-//                         switch (second) {
-//                             case ' ': case '\n': case '\r': case '\t':
-//                                 continue;
-//                             case '\0':
-//                                 goto BAD;
-//                             default:
-//                                {
-//                                    unsigned char chr;
-//                                    if (first >= '0' && first <= '9') {
-//                                        chr = 16 * (first - '0');
-//                                    } else if (first >= 'A' && first <= 'F') {
-//                                        chr = 16 * (first - 'A' + 10);
-//                                    } else if (first >= 'a' && first <= 'f') {
-//                                        chr = 16 * (first - 'a' + 10);
-//                                    } else {
-//                                        goto BAD;
-//                                    }
-//                                    if (second >= '0' && second <= '9') {
-//                                        chr += second - '0';
-//                                    } else if (second >= 'A' && second <= 'F') {
-//                                        chr += second - 'A' + 10;
-//                                    } else if (second >= 'a' && second <= 'f') {
-//                                        chr += second - 'a' + 10;
-//                                    } else {
-//                                        goto BAD;
-//                                    }
-//                                    luaL_addchar(&b, chr);
-//                                    break;
-//                                }
-//                        }
-//                        break;
-//                    }
-//            }
-//        }
-//      DONE:
-//        luaL_pushresult(&b);
-//        return 1;
-//      BAD:
-//        lua_pushboolean(L, 0);
-//        return 1;
-//    } else {
-//        lua_pushliteral(L, "");
-//         return 1;
-//     }
-// }
-
-// static int strlib_hextocharacters(lua_State *L)
-// {
-//     size_t ls = 0;
-//     const char *s = lua_tolstring(L, 1, &ls);
-//     if (ls == 0) {
-//         lua_pushliteral(L, "");
-//         return 1;
-//     } else {
-//         const char *end = s + ls;
-//         luaL_Buffer b;
-//         luaL_buffinitsize(L, &b, ls / 2);
-//         while (s < end) {
-//             unsigned char first;
-//             do {
-//                 if (s >= end) {
-//                     goto DONE;
-//                 } else {
-//                     first = (unsigned char) *s++;
-//                 }
-//             } while (first == ' ' || first == '\n' || first == '\r' || first == '\t');
-//             unsigned char second;
-//             do {
-//                 if (s >= end) {
-//                     goto BAD;
-//                 } else {
-//                     second = (unsigned char) *s++;
-//                 }
-//             } while (second == ' ' || second == '\n' || second == '\r' || second == '\t');
-//             unsigned char high, low;
-//                  if (first >= '0' && first <= '9') high = first - '0';
-//             else if (first >= 'A' && first <= 'F') high = first - 'A' + 10;
-//             else if (first >= 'a' && first <= 'f') high = first - 'a' + 10;
-//             else goto BAD;
-//                  if (second >= '0' && second <= '9') low = second - '0';
-//             else if (second >= 'A' && second <= 'F') low = second - 'A' + 10;
-//             else if (second >= 'a' && second <= 'f') low = second - 'a' + 10;
-//             else goto BAD;
-//             luaL_addchar(&b, (high << 4) | low);
-//         }
-//       DONE:
-//         luaL_pushresult(&b);
-//         return 1;
-//       BAD:
-//         lua_pushboolean(L, 0);
-//         return 1;
-//     }
-// }
-
-/*
-    Here we use a 256-byte lookup table for hex decoding but of course it comes
-    at a memory price (as we use shorts as suggested by gemini):
+    Previous (less efficient) implementations can be found in the git history (luametatex and
+    context). Here we use a 256-byte lookup table for hex decoding but of course it comes at a
+    memory price (we use shorts as suggested by gemini):
 
     - 0 .. 15 : valid hex nibbles
     - 256     : whitespace (skip)
@@ -1409,20 +1369,6 @@ static int strlib_hextocharacters(lua_State *L)
 static int strlib_octtointeger(lua_State *L)
 {
     const char *s = lua_tostring(L, 1);
- // lua_Integer n = 0;
- // int negate = *s == '-';
- // if (negate) {
- //     s++;
- // }
- // while (*s && n < 0xFFFFFFFF) { /* large enough */
- //     if (*s >= '0' && *s <= '7') {
- //         n = n * 8 + *s - '0';
- //     } else {
- //         break;
- //     }
- //     s++;
- // }
- // lua_pushinteger(L, negate ? -n : n);
     lua_pushinteger(L, strtoul(s, NULL, 8));
     return 1; 
 }
@@ -1430,21 +1376,6 @@ static int strlib_octtointeger(lua_State *L)
 static int strlib_dectointeger(lua_State *L)
 {
     const char *s = lua_tostring(L, 1);
- // lua_Integer n = 0;
- // int negate = *s == '-';
- // if (negate) {
- //     s++;
- // }
- // while (*s && n < 0xFFFFFFFF) { /* large enough */
- //     if (*s >= '0' && *s <= '9') {
- //         n = n * 10 + *s - '0';
- //     } else {
- //         break;
- //     }
- //     s++;
- // }
- // lua_pushinteger(L, negate ? -n : n);
- // lua_pushinteger(L, atol(s));
     lua_pushinteger(L, strtoul(s, NULL, 10));
     return 1; 
 }
@@ -1452,24 +1383,6 @@ static int strlib_dectointeger(lua_State *L)
 static int strlib_hextointeger(lua_State *L)
 {
     const char *s = lua_tostring(L, 1);
- // lua_Integer n = 0;
- // int negate = *s == '-';
- // if (negate) {
- //     s++;
- // }
- // while (*s && n < 0xFFFFFFFF) { /* large enough */
- //     if (*s >= '0' && *s <= '9') {
- //         n = n * 16 + *s - '0';
- //     } else if (*s >= 'A' && *s <= 'F') {
- //         n = n * 16 + *s - 'A' + 10;
- //     } else if (*s >= 'a' && *s <= 'f') {
- //         n = n * 16 + *s - 'a' + 10;
- //     } else {
- //        break;
- //     }
- //     s++;
- // }
- // lua_pushinteger(L, negate ? -n : n);
     lua_pushinteger(L, strtoul(s, NULL, 16));
     return 1; 
 }
@@ -1586,6 +1499,9 @@ static const luaL_Reg strlib_function_list[] = {
     { "utfcharactertable", strlib_utfcharactertable  },
     { "utftabletostring",  strlib_utftabletostring   },
     { "f6",                strlib_format_f6          },
+    { "g6",                strlib_format_g6          },
+    { "fd",                strlib_format_fd          },
+    { "gd",                strlib_format_gd          },
     { "tounicode16",       strlib_format_tounicode16 },
     { "toutf8",            strlib_format_toutf8      },
     { "toutf16",           strlib_format_toutf16     }, /* untested */

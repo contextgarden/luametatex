@@ -222,7 +222,7 @@ static inline scaled tex_aux_checked_scaledround(double value, scaled lo, scaled
     }
 }
 
-# if use_float_math
+# if lmt_float_math
 
     scaled tex_round_xn_over_d(scaled x, int n, unsigned int d)
     {

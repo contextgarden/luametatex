@@ -5548,14 +5548,15 @@ static inline int tex_aux_quotient(int n, int d, int rounded)
     if (rounded) {
         long long num = (long long) n;
         long long den = (long long) d;
-        /* Symmetric round-to-nearest: ties round away from zero */
-        if ((num ^ den) >= 0) {
-            /* Same sign (positive result) */
-            return (int) ((num + den / 2LL) / den);
-        } else {
-            /* Opposite sign (negative result) */
-            return (int) ((num - den / 2LL) / den);
+        int negative = (num < 0) != (den < 0);
+        unsigned long long unum = num < 0 ? 0ULL - (unsigned long long) num : (unsigned long long) num;
+        unsigned long long uden = den < 0 ? 0ULL - (unsigned long long) den : (unsigned long long) den;
+        unsigned long long quotient = unum / uden;
+        unsigned long long remainder = unum % uden;
+        if (remainder >= uden - remainder) {
+            ++quotient;
         }
+        return (int) (negative ? -(long long) quotient : (long long) quotient);
     }
     return n / d;
 }
@@ -7160,24 +7161,26 @@ static inline long long tex_aux_multiply_long_long(long long term, long long fac
     if (term == 0 || factor == 0) {
         return 0;
     }
-    /* Check for 64-bit overflow before multiplication */
+# if defined(__SIZEOF_INT128__)
+    __int128 product = (__int128) term * (__int128) factor;
+    if (product >= (__int128) min_longinteger && product <= (__int128) max_longinteger) {
+        return (long long) product;
+    }
+# else
     if (term > 0) {
         if (factor > 0) {
-            if (term > max_longinteger / factor) goto overflow;
-        } else {
-            if (factor < min_longinteger / term) goto overflow;
+            if (term <= max_longinteger / factor) return term * factor;
+        } else if (factor >= min_longinteger / term) {
+            return term * factor;
         }
-    } else {
-        if (factor > 0) {
-            if (term < min_longinteger / factor) goto overflow;
-        } else {
-            if (term < max_longinteger / factor) goto overflow;
-        }
+    } else if (factor > 0) {
+        if (term >= min_longinteger / factor) return term * factor;
+    } else if (term >= max_longinteger / factor) {
+        return term * factor;
     }
-    return term * factor;
-  overflow:
+# endif
     tex_aux_scan_integer_out_of_range_error(10);
-    return (term ^ factor) < 0 ? min_longinteger : max_longinteger;
+    return (term < 0) != (factor < 0) ? min_longinteger : max_longinteger;
 }
 
 static inline long long tex_aux_divide_long_long(long long term, long long factor)
@@ -7189,14 +7192,43 @@ static inline long long tex_aux_divide_long_long(long long term, long long facto
     if (term == 0) {
         return 0;
     }
-    /* Symmetric round-to-nearest: ties round away from zero */
-    long long half = (factor > 0) ? (factor / 2LL) : (-factor / 2LL);
-    if ((term ^ factor) >= 0) {
-        /* Positive result path */
-        return (term + half) / factor;
-    } else {
-        /* Negative result path */
-        return (term - half) / factor;
+    /* Symmetric round-to-nearest: ties round away from zero. */
+    int negative = (term < 0) != (factor < 0);
+    unsigned long long uterm = term < 0 ? 0ULL - (unsigned long long) term : (unsigned long long) term;
+    unsigned long long ufactor = factor < 0 ? 0ULL - (unsigned long long) factor : (unsigned long long) factor;
+    unsigned long long quotient = uterm / ufactor;
+    unsigned long long remainder = uterm % ufactor;
+    if (remainder >= ufactor - remainder) {
+        ++quotient;
+    }
+    if (quotient > (unsigned long long) max_longinteger) {
+        tex_aux_scan_integer_out_of_range_error(10);
+        return negative ? min_longinteger : max_longinteger;
+    }
+    {
+        long long result = (long long) quotient;
+        return negative ? -result : result;
+    }
+}
+
+static inline long long tex_aux_integer_divide_long_long(long long term, long long factor)
+{
+    int negative;
+    unsigned long long uterm, ufactor, quotient;
+    if (term == 0) {
+        return 0;
+    }
+    negative = (term < 0) != (factor < 0);
+    uterm = term < 0 ? 0ULL - (unsigned long long) term : (unsigned long long) term;
+    ufactor = factor < 0 ? 0ULL - (unsigned long long) factor : (unsigned long long) factor;
+    quotient = uterm / ufactor;
+    if (quotient > (unsigned long long) max_longinteger) {
+        tex_aux_scan_integer_out_of_range_error(10);
+        return negative ? min_longinteger : max_longinteger;
+    }
+    {
+        long long result = (long long) quotient;
+        return negative ? -result : result;
     }
 }
 
@@ -7204,18 +7236,27 @@ static inline long long tex_aux_scale_long_long(long long term, long long numera
 {
     if (factor == 0) {
         tex_aux_scan_integer_out_of_range_error(10);
-        return ((term ^ numerator) >= 0) ? max_longinteger : min_longinteger;
+        return ((term < 0) != (numerator < 0)) ? min_longinteger : max_longinteger;
     }
     if (term == 0 || numerator == 0) {
         return 0;
     }
 # if defined(__SIZEOF_INT128__)
-    /* 128-bit widening guarantees zero intermediate overflow */
+    /* 128-bit widening guarantees zero intermediate overflow for the supported input range. */
     __int128 prod = (__int128) term * (__int128) numerator;
-    __int128 den  = (__int128) factor;
-    __int128 half = (den > 0) ? (den / 2) : (-den / 2);
-    /* Symmetric round-to-nearest */
-    __int128 q = ((prod ^ den) >= 0) ? (prod + half) / den : (prod - half) / den;
+    int negative = (prod < 0) != (factor < 0);
+    if (prod < 0) {
+        prod = -prod;
+    }
+    __int128 den = factor < 0 ? -(__int128) factor : (__int128) factor;
+    __int128 q = prod / den;
+    __int128 remainder = prod % den;
+    if (remainder >= den - remainder) {
+        ++q;
+    }
+    if (negative) {
+        q = -q;
+    }
     if (q < (__int128) min_longinteger) {
         tex_aux_scan_integer_out_of_range_error(10);
         return min_longinteger;
@@ -7237,7 +7278,10 @@ static inline long long tex_aux_modulo_long_long(long long term, long long facto
         tex_aux_scan_integer_out_of_range_error(10);
         return 0;
     }
-    /* Standard C % operator matches C99/C11 sign semantics (remainder has dividend's sign) */
+    if (term == LLONG_MIN && factor == -1) {
+        return 0;
+    }
+    /* Standard C % operator matches C99/C11 sign semantics (remainder has dividend's sign). */
     return term % factor;
 }
 
@@ -7268,6 +7312,48 @@ static inline long long tex_aux_long_long(long long l)
     } else {    
        return l;
     }
+}
+
+static inline long long tex_aux_add_long_long(long long a, long long b)
+{
+# if defined(__SIZEOF_INT128__)
+    __int128 sum = (__int128) a + (__int128) b;
+    if (sum < (__int128) min_longinteger) {
+        tex_aux_scan_integer_out_of_range_error(10);
+        return min_longinteger;
+    } else if (sum > (__int128) max_longinteger) {
+        tex_aux_scan_integer_out_of_range_error(10);
+        return max_longinteger;
+    }
+    return (long long) sum;
+# else
+    if ((b > 0 && a > max_longinteger - b) || (b < 0 && a < min_longinteger - b)) {
+        tex_aux_scan_integer_out_of_range_error(10);
+        return b < 0 ? min_longinteger : max_longinteger;
+    }
+    return a + b;
+# endif
+}
+
+static inline long long tex_aux_subtract_long_long(long long a, long long b)
+{
+# if defined(__SIZEOF_INT128__)
+    __int128 difference = (__int128) a - (__int128) b;
+    if (difference < (__int128) min_longinteger) {
+        tex_aux_scan_integer_out_of_range_error(10);
+        return min_longinteger;
+    } else if (difference > (__int128) max_longinteger) {
+        tex_aux_scan_integer_out_of_range_error(10);
+        return max_longinteger;
+    }
+    return (long long) difference;
+# else
+    if ((b < 0 && a > max_longinteger + b) || (b > 0 && a < min_longinteger + b)) {
+        tex_aux_scan_integer_out_of_range_error(10);
+        return b < 0 ? max_longinteger : min_longinteger;
+    }
+    return a - b;
+# endif
 }
 
 static inline long long tex_aux_shift_left(long long value, long long shift)
@@ -7603,7 +7689,7 @@ static void tex_aux_scan_integer_expression(int braced)
             break;
         case expression_idivide:
             if lmt_likely(factor != 0) {
-                term = term / factor;
+                term = tex_aux_integer_divide_long_long(term, factor);
             } else {
                 tex_aux_scan_zero_divide_error();
                 lmt_scanner_state.arithmetic_error = 1;
@@ -7653,8 +7739,8 @@ static void tex_aux_scan_integer_expression(int braced)
     } else {
         state = expression_none;
         switch (result) { 
-            case expression_add     : expression = tex_aux_long_long(expression + term); break;
-            case expression_subtract: expression = tex_aux_long_long(expression - term); break;
+            case expression_add     : expression = tex_aux_add_long_long(expression, term); break;
+            case expression_subtract: expression = tex_aux_subtract_long_long(expression, term); break;
             /* */
             case expression_not     : expression = term ? 0 : 1; break;
             case expression_bnot    : expression = ~ term; break;
@@ -8353,12 +8439,12 @@ static void tex_aux_scan_dimension_expression(int braced)
         switch (result) { 
             case expression_add:
                 /* depends on term type: float / dimen ok, int is sp */
-                expression = expression + term;
+                expression = tex_aux_add_long_long(expression, term);
                 expressiontype = expression_type_dimension;
                 break;
             case expression_subtract:
                 /* depends on term type: float / dimen ok, int is sp */
-                expression = expression - term;
+                expression = tex_aux_subtract_long_long(expression, term);
                 expressiontype = expression_type_dimension;
                 break;
             case expression_not:
