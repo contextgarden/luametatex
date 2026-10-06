@@ -806,7 +806,7 @@ static int strlib_format_f6(lua_State *L)
         int len;
         /* do we have an integer within 53-bit float precision */
         if (fmod(n, 1.0) == 0.0 && n >= -9007199254740992.0 && n <= 9007199254740992.0) {
-            len = snprintf(s, sizeof(s), "%" PRId64, (lua_Integer) n);
+            len = snprintf(s, sizeof(s), "%" PRId64, (int64_t) n);
             lua_pushlstring(L, s, (size_t) len);
             return 1;
         }
@@ -881,7 +881,7 @@ static int strlib_format_g6(lua_State *L)
             return 1;
         }
         if (fmod(n, 1.0) == 0.0 && n >= -9007199254740992.0 && n <= 9007199254740992.0) {
-            len = snprintf(s, sizeof(s), "%" PRId64, (lua_Integer) n);
+            len = snprintf(s, sizeof(s), "%" PRId64, (int64_t) n);
             lua_pushlstring(L, s, (size_t) len);
             return 1;
         }
@@ -927,6 +927,27 @@ static int strlib_format_fd(lua_State *L)
         return 1;
     }
 }
+
+static inline int strlib_format_fdn(lua_State *L, int m)
+{
+    double n = luaL_optnumber(L, 1, 0.0);
+    if (n == 0.0) {
+        lua_pushliteral(L, "0");
+        return 1;
+    } else if (n == 1.0) {
+        lua_pushliteral(L, "1");
+        return 1;
+    } else {
+        char str[128];
+        int len = double_to_string_f(n, str, m);
+        lua_pushlstring(L, str, (size_t) len);
+        return 1;
+    }
+}
+
+static int strlib_format_fd3(lua_State *L) { return strlib_format_fdn(L, 3); }
+static int strlib_format_fd6(lua_State *L) { return strlib_format_fdn(L, 6); }
+static int strlib_format_fd9(lua_State *L) { return strlib_format_fdn(L, 9); }
 
 static int strlib_format_gd(lua_State *L)
 {
@@ -1501,6 +1522,9 @@ static const luaL_Reg strlib_function_list[] = {
     { "f6",                strlib_format_f6          },
     { "g6",                strlib_format_g6          },
     { "fd",                strlib_format_fd          },
+    { "fd3",               strlib_format_fd3         },
+    { "fd6",               strlib_format_fd6         },
+    { "fd9",               strlib_format_fd9         },
     { "gd",                strlib_format_gd          },
     { "tounicode16",       strlib_format_tounicode16 },
     { "toutf8",            strlib_format_toutf8      },
