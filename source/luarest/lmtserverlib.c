@@ -90,6 +90,7 @@
     # define close_socket(s)   closesocket(s)
     # define invalid_socket(s) ((s) == INVALID_SOCKET)
     # define would_block       (WSAGetLastError() == WSAEWOULDBLOCK)
+    # define send_flags        0
 
     # define strncasecmp       _strnicmp
 
@@ -116,6 +117,12 @@
     # define invalid_socket(s) ((s) < 0)
     # define would_block       (errno == EAGAIN || errno == EWOULDBLOCK)
 
+    # ifdef MSG_NOSIGNAL
+        # define send_flags MSG_NOSIGNAL
+    # else
+        # define send_flags 0
+    # endif
+
     static inline int set_nonblocking(socket_t fd)
     {
         int flags = fcntl(fd, F_GETFL, 0);
@@ -123,6 +130,16 @@
     }
 
 # endif
+
+static inline void serverlib_aux_set_no_sigpipe(socket_t fd)
+{
+# ifdef SO_NOSIGPIPE
+    int option = 1;
+    setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &option, sizeof(option));
+# else
+    (void) fd;
+# endif
+}
 
 /*
 
@@ -185,29 +202,67 @@ static inline const char *serverlib_aux_status_to_string(int status)
     }
 }
 
-static size_t serverlib_aux_get_content_length(
+static int serverlib_aux_get_content_length(
     const char *buffer,
-    size_t      header_len
+    size_t      header_len,
+    size_t     *content_length
 )
 {
     const char *ptr = buffer;
     const char *end = buffer + header_len;
+    int         first_line = 1;
+    int         found      = 0;
+
+    *content_length = 0;
 
     while (ptr < end) {
-        if ((ptr[0] == 'C' || ptr[0] == 'c') && strncasecmp(ptr, "content-length:", 15) == 0) {
-            ptr += 15;
-            while (ptr < end && (*ptr == ' ' || *ptr == '\t')) {
-                ptr++;
-            }
-            return (size_t) atol(ptr);
-        }
-        ptr = strstr(ptr, "\r\n");
-        if (! ptr || ptr >= end) {
+        const char *line_end = strstr(ptr, "\r\n");
+        if (! line_end || line_end > end) {
             break;
         }
-        ptr += 2;
+        if (! first_line && (size_t) (line_end - ptr) >= 15 &&
+            (ptr[0] == 'C' || ptr[0] == 'c') && strncasecmp(ptr, "content-length:", 15) == 0) {
+            const char *value = ptr + 15;
+            size_t length = 0;
+
+            while (value < line_end && (*value == ' ' || *value == '\t')) {
+                value++;
+            }
+            if (value == line_end || *value < '0' || *value > '9') {
+                return 0;
+            }
+            while (value < line_end && *value >= '0' && *value <= '9') {
+                size_t digit = (size_t) (*value - '0');
+                if (length > (SIZE_MAX - digit) / 10) {
+                    return 0;
+                }
+                length = length * 10 + digit;
+                value++;
+            }
+            while (value < line_end && (*value == ' ' || *value == '\t')) {
+                value++;
+            }
+            if (value != line_end || (found && *content_length != length)) {
+                return 0;
+            }
+            *content_length = length;
+            found = 1;
+        }
+        first_line = 0;
+        ptr = line_end + 2;
     }
-    return 0;
+    return 1;
+}
+
+static size_t serverlib_aux_buffer_length(int length, size_t size)
+{
+    if (length <= 0 || size == 0) {
+        return 0;
+    } else if ((size_t) length >= size) {
+        return size - 1;
+    } else {
+        return (size_t) length;
+    }
 }
 
 static void serverlib_aux_report(
@@ -273,7 +328,12 @@ static void serverlib_aux_client(
 )
 {
     client *c = (client*) lmt_memory_calloc(1, sizeof(client));
+    if (! c) {
+        close_socket(fd);
+        return;
+    }
     c->fd = fd;
+    c->write_reference = LUA_NOREF;
     c->state = client_state_reading;
     if (ip) {
         strncpy(c->peer_ip, ip, sizeof(c->peer_ip) - 1);
@@ -346,7 +406,7 @@ static void serverlib_aux_send_error_response(
         "Connection: close\r\n\r\n",
         status, serverlib_aux_status_to_string(status), body_length
     );
-    luaL_addlstring(&buffer, header, header_length);
+    luaL_addlstring(&buffer, header, serverlib_aux_buffer_length(header_length, sizeof(header)));
 
     if (body_length > 0) {
         luaL_addlstring(&buffer, body, body_length);
@@ -375,6 +435,7 @@ static void serverlib_aux_send_error_response(
 static void serverlib_aux_process_request(
     lua_State         *L,
     client            *c,
+    size_t             content_length,
     int                callback_ref,
     int                trace,
     server_statistics *statistics,
@@ -429,6 +490,9 @@ static void serverlib_aux_process_request(
         const char *body_ptr = header_end + 4;
         size_t header_len = (header_end - c->read_buffer) + 4;
         size_t body_len = (c->read_bytes > header_len) ? (c->read_bytes - header_len) : 0;
+        if (body_len > content_length) {
+            body_len = content_length;
+        }
 
         lua_pushlstring(L, body_ptr, body_len);
         lua_setfield(L, -2, "body");
@@ -456,18 +520,20 @@ static void serverlib_aux_process_request(
                     size_t klen = colon - line_start;
                     char *val_start = colon + 1;
                     char key_buf[256]; /* plenty */
-                    if (klen < sizeof(key_buf)) {
-                        for (size_t i = 0; i < klen; i++) {
-                            key_buf[i] = (char) tolower((unsigned char) line_start[i]);
+                    char *key = key_buf;
+                    if (klen >= sizeof(key_buf)) {
+                        key = (char *) lmt_memory_malloc(klen);
+                        if (! key) {
+                            line_start = next_line + 2;
+                            continue;
                         }
-                        lua_pushlstring(L, key_buf, klen);
-                    } else {
-                        char *kbuf = (char *) lmt_memory_malloc(klen);
-                        for (size_t i = 0; i < klen; i++) {
-                            kbuf[i] = (char) tolower((unsigned char) line_start[i]);
-                        }
-                        lua_pushlstring(L, kbuf, klen);
-                        lmt_memory_free(kbuf);
+                    }
+                    for (size_t i = 0; i < klen; i++) {
+                        key[i] = (char) tolower((unsigned char) line_start[i]);
+                    }
+                    lua_pushlstring(L, key, klen);
+                    if (key != key_buf) {
+                        lmt_memory_free(key);
                     }
                     size_t vlen = next_line - val_start;
                     lua_pushlstring(L, val_start, vlen);
@@ -506,6 +572,7 @@ static void serverlib_aux_process_request(
     if (lua_pcall(L, 1, 1, 0) == LUA_OK) {
         int         status      = 200;
         const char *mime        = "text/plain";
+        size_t      mime_length = sizeof("text/plain") - 1;
         const char *body        = "";
         size_t      body_length = 0;
 
@@ -524,7 +591,7 @@ static void serverlib_aux_process_request(
 
             lua_getfield(L, table_index, "mime");
             if (lua_isstring(L, -1)) {
-                mime = lua_tostring(L, -1);
+                mime = lua_tolstring(L, -1, &mime_length);
             }
             lua_pop(L, 1);
 
@@ -538,14 +605,20 @@ static void serverlib_aux_process_request(
             luaL_buffinit(L, &buffer);
 
             char status_header[128];
-            int slen = snprintf(status_header, sizeof(status_header),
-                "HTTP/1.1 %d %s\r\n"
-                "Content-Type: %s\r\n"
-                "Content-Length: %zu\r\n"
-                "Connection: close\r\n",
-                status, serverlib_aux_status_to_string(status), mime, body_length
+            int status_length = snprintf(status_header, sizeof(status_header),
+                "HTTP/1.1 %d %s\r\nContent-Type: ",
+                status, serverlib_aux_status_to_string(status)
             );
-            luaL_addlstring(&buffer, status_header, slen);
+            luaL_addlstring(&buffer, status_header,
+                serverlib_aux_buffer_length(status_length, sizeof(status_header)));
+            luaL_addlstring(&buffer, mime, mime_length);
+
+            char content_header[128];
+            int content_length_header = snprintf(content_header, sizeof(content_header),
+                "\r\nContent-Length: %zu\r\nConnection: close\r\n", body_length
+            );
+            luaL_addlstring(&buffer, content_header,
+                serverlib_aux_buffer_length(content_length_header, sizeof(content_header)));
 
             lua_getfield(L, table_index, "headers");
             if (lua_isstring(L, -1)) {
@@ -690,7 +763,7 @@ static int serverlib_httpserver(lua_State *L)
 
     statistics.client_timeout = client_timeout;
 
-    if (port <= 0) {
+    if (port <= 0 || port > 65535) {
         serverlib_aux_report(L, report_ref, "valid 'port' required");
         goto DONE;
     }
@@ -711,9 +784,21 @@ static int serverlib_httpserver(lua_State *L)
         goto DONE;
     }
 
+# ifndef _WIN32
+    if (server_fd >= FD_SETSIZE) {
+        serverlib_aux_report(L, report_ref, "server socket descriptor too large");
+        close_socket(server_fd);
+        goto DONE;
+    }
+# endif
+
     int opt = 1;
     setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, (const char*) &opt, sizeof(opt));
-    set_nonblocking(server_fd);
+    if (! set_nonblocking(server_fd)) {
+        serverlib_aux_report(L, report_ref, "failed to configure socket");
+        close_socket(server_fd);
+        goto DONE;
+    }
 
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
@@ -725,6 +810,10 @@ static int serverlib_httpserver(lua_State *L)
         close_socket(server_fd);
         goto DONE;
     }
+
+# if !defined(_WIN32) && !defined(MSG_NOSIGNAL) && !defined(SO_NOSIGPIPE)
+    signal(SIGPIPE, SIG_IGN);
+# endif
 
     serverlib_aux_report(L, report_ref, "non-blocking event loop started on http://localhost:%i", port);
 
@@ -757,7 +846,15 @@ static int serverlib_httpserver(lua_State *L)
         struct timeval timeout = { select_sec, select_usec };
         int activity = select((int) max_fd + 1, &read_fds, &write_fds, NULL, &timeout);
         if (activity < 0) {
-            continue;
+# ifdef _WIN32
+            if (WSAGetLastError() == WSAEINTR) {
+# else
+            if (errno == EINTR) {
+# endif
+                continue;
+            }
+            serverlib_aux_report(L, report_ref, "select failed");
+            break;
         }
 
         /* handle a new connection and possibly add it to the linked list */
@@ -766,10 +863,19 @@ static int serverlib_httpserver(lua_State *L)
             socklen_t addrlen = sizeof(client_addr);
             socket_t client_fd = accept(server_fd, (struct sockaddr*) &client_addr, &addrlen);
             if (! invalid_socket(client_fd)) {
-                set_nonblocking(client_fd);
-                char ip_str[INET_ADDRSTRLEN] = {0};
-                inet_ntop(AF_INET, &client_addr.sin_addr, ip_str, INET_ADDRSTRLEN);
-                serverlib_aux_client(&clients, client_fd, ip_str, &statistics);
+# ifdef _WIN32
+                int room = statistics.active_clients < (size_t) (FD_SETSIZE - 1);
+# else
+                int room = client_fd < FD_SETSIZE;
+# endif
+                if (room && set_nonblocking(client_fd)) {
+                    serverlib_aux_set_no_sigpipe(client_fd);
+                    char ip_str[INET_ADDRSTRLEN] = {0};
+                    inet_ntop(AF_INET, &client_addr.sin_addr, ip_str, INET_ADDRSTRLEN);
+                    serverlib_aux_client(&clients, client_fd, ip_str, &statistics);
+                } else {
+                    close_socket(client_fd);
+                }
             }
         }
 
@@ -795,12 +901,13 @@ static int serverlib_httpserver(lua_State *L)
                     char *header_end = strstr(current->read_buffer, "\r\n\r\n");
                     if (header_end) {
                         size_t header_len = (header_end - current->read_buffer) + 4;
-                        size_t content_len = serverlib_aux_get_content_length(current->read_buffer, header_len);
-                        size_t total_expected = header_len + content_len;
-                        if (total_expected >= sizeof(current->read_buffer)) {
+                        size_t content_len = 0;
+                        if (! serverlib_aux_get_content_length(current->read_buffer, header_len, &content_len)) {
+                            serverlib_aux_send_error_response(L, current, &statistics, 400, "400 Bad Request", report_ref);
+                        } else if (content_len >= sizeof(current->read_buffer) - header_len) {
                             serverlib_aux_send_error_response(L, current, &statistics, 413, "413 Request Entity Too Large", report_ref);
-                        } else if (current->read_bytes >= total_expected) {
-                            serverlib_aux_process_request(L, current, callback_ref, trace, &statistics, stats, report_ref);
+                        } else if (current->read_bytes >= header_len + content_len) {
+                            serverlib_aux_process_request(L, current, content_len, callback_ref, trace, &statistics, stats, report_ref);
                         }
                     }
                 } else if (n == 0 || (n < 0 && ! would_block)) {
@@ -813,7 +920,7 @@ static int serverlib_httpserver(lua_State *L)
                     current->fd,
                     current->write_buffer + current->write_position,
                     (int) (current->write_length - current->write_position),
-                    0
+                    send_flags
                 );
                 if (sent > 0) {
                     statistics.bytes_written += sent;
@@ -861,6 +968,11 @@ static int serverlib_httpserver(lua_State *L)
             lua_pop(L, 1);
         }
     }
+
+    while (clients) {
+        serverlib_aux_remove_client(L, &clients, clients, &statistics);
+    }
+    close_socket(server_fd);
 
   DONE:
     if (callback_ref != LUA_NOREF) {
