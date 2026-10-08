@@ -1119,6 +1119,7 @@ static const luaL_Reg lmt_libs_extra_function_list[] = {
     { "sio",       luaopen_sio       },
     { "sparse",    luaopen_sparse    },
     { "bitset",    luaopen_bitset    },
+    { "sequencer", luaopen_sequencer },
     { "xzip",      luaopen_xzip      },
     { "xmath",     luaopen_xmath     },
     { "xcomplex",  luaopen_xcomplex  },

@@ -1,8 +1,26 @@
-/*
-    See license.txt in the root of this project. The credits for the basics of this code (the
-    inline functions go to wherever gemini got it from. In principle it is published code
-    based on some research. The two public helpers are tuned for our purpose, especially
-    striping the redundant zeros and precision.
+/*tex
+    See license.txt in the root of this project. The credits for the basics of this code
+    (the inline functions go to wherever gemini got it from. In principle it is published
+    code based on some research. The two public helpers are tuned for our purpose,
+    especially striping the redundant zeros and precision. Here is a Gemini wrapup of the
+    inline functions:
+
+    \startquotation
+    The technique implemented here uses a two-digit lookup table optimization—frequently
+    associated with Terence Parr's dtoa algorithm and popularized by Milo Yip's rapidjson
+    library as well as Ryu/Grisu variant implementations. The primary goal of the
+    200-character array |DIGIT_TABLE| is to eliminate slow division and modulo operations
+    during binary-to-decimal string formatting. Rather than dividing a number by 10 in a
+    loop to extract one digit at a time, the code processes numbers two digits (base 100)
+    at a time. The DIGIT_TABLE array stores all two-digit decimal combinations from |00|
+    to |99| continuously (100 pairs = 200 characters). By taking |(val % 100) * 2| as the
+    array index, the routine directly retrieves both ASCII characters simultaneously.
+    Because CPU instruction sets execute division by 100 faster via fixed-point
+    multiplication tricks, processing numbers in pairs halves the total number of division
+    instructions, significantly boosting performance in low-latency and high-throughput
+    C code.
+    \stiopquotaiton
+
 */
 
 # include <stdint.h>

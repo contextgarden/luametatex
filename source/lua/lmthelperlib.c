@@ -1038,7 +1038,8 @@ static struct luaL_Reg helperlib_function_list[] = {
     { NULL,                  NULL                          },
 };
 
-int luaopen_helper(lua_State *L) {
+int luaopen_helper(lua_State *L)
+{
     lua_newtable(L);
     luaL_setfuncs(L, helperlib_function_list, 0);
     return 1;

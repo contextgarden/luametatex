@@ -159,6 +159,7 @@ extern int  luaopen_sha2        (lua_State *L);
 extern int  luaopen_sio         (lua_State *L);
 extern int  luaopen_socket_core (lua_State *L);
 extern int  luaopen_bitset      (lua_State *L);
+extern int  luaopen_sequencer   (lua_State *L);
 extern int  luaopen_sparse      (lua_State *L);
 extern int  luaopen_status      (lua_State *L);
 extern int  luaopen_tex         (lua_State *L);
