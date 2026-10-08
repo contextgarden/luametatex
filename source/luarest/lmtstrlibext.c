@@ -1707,26 +1707,6 @@ static int strlib_buffer_new(lua_State *L)
     return 1;
 }
 
- // static int strlib_buffer_add(lua_State *L)
- // {
- //     lmt_string_buffer *b = strlib_buffer_instance(L);
- //     if (b) {
- //         switch (lua_type(L, 2)) {
- //             case LUA_TSTRING:
- //             case LUA_TNUMBER:
- //                 {
- //                     size_t l;
- //                     const char *s = lua_tolstring(L, 2, &l);
- //                     lmt_buffer_add_lstring(b, s, l);
- //                 }
- //                 break;
- //             default:
- //                 break;
- //         }
- //     }
- //     return 0;
- // }
-
 static int strlib_buffer_get_data(lua_State *L)
 {
     lmt_string_buffer *b = strlib_buffer_instance(L);
@@ -1749,7 +1729,7 @@ static int strlib_buffer_get_size(lua_State *L)
 
 static const luaL_Reg sequencerlib_metatable_list[] =
 {
-    // { "__newindex", strlib_buffer_setvalue  },
+ // { "__newindex", strlib_buffer_setvalue  },
     { "__tostring", strlib_buffer_tostring  },
     { "__gc",       strlib_buffer_gc        },
     { NULL,         NULL                    },
@@ -3482,6 +3462,7 @@ static int strlib_sequenced(lua_State *L)
 */
 
 static const luaL_Reg sequencerlib_function_list[] = {
+    /* tables */
     { "serialize",          strlib_serialize          },
     { "fastserialize",      strlib_fastserialize      },
     { "tabstr_normal",      strlib_tabstr_normal      },
@@ -3490,8 +3471,9 @@ static const luaL_Reg sequencerlib_function_list[] = {
     { "tabstr_boolean",     strlib_tabstr_boolean     },
     { "sortedhash",         strlib_sortedhash         },
     { "sequenced",          strlib_sequenced          },
+    /* strings */
     { "format",             strlib_format             },
-    /* */
+    /* buffers */
     { "newbuffer",          strlib_buffer_new         },
     { "addtobuffer",        strlib_buffer_add         },
     { "addformattobuffer",  strlib_buffer_addformat   },
@@ -3514,7 +3496,13 @@ int luaopen_sequencer(lua_State *L)
     return 1;
 }
 
-/* */
+/*tex 
+
+    The next list of functions registers in the |string| namespace. Maybe in retrospect we should
+    have created a new namespace but it was already decided when we started with \LUATEX, so we 
+    stick to it. 
+
+*/
 
 static const luaL_Reg strlib_function_list[] = {
     { "characters",        strlib_characters         },
@@ -3537,7 +3525,7 @@ static const luaL_Reg strlib_function_list[] = {
     { "fd3",               strlib_format_fd3         }, /* no argument needed */
     { "fd6",               strlib_format_fd6         }, /* idem */
     { "fd9",               strlib_format_fd9         }, /* idem */
-    { "gd",                strlib_format_gd          }, /* seldom needed btu cheap to provide */
+    { "gd",                strlib_format_gd          }, /* seldom needed but cheap to provide */
     { "tounicode16",       strlib_format_tounicode16 },
     { "toutf8",            strlib_format_toutf8      },
     { "toutf16",           strlib_format_toutf16     }, /* this is kind of untested */
@@ -3579,7 +3567,7 @@ LUAMOD_API int luaopen_strlib(lua_State *L) {
     // (This pops the 2 strings off the stack and attaches them to the function)
     lua_pushcclosure(L, strlib_format_f6, 2);
 
-    // 4. Set the function in your library table ( equivalent to: lib["f6"] = strlib_format_f6 )
+    // 4. Set the function in the library table 
     lua_setfield(L, -2, "f6");
 
     return 1; // Return the library table
