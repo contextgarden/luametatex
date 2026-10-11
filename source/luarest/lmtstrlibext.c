@@ -1211,7 +1211,9 @@ static int strlib_pack_rows_columns(lua_State* L)
                                 lua_pop(L, 1);
                             }
                             lua_pushlstring(L, (char *) first, result - first);
-                            return 1;
+                            return 1;                       
+                        } else {
+                            break;
                         }
                     }
                 case LUA_TTABLE:
@@ -1242,10 +1244,14 @@ static int strlib_pack_rows_columns(lua_State* L)
                                 lua_pop(L, 1);
                             }
                             lua_pushlstring(L, (char *) first, result - first);
-                            return 1;
+                            return 1;                       
+                        } else {
+                            break;
                         }
                     }
-            }
+                default:
+                    lua_pop(L, 1); /* pop element */
+                    break;            }
         }
     }
     lua_pushnil(L);
@@ -1486,6 +1492,7 @@ static int strlib_splitintolines(lua_State *L)
 */
 
 # define lmt_string_buffer_default  (1024 * 1024)
+# define default_format_size        4096 /* occasionally 8192 or 16384 */
 
 typedef struct lmt_string_buffer {
     char   *buffer;
@@ -1509,21 +1516,35 @@ inline static void lmt_buffer_dispose(lmt_string_buffer *b)
 
 inline static int lmt_buffer_has_room(lmt_string_buffer *b, size_t needed)
 {
+    if (b->size == 0) {
+        b->size   = default_format_size;
+        b->length = 0;
+        b->buffer = (char *) lmt_memory_malloc(b->size);
+        b->step   = 0;
+    }
     if (b->length + needed >= b->size) {
+        size_t new_size = b->size;
         if (b->step) {
-            while (b->length + needed >= b->size) {
-                b->size += b->step;
+            while (b->length + needed >= new_size) {
+                new_size += b->step;
             }
         } else {
-            while (b->length + needed >= b->size) {
-                b->size *= 2;
+            while (b->length + needed >= new_size) {
+                if (new_size > (SIZE_MAX / 2)) {
+                    /* prevent arithmetic overflow wrap-around */
+                    luaL_error(lmt_lua_state.lua_instance, "not enough memory for string.serialize, case 1");
+                    return 0;
+                }
+                new_size *= 2;
             }
         }
-        b->buffer = (char *) lmt_memory_realloc(b->buffer, b->size);
-        if lmt_unlikely(! b->buffer) { 
-            luaL_error(lmt_lua_state.lua_instance, "not enough memory for string.serialize");
+        char *new_buffer = (char *) lmt_memory_realloc(b->buffer, new_size);
+        if lmt_unlikely(! new_buffer) { 
+            luaL_error(lmt_lua_state.lua_instance, "not enough memory for string.serialize, case 2");
             return 0;
         }
+        b->buffer = new_buffer;
+        b->size   = new_size;
     }
     return 1;
 }
@@ -1547,6 +1568,12 @@ inline static void lmt_buffer_add_char(lmt_string_buffer *b, char chr)
         b->buffer[b->length] = chr;
         b->length += 1;
     }
+}
+
+inline static void lmt_buffer_add_char_ok(lmt_string_buffer *b, char chr)
+{
+    b->buffer[b->length] = chr;
+    b->length += 1;
 }
 
 inline static void lmt_buffer_add_spaces(lmt_string_buffer *b, int n)
@@ -1650,17 +1677,15 @@ inline static void lmt_buffer_add_spaces(lmt_string_buffer *b, int n)
 
 static inline lmt_string_buffer *strlib_buffer_instance(lua_State *L)
 {
-    /* Fetch argument 1 directly from CallInfo stack frame */
+    if (lua_gettop(L) < 1) {
+        return NULL;
+    }
     TValue *arg1 = s2v(L->ci->func.p + 1);
-    /* Check for full userdata */
     if (ttisfulluserdata(arg1)) {
         Udata *u = uvalue(arg1);
-        /* Get running C closure to inspect Upvalue 1 (the metatable) */
         CClosure *func = clCvalue(s2v(L->ci->func.p));
         Table *expected_mt = hvalue(&func->upvalue[0]);
-        /* Direct pointer comparison on metatable headers */
         if (u->metatable == expected_mt) {
-            /* LuaMetaTeX / Lua 5.4 uses getudatamem(u) */
             lmt_string_buffer *b = (lmt_string_buffer *) getudatamem(u);
             if (b && b->buffer) {
                 return b;
@@ -1695,6 +1720,9 @@ static int strlib_buffer_tostring(lua_State *L)
 static int strlib_buffer_new(lua_State *L)
 {
     size_t size = lmt_optsizet(L, 1, LUAL_BUFFERSIZE);
+    if (size < minimum_step) {
+        size = minimum_step; /* Ensure size is never zero or unreasonably small */
+    }
     size_t step = lmt_optsizet(L, 2, size);
     lmt_string_buffer *b = (lmt_string_buffer *) lua_newuserdatauv(L, sizeof(lmt_string_buffer), 0);
     /* lmt_buffer_allocate(b); */
@@ -1888,26 +1916,24 @@ static void serialize_double(lmt_string_buffer *b, double val)
 {
     /* 26 is enough for both the largest float and integer including a zero terminator */
     if (lmt_buffer_has_room(b, 26)) {
-        char *dest = b->buffer + b->length;
         /* prevent undefined behavior on NaN, Infinity, or huge doubles */
         if (val >= -9223372036854775808.0 && val < 9223372036854775808.0) {
             int64_t i = (int64_t) val;           
             /* preserve -0.0 by falling back to %a when i == 0 and signbit is set */
             if ((double) i == val && ! (i == 0 && signbit(val))) {
-                b->length += snprintf(dest, 26, "%" PRId64, i);
+                b->length += snprintf(b->buffer + b->length, 26, "%" PRId64, i);
                 return;
             }
         }
         /* float | NaN | Inf | -0.0 */
-        b->length += snprintf(dest, 26, "%a", val);
+        b->length += snprintf(b->buffer + b->length, 26, "%a", val);
     }
 }
 
 static void serialize_integer(lmt_string_buffer *b, lua_Integer val) 
 {
     if (lmt_buffer_has_room(b, 21)) {
-        char *dest = b->buffer + b->length;
-        b->length += snprintf(dest, 21, "%" LUA_INTEGER_FRMLEN "d", val);
+        b->length += snprintf(b->buffer + b->length, 21, "%" LUA_INTEGER_FRMLEN "d", val);
     }
 }
 
@@ -1933,8 +1959,7 @@ static int strlib_buffer_add(lua_State *L)
                         } else {
                             /* Write double directly into b->buffer using standard formatting */
                             if (lmt_buffer_has_room(b, 64)) {
-                                char *dest = b->buffer + b->length;
-                                b->length += double_to_string_f(lua_tonumber(L, i), dest, 17);
+                                b->length += double_to_string_f(lua_tonumber(L, i), b->buffer + b->length, 17);
                             }
                         }
                         break;
@@ -2034,48 +2059,876 @@ static int strlib_buffer_add(lua_State *L)
 
 */
 
-static void strlib_aux_addformat(lua_State *L, lmt_string_buffer *b, int fmt_idx, int arg_idx)
+static void strlib_aux_sequenced(
+    lua_State         *L, 
+    int                index, 
+    lmt_string_buffer *buffer,
+    int                sep_is_true, 
+    const char        *sep_str, 
+    size_t             sep_len, 
+    int                simple
+);
+
+static inline void strlib_aux_array_sequenced(
+    lua_State         *L, 
+    int                tbl_idx, 
+    lmt_string_buffer *b, 
+    const char        *sep_str, 
+    size_t             sep_len
+)
+{
+    lua_Unsigned n = lua_rawlen(L, tbl_idx);
+    for (lua_Unsigned k = 1; k <= n; k++) {
+        if (k > 1 && sep_len > 0) {
+            lmt_buffer_add_lstring(b, sep_str, sep_len);
+        }
+        lua_rawgeti(L, tbl_idx, (lua_Integer) k);
+        
+        switch (lua_type(L, -1)) {
+            case LUA_TNUMBER:
+                if (lua_isinteger(L, -1)) {
+                    serialize_integer(b, lua_tointeger(L, -1));
+                } else {
+                    if (lmt_buffer_has_room(b, 64)) {
+                        b->length += double_to_string_f(lua_tonumber(L, -1), b->buffer + b->length, 17);
+                    }
+                }
+                break;
+            case LUA_TSTRING:
+                {
+                    size_t      len;
+                    const char *str = lua_tolstring(L, -1, &len);
+                    lmt_buffer_add_lstring(b, str, len);
+                }
+                break;
+            case LUA_TBOOLEAN:
+                if (lua_toboolean(L, -1)) {
+                    lmt_buffer_add_lstring(b, "true", 4);
+                } else {
+                    lmt_buffer_add_lstring(b, "false", 5);
+                }
+                break;
+            default:
+                break;
+        }
+        lua_pop(L, 1);
+    }
+}
+
+/* %S and^%s are a bit diferent but ok */
+
+static const char *const C_X00_table[33] = {
+    "[null]",  "[soh]",  "[stx]",  "[etx]",  "[eot]",  "[enq]",  "[ack]",  "[bel]",
+    "[bs]",    "[ht]",   "[lf]",   "[vt]",   "[ff]",   "[cr]",   "[so]",   "[si]",
+    "[dle]",   "[dc1]",  "[dc2]",  "[dc3]",  "[dc4]",  "[nak]",  "[syn]",  "[etb]",
+    "[can]",   "[em]",   "[sub]",  "[esc]",  "[fs]",   "[gs]",   "[rs]",   "[us]",
+    "[space]" /* 0x20 */
+};
+
+static inline void strlib_aux_format_sS(
+    lua_State         *L, 
+    lmt_string_buffer *b,
+    int               *arg_idx, 
+    char               spec, 
+    int                width, 
+    int                left_align, 
+    int                has_precision, 
+    int                precision
+)
+{
+    size_t      len = 0;
+    const char *str = NULL;
+    int         pop = 0;
+    if (spec == 'S') {
+        str = luaL_tolstring(L, (*arg_idx)++, &len);
+        pop = 1;
+    } else {
+        switch(lua_type(L, *arg_idx)) {
+            case LUA_TSTRING:
+                str = lua_tolstring(L, (*arg_idx)++, &len);
+                break;
+            case LUA_TNUMBER:
+                str = luaL_tolstring(L, (*arg_idx)++, &len);
+                pop = 1;
+                break;
+            default:
+                (*arg_idx)++;
+                break;
+        }
+    }
+    if (str) {
+        if (has_precision && (size_t) precision < len) {
+            len = (size_t) precision;
+        }
+        if (width == 0) {
+            lmt_buffer_add_lstring(b, str, len);
+        } else {
+            int padding = width - (int) len;
+            if (padding > 0) {
+                if (! left_align) {
+                    lmt_buffer_add_spaces (b, padding);
+                    lmt_buffer_add_lstring(b, str, len);
+                } else {
+                    lmt_buffer_add_lstring(b, str, len);
+                    lmt_buffer_add_spaces (b, padding);
+                }
+            } else {
+                lmt_buffer_add_lstring(b, str, len);
+            }
+        }
+    }
+    if (pop) {
+        lua_pop(L, 1);
+    }
+}
+
+static inline void strlib_aux_format_qQ(
+    lua_State         *L, 
+    lmt_string_buffer *b, 
+    int               *arg_idx, 
+    char               spec
+)
+{
+    if (spec == 'q') {
+        if (! lua_isnil(L, *arg_idx)) {
+            size_t      len = 0;
+            const char *str = lua_tolstring(L, (*arg_idx)++, &len);
+            if (str) {
+                serialize_string(b, str, len);
+            } else {
+                lmt_buffer_add_lstring(b, "\"\"", 2);
+            }
+        } else {
+            (*arg_idx)++;
+        }
+    } else {
+        size_t      len = 0;
+        const char *str = luaL_tolstring(L, (*arg_idx)++, &len);
+        if (str) {
+            serialize_string(b, str, len);
+        } else {
+            lmt_buffer_add_lstring(b, "\"\"", 2);
+        }
+        lua_pop(L, 1);
+    }
+}
+
+static inline void strlib_aux_format_aA(
+    lua_State         *L, 
+    lmt_string_buffer *b, 
+    int               *arg_idx, 
+    char               spec, 
+    const char        *sep_str, 
+    size_t             sep_len
+)
+{
+    char quote = (spec == 'a') ? '\'' : '"';
+    switch (lua_type(L, *arg_idx)) {
+        case LUA_TNIL:
+            goto EMPTY;
+        case LUA_TNUMBER:
+            {
+                if (lua_isinteger(L, *arg_idx)) {
+                    serialize_integer(b, lua_tointeger(L, *arg_idx));
+                } else if (lmt_buffer_has_room(b, 64)) {
+                    b->length += double_to_string_f(lua_tonumber(L, *arg_idx), b->buffer + b->length, 17);
+                }
+                (*arg_idx)++;
+            }
+            return;
+        case LUA_TTABLE:
+            {
+                lmt_buffer_add_char(b, quote);
+                const char *use_sep = (sep_str != NULL) ? sep_str : ",";
+                size_t      use_len = (sep_str != NULL) ? sep_len : 1;
+                strlib_aux_sequenced(L, (*arg_idx)++, b, 0, use_sep, use_len, 0);
+                lmt_buffer_add_char(b, quote);
+            }
+            return;
+        default:
+            {
+                size_t      len = 0;
+                const char *str = luaL_tolstring(L, (*arg_idx)++, &len);
+                lmt_buffer_add_char(b, quote);
+                if (str && len > 0) {
+                    lmt_buffer_add_lstring(b, str, len);
+                }
+                lmt_buffer_add_char(b, quote);
+                lua_pop(L, 1);
+            }
+            return;
+    }
+  EMPTY:
+    lmt_buffer_add_char(b, quote);
+    lmt_buffer_add_char(b, quote);
+    (*arg_idx)++;
+}
+
+static inline void strlib_aux_format_C(
+    lua_State         *L, 
+    lmt_string_buffer *b, 
+    int               *arg_idx
+)
+{
+    switch (lua_type(L, *arg_idx)) {
+        case LUA_TNUMBER:
+            {
+                lua_Unsigned code = (lua_Unsigned) lua_tointeger(L, (*arg_idx)++);
+                if (code <= 0x20) {
+                    lmt_buffer_add_string(b, C_X00_table[code]);
+                } else {
+                    if (lmt_buffer_has_room(b, 32)) {
+                        int len = aux_uni2strlen((unsigned) code, b->buffer + b->length);
+                        b->length += len;
+                        b->length += snprintf(b->buffer + b->length, 32, " (U+%05X)", (unsigned) code);
+                    }
+                }
+            }
+            break;
+        case LUA_TSTRING:
+            {
+                size_t      len = 0;
+                const char *str = lua_tolstring(L, (*arg_idx)++, &len);
+                if (str && len > 0) {
+                    size_t pos  = 0;
+                    int    code = strlib_aux_tounicode(str, len, &pos);
+                    if (code >= 0 && code <= 0x20) {
+                        lmt_buffer_add_string(b, C_X00_table[code]);
+                    } else if (code > 0x20 && code <= 0x10FFFF) {
+                        if (lmt_buffer_has_room(b, len + 32)) {
+                            lmt_buffer_add_lstring(b, str, len);
+                            b->length += snprintf( b->buffer + b->length, 32, " (U+%05X)", (unsigned) code);
+                        }
+                    } else {
+                        lmt_buffer_add_lstring(b, str, len);
+                        lmt_buffer_add_lstring(b, " (U+FFFD)", 9);
+                    }
+                }
+            }
+            break;
+        default:
+            (*arg_idx)++;
+            break;
+    }
+}
+
+static inline void strlib_aux_format_F(
+    lua_State         *L, 
+    lmt_string_buffer *b, 
+    int               *arg_idx, 
+    int                has_precision, 
+    int                precision
+)
+{
+    if (lua_type(L, *arg_idx) == LUA_TNUMBER) {
+        lua_Number val = lua_tonumber(L, (*arg_idx)++);
+        /* near-zero threshold check (-0.0000000005 < val < 0.0000000005) */
+        if (! has_precision && val > -0.0000000005 && val < 0.0000000005) {
+            lmt_buffer_add_char(b, '0');
+            return;
+        }
+        /* check if the float is an exact whole integer */
+        if (fmod(val, 1.0) == 0.0 && val >= -9007199254740992.0 && val <= 9007199254740992.0) {
+            serialize_integer(b, (lua_Integer) val);
+            return;
+        }
+        /* render as float (precision 9 by default, or user-specified precision) */
+        if (lmt_buffer_has_room(b, 64)) {
+            b->length += double_to_string_z(val, b->buffer + b->length, has_precision ? precision : 9);
+        }
+    } else {
+        /* skip non-number argument */
+        (*arg_idx)++;
+    }
+}
+
+static inline void strlib_aux_format_eEgG(
+    lua_State         *L, 
+    lmt_string_buffer *b, 
+    int               *arg_idx, 
+    char               spec, 
+    int                width, 
+    int                pad_zero, 
+    int                left_align, 
+    int                has_precision, 
+    int                precision
+)
+{
+    switch (lua_type(L, *arg_idx)) { 
+        case LUA_TNUMBER:
+            {
+                lua_Number val = lua_tonumber(L, (*arg_idx)++);
+                if (spec == 'g' && ! has_precision && width == 0) {
+                    /* standard %g with default precision 6 */
+                    if (lmt_buffer_has_room(b, 64)) {
+                        b->length += double_to_string_g(val, b->buffer + b->length, 6);
+                    }
+                } else {
+                    /* handles width, padding, precision, and %e, %E, %G */
+                    if (lmt_buffer_has_room(b, width + 64)) {
+                        char fmt_str[32];
+                        int  req_prc = has_precision ? precision : 6;
+                        /* use regular snprintf format specifier (e.g. "%012.4e") */
+                        snprintf(fmt_str, sizeof(fmt_str), "%%%s%s%s.*%c",
+                            left_align ? "-" : "",
+                            pad_zero   ? "0" : "",
+                            width > 0  ? "*" : "",
+                            spec
+                        );
+                        /* subtle difference in calling: */
+                        if (width > 0) {
+                            b->length += snprintf(b->buffer + b->length, width + 64, fmt_str, width, req_prc, val);
+                        } else {
+                            b->length += snprintf(b->buffer + b->length, 64,         fmt_str,        req_prc, val);
+                        }
+                    }
+                }
+            }
+            break;
+        default:
+            (*arg_idx)++;
+            break;
+    }
+}
+
+static inline void strlib_aux_format_jJ(
+    lua_State         *L, 
+    lmt_string_buffer *b, 
+    int               *arg_idx, 
+    char               spec, 
+    int                has_precision, 
+    int                precision
+)
+{
+    double val    = 0.0;
+    int    is_num = 0;
+    switch (lua_type(L, *arg_idx)) {
+        case LUA_TNUMBER: 
+            {
+                val = lua_tonumber(L, (*arg_idx)++);
+                is_num = 1;
+            }
+            break;
+        case LUA_TSTRING:
+            {
+                /* also string-to-number casting (tonumber(n)) */
+                const char *s = lua_tostring(L, *arg_idx);
+                char *endptr;
+                val = strtod(s, &endptr);
+                if (endptr != s && *endptr == '\0') {
+                    is_num = 1;
+                }
+                (*arg_idx)++;
+            }
+            break;
+        default:
+            (*arg_idx)++;
+            break;
+    }
+    if (is_num) {
+        if (lmt_buffer_has_room(b, 64)) {
+            b->length += double_to_string_j(
+                val, 
+                b->buffer + b->length, 
+                64, 
+                (spec == 'j') ? 'e' : 'E', 
+                has_precision ? precision : 6
+            );
+        }
+    } else {
+        /* fallback to tostring(n) if not a valid number */
+        size_t      len = 0;
+        const char *str = luaL_tolstring(L, *arg_idx - 1, &len);
+        if (str) {
+            lmt_buffer_add_lstring(b, str, len);
+            lua_pop(L, 1);
+        }
+    }
+}
+
+/* 
+    This |%k| one is handy when we want to align (as in tables) so we have an explicit before/after 
+    decimal digit width specifiers.
+
+    string.sqformatters["%7.2f"](12.34) --> "  12.34"
+    string.sqformatters["%4.2k"](12.34) --> "  12.34"
+
+    %f requiring manual total width calculation: 4 digits before + 1 dot + 2 digits after = 7 total
+    %k with explicit before and after widths: %4.2k where before=4, after=2
+*/
+
+static inline void strlib_aux_format_left_right( /* %< %> */
+    lua_State         *L, 
+    lmt_string_buffer *b, 
+    int               *arg_idx, 
+    char               spec, 
+    int                width, 
+    int                left_align
+)
+{
+    size_t      len = 0;
+    const char *str = NULL;
+    int         pop = 0;
+    switch (lua_type(L, *arg_idx)) {
+        case LUA_TSTRING:
+            str = lua_tolstring(L, (*arg_idx)++, &len);
+            break;
+        case LUA_TNUMBER:
+            str = luaL_tolstring(L, (*arg_idx)++, &len);
+            pop = 1;
+            break;
+        default:
+            /* ignore non-string types */
+            (*arg_idx)++;
+            break;
+    }
+    if (str && len > 0) {
+        /* if width == 0 (e.g. %< or %> without width), handle string directly */
+        if (width == 0) {
+            lmt_buffer_add_lstring(b, str, len);
+        } else {
+            /* count UTF-8 character length (codepoints) using existing helper */
+            size_t utflen = 0;
+            size_t ind    = 0;
+            while (ind < len) {
+                unsigned char i = (unsigned char) str[ind];
+                if (i < 0x80) {
+                    ind++;
+                } else {
+                    size_t l = utf8_lengths[i >> 4];
+                    if (l == 0 || i > 0xF4) {
+                        l = 1;
+                    }
+                    if (ind + l > len) {
+                        l = len - ind;
+                    }
+                    ind += l;
+                }
+                utflen++;
+            }
+            int target_width     = width;
+            int is_right_aligned = (spec == '>');
+            /* if flag '-' was supplied (%-10> or %-10<), invert effective alignment direction */
+            if (left_align) {
+                is_right_aligned = ! is_right_aligned;
+            }
+            int padding = target_width - (int) utflen;
+            if (padding > 0) {
+                if (is_right_aligned) {
+                    /* spaces before string */
+                    lmt_buffer_add_spaces (b, padding);
+                    lmt_buffer_add_lstring(b, str, len);
+                } else {
+                    /* spaces after string */
+                    lmt_buffer_add_lstring(b, str, len);
+                    lmt_buffer_add_spaces (b, padding);
+                }
+            } else {
+                lmt_buffer_add_lstring(b, str, len);
+            }
+        }
+    }
+    if (pop) {
+        lua_pop(L, 1);
+    }
+}
+
+/* plug-in support, watch out, function hook in differently from formatters */
+
+static inline void strlib_aux_format_extension(
+    lua_State         *L, 
+    lmt_string_buffer *b, 
+    int               *arg_idx,
+    int                top,
+    const char        *ext_name, 
+    size_t             ext_len,
+    int                f_width,
+    int                has_width
+)
+{
+    /* upvalue 2 is the local extensions table */
+    int ext_tbl = lua_upvalueindex(2);       
+    if (lua_istable(L, ext_tbl)) {
+        lua_pushlstring(L, ext_name, ext_len);
+        lua_gettable(L, ext_tbl);
+    } else {
+        lua_pushnil(L);
+    }
+    if (lua_type(L, -1) == LUA_TFUNCTION) {
+        /* not really width but we pass the shared name */
+        int f = has_width ? f_width : 1;
+        if (f > 0 && *arg_idx <= top) {
+            /* push arguments onto the stack for the callback to pick up */
+            int args_to_pass = (f > (top - *arg_idx + 1)) ? (top - *arg_idx + 1) : f;
+            for (int i = 0; i < args_to_pass; i++) {
+                lua_pushvalue(L, (*arg_idx)++);
+            }
+            if (lua_pcall(L, args_to_pass, 1, 0) == LUA_OK) {
+                size_t      len = 0;
+                const char *str = lua_tolstring(L, -1, &len);
+                if (str && len > 0) {
+                    lmt_buffer_add_lstring(b, str, len);
+                }
+                lua_pop(L, 1); /* return value */
+            } else {
+                lua_error(L);
+            }
+        } else {
+            lua_pop(L, 1); /* function */
+            (*arg_idx)++;
+        }
+        return;
+    } else {
+        /* extension object or nil */
+        lua_pop(L, 1);
+    }
+}
+
+/*tex
+
+    This format helper started out simple with a few keys but as it was relative efficient, I
+    stepwise added the various emthods from |string.formatters| which was kind of easy given that 
+    we could use gemini to generate the snippets by feeding the \LUA\ code plus a bit of 
+    explanation. It took some iterations, testing, fixing, cleanup etc but it was easy to test 
+    compatibility. We already had helpers in |auxserialize| that we could use (and a few variants 
+    were added). 
+
+    Scanning what comes before a key is kind of messy especially because we need to intercept for
+    instance table specific formatters but by adding stepwise we kept it kind of clean im the end. 
+
+    Once all was more or less in place there were various places the code could be made a bit more 
+    efficient (avoid scanning etc). A typical case of \quotation {think a bit about improvements} 
+    during a long walk. The 0..9 trick for instance permits fast paths for frequently used formats 
+    and some more will be added (ones we often use in \CONTEXT). I might spot more locations cq.\ 
+    shortcuts. Using the C formatter over the \LUA\ brought processing the manual down from 16 to 
+    just over 15 seconds and the test suite from 455 to 415 seconds (2018 laptop running Wwindows 
+    11). This is mainly because the backend uses lots of formatting and when \METAPOST\ graphics 
+    are converted to \PDF\ we also format a lot. The memory footprint is often a bit smaller too.
+
+*/
+
+static void strlib_aux_addformat(
+    lua_State         *L, 
+    lmt_string_buffer *b, 
+    int                fmt_idx, 
+    int                arg_idx
+)
 {
     size_t      fmt_len;
     const char *fmt   = luaL_checklstring(L, fmt_idx, &fmt_len);
     size_t      i     = 0;
     size_t      start = 0;
+    int         top   = lua_gettop(L);
 
-    while (i < fmt_len) {
+     while (i < fmt_len) {
         if (fmt[i] == '%') {
             /* flush preceding chunk of literal text */
-            if (i > start) {
-                lmt_buffer_add_lstring(b, fmt + start, i - start);
+            int d = i - start;
+            if (d == 1) {
+                 lmt_buffer_add_char(b, (int) fmt[start]);
+            } else if (d > 0) {
+                 lmt_buffer_add_lstring(b, fmt + start, d);
             }
 
-            /* skip '%' */
+            /* skip '%' and check */
             i++;
-
-            int width         = 0;
-            int pad_zero      = 0;
-            int precision     = 17;
-            int has_precision = 0;
-
-            /* parse optional '0' padding flag (e.g. %04d, %04X) */
-            if (i < fmt_len && fmt[i] == '0') {
-                pad_zero = 1;
-                i++;
+            if (i >= fmt_len) {
+                break;
             }
 
-            /* parse width (e.g. %4X or %04X) */
-            while (i < fmt_len && fmt[i] >= '0' && fmt[i] <= '9') {
-                width = (width * 10) + (fmt[i] - '0');
-                i++;
+            unsigned char spec  = fmt[i];
+
+            int width           = 0;
+            int pad_zero        = 0;
+            int left_align      = 0;
+            int space_flag      = 0;
+            int precision       = 17;
+            int has_precision   = 0;
+
+            const char *sep_str = NULL;
+            size_t      sep_len = 0;
+
+            /* 
+               If the character immediately following '%' is directly  in our list of valid single-character format specifiers, 
+               we bypass all flag, width, precision, table, and extension parsing.
+            */
+
+            switch (spec) {
+                case 0x01: // soh %.1N
+                case 0x02: // stx %.2N
+                case 0x03: // etx %.3N
+                case 0x04: // eot %.4N
+                case 0x05: // enq %.5N
+                case 0x06: // ack %.6N
+                case 0x07: // bel %.7N
+                case 0x08: // bs  %.8N
+                case 0x09: // ht  %.9N
+                    {   
+                        /* stripped float (ConTeXt formatters drop-in: strips redundant zeros) */                    
+                        lua_Number val = lua_tonumber(L, arg_idx++);
+                        if (lmt_buffer_has_room(b, 64)) {
+                            b->length += double_to_string_f(val, b->buffer + b->length, spec);
+                        }
+                    }
+                    start = ++i;
+                    continue;
+             // case 0x0A: // lf
+             //     break;
+             // case 0x0B: // vt  %02i
+             // case 0x0C: // ff  %03i
+             // case 0x0D: // cr
+             //     break;
+             // case 0x0E: // so  %04i
+             // case 0x0F: // si  %05i
+             // case 0x10: // dle %02X
+             // case 0x11: // dc1 %03X
+             // case 0x12: // dc2 %04X
+             // case 0x13: // dc3 %05X
+             // case 0x14: // dc4 %06X
+             // case 0x15: // nak %07X
+             // case 0x16: // syn %08X
+                case 0x17: // etb (%.6N,%.6N)
+                    {   
+                        lua_Number v1 = lua_tonumber(L, arg_idx++); if (arg_idx > top) { break; }
+                        lua_Number v2 = lua_tonumber(L, arg_idx++);
+                        if (lmt_buffer_has_room(b, 64 + 64 + 3)) {
+                            lmt_buffer_add_char_ok(b,'('); /* no need to check size */
+                            b->length += double_to_string_f(v1, b->buffer + b->length, 6);
+                            lmt_buffer_add_char_ok(b,',');
+                            b->length += double_to_string_f(v2, b->buffer + b->length, 6);
+                            lmt_buffer_add_char_ok(b,')');
+                        }
+                    }
+                    start = ++i;
+                    continue;
+                case 0x18: // can (%.6N,%.6N,%.6N)
+                case 0x1A: // sub (%.3N,%.3N,%.3N)
+                    {   
+                        lua_Number v1 = lua_tonumber(L, arg_idx++); if (arg_idx > top) { break; }
+                        lua_Number v2 = lua_tonumber(L, arg_idx++); if (arg_idx > top) { break; }
+                        lua_Number v3 = lua_tonumber(L, arg_idx++);
+                        if (lmt_buffer_has_room(b, 64 + 64 + 64 + 4)) {
+                            int precision = spec == 0x18 ? 6 : 3;
+                            lmt_buffer_add_char_ok(b,'('); /* no need to check size */
+                            b->length += double_to_string_f(v1, b->buffer + b->length, precision);
+                            lmt_buffer_add_char_ok(b,',');
+                            b->length += double_to_string_f(v2, b->buffer + b->length, precision);
+                            lmt_buffer_add_char_ok(b,',');
+                            b->length += double_to_string_f(v3, b->buffer + b->length, precision);
+                            lmt_buffer_add_char_ok(b,')');
+                        }
+                    }
+                    start = ++i;
+                    continue;
+                case 0x19: // em (%.3N)
+                    {   
+                        lua_Number v1 = lua_tonumber(L, arg_idx++);
+                        if (lmt_buffer_has_room(b, 64 + 2)) {
+                            lmt_buffer_add_char_ok(b,'('); /* no need to check size */
+                            b->length += double_to_string_f(v1, b->buffer + b->length, 3);
+                            lmt_buffer_add_char_ok(b,')');
+                        }
+                    }
+                    start = ++i;
+                    continue;
+                case 0x1B: // esc (%.3N,%.3N,%.3N,%.3N)
+                    {   
+                        lua_Number v1 = lua_tonumber(L, arg_idx++); if (arg_idx > top) { break; }
+                        lua_Number v2 = lua_tonumber(L, arg_idx++); if (arg_idx > top) { break; }
+                        lua_Number v3 = lua_tonumber(L, arg_idx++); if (arg_idx > top) { break; }
+                        lua_Number v4 = lua_tonumber(L, arg_idx++);
+                        if (lmt_buffer_has_room(b, 64 + 64 + 64 + + 64 + 5)) {
+                            lmt_buffer_add_char_ok(b,'('); /* no need to check size */
+                            b->length += double_to_string_f(v1, b->buffer + b->length, 3);
+                            lmt_buffer_add_char_ok(b,',');
+                            b->length += double_to_string_f(v2, b->buffer + b->length, 3);
+                            lmt_buffer_add_char_ok(b,',');
+                            b->length += double_to_string_f(v3, b->buffer + b->length, 3);
+                            lmt_buffer_add_char_ok(b,',');
+                            b->length += double_to_string_f(v4, b->buffer + b->length, 3);
+                            lmt_buffer_add_char_ok(b,')');
+                        }
+                    }
+                    start = ++i;
+                    continue;
+             // case 0x1C: // fs %-15s
+             // case 0x1D: // gs %--t
+             // case 0x1E: // rs %s
+             // case 0x1F: // us %...
+                default: 
+                    if (strchr("iIdfFnNeEgGjJpPbBrRkKxXuUhHqQsSlLaAcCoWmZvV<>", spec)) {
+                        i++; /* consume spec character */
+                        goto SWITCH;
+                    } else {
+                        break;
+                    }
+            }
+            /*             
+                Fast check for %!extension_name! or %1!extension_name! We must check this before 
+                table checks so that extension names ending in 't' (like !tex!) are not 
+                incorrectly captured as table formatters.
+            */
+
+            {
+                size_t scan = i;
+                int pre_val = 0;
+                int has_pre = 0;
+                while (scan < fmt_len && fmt[scan] >= '0' && fmt[scan] <= '9') {
+                    pre_val = (pre_val * 10) + (fmt[scan] - '0');
+                    has_pre = 1;
+                    scan++;
+                }
+                if (scan < fmt_len && fmt[scan] == '!') {
+                    /* It is an extension: pre_val is the argument count. */
+                    size_t ext_start = scan + 1;
+                    scan++;
+                    while (scan < fmt_len && fmt[scan] != '!') {
+                        scan++;
+                    }
+                    if (scan < fmt_len && fmt[scan] == '!') {
+                        const char *ext_name = fmt + ext_start;
+                        size_t      ext_len  = scan - ext_start;
+                        i = scan + 1; /* skip ending '!' */
+                        strlib_aux_format_extension(L, b, &arg_idx, top, ext_name, ext_len, pre_val, has_pre);
+                        start = i;
+                        continue;
+                    }
+                } else if (has_pre) {
+                    /* 
+                        It is not an extension, but we scanned leading digits and they belong to 
+                        the standard format width! 
+                    */
+                    width = pre_val;
+                    /* Advance i so the width-parsing loop skips them. */
+                    i = scan;
+                }
             }
 
-            /* parse precision specifier (e.g. %.4X or %.3f) */
+            /* fast check for %t, %T, %{...}t, %{...}T, or %<sep...>t, %<sep...>T, %<sep...>a, %<sep...>A */
+
+            int is_table_format = 0;
+            int is_sequenced    = 0; /* 0 = %t (array part only), 1 = %T (sorted hash key=val) */
+
+            if (i < fmt_len) {
+                char c = fmt[i];
+                if (c == 't' || c == 'T') {
+                    is_table_format = 1;
+                    is_sequenced    = (c == 'T');
+                    i++;
+                } else if (c == '{') {
+                    /* peek ahead for closing brace followed by 't', 'T', 'a', or 'A' */
+                    size_t scan = i + 1;
+                    while (scan < fmt_len && fmt[scan] != '}') {
+                        scan++;
+                    }
+                    if (scan + 1 < fmt_len && fmt[scan] == '}') {
+                        char next_c = fmt[scan + 1];
+                        if (next_c == 't' || next_c == 'T') {
+                            sep_str         = fmt + i + 1;
+                            sep_len         = scan - (i + 1);
+                            is_table_format = 1;
+                            is_sequenced    = (next_c == 'T');
+                            i = scan + 2; /* Skip '{...}t' or '{...}T' */
+                        } else if (next_c == 'a' || next_c == 'A') {
+                            sep_str = fmt + i + 1;
+                            sep_len = scan - (i + 1);
+                            i = scan + 1; /* skip '{...}', leaving specifier 'a'/'A' for switch */
+                        }
+                    }
+                } else {
+                    /* Only non-alphanumeric punctuation/symbols can act as unbraced separators */
+                    size_t scan = i;
+                    while (scan < fmt_len) {
+                        char sc = fmt[scan];
+                        if (sc == 't' || sc == 'T' || sc == 'a' || sc == 'A') {
+                            break;
+                        }
+                        /* Stop immediately if we hit letters, digits, '%', or '{' */
+                        if ((sc >= 'a' && sc <= 'z') || (sc >= 'A' && sc <= 'Z') || 
+                            (sc >= '0' && sc <= '9') || sc == '%' || sc == '{') {
+                            break;
+                        }
+                        scan++;
+                    }
+
+                    if (scan < fmt_len) {
+                        char target_c = fmt[scan];
+                        if (target_c == 't' || target_c == 'T') {
+                            sep_str         = fmt + i;
+                            sep_len         = scan - i;
+                            is_table_format = 1;
+                            is_sequenced    = (target_c == 'T');
+                            i = scan + 1; /* Skip separator string and 't'/'T' */
+                        } else if (target_c == 'a' || target_c == 'A') {
+                            sep_str = fmt + i;
+                            sep_len = scan - i;
+                            i = scan; /* Skip separator string, leave 'a'/'A' for switch */
+                        }
+                    }
+                }
+            }
+
+            if (is_table_format) {
+                if (lua_istable(L, arg_idx)) {
+                    int tbl_idx = arg_idx++;
+                    if (is_sequenced) {
+                        /* capital %T: key=value pairs (hashed/sorted) */
+                        strlib_aux_sequenced(L, tbl_idx, b, 0, sep_str ? sep_str : " | ", sep_str ? sep_len : 3, 0);
+                    } else {
+                        /* lowercase %t: array values (1..n) */
+                        strlib_aux_array_sequenced(L, tbl_idx, b, sep_str, sep_len);
+                    }
+                } else {
+                    /* skip non-table argument */
+                    arg_idx++;
+                }   
+                start = i;
+                continue;
+            }    
+
+            /* single-pass flag scanning */
+            while (i < fmt_len) {
+                char c = fmt[i];
+                if (c == '-') {
+                    left_align = 1;
+                    i++;
+                } else if (c == '0') {
+                    pad_zero = 1;
+                    i++;
+                } else if (c == ' ' || c == '\xA0') {
+                    space_flag = 1;
+                    i++;
+                } else {
+                    break;
+                }
+            }
+
+            /* width parsing loop */
+            if (width == 0) {
+                while (i < fmt_len) {
+                    char c = fmt[i];
+                    if (c >= '0' && c <= '9') {
+                        width = (width * 10) + (c - '0');
+                        i++;
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            /* precision parsing loop */
             if (i < fmt_len && fmt[i] == '.') {
                 i++;
                 precision     = 0;
                 has_precision = 1;
-                while (i < fmt_len && fmt[i] >= '0' && fmt[i] <= '9') {
-                    precision = (precision * 10) + (fmt[i] - '0');
-                    i++;
+                while (i < fmt_len) {
+                    char c = fmt[i];
+                    if (c >= '0' && c <= '9') {
+                        precision = (precision * 10) + (c - '0');
+                        i++;
+                    } else {
+                        break;
+                    }
                 }
             }
 
@@ -2084,121 +2937,315 @@ static void strlib_aux_addformat(lua_State *L, lmt_string_buffer *b, int fmt_idx
                 break;
             }
 
-            char spec = fmt[i++];
+            spec = fmt[i++];
+
+        SWITCH:
+
             switch (spec) {
+                /* --- Exceptions: Specifiers that do NOT consume an argument --- */
                 case '%':
                     lmt_buffer_add_char(b, '%');
                     break;
-                case 'd':
-                case 'i': 
-                    { 
-                        /* integer with zero-padding support */
-                        lua_Integer val = lua_tointeger(L, arg_idx++);
-                        if (width > 0) {
-                            if (lmt_buffer_has_room(b, width + 32)) {
-                                char *dest = b->buffer + b->length;
-                                char fmt_str[32];
-                                snprintf(fmt_str, sizeof(fmt_str), "%%%s%d" LUA_INTEGER_FRMLEN "d", pad_zero ? "0" : "", width);
-                                b->length += snprintf(dest, width + 32, fmt_str, val);
-                            }
-                        } else {
-                            serialize_integer(b, val);
+                case 'z':
+                    break;
+                case 'Z':
+                    if (width > 0) {
+                        size_t      len;
+                        const char *str = lua_tolstring(L, width + 1, &len);
+                        if (len > 0 && str) {
+                            lmt_buffer_add_lstring(b, str, len);
                         }
-                        break;
                     }
-                case 'f': 
-                    { 
-                        /* standard C/Lua float (retains fixed trailing zeros) */
-                        lua_Number val = lua_tonumber(L, arg_idx++);
-                        if (lmt_buffer_has_room(b, 64)) {
-                            char *dest = b->buffer + b->length;
-                            int prec = has_precision ? precision : 6;
-                            b->length += snprintf(dest, 64, "%.*f", prec, val);
-                        }
-                        break;
-                    }
-                case 'N':
-                case 'n': 
-                    {
-                        /* stripped Float (ConTeXt formatters drop-in: strips redundant zeros) */                    lua_Number val = lua_tonumber(L, arg_idx++);
-                        if (lmt_buffer_has_room(b, 64)) {
-                            char *dest = b->buffer + b->length;
-                            b->length += double_to_string_f(val, dest, has_precision ? precision : 17);
-                        }
-                        break;
-                    }
-                case 'g': 
-                    { 
-                        /* truncated / Shortest Float */
-                        lua_Number val = lua_tonumber(L, arg_idx++);
-                        if (lmt_buffer_has_room(b, 64)) {
-                            char *dest = b->buffer + b->length;
-                            b->length += double_to_string_g(val, dest, has_precision ? precision : 6);
-                        }
-                        break;
-                    }
-                case 'x':
-                case 'X':
-                    { 
-                        /* hexadecimal with zero-padding support */
-                        lua_Unsigned val = (lua_Unsigned) lua_tointeger(L, arg_idx++);
-                        int min_digits = has_precision ? precision : width;
-                        if (min_digits <= 0) {
-                            min_digits = 1;
-                        }
-                        char              temp[20];
-                        int               len         = 0;
-                        static const char hex_upper[] = "0123456789ABCDEF";
-                        static const char hex_lower[] = "0123456789abcdef";
-                        const char        *digits     = (spec == 'X') ? hex_upper : hex_lower;
-                        do {
-                            temp[len++] = digits[val & 0x0F];
-                            val >>= 4;
-                        } while (val > 0);
-                        int total_len = (len < min_digits) ? min_digits : len;
-                        if (lmt_buffer_has_room(b, total_len)) {
-                            for (int z = 0; z < total_len - len; z++) {
-                                b->buffer[b->length++] = '0';
-                            }
-                            while (len > 0) {
-                                b->buffer[b->length++] = temp[--len];
-                            }
-                        }
-                        break;
-                    }
-                case 's': 
-                    {
-                        size_t slen;
-                        const char *s = lua_tolstring(L, arg_idx++, &slen);
-                        if (s) {
-                            lmt_buffer_add_lstring(b, s, slen);
-                        }
-                        break;
-                    }
-                case 'q': 
-                    {
-                        size_t slen;
-                        const char *s = lua_tolstring(L, arg_idx++, &slen);
-                        if (s) {
-                            serialize_string(b, s, slen);
-                        } else {
-                            lmt_buffer_add_lstring(b, "\"\"", 2);
-                        }
-                        break;
-                    }
-                case 'b': 
-                    {
-                        int val = lua_toboolean(L, arg_idx++);
-                        if (val) {
-                            lmt_buffer_add_lstring(b, "true", 4);
-                        } else {
-                            lmt_buffer_add_lstring(b, "false", 5);
-                        }
-                        break;
-                    }
+                    break;
                 default:
-                    lmt_buffer_add_char(b, '%');
-                    lmt_buffer_add_char(b, spec);
+                    if (arg_idx <= top) {
+                        switch (spec) {
+                            /* integer with zero-padding support */
+                            case 'I': 
+                            case 'i': 
+                            case 'd':
+                                {   
+                                    lua_Integer val = lua_tointeger(L, arg_idx++);
+                                    if (spec == 'I' && val >= 0) {
+                                        lmt_buffer_add_char(b, '+');
+                                    }
+                                    if (width > 0) {
+                                        if (lmt_buffer_has_room(b, width + 32)) {
+                                            char fmt_str[32];
+                                            snprintf(fmt_str, sizeof(fmt_str), "%%%s%d" LUA_INTEGER_FRMLEN "d", pad_zero ? "0" : "", width);
+                                            b->length += snprintf(b->buffer + b->length, width + 32, fmt_str, val);
+                                        }
+                                    } else {
+                                        serialize_integer(b, val);
+                                    }
+                                }
+                                break;
+                            /* float */
+                            case 'f': 
+                                {   
+                                    lua_Number val = lua_tonumber(L, arg_idx++);
+                                    if (lmt_buffer_has_room(b, 64)) {
+                                        b->length += double_to_string_z(val, b->buffer + b->length, has_precision ? precision : 6);
+                                    }
+                                }
+                                break;
+                            /* checked float: near-zero clamping & exact integer conversion */
+                            case 'F':
+                                strlib_aux_format_F(L, b, &arg_idx, has_precision, precision);
+                                break;
+                            /* stripped float without redundant zeros */                    
+                            case 'n':
+                            case 'N':
+                                {   
+                                    lua_Number val = lua_tonumber(L, arg_idx++);
+                                    if (lmt_buffer_has_room(b, 64)) {
+                                        b->length += double_to_string_f(val, b->buffer + b->length, has_precision ? precision : 9); /* so 9 is the default ! */
+                                    }
+                                }
+                                break;
+                            /* exponential & shortest float (%e, %E, %g, %G) */
+                            case 'e':
+                            case 'E':
+                            case 'g':
+                            case 'G':
+                                strlib_aux_format_eEgG(L, b, &arg_idx, spec, width, pad_zero, left_align, has_precision, precision);
+                                break;
+                            /* sparse exponential float (%j / %J) */
+                            case 'j':
+                            case 'J':
+                                strlib_aux_format_jJ(L, b, &arg_idx, spec, has_precision, precision);
+                                break;
+                            /* tex|postscript points */
+                            case 'p':
+                                {   
+                                    lua_Number val = lua_tonumber(L, arg_idx++) / 65536.0;
+                                    if (lmt_buffer_has_room(b, 66)) {
+                                        b->length += double_to_string_f(val, b->buffer + b->length, 5);
+                                        lmt_buffer_add_lstring(b,"pt", 2);
+                                    }
+                                }
+                                break;
+                            case 'P':
+                                {   
+                                    lua_Number val = lua_tonumber(L, arg_idx++) / 65536.0;
+                                    if (lmt_buffer_has_room(b, 66)) {
+                                        b->length += double_to_string_z(val, b->buffer + b->length, 5);
+                                    }
+                                }
+                                break;
+                            case 'b':
+                                {   
+                                    lua_Number val = (lua_tonumber(L, arg_idx++) * (7200.0 / 7227.0)) / 65536.0;
+                                    if (lmt_buffer_has_room(b, 64)) {
+                                        b->length += double_to_string_f(val, b->buffer + b->length, 5);
+                                        lmt_buffer_add_lstring(b,"bp", 2);
+                                    }
+                                    break;
+                                }
+                            case 'B':
+                                {   
+                                    lua_Number val = (lua_tonumber(L, arg_idx++) * (7200.0 / 7227.0)) / 65536.0;
+                                    if (lmt_buffer_has_room(b, 64)) {
+                                        b->length += double_to_string_z(val, b->buffer + b->length, 5);
+                                    }
+                                }
+                                break;
+                            /* rounded float (%r) using custom auxserialize routine */
+                            case 'r':
+                                {   
+                                    lua_Number val = lua_tonumber(L, arg_idx++);
+                                    if (lmt_buffer_has_room(b, 32)) {
+                                        b->length += double_to_string_r(val, b->buffer + b->length);
+                                    }
+                                }
+                                break;
+                            /* formatted float with before/after widths (%k) */
+                            case 'k':
+                                {
+                                    if (lua_type(L, arg_idx) == LUA_TNUMBER) {
+                                        lua_Number val = lua_tonumber(L, arg_idx++);
+                                        int digits_before = width;
+                                        int digits_after  = has_precision ? precision : 0;
+                                        int total_width   = digits_before + digits_after + (digits_after > 0 ? 1 : 0);
+                                        if (lmt_buffer_has_room(b, total_width + 64)) {
+                                            char  fmt_str[32];
+                                            snprintf(fmt_str, sizeof(fmt_str), "%%%d.%df", total_width, digits_after);
+                                            b->length += snprintf(b->buffer + b->length, total_width + 64, fmt_str, val);
+                                        }
+                                    } else {
+                                        arg_idx++; /* Skip non-number argument */
+                                    }
+                                }
+                                break;
+                            /* hexadecimal with zero-padding support */
+                            case 'U': lmt_buffer_add_lstring(b, "U+", 2); if (! width) { pad_zero = 1; width = 5; } spec = 'X'; goto format_x_X;
+                            case 'u': lmt_buffer_add_lstring(b, "u+", 2); if (! width) { pad_zero = 1; width = 5; } spec = 'x'; goto format_x_X;
+                            case 'H': lmt_buffer_add_lstring(b, "0x", 2); if (! width) { pad_zero = 1; width = 5; } spec = 'X'; goto format_x_X;
+                            case 'h': lmt_buffer_add_lstring(b, "0x", 2); if (! width) { pad_zero = 1; width = 5; } spec = 'x'; goto format_x_X;
+                            case 'x':
+                            case 'X':
+                                {   
+                                  format_x_X:
+                                    lua_Unsigned val = (lua_Unsigned) lua_tointeger(L, arg_idx++);
+                                    int min_digits = has_precision ? precision : width;
+                                    if (min_digits <= 0) {
+                                        min_digits = 1;
+                                    }
+                                    char               temp[20];
+                                    int                len         = 0;
+                                    static const char  hex_upper[] = "0123456789ABCDEF";
+                                    static const char  hex_lower[] = "0123456789abcdef";
+                                    const char        *digits      = (spec == 'X') ? hex_upper : hex_lower;
+                                    do {
+                                        temp[len++] = digits[val & 0x0F];
+                                        val >>= 4;
+                                    } while (val > 0);
+                                    int total_len = (len < min_digits) ? min_digits : len;
+                                    if (lmt_buffer_has_room(b, total_len)) {
+                                        for (int z = 0; z < total_len - len; z++) {
+                                            b->buffer[b->length++] = '0';
+                                        }
+                                        while (len > 0) {
+                                            b->buffer[b->length++] = temp[--len];
+                                        }
+                                    }
+                                }
+                                break;
+                            /* string formatting: %s (selective/direct) & %S (forced tostring) */
+                            case 's':
+                            case 'S':
+                                strlib_aux_format_sS(L, b, &arg_idx, spec, width, left_align, has_precision, precision);
+                                break;
+                            /* quoted string formatting: %q (nil-safe standard Lua %q) & %Q (fast LPeg-style serialize_string) */
+                            case 'q':
+                            case 'Q':
+                                strlib_aux_format_qQ(L, b, &arg_idx, spec);
+                                break;
+                            /* boolean (logic) */
+                            case 'l': 
+                            case 'L': 
+                                {   
+                                    int val = lua_toboolean(L, arg_idx++);
+                                    if (val) {
+                                        lmt_buffer_add_lstring(b, spec == 'l' ? "true"  : "TRUE",  4);
+                                    } else {
+                                        lmt_buffer_add_lstring(b, spec == 'l' ? "false" : "FALSE", 5);
+                                    }
+                                }
+                                break;
+                            /* auto single quote (%a) and auto double quote (%A) */
+                            case 'a':
+                            case 'A':
+                                strlib_aux_format_aA(L, b, &arg_idx, spec, sep_str, sep_len);
+                                break;
+                            /* utf8 character */
+                            case 'c': 
+                                {   
+                                    lua_Unsigned val = (lua_Unsigned) lua_tointeger(L, arg_idx++);
+                                    char buffer[8];
+                                    int len = aux_uni2strlen((unsigned) val, buffer);
+                                    if (len) {
+                                        lmt_buffer_add_lstring(b, buffer, len);
+                                    }
+                                }
+                                break;
+                            /* traced unicode character (%C) */
+                            case 'C':
+                                strlib_aux_format_C(L, b, &arg_idx);
+                                break;
+                            /* octal */
+                            case 'o':
+                                {   
+                                    lua_Unsigned val = (lua_Unsigned) lua_tointeger(L, arg_idx++);
+                                    int min_digits = has_precision ? precision : width;
+                                    if (min_digits <= 0) {
+                                        min_digits = 1;
+                                    }
+                                    char temp[22];
+                                    int  len = 0;
+                                    do {
+                                        temp[len++] = '0' + (val & 0x07);
+                                        val >>= 3;
+                                    } while (val > 0);
+                                    int total_len = (len < min_digits) ? min_digits : len;
+                                    if (lmt_buffer_has_room(b, total_len)) {
+                                        for (int z = 0; z < total_len - len; z++) {
+                                            b->buffer[b->length++] = '0';
+                                        }
+                                        while (len > 0) {
+                                            b->buffer[b->length++] = temp[--len];
+                                        }
+                                    }
+                                }
+                                break;
+                            /* spaces/width padding helper (ConTeXt formatters compatibility) */
+                            case 'w':
+                            case 'W':
+                                {   
+                                    int count = width;
+                                    /* if no explicit width in specifier (e.g. %w instead of %12w), take from argument stack */
+                                    if (count <= 0) {
+                                        count = (int) lua_tointeger(L, arg_idx++);
+                                    }
+                                    if (count > 0) {
+                                        lmt_buffer_add_spaces(b, count);
+                                    }
+                                }
+                                break;
+                            /* money with period or commas and optional thousand separators */
+                            case 'm':
+                            case 'M':
+                                {   
+                                    char        decimal_sep = (spec == 'm') ? '.' : ',';
+                                    const char *thousand_sep;
+                                    size_t      thousand_sep_len;
+                                    if (space_flag) {
+                                        /* if space flag was present (% m), use space as thousand separator */
+                                        thousand_sep     = " ";
+                                        thousand_sep_len = 1;
+                                    } else {
+                                        /* default: %m -> ',', %M -> '.' */
+                                        thousand_sep     = (spec == 'm') ? "," : ".";
+                                        thousand_sep_len = 1;
+                                    }
+                                    lua_Number val = lua_tonumber(L, arg_idx++);
+                                    if (lmt_buffer_has_room(b, 128)) {
+                                        b->length += double_to_string_m(val, b->buffer + b->length, thousand_sep, thousand_sep_len, decimal_sep);
+                                    }
+                                }
+                                break;
+                            /* grouped integer (%v / %V) */
+                            case 'v':
+                            case 'V':
+                                {   
+                                    const char *thousand_sep;
+                                    size_t      thousand_sep_len;
+                                    if (space_flag) {
+                                        thousand_sep     = " ";
+                                        thousand_sep_len = 1;
+                                    } else {
+                                        thousand_sep     = (spec == 'v') ? "," : ".";
+                                        thousand_sep_len = 1;
+                                    }
+                                    lua_Integer val = lua_tointeger(L, arg_idx++);
+                                    if (lmt_buffer_has_room(b, 64)) {
+                                        b->length += integer_to_string_v(val, b->buffer + b->length, thousand_sep, thousand_sep_len);
+                                    }
+                                }
+                                break;
+                            /* UTF-8 character-aware padding (%< and %>) */
+                            case '<':
+                            case '>':
+                                strlib_aux_format_left_right(L, b, &arg_idx, spec, width, left_align);
+                                break;
+                            default:
+                                lmt_buffer_add_char(b, '%');
+                                lmt_buffer_add_char(b, spec);
+                                break;
+                        }
+                    } else {
+                        arg_idx++; 
+                    }
                     break;
             }
             start = i;
@@ -2206,10 +3253,12 @@ static void strlib_aux_addformat(lua_State *L, lmt_string_buffer *b, int fmt_idx
             i++;
         }
     }
-
     /* flush remaining literal tail */
-    if (i > start) {
-        lmt_buffer_add_lstring(b, fmt + start, i - start);
+    int d = i - start;
+    if (d == 1) {
+        lmt_buffer_add_char(b, (int) fmt[start]);
+    } else if (d > 0) {
+        lmt_buffer_add_lstring(b, fmt + start, d);
     }
 }
 
@@ -2233,13 +3282,155 @@ static int strlib_buffer_addformat(lua_State *L)
     2+ : arguments 
 */
 
+# define buffer_stack_size  8 /* this should be enough, but we need to keep an eye on it */
+
+/* 
+    We use a bitmap to track which slots [0..7] are in use (a pool), but we can also use a 'depth' 
+    counter.
+*/
+
+typedef struct lmt_buffer_stack {
+    lmt_string_buffer buffers[buffer_stack_size];
+    unsigned int      active_mask;
+} lmt_buffer_stack;
+
+static inline int lmt_buffer_stack_get(lmt_buffer_stack *bs, lmt_string_buffer **out_b)
+{
+    /* locate the first available zero-indexed slot */
+    for (int i = 0; i < buffer_stack_size; i++) {
+        if (! ((bs->active_mask >> i) & 1)) {
+            bs->active_mask |= (1U << i);
+            lmt_string_buffer *b = &bs->buffers[i];
+            if (! b->buffer) {
+                b->size   = default_format_size;
+                b->length = 0;
+                b->buffer = (char *) lmt_memory_malloc(b->size);
+                b->step   = 0;
+            } else if (b->size < default_format_size) {
+                /* we need to guarantee that b->size is never zero or too small on reuse */
+                b->size   = default_format_size;
+                b->buffer = (char *) lmt_memory_realloc(b->buffer, b->size);
+            }
+            b->length = 0;
+            *out_b = b;
+            return i; /* Returns zero-based index 0, 1, 2... */
+        }
+    }
+    /* when all stack slots are exhausted we just allocate */
+    lmt_string_buffer *b = (lmt_string_buffer *) lmt_memory_malloc(sizeof(lmt_string_buffer));
+    b->size   = default_format_size;
+    b->length = 0;
+    b->buffer = (char *) lmt_memory_malloc(b->size);
+    b->step   = 0;
+    *out_b = b;
+    return -1; /* -1 indicates dynamic fallback */
+}
+
+static inline void lmt_buffer_stack_release(lmt_buffer_stack *bs, int stack_idx, lmt_string_buffer *b)
+{
+    if (stack_idx >= 0 && stack_idx < buffer_stack_size) {
+        /* Clear the bit for this zero-indexed slot */
+        bs->active_mask &= ~(1U << stack_idx);
+    } else {
+        /* Clean up dynamic fallback allocation */
+        if (b->buffer) {
+            lmt_memory_free(b->buffer);
+        }
+        lmt_memory_free(b);
+    }
+}
+
+static int strlib_format_buffer_gc(lua_State *L)
+{
+    lmt_buffer_stack *bs = (lmt_buffer_stack *) lua_touserdata(L, 1);
+    if (bs) {
+        for (int i = 0; i < buffer_stack_size; i++) {
+            if (bs->buffers[i].buffer) {
+                lmt_memory_free(bs->buffers[i].buffer);
+                bs->buffers[i].buffer = NULL;
+            }
+        }
+    }
+    return 0;
+}
+
 static int strlib_format(lua_State *L)
 {
-    lmt_string_buffer buffer;
-    lmt_buffer_allocate(&buffer);
-    strlib_aux_addformat(L, &buffer, 1, 2);
-    lua_pushlstring(L, buffer.buffer, buffer.length);
-    lmt_buffer_dispose(&buffer);
+    lmt_buffer_stack  *bs        = (lmt_buffer_stack *) lua_touserdata(L, lua_upvalueindex(3));
+    lmt_string_buffer *b         = NULL;
+    int                stack_idx = lmt_buffer_stack_get(bs, &b);
+    strlib_aux_addformat(L, b, 1, 2);
+    lua_pushlstring(L, b->buffer, b->length);
+    if (b->length > default_format_size && stack_idx >= 0) {
+        lmt_memory_free(b->buffer);
+        b->buffer = (char *) lmt_memory_malloc(default_format_size);
+        b->size   = default_format_size;
+        b->length = 0;
+    }
+    lmt_buffer_stack_release(bs, stack_idx, b);
+    return 1;
+}
+
+static void strlib_aux_tostring(lua_State *L, lmt_string_buffer *b, int index)
+{
+    index = lua_absindex(L, index);
+    switch (lua_type(L, index)) {
+        case LUA_TSTRING:
+            {
+                size_t      len;
+                const char *str = lua_tolstring(L, index, &len);
+                lmt_buffer_add_lstring(b, str, len);
+                break;
+            }
+        case LUA_TNUMBER:
+            if (lua_isinteger(L, index)) {
+                serialize_integer(b, lua_tointeger(L, index));
+            } else if (lmt_buffer_has_room(b, 64)) {
+                b->length += double_to_string_f(lua_tonumber(L, index), b->buffer + b->length, 17);
+            }
+            break;
+        case LUA_TBOOLEAN:
+            if (lua_toboolean(L, index)) {
+                lmt_buffer_add_lstring(b, "true", 4);
+            } else {
+                lmt_buffer_add_lstring(b, "false", 5);
+            }
+            break;
+        case LUA_TTABLE:
+            {
+                /* todo: sorted hash */
+                lua_Unsigned n = lua_rawlen(L, index);
+                if (n > 0) {
+                    for (lua_Unsigned i = 1; i <= n; i++) {
+                        lua_rawgeti(L, index, (lua_Integer) i);
+                        strlib_aux_tostring(L, b, lua_gettop(L));
+                        lua_pop(L, 1);
+                    }
+                }
+                break;
+            }
+        default:
+            break;
+    }
+}
+
+static int strlib_tostring(lua_State *L)
+{
+    lmt_buffer_stack  *bs        = (lmt_buffer_stack *) lua_touserdata(L, lua_upvalueindex(3));
+    lmt_string_buffer *b         = NULL;
+    int                stack_idx = lmt_buffer_stack_get(bs, &b);
+    int                top       = lua_gettop(L);
+    for (int i = 1; i <= top; i++) {
+        strlib_aux_tostring(L, b, i);
+    }
+    lua_pushlstring(L, b->buffer, b->length);
+    if (b->length > default_format_size && stack_idx >= 0) {
+        lmt_memory_free(b->buffer);
+        b->buffer = (char *) lmt_memory_malloc(default_format_size);
+        b->size   = default_format_size;
+        b->length = 0;
+    }
+    lmt_buffer_stack_release(bs, stack_idx, b);
     return 1;
 }
 
@@ -2256,16 +3447,16 @@ static int strlib_buffer_addbytes(lua_State *L)
 {
     lmt_string_buffer *b = strlib_buffer_instance(L);
     if (b) {
-        size_t slen;
-        const char *s = lua_tolstring(L, 2, &slen);
-        if (s) {
+        size_t      len;
+        const char *str = lua_tolstring(L, 2, &len);
+        if (str) {
             lua_Integer offset = luaL_optinteger(L, 3, 1) - 1; 
-            lua_Integer len    = luaL_optinteger(L, 4, (lua_Integer)(slen - offset));
-            if (offset >= 0 && (size_t) offset < slen && len > 0) {
-                if ((size_t) (offset + len) > slen) {
-                    len = slen - offset;
+            lua_Integer length = luaL_optinteger(L, 4, (lua_Integer) (length - offset));
+            if (offset >= 0 && (size_t) offset < length && length > 0) {
+                if ((size_t) (offset + length) > length) {
+                    length -= offset;
                 }
-                lmt_buffer_add_lstring(b, s + offset, (size_t) len);
+                lmt_buffer_add_lstring(b, str + offset, (size_t) length);
             }
         }
     }
@@ -3089,7 +4280,6 @@ static int strlib_tabstr_boolean(lua_State *L)
             sort_list[i].len = entries[i].len;
         }
         qsort(sort_list, nofentries, sizeof(tabstr_entry), tabstr_entry_compare);
-
         for (int i = 0; i < nofentries; i++) {
             if (i > 0) {
                 lmt_buffer_add_char(&out, ',');
@@ -3115,26 +4305,20 @@ static int strlib_aux_sorted_next(lua_State *L)
 {
     lua_Integer  idx = lua_tointeger(L, lua_upvalueindex(3));
     lua_Unsigned len = lua_rawlen(L, lua_upvalueindex(2));
-
     if ((lua_Unsigned) idx > len) {
-        return 0; /* Iteration complete */
+        /* iteration complete */
+        return 0;
     }
-
-    /* Advance iterator index upvalue */
-
+    /* advance iterator index upvalue */
     lua_pushinteger(L, idx + 1);
     lua_replace(L, lua_upvalueindex(3));
-
-    /* Push key from sorted keys array (Upvalue 2) */
-
+    /* push key from sorted keys array (upvalue 2) */
     lua_rawgeti(L, lua_upvalueindex(2), idx);
-
-    /* Push value from target table (Upvalue 1) */
-
+    /* push value from target table (upvalue 1) */
     lua_pushvalue(L, -1);
     lua_gettable(L, lua_upvalueindex(1));
-
-    return 2; /* Yields key, value */
+    /* key, value */
+    return 2;
 }
 
 static int strlib_sortedhash(lua_State *L)
@@ -3260,13 +4444,10 @@ static void strlib_aux_sequenced(
 )
 {
     index = lua_absindex(L, index);
-
     if (sep_is_true) {
         lmt_buffer_add_lstring(buffer, "{ ", 2);
     }
-
     lua_Unsigned n = lua_rawlen(L, index);
-
     if (n > 0) {
         /* array part */
         for (lua_Unsigned i = 1; i <= n; i++) {
@@ -3292,17 +4473,13 @@ static void strlib_aux_sequenced(
         int maxkeys = lmt_key_default;
         int nofkeys = 0;
         lmt_serialize_sort_data *keys = (lmt_serialize_sort_data *) lmt_memory_malloc(maxkeys * sizeof(lmt_serialize_sort_data));
-
         lua_pushnil(L);
         while (lua_next(L, index) != 0) {
-
             if (nofkeys >= maxkeys) {
                 maxkeys *= 2;
                 keys = (lmt_serialize_sort_data *) lmt_memory_realloc(keys, maxkeys * sizeof(lmt_serialize_sort_data));
             }
-
             lmt_serialize_sort_data *sk = &keys[nofkeys];
-
             switch (lua_type(L, -2)) {
                 case LUA_TNUMBER:
                     if (lua_isinteger(L, -2)) {
@@ -3318,29 +4495,26 @@ static void strlib_aux_sequenced(
                     sk->type = lua_toboolean(L, -2) ? LMT_TYPE_TRUE : LMT_TYPE_FALSE;
                     nofkeys++;
                     break;
-                case LUA_TSTRING: {
-                    size_t len;
-                    sk->type          = LMT_TYPE_STRING;
-                    sk->string_value  = lua_tolstring(L, -2, &len);
-                    sk->string_length = (uint32_t) len;
-                    nofkeys++;
+                case LUA_TSTRING: 
+                    {
+                        size_t len;
+                        sk->type          = LMT_TYPE_STRING;
+                        sk->string_value  = lua_tolstring(L, -2, &len);
+                        sk->string_length = (uint32_t) len;
+                        nofkeys++;
+                    }
                     break;
-                }
                 default:
                     break;
             }
             lua_pop(L, 1);
         }
-
         if (nofkeys > 1) {
             qsort(keys, nofkeys, sizeof(lmt_serialize_sort_data), lmt_serialize_compare);
         }
-
         int entries_added = 0;
-
         for (int i = 0; i < nofkeys; i++) {
             lmt_serialize_sort_data *sk = &keys[i];
-
             /* key */
             switch (sk->type) {
                 case LMT_TYPE_INTEGER: lua_pushinteger(L, sk->integer_value); break;
@@ -3350,24 +4524,21 @@ static void strlib_aux_sequenced(
                 case LMT_TYPE_STRING : lua_pushlstring(L, sk->string_value, sk->string_length); break;
                 default:               lua_pushnil    (L); break;
             }
-
             /* value */
             lua_pushvalue(L, -1);
             lua_gettable(L, index);
-
             int v_type  = lua_type(L, -1);
             int process = 0;
             int is_true = 0;
-
             if (simple) {
                 if (v_type == LUA_TBOOLEAN && lua_toboolean(L, -1)) {
                     process = 1;
                     is_true = 1;
                 } else if (v_type != LUA_TNIL && !(v_type == LUA_TBOOLEAN && ! lua_toboolean(L, -1))) {
                     if (v_type == LUA_TSTRING) {
-                        size_t slen;
-                        lua_tolstring(L, -1, &slen);
-                        if (slen > 0) {
+                        size_t len;
+                        lua_tolstring(L, -1, &len);
+                        if (len > 0) {
                             process = 1;
                         }
                     } else {
@@ -3377,7 +4548,6 @@ static void strlib_aux_sequenced(
             } else {
                 process = 1;
             }
-
             if (process) {
                 if (entries_added > 0) {
                     if (sep_is_true) {
@@ -3399,13 +4569,10 @@ static void strlib_aux_sequenced(
                 }
                 entries_added++;
             }
-
             lua_pop(L, 2); /* pop key and value */
         }
-
         lmt_memory_free(keys);
     }
-
     if (sep_is_true) {
         lmt_buffer_add_lstring(buffer, " }", 2);
     }
@@ -3473,6 +4640,7 @@ static const luaL_Reg sequencerlib_function_list[] = {
     { "sequenced",          strlib_sequenced          },
     /* strings */
     { "format",             strlib_format             },
+    { "tostring",           strlib_tostring           },
     /* buffers */
     { "newbuffer",          strlib_buffer_new         },
     { "addtobuffer",        strlib_buffer_add         },
@@ -3485,17 +4653,76 @@ static const luaL_Reg sequencerlib_function_list[] = {
     { NULL,                NULL                       },
 };
 
+/* this would also work when set: 
+
+    static const void *G_BUFFER_METATABLE_PTR = NULL;
+
+    ...
+    luaL_getmetatable(L, STRING_BUFFER_METATABLE_INSTANCE);
+    G_BUFFER_METATABLE_PTR = lua_topointer(L, -1);
+    lua_pop(L, 1);
+    ...
+    lmt_string_buffer *lmt_valid_buffer(lua_State *L)
+    {
+        lmt_string_buffer *b = (lmt_string_buffer *) lua_touserdata(L, 1);
+        if (b && lua_getmetatable(L, 1)) {
+            if (lua_topointer(L, -1) != G_BUFFER_METATABLE_PTR) {
+                b = NULL;
+            }
+            lua_pop(L, 1);
+            return b;
+        }
+        return NULL;
+    }
+
+*/
+
 int luaopen_sequencer(lua_State *L)
 {
-    luaL_newmetatable(L, STRING_BUFFER_METATABLE_INSTANCE); /* metatable */
-    luaL_setfuncs(L, sequencerlib_metatable_list, 0);
-    lua_newtable(L);                                        /* metatable library */
-    lua_pushvalue(L, -2);                                   /* metatable library metatable */
-    luaL_setfuncs(L, sequencerlib_function_list, 1);        /* metatable library */ /* upvalue 1: metatable */
-    lua_remove(L, -2);                                      /* library */
-    return 1;
-}
+    /* create and populate buffer metatable (upvalue 1) */
+    luaL_newmetatable(L, STRING_BUFFER_METATABLE_INSTANCE);     /* stack: [metatable] */
+    luaL_setfuncs(L, sequencerlib_metatable_list, 0);           
+    
+    lua_pushvalue(L, -1);
+    lua_setfield(L, -2, "__index");
 
+    /* create extensions table (upvalue 2) */
+    lua_newtable(L);                                            /* stack: [metatable, extensions] */
+
+    /* create format/tostring buffer stack (upvalue 3) */
+    lmt_buffer_stack *bs = (lmt_buffer_stack *) lua_newuserdatauv(L, sizeof(lmt_buffer_stack), 0);
+    bs->active_mask = 0;
+    for (int i = 0; i < buffer_stack_size; i++) {
+        bs->buffers[i].buffer = NULL;
+        bs->buffers[i].size   = 0;
+        bs->buffers[i].length = 0;
+        bs->buffers[i].step   = 0;
+    }
+
+    lua_newtable(L);
+    lua_pushcfunction(L, strlib_format_buffer_gc);
+    lua_setfield(L, -2, "__gc");
+    lua_setmetatable(L, -2);                                    /* stack: [metatable, extensions, buffer_ud] */
+
+    /* create the main 'sequencer' library table */
+    lua_newtable(L);                                            /* stack: [metatable, extensions, buffer_ud, library] */
+
+    lua_pushvalue(L, -3);                                       /* extensions */
+    lua_setfield(L, -2, "extensions");                          
+
+    /* bind C functions using 3 upvalues */
+    lua_pushvalue(L, -4);                                       /* upvalue 1: metatable */
+    lua_pushvalue(L, -4);                                       /* upvalue 2: extensions table */
+    lua_pushvalue(L, -4);                                       /* upvalue 3: buffer userdata */
+    luaL_setfuncs(L, sequencerlib_function_list, 3);            /* register with 3 upvalues */
+
+    /* clean up the stack */
+    lua_remove(L, -2);                                          /* remove buffer_ud */
+    lua_remove(L, -2);                                          /* remove extensions */
+    lua_remove(L, -2);                                          /* remove metatable */
+
+    return 1;                                                   /* return library table */
+}
 /*tex 
 
     The next list of functions registers in the |string| namespace. Maybe in retrospect we should

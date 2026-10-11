@@ -1,4 +1,5 @@
 /*tex
+
     See license.txt in the root of this project. The credits for the basics of this code
     (the inline functions go to wherever gemini got it from. In principle it is published
     code based on some research. The two public helpers are tuned for our purpose,
@@ -19,13 +20,23 @@
     multiplication tricks, processing numbers in pairs halves the total number of division
     instructions, significantly boosting performance in low-latency and high-throughput
     C code.
-    \stiopquotaiton
+    \stopquotaiton
+
+*/
+
+/*tex 
+
+    In the meantiem we added soem more than \quote {f} and \quote {g} formatting because I 
+    decided to use al this in the formatting helpers. So more might end up here. All this 
+    is rather \CONTEXT\ specific. 
 
 */
 
 # include <stdint.h>
 # include <stdbool.h>
 # include <string.h>
+# include <stdio.h>
+# include <lua.h>
 
 typedef struct {
     uint64_t significand;
@@ -85,7 +96,7 @@ static inline int render_digits(uint64_t val, char *buf)
         return 1;
     }
     char temp[32];
-    int pos = 0;
+    int  pos = 0;
     while (val >= 100) {
         uint32_t ind = (uint32_t) ((val % 100) * 2);
         val /= 100;
@@ -99,7 +110,6 @@ static inline int render_digits(uint64_t val, char *buf)
         temp[pos++] = DIGIT_TABLE[ind + 1];
         temp[pos++] = DIGIT_TABLE[ind];
     }
-
     for (int i = 0; i < pos; i++) {
         buf[i] = temp[pos - 1 - i];
     }
@@ -107,7 +117,7 @@ static inline int render_digits(uint64_t val, char *buf)
     return pos;
 }
 
-int double_to_string_f(double val, char *buf, int max_precision)
+int double_to_string_f(double val, char *buf, int precision)
 {
     bool is_neg;
     union { double d; uint64_t u; } bits = { val };
@@ -129,9 +139,10 @@ int double_to_string_f(double val, char *buf, int max_precision)
     int len = render_digits(dec.significand, digits);
     int dot_pos = len + dec.exponent;
     if (dot_pos < len) {
-        int avail_frac = len - (dot_pos > 0 ? dot_pos : 0);
-        if (avail_frac > max_precision) {
-            int drop = avail_frac - max_precision;
+        // total fractional digits after '.' includes leading zeros when dot_pos <= 0
+        int avail_frac = len - dot_pos;
+        if (avail_frac > precision) {
+            int drop = avail_frac - precision;
             if (drop > 0 && drop <= pow_10_max) {
                 uint64_t p10 = (uint64_t) POW10[drop];
                 dec.significand = (dec.significand + (p10 / 2)) / p10;
@@ -168,7 +179,7 @@ int double_to_string_f(double val, char *buf, int max_precision)
         }
     }
     buf[p] = '\0';
-    // Trim trailing zeros after the decimal point
+    // trim trailing zeros after the decimal point
     if (memchr(buf, '.', p)) {
         while (p > 0 && buf[p - 1] == '0') {
             p--;
@@ -181,7 +192,7 @@ int double_to_string_f(double val, char *buf, int max_precision)
     return p;
 }
 
-int double_to_string_g(double val, char *buf, int max_precision)
+int double_to_string_g(double val, char *buf, int precision)
 {
     bool is_neg;
     union { double d; uint64_t u; } bits = { val };
@@ -232,5 +243,280 @@ int double_to_string_g(double val, char *buf, int max_precision)
         buf[p] = '\0';
         return p;
     }
-    return double_to_string_f(val, buf, max_precision);
+    return double_to_string_f(val, buf, precision);
+}
+
+int double_to_string_z(double val, char *buf, int precision)
+{
+    bool is_neg;
+    union { double d; uint64_t u; } bits = { val };
+    uint32_t exp = (bits.u >> 52) & 0x7FF;
+    if (exp == 0x7FF) {
+        if (bits.u & 0x000FFFFFFFFFFFFFULL) {
+            buf[0]='N'; buf[1]='a'; buf[2]='N'; buf[3]='\0';
+            return 3;
+        } else if (bits.u >> 63) {
+            buf[0]='-'; buf[1]='I'; buf[2]='n'; buf[3]='f'; buf[4]='\0';
+            return 4;
+        } else {
+            buf[0]='I'; buf[1]='n'; buf[2]='f'; buf[3]='\0';
+            return 3;
+        }
+    }
+    decimal_rep_t dec = fast_double_to_decimal(val, &is_neg);
+    char digits[32];
+    int len = render_digits(dec.significand, digits);
+    int dot_pos = len + dec.exponent;
+    if (dot_pos < len) {
+        // total fractional digits after '.' includes leading zeros when dot_pos <= 0
+        int avail_frac = len - dot_pos;
+        if (avail_frac > precision) {
+            int drop = avail_frac - precision;
+            if (drop > 0 && drop <= pow_10_max) {
+                uint64_t p10 = (uint64_t) POW10[drop];
+                dec.significand = (dec.significand + (p10 / 2)) / p10;
+                dec.exponent += drop;
+                len = render_digits(dec.significand, digits);
+                dot_pos = len + dec.exponent;
+            }
+        }
+    }
+    int p = 0;
+    if (is_neg && val != 0.0) buf[p++] = '-';
+    if (dot_pos <= 0) {
+        buf[p++] = '0';
+        if (precision > 0) {
+            buf[p++] = '.';
+            for (int i = 0; i < -dot_pos && (p - (is_neg ? 3 : 2)) < precision; i++) {
+                buf[p++] = '0';
+            }
+            for (int i = 0; i < len; i++) {
+                buf[p++] = digits[i];
+            }
+        }
+    } else if (dot_pos >= len) {
+        for (int i = 0; i < len; i++) {
+            buf[p++] = digits[i];
+        }
+        for (int i = 0; i < (dot_pos - len); i++) {
+            buf[p++] = '0';
+        }
+        if (precision > 0) {
+            buf[p++] = '.';
+        }
+    } else {
+        for (int i = 0; i < len; i++) {
+            if (i == dot_pos && precision > 0) {
+                buf[p++] = '.';
+            }
+            buf[p++] = digits[i];
+        }
+    }
+    if (precision > 0) {
+        int dot_idx = -1;
+        for (int i = 0; i < p; i++) {
+            if (buf[i] == '.') {
+                dot_idx = i;
+                break;
+            }
+        }
+        if (dot_idx != -1) {
+            int current_frac_digits = p - (dot_idx + 1);
+            for (int i = current_frac_digits; i < precision; i++) {
+                buf[p++] = '0';
+            }
+        }
+    }
+    buf[p] = '\0';
+    return p;
+}
+
+/*tex 
+    The rounding formatter. 
+*/
+
+int double_to_string_r(double val, char *buf)
+{
+    // fast path for NaN / Inf
+    union { double d; uint64_t u; } bits = { val };
+    uint32_t exp = (bits.u >> 52) & 0x7FF;
+    if (exp == 0x7FF) {
+        if (bits.u & 0x000FFFFFFFFFFFFFULL) {
+            buf[0]='N'; buf[1]='a'; buf[2]='N'; buf[3]='\0';
+            return 3;
+        } else if (bits.u >> 63) {
+            buf[0]='-'; buf[1]='I'; buf[2]='n'; buf[3]='f'; buf[4]='\0';
+            return 4;
+        } else {
+            buf[0]='I'; buf[1]='n'; buf[2]='f'; buf[3]='\0';
+            return 3;
+        }
+    }
+    bool is_neg = (bits.u >> 63) != 0;
+    if (is_neg) {
+        val = -val;
+    }
+    // standard half-up rounding to nearest integer
+    double rounded = val + 0.5;
+    // fast 64-bit unsigned rendering if within bounds
+    if (rounded <= 18446744073709551615.0) {
+        uint64_t uval = (uint64_t) rounded;
+        int p = 0;
+        if (is_neg && uval != 0) {
+            buf[p++] = '-';
+        }
+        p += render_digits(uval, buf + p);
+        return p;
+    }
+    // fallback for extremely large doubles: use double_to_string_f with 0 precision
+    return double_to_string_f(is_neg ? -val : val, buf, 0);
+}
+
+/*tex 
+    We need a formatter for money and countries differ wrt command and periods. We also want to 
+    seperate thousands. A |string.formatter| that we did ith |lpeg|. 
+*/
+
+int double_to_string_m(double val, char *buf, const char *thousand_sep, size_t thousand_sep_len, char decimal_sep)
+{
+    // fast path for NaN / Inf
+    union { double d; uint64_t u; } bits = { val };
+    uint32_t exp = (bits.u >> 52) & 0x7FF;
+    if (exp == 0x7FF) {
+        if (bits.u & 0x000FFFFFFFFFFFFFULL) {
+            buf[0]='N'; buf[1]='a'; buf[2]='N'; buf[3]='\0'; return 3;
+        } else if (bits.u >> 63) {
+            buf[0]='-'; buf[1]='I'; buf[2]='n'; buf[3]='f'; buf[4]='\0'; return 4;
+        } else {
+            buf[0]='I'; buf[1]='n'; buf[2]='f'; buf[3]='\0'; return 3;
+        }
+    }
+    bool is_neg = (bits.u >> 63) != 0;
+    if (is_neg) {
+        val = -val;
+    }
+    // round to 2 decimal places: val * 100 + 0.5
+    uint64_t cents = (uint64_t) (val * 100.0 + 0.5);
+    uint64_t units = cents / 100;
+    uint32_t frac  = (uint32_t) (cents % 100);
+    // first render raw integer digits into temporary buffer
+    char raw_digits[32];
+    int raw_len = render_digits(units, raw_digits);
+    int p = 0;
+    if (is_neg && cents != 0) {
+        buf[p++] = '-';
+    }
+    // insert thousands separators during integer rendering
+    for (int i = 0; i < raw_len; i++) {
+        int remaining = raw_len - i;
+        if (i > 0 && (remaining % 3 == 0)) {
+            memcpy(buf + p, thousand_sep, thousand_sep_len);
+            p += thousand_sep_len;
+        }
+        buf[p++] = raw_digits[i];
+    }
+    // append decimal separator and 2 fixed decimal places
+    buf[p++] = decimal_sep;
+    buf[p++] = DIGIT_TABLE[frac * 2];
+    buf[p++] = DIGIT_TABLE[frac * 2 + 1];
+    buf[p]   = '\0';
+    return p;
+}
+
+/*tex
+    Another formatter turned C, this time integer thousands seperators. 
+*/
+
+int integer_to_string_v(lua_Integer val, char *buf, const char *thousand_sep, size_t thousand_sep_len)
+{
+    bool is_neg = (val < 0);
+    uint64_t uval = is_neg ? (uint64_t)(-(val + 1)) + 1 : (uint64_t)val;
+    char raw_digits[32];
+    int raw_len = render_digits(uval, raw_digits);
+    int p = 0;
+    if (is_neg) {
+        buf[p++] = '-';
+    }
+    for (int i = 0; i < raw_len; i++) {
+        int remaining = raw_len - i;
+        if (i > 0 && (remaining % 3 == 0)) {
+            memcpy(buf + p, thousand_sep, thousand_sep_len);
+            p += thousand_sep_len;
+        }
+        buf[p++] = raw_digits[i];
+    }
+    buf[p] = '\0';
+    return p;
+}
+
+/*tex 
+    This is the |string.formatters| lpeg turned into C. 
+*/
+
+int double_to_string_j(double val, char *dest, size_t dest_size, char exp_char, int req_prec)
+{
+    char raw[128];
+    int len = snprintf(raw, sizeof(raw), "%.*e", req_prec, val);
+    if (len <= 0 || len >= (int) sizeof(raw)) {
+        return snprintf(dest, dest_size, "0");
+    }
+    /* find decimal point and exponent marker ('e' or 'E') */
+    char *dot = strchr(raw, '.');
+    char *exp = strchr(raw, 'e');
+    if (! exp) { 
+        exp = strchr(raw, 'E');
+    }
+    int dest_pos = 0;
+    /* trim trailing zeros between '.' and 'e'/'E' */
+    if (dot && exp) {
+        char *ptr = exp - 1;
+        while (ptr > dot && *ptr == '0') {
+            ptr--;
+        }
+        /* drop the decimal point if all fractional digits were zero */
+        if (ptr == dot) {
+            ptr--;
+        }        
+        /* copy mantissa portion */
+        int mant_len = (int)(ptr - raw + 1);
+        memcpy(dest + dest_pos, raw, mant_len);
+        dest_pos += mant_len;
+    } else if (exp) {
+        int mant_len = (int)(exp - raw);
+        memcpy(dest + dest_pos, raw, mant_len);
+        dest_pos += mant_len;
+    } else {
+        /* Fallback if no exponent was produced */
+        memcpy(dest, raw, len + 1);
+        return (size_t) len;
+    }
+    /* parse exponent part (e.g. "+004", "-005", "+000") */
+    char *e_ptr = exp + 1;
+    int sign = 1;
+    if (*e_ptr == '+') {
+        sign = 1;
+        e_ptr++;
+    } else if (*e_ptr == '-') {
+        sign = -1;
+        e_ptr++;
+    }
+    /* skip leading zeros in exponent */
+    while (*e_ptr == '0') {
+        e_ptr++;
+    }
+    int exp_val = 0;
+    while (*e_ptr >= '0' && *e_ptr <= '9') {
+        exp_val = (exp_val * 10) + (*e_ptr - '0');
+        e_ptr++;
+    }
+    /* append sparse exponent only if exp_val != 0 */
+    if (exp_val != 0) {
+        dest[dest_pos++] = exp_char;
+        if (sign < 0) {
+            dest[dest_pos++] = '-';
+        }
+        dest_pos += snprintf(dest + dest_pos, dest_size - dest_pos, "%d", exp_val);
+    }
+    dest[dest_pos] = '\0';
+    return dest_pos;
 }
