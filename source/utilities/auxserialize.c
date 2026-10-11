@@ -143,10 +143,15 @@ int double_to_string_f(double val, char *buf, int precision)
         int avail_frac = len - dot_pos;
         if (avail_frac > precision) {
             int drop = avail_frac - precision;
-            if (drop > 0 && drop <= pow_10_max) {
-                uint64_t p10 = (uint64_t) POW10[drop];
-                dec.significand = (dec.significand + (p10 / 2)) / p10;
-                dec.exponent += drop;
+            if (drop > 0) {
+                if (drop <= pow_10_max) {
+                    uint64_t p10 = (uint64_t) POW10[drop];
+                    dec.significand = (dec.significand + (p10 / 2)) / p10;
+                    dec.exponent += drop;
+                } else {
+                    dec.significand = 0;
+                    dec.exponent = -precision;
+                }
                 len = render_digits(dec.significand, digits);
                 dot_pos = len + dec.exponent;
             }
@@ -219,10 +224,14 @@ int double_to_string_g(double val, char *buf, int precision)
         if (is_neg && val != 0.0) {
             buf[p++] = '-';
         }
+        int req_len = precision + 1;
+        if (req_len < 1) req_len = 1;
+        if (req_len > len) req_len = len;
+
         buf[p++] = digits[0];
-        if (len > 1) {
+        if (req_len > 1) {
             buf[p++] = '.';
-            for (int i = 1; i < len; i++) {
+            for (int i = 1; i < req_len; i++) {
                 buf[p++] = digits[i];
             }
         }
@@ -272,10 +281,15 @@ int double_to_string_z(double val, char *buf, int precision)
         int avail_frac = len - dot_pos;
         if (avail_frac > precision) {
             int drop = avail_frac - precision;
-            if (drop > 0 && drop <= pow_10_max) {
-                uint64_t p10 = (uint64_t) POW10[drop];
-                dec.significand = (dec.significand + (p10 / 2)) / p10;
-                dec.exponent += drop;
+            if (drop > 0) {
+                if (drop <= pow_10_max) {
+                    uint64_t p10 = (uint64_t) POW10[drop];
+                    dec.significand = (dec.significand + (p10 / 2)) / p10;
+                    dec.exponent += drop;
+                } else {
+                    dec.significand = 0;
+                    dec.exponent = -precision;
+                }
                 len = render_digits(dec.significand, digits);
                 dot_pos = len + dec.exponent;
             }
@@ -331,8 +345,8 @@ int double_to_string_z(double val, char *buf, int precision)
     return p;
 }
 
-/*tex 
-    The rounding formatter. 
+/*tex
+    The rounding formatter.
 */
 
 int double_to_string_r(double val, char *buf)
@@ -358,8 +372,8 @@ int double_to_string_r(double val, char *buf)
     }
     // standard half-up rounding to nearest integer
     double rounded = val + 0.5;
-    // fast 64-bit unsigned rendering if within bounds
-    if (rounded <= 18446744073709551615.0) {
+    // safe upper bound strictly less than 2^64 (18446744073709551616.0)
+    if (rounded >= 0.0 && rounded < 18446744073709551616.0) {
         uint64_t uval = (uint64_t) rounded;
         int p = 0;
         if (is_neg && uval != 0) {
@@ -372,9 +386,9 @@ int double_to_string_r(double val, char *buf)
     return double_to_string_f(is_neg ? -val : val, buf, 0);
 }
 
-/*tex 
-    We need a formatter for money and countries differ wrt command and periods. We also want to 
-    seperate thousands. A |string.formatter| that we did ith |lpeg|. 
+/*tex
+    We need a formatter for money and countries differ wrt command and periods. We also want to
+    seperate thousands. A |string.formatter| that we did ith |lpeg|.
 */
 
 int double_to_string_m(double val, char *buf, const char *thousand_sep, size_t thousand_sep_len, char decimal_sep)
@@ -395,8 +409,13 @@ int double_to_string_m(double val, char *buf, const char *thousand_sep, size_t t
     if (is_neg) {
         val = -val;
     }
-    // round to 2 decimal places: val * 100 + 0.5
-    uint64_t cents = (uint64_t) (val * 100.0 + 0.5);
+    // round to 2 decimal places: val * 100 + 0.5 with range check
+    double scaled = val * 100.0 + 0.5;
+    if (scaled < 0.0 || scaled >= 18446744073709551616.0) {
+        strcpy(buf, "Inf");
+        return 3;
+    }
+    uint64_t cents = (uint64_t) scaled;
     uint64_t units = cents / 100;
     uint32_t frac  = (uint32_t) (cents % 100);
     // first render raw integer digits into temporary buffer
@@ -424,7 +443,7 @@ int double_to_string_m(double val, char *buf, const char *thousand_sep, size_t t
 }
 
 /*tex
-    Another formatter turned C, this time integer thousands seperators. 
+    Another formatter turned C, this time integer thousands seperators.
 */
 
 int integer_to_string_v(lua_Integer val, char *buf, const char *thousand_sep, size_t thousand_sep_len)
@@ -449,8 +468,8 @@ int integer_to_string_v(lua_Integer val, char *buf, const char *thousand_sep, si
     return p;
 }
 
-/*tex 
-    This is the |string.formatters| lpeg turned into C. 
+/*tex
+    This is the |string.formatters| lpeg turned into C.
 */
 
 int double_to_string_j(double val, char *dest, size_t dest_size, char exp_char, int req_prec)
@@ -463,7 +482,7 @@ int double_to_string_j(double val, char *dest, size_t dest_size, char exp_char, 
     /* find decimal point and exponent marker ('e' or 'E') */
     char *dot = strchr(raw, '.');
     char *exp = strchr(raw, 'e');
-    if (! exp) { 
+    if (! exp) {
         exp = strchr(raw, 'E');
     }
     int dest_pos = 0;
@@ -476,7 +495,7 @@ int double_to_string_j(double val, char *dest, size_t dest_size, char exp_char, 
         /* drop the decimal point if all fractional digits were zero */
         if (ptr == dot) {
             ptr--;
-        }        
+        }
         /* copy mantissa portion */
         int mant_len = (int)(ptr - raw + 1);
         memcpy(dest + dest_pos, raw, mant_len);
