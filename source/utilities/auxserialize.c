@@ -36,6 +36,7 @@
 # include <stdbool.h>
 # include <string.h>
 # include <stdio.h>
+# include <limits.h>
 # include <lua.h>
 
 typedef struct {
@@ -56,6 +57,28 @@ static const double POW10[] = {
 };
 
 # define pow_10_max 19
+# define max_decimal_precision (INT_MAX - 350)
+
+static inline int normalize_decimal_precision(int precision)
+{
+    if (precision < 0) {
+        return 0;
+    } else if (precision > max_decimal_precision) {
+        return max_decimal_precision;
+    } else {
+        return precision;
+    }
+}
+
+static inline int append_bytes(char *buf, size_t buf_size, size_t *pos, const char *src, size_t len)
+{
+    if (buf_size == 0 || *pos > buf_size - 1 || len > buf_size - 1 - *pos) {
+        return 0;
+    }
+    memcpy(buf + *pos, src, len);
+    *pos += len;
+    return 1;
+}
 
 static inline decimal_rep_t fast_double_to_decimal(double v, bool *is_neg)
 {
@@ -119,6 +142,7 @@ static inline int render_digits(uint64_t val, char *buf)
 
 int double_to_string_f(double val, char *buf, int precision)
 {
+    precision = normalize_decimal_precision(precision);
     bool is_neg;
     union { double d; uint64_t u; } bits = { val };
     uint32_t exp = (bits.u >> 52) & 0x7FF;
@@ -199,7 +223,12 @@ int double_to_string_f(double val, char *buf, int precision)
 
 int double_to_string_g(double val, char *buf, int precision)
 {
-    bool is_neg;
+    precision = normalize_decimal_precision(precision);
+    if (precision == 0) {
+        precision = 1;
+    } else if (precision > 17) {
+        precision = 17;
+    }
     union { double d; uint64_t u; } bits = { val };
     uint32_t exp = (bits.u >> 52) & 0x7FF;
     if (exp == 0x7FF) {
@@ -214,60 +243,39 @@ int double_to_string_g(double val, char *buf, int precision)
         buf[0]='I'; buf[1]='n'; buf[2]='f'; buf[3]='\0';
         return 3;
     }
-    decimal_rep_t dec = fast_double_to_decimal(val, &is_neg);
-    char digits[32];
-    int len = render_digits(dec.significand, digits);
-    int exp_val = (len - 1) + dec.exponent;
-    // use scientific notation if out of clean printable range
-    if (exp_val < -4 || exp_val >= 6) {
-        int p = 0;
-        if (is_neg && val != 0.0) {
-            buf[p++] = '-';
-        }
-        int req_len = precision + 1;
-        if (req_len < 1) req_len = 1;
-        if (req_len > len) req_len = len;
-
-        buf[p++] = digits[0];
-        if (req_len > 1) {
-            buf[p++] = '.';
-            for (int i = 1; i < req_len; i++) {
-                buf[p++] = digits[i];
-            }
-        }
-        // custom integer exponent renderer (no sprintf)
-        buf[p++] = 'e';
-        if (exp_val >= 0) {
-            buf[p++] = '+';
-        } else {
-            buf[p++] = '-';
-            exp_val = -exp_val;
-        }
-        if (exp_val < 10) {
-            buf[p++] = '0';
-            buf[p++] = (char) ('0' + exp_val);
-        } else {
-            p += render_digits((uint64_t) exp_val, buf + p);
-        }
-        buf[p] = '\0';
-        return p;
+    char formatted[64];
+    int len = snprintf(formatted, sizeof(formatted), "%.*g", precision, val);
+    if (len <= 0 || len >= (int) sizeof(formatted)) {
+        buf[0] = '\0';
+        return 0;
     }
-    return double_to_string_f(val, buf, precision);
+    memcpy(buf, formatted, (size_t) len + 1);
+    return len;
 }
 
-int double_to_string_z(double val, char *buf, int precision)
+int double_to_string_z(double val, char *buf, size_t buf_size, int precision)
 {
+    precision = normalize_decimal_precision(precision);
     bool is_neg;
     union { double d; uint64_t u; } bits = { val };
     uint32_t exp = (bits.u >> 52) & 0x7FF;
     if (exp == 0x7FF) {
         if (bits.u & 0x000FFFFFFFFFFFFFULL) {
+            if (buf_size < 4) {
+                return -1;
+            }
             buf[0]='N'; buf[1]='a'; buf[2]='N'; buf[3]='\0';
             return 3;
         } else if (bits.u >> 63) {
+            if (buf_size < 5) {
+                return -1;
+            }
             buf[0]='-'; buf[1]='I'; buf[2]='n'; buf[3]='f'; buf[4]='\0';
             return 4;
         } else {
+            if (buf_size < 4) {
+                return -1;
+            }
             buf[0]='I'; buf[1]='n'; buf[2]='f'; buf[3]='\0';
             return 3;
         }
@@ -294,6 +302,40 @@ int double_to_string_z(double val, char *buf, int precision)
                 dot_pos = len + dec.exponent;
             }
         }
+    }
+    size_t required = (is_neg && val != 0.0) ? 1 : 0;
+    if (dot_pos <= 0) {
+        required += 1;
+        if (precision > 0) {
+            int leading = -dot_pos;
+            if (leading > precision) {
+                leading = precision;
+            }
+            size_t fractional = (size_t) leading + (size_t) len;
+            required += 1 + fractional;
+            if ((size_t) precision > fractional) {
+                required += (size_t) precision - fractional;
+            }
+        }
+    } else if (dot_pos >= len) {
+        required += (size_t) dot_pos;
+        if (precision > 0) {
+            required += 1 + (size_t) precision;
+        }
+    } else {
+        required += (size_t) len;
+        if (precision > 0) {
+            required += 1;
+            if ((size_t) precision > (size_t) (len - dot_pos)) {
+                required += (size_t) precision - (size_t) (len - dot_pos);
+            }
+        }
+    }
+    if (required >= buf_size) {
+        if (buf_size > 0) {
+            buf[0] = '\0';
+        }
+        return -1;
     }
     int p = 0;
     if (is_neg && val != 0.0) buf[p++] = '-';
@@ -474,10 +516,20 @@ int integer_to_string_v(lua_Integer val, char *buf, const char *thousand_sep, si
 
 int double_to_string_j(double val, char *dest, size_t dest_size, char exp_char, int req_prec)
 {
+    if (dest_size == 0) {
+        return -1;
+    }
+    req_prec = normalize_decimal_precision(req_prec);
     char raw[128];
     int len = snprintf(raw, sizeof(raw), "%.*e", req_prec, val);
     if (len <= 0 || len >= (int) sizeof(raw)) {
-        return snprintf(dest, dest_size, "0");
+        if (dest_size < 2) {
+            dest[0] = '\0';
+            return -1;
+        }
+        dest[0] = '0';
+        dest[1] = '\0';
+        return 1;
     }
     /* find decimal point and exponent marker ('e' or 'E') */
     char *dot = strchr(raw, '.');
@@ -485,7 +537,7 @@ int double_to_string_j(double val, char *dest, size_t dest_size, char exp_char, 
     if (! exp) {
         exp = strchr(raw, 'E');
     }
-    int dest_pos = 0;
+    size_t dest_pos = 0;
     /* trim trailing zeros between '.' and 'e'/'E' */
     if (dot && exp) {
         char *ptr = exp - 1;
@@ -498,16 +550,21 @@ int double_to_string_j(double val, char *dest, size_t dest_size, char exp_char, 
         }
         /* copy mantissa portion */
         int mant_len = (int)(ptr - raw + 1);
-        memcpy(dest + dest_pos, raw, mant_len);
-        dest_pos += mant_len;
+        if (! append_bytes(dest, dest_size, &dest_pos, raw, (size_t) mant_len)) {
+            goto overflow;
+        }
     } else if (exp) {
         int mant_len = (int)(exp - raw);
-        memcpy(dest + dest_pos, raw, mant_len);
-        dest_pos += mant_len;
+        if (! append_bytes(dest, dest_size, &dest_pos, raw, (size_t) mant_len)) {
+            goto overflow;
+        }
     } else {
         /* Fallback if no exponent was produced */
-        memcpy(dest, raw, len + 1);
-        return (size_t) len;
+        if (! append_bytes(dest, dest_size, &dest_pos, raw, (size_t) len)) {
+            goto overflow;
+        }
+        dest[dest_pos] = '\0';
+        return (int) dest_pos;
     }
     /* parse exponent part (e.g. "+004", "-005", "+000") */
     char *e_ptr = exp + 1;
@@ -530,12 +587,23 @@ int double_to_string_j(double val, char *dest, size_t dest_size, char exp_char, 
     }
     /* append sparse exponent only if exp_val != 0 */
     if (exp_val != 0) {
-        dest[dest_pos++] = exp_char;
-        if (sign < 0) {
-            dest[dest_pos++] = '-';
+        if (! append_bytes(dest, dest_size, &dest_pos, &exp_char, 1)) {
+            goto overflow;
         }
-        dest_pos += snprintf(dest + dest_pos, dest_size - dest_pos, "%d", exp_val);
+        if (sign < 0) {
+            if (! append_bytes(dest, dest_size, &dest_pos, "-", 1)) {
+                goto overflow;
+            }
+        }
+        char exponent[32];
+        int  exponent_len = snprintf(exponent, sizeof(exponent), "%d", exp_val);
+        if (exponent_len < 0 || ! append_bytes(dest, dest_size, &dest_pos, exponent, (size_t) exponent_len)) {
+            goto overflow;
+        }
     }
     dest[dest_pos] = '\0';
-    return dest_pos;
+    return (int) dest_pos;
+  overflow:
+    dest[0] = '\0';
+    return -1;
 }
