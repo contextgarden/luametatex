@@ -70,16 +70,6 @@ static inline int normalize_decimal_precision(int precision)
     }
 }
 
-static inline int append_bytes(char *buf, size_t buf_size, size_t *pos, const char *src, size_t len)
-{
-    if (buf_size == 0 || *pos > buf_size - 1 || len > buf_size - 1 - *pos) {
-        return 0;
-    }
-    memcpy(buf + *pos, src, len);
-    *pos += len;
-    return 1;
-}
-
 static inline decimal_rep_t fast_double_to_decimal(double v, bool *is_neg)
 {
     union { double d; uint64_t u; } bits = { v };
@@ -451,20 +441,22 @@ int double_to_string_m(double val, char *buf, const char *thousand_sep, size_t t
     if (is_neg) {
         val = -val;
     }
-    // round to 2 decimal places: val * 100 + 0.5 with range check
-    double scaled = val * 100.0 + 0.5;
-    if (scaled < 0.0 || scaled >= 18446744073709551616.0) {
-        strcpy(buf, "Inf");
-        return 3;
+    // round to 2 decimal places: val * 100 + 0.5 but beyond 2^53 we let the c library do that
+    double   scaled = val * 100.0 + 0.5;
+    char     raw_digits[320];
+    int      raw_len;
+    uint32_t frac;
+    if (scaled < 9007199254740992.0) {
+        uint64_t cents = (uint64_t) scaled;
+        raw_len = render_digits(cents / 100, raw_digits);
+        frac    = (uint32_t) (cents % 100);
+    } else {
+        // at most 309 digits, a period and two decimals
+        raw_len = snprintf(raw_digits, sizeof(raw_digits), "%.2f", val) - 3;
+        frac    = (uint32_t) ((raw_digits[raw_len + 1] - '0') * 10 + (raw_digits[raw_len + 2] - '0'));
     }
-    uint64_t cents = (uint64_t) scaled;
-    uint64_t units = cents / 100;
-    uint32_t frac  = (uint32_t) (cents % 100);
-    // first render raw integer digits into temporary buffer
-    char raw_digits[32];
-    int raw_len = render_digits(units, raw_digits);
     int p = 0;
-    if (is_neg && cents != 0) {
+    if (is_neg && (raw_len > 1 || raw_digits[0] != '0' || frac != 0)) {
         buf[p++] = '-';
     }
     // insert thousands separators during integer rendering
@@ -520,51 +512,17 @@ int double_to_string_j(double val, char *dest, size_t dest_size, char exp_char, 
         return -1;
     }
     req_prec = normalize_decimal_precision(req_prec);
-    char raw[128];
-    int len = snprintf(raw, sizeof(raw), "%.*e", req_prec, val);
-    if (len <= 0 || len >= (int) sizeof(raw)) {
-        if (dest_size < 2) {
-            dest[0] = '\0';
-            return -1;
-        }
-        dest[0] = '0';
-        dest[1] = '\0';
-        return 1;
+    /* we format in place (the caller has room for the precision) so we can only get shorter */
+    int len = snprintf(dest, dest_size, "%.*e", req_prec, val);
+    if (len <= 0 || (size_t) len >= dest_size) {
+        dest[0] = '\0';
+        return -1;
     }
-    /* find decimal point and exponent marker ('e' or 'E') */
-    char *dot = strchr(raw, '.');
-    char *exp = strchr(raw, 'e');
+    /* find decimal point and exponent marker, without the latter we have inf or nan */
+    char *dot = strchr(dest, '.');
+    char *exp = strchr(dest, 'e');
     if (! exp) {
-        exp = strchr(raw, 'E');
-    }
-    size_t dest_pos = 0;
-    /* trim trailing zeros between '.' and 'e'/'E' */
-    if (dot && exp) {
-        char *ptr = exp - 1;
-        while (ptr > dot && *ptr == '0') {
-            ptr--;
-        }
-        /* drop the decimal point if all fractional digits were zero */
-        if (ptr == dot) {
-            ptr--;
-        }
-        /* copy mantissa portion */
-        int mant_len = (int)(ptr - raw + 1);
-        if (! append_bytes(dest, dest_size, &dest_pos, raw, (size_t) mant_len)) {
-            goto overflow;
-        }
-    } else if (exp) {
-        int mant_len = (int)(exp - raw);
-        if (! append_bytes(dest, dest_size, &dest_pos, raw, (size_t) mant_len)) {
-            goto overflow;
-        }
-    } else {
-        /* Fallback if no exponent was produced */
-        if (! append_bytes(dest, dest_size, &dest_pos, raw, (size_t) len)) {
-            goto overflow;
-        }
-        dest[dest_pos] = '\0';
-        return (int) dest_pos;
+        return len;
     }
     /* parse exponent part (e.g. "+004", "-005", "+000") */
     char *e_ptr = exp + 1;
@@ -576,34 +534,29 @@ int double_to_string_j(double val, char *dest, size_t dest_size, char exp_char, 
         sign = -1;
         e_ptr++;
     }
-    /* skip leading zeros in exponent */
-    while (*e_ptr == '0') {
-        e_ptr++;
-    }
     int exp_val = 0;
     while (*e_ptr >= '0' && *e_ptr <= '9') {
         exp_val = (exp_val * 10) + (*e_ptr - '0');
         e_ptr++;
     }
-    /* append sparse exponent only if exp_val != 0 */
-    if (exp_val != 0) {
-        if (! append_bytes(dest, dest_size, &dest_pos, &exp_char, 1)) {
-            goto overflow;
+    /* trim trailing zeros between '.' and 'e', and the decimal point if all fractional digits were zero */
+    char *end = exp;
+    if (dot) {
+        while (end - 1 > dot && end[-1] == '0') {
+            end--;
         }
-        if (sign < 0) {
-            if (! append_bytes(dest, dest_size, &dest_pos, "-", 1)) {
-                goto overflow;
-            }
-        }
-        char exponent[32];
-        int  exponent_len = snprintf(exponent, sizeof(exponent), "%d", exp_val);
-        if (exponent_len < 0 || ! append_bytes(dest, dest_size, &dest_pos, exponent, (size_t) exponent_len)) {
-            goto overflow;
+        if (end - 1 == dot) {
+            end--;
         }
     }
-    dest[dest_pos] = '\0';
-    return (int) dest_pos;
-  overflow:
-    dest[0] = '\0';
-    return -1;
+    /* append sparse exponent only if exp_val != 0 */
+    if (exp_val != 0) {
+        *end++ = exp_char;
+        if (sign < 0) {
+            *end++ = '-';
+        }
+        end += snprintf(end, dest_size - (size_t) (end - dest), "%d", exp_val);
+    }
+    *end = '\0';
+    return (int) (end - dest);
 }
