@@ -890,28 +890,226 @@ static inline void write_hex16(char *s, unsigned int val)
     s[3] = hex_upper[ val        & 0xF];
 }
 
-static int strlib_format_tounicode16(lua_State *L)
+// static int strlib_tounicode16(lua_State *L)
+// {
+//     lua_Integer u = lua_tointeger(L, 1);   
+//     if (u < 0 || u > MAXUNICODE || invalid_unicode(u)) {
+//         lua_pushliteral(L, "FFFD");
+//     } else if (u <= 0xFFFF) {
+//         /* basic multilingual plane: single 16-bit word */
+//         char s[4];
+//         write_hex16(s, (unsigned int) u);
+//         lua_pushlstring(L, s, 4);
+//     } else {
+//         /* supplementary planes (U+10000 .. U+10FFFF): UTF-16 surrogate pair */
+//         char s[8];
+//         unsigned int v = (unsigned int) (u - 0x10000);
+//         unsigned int u1 = (v >> 10)   + 0xD800; /* high surrogate */
+//         unsigned int u2 = (v & 0x3FF) + 0xDC00; /* low  surrogate */
+//         write_hex16(s, u1);
+//         write_hex16(s + 4, u2);
+//         lua_pushlstring(L, s, 8);
+//     }
+//     return 1;
+// }
+
+/*tex 
+
+    When porting the \LUA\ variant we combined three functions in one and handle for instance 
+    negative numbers better. 
+
+*/
+
+static inline size_t strlib_aux_tounicode16_chars(lua_Integer u, char *s)
 {
-    lua_Integer u = lua_tointeger(L, 1);   
     if (u < 0 || u > MAXUNICODE || invalid_unicode(u)) {
-        lua_pushliteral(L, "FFFD");
+        memcpy(s, "FFFD", 4);
+        return 4;
     } else if (u <= 0xFFFF) {
         /* basic multilingual plane: single 16-bit word */
-        char s[4];
         write_hex16(s, (unsigned int) u);
-        lua_pushlstring(L, s, 4);
+        return 4;
     } else {
         /* supplementary planes (U+10000 .. U+10FFFF): UTF-16 surrogate pair */
-        char s[8];
-        unsigned int v = (unsigned int) (u - 0x10000);
+        unsigned int v  = (unsigned int) (u - 0x10000);
         unsigned int u1 = (v >> 10)   + 0xD800; /* high surrogate */
         unsigned int u2 = (v & 0x3FF) + 0xDC00; /* low  surrogate */
         write_hex16(s, u1);
         write_hex16(s + 4, u2);
-        lua_pushlstring(L, s, 8);
+        return 8;
     }
-    return 1;
 }
+
+static inline void strlib_aux_add_tounicode16(luaL_Buffer *b, lua_Integer u)
+{
+    char str[8];
+    size_t len = strlib_aux_tounicode16_chars(u, str);
+    luaL_addlstring(b, str, len);
+}
+
+inline static void strlib_aux_tounicode16_collect(lua_State *L, int index, luaL_Buffer *b, int depth)
+{
+    switch (lua_type(L, index)) {
+        case LUA_TNUMBER:
+            strlib_aux_add_tounicode16(b, lua_tointeger(L, index));
+            break;
+        case LUA_TTABLE:
+            if (depth < max_nesting_depth && lua_checkstack(L, 1)) {
+                lua_Unsigned n = lua_rawlen(L, index);
+                for (lua_Unsigned i = 1; i <= n; i++) {
+                    lua_rawgeti(L, index, (lua_Integer) i);
+                    strlib_aux_tounicode16_collect(L, lua_gettop(L), b, depth + 1);
+                    lua_pop(L, 1);
+                }
+            }
+            break;
+        default:
+            luaL_addlstring(b, "FFFD", 4);
+            break;
+    }
+}
+
+static int strlib_tounicode16(lua_State *L)
+{
+    int n = lua_gettop(L);
+    if (n == 1 && lua_type(L, 1) == LUA_TNUMBER) {
+        char s[8];
+        size_t len = strlib_aux_tounicode16_chars(lua_tointeger(L, 1), s);
+        lua_pushlstring(L, s, len);
+        return 1;
+    } else {
+        luaL_Buffer b;
+        luaL_buffinitsize(L, &b, (size_t) (n > 0 ? n : 1) * 8);
+        for (int i = 1; i <= n; i++) {
+            strlib_aux_tounicode16_collect(L, i, &b, 0);
+        }
+        luaL_pushresult(&b);
+        return 1;
+    }
+}
+
+/*tex 
+    This converts a hex string to characters. Spacing is ignored and invalid characters result in 
+    a false result. Empty strings are okay. Originally we assumed \type {XX XX XX} and just skipped
+    single ones but we might as well also handle \type {X X X}. This code is not that critical and
+    was introduced when we wanted flexible bitmap definition in \METAPOST\ and \LUA\ as part of the
+    \type {potrace} experiments.
+
+    Previous (less efficient) implementations can be found in the git history (luametatex and
+    context). Here we use a 256-byte lookup table for hex decoding but of course it comes at a
+    memory price (we use shorts as suggested by gemini):
+
+    - 0 .. 15 : valid hex nibbles
+    - 256     : whitespace (skip)
+    - 257     : invalid character / failure
+
+    It's anyway a nice example of a variant, given the usual reformatting and a bit of
+    cleaning up. We need the table a few times. 
+*/
+
+static const unsigned short strlib_hex_table[256] = {
+    /* 0x00 - 0x1F: control characters \t \n \r are valid spacing */
+    257,257,257,257,257,257,257,257,257,256,256,257,257,256,257,257,
+    257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
+    /* 0x20 - 0x2F: ' ' is valid spacing */
+    256,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
+    /* 0x30 - 0x39: digits '0'-'9' (0 .. 9) */
+    0,    1,  2,  3,  4,  5,  6,  7,  8,  9,257,257,257,257,257,257,
+    /* 0x40 - 0x4F: uppercase 'A'-'F' (10 .. 15) */
+    257, 10, 11, 12, 13, 14, 15,257,257,257,257,257,257,257,257,257,
+    257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
+    /* 0x60 - 0x6F: lowercase 'a'-'f' (10 .. 15) */
+    257, 10, 11, 12, 13, 14, 15,257,257,257,257,257,257,257,257,257,
+    257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
+    /* 0x80 - 0xFF: high ASCII / non ASCII (all invalid) */
+    257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
+    257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
+    257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
+    257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
+    257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
+    257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
+    257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
+    257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
+};
+
+/*tex 
+    
+    Contrary to the original \LUA\ variant we return multiple code points but our normal use case
+    is still a single one. Checking is a bit more aggressive (thank you, internet).
+
+*/
+
+static inline int strlib_aux_from_hex_4(const char *s)
+{
+    unsigned short h0 = strlib_hex_table[(unsigned char) s[0]];
+    unsigned short h1 = strlib_hex_table[(unsigned char) s[1]];
+    unsigned short h2 = strlib_hex_table[(unsigned char) s[2]];
+    unsigned short h3 = strlib_hex_table[(unsigned char) s[3]];
+    if (h0 >= 16 || h1 >= 16 || h2 >= 16 || h3 >= 16) {
+        return -1;
+    }
+    return (int) ((h0 << 12) | (h1 << 8) | (h2 << 4) | h3);
+}
+
+static int strlib_fromunicode16(lua_State *L)
+{
+    size_t      len = 0;
+    const char *str = luaL_checklstring(L, 1, &len);
+    /* ensure multiple of 4 trick: cutoff */
+    len &= ~(size_t) 3;
+    if (len == 0) {
+        return 0;
+    } else if (len >= INT_MAX) {
+        return luaL_error(L, "string too long");
+    }
+    luaL_checkstack(L, (int) (len / 4), "string too long");
+    size_t i     = 0;
+    int    count = 0;
+    unsigned int high_surrogate = 0;
+    while (i < len) {
+        int word = strlib_aux_from_hex_4(str + i);
+        i += 4;
+        if (word < 0) {
+            if (high_surrogate) {
+                lua_pushinteger(L, 0xFFFD);
+                count++;
+                high_surrogate = 0;
+            }
+            lua_pushinteger(L, 0xFFFD);
+            count++;
+            continue;
+        }
+        if (high_surrogate) {
+            if (word >= 0xDC00 && word <= 0xDFFF) {
+                unsigned int cp = 0x10000 + (((high_surrogate & 0x3FF) << 10) | (word & 0x3FF));
+                lua_pushinteger(L, (lua_Integer) cp);
+                count++;
+                high_surrogate = 0;
+                continue;
+            } else {
+                lua_pushinteger(L, 0xFFFD);
+                count++;
+                high_surrogate = 0;
+            }
+        }
+        if (word >= 0xD800 && word <= 0xDBFF) {
+            high_surrogate = (unsigned int) word;
+        } else if (word >= 0xDC00 && word <= 0xDFFF) {
+            lua_pushinteger(L, 0xFFFD);
+            count++;
+        } else {
+            lua_pushinteger(L, (lua_Integer) word);
+            count++;
+        }
+    }
+    if (high_surrogate) {
+        lua_pushinteger(L, 0xFFFD);
+        count++;
+    }
+    return count;
+}
+
+/* */
 
 static int strlib_format_toutf8(lua_State *L) /* could be integrated into utfcharacter */
 {
@@ -1069,10 +1267,9 @@ static int strlib_utf16toutf8(lua_State *L)
         luaL_buffinitsize(L, &b, (ls - i) * 3 / 2 + 1);
         unsigned int high_surrogate = 0;
         while (i < ls) {
-            unsigned char c1 = (unsigned char) s[i++];
-            unsigned char c2 = (unsigned char) s[i++];
-            unsigned int word = be ? ((unsigned int) c1 << 8) | c2
-                                   : ((unsigned int) c2 << 8) | c1;
+            unsigned char c1   = (unsigned char) s[i++];
+            unsigned char c2   = (unsigned char) s[i++];
+            unsigned int  word = be ? ((unsigned int) c1 << 8) | c2 : ((unsigned int) c2 << 8) | c1;
             if (high_surrogate) {
                 if (word >= 0xDC00 && word <= 0xDFFF) {
                     /* valid surrogate pair: decode codepoint */
@@ -1103,6 +1300,181 @@ static int strlib_utf16toutf8(lua_State *L)
         }
         luaL_pushresult(&b);
     }
+    return 1;
+}
+
+/* for pdf */
+
+static inline void strlib_aux_topdfsixteen(const char *s, size_t ls, luaL_Buffer *b, int bom, int brackets)
+{
+    if (brackets) {
+        luaL_addchar(b, '<');
+    }
+    if (bom) {
+        luaL_addlstring(b, "FEFF", 4);
+    }
+    size_t p = 0;
+    while (p < ls) {
+        int u = strlib_aux_tounicode(s, ls, &p);
+        if (u < 0 || u > MAXUNICODE || invalid_unicode(u)) {
+            luaL_addlstring(b, "FFFD", 4);
+        } else if (u <= 0xFFFF) {
+            char hex[4];
+            write_hex16(hex, (unsigned int) u);
+            luaL_addlstring(b, hex, 4);
+        } else {
+            char hex[8];
+            unsigned int v  = (unsigned int) (u - 0x10000);
+            unsigned int u1 = (v >> 10) + 0xD800;
+            unsigned int u2 = (v & 0x3FF) + 0xDC00;
+            write_hex16(hex, u1);
+            write_hex16(hex + 4, u2);
+            luaL_addlstring(b, hex, 8);
+        }
+    }
+    if (brackets) {
+        luaL_addchar(b, '>');
+    }
+}
+
+static int strlib_topdfsixteen(lua_State *L)
+{
+    size_t      len      = 0;
+    const char *str      = luaL_checklstring(L, 1, &len);
+    int         bom      = ! lua_toboolean(L, 2);
+    int         brackets = ! lua_toboolean(L, 3);
+    luaL_Buffer b;
+    /* each unicode point can be up to 8 hex chars (including surrogate pair) */
+    luaL_buffinitsize(L, &b, (len + 1) * 8 + (bom ? 4 : 0) + (brackets ? 2 : 0));
+    strlib_aux_topdfsixteen(str, len, &b, bom, brackets);
+    luaL_pushresult(&b);
+    return 1;
+}
+
+static int strlib_topdfeight(lua_State *L)
+{
+    size_t      len         = 0;
+    const char *str         = luaL_checklstring(L, 1, &len);
+    int         parentheses = ! lua_toboolean(L, 2);
+    luaL_Buffer b;
+    /* in the worst case every char expands or gets prefixed/suffixed */
+    luaL_buffinitsize(L, &b, len * 2 + (parentheses ? 2 : 0));
+    if (parentheses) {
+        luaL_addchar(&b, '(');
+    }
+    for (size_t i = 0; i < len; i++) {
+        unsigned char c = (unsigned char) str[i];
+        switch (c) {
+            case '(':
+                if (parentheses) {
+                    luaL_addchar(&b, '\\');
+                    luaL_addchar(&b, '(');
+                } else {
+                    luaL_addchar(&b, '(');
+                }
+                break;
+            case ')':
+                if (parentheses) {
+                    luaL_addchar(&b, '\\');
+                    luaL_addchar(&b, ')');
+                } else {
+                    luaL_addchar(&b, ')');
+                }
+                break;
+            case '\\':
+                luaL_addchar(&b, '\\');
+                luaL_addchar(&b, '\\');
+                break;
+            case '\n':
+                luaL_addchar(&b, '\\');
+                luaL_addchar(&b, 'n');
+                break;
+            case '\r':
+                luaL_addchar(&b, '\\');
+                luaL_addchar(&b, 'r');
+                break;
+            case '\t':
+                luaL_addchar(&b, '\\');
+                luaL_addchar(&b, 't');
+                break;
+            case '\b':
+                luaL_addchar(&b, '\\');
+                luaL_addchar(&b, 'b');
+                break;
+            case '\f':
+                luaL_addchar(&b, '\\');
+                luaL_addchar(&b, 'f');
+                break;
+            default:
+                luaL_addchar(&b, (char) c);
+                break;
+        }
+    }
+    if (parentheses) {
+        luaL_addchar(&b, ')');
+    }
+    luaL_pushresult(&b);
+    return 1;
+}
+
+static int strlib_topdfstring(lua_State *L)
+{
+    luaL_Buffer b;
+    size_t      len   = 0;
+    const char *str   = luaL_checklstring(L, 1, &len);
+    int         utf16 = 0;
+    int         utf8  = 0;
+    /* check for characters outside 0x20 .. 0x7F (0x00..0x1F and 0x80..0xFF) */
+    if (lua_toboolean(L, 2)) {
+        /* possibly utf () strings */
+        for (size_t i = 0; i < len; i++) {
+            unsigned char c = (unsigned char) str[i];
+            if (c < 0x20) {
+                utf16 = 1;
+                break;
+            } else if (c > 0x7F) {
+                utf8 = 1;
+            }
+        }
+    } else {
+        /* no utf () strings */
+        for (size_t i = 0; i < len; i++) {
+            unsigned char c = (unsigned char) str[i];
+            if (c < 0x20 || c > 0x7F) {
+                utf16 = 1;
+                break;
+            }
+        }
+    }
+    if (utf16) {
+        /* UTF-16 hex format with FEFF BOM, wrapped in < and > */
+        luaL_buffinitsize(L, &b, (len + 1) * 8 + 4 + 2);
+        strlib_aux_topdfsixteen(str, len, &b, 1, 1);
+    } else {
+        /* 0x20..0x7F ASCII/UTF8: wrap in () and escape (, ), and \ */
+        luaL_buffinitsize(L, &b, len * 2 + (utf8 ? 5 : 2));
+        luaL_addchar(&b, '(');
+        if (utf8) {
+            luaL_addlstring(&b, "\xEF\xBB\xBF", 3);
+        }
+        for (size_t i = 0; i < len; i++) {
+            unsigned char c = (unsigned char) str[i];
+            if (c == '(') {
+                luaL_addchar(&b, '\\');
+                luaL_addchar(&b, '(');
+            } else if (c == ')') {
+                luaL_addchar(&b, '\\');
+                luaL_addchar(&b, ')');
+            } else if (c == '\\') {
+                luaL_addchar(&b, '\\');
+                luaL_addchar(&b, '\\');
+            } else {
+                luaL_addchar(&b, (char) c);
+            }
+        }
+        luaL_addchar(&b, ')');
+    }
+    luaL_pushresult(&b);
     return 1;
 }
 
@@ -1205,50 +1577,6 @@ static int strlib_pack_rows_columns(lua_State* L)
     lua_pushnil(L);
     return 1;
 }
-
-/*tex 
-    This converts a hex string to characters. Spacing is ignored and invalid characters result in 
-    a false result. Empty strings are okay. Originally we assumed \type {XX XX XX} and just skipped
-    single ones but we might as well also handle \type {X X X}. This code is not that critical and
-    was introduced when we wanted flexible bitmap definition in \METAPOST\ and \LUA\ as part of the
-    \type {potrace} experiments.
-
-    Previous (less efficient) implementations can be found in the git history (luametatex and
-    context). Here we use a 256-byte lookup table for hex decoding but of course it comes at a
-    memory price (we use shorts as suggested by gemini):
-
-    - 0 .. 15 : valid hex nibbles
-    - 256     : whitespace (skip)
-    - 257     : invalid character / failure
-
-    It's anyway a nice example of a variant, given the usual reformatting and a bit of
-    cleaning up.
-*/
-
-static const unsigned short strlib_hex_table[256] = {
-    /* 0x00 - 0x1F: control characters \t \n \r are valid spacing */
-    257,257,257,257,257,257,257,257,257,256,256,257,257,256,257,257,
-    257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
-    /* 0x20 - 0x2F: ' ' is valid spacing */
-    256,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
-    /* 0x30 - 0x39: digits '0'-'9' (0 .. 9) */
-    0,    1,  2,  3,  4,  5,  6,  7,  8,  9,257,257,257,257,257,257,
-    /* 0x40 - 0x4F: uppercase 'A'-'F' (10 .. 15) */
-    257, 10, 11, 12, 13, 14, 15,257,257,257,257,257,257,257,257,257,
-    257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
-    /* 0x60 - 0x6F: lowercase 'a'-'f' (10 .. 15) */
-    257, 10, 11, 12, 13, 14, 15,257,257,257,257,257,257,257,257,257,
-    257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
-    /* 0x80 - 0xFF: high ASCII / non ASCII (all invalid) */
-    257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
-    257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
-    257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
-    257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
-    257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
-    257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
-    257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
-    257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,257,
-};
 
 static int strlib_hextocharacters(lua_State *L)
 {
@@ -1922,7 +2250,6 @@ static int strlib_buffer_add(lua_State *L)
     }
     return 0;
 }
-
 
 /*tex
 
@@ -2754,30 +3081,24 @@ static void strlib_aux_addformat(
             }
             /* an incomplete specifier at the end is flushed as it is */
             start = i;
-
             /* skip '%' and check */
             i++;
             if (i >= fmt_len) {
                 break;
             }
-
-            unsigned char spec  = fmt[i];
-
-            int width           = 0;
-            int pad_zero        = 0;
-            int left_align      = 0;
-            int space_flag      = 0;
-            int precision       = 17;
-            int has_precision   = 0;
-
-            const char *sep_str = NULL;
-            size_t      sep_len = 0;
-
+            unsigned char spec          = fmt[i];
+            int           width         = 0;
+            int           pad_zero      = 0;
+            int           left_align    = 0;
+            int           space_flag    = 0;
+            int           precision     = 17;
+            int           has_precision = 0;
+         // const char   *sep_str       = NULL;
+         // size_t        sep_len       = 0;
             /* 
                If the character immediately following '%' is directly  in our list of valid single-character format specifiers, 
                we bypass all flag, width, precision, table, and extension parsing.
             */
-
             switch (spec) {
                 case 0x01: // soh %.1N
                 case 0x02: // stx %.2N
@@ -2914,8 +3235,11 @@ static void strlib_aux_addformat(
              // case 0x1D: // gs %--t
              // case 0x1E: // rs %s
              // case 0x1F: // us %...
-                case 't':
-                case 'T':
+                case 'a': case 'A':
+                    strlib_aux_format_aA(L, b, &arg_idx, spec, NULL, 0);
+                    start = ++i;
+                    continue;
+                case 't': case 'T':
                     strlib_aux_format_tT(L, b, &arg_idx, spec, NULL, 0);
                     start = ++i;
                     continue;
@@ -2926,44 +3250,51 @@ static void strlib_aux_addformat(
                         while (close < fmt_len && fmt[close] != '}') {
                             close++;
                         }
-                        if (close + 1 < fmt_len && (fmt[close + 1] == 't' || fmt[close + 1] == 'T')) {
-                            strlib_aux_format_tT(L, b, &arg_idx, fmt[close + 1], fmt + i + 1, close - i - 1);
-                            start = i = close + 2;
-                            continue;
+                        if (close + 1 < fmt_len) { 
+                            switch (fmt[close + 1]) { 
+                                case 't': case 'T':
+                                    strlib_aux_format_tT(L, b, &arg_idx, fmt[close + 1], fmt + i + 1, close - i - 1);
+                                    start = i = close + 2;
+                                    continue;
+                                case 'a': case 'A':
+                                    strlib_aux_format_aA(L, b, &arg_idx, fmt[close + 1], fmt + i + 1, close - i - 1);
+                                    start = i = close + 2;
+                                    continue;
+                                default:
+                                    break;
+                            }
                         }
                     }
                     break;
-             // default:
-             //     if (strchr("iIdfFnNeEgGjJpPbBrRkKxXuUhHqQsSlLaAcCoWmZvV<>", spec)) {
-             //         i++;
-             //         goto SWITCH;
-             //     } else {
-             //         break;
-             //     }
-                case 'i': case 'I':
-                case 'd':
-                case 'f': case 'F':
-                case 'n': case 'N':
-                case 'e': case 'E':
-                case 'g': case 'G':
-                case 'j': case 'J':
-                case 'p': case 'P':
                 case 'b': case 'B':
-                case 'r': case 'R':
-                case 'k': case 'K':
-                case 'x': case 'X':
-                case 'u': case 'U':
-                case 'h': case 'H':
-                case 'q': case 'Q':
-                case 's': case 'S':
-                case 'l': case 'L':
-                case 'a': case 'A':
                 case 'c': case 'C':
-                case 'o':
-                case 'W':
+             // case 'd': case 'D': /* 'D' not used */
+                case 'd':
+                case 'e': case 'E':
+                case 'f': case 'F':
+                case 'g': case 'G':
+                case 'h': case 'H':
+                case 'i': case 'I':
+                case 'j': case 'J':
+                case 'k': case 'K':
+                case 'l': case 'L':
+             // case 'm': case 'M': /* 'M' not used */
                 case 'm':
-                case 'Z':
+                case 'n': case 'N':
+             // case 'o': case 'O': /* 'O' not used */
+                case 'o':
+                case 'p': case 'P':
+                case 'q': case 'Q':
+                case 'r': case 'R':
+                case 's': case 'S':
+             // case 't': case 'T': /* see above */
+                case 'u': case 'U':
                 case 'v': case 'V':
+             // case 'w': case 'W': /* see below */
+                case 'W':
+                case 'x': case 'X':
+             // case 'z': case 'Z': /* see below */
+                case 'Z':
                 case '<': case '>':
                     i++;
                     goto SWITCH;
@@ -2977,7 +3308,6 @@ static void strlib_aux_addformat(
                 present ahead, preventing standard flags/widths (like %09i) from being swallowed 
                 prematurely.
             */
-
             {
                 size_t scan = i;
                 int has_extension = 0;
@@ -3017,20 +3347,23 @@ static void strlib_aux_addformat(
             /* check for %<sep...>t, %<sep...>T, %<sep...>a, %<sep...>A (plain and braced tables are handled above) */
 
             if (i < fmt_len) {
-                /* Only non-alphanumeric punctuation/symbols can act as unbraced separators */
+
                 size_t scan = i;
+
                 while (scan < fmt_len) {
-                    char sc = fmt[scan];
-                    if (sc == 't' || sc == 'T' || sc == 'a' || sc == 'A') {
-                        break;
-                    }
-                    /* Stop immediately if we hit letters, digits, '%', or '{' */
-                    if ((sc >= 'a' && sc <= 'z') || (sc >= 'A' && sc <= 'Z') ||
-                        (sc >= '0' && sc <= '9') || sc == '%' || sc == '{') {
+                    unsigned char c = fmt[scan];
+                    if (
+                        (c >= 'a' && c <= 'z') || 
+                        (c >= 'A' && c <= 'Z') || 
+                        (c >= '0' && c <= '9') || 
+                         c == '%' || c == '{'
+                    ) {
                         break;
                     }
                     scan++;
                 }
+
+                /* */
 
                 if (scan < fmt_len) {
                     char target_c = fmt[scan];
@@ -3039,13 +3372,15 @@ static void strlib_aux_addformat(
                         start = i = scan + 1; /* Skip separator string and 't'/'T' */
                         continue;
                     } else if (target_c == 'a' || target_c == 'A') {
-                        sep_str = fmt + i;
-                        sep_len = scan - i;
-                        i = scan; /* Skip separator string, leave 'a'/'A' for switch */
+                     // sep_str = fmt + i;
+                     // sep_len = scan - i;
+                     // i = scan; /* Skip separator string, leave 'a'/'A' for switch */
+                        strlib_aux_format_aA(L, b, &arg_idx, target_c, fmt + i, scan - i);
+                        start = i = scan + 1; /* Skip separator string and 'a'/'A' */
+                        continue;
                     }
                 }
             }
-
             /* single-pass flag scanning */
             while (i < fmt_len) {
                 char c = fmt[i];
@@ -3062,7 +3397,6 @@ static void strlib_aux_addformat(
                     break;
                 }
             }
-
             /* width parsing loop */
             if (width == 0) {
                 while (i < fmt_len) {
@@ -3075,7 +3409,6 @@ static void strlib_aux_addformat(
                     }
                 }
             }
-
             /* precision parsing loop */
             if (i < fmt_len && fmt[i] == '.') {
                 i++;
@@ -3091,14 +3424,12 @@ static void strlib_aux_addformat(
                     }
                 }
             }
-
             /* sanity check */
             if (i >= fmt_len) {
                 break;
             }
-
             precision = strlib_aux_normalize_precision(precision);
-            spec = fmt[i++];
+            spec      = fmt[i++];
 
         SWITCH:
 
@@ -3127,20 +3458,19 @@ static void strlib_aux_addformat(
                             case 'i':
                             case 'd':
                                 {
-                                    lua_Integer val = lua_tointeger(L, arg_idx++);
-                                    int is_plus  = (spec == 'I' && val >= 0);
-                                    int is_space = (space_flag && !is_plus && val >= 0);
-                                    int is_neg   = (val < 0);        
-                                    lua_Unsigned uval = is_neg ? (lua_Unsigned) (-(val + 1)) + 1 : (lua_Unsigned) val;        
+                                    lua_Integer  val      = lua_tointeger(L, arg_idx++);
+                                    int          is_plus  = (spec == 'I' && val >= 0);
+                                    int          is_space = (space_flag && !is_plus && val >= 0);
+                                    int          is_neg   = (val < 0);        
+                                    lua_Unsigned uval     = is_neg ? (lua_Unsigned) (-(val + 1)) + 1 : (lua_Unsigned) val;        
                                     char temp[32];
                                     int len = 0;
                                     do {
                                         temp[len++] = '0' + (char) (uval % 10);
                                         uval /= 10;
                                     } while (uval > 0);        
-
-                                    const char *prefix = NULL;
-                                    size_t prefix_len = 0;
+                                    const char *prefix     = NULL;
+                                    size_t      prefix_len = 0;
                                     char sign_char[1];
                                     if (is_neg) {
                                         sign_char[0] = '-'; prefix = sign_char; prefix_len = 1;
@@ -3154,7 +3484,6 @@ static void strlib_aux_addformat(
                                         lmt_buffer_add_char(b, sign_char[0]);
                                         prefix_len = 0;
                                     }
-
                                     strlib_aux_format_padded_number(b, prefix, prefix_len, temp, len, width, precision, has_precision, pad_zero, left_align);
                                 }
                                 break;
@@ -3162,7 +3491,7 @@ static void strlib_aux_addformat(
                             case 'f':
                                 {
                                     lua_Number val = lua_tonumber(L, arg_idx++);
-                                    int prc = has_precision ? precision : 6;
+                                    int        prc = has_precision ? precision : 6;
                                     if (lmt_buffer_has_room(b, (size_t) prc + (size_t) width + 350)) {
                                         int len = double_to_string_z(val, b->buffer + b->length, b->size - b->length, prc);
                                         if (len > 0) {
@@ -3179,9 +3508,9 @@ static void strlib_aux_addformat(
                             case 'n':
                             case 'N':
                                 {
+                                    char       temp[350];
                                     lua_Number val = lua_tonumber(L, arg_idx++);
-                                    char temp[350];
-                                    int len = double_to_string_f(val, temp, has_precision ? precision : 9);
+                                    int        len = double_to_string_f(val, temp, has_precision ? precision : 9);
                                     if (len > 0) {
                                         strlib_aux_format_padded_string(b, temp, len, width, left_align);
                                     }
@@ -3243,10 +3572,10 @@ static void strlib_aux_addformat(
                             case 'k':
                                 {
                                     if (lua_type(L, arg_idx) == LUA_TNUMBER) {
-                                        lua_Number val = lua_tonumber(L, arg_idx++);
-                                        int digits_before = width;
-                                        int digits_after  = has_precision ? precision : 0;
-                                        int total_width   = digits_before;
+                                        lua_Number val           = lua_tonumber(L, arg_idx++);
+                                        int        digits_before = width;
+                                        int        digits_after  = has_precision ? precision : 0;
+                                        int        total_width   = digits_before;
                                         if (digits_after > INT_MAX - total_width) {
                                             total_width = INT_MAX;
                                         } else {
@@ -3257,7 +3586,7 @@ static void strlib_aux_addformat(
                                         }
                                         size_t req_room = (size_t) total_width + 350;
                                         if (lmt_buffer_has_room(b, req_room)) {
-                                            char  fmt_str[32];
+                                            char fmt_str[32];
                                             snprintf(fmt_str, sizeof(fmt_str), "%%%d.%df", total_width, digits_after);
                                             b->length += (size_t) snprintf(b->buffer + b->length, req_room, fmt_str, val);
                                         }
@@ -3274,14 +3603,14 @@ static void strlib_aux_addformat(
                                 {
                                     if (! width) {
                                         pad_zero = 1;
-                                        width = 5;
+                                        width    = 5;
                                     }
-                                    const char *prefix = (spec == 'U') ? "U+" : (spec == 'u') ? "u+" : "0x";
-                                    spec = (spec == 'U' || spec == 'H') ? 'X' : 'x';
-                                    lua_Unsigned val = (lua_Unsigned) lua_tointeger(L, arg_idx++);
-                                    char temp[32];
-                                    int len = 0;
-                                    const char *digits = (spec == 'X') ? hex_upper : hex_lower;
+                                    char         temp[32];
+                                    const char  *prefix = (spec == 'U') ? "U+" : (spec == 'u') ? "u+" : "0x";
+                                                 spec   = (spec == 'U' || spec == 'H') ? 'X' : 'x';
+                                    lua_Unsigned val    = (lua_Unsigned) lua_tointeger(L, arg_idx++);
+                                    int          len    = 0;
+                                    const char  *digits = (spec == 'X') ? hex_upper : hex_lower;
                                     do {
                                         temp[len++] = digits[val & 0x0F];
                                         val >>= 4;
@@ -3295,10 +3624,10 @@ static void strlib_aux_addformat(
                             case 'x':
                             case 'X':
                                 {
-                                    lua_Unsigned val = (lua_Unsigned) lua_tointeger(L, arg_idx++);
-                                    char temp[32];
-                                    int len = 0;
-                                    const char *digits = (spec == 'X') ? hex_upper : hex_lower;
+                                    char         temp[32];
+                                    lua_Unsigned val    = (lua_Unsigned) lua_tointeger(L, arg_idx++);
+                                    int          len    = 0;
+                                    const char  *digits = (spec == 'X') ? hex_upper : hex_lower;
                                     do {
                                         temp[len++] = digits[val & 0x0F];
                                         val >>= 4;
@@ -3329,17 +3658,12 @@ static void strlib_aux_addformat(
                                     }
                                 }
                                 break;
-                            /* auto single quote (%a) and auto double quote (%A) */
-                            case 'a':
-                            case 'A':
-                                strlib_aux_format_aA(L, b, &arg_idx, spec, sep_str, sep_len);
-                                break;
                             /* utf8 character */
                             case 'c':
                                 {
+                                    char         buffer[8];
                                     lua_Unsigned val = (lua_Unsigned) lua_tointeger(L, arg_idx++);
-                                    char buffer[8];
-                                    int len = aux_uni2strlen((unsigned) val, buffer);
+                                    int          len = aux_uni2strlen((unsigned) val, buffer);
                                     if (len) {
                                         lmt_buffer_add_lstring(b, buffer, len);
                                     }
@@ -3352,9 +3676,9 @@ static void strlib_aux_addformat(
                             /* octal */
                             case 'o':
                                 {
+                                    char         temp[32];
                                     lua_Unsigned val = (lua_Unsigned) lua_tointeger(L, arg_idx++);
-                                    char temp[32];
-                                    int len = 0;
+                                    int          len = 0;
                                     do {
                                         temp[len++] = '0' + (val & 0x07);
                                         val >>= 3;
@@ -3381,7 +3705,7 @@ static void strlib_aux_addformat(
                             case 'm':
                             case 'M':
                                 {
-                                    lua_Number val = lua_tonumber(L, arg_idx++);
+                                    lua_Number  val = lua_tonumber(L, arg_idx++);
                                     char        decimal_sep = (spec == 'm') ? '.' : ',';
                                     const char *thousand_sep;
                                     size_t      thousand_sep_len;
@@ -3510,7 +3834,7 @@ static inline int lmt_buffer_stack_get(lua_State *L, lmt_buffer_stack *bs, lmt_s
             }
             b->length = 0;
             b->L      = L;
-            *out_b = b;
+            *out_b    = b;
             return i; /* Returns zero-based index 0, 1, 2... */
         }
     }
@@ -3521,7 +3845,7 @@ static inline int lmt_buffer_stack_get(lua_State *L, lmt_buffer_stack *bs, lmt_s
     b->buffer = (char *) lmt_memory_malloc(b->size);
     b->step   = 0;
     b->L      = L;
-    *out_b = b;
+    *out_b    = b;
     return -1; /* -1 indicates dynamic fallback */
 }
 
@@ -3556,9 +3880,9 @@ static int strlib_format_buffer_gc(lua_State *L)
 static int strlib_format(lua_State *L)
 {
     /* upfront validation (safe to throw errors) */
-    size_t      len;
-    const char *fmt = luaL_checklstring(L, 1, &len);
-    int         top = lua_gettop(L);
+    size_t             len;
+    const char        *fmt       = luaL_checklstring(L, 1, &len);
+    int                top       = lua_gettop(L);
     /* acquire buffer from stack */
     lmt_buffer_stack  *bs        = (lmt_buffer_stack *) lua_touserdata(L, lua_upvalueindex(3));
     lmt_string_buffer *b         = NULL;
@@ -3704,7 +4028,7 @@ static int strlib_buffer_addbytes(lua_State *L)
                     }
                     if (length > 0) {
                         size_t available = len - offset;
-                        size_t count = (lua_Unsigned) length > (lua_Unsigned) available
+                        size_t count     = (lua_Unsigned) length > (lua_Unsigned) available
                             ? available
                             : (size_t) length;
                         lmt_buffer_add_lstring(b, str + offset, count);
@@ -4409,27 +4733,21 @@ static void strlib_aux_tabstr_normal(lua_State *L, int index, lmt_string_buffer 
     if (! strlib_aux_serialize_enter(L, index, seen, depth)) {
         return;
     }
-
-    int maxentries = 16;
-    int nofentries = 0;
-    tabstr_item *entries = (tabstr_item *) lmt_memory_malloc(maxentries * sizeof(tabstr_item));
-
-    lmt_string_buffer text_buf;
+    int                maxentries = 16;
+    int                nofentries = 0;
+    tabstr_item       *entries    = (tabstr_item *) lmt_memory_malloc(maxentries * sizeof(tabstr_item));
+    lmt_string_buffer  text_buf;
     lmt_buffer_allocate(L, &text_buf);
-
     lua_pushnil(L);
     while (lua_next(L, index) != 0) {
         if (nofentries >= maxentries) {
             maxentries *= 2;
             entries = (tabstr_item *) lmt_memory_realloc(entries, maxentries * sizeof(tabstr_item));
         }
-
         size_t start_off = text_buf.length;
-
-        /* Append Key */
+        /* key: */
         tabstr_add_value_string(L, -2, &text_buf);
-
-        /* Value rules:
+        /* value:
            - table:  k .. ">" .. tabstr_normal(v)
            - true:   k .. "+"
            - truthy: k .. "=" .. v
@@ -4446,14 +4764,11 @@ static void strlib_aux_tabstr_normal(lua_State *L, int index, lmt_string_buffer 
         } else { /* falsy (false or nil) */
             lmt_buffer_add_char(&text_buf, '-');
         }
-
         entries[nofentries].offset = (uint32_t) start_off;
         entries[nofentries].len    = (uint32_t) (text_buf.length - start_off);
         nofentries++;
-
         lua_pop(L, 1);
     }
-
     if (nofentries == 1) {
         lmt_buffer_add_lstring(out, text_buf.buffer + entries[0].offset, entries[0].len);
     } else if (nofentries > 1) {
@@ -4463,7 +4778,6 @@ static void strlib_aux_tabstr_normal(lua_State *L, int index, lmt_string_buffer 
             sort_list[i].len = entries[i].len;
         }
         qsort(sort_list, nofentries, sizeof(tabstr_entry), tabstr_entry_compare);
-
         for (int i = 0; i < nofentries; i++) {
             if (i > 0) {
                 lmt_buffer_add_char(out, ',');
@@ -4472,7 +4786,6 @@ static void strlib_aux_tabstr_normal(lua_State *L, int index, lmt_string_buffer 
         }
         lmt_memory_free(sort_list);
     }
-
     lmt_memory_free(entries);
     lmt_buffer_dispose(&text_buf);
     strlib_aux_serialize_leave(L, index, seen);
@@ -4512,36 +4825,28 @@ static int strlib_tabstr_flat(lua_State *L)
         lua_pushliteral(L, "");
         return 1;
     }
-
-    int maxentries = 16;
-    int nofentries = 0;
-    tabstr_item *entries = (tabstr_item *) lmt_memory_malloc(maxentries * sizeof(tabstr_item));
-
+    int               maxentries = 16;
+    int               nofentries = 0;
+    tabstr_item      *entries    = (tabstr_item *) lmt_memory_malloc(maxentries * sizeof(tabstr_item));
     lmt_string_buffer text_buf;
     lmt_buffer_allocate(L, &text_buf);
-
     lua_pushnil(L);
     while (lua_next(L, 1) != 0) {
         if (nofentries >= maxentries) {
             maxentries *= 2;
             entries = (tabstr_item *) lmt_memory_realloc(entries, maxentries * sizeof(tabstr_item));
         }
-
         size_t start_off = text_buf.length;
         tabstr_add_value_string(L, -2, &text_buf);
         lmt_buffer_add_char(&text_buf, '=');
         tabstr_add_value_string(L, -1, &text_buf);
-
         entries[nofentries].offset = (uint32_t) start_off;
         entries[nofentries].len    = (uint32_t) (text_buf.length - start_off);
         nofentries++;
-
         lua_pop(L, 1);
     }
-
     lmt_string_buffer out;
     lmt_buffer_allocate(L, &out);
-
     if (nofentries == 1) {
         lmt_buffer_add_lstring(&out, text_buf.buffer + entries[0].offset, entries[0].len);
     } else if (nofentries > 1) {
@@ -4551,7 +4856,6 @@ static int strlib_tabstr_flat(lua_State *L)
             sort_list[i].len = entries[i].len;
         }
         qsort(sort_list, nofentries, sizeof(tabstr_entry), tabstr_entry_compare);
-
         for (int i = 0; i < nofentries; i++) {
             if (i > 0) {
                 lmt_buffer_add_char(&out, ',');
@@ -4560,7 +4864,6 @@ static int strlib_tabstr_flat(lua_State *L)
         }
         lmt_memory_free(sort_list);
     }
-
     lua_pushlstring(L, out.buffer, out.length);
     lmt_memory_free(entries);
     lmt_buffer_dispose(&text_buf);
@@ -4576,16 +4879,13 @@ static int strlib_tabstr_mixed(lua_State *L)
         lua_pushliteral(L, "");
         return 1;
     }
-
     lua_Unsigned n = lua_rawlen(L, 1);
     if (n == 0) {
         lua_pushliteral(L, "");
         return 1;
     }
-
     lmt_string_buffer b;
     lmt_buffer_allocate(L, &b);
-
     for (lua_Unsigned i = 1; i <= n; i++) {
         if (i > 1) {
             lmt_buffer_add_char(&b, ',');
@@ -4602,7 +4902,6 @@ static int strlib_tabstr_mixed(lua_State *L)
         }
         lua_pop(L, 1);
     }
-
     lua_pushlstring(L, b.buffer, b.length);
     lmt_buffer_dispose(&b);
     return 1;
@@ -4616,40 +4915,31 @@ static int strlib_tabstr_boolean(lua_State *L)
         lua_pushliteral(L, "");
         return 1;
     }
-
-    int maxentries = 16;
-    int nofentries = 0;
-    tabstr_item *entries = (tabstr_item *) lmt_memory_malloc(maxentries * sizeof(tabstr_item));
-
-    lmt_string_buffer text_buf;
+    int                maxentries = 16;
+    int                nofentries = 0;
+    tabstr_item       *entries    = (tabstr_item *) lmt_memory_malloc(maxentries * sizeof(tabstr_item));
+    lmt_string_buffer  text_buf;
     lmt_buffer_allocate(L, &text_buf);
-
     lua_pushnil(L);
     while (lua_next(L, 1) != 0) {
         if (nofentries >= maxentries) {
             maxentries *= 2;
             entries = (tabstr_item *) lmt_memory_realloc(entries, maxentries * sizeof(tabstr_item));
         }
-
         size_t start_off = text_buf.length;
         tabstr_add_value_string(L, -2, &text_buf);
-
         if (lua_toboolean(L, -1)) {
             lmt_buffer_add_char(&text_buf, '+');
         } else {
             lmt_buffer_add_char(&text_buf, '-');
         }
-
         entries[nofentries].offset = (uint32_t) start_off;
         entries[nofentries].len    = (uint32_t) (text_buf.length - start_off);
         nofentries++;
-
         lua_pop(L, 1);
     }
-
     lmt_string_buffer out;
     lmt_buffer_allocate(L, &out);
-
     if (nofentries == 1) {
         lmt_buffer_add_lstring(&out, text_buf.buffer + entries[0].offset, entries[0].len);
     } else if (nofentries > 1) {
@@ -4667,7 +4957,6 @@ static int strlib_tabstr_boolean(lua_State *L)
         }
         lmt_memory_free(sort_list);
     }
-
     lua_pushlstring(L, out.buffer, out.length);
     lmt_memory_free(entries);
     lmt_buffer_dispose(&text_buf);
@@ -4703,15 +4992,11 @@ static int strlib_aux_sorted_next(lua_State *L)
 static int strlib_sortedhash(lua_State *L)
 {
     luaL_checktype(L, 1, LUA_TTABLE);
-
     int index   = lua_absindex(L, 1);
     int maxkeys = lmt_key_default;
     int nofkeys = 0;
-
     lmt_serialize_sort_data *keys = (lmt_serialize_sort_data *) lmt_memory_malloc(maxkeys * sizeof(lmt_serialize_sort_data));
-
-    /* Collect all sortable keys. */
-
+    /* collect all sortable keys */
     lua_pushnil(L);
     while (lua_next(L, index) != 0) {
         if (nofkeys >= maxkeys) {
@@ -4719,7 +5004,6 @@ static int strlib_sortedhash(lua_State *L)
             keys = (lmt_serialize_sort_data *) lmt_memory_realloc(keys, maxkeys * sizeof(lmt_serialize_sort_data));
         }
         lmt_serialize_sort_data *sk = &keys[nofkeys];
-
         switch (lua_type(L, -2)) {
             case LUA_TNUMBER:
                 if (lua_isinteger(L, -2)) {
@@ -4748,18 +5032,13 @@ static int strlib_sortedhash(lua_State *L)
         }
         lua_pop(L, 1);
     }
-
-    /* Sort these keys using the already existing comparator. */
-
+    /* sort these keys using the already existing comparator */
     if (nofkeys > 1) {
         qsort(keys, nofkeys, sizeof(lmt_serialize_sort_data), lmt_serialize_compare);
     }
-
-    /* Construct an array of sorted keys. */
-
+    /* sonstruct an array of sorted keys */
     lua_createtable(L, nofkeys, 0);
     int keys_table_idx = lua_gettop(L);
-
     for (int i = 0; i < nofkeys; i++) {
         lmt_serialize_sort_data *sk = &keys[i];
         switch (sk->type) {
@@ -4784,23 +5063,18 @@ static int strlib_sortedhash(lua_State *L)
         }
         lua_rawseti(L, keys_table_idx, i + 1);
     }
-
     lmt_memory_free(keys);
-
-    /* Return a C closure with upvalues (the modern approach):
+    /* return a C closure with upvalues (the modern approach):
 
        1: target table
        2: sorted keys array table
        3: first index counter
 
     */
-
     lua_pushvalue(L, 1);
     lua_pushvalue(L, keys_table_idx);
     lua_pushinteger(L, 1);
-
-    /* And off we go! */
-
+    /* and off we go */
     lua_pushcclosure(L, strlib_aux_sorted_next, 3);
     return 1;
 }
@@ -4969,20 +5243,16 @@ static int strlib_sequenced(lua_State *L)
         lua_pushliteral(L, "");
         return 1;
     }
-
     if (! lua_istable(L, 1)) {
         size_t len;
         const char *s = luaL_tolstring(L, 1, &len);
         lua_pushlstring(L, s, len);
         return 1;
     }
-
     /* parse 'sep' parameter */
-
     int         sep_is_true = 0;
     const char *sep_str     = " | ";
     size_t      sep_len     = 3;
-
     if (lua_isboolean(L, 2)) {
         if (lua_toboolean(L, 2)) {
             sep_is_true = 1;
@@ -4990,16 +5260,12 @@ static int strlib_sequenced(lua_State *L)
     } else if (lua_type(L, 2) == LUA_TSTRING) {
         sep_str = lua_tolstring(L, 2, &sep_len);
     }
-
     /* parse 'simple' parameter */
-
     int simple = lua_toboolean(L, 3);
     int check  = lua_toboolean(L, 4);
     int seen   = 0;
-
     lmt_string_buffer buffer;
     lmt_buffer_allocate(L, &buffer);
-
     if (check) {
         lua_newtable(L);
         seen = lua_gettop(L);
@@ -5008,7 +5274,6 @@ static int strlib_sequenced(lua_State *L)
     if (check) {
         lua_remove(L, seen);
     }
-
     lua_pushlstring(L, buffer.buffer, buffer.length);
     lmt_buffer_dispose(&buffer);
     return 1;
@@ -5131,41 +5396,46 @@ int luaopen_sequencer(lua_State *L)
 */
 
 static const luaL_Reg strlib_function_list[] = {
-    { "characters",        strlib_characters         },
-    { "characterpairs",    strlib_characterpairs     },
-    { "bytes",             strlib_bytes              },
-    { "bytepairs",         strlib_bytepairs          },
-    { "bytetable",         strlib_bytetable          },
-    { "linetable",         strlib_linetable          },
-    { "utfvalues",         strlib_utfvalues          },
-    { "utfcharacters",     strlib_utfcharacters      },
-    { "utfcharacter",      strlib_utfcharacter       },
-    { "utfvalue",          strlib_utfvalue           },
-    { "utflength",         strlib_utflength          },
-    { "utfvaluetable",     strlib_utfvaluetable      },
-    { "utfcharactertable", strlib_utfcharactertable  },
-    { "utftabletostring",  strlib_utftabletostring   },
-    { "f6",                strlib_format_f6          },
-    { "g6",                strlib_format_g6          },
-    { "fd",                strlib_format_fd          },
-    { "fd3",               strlib_format_fd3         }, /* no argument needed */
-    { "fd6",               strlib_format_fd6         }, /* idem */
-    { "fd9",               strlib_format_fd9         }, /* idem */
-    { "gd",                strlib_format_gd          }, /* seldom needed but cheap to provide */
-    { "tounicode16",       strlib_format_tounicode16 },
-    { "toutf8",            strlib_format_toutf8      },
-    { "toutf16",           strlib_format_toutf16     }, /* this is kind of untested */
-    { "toutf32",           strlib_format_toutf32     },
-    { "utf16toutf8",       strlib_utf16toutf8        },
-    { "packrowscolumns",   strlib_pack_rows_columns  },
-    { "hextocharacters",   strlib_hextocharacters    },
-    { "octtointeger",      strlib_octtointeger       },
-    { "dectointeger",      strlib_dectointeger       },
-    { "hextointeger",      strlib_hextointeger       },
-    { "chrtointeger",      strlib_chrtointeger       },
-    { "splitintolines",    strlib_splitintolines     },
-    /* */
-    { NULL,                NULL                      },
+    { "characters",        strlib_characters        },
+    { "characterpairs",    strlib_characterpairs    },
+    { "bytes",             strlib_bytes             },
+    { "bytepairs",         strlib_bytepairs         },
+    { "bytetable",         strlib_bytetable         },
+    { "linetable",         strlib_linetable         },
+    { "utfvalues",         strlib_utfvalues         },
+    { "utfcharacters",     strlib_utfcharacters     },
+    { "utfcharacter",      strlib_utfcharacter      },
+    { "utfvalue",          strlib_utfvalue          },
+    { "utflength",         strlib_utflength         },
+    { "utfvaluetable",     strlib_utfvaluetable     },
+    { "utfcharactertable", strlib_utfcharactertable },
+    { "utftabletostring",  strlib_utftabletostring  },
+    { "f6",                strlib_format_f6         },
+    { "g6",                strlib_format_g6         },
+    { "fd",                strlib_format_fd         },
+    { "fd3",               strlib_format_fd3        }, /* no argument needed */
+    { "fd6",               strlib_format_fd6        }, /* idem */
+    { "fd9",               strlib_format_fd9        }, /* idem */
+    { "gd",                strlib_format_gd         }, /* seldom needed but cheap to provide */
+    { "tounicode16",       strlib_tounicode16       },
+    { "fromunicode16",     strlib_fromunicode16     },
+    { "toutf8",            strlib_format_toutf8     },
+    { "toutf16",           strlib_format_toutf16    }, /* this is kind of untested */
+    { "toutf32",           strlib_format_toutf32    },
+    { "utf16toutf8",       strlib_utf16toutf8       },
+    { "packrowscolumns",   strlib_pack_rows_columns },
+    { "hextocharacters",   strlib_hextocharacters   },
+    { "octtointeger",      strlib_octtointeger      },
+    { "dectointeger",      strlib_dectointeger      },
+    { "hextointeger",      strlib_hextointeger      },
+    { "chrtointeger",      strlib_chrtointeger      },
+    { "splitintolines",    strlib_splitintolines    },
+    /* handy for pdf strings */                     
+    { "topdfsixteen",      strlib_topdfsixteen      }, 
+    { "topdfeight",        strlib_topdfeight        },
+    { "topdfstring",       strlib_topdfstring       },
+    /* */                                           
+    { NULL,                NULL                     },
 };
 
 int luaextend_string(lua_State * L)
@@ -5182,37 +5452,35 @@ int luaextend_string(lua_State * L)
 /*
 
 LUAMOD_API int luaopen_strlib(lua_State *L) {
-    // 1. Create the library table (or use luaL_newlib for other functions)
+    // create the library table (or use luaL_newlib for other functions)
     lua_newtable(L);
 
-    // 2. Push the upvalues onto the stack BEFORE creating the closure
+    // push the upvalues onto the stack BEFORE creating the closure
     lua_pushliteral(L, "0"); // Upvalue index 1
     lua_pushliteral(L, "1"); // Upvalue index 2
 
-    // 3. Create the closure with 2 upvalues
+    // create the closure with 2 upvalues
     // (This pops the 2 strings off the stack and attaches them to the function)
     lua_pushcclosure(L, strlib_format_f6, 2);
 
-    // 4. Set the function in the library table 
+    // set the function in the library table 
     lua_setfield(L, -2, "f6");
 
-    return 1; // Return the library table
+    return 1; // the library table
 }
 
 static int strlib_format_f6(lua_State *L)
 {
     double n = luaL_optnumber(L, 1, 0.0);
-
     if (n == 0.0) {
-        // Upvalue 1: "0"
+        // upvalue 1: "0"
         lua_pushvalue(L, lua_upvalueindex(1));
         return 1;
     } else if (n == 1.0) {
-        // Upvalue 2: "1"
+        // upvalue 2: "1"
         lua_pushvalue(L, lua_upvalueindex(2));
         return 1;
     }
-
     // ...
 }
 
