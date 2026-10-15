@@ -231,6 +231,14 @@ if (MSVC)
 
         add_compile_definitions(LMT_COMPILER_USED="clang")
 
+        # for 128 bit __udivti3 :
+
+        get_filename_component(COMPILER_DIR ${CMAKE_C_COMPILER} DIRECTORY)
+
+        target_link_libraries(your_target_name PRIVATE
+            "${COMPILER_DIR}/../lib/clang/<YOUR_CLANG_VERSION>/lib/windows/clang_rt.builtins-x86_64.lib"
+        )
+
     else()
 
         add_compile_options(
