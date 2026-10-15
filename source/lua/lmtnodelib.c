@@ -3859,7 +3859,9 @@ static int nodelib_direct_hasdimensions(lua_State *L)
 
 # define getglyphdimensions_usage glyph_usage
 
-const double INV_1000 = 1.0 / 1000.0;
+// const double INV_1000 = 1.0 / 1000.0;
+
+# define INV_1000 (1.0 / 1000.0)
 
 static int nodelib_direct_getglyphdimensions(lua_State *L)
 {

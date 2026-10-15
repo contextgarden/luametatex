@@ -44,7 +44,7 @@ target_compile_definitions(mp PUBLIC
 # Floating-point precision rules for MetaPost path solving
 if (MSVC)
     target_compile_options(mp PRIVATE
-        /O2 /Oi /Ot
+     #  /O2 /Oi /Ot
         /fp:precise
     )
 else()
