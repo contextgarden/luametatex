@@ -233,10 +233,18 @@ if (MSVC)
 
         # for 128 bit __udivti3 :
 
-        get_filename_component(COMPILER_DIR ${CMAKE_C_COMPILER} DIRECTORY)
+         execute_process(
+            COMMAND ${CMAKE_C_COMPILER} -print-resource-dir
+            OUTPUT_VARIABLE CLANG_RESOURCE_DIR
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
 
-        target_link_libraries(your_target_name PRIVATE
-            "${COMPILER_DIR}/../lib/clang/<YOUR_CLANG_VERSION>/lib/windows/clang_rt.builtins-x86_64.lib"
+        # Normalize slashes for Windows paths if necessary
+
+        file(TO_CMAKE_PATH "${CLANG_RESOURCE_DIR}" CLANG_RESOURCE_DIR)
+
+        target_link_libraries(luametatex PRIVATE
+            "${CLANG_RESOURCE_DIR}/lib/windows/clang_rt.builtins-x86_64.lib"
         )
 
     else()
