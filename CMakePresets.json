@@ -2,15 +2,6 @@
     "version": 3,
     "configurePresets": [
         {
-            "name": "msvc-x64-debug",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/msvc-x64-debug",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_INSTALL_PREFIX": "${sourceDir}/../install/msvc-x64-debug"
-            }
-        },
-        {
             "name": "msvc-x64-release",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/msvc-x64-release",
@@ -49,11 +40,6 @@
     ],
     "buildPresets": [
         {
-            "name": "msvc-x64-debug",
-            "configurePreset": "msvc-x64-debug",
-            "verbose": true
-        },
-        {
             "name": "msvc-x64-release",
             "configurePreset": "msvc-x64-release",
             "verbose": true
@@ -76,8 +62,8 @@
     ],
     "testPresets": [
         {
-            "name": "msvc-x64-debug",
-            "configurePreset": "msvc-x64-debug"
+            "name": "msvc-x64-release",
+            "configurePreset": "msvc-x64-release"
         }
     ]
 }

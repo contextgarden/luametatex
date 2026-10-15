@@ -231,22 +231,6 @@ if (MSVC)
 
         add_compile_definitions(LMT_COMPILER_USED="clang")
 
-        # for 128 bit __udivti3 :
-
-         execute_process(
-            COMMAND ${CMAKE_C_COMPILER} -print-resource-dir
-            OUTPUT_VARIABLE CLANG_RESOURCE_DIR
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-
-        # Normalize slashes for Windows paths if necessary
-
-        file(TO_CMAKE_PATH "${CLANG_RESOURCE_DIR}" CLANG_RESOURCE_DIR)
-
-        target_link_libraries(luametatex PRIVATE
-            "${CLANG_RESOURCE_DIR}/lib/windows/clang_rt.builtins-x86_64.lib"
-        )
-
     else()
 
         add_compile_options(
