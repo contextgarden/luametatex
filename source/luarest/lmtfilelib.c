@@ -141,34 +141,68 @@
 
     static const int exec_mode_flag = _S_IEXEC;
 
-    static inline int get_stat(const char *s, info_struct *i)
+    static inline LPWSTR aux_utf8_to_wide_path(const char *s)
     {
         LPWSTR w = aux_utf8_to_wide(s);
-        int r = _wstati64(w, i);
+        if (! w) {
+            return NULL;
+        }
+        size_t wlen = wcslen(w);
+        /* trim trailing slashes safely (except for roots like "C:\" or "\") */
+        while (wlen > 1 && (w[wlen - 1] == L'/' || w[wlen - 1] == L'\\')) {
+            if (wlen == 3 && w[1] == L':' ) { break; } /* Keeps "C:\" intact */
+            if (wlen == 1 && (w[0] == L'/' || w[0] == L'\\')) { break; } /* keeps "\" intact */
+            w[--wlen] = L'\0';
+        }
+        /* if it's already an extended path or too short to matter, return as-is */
+        if (wlen <= 240 || (w[0] == L'\\' && w[1] == L'?' && w[2] == L'\\' && w[3] == L'?')) {
+            return w;
+        }
+        /* allocate space for "\\?\" (or "\\?\UNC\") plus the original path */
+        size_t extra = (w[0] == L'\\' && w[1] == L'\\') ? 8 : 4;
+        LPWSTR extended = lmt_memory_malloc((wlen + extra + 1) * sizeof(WCHAR));
+        if (! extended) {
+            return w;
+        }
+        if (extra == 8) {
+            wcscpy(extended, L"\\\\?\\UNC\\");
+            wcscpy(extended + 8, w + 2);
+        } else {
+            wcscpy(extended, L"\\\\?\\");
+            wcscpy(extended + 4, w);
+        }
+        lmt_memory_free(w);
+        return extended;
+    }
+
+    static inline int get_stat(const char *s, info_struct *i)
+    {
+        LPWSTR w = aux_utf8_to_wide_path(s);
+        int r = w ? _wstati64(w, i) : -1;
         lmt_memory_free(w);
         return r == 0;
     }
 
     static inline int mk_dir(const char *s)
     {
-        LPWSTR w = aux_utf8_to_wide(s);
-        int r = _wmkdir(w);
-        lmt_memory_free(w);
-        return r == 0;
-    }
-
-    static inline int ch_dir(const char *s)
-    {
-        LPWSTR w = aux_utf8_to_wide(s);
-        int r = _wchdir(w);
+        LPWSTR w = aux_utf8_to_wide_path(s);
+        int r = w ? _wmkdir(w) : -1;
         lmt_memory_free(w);
         return r == 0;
     }
 
     static inline int rm_dir(const char *s)
     {
-        LPWSTR w = aux_utf8_to_wide(s);
-        int r = _wrmdir(w);
+        LPWSTR w = aux_utf8_to_wide_path(s);
+        int r = w ? _wrmdir(w) : -1;
+        lmt_memory_free(w);
+        return r == 0;
+    }
+
+    static inline int ch_dir(const char *s)
+    {
+        LPWSTR w = aux_utf8_to_wide_path(s);
+        int r = w ? _wchdir(w) : -1;
         lmt_memory_free(w);
         return r == 0;
     }
@@ -296,6 +330,81 @@
     }
 
 # endif
+
+/*tex
+
+    This one is common. We used to do this in \LUA\ but it is more reliable here, also because
+    when we interface to \LUA\ we have to apply the sandbox feature. We step through the path
+    by replacing the slash by a zero. We also want to quit on a failure, but keep the already
+    created subpaths. Duplicate path seperators are ignored. So in the end less messy that doing
+    all this in \LUA.
+
+*/
+
+static inline int aux_isdir(const char *s)
+{
+    info_struct info;
+    return get_stat(s, &info) && S_ISDIR(info.st_mode);
+}
+
+static inline int mk_dirs(const char *s)
+{
+    /* sanity checks */
+    if (! s || ! *s) {
+        return 0;
+    }
+    /* we need a mutable path */
+    char *path = lmt_memory_strdup(s);
+    if (! path) {
+        return 0;
+    }
+    /* the pointer in path */
+    char *p = path;
+# ifdef _WIN32
+    /* skip a windows drive letter if present (e.g., "c:") */
+    if (isalpha((unsigned char) path[0]) && path[1] == ':') {
+        p += 2;
+    }
+# endif
+    /* skip leading slashes / root indicators */
+    while (*p == '/' || *p == '\\') {
+        p++;
+    }
+    /* walk through the path and create directories incrementally */
+    while (*p) {
+        if (*p == '/' || *p == '\\') {
+            /* save the slash and temporary end the path */
+            char slash = *p;
+            *p = '\0';
+            /* try to create the intermediate directory: /a /a/b /a/b/c etc */
+            if (! mk_dir(path)) {
+                /* only quit when the path doesn't exist afterward */
+                if (errno != EEXIST) {
+                    lmt_memory_free(path);
+                    return 0;
+                }
+            }
+            /* restore the slash */
+            *p = slash;
+            /* skip duplicate separators */
+            while (*p == '/' || *p == '\\') {
+                p++;
+            }
+        } else {
+            p++;
+        }
+    }
+    /* create the final directory */
+    int result = mk_dir(path);
+    if (! result && errno != EEXIST) {
+        lmt_memory_free(path);
+        return 0;
+    }
+    /* ensure it actually exists and is a directory */
+    int success = aux_isdir(path);
+    lmt_memory_free(path);
+    return success ? 1 : 0;
+}
 
 # include <lua.h>
 # include <lauxlib.h>
@@ -437,6 +546,40 @@ static int filelib_mkdir(lua_State *L)
     }
     lua_pushboolean(L, okay);
     return 1;
+}
+
+static int filelib_mkdirs(lua_State *L)
+{
+    int n = lua_gettop(L);
+    if (n <= 0) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+    /* concatenate arguments with '/' just like the original \LUA\ variant */
+    luaL_Buffer b;
+    luaL_buffinit(L, &b);
+    int done = 0;
+    for (int i = 1; i <= n; i++) {
+        size_t len;
+        const char *str = lua_tolstring(L, i, &len);
+        if (str && len > 0) {
+            if (done) {
+                luaL_addchar(&b, '/');
+            }
+            luaL_addlstring(&b, str, len);
+            done = 1;
+        }
+    }
+     /* pushes the combined path string onto the stack */
+    luaL_pushresult(&b);
+    const char *name = lua_tostring(L, -1);
+    int okay = 0;
+    if (name && lmt_valid_target(L, security_writeable, name, security_create_directory)) {
+        okay = mk_dirs(name);
+    }
+    /* push the success boolean on top of the path string, returning path, success */
+    lua_pushboolean(L, okay);
+    return 2;
 }
 
 /*
@@ -1068,7 +1211,33 @@ static int filelib_attributes(lua_State *L)
             const char *name = lua_tostring(L, 1);
             if (get_stat(name, &info)) {
                 int match = check_dir ? S_ISDIR(info.st_mode) : (S_ISREG(info.st_mode) || S_ISLNK(info.st_mode));
-                okay = match && (access(name, access_mode) == 0);
+             /* okay = match && (access(name, access_mode) == 0); */ /* avoid access: */
+                if (match) {
+                    if (access_mode == F_OK) {
+                        okay = 1;
+                    } else {
+                        /* gemini: check permissions directly from st_mode bits to avoid redundant system calls */
+                        uid_t uid = getuid();
+                        gid_t gid = getgid();
+                        int allowed = 0;
+                        if (uid == 0) {
+                            allowed = 1; /* root has access to everything */
+                        } else if (info.st_uid == uid) {
+                            if ((access_mode & R_OK) && !(info.st_mode & S_IRUSR)) allowed = -1;
+                            if ((access_mode & W_OK) && !(info.st_mode & S_IWUSR)) allowed = -1;
+                            if (allowed != -1) allowed = 1;
+                        } else if (info.st_gid == gid) {
+                            if ((access_mode & R_OK) && !(info.st_mode & S_IRGRP)) allowed = -1;
+                            if ((access_mode & W_OK) && !(info.st_mode & S_IWGRP)) allowed = -1;
+                            if (allowed != -1) allowed = 1;
+                        } else {
+                            if ((access_mode & R_OK) && !(info.st_mode & S_IROTH)) allowed = -1;
+                            if ((access_mode & W_OK) && !(info.st_mode & S_IWOTH)) allowed = -1;
+                            if (allowed != -1) allowed = 1;
+                        }
+                        okay = (allowed == 1);
+                    }
+                }
             }
         }
         lua_pushboolean(L, okay);
@@ -1385,6 +1554,7 @@ static const struct luaL_Reg filelib_function_list[] = {
     { "dir",             filelib_dir               },
     { "chdir",           filelib_chdir             }, /* security : readable */
     { "mkdir",           filelib_mkdir             }, /* security : writeable */
+    { "mkdirs",          filelib_mkdirs            }, /* security : writeable */
     { "rmdir",           filelib_rmdir             }, /* security : writeable */
     { "touch",           filelib_touch             }, /* security : writeable */
     { "expandpath",      filelib_expandpath        },
