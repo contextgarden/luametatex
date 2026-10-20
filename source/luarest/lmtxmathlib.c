@@ -73,13 +73,14 @@ static int xmathlib_cbrt(lua_State *L)
 {
     lua_pushnumber(L, (lua_Number) cbrt(luaL_checknumber(L, 1)));
     return 1;
-}
-
-static int xmathlib_ceil(lua_State *L)
-{
-    lua_pushnumber(L, (lua_Number) ceil(luaL_checknumber(L, 1)));
     return 1;
 }
+
+// static int xmathlib_ceil(lua_State *L)
+// {
+//     lua_pushnumber(L, (lua_Number) ceil(luaL_checknumber(L, 1)));
+//     return 1;
+// }
 
 static int xmathlib_copysign (lua_State *L)
 {
@@ -147,15 +148,16 @@ static int xmathlib_fdim(lua_State *L)
     return 1;
 }
 
-static int xmathlib_floor(lua_State *L)
-{
-    lua_pushnumber(L, (lua_Number) floor(luaL_checknumber(L, 1)));
-    return 1;
-}
+// static int xmathlib_floor(lua_State *L)
+// {
+//     lua_pushnumber(L, (lua_Number) floor(luaL_checknumber(L, 1)));
+//     return 1;
+// }
 
 static int xmathlib_fma(lua_State *L)
 {
     lua_pushnumber(L, (lua_Number) fma(luaL_checknumber(L, 1), luaL_checknumber(L, 2), luaL_checknumber(L, 3)));
+    return 1;
     return 1;
 }
 
@@ -505,19 +507,52 @@ static int xmathlib_tand(lua_State *L)
 
 static int xmathlib_div(lua_State *L)
 {
-    lua_Number n = luaL_checknumber(L, 1);
-    lua_Number m = luaL_checknumber(L, 2);
-    /* floor also deals with INF and NaN */
-    lua_pushnumber(L, (lua_Number) floor(n / m));
+    /* Lua 5.3+ : if both arguments are integers, return an integer result */
+    if (lua_isinteger(L, 1) && lua_isinteger(L, 2)) {
+        lua_Integer n = lua_tointeger(L, 1);
+        lua_Integer m = lua_tointeger(L, 2);
+        if (m == 0) {
+            return luaL_error(L, "attempt to divide by zero");
+        } else {
+            /* C division truncates towards zero; Lua floor division rounds towards -inf */
+            lua_Integer q = n / m;
+            lua_Integer r = n % m;
+            if ((r != 0) && ((n ^ m) < 0)) {
+                q--;
+            }
+            lua_pushinteger(L, q);
+        }
+    } else {
+        /* floats / mixed types */
+        lua_Number n = luaL_checknumber(L, 1);
+        lua_Number m = luaL_checknumber(L, 2);
+        lua_pushnumber(L, (lua_Number) floor(n / m));
+    }
     return 1;
 }
 
 static int xmathlib_mod(lua_State *L)
 {
-    lua_Number n = luaL_checknumber(L, 1);
-    lua_Number m = luaL_checknumber(L, 2);
-    /* exact equivalent of Lua's 'n % m' which works also with floats */
-    lua_pushnumber(L, (lua_Number) (n - m * floor(n / m)));
+    /* Lua 5.3+ : if both arguments are integers, return an integer result */
+    if (lua_isinteger(L, 1) && lua_isinteger(L, 2)) {
+        lua_Integer n = lua_tointeger(L, 1);
+        lua_Integer m = lua_tointeger(L, 2);
+        if (m == 0) {
+            return luaL_error(L, "attempt to perform 'modulo' by zero");
+        } else {
+            /* Lua integer modulo behavior */
+            lua_Integer r = n % m;
+            if ((r != 0) && ((n ^ m) < 0)) {
+                r += m;
+            }
+            lua_pushinteger(L, r);
+        }
+    } else {
+        /* floats / mixed types */
+        lua_Number n = luaL_checknumber(L, 1);
+        lua_Number m = luaL_checknumber(L, 2);
+        lua_pushnumber(L, (lua_Number) (n - m * floor(n / m)));
+    }
     return 1;
 }
 
@@ -546,10 +581,19 @@ static int xmathlib_sign(lua_State *L)
 
 static int xmathlib_clamp(lua_State *L)
 {
-    lua_Number n   = luaL_checknumber(L, 1);
-    lua_Number min = luaL_checknumber(L, 2);
-    lua_Number max = luaL_checknumber(L, 3);
-    lua_pushnumber(L, n < min ? min : (n > max ? max : n));
+    /* If all arguments are integers, return an integer result */
+    if (lua_isinteger(L, 1) && lua_isinteger(L, 2) && lua_isinteger(L, 3)) {
+        lua_Integer n   = lua_tointeger(L, 1);
+        lua_Integer min = lua_tointeger(L, 2);
+        lua_Integer max = lua_tointeger(L, 3);
+        lua_pushinteger(L, n < min ? min : (n > max ? max : n));
+    } else {
+        /* floats or mixed types */
+        lua_Number n   = luaL_checknumber(L, 1);
+        lua_Number min = luaL_checknumber(L, 2);
+        lua_Number max = luaL_checknumber(L, 3);
+        lua_pushnumber(L, n < min ? min : (n > max ? max : n));
+    }
     return 1;
 }
 
@@ -572,6 +616,45 @@ static int xmathlib_rounded(lua_State *L)
     int        decimals   = lmt_optinteger(L, 2, 0);
     lua_Number multiplier = pow(10.0, decimals);
     lua_pushnumber(L, floor(n * multiplier + 0.5) / multiplier);
+    return 1;
+}
+
+static int xmathlib_floor(lua_State *L)
+{
+    /* if it's already a native integer, the floor is itself */
+    if (lua_isinteger(L, 1)) {
+        lua_settop(L, 1);
+        return 1;
+    } else {
+        lua_Number n = luaL_checknumber(L, 1);
+        lua_Number f = floor(n);
+        /* if the result fits in a Lua integer, return an integer type */
+        if (f >= (lua_Number) LUA_MININTEGER && f <= (lua_Number) LUA_MAXINTEGER) {
+            lua_pushinteger(L, (lua_Integer) f);
+        } else {
+            /* NaN, Inf, or out-of-range values */
+            lua_pushnumber(L, f);
+        }
+        return 1;
+    }
+}
+
+static int xmathlib_ceil(lua_State *L)
+{
+    if (lua_isinteger(L, 1)) {
+        lua_settop(L, 1);
+        return 1;
+    } else {
+        lua_Number n = luaL_checknumber(L, 1);
+        lua_Number c = ceil(n);
+        /* if the result fits in a Lua integer, return an integer type */
+        if (c >= (lua_Number) LUA_MININTEGER && c <= (lua_Number) LUA_MAXINTEGER) {
+            lua_pushinteger(L, (lua_Integer) c);
+        } else {
+            /* NaN, Inf, or out-of-range values */
+            lua_pushnumber(L, c);
+        }
+    }
     return 1;
 }
 

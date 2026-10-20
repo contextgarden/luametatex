@@ -121,11 +121,10 @@
 # define luametatex_majorversion     2
 # define luametatex_minorversion     11
 # define luametatex_version          211
-# define luametatex_revision         0
 # define luametatex_release          10
 # define luametatex_version_string   "2.11.10"
 # define luametatex_version_number   211.10
-# define luametatex_development_id   20261017
+# define luametatex_development_id   20261020
 # define luametatex_name_camelcase   "LuaMetaTeX"
 # define luametatex_name_lowercase   "luametatex"
 # define luametatex_copyright_holder "Taco Hoekwater, Hans Hagen, Wolfgang Schuster & Mikael Sundqvist"
@@ -161,7 +160,7 @@ typedef struct version_state_info {
     int         luaversionminor;
     int         luaversionrelease;
     int         luaformat;
-    double      luatexversion;
+    double      luametatexversion;
     double      luaversion;
 } version_state_info;
 

@@ -228,29 +228,28 @@ static int statslib_readstate(lua_State *L)
 static int statslib_enginestate(lua_State *L)
 {
     lua_createtable(L, 0, 16);
-    lua_set_string_by_key (L, "logfilename",     lmt_fileio_state.log_name);
-    lua_set_string_by_key (L, "banner",          lmt_engine_state.luatex_banner);
-    lua_set_number_by_key (L, "version",         lmt_version_state.luatexversion);
-    lua_set_string_by_key (L, "luatex_engine",   lmt_engine_state.engine_name);
-    lua_set_integer_by_key(L, "luatex_version",  lmt_version_state.version);
-    lua_set_integer_by_key(L, "luatex_revision", lmt_version_state.revision);
-    lua_set_integer_by_key(L, "luatex_release",  lmt_version_state.release);
-    lua_set_string_by_key(L,  "luatex_verbose",  lmt_version_state.verbose);
-    lua_set_integer_by_key(L, "development_id",  lmt_version_state.developmentid);
-    lua_set_string_by_key (L, "copyright",       lmt_version_state.copyright);
-    lua_set_integer_by_key(L, "format_id",       lmt_version_state.formatid);
-    lua_set_integer_by_key(L, "tex_hash_size",   hash_size);
- // lua_set_integer_by_key(L, "tex_hash_prime",  hash_prime);
- // lua_set_integer_by_key(L, "tex_eqtb_size",   eqtb_size);
-    lua_set_integer_by_key(L, "tex_memory_mode", memory_mode);
-    lua_set_string_by_key (L, "used_compiler",   lmt_version_state.compiler);
-    lua_set_integer_by_key(L, "used_cversion",   lmt_version_state.cversion);
-    lua_set_boolean_by_key(L, "used_likely",     lmt_version_state.likely);
- // lua_set_string_by_key (L, "used_libc",       lmt_version_state.libc);
-    lua_set_integer_by_key(L, "run_state",       lmt_main_state.run_state);
-    lua_set_integer_by_key(L, "overload_state",  lmt_main_state.overload_state);
-    lua_set_boolean_by_key(L, "permit_loadlib",  lmt_engine_state.permit_loadlib);
-    lua_set_boolean_by_key(L, "permit_shebang",  lmt_engine_state.permit_shebang);
+    lua_set_string_by_key (L, "logfilename",         lmt_fileio_state.log_name);
+    lua_set_string_by_key (L, "banner",              lmt_engine_state.luametatex_banner);
+    lua_set_number_by_key (L, "version",             lmt_version_state.luametatexversion);
+    lua_set_string_by_key (L, "luametatex_engine",   lmt_engine_state.engine_name);
+    lua_set_integer_by_key(L, "luametatex_version",  lmt_version_state.version);
+    lua_set_integer_by_key(L, "luametatex_release",  lmt_version_state.release);
+    lua_set_string_by_key(L,  "luametatex_verbose",  lmt_version_state.verbose);
+    lua_set_integer_by_key(L, "development_id",      lmt_version_state.developmentid);
+    lua_set_string_by_key (L, "copyright",           lmt_version_state.copyright);
+    lua_set_integer_by_key(L, "format_id",           lmt_version_state.formatid);
+    lua_set_integer_by_key(L, "tex_hash_size",       hash_size);
+ // lua_set_integer_by_key(L, "tex_hash_prime",      hash_prime);
+ // lua_set_integer_by_key(L, "tex_eqtb_size",       eqtb_size);
+    lua_set_integer_by_key(L, "tex_memory_mode",     memory_mode);
+    lua_set_string_by_key (L, "used_compiler",       lmt_version_state.compiler);
+    lua_set_integer_by_key(L, "used_cversion",       lmt_version_state.cversion);
+    lua_set_boolean_by_key(L, "used_likely",         lmt_version_state.likely);
+ // lua_set_string_by_key (L, "used_libc",           lmt_version_state.libc);
+    lua_set_integer_by_key(L, "run_state",           lmt_main_state.run_state);
+    lua_set_integer_by_key(L, "overload_state",      lmt_main_state.overload_state);
+    lua_set_boolean_by_key(L, "permit_loadlib",      lmt_engine_state.permit_loadlib);
+    lua_set_boolean_by_key(L, "permit_shebang",      lmt_engine_state.permit_shebang);
     return 1;
 }
 
@@ -483,37 +482,37 @@ static struct statistic_entry statslib_entries[] = {
 
     /*tex But these are now collected in tables: */
 
-    { .name = "enginestate",        .value = &statslib_enginestate,        .type = 'f' },
-    { .name = "errorlinestate",     .value = &statslib_errorlinestate,     .type = 'f' },
-    { .name = "halferrorlinestate", .value = &statslib_halferrorlinestate, .type = 'f' },
-    { .name = "expandstate",        .value = &statslib_expandstate,        .type = 'f' },
-    { .name = "stringstate",        .value = &statslib_stringstate,        .type = 'f' },
-    { .name = "poolstate",          .value = &statslib_poolstate,          .type = 'f' },
-    { .name = "hashstate",          .value = &statslib_hashstate,          .type = 'f' },
-    { .name = "lookupstate",        .value = &statslib_lookupstate,        .type = 'f' },
-    { .name = "nodestate",          .value = &statslib_nodestate,          .type = 'f' },
-    { .name = "tokenstate",         .value = &statslib_tokenstate,         .type = 'f' },
-    { .name = "inputstate",         .value = &statslib_inputstate,         .type = 'f' },
-    { .name = "filestate",          .value = &statslib_filestate,          .type = 'f' },
-    { .name = "parameterstate",     .value = &statslib_parameterstate,     .type = 'f' },
-    { .name = "neststate",          .value = &statslib_neststate,          .type = 'f' },
-    { .name = "savestate",          .value = &statslib_savestate,          .type = 'f' },
-    { .name = "bufferstate",        .value = &statslib_bufferstate,        .type = 'f' },
-    { .name = "texstate",           .value = &statslib_texstate,           .type = 'f' },
-    { .name = "luastate",           .value = &statslib_luastate,           .type = 'f' },
-    { .name = "callbackstate",      .value = &statslib_callbackstate,      .type = 'f' },
-    { .name = "linebreakstate",     .value = &statslib_linebreakstate,     .type = 'f' },
-    { .name = "balancestate",       .value = &statslib_balancestate,       .type = 'f' },
-    { .name = "hyphenationstate",   .value = &statslib_hyphenationstate,   .type = 'f' },
-    { .name = "errorstate",         .value = &statslib_errorstate,         .type = 'f' },
-    { .name = "warningstate",       .value = &statslib_warningstate,       .type = 'f' },
-    { .name = "readstate",          .value = &statslib_readstate,          .type = 'f' },
-    { .name = "fontstate",          .value = &statslib_fontstate,          .type = 'f' },
-    { .name = "languagestate",      .value = &statslib_languagestate,      .type = 'f' },
-    { .name = "markstate",          .value = &statslib_markstate,          .type = 'f' },
-    { .name = "insertstate",        .value = &statslib_insertstate,        .type = 'f' },
-    { .name = "sparsestate",        .value = &statslib_sparsestate,        .type = 'f' },
-    { .name = "mvlstate",           .value = &statslib_mvlstate,           .type = 'f' },
+    { .name = "enginestate",         .value = &statslib_enginestate,        .type = 'f' },
+    { .name = "errorlinestate",      .value = &statslib_errorlinestate,     .type = 'f' },
+    { .name = "halferrorlinestate",  .value = &statslib_halferrorlinestate, .type = 'f' },
+    { .name = "expandstate",         .value = &statslib_expandstate,        .type = 'f' },
+    { .name = "stringstate",         .value = &statslib_stringstate,        .type = 'f' },
+    { .name = "poolstate",           .value = &statslib_poolstate,          .type = 'f' },
+    { .name = "hashstate",           .value = &statslib_hashstate,          .type = 'f' },
+    { .name = "lookupstate",         .value = &statslib_lookupstate,        .type = 'f' },
+    { .name = "nodestate",           .value = &statslib_nodestate,          .type = 'f' },
+    { .name = "tokenstate",          .value = &statslib_tokenstate,         .type = 'f' },
+    { .name = "inputstate",          .value = &statslib_inputstate,         .type = 'f' },
+    { .name = "filestate",           .value = &statslib_filestate,          .type = 'f' },
+    { .name = "parameterstate",      .value = &statslib_parameterstate,     .type = 'f' },
+    { .name = "neststate",           .value = &statslib_neststate,          .type = 'f' },
+    { .name = "savestate",           .value = &statslib_savestate,          .type = 'f' },
+    { .name = "bufferstate",         .value = &statslib_bufferstate,        .type = 'f' },
+    { .name = "texstate",            .value = &statslib_texstate,           .type = 'f' },
+    { .name = "luastate",            .value = &statslib_luastate,           .type = 'f' },
+    { .name = "callbackstate",       .value = &statslib_callbackstate,      .type = 'f' },
+    { .name = "linebreakstate",      .value = &statslib_linebreakstate,     .type = 'f' },
+    { .name = "balancestate",        .value = &statslib_balancestate,       .type = 'f' },
+    { .name = "hyphenationstate",    .value = &statslib_hyphenationstate,   .type = 'f' },
+    { .name = "errorstate",          .value = &statslib_errorstate,         .type = 'f' },
+    { .name = "warningstate",        .value = &statslib_warningstate,       .type = 'f' },
+    { .name = "readstate",           .value = &statslib_readstate,          .type = 'f' },
+    { .name = "fontstate",           .value = &statslib_fontstate,          .type = 'f' },
+    { .name = "languagestate",       .value = &statslib_languagestate,      .type = 'f' },
+    { .name = "markstate",           .value = &statslib_markstate,          .type = 'f' },
+    { .name = "insertstate",         .value = &statslib_insertstate,        .type = 'f' },
+    { .name = "sparsestate",         .value = &statslib_sparsestate,        .type = 'f' },
+    { .name = "mvlstate",            .value = &statslib_mvlstate,           .type = 'f' },
 
     /*tex Lua keys: */
 
@@ -525,41 +524,40 @@ static struct statistic_entry statslib_entries[] = {
 
     /*tex We keep these as direct accessible keys: */
 
-    { .name = "filename",           .value = (void *) &tex_current_input_file_name,     .type = 'S' },
-    { .name = "logfilename",        .value = (void *) &lmt_fileio_state.log_name,       .type = 'c' },
-    { .name = "banner",             .value = (void *) &lmt_engine_state.luatex_banner,  .type = 'c' },
-    { .name = "copyright",          .value = (void *) &lmt_version_state.copyright,     .type = 'c' },
+    { .name = "filename",            .value = (void *) &tex_current_input_file_name,         .type = 'S' },
+    { .name = "logfilename",         .value = (void *) &lmt_fileio_state.log_name,           .type = 'c' },
+    { .name = "banner",              .value = (void *) &lmt_engine_state.luametatex_banner,  .type = 'c' },
+    { .name = "copyright",           .value = (void *) &lmt_version_state.copyright,         .type = 'c' },
     /* */
-    { .name = "majorversion",       .value = (void *) &lmt_version_state.majorversion,  .type = 'g' },
-    { .name = "minorversion",       .value = (void *) &lmt_version_state.minorversion,  .type = 'g' },
-    { .name = "release",            .value = (void *) &lmt_version_state.release,       .type = 'g' },
-    { .name = "development_id",     .value = (void *) &lmt_version_state.developmentid, .type = 'g' },
-    { .name = "format_id",          .value = (void *) &lmt_version_state.formatid,      .type = 'g' },
+    { .name = "majorversion",        .value = (void *) &lmt_version_state.majorversion,      .type = 'g' },
+    { .name = "minorversion",        .value = (void *) &lmt_version_state.minorversion,      .type = 'g' },
+    { .name = "release",             .value = (void *) &lmt_version_state.release,           .type = 'g' },
+    { .name = "development_id",      .value = (void *) &lmt_version_state.developmentid,     .type = 'g' },
+    { .name = "format_id",           .value = (void *) &lmt_version_state.formatid,          .type = 'g' },
     /* */
-    { .name = "version",            .value = (void *) &lmt_version_state.luatexversion, .type = 'd' },
+    { .name = "version",             .value = (void *) &lmt_version_state.luametatexversion, .type = 'd' },
     /* */
-    { .name = "luatex_engine",      .value = (void *) &lmt_engine_state.engine_name,    .type = 'c' },
-    { .name = "luatex_version",     .value = (void *) &lmt_version_state.version,       .type = 'g' },
-    { .name = "luatex_revision",    .value = (void *) &lmt_version_state.revision,      .type = 'g' },
-    { .name = "luatex_release",     .value = (void *) &lmt_version_state.release,       .type = 'g' },
-    { .name = "luatex_verbose",     .value = (void *) &lmt_version_state.verbose,       .type = 'c' },
+    { .name = "luametatex_engine",   .value = (void *) &lmt_engine_state.engine_name,        .type = 'c' },
+    { .name = "luametatex_version",  .value = (void *) &lmt_version_state.version,           .type = 'g' },
+    { .name = "luametatex_release",  .value = (void *) &lmt_version_state.release,           .type = 'g' },
+    { .name = "luametatex_verbose",  .value = (void *) &lmt_version_state.verbose,           .type = 'c' },
     /* */
-    { .name = "used_compiler",      .value = (void *) &lmt_version_state.compiler,      .type = 'c' }, /* can be moved up */
-    { .name = "used_cversion",      .value = (void *) &lmt_version_state.cversion,      .type = 'g' }, /* can be moved up */
-    { .name = "used_likely",        .value = (void *) &lmt_version_state.likely,        .type = 'b' }, /* can be moved up */
-    { .name = "run_state",          .value = (void *) &lmt_main_state.run_state,        .type = 'g' },
-    { .name = "overload_state",     .value = (void *) &lmt_main_state.overload_state,   .type = 'g' },
-    { .name = "permit_loadlib",     .value = (void *) &lmt_engine_state.permit_loadlib, .type = 'b' },
-    { .name = "permit_shebang",     .value = (void *) &lmt_engine_state.permit_shebang, .type = 'b' },
+    { .name = "used_compiler",       .value = (void *) &lmt_version_state.compiler,          .type = 'c' }, /* can be moved up */
+    { .name = "used_cversion",       .value = (void *) &lmt_version_state.cversion,          .type = 'g' }, /* can be moved up */
+    { .name = "used_likely",         .value = (void *) &lmt_version_state.likely,            .type = 'b' }, /* can be moved up */
+    { .name = "run_state",           .value = (void *) &lmt_main_state.run_state,            .type = 'g' },
+    { .name = "overload_state",      .value = (void *) &lmt_main_state.overload_state,       .type = 'g' },
+    { .name = "permit_loadlib",      .value = (void *) &lmt_engine_state.permit_loadlib,     .type = 'b' },
+    { .name = "permit_shebang",      .value = (void *) &lmt_engine_state.permit_shebang,     .type = 'b' },
     /* */
-    { .name = "tex_memory_mode",    .value = &statslib_memory_mode,                     .type = 'f' }, /* can be moved up */
+    { .name = "tex_memory_mode",     .value = &statslib_memory_mode,                         .type = 'f' }, /* can be moved up */
     /* */
-    { .name = NULL,                 .value = NULL,                                      .type = 0   },
+    { .name = NULL,                  .value = NULL,                                          .type = 0   },
 };
 
 static struct statistic_entry statslib_entries_only[] = {
     { .name = "filename",            .value = (void *) &tex_current_input_file_name,         .type = 'S' },
-    { .name = "banner",              .value = (void *) &lmt_engine_state.luatex_banner,      .type = 'c' },
+    { .name = "banner",              .value = (void *) &lmt_engine_state.luametatex_banner,  .type = 'c' },
     { .name = "copyright",           .value = (void *) &lmt_version_state.copyright,         .type = 'c' },
     /* */                                                                                    
     { .name = "majorversion",        .value = (void *) &lmt_version_state.majorversion,      .type = 'g' },
@@ -568,13 +566,13 @@ static struct statistic_entry statslib_entries_only[] = {
     { .name = "development_id",      .value = (void *) &lmt_version_state.developmentid,     .type = 'g' },
     { .name = "format_id",           .value = (void *) &lmt_version_state.formatid,          .type = 'g' },
     /* */                                                                                    
-    { .name = "version",             .value = (void *) &lmt_version_state.luatexversion,     .type = 'd' },
+    { .name = "version",             .value = (void *) &lmt_version_state.luametatexversion, .type = 'd' },
     /* */                                                                                    
-    { .name = "luatex_engine",       .value = (void *) &lmt_engine_state.engine_name,        .type = 'c' },
-    { .name = "luatex_version",      .value = (void *) &lmt_version_state.version,           .type = 'g' },
-    { .name = "luatex_revision",     .value = (void *) &lmt_version_state.revision,          .type = 'g' },
-    { .name = "luatex_release",      .value = (void *) &lmt_version_state.release,           .type = 'g' },
-    { .name = "luatex_verbose",      .value = (void *) &lmt_version_state.verbose,           .type = 'c' },
+    { .name = "luametatex_engine",   .value = (void *) &lmt_engine_state.engine_name,        .type = 'c' },
+    { .name = "luametatex_version",  .value = (void *) &lmt_version_state.version,           .type = 'g' },
+    { .name = "luametatex_revision", .value = (void *) &lmt_version_state.revision,          .type = 'g' },
+    { .name = "luametatex_release",  .value = (void *) &lmt_version_state.release,           .type = 'g' },
+    { .name = "luametatex_verbose",  .value = (void *) &lmt_version_state.verbose,           .type = 'c' },
     /* */                                                                                    
     { .name = "used_compiler",       .value = (void *) &lmt_version_state.compiler,          .type = 'c' },
     { .name = "used_cversion",       .value = (void *) &lmt_version_state.cversion,          .type = 'g' },

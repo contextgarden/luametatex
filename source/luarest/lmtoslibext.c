@@ -582,19 +582,40 @@ static int oslib_launch(lua_State *L)
     return 1;
 }
 
+# if defined(_WIN32) || defined(_WIN64)
+
+    static int oslib_getseparators(lua_State *L)
+    {
+        lua_pushstring(L, "\\");
+        lua_pushstring(L, ";");
+        return 2;
+    }
+
+# else
+
+    static int oslib_getseparators(lua_State *L)
+    {
+        lua_pushstring(L, "/");
+        lua_pushstring(L, ":");
+        return 2;
+    }
+
+# endif
+
 static const luaL_Reg oslib_function_list[] = {
     { "sleep",          oslib_sleep          },
     { "uname",          oslib_uname          },
     { "gettimeofday",   oslib_gettimeofday   },
-    { "setenv",         oslib_setenv         }, /* security : todo */
-    { "execute",        oslib_execute        }, /* security : todo */
-    { "launch",         oslib_launch         }, /* security : todo */
-    { "rename",         oslib_rename         }, /* security : writeable */
-    { "remove",         oslib_remove         }, /* security : writeable */
+    { "setenv",         oslib_setenv         },
+    { "execute",        oslib_execute        },
+    { "launch",         oslib_launch         },
+    { "rename",         oslib_rename         },
+    { "remove",         oslib_remove         },
     { "setlocale",      oslib_setlocale      },
 # ifdef _WIN32
     { "getenv",         oslib_getenv         },
 # endif
+    { "getseparators",  oslib_getseparators  },
     { "enableansi",     oslib_enableansi     },
     { "getcodepage",    oslib_getcodepage    },
     { "getnamevalues",  oslib_getnamevalues  },

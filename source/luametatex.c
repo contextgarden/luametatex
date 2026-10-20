@@ -8,7 +8,6 @@ version_state_info lmt_version_state = {
     .majorversion      = luametatex_majorversion,
     .minorversion      = luametatex_minorversion,
     .version           = luametatex_version,
-    .revision          = luametatex_revision,
     .release           = luametatex_release,
     .developmentid     = luametatex_development_id,
     .verbose           = luametatex_version_string,
@@ -25,7 +24,7 @@ version_state_info lmt_version_state = {
     .luaversionmajor   = LUA_VERSION_MAJOR_N,
     .luaversionminor   = LUA_VERSION_MINOR_N,	
     .luaversionrelease = LUA_VERSION_RELEASE_N,
-    .luatexversion     = (double) luametatex_version_number,
+    .luametatexversion = (double) luametatex_version_number,
     .luaversion        = (double) LUA_VERSION_MAJOR_N + (double) LUA_VERSION_MINOR_N / 10,
     .luaformat         = LUAC_FORMAT,
 };
