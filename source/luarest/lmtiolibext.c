@@ -2167,7 +2167,7 @@ static inline int io_aux_check_open(lua_State *L, const char **filename, const c
         errno = EACCES;
         return 0;
     }
-    if (is_write && ! lmt_valid_target(L, security_writeable, *filename, security_open_file)) {
+    if (is_write && ! lmt_valid_target(L, security_writable, *filename, security_open_file)) {
         errno = EACCES;
         return 0;
     }

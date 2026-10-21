@@ -234,8 +234,9 @@ static int statslib_enginestate(lua_State *L)
     lua_set_string_by_key (L, "luametatex_engine",   lmt_engine_state.engine_name);
     lua_set_integer_by_key(L, "luametatex_version",  lmt_version_state.version);
     lua_set_integer_by_key(L, "luametatex_release",  lmt_version_state.release);
-    lua_set_string_by_key(L,  "luametatex_verbose",  lmt_version_state.verbose);
-    lua_set_integer_by_key(L, "development_id",      lmt_version_state.developmentid);
+    lua_set_string_by_key (L, "luametatex_verbose",  lmt_version_state.verbose);
+    lua_set_integer_by_key(L, "functionality",       lmt_version_state.functionality);
+    lua_set_string_by_key (L, "distribution",        lmt_version_state.distribution);
     lua_set_string_by_key (L, "copyright",           lmt_version_state.copyright);
     lua_set_integer_by_key(L, "format_id",           lmt_version_state.formatid);
     lua_set_integer_by_key(L, "tex_hash_size",       hash_size);
@@ -532,7 +533,8 @@ static struct statistic_entry statslib_entries[] = {
     { .name = "majorversion",        .value = (void *) &lmt_version_state.majorversion,      .type = 'g' },
     { .name = "minorversion",        .value = (void *) &lmt_version_state.minorversion,      .type = 'g' },
     { .name = "release",             .value = (void *) &lmt_version_state.release,           .type = 'g' },
-    { .name = "development_id",      .value = (void *) &lmt_version_state.developmentid,     .type = 'g' },
+    { .name = "functionality",       .value = (void *) &lmt_version_state.functionality,     .type = 'g' },
+    { .name = "distribution",        .value = (void *) &lmt_version_state.distribution,      .type = 'c' },
     { .name = "format_id",           .value = (void *) &lmt_version_state.formatid,          .type = 'g' },
     /* */
     { .name = "version",             .value = (void *) &lmt_version_state.luametatexversion, .type = 'd' },
@@ -563,7 +565,8 @@ static struct statistic_entry statslib_entries_only[] = {
     { .name = "majorversion",        .value = (void *) &lmt_version_state.majorversion,      .type = 'g' },
     { .name = "minorversion",        .value = (void *) &lmt_version_state.minorversion,      .type = 'g' },
     { .name = "release",             .value = (void *) &lmt_version_state.release,           .type = 'g' },
-    { .name = "development_id",      .value = (void *) &lmt_version_state.developmentid,     .type = 'g' },
+    { .name = "functionality",       .value = (void *) &lmt_version_state.functionality,     .type = 'g' },
+    { .name = "distribution",        .value = (void *) &lmt_version_state.distribution,      .type = 'c' },
     { .name = "format_id",           .value = (void *) &lmt_version_state.formatid,          .type = 'g' },
     /* */                                                                                    
     { .name = "version",             .value = (void *) &lmt_version_state.luametatexversion, .type = 'd' },
@@ -632,6 +635,68 @@ static int statslib_resetmessages(lua_State *L)
     return 0;
 }
 
+/*
+
+    We formalize this here instead of delegating this to a lua helper:
+
+    function toversion(major,minor,release)
+        return (major   or 1) * 100000000
+             + (minor   or 0) *     10000
+             + (release or 0)
+    end
+
+    function fromversion(version)
+        return
+             version              // 100000000 -- major
+          , (version % 100000000) //     10000 -- minor
+          , (version %      1000)              -- release
+    end
+
+    currentversion = toversion(
+        status.majorversion,
+        status.minorversion,
+        status.release
+    )
+
+*/
+
+static int statslib_toversion(lua_State *L)
+{
+    int major   = lmt_optunsigned(L, 1, 1);
+    int minor   = lmt_optunsigned(L, 2, 0);
+    int release = lmt_optunsigned(L, 3, 0);
+    if (major   > 1000) { major   = 1000; }
+    if (minor   > 1000) { minor   = 1000; }
+    if (release > 1000) { release = 1000; }
+    lua_pushinteger(L, major * 100000000 + minor * 10000 + release);
+    return 1;
+}
+
+static int statslib_fromversion(lua_State *L)
+{
+    int version = lmt_optunsigned(L, 1, 0);
+    int major   =  version              / 100000000;
+    int minor   = (version % 100000000) / 10000;
+    int release = (version %      1000);
+    if (major   > 1000) { major   = 1000; }
+    if (minor   > 1000) { minor   = 1000; }
+    if (release > 1000) { release = 1000; }
+    lua_pushinteger(L, major);
+    lua_pushinteger(L, minor);
+    lua_pushinteger(L, release);
+    return 3;
+}
+
+static int statslib_currentversion(lua_State *L)
+{
+    lua_pushinteger(L,
+        lmt_version_state.luaversionmajor   * 100000000
+      + lmt_version_state.luaversionminor   *     10000
+      + lmt_version_state.luaversionrelease
+    );
+    return 1;
+}
+
 static const struct luaL_Reg statslib_function_list[] = {
     { "list",                  statslib_statslist          }, /* for old times sake */
     { "getconstants",          statslib_getconstants       },
@@ -672,12 +737,22 @@ static const struct luaL_Reg statslib_function_list[] = {
 
     { "getdumpstate",          statslib_dumpstate          },
 
+    { "toversion",             statslib_toversion          },
+    { "fromversion",           statslib_fromversion        },
+    { "currentversion",        statslib_currentversion     },
+
     { NULL,                    NULL                        },
 };
 
 static const struct luaL_Reg statslib_function_list_only[] = {
-    { "list", statslib_statslist_only },
-    { NULL,   NULL                    },
+
+    { "list",                  statslib_statslist_only     },
+
+    { "toversion",             statslib_toversion          },
+    { "fromversion",           statslib_fromversion        },
+    { "currentversion",        statslib_currentversion     },
+
+    { NULL,                    NULL                        },
 };
 
 int luaopen_status(lua_State *L)

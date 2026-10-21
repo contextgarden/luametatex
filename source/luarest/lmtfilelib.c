@@ -509,7 +509,7 @@ static int filelib_link(lua_State *L)
     if (lua_type(L, 1) == LUA_TSTRING && lua_type(L, 2) == LUA_TSTRING) {
         const char *oldpath = lua_tostring(L, 1);
         const char *newpath = lua_tostring(L, 2);
-        if (oldpath && newpath && lmt_valid_target(L, security_writeable, newpath, security_link_object)) {
+        if (oldpath && newpath && lmt_valid_target(L, security_writable, newpath, security_link_object)) {
             okay = lua_toboolean(L, 3) ? mk_symlink(oldpath, newpath) : mk_link(oldpath, newpath);
         }
     }
@@ -523,7 +523,7 @@ static int filelib_symlink(lua_State *L)
     if (lua_type(L, 1) == LUA_TSTRING && lua_type(L, 2) == LUA_TSTRING) {
         const char *oldpath = lua_tostring(L, 1);
         const char *newpath = lua_tostring(L, 2);
-        if (oldpath && newpath && lmt_valid_target(L, security_writeable, newpath, security_link_object)) {
+        if (oldpath && newpath && lmt_valid_target(L, security_writable, newpath, security_link_object)) {
             okay = mk_symlink(oldpath, newpath);
         }
     }
@@ -542,7 +542,7 @@ static int filelib_mkdir(lua_State *L)
     int okay = 0;
     if (lua_type(L, 1) == LUA_TSTRING) {
         const char * name = lua_tostring(L, 1);
-        okay = (name && lmt_valid_target(L, security_writeable, name, security_create_directory)) ? mk_dir(name) : 0;
+        okay = (name && lmt_valid_target(L, security_writable, name, security_create_directory)) ? mk_dir(name) : 0;
     }
     lua_pushboolean(L, okay);
     return 1;
@@ -574,7 +574,7 @@ static int filelib_mkdirs(lua_State *L)
     luaL_pushresult(&b);
     const char *name = lua_tostring(L, -1);
     int okay = 0;
-    if (name && lmt_valid_target(L, security_writeable, name, security_create_directory)) {
+    if (name && lmt_valid_target(L, security_writable, name, security_create_directory)) {
         okay = mk_dirs(name);
     }
     /* push the success boolean on top of the path string, returning path, success */
@@ -593,7 +593,7 @@ static int filelib_rmdir(lua_State *L)
     int okay = 0;
     if (lua_type(L, 1) == LUA_TSTRING) {
         const char * name = lua_tostring(L, 1);
-        okay = (name && lmt_valid_target(L, security_writeable, name, security_remove_directory)) ? rm_dir(name) : 0;
+        okay = (name && lmt_valid_target(L, security_writable, name, security_remove_directory)) ? rm_dir(name) : 0;
     }
     lua_pushboolean(L, okay);
     return 1;
@@ -1102,7 +1102,7 @@ static int filelib_touch(lua_State *L)
             utb.modtime = (time_t) luaL_optinteger(L, 3, utb.actime);
             buf = &utb;
         }
-        okay = (name && lmt_valid_target(L, security_writeable, name, security_touch_object)) ? set_utime(name, buf) : 0;
+        okay = (name && lmt_valid_target(L, security_writable, name, security_touch_object)) ? set_utime(name, buf) : 0;
     }
     lua_pushboolean(L, okay);
     return 1;
@@ -1248,18 +1248,18 @@ static int filelib_attributes(lua_State *L)
 
 static int filelib_isdir          (lua_State *L) { return filelib_check_path_type(L, F_OK, 1); }
 static int filelib_isreadabledir  (lua_State *L) { return filelib_check_path_type(L, R_OK, 1); }
-static int filelib_iswriteabledir (lua_State *L) { return filelib_check_path_type(L, W_OK, 1); }
+static int filelib_iswritabledir  (lua_State *L) { return filelib_check_path_type(L, W_OK, 1); }
 
 static int filelib_isfile         (lua_State *L) { return filelib_check_path_type(L, F_OK, 0); }
 static int filelib_isreadablefile (lua_State *L) { return filelib_check_path_type(L, R_OK, 0); }
-static int filelib_iswriteablefile(lua_State *L) { return filelib_check_path_type(L, W_OK, 0); }
+static int filelib_iswritablefile (lua_State *L) { return filelib_check_path_type(L, W_OK, 0); }
 
 static int filelib_setexecutable(lua_State *L)
 {
     int okay = 0;
     if (lua_type(L, 1) == LUA_TSTRING) {
         const char *name = lua_tostring(L, 1);
-        if (name && lmt_valid_target(L, security_writeable, name, security_set_executable)) {
+        if (name && lmt_valid_target(L, security_writable, name, security_set_executable)) {
             info_struct info;
             if (get_stat(name, &info) && S_ISREG(info.st_mode)) {
                 okay = ch_to_exec(name, info.st_mode | exec_mode_flag);
@@ -1553,22 +1553,22 @@ static const struct luaL_Reg filelib_function_list[] = {
     { "currentdir",      filelib_currentdir        },
     { "dir",             filelib_dir               },
     { "chdir",           filelib_chdir             }, /* security : readable */
-    { "mkdir",           filelib_mkdir             }, /* security : writeable */
-    { "mkdirs",          filelib_mkdirs            }, /* security : writeable */
-    { "rmdir",           filelib_rmdir             }, /* security : writeable */
-    { "touch",           filelib_touch             }, /* security : writeable */
+    { "mkdir",           filelib_mkdir             }, /* security : writable */
+    { "mkdirs",          filelib_mkdirs            }, /* security : writable */
+    { "rmdir",           filelib_rmdir             }, /* security : writable */
+    { "touch",           filelib_touch             }, /* security : writable */
     { "expandpath",      filelib_expandpath        },
     { "canonicalize",    filelib_canonicalize      },
     /* */
-    { "link",            filelib_link              }, /* security : writeable */
-    { "symlink",         filelib_symlink           }, /* security : writeable */
-    { "setexecutable",   filelib_setexecutable     }, /* security : writeable */
+    { "link",            filelib_link              }, /* security : writable */
+    { "symlink",         filelib_symlink           }, /* security : writable */
+    { "setexecutable",   filelib_setexecutable     }, /* security : writable */
     { "symlinktarget",   filelib_symlinktarget     },
     /* */
     { "isdir",           filelib_isdir             },
     { "isfile",          filelib_isfile            },
-    { "iswriteabledir",  filelib_iswriteabledir    }, /* security */
-    { "iswriteablefile", filelib_iswriteablefile   }, /* security */
+    { "iswritabledir",   filelib_iswritabledir     }, /* security */
+    { "iswritablefile",  filelib_iswritablefile    }, /* security */
     { "isreadabledir",   filelib_isreadabledir     }, /* security */
     { "isreadablefile",  filelib_isreadablefile    }, /* security */
     /* */

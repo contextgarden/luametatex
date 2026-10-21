@@ -9,7 +9,12 @@ version_state_info lmt_version_state = {
     .minorversion      = luametatex_minorversion,
     .version           = luametatex_version,
     .release           = luametatex_release,
-    .developmentid     = luametatex_development_id,
+    .functionality     = luametatex_functionality,
+# if defined(LMT_DISTRIBUTION_USED)
+    .distribution      = LMT_DISTRIBUTION_USED,
+# else
+    .distribution      = "regular",
+# endif
     .verbose           = luametatex_version_string,
     .banner            = "This is " luametatex_name_camelcase ", Version " luametatex_version_string,
 # if defined(LMT_COMPILER_USED)

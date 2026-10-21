@@ -236,9 +236,13 @@ static void enginelib_show_version_info(void)
         "version. For more information about these matters, see the file named COPYING\n"
         "and the LuaMetaTeX source.\n"
         "\n"
-        "Functionality : level " LMT_TOSTRING(luametatex_development_id) "\n"
+        "Functionality : level " LMT_TOSTRING(luametatex_functionality) "\n"
         "Support       : " luametatex_support_address "\n"
-        "Copyright     : The Lua(Meta)TeX Team(s) (2005-2024+)\n"
+        "Copyright     : The Lua(Meta)TeX Team(s) (2005-2026+)\n"
+# if defined(LMT_DISTRIBUTION_USED)
+        "\n"
+        "Distribution  : " LMT_DISTRIBUTION_USED "\n"
+# endif
         "\n"
         "The LuaMetaTeX project is related to ConTeXt development. This macro package\n"
         "tightly integrates TeX and MetaPost in close cooperation with Lua. Updates will\n"
@@ -350,7 +354,7 @@ static void enginelib_show_credits(void)
         "simple foreign interface subsystem. Although this is provided and considered part of the\n"
         "LuaMetaTeX engine it is not something ConTeXt depends (and will) depend on.\n"
         "\n"
-        "version    : " luametatex_version_string " | " LMT_TOSTRING(luametatex_development_id) "\n"
+        "version    : " luametatex_version_string " | " LMT_TOSTRING(luametatex_functionality) "\n"
         "format id  : " LMT_TOSTRING(luametatex_format_fingerprint) "\n"
 # ifdef __DATE__
         "date       : " __TIME__ " | " __DATE__ "\n"

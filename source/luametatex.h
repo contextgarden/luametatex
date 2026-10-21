@@ -116,7 +116,10 @@
 
 */
 
-/*tex Currently LUAC_FORMAT is set to 5 awaiting an official version bump. */
+/*tex
+    We also set LUAC_FORMAT because we use the latest Lua version so there can be changes in
+    bytecode and we check for that in order to prevent cache crashes.
+*/
 
 # define luametatex_majorversion     2
 # define luametatex_minorversion     11
@@ -124,7 +127,8 @@
 # define luametatex_release          10
 # define luametatex_version_string   "2.11.10"
 # define luametatex_version_number   211.10
-# define luametatex_development_id   20261020
+# define luametatex_functionality    20261020
+# define luametatex_distribution     "regular" /* LMT_DISTRIBUTION_USED */
 # define luametatex_name_camelcase   "LuaMetaTeX"
 # define luametatex_name_lowercase   "luametatex"
 # define luametatex_copyright_holder "Taco Hoekwater, Hans Hagen, Wolfgang Schuster & Mikael Sundqvist"
@@ -148,7 +152,8 @@ typedef struct version_state_info {
     int         version;
     int         revision;
     int         release; 
-    int         developmentid;
+    int         functionality;
+    const char *distribution;
     const char *verbose;
     const char *banner;
     const char *compiler;
