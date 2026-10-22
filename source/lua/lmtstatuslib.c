@@ -235,6 +235,8 @@ static int statslib_enginestate(lua_State *L)
     lua_set_integer_by_key(L, "luametatex_version",  lmt_version_state.version);
     lua_set_integer_by_key(L, "luametatex_release",  lmt_version_state.release);
     lua_set_string_by_key (L, "luametatex_verbose",  lmt_version_state.verbose);
+    lua_set_integer_by_key(L, "majorversion",        lmt_version_state.majorversion;
+    lua_set_integer_by_key(L, "minorversion",        lmt_version_state.minorversion;
     lua_set_integer_by_key(L, "functionality",       lmt_version_state.functionality);
     lua_set_string_by_key (L, "distribution",        lmt_version_state.distribution);
     lua_set_string_by_key (L, "copyright",           lmt_version_state.copyright);
