@@ -15558,6 +15558,7 @@ static void mp_get_next(MP mp)
              // if (mp->scanner_status == mp_tex_flushing_state) {
              //     goto SWITCH;
              // } else {
+                {
                     /* We also accept ASCII BTX ... ETX here. */
                     unsigned char cend = c == '"' ? '"' : c == '\'' ? '\'' : 3 ;
                     if (c == '\'') {
@@ -15604,7 +15605,7 @@ static void mp_get_next(MP mp)
                     ++mp_input_location;
                     set_cur_cmd(mp_string_command);
                     return;
-             // }
+                 }
             case mp_comma_class:
             case mp_semicolon_class:
             case mp_left_parenthesis_class:
