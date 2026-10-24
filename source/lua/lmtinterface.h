@@ -440,6 +440,7 @@ typedef struct node_info {
     int           definable;
     int           first;
     int           last;
+    int           max;
 } node_info;
 
 typedef struct par_info {
