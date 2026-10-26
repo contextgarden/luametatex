@@ -4862,10 +4862,8 @@ static int strlib_tabstr_normal(lua_State *L)
     }
     int check = lua_toboolean(L, 2);
     int seen  = 0;
-
     lmt_string_buffer buffer;
     lmt_buffer_allocate(L, &buffer);
-
     if (check) {
         lua_newtable(L);
         seen = lua_gettop(L);
@@ -4874,7 +4872,6 @@ static int strlib_tabstr_normal(lua_State *L)
     if (check) {
         lua_remove(L, seen);
     }
-
     lua_pushlstring(L, buffer.buffer, buffer.length);
     lmt_buffer_dispose(&buffer);
     return 1;
