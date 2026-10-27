@@ -4749,7 +4749,12 @@ static int strlib_fastserialize(lua_State *L)
 
 */ 
 
-/* Helper structure for zero-copy entry sorting */
+/*
+    This is a helper structure for zero-copy entry sorting. We just point to the start
+    of a substring. Sorting is needed for consistency and has no real meaning. (So we
+    can cast numbers, see below.) We use a buffer and not many small allocated strings,
+    but we do need something we can swap:
+*/
 
 typedef struct tabstr_entry {
     const char *str;
@@ -4763,8 +4768,8 @@ typedef struct tabstr_item {
 
 static int tabstr_entry_compare(const void *a, const void *b)
 {
-    const tabstr_entry *ea = (const tabstr_entry *)a;
-    const tabstr_entry *eb = (const tabstr_entry *)b;
+    const tabstr_entry *ea = (const tabstr_entry *) a;
+    const tabstr_entry *eb = (const tabstr_entry *) b;
     uint32_t minlen = ea->len < eb->len ? ea->len : eb->len;
     int cmp = memcmp(ea->str, eb->str, minlen);
     if (cmp != 0) {
@@ -4776,16 +4781,81 @@ static int tabstr_entry_compare(const void *a, const void *b)
 
 /* Helper to append key/value strings safely without mutating Lua keys during lua_next */
 
+/* This one is simple (100%). */
+
+// static inline void tabstr_add_value_string(lua_State *L, int idx, lmt_string_buffer *b)
+// {
+//     size_t len;
+//     /*
+//         luaL_tolstring pushes the string representation onto the top of stack
+//         without mutating the value at 'idx' (critical for lua_next key safety).
+//     */
+//     const char *s = luaL_tolstring(L, idx, &len);
+//     lmt_buffer_add_lstring(b, s, len);
+//     lua_pop(L, 1);
+// }
+
+/*
+    But this one is faster (50%) and it is one of these things you realize when pondering
+    a bottleneck during a walk: hex is always more efficient than decimal. And then it is
+    a small step to just cast bytes (35%). We sort using memcmp so we're zero byte okay.
+*/
+
 static inline void tabstr_add_value_string(lua_State *L, int idx, lmt_string_buffer *b)
 {
-    size_t len;
-    /* 
-        luaL_tolstring pushes the string representation onto the top of stack
-        without mutating the value at 'idx' (critical for lua_next key safety). 
-    */
-    const char *s = luaL_tolstring(L, idx, &len);
-    lmt_buffer_add_lstring(b, s, len);
-    lua_pop(L, 1);
+    switch (lua_type(L, idx)) {
+     // case LUA_TNUMBER:
+     //     {
+     //         char hexbuf[64];
+     //         if (lua_isinteger(L, idx)) {
+     //             lua_Integer n = lua_tointeger(L, idx);
+     //             int len = snprintf(hexbuf, sizeof(hexbuf), "I%llx", (unsigned long long)n);
+     //             lmt_buffer_add_lstring(b, hexbuf, len);
+     //         } else {
+     //             lua_Number n = lua_tonumber(L, idx);
+     //             int len = snprintf(hexbuf, sizeof(hexbuf), "F%a", n);
+     //             lmt_buffer_add_lstring(b, hexbuf, len);
+     //         }
+     //         break;
+     //     }
+        case LUA_TNUMBER:
+            {
+                if (lua_isinteger(L, idx)) {
+                    lua_Integer n = lua_tointeger(L, idx);
+                    lmt_buffer_add_char(b, 'I');
+                    lmt_buffer_add_lstring(b, (const char *) &n, sizeof(n));
+                } else {
+                    lua_Number n = lua_tonumber(L, idx);
+                    /* we normalize -0.0 but it's unlikely to happen */
+                    if (n == 0.0) {
+                        n = 0.0;
+                    }
+                    /* NaN and INF don't occur here */
+                    lmt_buffer_add_char(b, 'F');
+                    lmt_buffer_add_lstring(b, (const char *) &n, sizeof(n));
+                }
+                break;
+            }
+        case LUA_TBOOLEAN:
+            {
+                lmt_buffer_add_lstring(b, lua_toboolean(L, idx) ? "B1" : "B0", 2);
+                break;
+            }
+        case LUA_TNIL:
+            {
+                lmt_buffer_add_char(b, 'N');
+                break;
+            }
+        default:
+            {
+                lmt_buffer_add_char(b, 'S');
+                size_t      len;
+                const char *str = luaL_tolstring(L, idx, &len);
+                lmt_buffer_add_lstring(b, str, len);
+                lua_pop(L, 1);
+                break;
+            }
+    }
 }
 
 /* tabstr_normal */
@@ -4810,23 +4880,35 @@ static void strlib_aux_tabstr_normal(lua_State *L, int index, lmt_string_buffer 
         size_t start_off = text_buf.length;
         /* key: */
         tabstr_add_value_string(L, -2, &text_buf);
-        /* value:
-           - table:  k .. ">" .. tabstr_normal(v)
-           - true:   k .. "+"
-           - truthy: k .. "=" .. v
-           - falsy:  k .. "-"
-        */
+        /* */
+     // /* value:
+     //    - table  : k .. ">" .. tabstr_normal(v)
+     //    - true   : k .. "+"
+     //    - truthy : k .. "=" .. v
+     //    - falsy  : k .. "-"
+     //    - string : k
+     // */
+     // if (lua_istable(L, -1)) {
+     //     lmt_buffer_add_char(&text_buf, '>');
+     //     strlib_aux_tabstr_normal(L, lua_gettop(L), &text_buf, seen, depth + 1);
+     // } else if (lua_isboolean(L, -1) && lua_toboolean(L, -1)) {
+     //     lmt_buffer_add_char(&text_buf, '+');
+     // } else if (lua_toboolean(L, -1)) { /* truthy (non-boolean, non-nil, non-table) */
+     //     lmt_buffer_add_char(&text_buf, '=');
+     //     tabstr_add_value_string(L, -1, &text_buf);
+     // } else { /* falsy (false or nil) */
+     //     lmt_buffer_add_char(&text_buf, '-');
+     // }
+        /* */
         if (lua_istable(L, -1)) {
-            lmt_buffer_add_char(&text_buf, '>');
+            lmt_buffer_add_lstring(&text_buf, "={", 2);
             strlib_aux_tabstr_normal(L, lua_gettop(L), &text_buf, seen, depth + 1);
-        } else if (lua_isboolean(L, -1) && lua_toboolean(L, -1)) {
-            lmt_buffer_add_char(&text_buf, '+');
-        } else if (lua_toboolean(L, -1)) { /* truthy (non-boolean, non-nil, non-table) */
+            lmt_buffer_add_char(&text_buf, '}');
+        } else {
             lmt_buffer_add_char(&text_buf, '=');
             tabstr_add_value_string(L, -1, &text_buf);
-        } else { /* falsy (false or nil) */
-            lmt_buffer_add_char(&text_buf, '-');
         }
+        /* */
         entries[nofentries].offset = (uint32_t) start_off;
         entries[nofentries].len    = (uint32_t) (text_buf.length - start_off);
         nofentries++;
@@ -4950,16 +5032,16 @@ static int strlib_tabstr_mixed(lua_State *L)
         if (i > 1) {
             lmt_buffer_add_char(&b, ',');
         }
-        lua_rawgeti(L, 1, (lua_Integer)i);
-        if (lua_isboolean(L, -1)) {
-            if (lua_toboolean(L, -1)) {
-                lmt_buffer_add_lstring(&b, "++", 2);
-            } else {
-                lmt_buffer_add_lstring(&b, "--", 2);
-            }
-        } else {
+        lua_rawgeti(L, 1, (lua_Integer) i);
+     // if (lua_isboolean(L, -1)) {
+     //     if (lua_toboolean(L, -1)) {
+     //         lmt_buffer_add_lstring(&b, "++", 2);
+     //     } else {
+     //         lmt_buffer_add_lstring(&b, "--", 2);
+     //     }
+     // } else {
             tabstr_add_value_string(L, -1, &b);
-        }
+     // }
         lua_pop(L, 1);
     }
     lua_pushlstring(L, b.buffer, b.length);
@@ -4988,11 +5070,7 @@ static int strlib_tabstr_boolean(lua_State *L)
         }
         size_t start_off = text_buf.length;
         tabstr_add_value_string(L, -2, &text_buf);
-        if (lua_toboolean(L, -1)) {
-            lmt_buffer_add_char(&text_buf, '+');
-        } else {
-            lmt_buffer_add_char(&text_buf, '-');
-        }
+        lmt_buffer_add_char(&text_buf, lua_toboolean(L, -1) ? '+' : '-');
         entries[nofentries].offset = (uint32_t) start_off;
         entries[nofentries].len    = (uint32_t) (text_buf.length - start_off);
         nofentries++;
