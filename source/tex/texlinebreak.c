@@ -4850,6 +4850,36 @@ static inline halfword tex_aux_analyze_list(halfword current)
 }
 */
 
+# define checked_math_penalty 1
+
+# if checked_math_penalty == 1
+
+static halfword tex_aux_checked_math_penalty(const line_break_properties *properties, halfword current, halfword *penalty, int location)
+{
+    halfword next = node_next(current);
+    *penalty = math_penalty(current);
+    if (node_type(next) == glue_node) {
+        if (tex_has_glue_option(next, glue_option_no_auto_break)) {
+// printf(">> %i : 0.1 : %i\n",location,*penalty);
+            return 0; /* wins */
+        } else if (glue_penalty(next) > *penalty) {
+// printf(">> %i : 0.2 : %i -> %i\n",location,*penalty,glue_penalty(next));
+            *penalty = glue_penalty(next);
+            return 1;
+        }
+    } else if (location == 1) {
+// printf(">> %i : 1.1\n",location);
+        return 0;
+    }
+// // printf(">> %i : 1.2 : %i\n",location,*penalty);
+    if (properties->math_penalty_factor) {
+        *penalty = tex_xn_over_d_factor(*penalty, properties->math_penalty_factor);
+    }
+    return 2;
+}
+
+# endif
+
 static inline halfword tex_aux_break_list(const line_break_properties *properties, halfword pass, halfword subpass, halfword current, halfword first, halfword *state, int artificial)
 {
     halfword callback_id = lmt_linebreak_state.callback_id;
@@ -5208,6 +5238,7 @@ static inline halfword tex_aux_break_list(const line_break_properties *propertie
                                 break;
                             case end_inline_math:
                                 {
+                            # if checked_math_penalty == 0
                                     halfword penalty = math_penalty(current);
                                     if (node_type(node_next(current)) == glue_node) {
                                         if (properties->math_penalty_factor) {
@@ -5215,6 +5246,13 @@ static inline halfword tex_aux_break_list(const line_break_properties *propertie
                                         }
                                         tex_aux_try_break(properties, penalty, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                                     }
+                            # else
+                                    halfword penalty;
+                                    if (tex_aux_checked_math_penalty(properties, current, &penalty, 1)) {
+                                        /* only when next is a glue node */
+                                        tex_aux_try_break(properties, penalty, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
+                                    }
+                            # endif
                                 }
                                 break;
                         }
@@ -5229,13 +5267,22 @@ static inline halfword tex_aux_break_list(const line_break_properties *propertie
                                 break;
                             case end_inline_math:
                                 {
-                                    halfword penalty = math_penalty(current);
+                            # if checked_math_penalty == 0
                                     if (tex_aux_valid_glue_break(current)) {
+                                        halfword penalty = math_penalty(current);
                                         if (properties->math_penalty_factor) {
                                             penalty = tex_xn_over_d_factor(penalty, properties->math_penalty_factor);
                                         }
                                         tex_aux_try_break(properties, penalty, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                                     }
+                            # else
+                                    if (tex_aux_valid_glue_break(current)) {
+                                        halfword penalty;
+                                        if (tex_aux_checked_math_penalty(properties, current, &penalty, 2)) {
+                                            tex_aux_try_break(properties, penalty, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
+                                        }
+                                    }
+                            # endif
                                 }
                                 break;
                         }

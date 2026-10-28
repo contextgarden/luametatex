@@ -195,6 +195,7 @@ static int xzlib_decompress(lua_State *L)
     int64_t      targetsize = xzlib_aux_targetsize(data, size);
 
     if (max > 0 && targetsize > max) {
+     // tex_formatted_warning("xz decompress", "target size: %i, max size: %i, overflow", targetsize, max);
         goto DONE;
     }
 

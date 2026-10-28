@@ -218,6 +218,107 @@ static int strlib_aux_utf_failed(lua_State *L, int new_ind)
     return 1;
 }
 
+/*tex
+    We can process 8 bytes at a time on 64-bit architectures. The memcpy is needed because
+    we dont operate with (aligned) copies on the stack so we need to obey strict alignment
+    conditions. We use the fact that > 127 means one bit is set. And the accumulator check
+    does that for 8 bytes at once.
+
+    Checking inside the loop gives bad branch prediction and we seldom have a hit and
+    compilers will optimize this kind of loops anyway.
+
+*/
+
+# if 0
+
+    /*tex
+        Given modern processors this is pretty fast.
+    */
+
+    static int strlib_onlyascii(lua_State *L)
+    {
+        size_t      len = 0;
+        const char *str = lua_tolstring(L, 1, &len);
+
+        const unsigned char *s = (const unsigned char *) str;
+
+        size_t   i     = 0;
+        uint64_t accum = 0;
+        int      ascii = 1;
+
+        for (; i + 8 <= len; i += 8) {
+            uint64_t chunk;
+            /* this is needed to prevent strict alignment conditions */
+            __builtin_memcpy(&chunk, s + i, 8);
+            accum |= chunk;
+        }
+        if (accum & 0x8080808080808080ULL) {
+            /* if any high bit is set a non-ascii character exists */
+            ascii = 0;
+        } else {
+            /* handle remaining bytes (0 to 7 bytes) */
+            for (; i < len; i++) {
+                if (s[i] > 127) {
+                    ascii = 0;
+                    break;
+                }
+            }
+        }
+        lua_pushboolean(L, ascii);
+        return 1;
+    }
+
+# else
+
+    /*tex
+        As we can apply this to whole files chunking makes more sense, so we add an
+        extra outer loop. As usual this one went through a few steps, like figuring
+        out how to optimize for small strings.
+    */
+
+    static int strlib_onlyascii(lua_State *L)
+    {
+        size_t      len = 0;
+        const char *str = lua_tolstring(L, 1, &len);
+
+        if (str == NULL) {
+            return luaL_error(L, "string expected for ascii check");
+        }
+
+        const unsigned char *s = (const unsigned char *) str;
+
+        size_t   i   = 0;
+        uint64_t acc = 0;
+
+        /* fast (8 byte) word loop (automatically skipped if len < 8) */
+
+        for (; i + 8 <= len; i += 8) {
+            uint64_t chunk;
+            __builtin_memcpy(&chunk, s + i, 8);
+            acc |= chunk;
+        }
+
+        /* set initial status based on the accumulator */
+
+        int ascii = ((acc & 0x8080808080808080ULL) == 0);
+
+        /* only check the remainder (< 8 bytes) if the main chunks were clean */
+
+        if (ascii) {
+            for (; i < len; i++) {
+                if (s[i] > 127) {
+                    ascii = 0;
+                    break;
+                }
+            }
+        }
+
+        lua_pushboolean(L, ascii);
+        return 1;
+    }
+
+# endif
+
 /* kind of complex ... these masks */
 
 // static int strlib_aux_utfcharacters(lua_State *L)
@@ -341,14 +442,14 @@ static int strlib_utfcharacters(lua_State *L)
 
 static int strlib_aux_utfvalues(lua_State *L)
 {
-    size_t l = 0;
-    const char *s = lua_tolstring(L, lua_upvalueindex(1), &l);
-    size_t ind = lmt_tointeger(L, lua_upvalueindex(2));
-    if (ind < l) {
-        int v = strlib_aux_tounicode(s, l, &ind);
+    size_t      len = 0;
+    const char *str = lua_tolstring(L, lua_upvalueindex(1), &len);
+    size_t      ind = lmt_tointeger(L, lua_upvalueindex(2));
+    if (ind < len) {
+        int val = strlib_aux_tounicode(str, len, &ind);
         lua_pushinteger(L, ind);
         lua_replace(L, lua_upvalueindex(2));
-        lua_pushinteger(L, v);
+        lua_pushinteger(L, val);
         return 1;
     } else {
         return 0;
@@ -4783,17 +4884,17 @@ static int tabstr_entry_compare(const void *a, const void *b)
 
 /* This one is simple (100%). */
 
-// static inline void tabstr_add_value_string(lua_State *L, int idx, lmt_string_buffer *b)
-// {
-//     size_t len;
-//     /*
-//         luaL_tolstring pushes the string representation onto the top of stack
-//         without mutating the value at 'idx' (critical for lua_next key safety).
-//     */
-//     const char *s = luaL_tolstring(L, idx, &len);
-//     lmt_buffer_add_lstring(b, s, len);
-//     lua_pop(L, 1);
-// }
+static inline void tabstr_add_value_string(lua_State *L, int idx, lmt_string_buffer *b)
+{
+    size_t len;
+    /*
+     luaL_tolstring pushes the string representation onto the top of stack
+     without mutating the value at 'idx' (critical for lua_next key safety).
+     */
+    const char *s = luaL_tolstring(L, idx, &len);
+    lmt_buffer_add_lstring(b, s, len);
+    lua_pop(L, 1);
+}
 
 /*
     But this one is faster (50%) and it is one of these things you realize when pondering
@@ -4801,7 +4902,7 @@ static int tabstr_entry_compare(const void *a, const void *b)
     a small step to just cast bytes (35%). We sort using memcmp so we're zero byte okay.
 */
 
-static inline void tabstr_add_value_string(lua_State *L, int idx, lmt_string_buffer *b)
+static inline void tabstr_add_value_string_raw(lua_State *L, int idx, lmt_string_buffer *b)
 {
     switch (lua_type(L, idx)) {
      // case LUA_TNUMBER:
@@ -4820,6 +4921,7 @@ static inline void tabstr_add_value_string(lua_State *L, int idx, lmt_string_buf
      //     }
         case LUA_TNUMBER:
             {
+                /* this is alignment safe as we're on the stack */
                 if (lua_isinteger(L, idx)) {
                     lua_Integer n = lua_tointeger(L, idx);
                     lmt_buffer_add_char(b, 'I');
@@ -4879,7 +4981,7 @@ static void strlib_aux_tabstr_normal(lua_State *L, int index, lmt_string_buffer 
         }
         size_t start_off = text_buf.length;
         /* key: */
-        tabstr_add_value_string(L, -2, &text_buf);
+        tabstr_add_value_string_raw(L, -2, &text_buf);
         /* */
      // /* value:
      //    - table  : k .. ">" .. tabstr_normal(v)
@@ -4906,7 +5008,7 @@ static void strlib_aux_tabstr_normal(lua_State *L, int index, lmt_string_buffer 
             lmt_buffer_add_char(&text_buf, '}');
         } else {
             lmt_buffer_add_char(&text_buf, '=');
-            tabstr_add_value_string(L, -1, &text_buf);
+            tabstr_add_value_string_raw(L, -1, &text_buf);
         }
         /* */
         entries[nofentries].offset = (uint32_t) start_off;
@@ -4979,9 +5081,9 @@ static int strlib_tabstr_flat(lua_State *L)
             entries = (tabstr_item *) lmt_memory_realloc(entries, maxentries * sizeof(tabstr_item));
         }
         size_t start_off = text_buf.length;
-        tabstr_add_value_string(L, -2, &text_buf);
+        tabstr_add_value_string_raw(L, -2, &text_buf);
         lmt_buffer_add_char(&text_buf, '=');
-        tabstr_add_value_string(L, -1, &text_buf);
+        tabstr_add_value_string_raw(L, -1, &text_buf);
         entries[nofentries].offset = (uint32_t) start_off;
         entries[nofentries].len    = (uint32_t) (text_buf.length - start_off);
         nofentries++;
@@ -5040,7 +5142,7 @@ static int strlib_tabstr_mixed(lua_State *L)
      //         lmt_buffer_add_lstring(&b, "--", 2);
      //     }
      // } else {
-            tabstr_add_value_string(L, -1, &b);
+            tabstr_add_value_string_raw(L, -1, &b);
      // }
         lua_pop(L, 1);
     }
@@ -5069,7 +5171,7 @@ static int strlib_tabstr_boolean(lua_State *L)
             entries = (tabstr_item *) lmt_memory_realloc(entries, maxentries * sizeof(tabstr_item));
         }
         size_t start_off = text_buf.length;
-        tabstr_add_value_string(L, -2, &text_buf);
+        tabstr_add_value_string_raw(L, -2, &text_buf);
         lmt_buffer_add_char(&text_buf, lua_toboolean(L, -1) ? '+' : '-');
         entries[nofentries].offset = (uint32_t) start_off;
         entries[nofentries].len    = (uint32_t) (text_buf.length - start_off);
@@ -5525,6 +5627,7 @@ int luaopen_sequencer(lua_State *L)
 
     return 1;                                                   /* return library table */
 }
+
 /*tex 
 
     The next list of functions registers in the |string| namespace. Maybe in retrospect we should
@@ -5550,6 +5653,7 @@ static const luaL_Reg strlib_function_list[] = {
     { "utfvaluetable",     strlib_utfvaluetable     },
     { "utfcharactertable", strlib_utfcharactertable },
     { "utftabletostring",  strlib_utftabletostring  },
+    { "onlyascii",         strlib_onlyascii         },
     { "f6",                strlib_format_f6         },
     { "g6",                strlib_format_g6         },
     { "fd",                strlib_format_fd         },
