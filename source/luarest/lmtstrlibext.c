@@ -229,6 +229,12 @@ static int strlib_aux_utf_failed(lua_State *L, int new_ind)
 
 */
 
+# ifdef _MSC_VER
+    # define fast_memcpy(dest, src, count) memcpy(dest, src, count)
+# else
+    # define fast_memcpy(dest, src, count) __builtin_memcpy(dest, src, count)
+# endif
+
 # if 0
 
     /*tex
@@ -249,7 +255,7 @@ static int strlib_aux_utf_failed(lua_State *L, int new_ind)
         for (; i + 8 <= len; i += 8) {
             uint64_t chunk;
             /* this is needed to prevent strict alignment conditions */
-            __builtin_memcpy(&chunk, s + i, 8);
+            fast_memcpy(&chunk, s + i, 8);
             accum |= chunk;
         }
         if (accum & 0x8080808080808080ULL) {
@@ -294,7 +300,7 @@ static int strlib_aux_utf_failed(lua_State *L, int new_ind)
 
         for (; i + 8 <= len; i += 8) {
             uint64_t chunk;
-            __builtin_memcpy(&chunk, s + i, 8);
+            fast_memcpy(&chunk, s + i, 8);
             acc |= chunk;
         }
 
