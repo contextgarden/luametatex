@@ -325,6 +325,77 @@ static int strlib_aux_utf_failed(lua_State *L, int new_ind)
 
 # endif
 
+/*
+    Here is a  nice test for gemini (best also feed it a coding style):
+
+    -- can you make me function that strips characters that don't match 0-9, a-z, A-Z, and > 127
+    -- good, but instead of adding chars to the buffer can we check if needed first
+    -- better, now let's add the first slice when we have a hit and go from there
+    -- nice, so how about an outer loop and just add slices
+    -- last, let's make the triple check an inline function
+
+    After that one has a template and can clean it up bit. It saves a little time and one still
+    has to use one's brain. Between the stages one gets compliments about the suggestions. It's
+    a bit of a game.
+
+*/
+
+static inline int is_allowed(unsigned char c)
+{
+    return (c >= '0' && c <= '9') ||
+           (c >= 'A' && c <= 'Z') ||
+           (c >= 'a' && c <= 'z') ||
+           (c > 127);
+}
+
+static int strlib_filter_weird(lua_State *L)
+{
+    size_t      len;
+    const char *str = lua_tolstring(L, 1, &len);
+    if (! str) {
+        lua_pushnil(L);
+        return 1;
+    }
+    /* check if the string is already 100% clean */
+    size_t first_bad = len;
+    for (size_t i = 0; i < len; i++) {
+        if (! is_allowed((unsigned char) str[i])) {
+            first_bad = i;
+            break;
+        }
+    }
+    if (first_bad == len) {
+        lua_pushvalue(L, 1);
+        return 1;
+    }
+    /* initialize buffer and add the initial clean prefix */
+    luaL_Buffer b;
+    luaL_buffinit(L, &b);
+    if (first_bad > 0) {
+        luaL_addlstring(&b, str, first_bad);
+    }
+    /* outer loop: jump over bad characters and bulk-copy subsequent clean slices */
+    size_t i = first_bad;
+    while (i < len) {
+        /* skip past consecutive bad characters */
+        while (i < len && ! is_allowed((unsigned char) str[i])) {
+            i++;
+        }
+        if (i >= len) {
+            break;
+        }
+        /* find the end of this clean slice */
+        size_t slice_start = i;
+        while (i < len && is_allowed((unsigned char) str[i])) {
+            i++;
+        }
+        /* bulk-copy the entire clean slice in one shot */
+        luaL_addlstring(&b, str + slice_start, i - slice_start);
+    }
+    luaL_pushresult(&b);
+    return 1;
+}
+
 /* kind of complex ... these masks */
 
 // static int strlib_aux_utfcharacters(lua_State *L)
@@ -5660,6 +5731,7 @@ static const luaL_Reg strlib_function_list[] = {
     { "utfcharactertable", strlib_utfcharactertable },
     { "utftabletostring",  strlib_utftabletostring  },
     { "onlyascii",         strlib_onlyascii         },
+    { "filterweird",       strlib_filter_weird      },
     { "f6",                strlib_format_f6         },
     { "g6",                strlib_format_g6         },
     { "fd",                strlib_format_fd         },
