@@ -237,7 +237,7 @@ static void tex_aux_dump_mathcode(dumpstream f)
     sa_dump_tree(f, lmt_mathcode_state.mathcode_head);
 }
 
-static void tex_aux_undump_mathcode(dumpstream f)
+static void tex_aux_undump_mathcode(undumpstream f)
 {
     lmt_mathcode_state.mathcode_head = sa_undump_tree(f);
 }
@@ -364,7 +364,7 @@ static void tex_aux_dump_delcode(dumpstream f)
     sa_dump_tree(f, lmt_mathcode_state.delcode_head);
 }
 
-static void tex_aux_undump_delcode(dumpstream f)
+static void tex_aux_undump_delcode(undumpstream f)
 {
     lmt_mathcode_state.delcode_head = sa_undump_tree(f);
 }
@@ -395,7 +395,7 @@ void tex_dump_math_codes(dumpstream f)
     tex_aux_dump_delcode(f);
 }
 
-void tex_undump_math_codes(dumpstream f)
+void tex_undump_math_codes(undumpstream f)
 {
     tex_aux_undump_mathcode(f);
     tex_aux_undump_delcode(f);

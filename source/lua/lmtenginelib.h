@@ -44,7 +44,7 @@ extern int         lmt_traceback                  (lua_State *L);
 extern void        lmt_error                      (lua_State *L, const char *where, int detail, int fatal);
 extern void        lmt_initialize                 (void);
 extern void        lmt_dump_engine_info           (dumpstream f);
-extern void        lmt_undump_engine_info         (dumpstream f);
+extern void        lmt_undump_engine_info         (undumpstream f);
 extern const char *lmt_error_string               (lua_State *L, int index);
 
 extern int         tex_engine_mps_initialize      (int state);

@@ -31,9 +31,11 @@ typedef struct bytecode {
 
 static bytecode *lmt_bytecode_registers = NULL;
 
-static int lmt_undump_register_int(dumpstream f, int *value)
+static int lmt_undump_register_int(undumpstream f, int *value)
 {
-    return undump_items(f, value, sizeof *value, 1) == 1;
+ // return undump_items(f, value, sizeof *value, 1) == 1;
+    undump_items(f, value, sizeof *value, 1);
+    return 1;
 }
 
 void lmt_dump_registers(dumpstream f)
@@ -63,7 +65,7 @@ void lmt_dump_registers(dumpstream f)
     }
 }
 
-void lmt_undump_registers(dumpstream f)
+void lmt_undump_registers(undumpstream f)
 {
     int version_number = 0;
     int release_number = 0;
@@ -153,11 +155,13 @@ void lmt_undump_registers(dumpstream f)
             tex_fatal_undump_error("not enough memory for undumping bytecodes");
             return;
         }
-        if (undump_items(f, buffer, 1, (size_t) size) != (size_t) size) {
-            lmt_memory_free(buffer);
-            tex_fatal_undump_error("bytecodes");
-            return;
-        }
+     //   if (undump_items(f, buffer, 1, (size_t) size) != (size_t) size) {
+     //       lmt_memory_free(buffer);
+     //       tex_fatal_undump_error("bytecodes");
+     //       return;
+     //   }
+        undump_items(f, buffer, 1, (size_t) size);
+
         lmt_bytecode_registers[slot] = (bytecode) {
             .buf   = buffer,
             .size  = size,

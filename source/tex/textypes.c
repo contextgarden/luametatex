@@ -26,7 +26,7 @@ void tex_dump_constants(dumpstream f)
     dump_via_int(f, max_chain_size);
 }
 
-static void tex_aux_check_constant(dumpstream f, int c)
+static void tex_aux_check_constant(undumpstream f, int c)
 {
     int x;
     undump_int(f, x);
@@ -35,7 +35,7 @@ static void tex_aux_check_constant(dumpstream f, int c)
     }
 }
 
-void tex_undump_constants(dumpstream f)
+void tex_undump_constants(undumpstream f)
 {
     tex_aux_check_constant(f, max_n_of_toks_registers);
     tex_aux_check_constant(f, max_n_of_box_registers);

@@ -11,7 +11,12 @@
     to wrap it. In our usage we already remember the old size.
 */
 
-void *recalloc(void *old_p, size_t old_count, size_t new_count, size_t size)
+void *recalloc(
+    void   *old_p, 
+    size_t  old_count, 
+    size_t  new_count, 
+    size_t  size
+)
 {
     if (size <= 0) {
         return NULL;
@@ -32,43 +37,77 @@ void *recalloc(void *old_p, size_t old_count, size_t new_count, size_t size)
     }
 }
 
+/* calculate aligned byte size (it has to be a multiple of LMT_MEMORY_ALIGNMENT) */
+
+static inline size_t lmt_aligned_total_bytes(int recordsize, int size, int reserved)
+{
+    size_t bytes = (size_t) recordsize * ((size_t) size + reserved + 1);
+# if lmt_force_align == 1
+    if (bytes % LMT_MEMORY_ALIGNMENT != 0) {
+        bytes = (bytes + (LMT_MEMORY_ALIGNMENT - 1)) & ~(size_t) (LMT_MEMORY_ALIGNMENT - 1);
+    }
+# endif
+    return bytes;
+}
 void *aux_allocate_array(int recordsize, int size, int reserved)
 {
-    return lmt_memory_malloc(recordsize * ((size_t) size + reserved + 1));
+# if lmt_force_align == 1
+    return lmt_memory_malloc_aligned(lmt_aligned_total_bytes(recordsize, size, reserved), LMT_MEMORY_ALIGNMENT);
+# else
+    return lmt_memory_malloc((size_t) recordsize * ((size_t) size + reserved + 1));
+# endif
 }
 
 void *aux_reallocate_array(void *p, int recordsize, int size, int reserved)
 {
-    return lmt_memory_realloc(p, recordsize * ((size_t) size + reserved + 1));
+# if lmt_force_align == 1
+    return lmt_memory_realloc_aligned(p, lmt_aligned_total_bytes(recordsize, size, reserved), LMT_MEMORY_ALIGNMENT);
+# else
+    return lmt_memory_realloc(p, (size_t) recordsize * ((size_t) size + reserved + 1));
+# endif
 }
 
 void *aux_allocate_clear_array(int recordsize, int size, int reserved)
 {
+# if lmt_force_align == 1
+    /* 
+        For |calloc_aligned|, |count * size| needs to be a multiple of LMT_MEMORY_ALIGNMENT. Passing 1 as 
+        count and the rounded-up total bytes ensures strict alignment compliance.
+    */
+    return lmt_memory_calloc_aligned(1, lmt_aligned_total_bytes(recordsize, size, reserved), LMT_MEMORY_ALIGNMENT);
+# else
     return lmt_memory_calloc((size_t) size + reserved + 1, recordsize);
+# endif
 }
 
-# if 0
-
-    void *aux_reallocate_clear_array(void *p, int recordsize, int size, int reserved, int oldsize)
-    {
-        size_t newsize = ((size_t) size + reserved + 1);
-        void *q = lmt_memory_realloc(p, recordsize * newsize);
-        // Cast q to (char *) so pointer arithmetic adds bytes correctly
-        memset((char *) q + (size_t) oldsize * recordsize, 0, (newsize - oldsize) * recordsize);
-        return q;
+void *aux_reallocate_clear_array(void *p, int recordsize, int size, int reserved, int oldsize)
+{
+# if lmt_force_align == 1
+    size_t new_bytes = lmt_aligned_total_bytes(recordsize, size, reserved);
+    /* 
+        This |recalloc_aligned| expects old count or old bytes depending on the wrapper, so
+        here we use |new_bytes| for |realloc_aligned| and manual zeroing of the newly added 
+        delta.
+    */
+    void *q = lmt_memory_realloc_aligned(p, new_bytes, LMT_MEMORY_ALIGNMENT);
+    if (q) {
+        size_t old_bytes = (size_t) oldsize * recordsize;
+        if (new_bytes > old_bytes) {
+            memset((char *) q + old_bytes, 0, new_bytes - old_bytes);
+        }
     }
-
+    return q;
 # else
-
-    void *aux_reallocate_clear_array(void *p, int recordsize, int size, int reserved, int oldsize)
-    {
-        size_t newsize = ((size_t) size + reserved + 1);
-        return lmt_memory_recalloc(p, oldsize, newsize, recordsize);
-    }
-
+    size_t newsize = ((size_t) size + reserved + 1);
+    return lmt_memory_recalloc(p, oldsize, newsize, recordsize);
 # endif
+}
 
 void aux_deallocate_array(void *p)
 {
+# if lmt_force_align == 1
+    lmt_memory_free_aligned(p);
+# else
     lmt_memory_free(p);
+# endif
 }

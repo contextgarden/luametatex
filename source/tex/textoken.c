@@ -4206,7 +4206,7 @@ void tex_dump_token_mem(dumpstream f)
     dump_things(f, lmt_token_memory_state.tokens[0], lmt_token_memory_state.tokens_data.top + 1);
 }
 
-void tex_undump_token_mem(dumpstream f)
+void tex_undump_token_mem(undumpstream f)
 {
     undump_int(f, lmt_token_state.null_list); /* the only one left */
     undump_int(f, lmt_token_memory_state.tokens_data.allocated);

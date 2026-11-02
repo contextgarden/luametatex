@@ -25,6 +25,8 @@
 
 */
 
+# include "utilities/auxstream.h"
+
 # if (0) 
 
 /* HHHHHHHMMMMMMMLLLLLLL */
@@ -209,7 +211,7 @@ extern sa_tree sa_new_tree      (int identifier, int stacksize, int stackstep, i
 extern sa_tree sa_copy_tree     (const sa_tree head);
 extern void    sa_destroy_tree  (sa_tree head);
 extern void    sa_dump_tree     (dumpstream f, sa_tree a);
-extern sa_tree sa_undump_tree   (dumpstream f);
+extern sa_tree sa_undump_tree   (undumpstream f);
 extern void    sa_restore_stack (const sa_tree a, int gl);
 extern void    sa_reinit_stack  (const sa_tree a, int gl);
 extern void    sa_show_stack    (const sa_tree a);

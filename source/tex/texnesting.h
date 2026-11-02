@@ -22,33 +22,34 @@ typedef struct last_state_record {
 } last_state_record;
 
 typedef struct list_state_record {
-    int      mode;                 // singleword 
-    halfword head;                 
-    halfword tail;                 
-    int      prev_graf;            
-    int      mode_line;            
-    scaled   prev_depth;
-    halfword space_factor;         
-    halfword space_penalty;
-    halfword direction_stack;
-    /* this could become:
-    math_state_record math_state;
-    */
-    int      math_dir;             // singleword 
-    int      math_style;           // singleword 
-    int      math_main_style;      // singleword 
-    int      math_parent_style;    // singleword 
-    int      math_scale;           
-    halfword math_flatten;         // singleword 
-    halfword math_begin;           // singleword 
-    halfword math_end;             // singleword 
-    halfword math_mode;            // singleword 
-    /* */
-    halfword delimiter;            // todo: get rid of these and use the stack 
-    halfword incomplete_noad;      // todo: get rid of these and use the stack 
-    int      options; 
-    /* */
-    last_state_record last_state;
+    /* main state fields */
+    int      mode;                 /* 4 bytes */
+    halfword head;                 /* 4 bytes */
+    halfword tail;                 /* 4 bytes */
+    int      prev_graf;            /* 4 bytes */
+    int      mode_line;            /* 4 bytes */
+    scaled   prev_depth;           /* 4 bytes */
+    halfword space_factor;         /* 4 bytes */
+    halfword space_penalty;        /* 4 bytes */
+    halfword direction_stack;      /* 4 bytes */
+    /* math state fields */
+    int      math_dir;             /* 4 bytes */
+    int      math_style;           /* 4 bytes */
+    int      math_main_style;      /* 4 bytes */
+    int      math_parent_style;    /* 4 bytes */
+    int      math_scale;           /* 4 bytes */
+    halfword math_flatten;         /* 4 bytes */
+    halfword math_begin;           /* 4 bytes */
+    halfword math_end;             /* 4 bytes */
+    halfword math_mode;            /* 4 bytes */
+    /* delimiters & options */
+    halfword delimiter;            /* 4 bytes */
+    halfword incomplete_noad;      /* 4 bytes */
+    int      options;              /* 4 bytes */
+    /* nested state record */
+    last_state_record last_state;  /* 32 bytes */
+    /* explicit alignment padding */
+    int      padding;              /* 4 bytes (rounds total size from 116 to 120 bytes) */
 } list_state_record;
 
 typedef struct nest_state_info {

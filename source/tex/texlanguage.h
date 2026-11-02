@@ -23,9 +23,11 @@ typedef struct tex_language_data {
 typedef tex_language_data * tex_language;
 
 typedef struct language_state_info {
+    /* 8-byte fields (pointers and Lua integers) */
     tex_language         *languages;
     memory_data           language_data;
     lua_Integer           handler_table_id;
+    /* 4-byte fields (Counters and States) */
     int                   handler_count;
     int                   list_count; 
     int                   word_count; 
@@ -33,9 +35,11 @@ typedef struct language_state_info {
     int                   exceptions_count;
     int                   hyphenated_count;
     int                   nothing_count;
-    /*tex We keep thse in the heap instead of on stack: */
-    unsigned char         shared_word_buffer[max_size_of_word_buffer];  /*tex Work buffer for bytes (can be \UTF8): */
-    unsigned              shared_uword_buffer[max_size_of_word_buffer]; /*tex Work buffer for \UNICODE\ (often too large): */
+    /* buffers (heap-backed or large working arrays) */
+    /*tex work buffer for bytes (can be \UTF8) */
+    unsigned char         shared_word_buffer[max_size_of_word_buffer];  
+    /*tex work buffer for \UNICODE\ (often too large) */
+    unsigned              shared_uword_buffer[max_size_of_word_buffer]; 
 } language_state_info;
 
 extern language_state_info lmt_language_state;
@@ -76,7 +80,7 @@ extern void          tex_set_hyphenation_min    (halfword lan, halfword val);
 extern halfword      tex_get_hyphenation_min    (halfword lan);
 
 extern void          tex_dump_language_data     (dumpstream f);
-extern void          tex_undump_language_data   (dumpstream f);
+extern void          tex_undump_language_data   (undumpstream f);
 
 /*     char         *tex_get_exception_strings  (tex_language lang); */
 

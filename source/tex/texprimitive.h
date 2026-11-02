@@ -123,9 +123,9 @@ extern void      tex_primitive             (int origin, int legacy, const char *
 extern void      tex_primitive_def         (const char *str, size_t length, singleword cmd, halfword chr);
 extern void      tex_print_cmd_chr         (singleword cmd, halfword chr);
 extern void      tex_dump_primitives       (dumpstream f);
-extern void      tex_undump_primitives     (dumpstream f);
+extern void      tex_undump_primitives     (undumpstream f);
 extern void      tex_dump_hashtable        (dumpstream f);
-extern void      tex_undump_hashtable      (dumpstream f);
+extern void      tex_undump_hashtable      (undumpstream f);
 extern halfword  tex_string_locate         (const char *s, size_t l, int create);
 extern halfword  tex_string_locate_only    (const char *s, size_t l);
 extern halfword  tex_located_string        (const char *s);

@@ -249,11 +249,13 @@ int tex_get_font_max_id(void)
     return lmt_font_state.font_data.ptr;
 }
 
-void tex_dump_font_data(dumpstream f) {
+void tex_dump_font_data(dumpstream f) 
+{
     dump_int(f, lmt_font_state.font_data.ptr);
 }
 
-void tex_undump_font_data(dumpstream f) {
+void tex_undump_font_data(undumpstream f) 
+{
     int x;
     undump_int(f, x);
     lmt_font_state.font_data.ptr = 0;

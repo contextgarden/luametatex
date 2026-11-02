@@ -11,7 +11,7 @@ typedef enum get_mark_codes {
     first_marks_code,
     bot_marks_code,
     split_first_marks_code,
-    split_bot_marks_code,
+    split_bot_marks_code,  /*tex adapt |mark_record| when this changes. */
     /* these map to zero */
     top_mark_code,         /*tex the mark in effect at the previous page break */
     first_mark_code,       /*tex the first mark between |top_mark| and |bot_mark| */
@@ -33,12 +33,11 @@ typedef enum set_mark_codes {
 
 # define last_set_mark_code flush_marks_code
 
-//typedef halfword mark_record[split_bot_marks_code+1];
-
 typedef struct mark_record {
-    halfword marks[split_bot_marks_code+1]; 
-    halfword state; 
-} mark_record;
+    halfword marks[split_bot_marks_code + 1]; /* 24 bytes (if code is 5) */
+    halfword state;                           /* 4 bytes  */
+    int      padding;                         /* 4 bytes  (explicit padding to 32 bytes) */
+} mark_record;                                /* Total: 32 bytes (exact multiple of 8) */
 
 typedef struct mark_state_info {
     mark_record *data;

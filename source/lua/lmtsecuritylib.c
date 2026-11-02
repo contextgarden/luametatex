@@ -120,21 +120,22 @@ static int securitylib_resetdebug(lua_State *L)
 
 static int securitylib_gettargets(lua_State *L)
 {
-    lua_createtable(L, 7, 1);
-    lua_set_string_by_index(L, security_generic,    "generic");
-    lua_set_string_by_index(L, security_readable,   "readable");
-    lua_set_string_by_index(L, security_writable,   "writable");
-    lua_set_string_by_index(L, security_executable, "executable");
-    lua_set_string_by_index(L, security_library,    "library");
-    lua_set_string_by_index(L, security_loadable,   "loadable");
-    lua_set_string_by_index(L, security_launchable, "launchable");
-    lua_set_string_by_index(L, security_client,     "client");
+    lua_createtable(L, 8, 1);
+    lua_set_string_by_index(L, security_generic,     "generic");
+    lua_set_string_by_index(L, security_readable,    "readable");
+    lua_set_string_by_index(L, security_writable,    "writable");
+    lua_set_string_by_index(L, security_executable,  "executable");
+    lua_set_string_by_index(L, security_library,     "library");
+    lua_set_string_by_index(L, security_loadable,    "loadable");
+    lua_set_string_by_index(L, security_launchable,  "launchable");
+    lua_set_string_by_index(L, security_client,      "client");
+    lua_set_string_by_index(L, security_environment, "environment");
     return 1;
 }
 
 static int securitylib_getactions(lua_State *L)
 {
-    lua_createtable(L, 17, 1);
+    lua_createtable(L, 19, 1);
     lua_set_string_by_index(L, security_generic_action,   "generic");
     lua_set_string_by_index(L, security_remove_directory, "remove directory");
     lua_set_string_by_index(L, security_change_directory, "change directory");
@@ -153,6 +154,8 @@ static int securitylib_getactions(lua_State *L)
     lua_set_string_by_index(L, security_open_database,    "open database");
     lua_set_string_by_index(L, security_launch_command,   "launch command");
     lua_set_string_by_index(L, security_http_request,     "http request");
+    lua_set_string_by_index(L, security_set_environment,  "set environment");
+    lua_set_string_by_index(L, security_get_environment,  "get environment");
     return 1;
 }
 

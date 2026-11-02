@@ -362,7 +362,7 @@ static int oslib_rename(lua_State *L)
     static int oslib_setenv(lua_State *L)
     {
         const char *key = luaL_optstring(L, 1, NULL);
-        if (key) {
+        if (key && lmt_valid_target(L, security_environment, key, security_set_environment)) {
             const char *val = luaL_optstring(L, 2, NULL);
             LPWSTR wkey = aux_utf8_to_wide(key);
             LPWSTR wval = aux_utf8_to_wide(val ? val : "");
@@ -389,7 +389,7 @@ static int oslib_rename(lua_State *L)
     static int oslib_setenv(lua_State *L)
     {
         const char *key = luaL_optstring(L, 1, NULL);
-        if (key) {
+        if (key && lmt_valid_target(L, security_environment, key, security_set_environment)) {
             const char *val = luaL_optstring(L, 2, NULL);
             if (val) {
                 char *value = lmt_memory_malloc((unsigned) (strlen(key) + strlen(val) + 2));

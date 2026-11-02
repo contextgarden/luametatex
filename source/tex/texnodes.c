@@ -873,6 +873,8 @@ void lmt_nodelib_initialize(void) {
 
     set_value_entry_val(lmt_node_fields_whatsit, 0, attribute_field, attr);
 
+    /* todo : get rid of this passive node stuff here */
+
     lmt_interface.node_data = lmt_memory_malloc((passive_node + 2) * sizeof(node_info));
 
     /*tex
@@ -2276,7 +2278,7 @@ void tex_dump_node_mem(dumpstream f)
     the node pool so we don't need clever code to reclaim space. We have plenty anyway.
 */
 
-void tex_undump_node_mem(dumpstream f) // todo: check allocation
+void tex_undump_node_mem(undumpstream f) // todo: check allocation
 {
     undump_int(f, lmt_node_memory_state.nodes_data.allocated);
     undump_int(f, lmt_node_memory_state.nodes_data.top);
@@ -5480,7 +5482,7 @@ void tex_dump_specification_data(dumpstream f) {
     dump_int(f, total);
 }
 
-void tex_undump_specification_data(dumpstream f) {
+void tex_undump_specification_data(undumpstream f) {
     int version = 0;
     undump_int(f, version);
     if lmt_likely(version == specification_version) {

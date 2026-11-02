@@ -120,7 +120,7 @@ extern void     tex_wipe_insert              (halfword i);
 extern void     tex_initialize_inserts       (void);
 extern int      tex_valid_insert_id          (halfword n);
 extern void     tex_dump_insert_data         (dumpstream f);
-extern void     tex_undump_insert_data       (dumpstream f);
+extern void     tex_undump_insert_data       (undumpstream f);
 
 extern halfword lmt_get_insert_distance      (halfword i, int first, int top, int dis); /* callback */
 extern halfword lmt_set_insert_distance      (halfword i, halfword head);               /* callback */

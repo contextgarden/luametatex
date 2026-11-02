@@ -179,7 +179,7 @@ extern void       tex_append_string          (const unsigned char *s, unsigned l
 extern char      *tex_makecstring            (int s, int *allocated);
 extern char      *tex_makeclstring           (int s, size_t *len);
 extern void       tex_dump_string_pool       (dumpstream f);
-extern void       tex_undump_string_pool     (dumpstream f);
+extern void       tex_undump_string_pool     (undumpstream f);
 extern void       tex_initialize_string_pool (void);
 extern void       tex_initialize_string_mem  (void);
 extern void       tex_flush_str              (strnumber s);

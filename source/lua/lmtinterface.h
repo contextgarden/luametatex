@@ -76,17 +76,21 @@ typedef enum security_actions {
     security_launch_command   = 0x10,
     /* */
     security_http_request     = 0x11,
+    /* */
+    security_set_environment  = 0x12,
+    security_get_environment  = 0x13,
 } security_actions;
 
 typedef enum security_targets {
-    security_generic    = 0x00,
-    security_readable   = 0x01,
-    security_writable   = 0x02,
-    security_executable = 0x03,
-    security_library    = 0x04,
-    security_loadable   = 0x05,
-    security_launchable = 0x06,
-    security_client     = 0x07,
+    security_generic     = 0x00,
+    security_readable    = 0x01,
+    security_writable    = 0x02,
+    security_executable  = 0x03,
+    security_library     = 0x04,
+    security_loadable    = 0x05,
+    security_launchable  = 0x06,
+    security_client      = 0x07,
+    security_environment = 0x08,
 } security_targets;
 
 typedef enum security_states {
@@ -98,31 +102,34 @@ typedef enum security_states {
 # define n_of_security_targets 8
 
 typedef struct lua_state_info {
+    /* ultra-hot fields (accessed constantly in loops/callbacks) */
     lua_State   *lua_instance;
-    lua_State   *mps_instance;
-    luaL_Buffer *used_buffer;
-    int          security_checkers[n_of_security_targets];
-    int          security_states[n_of_security_targets];
-    int          used_bytes;
-    int          used_bytes_max;
     int          function_table_id;
     int          function_callback_count;
     int          value_callback_count;
-    int          bytecode_callback_count;
     int          local_callback_count;
     int          saved_callback_count;
     int          file_callback_count;
     int          direct_callback_count;
     int          message_callback_count;
     int          function_table_size;
+    int                    bytecode_callback_count;
+    /* warm execution & callback counters */
+    lua_State             *mps_instance;
+    luaL_Buffer *used_buffer;
     int          bytecode_bytes;
     int          bytecode_max;
+    int          last_node_error;
+    int          ignore_node_error;
+    int          used_bytes;
+    int          used_bytes_max;
+    /* arrays & cold/configuration fields (low frequency or init-only) */
+    int          security_checkers[n_of_security_targets];
+    int          security_states[n_of_security_targets];
     int          version_number;
     int          release_number;
     int          integer_size;
-    int          last_node_error;
-    int          ignore_node_error;
-} lua_state_info ;
+} lua_state_info;
 
 extern lua_state_info lmt_lua_state;
 

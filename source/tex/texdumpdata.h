@@ -92,47 +92,15 @@ extern int          tex_fatal_undump_error       (const char *s);
 extern void         tex_initialize_dump_state    (void);
 extern const char * tex_get_dump_statistics_name (dump_statistics s);
 
-//define   dump_items(f,p,item_size,nitems)       fwrite((void *) p, (size_t) item_size, (size_t) nitems, f)
-//define undump_items(f,p,item_size,nitems) { if (fread ((void *) p, (size_t) item_size, (size_t) nitems, f)) { } }
-
 # define   dump_items(f,p,item_size,nitems) fwrite((void *) p, (size_t) item_size, (size_t) nitems, f)
-# define undump_items(f,p,item_size,nitems) fread ((void *) p, (size_t) item_size, (size_t) nitems, f)
+# define   dump_things(f,base,len)          dump_items(f, (char *) &(base), sizeof (base), (len))
+# define   dump_mem(f,x)                    dump_things(f,x,1)
+# define   dump_int(f,x)                    dump_things(f,x,1)
+# define   dump_char(f,x)                   fputc(x,f)
+# define   dump_uchar(f,x)                  fputc(x,f)
 
-//# define   dump_things(f,base,len)   dump_items(f, (char *) &(base), sizeof (base), (int) (len))
-//# define undump_things(f,base,len) undump_items(f, (char *) &(base), sizeof (base), (int) (len))
-
-# define   dump_things(f,base,len)   dump_items(f, (char *) &(base), sizeof (base), (len))
-# define undump_things(f,base,len) undump_items(f, (char *) &(base), sizeof (base), (len))
-
-# define   dump_mem(f,x)   dump_things(f,x,1)
-# define undump_mem(f,x) undump_things(f,x,1)
-
-# define   dump_int(f,x)   dump_things(f,x,1)
-# define undump_int(f,x) undump_things(f,x,1)
-
-# if 0
-
-    # define   dump_char(f,x)   dump_things(f,x,1)
-    # define undump_char(f,x) undump_things(f,x,1)
-
-    # define   dump_uchar(f,x)   dump_things(f,x,1)
-    # define undump_uchar(f,x) undump_things(f,x,1)
-
-# else
-
-    # define   dump_char(f,x)   fputc(x,f)
-    # define undump_char(f,x)   x = (char) fgetc(f)
-
-    # define   dump_uchar(f,x)  fputc(x,f)
-    # define undump_uchar(f,x)  x = (unsigned char) fgetc(f)
-
-# endif
-
-# define   dump_short(f,x)   dump_things(f,x,1)
-# define undump_short(f,x) undump_things(f,x,1)
-
-# define   dump_ushort(f,x)   dump_things(f,x,1)
-# define undump_ushort(f,x) undump_things(f,x,1)
+# define   dump_short(f,x)                  dump_things(f,x,1)
+# define   dump_ushort(f,x)                 dump_things(f,x,1)
 
 /*tex
 
@@ -140,10 +108,10 @@ extern const char * tex_get_dump_statistics_name (dump_statistics s);
     that puts the number into a variable first. Most integers come from structs and arrays.
     Performance wise there is not that much gain.
 
-    At some point I decided to store small integers in one byte which saved some 250K on a 
-    \CONTEXT\ format and with another related improvement (different slice size plus even more 
-    sparse storage and a different equivalent packing just over 2.5% was gained (19.403.342 down 
-    to 18.899.986, not that impressive but it's kind of fun playing with this as I have this stay 
+    At some point I decided to store small integers in one byte which saved some 250K on a
+    \CONTEXT\ format and with another related improvement (different slice size plus even more
+    sparse storage and a different equivalent packing just over 2.5% was gained (19.403.342 down
+    to 18.899.986, not that impressive but it's kind of fun playing with this as I have this stay
     below 20M format file size criterium).
 
 */
@@ -171,5 +139,8 @@ extern const char * tex_get_dump_statistics_name (dump_statistics s);
     } else { \
         dump_via_int(f,0); \
     }
+
+extern void tex_dump_constants   (dumpstream f);
+extern void tex_undump_constants (undumpstream f);
 
 # endif

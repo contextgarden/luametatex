@@ -547,7 +547,7 @@ extern void     tex_increment_token_reference (halfword p, int n);
 /*tex  All kind of helpers: */
 
 extern void       tex_dump_token_mem              (dumpstream f);
-extern void       tex_undump_token_mem            (dumpstream f);
+extern void       tex_undump_token_mem            (undumpstream f);
 extern int        tex_used_token_count            (void);
 extern void       tex_print_meaning               (halfword code);
 extern void       tex_flush_token_list            (halfword p);

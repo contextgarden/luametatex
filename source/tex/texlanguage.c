@@ -242,7 +242,7 @@ void tex_dump_language_data(dumpstream f)
     }
 }
 
-void tex_undump_language_data(dumpstream f)
+void tex_undump_language_data(undumpstream f)
 {
     int top, ptr;
     undump_int(f, top);

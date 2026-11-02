@@ -991,7 +991,7 @@ extern void tex_initialize_equivalents  (void);
 extern void tex_synchronize_equivalents (void);
 extern void tex_initialize_undefined_cs (void);
 extern void tex_dump_equivalents_mem    (dumpstream f);
-extern void tex_undump_equivalents_mem  (dumpstream f);
+extern void tex_undump_equivalents_mem  (undumpstream f);
 
 /*tex
     The more low level |_field| shortcuts are used when we (for instance) work with copies, as done

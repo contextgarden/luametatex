@@ -84,7 +84,7 @@ extern void         tex_show_mathcode_value        (mathcodeval d, int extcode);
 extern void         tex_unsave_math_codes          (int grouplevel);
 extern void         tex_initialize_math_codes      (void);
 extern void         tex_dump_math_codes            (dumpstream f);
-extern void         tex_undump_math_codes          (dumpstream f);
+extern void         tex_undump_math_codes          (undumpstream f);
 
 extern void         tex_free_math_codes            (void);
 

@@ -87,7 +87,6 @@ typedef unsigned char   singleword;  /*  uint8_t */
 typedef int             scaled;      /*  int32_t */
 typedef double          glueratio;                    /*tex This looks better in our (tex specific) syntax highlighting. */
 typedef int             pointer;     /*  int32_t */ /*tex Maybe I'll replace halfwords that act as pointer some day. */
-typedef FILE           *dumpstream;
 
 /*      glueratio       glue_ratio; */ /*tex one-word representation of a glue expansion factor */
 /*      unsigned char   glue_ord;   */ /*tex infinity to the 0, 1, 2, 3, or 4 power */
@@ -537,8 +536,8 @@ typedef union tokenword {
         halfword info;
         halfword val;
         struct  { 
-            int cmd:8; 
-            int chr:24; 
+            unsigned int cmd:8; 
+            unsigned int chr:24; 
         };
     };
     halfword link; 
@@ -801,9 +800,6 @@ typedef struct limits_data {
     int maximum;   /* the maximum possible */
     int top;       /* the maximum used */
 } limits_data;
-
-extern void tex_dump_constants   (dumpstream f);
-extern void tex_undump_constants (dumpstream f);
 
 /*tex
 

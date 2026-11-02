@@ -1133,7 +1133,7 @@ void tex_dump_math_data(dumpstream f)
     sa_dump_tree(f, lmt_math_state.par_head);
 }
 
-void tex_undump_math_data(dumpstream f)
+void tex_undump_math_data(undumpstream f)
 {
     lmt_math_state.fam_head = sa_undump_tree(f);
     lmt_math_state.par_head = sa_undump_tree(f);

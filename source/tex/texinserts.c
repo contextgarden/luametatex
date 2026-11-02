@@ -587,7 +587,7 @@ void tex_dump_insert_data(dumpstream f) {
     dump_things(f, lmt_insert_state.inserts[0], lmt_insert_state.insert_data.ptr + 1);
 }
 
-void tex_undump_insert_data(dumpstream f) {
+void tex_undump_insert_data(undumpstream f) {
     insert_record *tmp;
     int size;
     undump_int(f, lmt_insert_state.mode);

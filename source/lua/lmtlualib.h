@@ -17,7 +17,7 @@
 */
 
 extern void lmt_dump_registers       (dumpstream f);
-extern void lmt_undump_registers     (dumpstream f);
+extern void lmt_undump_registers     (undumpstream f);
 extern void lmt_bytecode_call        (int slot);
 
 extern void lmt_initialize_functions (int set_size);

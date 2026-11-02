@@ -12,20 +12,28 @@
 
 */
 
-/* todo: there is no need to be sparse here */
-
 typedef struct in_state_record {
-    halfword       start;
-    halfword       loc;
-    unsigned short state;
-    union          { unsigned short index; unsigned short token_type;      }; /*tex: So, no macro but name. */
-    union          { halfword       limit; halfword       parameter_start; }; /*tex: So, no macro but name. */
-    halfword       name;
-    short          cattable;   /*tex The category table used by the current line (see |textoken.c|). */
-    unsigned short partial;    /*tex Is the current line partial (see |textoken.c|)? */
-    int            state_file; /*tex Here we stack the tag of the current file. */
-    int            state_line; /*tex Not used. */
-} in_state_record;
+    halfword       start;               /* 4 bytes */
+    halfword       loc;                 /* 4 bytes */
+    unsigned short state;               /* 2 bytes */
+    union { 
+        unsigned short index;           /* 2 bytes */ 
+        unsigned short token_type;      /* 2 bytes */ 
+    };                                  /* (total union: 2 bytes) */
+    union { 
+        halfword       limit;           /* 4 bytes */ 
+        halfword       parameter_start; /* 4 bytes */ 
+    };                                  /* (total union: 4 bytes) */
+    halfword       name;                /* 4 bytes */
+    /*tex The category table used by the current line (see |textoken.c|). */
+    short          cattable;            /* 2 bytes */
+    /*tex Is the current line partial (see |textoken.c|)? */
+    unsigned short partial;             /* 2 bytes */
+    /*tex Here we stack the tag of the current file. */
+    int            state_file;          /* 4 bytes */
+    /*tex Not used yet. */
+    int            state_line;          /* 4 bytes */
+} in_state_record;                      /* total size: 32 bytes */
 
 typedef struct input_stack_record {
     halfword  input_file_callback_id; /* lua reference */

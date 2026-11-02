@@ -362,7 +362,8 @@ static void tex_aux_push_condition_stack(int code, int unless)
             stack_size = lmt_condition_state.stack_max + 1;
         }
         {
-            condition_state *stack = lmt_memory_realloc(lmt_condition_state.stack, stack_size * sizeof(condition_state));
+         // condition_state *stack = lmt_memory_realloc(lmt_condition_state.stack, stack_size * sizeof(condition_state));
+            condition_state *stack = aux_reallocate_array(lmt_condition_state.stack, sizeof(condition_state), stack_size, 1);
             if lmt_unlikely(! stack) {
                 tex_overflow_error("conditionals", stack_size);
                 return;
@@ -2067,7 +2068,8 @@ void tex_initialize_conditionals(void)
 {
     if (! lmt_condition_state.stack) {
         int stack_size = lmt_condition_state.stack_step;
-        condition_state *stack = lmt_memory_malloc(stack_size * sizeof(condition_state));
+     // condition_state *stack = lmt_memory_malloc(stack_size * sizeof(condition_state));
+        condition_state *stack = aux_allocate_array(sizeof(condition_state), stack_size, 1);
         if lmt_likely(stack) {
             lmt_condition_state.stack = stack;
             lmt_condition_state.stack_size = stack_size;
@@ -2080,7 +2082,8 @@ void tex_initialize_conditionals(void)
 void tex_cleanup_conditionals(void)
 {
     if (lmt_condition_state.stack) {
-        lmt_memory_free(lmt_condition_state.stack);
+     // lmt_memory_free(lmt_condition_state.stack);
+        aux_deallocate_array(lmt_condition_state.stack);
         lmt_condition_state.stack = NULL;
     }
 }

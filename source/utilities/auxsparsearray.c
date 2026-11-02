@@ -655,7 +655,7 @@ void sa_dump_tree(dumpstream f, sa_tree a)
     dump_via_uchar(f, 0xFF);
 }
 
-sa_tree sa_undump_tree(dumpstream f)
+sa_tree sa_undump_tree(undumpstream f)
 {
     unsigned char marker;
     sa_tree a = (sa_tree) sa_malloc_array(sizeof(sa_tree_head), 1);

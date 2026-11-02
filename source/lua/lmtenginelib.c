@@ -926,7 +926,12 @@ static void *enginelib_aux_luaalloc(
 )
 {
     (void) ud;
-    lmt_lua_state.used_bytes += (int) (nsize - osize);
+    /* safe memory tracking using size_t to prevent underflow and 2GB overflow */
+    if (nsize >= osize) {
+        lmt_lua_state.used_bytes += (nsize - osize);
+    } else {
+        lmt_lua_state.used_bytes -= (osize - nsize);
+    }
     if (lmt_lua_state.used_bytes > lmt_lua_state.used_bytes_max) {
         lmt_lua_state.used_bytes_max = lmt_lua_state.used_bytes;
     }
@@ -1420,7 +1425,7 @@ void lmt_dump_engine_info(dumpstream f)
     tex_normal_error("system", "dumping engine info failed");
 }
 
-void lmt_undump_engine_info(dumpstream f)
+void lmt_undump_engine_info(undumpstream f)
 {
     int x;
     undump_int(f, x);

@@ -364,7 +364,7 @@ void tex_dump_primitives(dumpstream f)
     }
 }
 
-void tex_undump_primitives(dumpstream f)
+void tex_undump_primitives(undumpstream f)
 {
     undump_things(f, lmt_primitive_state.prim     [0], primitives_size + 1);
     undump_things(f, lmt_primitive_state.prim_eqtb[0], primitives_size + 1);
@@ -419,7 +419,7 @@ void tex_dump_hashtable(dumpstream f)
     dump_int(f, lmt_hash_state.misses);
 }
 
-void tex_undump_hashtable(dumpstream f)
+void tex_undump_hashtable(undumpstream f)
 {
     undump_int(f, lmt_hash_state.eqtb_data.top);
     if (lmt_hash_state.eqtb_data.top >= hash_base && lmt_hash_state.eqtb_data.top <= frozen_control_sequence) {

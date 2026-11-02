@@ -51,10 +51,10 @@ extern void     tex_initialize_text_codes      (void);
 extern void     tex_unsave_text_codes          (int grouplevel);
 
 extern void     tex_dump_text_codes            (dumpstream f);
-extern void     tex_undump_text_codes          (dumpstream f);
+extern void     tex_undump_text_codes          (undumpstream f);
 
 extern void     tex_dump_language_hj_codes     (dumpstream f, int h);
-extern void     tex_undump_language_hj_codes   (dumpstream f, int h);
+extern void     tex_undump_language_hj_codes   (undumpstream f, int h);
 
 extern void     tex_free_text_codes            (void);
 

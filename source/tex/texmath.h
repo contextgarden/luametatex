@@ -650,7 +650,7 @@ extern void     tex_set_cramped_styles           (halfword code, halfword value,
 extern void     tex_reset_all_styles             (halfword level);
 
 extern void     tex_dump_math_data               (dumpstream f);
-extern void     tex_undump_math_data             (dumpstream f);
+extern void     tex_undump_math_data             (undumpstream f);
 extern void     tex_unsave_math_data             (int level);
 
 extern void     tex_math_copy_char_data          (halfword target, halfword source, int wipelist);

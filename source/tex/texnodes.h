@@ -210,7 +210,7 @@ extern halfword tex_get_node                  (int size);
 extern halfword tex_get_node_type             (int size, quarterword type);
 extern void     tex_free_node                 (halfword p, int size);
 extern void     tex_dump_node_mem             (dumpstream f);
-extern void     tex_undump_node_mem           (dumpstream f);
+extern void     tex_undump_node_mem           (undumpstream f);
 extern int      tex_used_node_count           (void);
 extern int      tex_free_node_count           (void);
 extern void     tex_initialize_node_mem       (void);
@@ -219,7 +219,7 @@ extern void     tex_initialize_nodes          (void);
 extern void     lmt_nodelib_initialize        (void); /* name ? */
 
 extern void     tex_dump_specification_data   (dumpstream f);
-extern void     tex_undump_specification_data (dumpstream f);
+extern void     tex_undump_specification_data (undumpstream f);
 
 /*tex
 

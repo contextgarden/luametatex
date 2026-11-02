@@ -94,9 +94,9 @@ static void tex_aux_report_dump_state(dumpstream f, dump_statistics what)
     tex_terminal_update();
 }
 
-static void tex_aux_report_undump_state(dumpstream f, dump_statistics what)
+static void tex_aux_report_undump_state(undumpstream f, dump_statistics what)
 {
-    int total = (int) ftell(f);
+    int total = (int) undump_total(f);
     lmt_dump_state.statistics[what] = total - lmt_dump_state.statistics[dump_stat_total];
     lmt_dump_state.statistics[dump_stat_total] = total;
 }
@@ -111,7 +111,7 @@ static void tex_aux_dump_fingerprint(dumpstream f)
     dump_via_int(f, luametatex_format_fingerprint);
 }
 
-static void tex_aux_undump_fingerprint(dumpstream f)
+static void tex_aux_undump_fingerprint(undumpstream f)
 {
     int x;
     undump_int(f, x);
@@ -137,7 +137,7 @@ static void tex_aux_dump_final_check(dumpstream f)
     dump_via_int(f, luametatex_format_fingerprint);
 }
 
-static void tex_aux_undump_final_check(dumpstream f)
+static void tex_aux_undump_final_check(undumpstream f)
 {
     int x;
     undump_int(f, x);
@@ -148,9 +148,9 @@ static void tex_aux_undump_final_check(dumpstream f)
     }
 }
 
-/*tex 
-    Dumping the |number_tex_commands| is just a safeguard for when we experiment with (temporary) 
-    extensions. 
+/*tex
+    Dumping the |number_tex_commands| is just a safeguard for when we experiment with (temporary)
+    extensions.
 */
 
 static void tex_aux_dump_preamble(dumpstream f)
@@ -166,7 +166,7 @@ static void tex_aux_dump_preamble(dumpstream f)
     dump_int(f, lmt_hash_state.hash_data.top);
 }
 
-static void tex_aux_undump_preamble(dumpstream f)
+static void tex_aux_undump_preamble(undumpstream f)
 {
     int x;
     undump_int(f, x);
@@ -302,27 +302,27 @@ int tex_fatal_undump_error(const char *s)
     return tex_emergency_exit();
 }
 
-static void tex_aux_undump_fmt_data(dumpstream f)
+static void tex_aux_undump_fmt_data(undumpstream f)
 {
-    tex_aux_undump_fingerprint   (f); tex_aux_report_undump_state(f, dump_stat_fingerprint);    
-    lmt_undump_engine_info       (f); tex_aux_report_undump_state(f, dump_stat_engine);         
-    tex_aux_undump_preamble      (f); tex_aux_report_undump_state(f, dump_stat_preamble);       
-    tex_undump_constants         (f); tex_aux_report_undump_state(f, dump_stat_constants);      
-    tex_undump_string_pool       (f); tex_aux_report_undump_state(f, dump_stat_stringpool);     
-    tex_undump_node_mem          (f); tex_aux_report_undump_state(f, dump_stat_nodes);          
-    tex_undump_token_mem         (f); tex_aux_report_undump_state(f, dump_stat_tokens);         
-    tex_undump_equivalents_mem   (f); tex_aux_report_undump_state(f, dump_stat_equivalents);    
-    tex_undump_specification_data(f); tex_aux_report_undump_state(f, dump_stat_specifications); 
-    tex_undump_math_codes        (f); tex_aux_report_undump_state(f, dump_stat_mathcodes);      
-    tex_undump_text_codes        (f); tex_aux_report_undump_state(f, dump_stat_textcodes);      
-    tex_undump_primitives        (f); tex_aux_report_undump_state(f, dump_stat_primitives);     
-    tex_undump_hashtable         (f); tex_aux_report_undump_state(f, dump_stat_hashtable);      
-    tex_undump_font_data         (f); tex_aux_report_undump_state(f, dump_stat_fonts);          
-    tex_undump_math_data         (f); tex_aux_report_undump_state(f, dump_stat_math);           
+    tex_aux_undump_fingerprint   (f); tex_aux_report_undump_state(f, dump_stat_fingerprint);
+    lmt_undump_engine_info       (f); tex_aux_report_undump_state(f, dump_stat_engine);
+    tex_aux_undump_preamble      (f); tex_aux_report_undump_state(f, dump_stat_preamble);
+    tex_undump_constants         (f); tex_aux_report_undump_state(f, dump_stat_constants);
+    tex_undump_string_pool       (f); tex_aux_report_undump_state(f, dump_stat_stringpool);
+    tex_undump_node_mem          (f); tex_aux_report_undump_state(f, dump_stat_nodes);
+    tex_undump_token_mem         (f); tex_aux_report_undump_state(f, dump_stat_tokens);
+    tex_undump_equivalents_mem   (f); tex_aux_report_undump_state(f, dump_stat_equivalents);
+    tex_undump_specification_data(f); tex_aux_report_undump_state(f, dump_stat_specifications);
+    tex_undump_math_codes        (f); tex_aux_report_undump_state(f, dump_stat_mathcodes);
+    tex_undump_text_codes        (f); tex_aux_report_undump_state(f, dump_stat_textcodes);
+    tex_undump_primitives        (f); tex_aux_report_undump_state(f, dump_stat_primitives);
+    tex_undump_hashtable         (f); tex_aux_report_undump_state(f, dump_stat_hashtable);
+    tex_undump_font_data         (f); tex_aux_report_undump_state(f, dump_stat_fonts);
+    tex_undump_math_data         (f); tex_aux_report_undump_state(f, dump_stat_math);
     tex_undump_language_data     (f); tex_aux_report_undump_state(f, dump_stat_languages);
     tex_undump_insert_data       (f); tex_aux_report_undump_state(f, dump_stat_inserts);
-    lmt_undump_registers         (f); tex_aux_report_undump_state(f, dump_stat_bytecodes);      
-    tex_aux_undump_final_check   (f); tex_aux_report_undump_state(f, dump_stat_housekeeping);   
+    lmt_undump_registers         (f); tex_aux_report_undump_state(f, dump_stat_bytecodes);
+    tex_aux_undump_final_check   (f); tex_aux_report_undump_state(f, dump_stat_housekeeping);
                                       tex_aux_report_undump_state(f, dump_stat_total);
 
     /*tex This should go elsewhere. */
@@ -335,17 +335,66 @@ static void tex_aux_undump_fmt_data(dumpstream f)
     case.
 */
 
-int tex_load_fmt_file(void)
-{
-    dumpstream f = tex_open_fmt_file(0);
-    if (f) {
-        tex_aux_undump_fmt_data(f);
+# if undump_in_memory == 1
+
+    int tex_load_fmt_file(void)
+    {
+        FILE *f = tex_open_fmt_file(0);
+        if (! f) {
+            return tex_fatal_undump_error("filehandle");
+        }
+        if (fseek(f, 0, SEEK_END) != 0) {
+            tex_close_fmt_file(f);
+            return tex_fatal_undump_error("seek failed");
+        }
+        long file_size = ftell(f);
+        if (file_size < 0) {
+            tex_close_fmt_file(f);
+            return tex_fatal_undump_error("tell failed");
+        }
+        if (fseek(f, 0, SEEK_SET) != 0) {
+            tex_close_fmt_file(f);
+            return tex_fatal_undump_error("seek failed");
+        }
+        unsigned char *buffer = lmt_memory_malloc((size_t) file_size);
+        if (! buffer) {
+            tex_close_fmt_file(f);
+            return tex_fatal_undump_error("memory allocation");
+        }
+        if (fread(buffer, 1, (size_t) file_size, f) != (size_t) file_size) {
+            lmt_memory_free(buffer);
+            tex_close_fmt_file(f);
+            return tex_fatal_undump_error("read failed");
+        }
         tex_close_fmt_file(f);
+
+        lmt_undump_info u = {
+            .buffer = buffer,
+            .ptr    = buffer,
+            .end    = buffer + file_size,
+            .size   = (size_t) file_size
+        };
+
+        tex_aux_undump_fmt_data(&u);
+        lmt_memory_free(buffer);
         return 1;
-    } else {
-        return tex_fatal_undump_error("filehandle");
     }
-}
+
+# else
+
+    int tex_load_fmt_file(void)
+    {
+        dumpstream f = tex_open_fmt_file(0);
+        if (f) {
+            tex_aux_undump_fmt_data(f);
+            tex_close_fmt_file(f);
+            return 1;
+        } else {
+            return tex_fatal_undump_error("filehandle");
+        }
+    }
+
+# endif
 
 void tex_initialize_dump_state(void)
 {

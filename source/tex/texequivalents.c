@@ -327,7 +327,7 @@ void tex_dump_equivalents_mem(dumpstream f)
     tex_dump_equivalents_mem_specials(f);
 }
 
-static void tex_undump_equivalents_mem_hash(dumpstream f)
+static void tex_undump_equivalents_mem_hash(undumpstream f)
 {
     int index = null_cs;
     memoryword undef = lmt_hash_state.eqtb[undefined_control_sequence];
@@ -373,7 +373,7 @@ static void tex_undump_equivalents_mem_hash(dumpstream f)
     }
 }
 
-static void tex_undump_equivalents_mem_registers(dumpstream f) /* the old unpacker */
+static void tex_undump_equivalents_mem_registers(undumpstream f) /* the old unpacker */
 {
     int index = first_register_base;
     int n_of_different = 0;
@@ -413,7 +413,7 @@ static void tex_undump_equivalents_mem_registers(dumpstream f) /* the old unpack
     }
 }
 
-static void tex_undump_equivalents_mem_extra(dumpstream f)
+static void tex_undump_equivalents_mem_extra(undumpstream f)
 {
     undump_int(f, lmt_hash_state.hash_data.ptr);
     if (lmt_hash_state.hash_data.ptr > 0) {
@@ -422,7 +422,7 @@ static void tex_undump_equivalents_mem_extra(dumpstream f)
     }
 }
 
-static void tex_undump_equivalents_mem_specials(dumpstream f)
+static void tex_undump_equivalents_mem_specials(undumpstream f)
 {
     undump_int(f, lmt_token_state.par_loc);
     if (lmt_token_state.par_loc >= hash_base && lmt_token_state.par_loc <= lmt_hash_state.hash_data.top) {
@@ -439,7 +439,7 @@ static void tex_undump_equivalents_mem_specials(dumpstream f)
     undump_int(f, lmt_token_state.empty);
 }
 
-void tex_undump_equivalents_mem(dumpstream f)
+void tex_undump_equivalents_mem(undumpstream f)
 {
     tex_undump_equivalents_mem_hash(f);
     tex_undump_equivalents_mem_registers(f);

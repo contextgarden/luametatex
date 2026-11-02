@@ -135,14 +135,17 @@ typedef enum if_test_codes {
 
 # define condition_node_stack 0
 
+
 typedef struct condition_state {
-    quarterword if_limit;   /* 2 bytes */ /*tex upper bound on |fi_or_else| codes */
-    quarterword cur_if;     /* 2 bytes */ /*tex type of conditional being worked on */
-    singleword  cur_unless; /* 1 byte  */
-    singleword  if_unless;  /* 1 byte  */
-    singleword  if_step;    /* 1 byte  */
-    singleword  unused;     /* 1 byte  */
-    halfword    if_line;    /* 4 bytes */ /*tex line where that conditional began */
+    /* halfword first for best padding */
+    halfword    if_line;    /* 4 bytes (offset 0)  | tex line where that conditional began */
+    quarterword if_limit;   /* 2 bytes (offset 4)  | tex upper bound on |fi_or_else| codes */
+    quarterword cur_if;     /* 2 bytes (offset 6)  | tex type of conditional being worked on */
+    singleword  cur_unless; /* 1 byte  (offset 8)  */
+    singleword  if_unless;  /* 1 byte  (offset 9)  */
+    singleword  if_step;    /* 1 byte  (offset 10) */
+    singleword  unused;     /* 1 byte  (offset 11) | kept for future use */
+    int         padding;    /* 4 bytes (offset 12) | explicit padding to 16 bytes */
 } condition_state;
 
 # if condition_node_stack == 1

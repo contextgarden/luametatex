@@ -305,6 +305,7 @@ extern version_state_info lmt_version_state;
 
 # define delayed_glue_supported 0
 
+# include "utilities/auxstream.h"
 # include "utilities/auxarithmetic.h"
 # include "utilities/auxmemory.h"
 # include "utilities/auxposit.h"
@@ -325,6 +326,7 @@ extern version_state_info lmt_version_state;
 
 # include "libraries/hnj/hnjhyphen.h"
 
+# include "tex/texdumpdata.h"
 # include "tex/texexpand.h"
 # include "tex/texmarks.h"
 # include "tex/texconditional.h"
@@ -348,7 +350,6 @@ extern version_state_info lmt_version_state;
 # include "tex/texscanning.h"
 # include "tex/texbuildpage.h"
 # include "tex/texmaincontrol.h"
-# include "tex/texdumpdata.h"
 # include "tex/texnodes.h"
 # include "tex/texspecifications.h"
 # include "tex/texdirections.h"

@@ -1182,11 +1182,6 @@ static void *mplib_aux_open_file(MP mp, const char *fname, const char *fmode, in
     return NULL;
 }
 
-# define mplib_pop_function(idx,tag) \
-    lua_rawgeti(L, LUA_REGISTRYINDEX, idx); \
-    lua_push_key(tag); \
-    lua_rawget(L, -2);
-
 static void mplib_aux_close_file(MP mp, void *index)
 {
     if (index) {
@@ -1194,15 +1189,17 @@ static void mplib_aux_close_file(MP mp, void *index)
         lua_State *L = (lua_State *) mp_userdata(mp);
         int stacktop = lua_gettop(L);
         if (mp->open_file_id && idx > 0) {
-            mplib_pop_function(idx, close)
-            if (lua_isfunction(L, -1)) {
-                ++mplib_state.file_callbacks;
-                if (lua_pcall(L, 0, 0, 0)) {
-                    /* no message */
+            lua_rawgeti(L, LUA_REGISTRYINDEX, idx);
+            if (lua_istable(L, -1)) {
+                lua_push_key(close); \
+                lua_rawget(L, -2); \
+                if (lua_isfunction(L, -1)) {
+                    ++mplib_state.file_callbacks;
+                    if (lua_pcall(L, 0, 0, 0)) {
+                        /* no message */
+                    }
                 }
             }
-        }
-        if (idx > 0) {
             luaL_unref(L, LUA_REGISTRYINDEX, idx);
         }
         lua_settop(L, stacktop);
@@ -1217,13 +1214,19 @@ static char *mplib_aux_read_file(MP mp, void *index, size_t *size)
         int stacktop = lua_gettop(L);
         int idx = *((int*) index);
         char *s = NULL;
-        mplib_pop_function(idx, reader)
-        if (lua_isfunction(L, -1)) {
-            ++mplib_state.file_callbacks;
-            if lmt_unlikely(lua_pcall(L, 0, 1, 0)) {
-                *size = 0;
-            } else if (lua_type(L, -1) == LUA_TSTRING) {
-                s = lmt_lstring_from_index(L, -1, size);
+        if (idx > 0) {
+            lua_rawgeti(L, LUA_REGISTRYINDEX, idx);
+            if (lua_istable(L, -1)) {
+                lua_push_key(reader);
+                lua_rawget(L, -2);
+                if (lua_isfunction(L, -1)) {
+                    ++mplib_state.file_callbacks;
+                    if lmt_unlikely(lua_pcall(L, 0, 1, 0)) {
+                        *size = 0;
+                    } else if (lua_type(L, -1) == LUA_TSTRING) {
+                        s = lmt_lstring_from_index(L, -1, size);
+                    }
+                }
             }
         }
         lua_settop(L, stacktop);
@@ -1238,14 +1241,20 @@ static void mplib_aux_write_file(MP mp, void *index, const char *s)
         lua_State *L = (lua_State *) mp_userdata(mp);
         int stacktop = lua_gettop(L);
         int idx = *((int*) index);
-        mplib_pop_function(idx, writer)
-        if (lua_isfunction(L, -1)) {
-            lua_pushstring(L, s);
-            ++mplib_state.file_callbacks;
-            if (lua_pcall(L, 1, 0, 0)) {
-                /* no message */
-            } else {
-                /* nothing to be done here */
+        if (idx > 0) {
+            lua_rawgeti(L, LUA_REGISTRYINDEX, idx);
+            if (lua_istable(L, -1)) {
+                lua_push_key(writer);
+                lua_rawget(L, -2);
+                if (lua_isfunction(L, -1)) {
+                    lua_pushstring(L, s);
+                    ++mplib_state.file_callbacks;
+                    if (lua_pcall(L, 1, 0, 0)) {
+                        /* no message */
+                    } else {
+                        /* nothing to be done here */
+                    }
+                }
             }
         }
         lua_settop(L, stacktop);
@@ -2758,7 +2767,7 @@ static const char * mplib_aux_with_path_indexed(lua_State *L, MP mp, int index, 
                 }
         }
         /*tex Up the next item */
-        DONE:
+      DONE:
         lua_pop(L, 1);
     }
     if (*curled) {
@@ -2937,7 +2946,7 @@ static void mplib_aux_with_path(lua_State *L, MP mp, int index, int inject)
             }
             lua_pop(L, 1);
             lua_push_key(trace);
-            if (lua_rawget(L, index - 1) == LUA_TBOOLEAN) {
+            if (lua_rawget(L, index) == LUA_TBOOLEAN) {
                 trace = lua_toboolean(L, -1);
             }
             lua_pop(L, 1);

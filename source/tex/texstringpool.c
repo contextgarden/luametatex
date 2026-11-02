@@ -643,7 +643,7 @@ void tex_dump_string_pool(dumpstream f)
     }
 }
 
-void tex_undump_string_pool(dumpstream f)
+void tex_undump_string_pool(undumpstream f)
 {
     int n_of_strings;
     int max_length;

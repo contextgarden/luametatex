@@ -227,43 +227,34 @@ typedef struct charinfo {
 */
 
 typedef struct texfont {
-    /*tex the range of (allocated) characters */
-    int         first_character;
-    int         last_character;
-    /*tex the (sparse) character (glyph) array */
-    sa_tree     characters;
-    charinfo   *chardata;
-    int         chardata_count;
-    int         chardata_size;
-    /*tex properties used in messages */
-    int         size;
-    int         design_size;
-    char       *name;
-    char       *original;
-    /*tex this controls the engine */
-    int         mathcontrol;
-    int         textcontrol;
-    /*tex for experimental new thingies */
-    int         compactmath;  /* This can go away, just always test. */ 
-    /*tex saves calculations */
-    double      weight; 
-    /*tex all parameters, although only some are used */
-    int         parameter_count;
-    scaled     *parameter_base;
-    /*tex also special */
-    charinfo   *left_boundary;
-    charinfo   *right_boundary;
-    /*tex all math parameters */
-    scaled     *math_parameter_base;
-    int         math_parameter_count;
-    /* zero is alignment */
-    int         mathscales[3];
-    int         mathxscales[3];
-    int         mathyscales[3];
-    int         mathweights[3];
-    /*tex special characters, see \TEX book */
-    int         hyphen_char;
-    int         skew_char;
+    /* --- 8-byte fields (pointers and doubles) --- */
+    sa_tree     characters;          /* 8 bytes */
+    charinfo   *chardata;            /* 8 bytes */
+    char       *name;                /* 8 bytes */
+    char       *original;            /* 8 bytes */
+    double      weight;              /* 8 bytes (aligned naturally) */
+    scaled     *parameter_base;      /* 8 bytes */
+    charinfo   *left_boundary;       /* 8 bytes */
+    charinfo   *right_boundary;      /* 8 bytes */
+    scaled     *math_parameter_base; /* 8 bytes */
+    /* --- 4-byte fields (integers and arrays) --- */
+    int         first_character;     /* 4 bytes */
+    int         last_character;      /* 4 bytes */
+    int         chardata_count;      /* 4 bytes */
+    int         chardata_size;       /* 4 bytes */
+    int         size;                /* 4 bytes */
+    int         design_size;         /* 4 bytes */
+    int         mathcontrol;         /* 4 bytes */
+    int         textcontrol;         /* 4 bytes */
+    int         compactmath;         /* 4 bytes */
+    int         parameter_count;     /* 4 bytes */
+    int         math_parameter_count;/* 4 bytes */
+    int         mathscales[3];       /* 12 bytes */
+    int         mathxscales[3];      /* 12 bytes */
+    int         mathyscales[3];      /* 12 bytes */
+    int         mathweights[3];      /* 12 bytes */
+    int         hyphen_char;         /* 4 bytes */
+    int         skew_char;           /* 4 bytes */
 } texfont;
 
 /*tex
@@ -746,7 +737,7 @@ extern void          tex_char_malloc_mathinfo  (charinfo *ci);
 extern void          tex_reset_charinfo        (charinfo *ci);
 extern void          tex_reset_font            (halfword f);
 extern void          tex_dump_font_data        (dumpstream f);
-extern void          tex_undump_font_data      (dumpstream f);
+extern void          tex_undump_font_data      (undumpstream f);
 extern void          tex_create_null_font      (void);
 extern void          tex_delete_font           (int id);
 extern int           tex_read_font_info        (char *cnom, scaled s);

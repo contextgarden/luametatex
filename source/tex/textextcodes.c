@@ -168,7 +168,7 @@ static void tex_aux_dump_catcodes(dumpstream f)
     }
 }
 
-static void tex_aux_undump_catcodes(dumpstream f)
+static void tex_aux_undump_catcodes(undumpstream f)
 {
     int catcode_max, total, nibbled;
     undump_int(f, catcode_max);
@@ -381,7 +381,7 @@ static void tex_aux_dump_lccodes(dumpstream f)
     sa_dump_tree(f, lmt_luscode_state.lccode_head);
 }
 
-static void tex_aux_undump_lccodes(dumpstream f)
+static void tex_aux_undump_lccodes(undumpstream f)
 {
     sa_destroy_tree(lmt_luscode_state.lccode_head);
     lmt_luscode_state.lccode_head = sa_undump_tree(f);
@@ -427,7 +427,7 @@ static void tex_aux_dump_uccodes(dumpstream f)
     sa_dump_tree(f,lmt_luscode_state.uccode_head);
 }
 
-static void tex_aux_undump_uccodes(dumpstream f)
+static void tex_aux_undump_uccodes(undumpstream f)
 {
     sa_destroy_tree(lmt_luscode_state.uccode_head);
     lmt_luscode_state.uccode_head = sa_undump_tree(f);
@@ -486,7 +486,7 @@ static void tex_aux_dump_sfcodes(dumpstream f)
     sa_dump_tree(f, lmt_luscode_state.sfcode_head);
 }
 
-static void tex_aux_undump_sfcodes(dumpstream f)
+static void tex_aux_undump_sfcodes(undumpstream f)
 {
     sa_destroy_tree(lmt_luscode_state.sfcode_head);
     lmt_luscode_state.sfcode_head = sa_undump_tree(f);
@@ -530,7 +530,7 @@ static void tex_aux_dump_hccodes(dumpstream f)
     sa_dump_tree(f, lmt_luscode_state.hccode_head);
 }
 
-static void tex_aux_undump_hccodes(dumpstream f)
+static void tex_aux_undump_hccodes(undumpstream f)
 {
     sa_destroy_tree(lmt_luscode_state.hccode_head);
     lmt_luscode_state.hccode_head = sa_undump_tree(f);
@@ -571,7 +571,7 @@ static void tex_aux_dump_hmcodes(dumpstream f)
     sa_dump_tree(f, lmt_luscode_state.hmcode_head);
 }
 
-static void tex_aux_undump_hmcodes(dumpstream f)
+static void tex_aux_undump_hmcodes(undumpstream f)
 {
     sa_destroy_tree(lmt_luscode_state.hmcode_head);
     lmt_luscode_state.hmcode_head = sa_undump_tree(f);
@@ -611,7 +611,7 @@ static void tex_aux_dump_amcodes(dumpstream f)
     sa_dump_tree(f, lmt_luscode_state.amcode_head);
 }
 
-static void tex_aux_undump_amcodes(dumpstream f)
+static void tex_aux_undump_amcodes(undumpstream f)
 {
     sa_destroy_tree(lmt_luscode_state.amcode_head);
     lmt_luscode_state.amcode_head = sa_undump_tree(f);
@@ -654,7 +654,7 @@ static void tex_aux_dump_cccodes(dumpstream f)
     sa_dump_tree(f, lmt_luscode_state.cccode_head);
 }
 
-static void tex_aux_undump_cccodes(dumpstream f)
+static void tex_aux_undump_cccodes(undumpstream f)
 {
     sa_destroy_tree(lmt_luscode_state.cccode_head);
     lmt_luscode_state.cccode_head = sa_undump_tree(f);
@@ -728,7 +728,7 @@ void tex_dump_language_hj_codes(dumpstream f, int h)
     }
 }
 
-void tex_undump_language_hj_codes(dumpstream f, int h)
+void tex_undump_language_hj_codes(undumpstream f, int h)
 {
     if (h >= 0 && h <= lmt_language_state.language_data.top && lmt_language_state.languages[h]) {
         unsigned char marker;
@@ -807,7 +807,7 @@ void tex_dump_text_codes(dumpstream f)
  /* dumphjcodes(f); */
 }
 
-void tex_undump_text_codes(dumpstream f)
+void tex_undump_text_codes(undumpstream f)
 {
     tex_aux_undump_catcodes(f);
     tex_aux_undump_lccodes(f);
