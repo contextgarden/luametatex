@@ -34,6 +34,10 @@ endif ()
 
 set(CMAKE_C_STANDARD_REQUIRED OFF) # OFF is default
 
+if (UNIX AND NOT APPLE)
+    add_compile_definitions(_GNU_SOURCE)
+endif()
+
 # set(CMAKE_C_EXTENSIONS ON) # ON is default
 
 # https://sourceforge.net/p/predef/wiki/OperatingSystems/

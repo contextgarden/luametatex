@@ -2,12 +2,11 @@
     See license.txt in the root of this project.
 */
 
+# include "auxfile.h"
+# include "auxmemory.h"
 # include <stdio.h>
 # include <sys/stat.h>
 # include <stdbool.h>
-
-# include "auxfile.h"
-# include "auxmemory.h"
 
 # ifndef PATH_MAX
 #     ifdef MAX_PATH

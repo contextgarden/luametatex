@@ -128,6 +128,7 @@
 # else
 
     # include <libgen.h>
+    # include <stdio.h>
 
     # define       aux_utf8_fopen       fopen
     # define       aux_utf8_popen       popen
@@ -183,6 +184,81 @@ extern int aux_is_readable (const char *filename);
 
 # ifndef S_ISREG
     # define S_ISREG(mode) (mode & _S_IFREG)
+# endif
+
+/*tex
+
+    At some point I tested this and it had little to no impact but after replacing multiple
+    |getc| hy a |fread| it made sense to also use this level of indirection. Not that we need
+    these often. We use the |lmt_| namespace to indicate that we're in this single thread
+    environment. (In the past we tested this on format loading and it had zero practical
+    advantages, but nowadays we also play with tiny devices so \unknown
+
+    As a note: \LUA\ also defaults to unlocked but only on \POSIX. The more
+    specific |MSVC| test is needed for the tell and seek. There is some overlap
+    with the file lib defined.
+
+*/
+
+/*tex
+    At some point I tested this and it had little to no impact but after replacing multiple |getc|
+    by a |fread| it made sense to also use this level of indirection. Not that we need these often.
+    We use the |lmt_| namespace to indicate that we're in this single thread environment. In the 
+    past we tested this on format loading and it had zero practical advantages, but nowadays we 
+    also play with tiny devices so \unknown. We also unify platform-specific stream positioning 
+    types, standard seek/tell wrappers, and unlocked/nolock I/O primitives here so they are 
+    available globally across helper files. So we also moved some code from elsewhere here. We 
+    actually only use this in the extended IO lib and format (un)dump. 
+*/
+
+# if defined(__GLIBC__) || defined(LUA_USE_POSIX)
+
+    # define lmt_seeknum             off_t
+    # define lmt_fseek(f, o, w)      fseeko(f, o, w)
+    # define lmt_ftell(f)            ftello(f)
+
+    # define lmt_getc(f)             getc_unlocked(f)
+    # define lmt_putc(c, f)          putc_unlocked(c, f)
+    # define lmt_fread(p, sz, n, f)  fread_unlocked(p, sz, n, f)
+    # define lmt_fwrite(p, sz, n, f) fwrite_unlocked(p, sz, n, f)
+    # define lmt_ungetc(c, f)        ungetc(c, f)
+
+# elif defined(_WIN32) && !defined(_CRTIMP_TYPEINFO) && defined(_MSC_VER) && (_MSC_VER >= 1400)
+
+    # define lmt_seeknum             __int64
+    # define lmt_fseek(f, o, w)      _fseeki64_nolock(f, o, w)
+    # define lmt_ftell(f)            _ftelli64_nolock(f)
+
+    # define lmt_getc(f)             _fgetc_nolock(f)
+    # define lmt_putc(c, f)          _fputc_nolock(c, f)
+    # define lmt_fread(p, sz, n, f)  _fread_nolock(p, sz, n, f)
+    # define lmt_fwrite(p, sz, n, f) _fwrite_nolock(p, sz, n, f)
+    # define lmt_ungetc(c, f)        ungetc(c, f)
+
+# elif defined(__MINGW32__)
+
+    # define lmt_seeknum             int64_t
+    # define lmt_fseek(f, o, w)      fseeko64(f, o, w)
+    # define lmt_ftell(f)            ftello64(f)
+
+    # define lmt_getc(f)             getc(f)
+    # define lmt_putc(c, f)          putc(c, f)
+    # define lmt_fread(p, sz, n, f)  fread(p, sz, n, f)
+    # define lmt_fwrite(p, sz, n, f) fwrite(p, sz, n, f)
+    # define lmt_ungetc(c, f)        ungetc(c, f)
+
+# else
+
+    # define lmt_seeknum             long
+    # define lmt_fseek(f, o, w)      fseek(f, o, w)
+    # define lmt_ftell(f)            ftell(f)
+
+    # define lmt_getc(f)             getc(f)
+    # define lmt_putc(c, f)          putc(c, f)
+    # define lmt_fread(p, sz, n, f)  fread(p, sz, n, f)
+    # define lmt_fwrite(p, sz, n, f) fwrite(p, sz, n, f)
+    # define lmt_ungetc(c, f)        ungetc(c, f)
+
 # endif
 
 # endif

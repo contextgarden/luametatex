@@ -4174,6 +4174,341 @@ static int tokenlib_getfunctionvalues(lua_State *L)
 
 # endif
 
+/*tex
+
+    An experiment!
+
+    After playing with a few alternatives in \LUA\ I wondered about delegating some work the
+    \CCODE\ end because we need to stop at a partial non-match (in order to be \TEX\
+    compatible). The initial idea was passing something |foobar,bar,foo| and getting an index
+    back. A bit if chatting came up with a different lookup approach and then I decided that
+    a userdata approach might be better so I gave it a try.
+    
+    Because we scan token by token we need a tree to store the characters, which, contrary to 
+    the regular keyword scasnner, can be \UTF, so we can use numbers. Given that there are 
+    several ways to implement such a tree I just asked Gemini for a reasonable approach also 
+    given memory usage so it came up with one (actually few to choise from) that we stepwise 
+    adapted to our needs (like a sprted insert to make the longest match working). The next
+    picture was made to help figure out |catcode| alongside |category| matching. 
+
+    \starttyping
+    keyword_matcher
+     └── root ──> [ keyword_node ]
+                    ├── index       = 0
+                    ├── nofchildren = 1
+                    ├── keys        = [ 99 ('c') ]
+                    └── children    = [ &Node_C ]
+                                             │
+                                             ▼
+                                   [ keyword_node (&Node_C) ]
+                                    ├── index       = 0
+                                    ├── nofchildren = 1
+                                    ├── keys        = [ 97 ('a') ]
+                                    └── children    = [ &Node_CA ]
+                                             │
+                                             ▼
+                                   [ keyword_node (&Node_CA) ]
+                                    ├── index       = 0
+                                    ├── nofchildren = 2  <-- Sorted order: 112 ('p') < 116 ('t')
+                                    ├── keys        = [ 112 ('p'),  116 ('t') ]
+                                    └── children    = [ &Node_CAP,  &Node_CAT ]
+                                             │               │
+                                             ▼               ▼
+                                       [Node_CAP]      [Node_CAT]
+                                        index = 2      index = 1
+                                        nofchildren=0  nofchildren=0
+    \stoptyping
+    
+    The rest of the code is more or less like the normal keyword scanner but where that one 
+    tests against a string and quits when its end is reached here we need to go for the 
+    longest match and also explicitly quit when we're an an end point. In a |if ... 
+    orelse ... orelse ... orelse ... else ... end| we need to make sure that the longest match 
+    comes before a short, but here we need to deal with that immediately. It helps a bit if 
+    one knows how \TEX\ scans especially with look-ahead expansion (for instance want a value 
+    to be an expandable control sequence (constant or variable in \CONTEXT\ speak) which then 
+    should also work when we ignore spaces. Of course there is a bit of optimization. 
+
+*/
+
+typedef struct keyword_node {
+    int                   index;
+    int                   nofchildren;
+    int                  *keys;
+    struct keyword_node **children; 
+} keyword_node;
+
+typedef struct keyword_matcher {
+    keyword_node *root;
+    int           count;
+} keyword_matcher;
+
+static keyword_node *tokenlib_aux_trie_get_or_insert_child(keyword_node *curr, int cp)
+{
+    int n    = curr->nofchildren;
+    int low  = 0;
+    int high = n - 1;
+    /*tex binary search to see if the child already exists */
+    while (low <= high) {
+        int mid = low + (high - low) / 2;
+        if (curr->keys[mid] == cp) {
+            /* existing child found */
+            return curr->children[mid];
+        } else if (curr->keys[mid] < cp) {
+            low = mid + 1;
+        } else {
+            high = mid - 1;
+        }
+    }
+    /*tex |low| is now the correct sorted insertion index */
+    int insert_idx = low;
+    curr->nofchildren++;
+    curr->keys = lmt_memory_realloc(curr->keys, curr->nofchildren * sizeof(int));
+    curr->children = lmt_memory_realloc(curr->children, curr->nofchildren * sizeof(keyword_node *));
+    /*tex shift elements to the right to maintain ascending sorted order */
+    for (int i = curr->nofchildren - 1; i > insert_idx; i--) {
+        curr->keys[i] = curr->keys[i - 1];
+        curr->children[i] = curr->children[i - 1];
+    }
+    /*tex insert the new child node at the correct position */
+    curr->keys[insert_idx] = cp;
+    keyword_node *new_node = lmt_memory_malloc(sizeof(keyword_node));
+    new_node->index       = 0;
+    new_node->nofchildren = 0;
+    new_node->keys        = NULL;
+    new_node->children    = NULL;
+    curr->children[insert_idx] = new_node;
+    return new_node;
+}
+
+static void tokenlib_aux_trie_insert(keyword_node *root, const char *str, int index)
+{
+    keyword_node *curr = root;
+    const unsigned char *p = (const unsigned char *) str;
+    size_t remaining = strlen(str);
+    while (remaining > 0) {
+        int          ulen;
+        unsigned int cp = aux_str2uni_len(p, remaining, &ulen);
+        /* get or insert the child while keeping keys sorted */
+        curr = tokenlib_aux_trie_get_or_insert_child(curr, (int) cp);
+        p += ulen;
+        remaining -= (size_t) ulen;
+    }
+    /* mark terminal node with its target index */
+    curr->index = index;
+}
+
+/*tex 
+    We now arrive at the \TEX\ and \LUA\ part of this experiment. We're in a rather predicable
+    siuation so we can gain a little here: 
+*/
+
+static const void *G_MATCHER_METATABLE_PTR = NULL;
+
+static inline keyword_matcher *tokenlib_aux_maybe_ismatcher(lua_State *L, int ud)
+{
+    keyword_matcher *t = lua_touserdata(L, ud);
+    if (t && lua_getmetatable(L, ud)) {
+     // lua_get_metatablelua(token_matcher);
+     // if (! lua_rawequal(L, -1, -2)) {
+     //     t = NULL;
+     // }
+     // lua_pop(L, 2);
+        if (lua_topointer(L, -1) != G_MATCHER_METATABLE_PTR) {
+           t = NULL;
+        }
+        lua_pop(L, 1);
+    }
+    return t;
+}
+
+static int tokenlib_newmatcher(lua_State *L)
+{
+    luaL_checktype(L, 1, LUA_TTABLE);
+    keyword_matcher *matcher = lua_newuserdata(L, sizeof(keyword_matcher));
+    matcher->root = lmt_memory_malloc(sizeof(keyword_node));
+    matcher->root->index = 0;
+    matcher->root->nofchildren = 0;
+    matcher->root->keys = NULL;
+    matcher->root->children = NULL;
+    matcher->count = 0;
+    int n = 0;
+    lua_pushnil(L);
+    while (lua_next(L, 1) != 0) {
+        if (lua_isstring(L, -1)) {
+            size_t len;
+            const char *s = lua_tolstring(L, -1, &len);
+            n++;
+            tokenlib_aux_trie_insert(matcher->root, s, n);
+        }
+        lua_pop(L, 1);
+    }
+    matcher->count = n;
+    lua_get_metatablelua(token_matcher);
+    lua_setmetatable(L, -2);
+    return 1;
+}
+
+static keyword_node *tokenlib_aux_find_child(keyword_node *curr, int cp) 
+{
+    int n = curr->nofchildren;
+    if (n < 6) {
+        /*tex Here the 6 is a bit of a gamble. */
+        for (int i = 0; i < n; i++) {
+            if (curr->keys[i] == cp) {
+                return curr->children[i];
+            }
+        }
+    } else {
+        int low = 0, high = n - 1;
+        while (low <= high) {
+            int mid = low + (high - low) / 2;
+            if (curr->keys[mid] == cp) {
+                return curr->children[mid];
+            } else if (curr->keys[mid] < cp) { 
+                low = mid + 1;
+            } else { 
+                high = mid - 1;
+            }
+        }
+    }
+    return NULL;
+}
+
+/*tex
+    As mentioned, one needs to know how \TEX\ picks up tokens, expands, pushed back, and so on,
+    but the regular keyword scanners and the ones wrapped above give a clue. The most critital 
+    bit is where we decide to quite matching. I had to make sure that existing \CONTEXT\ code was
+    still working, just in case we decide to go this route. 
+*/
+
+static int tokenlib_usematcher(lua_State *L)
+{
+    keyword_matcher *matcher  = tokenlib_aux_maybe_ismatcher(L, 1);
+    if lmt_unlikely(! (matcher && matcher->root)) {
+        return luaL_error(L, "valid token matcher expected");
+    }
+    saved_tex_scanner  texstate = tokenlib_aux_save_tex_scanner(); 
+    keyword_node      *current  = matcher->root;
+    halfword           h        = null;
+    halfword           p        = null;
+    int                n        = 0;    
+    int                best_i   = 0;
+    halfword           best_p   = null;
+    int                best_n   = 0;
+    tokenlib_aux_goto_first_candidate_x();
+    while (1) {
+        if (cur_cmd == letter_cmd || cur_cmd == other_char_cmd) {
+            int           cp   = cur_chr;
+            keyword_node *next = tokenlib_aux_find_child(current, cp);
+            if (! next) {
+                tex_back_input(cur_tok);
+                break;
+            }
+            current = next;
+            p       = tex_store_new_token(p, cur_tok);
+            if (! h) {
+                h = p;
+            }
+            n++;
+            if (current->index > 0) {
+                best_i = current->index;
+                best_p = p;
+                best_n = n;
+                if (current->nofchildren == 0) {
+                    break;
+                }
+            }
+        } else {
+            tex_back_input(cur_tok);
+            break;
+        }
+        tex_get_x_token();
+    }
+    if (best_i > 0) {
+        if (h) {
+            halfword t = token_link(best_p);    
+            token_link(best_p) = null; 
+            tex_flush_token_list_head_tail(h, best_p, best_n);
+            if (t) { /* unlikely */
+                tex_begin_backed_up_list(t);
+            }
+        }
+        lua_pushinteger(L, best_i);
+    } else {
+        if (h) {
+            tex_begin_backed_up_list(h);
+        }
+        lua_pushnil(L);
+    }
+    tokenlib_aux_unsave_tex_scanner(texstate);
+    return 1;
+}
+
+static void tokenlib_aux_trie_free(keyword_node *node) 
+{
+    if (! node) { 
+        return;
+    }
+    for (int i = 0; i < node->nofchildren; i++) {
+        tokenlib_aux_trie_free(node->children[i]);
+    }
+    lmt_memory_free(node->keys);
+    lmt_memory_free(node->children);
+    lmt_memory_free(node);
+}
+
+static int tokenlib_matcher_gc(lua_State *L)
+{
+    keyword_matcher *matcher = tokenlib_aux_maybe_ismatcher(L, 1);
+    if (matcher && matcher->root) {
+        tokenlib_aux_trie_free(matcher->root);
+        matcher->root = NULL;
+    }
+    return 0;
+}
+
+static int tokenlib_matcher_tostring(lua_State *L)
+{
+    keyword_matcher *n = tokenlib_aux_maybe_ismatcher(L, 1);
+    if (n) {
+        lua_pushfstring(L, "<token matcher %p>", n);
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+/*tex
+
+So, is this actually more efficient? Of course that depends on the usage and at the \LUA\ (in 
+\CONTEXT) end we also do some magic. Some first experiments with a 100.000 iterations on a 
+setter gave the following numbers (on a 2018 laptop), first with three keys and three key & 
+values (one {1} two {2} etc). 
+
+\starttyping
+% matcher    : 0.133 0.135 0.137 0.138 0.136
+% matcher mt : 0.129 0.128 0.130 0.125 0.130
+\stoptyping
+
+The more keys we need to check and the more key/values we need to scan, the more impact this 
+variant has. 
+
+\starttyping
+%  3 keys, 3 values: 0.14  -> 0.13
+%  8 keys, 3 values: 0.16  -> 0.13
+% 10 keys, 3 values: 0.18  -> 0.13
+%
+% 10 keys, 8 values: 0.405 -> 0.265
+\stoptyping
+
+Of course the use cases for 100.000 ten k/v are few but it actually opens up some future 
+possibilites where we don't have to worrys about a performance hit. And, after all, it was also
+just an experiment to start with. 
+
+*/
+
+/* */
+
 static const struct luaL_Reg tokenlib_function_list[] = {
     { "type",                  tokenlib_type                  },
     { "create",                tokenlib_create                },
@@ -4306,6 +4641,9 @@ static const struct luaL_Reg tokenlib_function_list[] = {
     { "setsequenced",          tokenlib_setsequenced          }, /* undocumented, just an experiment */
 # endif
     /* */
+    { "newmatcher",            tokenlib_newmatcher            },
+    { "usematcher",            tokenlib_usematcher            },
+    /* */
     { NULL,                    NULL                           },
 };
 
@@ -4322,12 +4660,21 @@ static const struct luaL_Reg tokenlib_package_metatable[] = {
     { NULL,         NULL                      },
 };
 
+static const struct luaL_Reg tokenlib_matcher_metatable[] = {
+    { "__tostring", tokenlib_matcher_tostring },
+    { "__gc",       tokenlib_matcher_gc       },
+    { NULL,         NULL                      },
+};
+
 int luaopen_token(lua_State *L)
 {
     luaL_newmetatable(L, TOKEN_METATABLE_INSTANCE);
     luaL_setfuncs(L, tokenlib_instance_metatable, 0);
     luaL_newmetatable(L, TOKEN_METATABLE_PACKAGE);
     luaL_setfuncs(L, tokenlib_package_metatable, 0);
+    luaL_newmetatable(L, TOKEN_METATABLE_MATCHER);
+    G_MATCHER_METATABLE_PTR = lua_topointer(L, -1);
+    luaL_setfuncs(L, tokenlib_matcher_metatable, 0);
     lua_newtable(L);
     luaL_setfuncs(L, tokenlib_function_list, 0);
     return 1;

@@ -109,16 +109,16 @@ void tex_print_ln(void)
         case no_print_selector_code:
             break;
         case terminal_selector_code:
-            fputc('\n', stdout);
+            lmt_putc('\n', stdout);
             lmt_print_state.terminal_offset = 0;
             break;
         case logfile_selector_code:
-            fputc('\n', lmt_print_state.logfile);
+            lmt_putc('\n', lmt_print_state.logfile);
             lmt_print_state.logfile_offset = 0;
             break;
         case terminal_and_logfile_selector_code:
-            fputc('\n', stdout);
-            fputc('\n', lmt_print_state.logfile);
+            lmt_putc('\n', stdout);
+            lmt_putc('\n', lmt_print_state.logfile);
             lmt_print_state.terminal_offset = 0;
             lmt_print_state.logfile_offset = 0;
             break;
@@ -200,31 +200,31 @@ void tex_print_char(int s)
                 break;
             case terminal_selector_code:
                 if (s == new_line_char_par) {
-                    fputc('\n', stdout);
+                    lmt_putc('\n', stdout);
                     lmt_print_state.terminal_offset = 0;
                 } else {
-                    fputc(s, stdout);
+                    lmt_putc(s, stdout);
                     ++lmt_print_state.terminal_offset;
                 }
                 break;
             case logfile_selector_code:
                 if (s == new_line_char_par) {
-                    fputc('\n', lmt_print_state.logfile);
+                    lmt_putc('\n', lmt_print_state.logfile);
                     lmt_print_state.logfile_offset = 0;
                 } else {
-                    fputc(s, lmt_print_state.logfile);
+                    lmt_putc(s, lmt_print_state.logfile);
                     ++lmt_print_state.logfile_offset;
                 }
                 break;
             case terminal_and_logfile_selector_code:
                 if (s == new_line_char_par) {
-                    fputc('\n', stdout);
-                    fputc('\n', lmt_print_state.logfile);
+                    lmt_putc('\n', stdout);
+                    lmt_putc('\n', lmt_print_state.logfile);
                     lmt_print_state.terminal_offset = 0;
                     lmt_print_state.logfile_offset = 0;
                 } else {
-                    fputc(s, stdout);
-                    fputc(s, lmt_print_state.logfile);
+                    lmt_putc(s, stdout);
+                    lmt_putc(s, lmt_print_state.logfile);
                     ++lmt_print_state.terminal_offset;
                     ++lmt_print_state.logfile_offset;
                 }
@@ -318,23 +318,23 @@ void tex_print_nlp(void)
         switch (lmt_print_state.selector) {
              case terminal_selector_code:
                  if (lmt_print_state.terminal_offset > 0) {
-                     fputc('\n', stdout);
+                     lmt_putc('\n', stdout);
                      lmt_print_state.terminal_offset = 0;
                  }
                  break;
              case logfile_selector_code:
                  if (lmt_print_state.logfile_offset > 0) {
-                     fputc('\n', lmt_print_state.logfile);
+                     lmt_putc('\n', lmt_print_state.logfile);
                      lmt_print_state.logfile_offset = 0;
                  }
                  break;
              case terminal_and_logfile_selector_code:
                  if (lmt_print_state.terminal_offset > 0) {
-                     fputc('\n', stdout);
+                     lmt_putc('\n', stdout);
                      lmt_print_state.terminal_offset = 0;
                  }
                  if (lmt_print_state.logfile_offset > 0) {
-                     fputc('\n', lmt_print_state.logfile);
+                     lmt_putc('\n', lmt_print_state.logfile);
                      lmt_print_state.logfile_offset = 0;
                  }
                  break;
@@ -394,7 +394,7 @@ void tex_print_str_len(const char *s, int len)
         }
         int newline = (s[len-1] == '\n');
         if (logfile) {
-            fwrite(s, 1, len, lmt_print_state.logfile);
+            lmt_fwrite(s, 1, len, lmt_print_state.logfile);
             if (newline) {
                 lmt_print_state.logfile_offset = 0;
             } else {
@@ -402,7 +402,7 @@ void tex_print_str_len(const char *s, int len)
             }
         }
         if (terminal) {
-            fwrite(s, 1, len, stdout);
+            lmt_fwrite(s, 1, len, stdout);
             if (newline) {
                 lmt_print_state.terminal_offset = 0;
             } else {

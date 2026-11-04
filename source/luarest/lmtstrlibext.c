@@ -2009,17 +2009,19 @@ inline static void lmt_buffer_add_spaces(lmt_string_buffer *b, int n)
     }
 }
 
-static inline void strlib_aux_add_z(lmt_string_buffer *b, lua_Number val, lua_Integer precision)
-{
-    int    req_precision = strlib_aux_normalize_precision(precision);
-    size_t req_room      = (size_t) req_precision + 350;
-    if (lmt_buffer_has_room(b, req_room)) {
-        int len = double_to_string_z(val, b->buffer + b->length, b->size - b->length, req_precision);
-        if (len >= 0) {
-            b->length += (size_t) len;
-        }
-    }
-}
+/* just use _f */
+
+// static inline void strlib_aux_add_z(lmt_string_buffer *b, lua_Number val, lua_Integer precision)
+// {
+//     int    req_precision = strlib_aux_normalize_precision(precision);
+//     size_t req_room      = (size_t) req_precision + 350;
+//     if (lmt_buffer_has_room(b, req_room)) {
+//         int len = double_to_string_z(val, b->buffer + b->length, b->size - b->length, req_precision);
+//         if (len >= 0) {
+//             b->length += (size_t) len;
+//         }
+//     }
+// }
 
 /*tex
 
@@ -3675,35 +3677,79 @@ static void strlib_aux_addformat(
                             case 'J':
                                 strlib_aux_format_jJ(L, b, &arg_idx, spec, has_precision, precision);
                                 break;
-                            /* tex|postscript points */
+                            /* tex points, accurate: */
+                         // case 'p':
+                         //     {
+                         //         lua_Number val = lua_tonumber(L, arg_idx++) / 65536.0;
+                         //         if (lmt_buffer_has_room(b, 350)) {
+                         //             b->length += double_to_string_f(val, b->buffer + b->length, 5);
+                         //             lmt_buffer_add_lstring(b,"pt", 2);
+                         //         }
+                         //     }
+                         // case 'P':
+                         //     {
+                         //         lua_Number val = lua_tonumber(L, arg_idx++) / 65536.0;
+                         //         strlib_aux_add_z(b, val, 5);
+                         //     }
+                         //     break;
+                         // /* ps points, accurate: */
+                         // case 'b':
+                         // case 'B':
+                         //     {
+                         //         lua_Number val = (lua_tonumber(L, arg_idx++) * (7200.0 / 7227.0)) / 65536.0;
+                         //         if (lmt_buffer_has_room(b, 350)) {
+                         //             b->length += double_to_string_f(val, b->buffer + b->length, 5);
+                         //             if (spec == 'b') {
+                         //                 lmt_buffer_add_lstring(b, "bp", 2);
+                         //             }
+                         //         }
+                         //         break;
+                         //     }
+                         //     break;
+                            /* tex points, compatible: */
                             case 'p':
-                                {
-                                    lua_Number val = lua_tonumber(L, arg_idx++) / 65536.0;
-                                    if (lmt_buffer_has_room(b, 350)) {
-                                        b->length += double_to_string_f(val, b->buffer + b->length, 5);
-                                        lmt_buffer_add_lstring(b,"pt", 2);
-                                    }
-                                }
-                                break;
                             case 'P':
                                 {
-                                    lua_Number val = lua_tonumber(L, arg_idx++) / 65536.0;
-                                    strlib_aux_add_z(b, val, 5);
-                                }
-                                break;
-                            case 'b':
-                                {
-                                    lua_Number val = (lua_tonumber(L, arg_idx++) * (7200.0 / 7227.0)) / 65536.0;
-                                    if (lmt_buffer_has_room(b, 350)) {
-                                        b->length += double_to_string_f(val, b->buffer + b->length, 5);
-                                        lmt_buffer_add_lstring(b,"bp", 2);
+                                    // todo: lmt_clamped_int32
+                                    lua_Number val = lua_tonumber(L, arg_idx++);
+                                    int32_t sp;
+                                    if (val >= (lua_Number) INT32_MAX) {
+                                        sp = INT32_MAX;
+                                    } else if (val <= (lua_Number) INT32_MIN) {
+                                        sp = INT32_MIN;
+                                    } else {
+                                        sp = (int32_t) (val + (val < 0 ? -0.5 : 0.5));
+                                    }
+                                    if (lmt_buffer_has_room(b, 350)) { // way too much
+                                        b->length += scaled_to_string_pt(sp, b->buffer + b->length);
+                                        if (spec == 'p') {
+                                            lmt_buffer_add_lstring(b, "pt", 2);
+                                        }
                                     }
                                     break;
                                 }
+                                break;
+                            /* ps points, compatible: */
+                            case 'b':
                             case 'B':
                                 {
+                                    // todo: lmt_clamped_int32
                                     lua_Number val = (lua_tonumber(L, arg_idx++) * (7200.0 / 7227.0)) / 65536.0;
-                                    strlib_aux_add_z(b, val, 5);
+                                    int32_t sp;
+                                    if (val >= (lua_Number) INT32_MAX) {
+                                        sp = INT32_MAX;
+                                    } else if (val <= (lua_Number) INT32_MIN) {
+                                        sp = INT32_MIN;
+                                    } else {
+                                        sp = (int32_t) (val + (val < 0 ? -0.5 : 0.5));
+                                    }
+                                    if (lmt_buffer_has_room(b, 350)) { // way too much
+                                        b->length += scaled_to_string_pt(sp, b->buffer + b->length);
+                                        if (spec == 'p') {
+                                            lmt_buffer_add_lstring(b, "pt", 2);
+                                        }
+                                    }
+                                    break;
                                 }
                                 break;
                             /* rounded float (%r) using custom auxserialize routine */
@@ -5564,7 +5610,7 @@ int luaopen_sequencer(lua_State *L)
 {
     luaL_newmetatable(L, STRING_BUFFER_METATABLE_INSTANCE);
 
-    /* Cache metatable pointer for high-performance validation */
+    /* cache metatable pointer for high-performance validation */
     G_BUFFER_METATABLE_PTR = lua_topointer(L, -1);
 
     luaL_setfuncs(L, sequencerlib_metatable_list, 0);

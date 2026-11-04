@@ -16,4 +16,6 @@ extern int    double_to_string_j  (double val, char *dest, size_t dest_size, cha
 
 extern int    integer_to_string_v (lua_Integer val, char *buf, const char *thousand_sep, size_t thousand_sep_len);
 
+extern int    scaled_to_string_pt (int32_t val, char *buf);
+
 # endif

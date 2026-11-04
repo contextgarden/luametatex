@@ -560,3 +560,58 @@ int double_to_string_j(double val, char *dest, size_t dest_size, char exp_char, 
     *end = '\0';
     return (int) (end - dest);
 }
+
+/*tex
+    Traditional \TEX\ does the |sprintf| natively but we assume it's fast enough. We optimize for
+    zero and whole points.
+*/
+
+int scaled_to_string_pt(int32_t val, char *buf)
+{
+    /* fast path for zero */
+    if (val == 0) {
+        buf[0] = '0';
+        buf[1] = '\0';
+        return 1;
+    }
+    /* obey negative values */
+    int p = 0;
+    if (val < 0) {
+        buf[p++] = '-';
+        val = -val;
+    }
+    /* fast path for exact integer multiples of 65536 (e.g., 1pt, 2pt, 10pt) */
+    int32_t integerpart = val / 65536;
+    if (val % 65536 == 0) {
+        int len = sprintf(buf + p, "%d", (int) integerpart);
+        return p + len;
+    }
+    /* regular path for fractional dimensions */
+    int32_t remainder = (val % 65536) * 10 + 5;
+    int len = sprintf(buf + p, "%d", (int) integerpart);
+    p += len;
+    buf[p++] = '.';
+    int delta = 10;
+    int digits = 0;
+    char fraction[6];
+    while (digits < 5) {
+        if (delta > 65536) {
+            remainder = remainder + 32768 - 50000;
+        }
+        fraction[digits++] = '0' + (char) (remainder / 65536);
+        remainder = (remainder % 65536) * 10;
+        delta *= 10;
+    }
+    while (digits > 0 && fraction[digits - 1] == '0') {
+        digits--;
+    }
+    if (digits > 0) {
+        memcpy(buf + p, fraction, digits);
+        p += digits;
+    } else {
+        /* strip trailing '.' if all fractional digits went away */
+        p--;
+    }
+    buf[p] = '\0';
+    return p;
+}

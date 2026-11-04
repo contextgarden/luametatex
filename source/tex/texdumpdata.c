@@ -80,7 +80,7 @@ const char * tex_get_dump_statistics_name(dump_statistics s)
 
 static void tex_aux_report_dump_state(dumpstream f, dump_statistics what)
 {
-    int total = (int) ftell(f);
+    int total = (int) lmt_ftell(f);
     lmt_dump_state.statistics[what] = (int) total - lmt_dump_state.statistics[dump_stat_total];
     lmt_dump_state.statistics[dump_stat_total] = total;
     if (what == dump_stat_fingerprint) { 
@@ -343,16 +343,16 @@ static void tex_aux_undump_fmt_data(undumpstream f)
         if (! f) {
             return tex_fatal_undump_error("filehandle");
         }
-        if (fseek(f, 0, SEEK_END) != 0) {
+        if (lmt_fseek(f, 0, SEEK_END) != 0) {
             tex_close_fmt_file(f);
             return tex_fatal_undump_error("seek failed");
         }
-        long file_size = ftell(f);
+        long file_size = lmt_ftell(f);
         if (file_size < 0) {
             tex_close_fmt_file(f);
             return tex_fatal_undump_error("tell failed");
         }
-        if (fseek(f, 0, SEEK_SET) != 0) {
+        if (lmt_fseek(f, 0, SEEK_SET) != 0) {
             tex_close_fmt_file(f);
             return tex_fatal_undump_error("seek failed");
         }

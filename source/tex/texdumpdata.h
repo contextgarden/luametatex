@@ -92,12 +92,12 @@ extern int          tex_fatal_undump_error       (const char *s);
 extern void         tex_initialize_dump_state    (void);
 extern const char * tex_get_dump_statistics_name (dump_statistics s);
 
-# define   dump_items(f,p,item_size,nitems) fwrite((void *) p, (size_t) item_size, (size_t) nitems, f)
+# define   dump_items(f,p,item_size,nitems) lmt_fwrite((void *) p, (size_t) item_size, (size_t) nitems, f)
 # define   dump_things(f,base,len)          dump_items(f, (char *) &(base), sizeof (base), (len))
 # define   dump_mem(f,x)                    dump_things(f,x,1)
 # define   dump_int(f,x)                    dump_things(f,x,1)
-# define   dump_char(f,x)                   fputc(x,f)
-# define   dump_uchar(f,x)                  fputc(x,f)
+# define   dump_char(f,x)                   lmt_putc(x,f)
+# define   dump_uchar(f,x)                  lmt_putc(x,f)
 
 # define   dump_short(f,x)                  dump_things(f,x,1)
 # define   dump_ushort(f,x)                 dump_things(f,x,1)

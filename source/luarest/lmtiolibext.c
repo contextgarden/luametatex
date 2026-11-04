@@ -20,31 +20,33 @@
 */
 # include "luametatex.h"
 
-# ifdef LUA_USE_POSIX
+// This is now done in |auxfile.h| but we keep it here for a while. 
 
-    # define l_fseek(f,o,w) fseeko(f,o,w)
-    # define l_ftell(f)     ftello(f)
-    # define l_seeknum      off_t
-
-# elif defined(LUA_WIN) && !defined(_CRTIMP_TYPEINFO) && defined(_MSC_VER) && (_MSC_VER >= 1400)
-
-    # define l_fseek(f,o,w) _fseeki64(f,o,w)
-    # define l_ftell(f)     _ftelli64(f)
-    # define l_seeknum      __int64
-
-# elif defined(__MINGW32__)
-
-    # define l_fseek(f,o,w) fseeko64(f,o,w)
-    # define l_ftell(f)     ftello64(f)
-    # define l_seeknum      int64_t
-
-# else
-
-    # define l_fseek(f,o,w) fseek(f,o,w)
-    # define l_ftell(f)     ftell(f)
-    # define l_seeknum      long
-
-# endif
+// # ifdef LUA_USE_POSIX
+// 
+//     # define l_fseek(f,o,w) fseeko(f,o,w)
+//     # define l_ftell(f)     ftello(f)
+//     # define l_seeknum      off_t
+// 
+// # elif defined(LUA_WIN) && !defined(_CRTIMP_TYPEINFO) && defined(_MSC_VER) && (_MSC_VER >= 1400)
+// 
+//     # define l_fseek(f,o,w) _fseeki64(f,o,w)
+//     # define l_ftell(f)     _ftelli64(f)
+//     # define l_seeknum      __int64
+// 
+// # elif defined(__MINGW32__)
+// 
+//     # define l_fseek(f,o,w) fseeko64(f,o,w)
+//     # define l_ftell(f)     ftello64(f)
+//     # define l_seeknum      int64_t
+// 
+// # else
+// 
+//     # define l_fseek(f,o,w) fseek(f,o,w)
+//     # define l_ftell(f)     ftell(f)
+//     # define l_seeknum      long
+// 
+// # endif
 
 # define uchar(c) ((unsigned char)(c))
 
@@ -171,7 +173,7 @@ static int fiolib_readcardinal1(lua_State *L)
 {
     FILE *f = lmt_valid_file(L);
     if (f) {
-        int a = getc(f);
+        int a = lmt_getc(f);
         if (a == EOF) {
             lua_pushnil(L);
         } else {
@@ -200,13 +202,11 @@ static int fiolib_readcardinal2(lua_State *L)
 {
     FILE *f = lmt_valid_file(L);
     if (f) {
-        int a = getc(f);
-        if (a != EOF) {
-            int b = getc(f);
-            if (b != EOF) {
-                lua_pushinteger(L, (lua_Integer) (((uint32_t) a << 8) | (uint32_t) b));
-                return 1;
-            }
+        unsigned char b[2];
+        if (lmt_fread(b, 1, 2, f) == 2) {
+            uint32_t u = ((uint32_t) b[0] << 8) | (uint32_t) b[1];
+            lua_pushinteger(L, (lua_Integer) u);
+            return 1;
         }
         lua_pushnil(L);
         return 1;
@@ -219,13 +219,11 @@ static int fiolib_readcardinal2_le(lua_State *L)
 {
     FILE *f = lmt_valid_file(L);
     if (f) {
-        int b = getc(f);
-        if (b != EOF) {
-            int a = getc(f);
-            if (a != EOF) {
-                lua_pushinteger(L, (lua_Integer) (((uint32_t) a << 8) | (uint32_t) b));
-                return 1;
-            }
+        unsigned char b[2];
+        if (lmt_fread(b, 1, 2, f) == 2) {
+            uint32_t u = ((uint32_t) b[1] << 8) | (uint32_t) b[0];
+            lua_pushinteger(L, (lua_Integer) u);
+            return 1;
         }
         lua_pushnil(L);
         return 1;
@@ -266,16 +264,11 @@ static int fiolib_readcardinal3(lua_State *L)
 {
     FILE *f = lmt_valid_file(L);
     if (f) {
-        int a = getc(f);
-        if (a != EOF) {
-            int b = getc(f);
-            if (b != EOF) {
-                int c = getc(f);
-                if (c != EOF) {
-                    lua_pushinteger(L, (lua_Integer) (((uint32_t) a << 16) | ((uint32_t) b << 8) | (uint32_t) c));
-                    return 1;
-                }
-            }
+        unsigned char b[3];
+        if (lmt_fread(b, 1, 3, f) == 3) {
+            uint32_t u = ((uint32_t) b[0] << 16) | ((uint32_t) b[1] << 8) | (uint32_t) b[2];
+            lua_pushinteger(L, (lua_Integer) u);
+            return 1;
         }
         lua_pushnil(L);
         return 1;
@@ -288,16 +281,11 @@ static int fiolib_readcardinal3_le(lua_State *L)
 {
     FILE *f = lmt_valid_file(L);
     if (f) {
-        int c = getc(f);
-        if (c != EOF) {
-            int b = getc(f);
-            if (b != EOF) {
-                int a = getc(f);
-                if (a != EOF) {
-                    lua_pushinteger(L, (lua_Integer) (((uint32_t) a << 16) | ((uint32_t) b << 8) | (uint32_t) c));
-                    return 1;
-                }
-            }
+        unsigned char b[3];
+        if (lmt_fread(b, 1, 3, f) == 3) {
+            uint32_t u = ((uint32_t) b[2] << 16) | ((uint32_t) b[1] << 8) | (uint32_t) b[0];
+            lua_pushinteger(L, (lua_Integer) u);
+            return 1;
         }
         lua_pushnil(L);
         return 1;
@@ -340,19 +328,11 @@ static int fiolib_readcardinal4(lua_State *L)
 {
     FILE *f = lmt_valid_file(L);
     if (f) {
-        int a = getc(f);
-        if (a != EOF) {
-            int b = getc(f);
-            if (b != EOF) {
-                int c = getc(f);
-                if (c != EOF) {
-                    int d = getc(f);
-                    if (d != EOF) {
-                        lua_pushinteger(L, (lua_Integer) (((uint32_t) a << 24) | ((uint32_t) b << 16) | ((uint32_t) c << 8) | (uint32_t) d));
-                        return 1;
-                    }
-                }
-            }
+        unsigned char b[4];
+        if (lmt_fread(b, 1, 4, f) == 4) {
+            uint32_t u = ((uint32_t) b[0] << 24) | ((uint32_t) b[1] << 16) | ((uint32_t) b[2] << 8) | (uint32_t) b[3];
+            lua_pushinteger(L, (lua_Integer) u);
+            return 1;
         }
         lua_pushnil(L);
         return 1;
@@ -365,19 +345,11 @@ static int fiolib_readcardinal4_le(lua_State *L)
 {
     FILE *f = lmt_valid_file(L);
     if (f) {
-        int d = getc(f);
-        if (d != EOF) {
-            int c = getc(f);
-            if (c != EOF) {
-                int b = getc(f);
-                if (b != EOF) {
-                    int a = getc(f);
-                    if (a != EOF) {
-                        lua_pushinteger(L, (lua_Integer) (((uint32_t) a << 24) | ((uint32_t) b << 16) | ((uint32_t) c << 8) | (uint32_t) d));
-                        return 1;
-                    }
-                }
-            }
+        unsigned char b[4];
+        if (lmt_fread(b, 1, 4, f) == 4) {
+            uint32_t u = ((uint32_t) b[3] << 24) | ((uint32_t) b[2] << 16) | ((uint32_t) b[1] << 8) | (uint32_t) b[0];
+            lua_pushinteger(L, (lua_Integer) u);
+            return 1;
         }
         lua_pushnil(L);
         return 1;
@@ -425,51 +397,37 @@ static int fiolib_readcardinaltable(lua_State *L)
         lua_Integer n = lua_tointeger(L, 2);
         lua_Integer m = lua_tointeger(L, 3);
         lua_createtable(L, (int) n, 0);
+        unsigned char buf[4];
         switch (m) {
             case 1:
                 for (lua_Integer i = 1; i <= n; i++) {
-                    int a = getc(f);
-                    if (a == EOF) {
-                        break;
-                    } else {
-                        lua_pushinteger(L, a);
-                        lua_rawseti(L, -2, i);
-                    }
+                    int a = lmt_getc(f);
+                    if (a == EOF) break;
+                    lua_pushinteger(L, a);
+                    lua_rawseti(L, -2, i);
                 }
                 break;
             case 2:
                 for (lua_Integer i = 1; i <= n; i++) {
-                    int a = getc(f);
-                    if (a == EOF) break;
-                    int b = getc(f);
-                    if (b == EOF) break;
-                    lua_pushinteger(L, (lua_Integer) (((uint32_t) a << 8) | (uint32_t) b));
+                    if (lmt_fread(buf, 1, 2, f) != 2) break;
+                    uint32_t u = ((uint32_t) buf[0] << 8) | (uint32_t) buf[1];
+                    lua_pushinteger(L, (lua_Integer) u);
                     lua_rawseti(L, -2, i);
                 }
                 break;
             case 3:
                 for (lua_Integer i = 1; i <= n; i++) {
-                    int a = getc(f);
-                    if (a == EOF) break;
-                    int b = getc(f);
-                    if (b == EOF) break;
-                    int c = getc(f);
-                    if (c == EOF) break;
-                    lua_pushinteger(L, (lua_Integer) (((uint32_t) a << 16) | ((uint32_t) b << 8) | (uint32_t) c));
-                    lua_rawseti(L, -2, i);
+                if (lmt_fread(buf, 1, 3, f) != 3) break;
+                uint32_t u = ((uint32_t) buf[0] << 16) | ((uint32_t) buf[1] << 8) | (uint32_t) buf[2];
+                lua_pushinteger(L, (lua_Integer) u);
+                lua_rawseti(L, -2, i);
                 }
                 break;
             case 4:
                 for (lua_Integer i = 1; i <= n; i++) {
-                    int a = getc(f);
-                    if (a == EOF) break;
-                    int b = getc(f);
-                    if (b == EOF) break;
-                    int c = getc(f);
-                    if (c == EOF) break;
-                    int d = getc(f);
-                    if (d == EOF) break;
-                    lua_pushinteger(L, (lua_Integer) (((uint32_t) a << 24) | ((uint32_t) b << 16) | ((uint32_t) c << 8) | (uint32_t) d));
+                    if (lmt_fread(buf, 1, 4, f) != 4) break;
+                    uint32_t u = ((uint32_t) buf[0] << 24) | ((uint32_t) buf[1] << 16) | ((uint32_t) buf[2] << 8) | (uint32_t) buf[3];
+                    lua_pushinteger(L, (lua_Integer) u);
                     lua_rawseti(L, -2, i);
                 }
                 break;
@@ -557,7 +515,7 @@ static int fiolib_readinteger1(lua_State *L)
 {
     FILE *f = lmt_valid_file(L);
     if (f) {
-        int a = getc(f);
+        int a = lmt_getc(f);
         if (a == EOF) {
             lua_pushnil(L);
         } else {
@@ -586,13 +544,11 @@ static int fiolib_readinteger2(lua_State *L)
 {
     FILE *f = lmt_valid_file(L);
     if (f) {
-        int a = getc(f);
-        if (a != EOF) {
-            int b = getc(f);
-            if (b != EOF) {
-                lua_pushinteger(L, siolib_signed16(((uint32_t) a << 8) | (uint32_t) b));
-                return 1;
-            }
+        unsigned char b[2];
+        if (lmt_fread(b, 1, 2, f) == 2) {
+            uint32_t u = ((uint32_t) b[0] << 8) | (uint32_t) b[1];
+            lua_pushinteger(L, siolib_signed16(u));
+            return 1;
         }
         lua_pushnil(L);
         return 1;
@@ -605,13 +561,11 @@ static int fiolib_readinteger2_le(lua_State *L)
 {
     FILE *f = lmt_valid_file(L);
     if (f) {
-        int b = getc(f);
-        if (b != EOF) {
-            int a = getc(f);
-            if (a != EOF) {
-                lua_pushinteger(L, siolib_signed16(((uint32_t) a << 8) | (uint32_t) b));
-                return 1;
-            }
+        unsigned char b[2];
+        if (lmt_fread(b, 1, 2, f) == 2) {
+            uint32_t u = ((uint32_t) b[1] << 8) | (uint32_t) b[0];
+            lua_pushinteger(L, siolib_signed16(u));
+            return 1;
         }
         lua_pushnil(L);
         return 1;
@@ -652,17 +606,11 @@ static int fiolib_readinteger3(lua_State *L)
 {
     FILE *f = lmt_valid_file(L);
     if (f) {
-        int a = getc(f);
-        if (a != EOF) {
-            int b = getc(f);
-            if (b != EOF) {
-                int c = getc(f);
-                if (c != EOF) {
-                    uint32_t u = ((uint32_t) a << 16) | ((uint32_t) b << 8) | (uint32_t) c;
-                    lua_pushinteger(L, siolib_signed24(u));
-                    return 1;
-                }
-            }
+        unsigned char b[3];
+        if (lmt_fread(b, 1, 3, f) == 3) {
+            uint32_t u = ((uint32_t) b[0] << 16) | ((uint32_t) b[1] << 8) | (uint32_t) b[2];
+            lua_pushinteger(L, siolib_signed24(u));
+            return 1;
         }
         lua_pushnil(L);
         return 1;
@@ -675,17 +623,11 @@ static int fiolib_readinteger3_le(lua_State *L)
 {
     FILE *f = lmt_valid_file(L);
     if (f) {
-        int c = getc(f);
-        if (c != EOF) {
-            int b = getc(f);
-            if (b != EOF) {
-                int a = getc(f);
-                if (a != EOF) {
-                    uint32_t u = ((uint32_t) a << 16) | ((uint32_t) b << 8) | (uint32_t) c;
-                    lua_pushinteger(L, siolib_signed24(u));
-                    return 1;
-                }
-            }
+        unsigned char b[3];
+        if (lmt_fread(b, 1, 3, f) == 3) {
+            uint32_t u = ((uint32_t) b[2] << 16) | ((uint32_t) b[1] << 8) | (uint32_t) b[0];
+            lua_pushinteger(L, siolib_signed24(u));
+            return 1;
         }
         lua_pushnil(L);
         return 1;
@@ -728,19 +670,11 @@ static int fiolib_readinteger4(lua_State *L)
 {
     FILE *f = lmt_valid_file(L);
     if (f) {
-        int a = getc(f);
-        if (a != EOF) {
-            int b = getc(f);
-            if (b != EOF) {
-                int c = getc(f);
-                if (c != EOF) {
-                    int d = getc(f);
-                    if (d != EOF) {
-                        lua_pushinteger(L, siolib_signed32(((uint32_t) a << 24) | ((uint32_t) b << 16) | ((uint32_t) c << 8) | (uint32_t) d));
-                        return 1;
-                    }
-                }
-            }
+        unsigned char b[4];
+        if (lmt_fread(b, 1, 4, f) == 4) {
+            uint32_t u = ((uint32_t) b[0] << 24) | ((uint32_t) b[1] << 16) | ((uint32_t) b[2] << 8) | (uint32_t) b[3];
+            lua_pushinteger(L, siolib_signed32(u));
+            return 1;
         }
         lua_pushnil(L);
         return 1;
@@ -753,19 +687,11 @@ static int fiolib_readinteger4_le(lua_State *L)
 {
     FILE *f = lmt_valid_file(L);
     if (f) {
-        int d = getc(f);
-        if (d != EOF) {
-            int c = getc(f);
-            if (c != EOF) {
-                int b = getc(f);
-                if (b != EOF) {
-                    int a = getc(f);
-                    if (a != EOF) {
-                        lua_pushinteger(L, siolib_signed32(((uint32_t) a << 24) | ((uint32_t) b << 16) | ((uint32_t) c << 8) | (uint32_t) d));
-                        return 1;
-                    }
-                }
-            }
+        unsigned char b[4];
+        if (lmt_fread(b, 1, 4, f) == 4) {
+            uint32_t u = ((uint32_t) b[3] << 24) | ((uint32_t) b[2] << 16) | ((uint32_t) b[1] << 8) | (uint32_t) b[0];
+            lua_pushinteger(L, siolib_signed32(u));
+            return 1;
         }
         lua_pushnil(L);
         return 1;
@@ -813,52 +739,37 @@ static int fiolib_readintegertable(lua_State *L)
         lua_Integer n = lua_tointeger(L, 2);
         lua_Integer m = lua_tointeger(L, 3);
         lua_createtable(L, (int) n, 0);
+        unsigned char buf[4];
         switch (m) {
             case 1:
                 for (lua_Integer i = 1; i <= n; i++) {
-                    int a = getc(f);
-                    if (a == EOF) {
-                        break;
-                    } else {
-                        lua_pushinteger(L, siolib_signed8((uint32_t) a));
-                        lua_rawseti(L, -2, i);
-                    }
+                    int a = lmt_getc(f);
+                    if (a == EOF) break;
+                    lua_pushinteger(L, siolib_signed8((uint32_t) a));
+                    lua_rawseti(L, -2, i);
                 }
                 break;
             case 2:
                 for (lua_Integer i = 1; i <= n; i++) {
-                    int a = getc(f);
-                    if (a == EOF) break;
-                    int b = getc(f);
-                    if (b == EOF) break;
-                    lua_pushinteger(L, siolib_signed16(((uint32_t) a << 8) | (uint32_t) b));
+                    if (lmt_fread(buf, 1, 2, f) != 2) break;
+                    uint32_t u = ((uint32_t) buf[0] << 8) | (uint32_t) buf[1];
+                    lua_pushinteger(L, siolib_signed16(u));
                     lua_rawseti(L, -2, i);
                 }
                 break;
             case 3:
                 for (lua_Integer i = 1; i <= n; i++) {
-                    int a = getc(f);
-                    if (a == EOF) break;
-                    int b = getc(f);
-                    if (b == EOF) break;
-                    int c = getc(f);
-                    if (c == EOF) break;
-                    uint32_t u = ((uint32_t) a << 16) | ((uint32_t) b << 8) | (uint32_t) c;
+                    if (lmt_fread(buf, 1, 3, f) != 3) break;
+                    uint32_t u = ((uint32_t) buf[0] << 16) | ((uint32_t) buf[1] << 8) | (uint32_t) buf[2];
                     lua_pushinteger(L, siolib_signed24(u));
                     lua_rawseti(L, -2, i);
                 }
                 break;
             case 4:
                 for (lua_Integer i = 1; i <= n; i++) {
-                    int a = getc(f);
-                    if (a == EOF) break;
-                    int b = getc(f);
-                    if (b == EOF) break;
-                    int c = getc(f);
-                    if (c == EOF) break;
-                    int d = getc(f);
-                    if (d == EOF) break;
-                    lua_pushinteger(L, siolib_signed32(((uint32_t) a << 24) | ((uint32_t) b << 16) | ((uint32_t) c << 8) | (uint32_t) d));
+                    if (lmt_fread(buf, 1, 4, f) != 4) break;
+                    uint32_t u = ((uint32_t) buf[0] << 24) | ((uint32_t) buf[1] << 16) | ((uint32_t) buf[2] << 8) | (uint32_t) buf[3];
+                    lua_pushinteger(L, siolib_signed32(u));
                     lua_rawseti(L, -2, i);
                 }
                 break;
@@ -946,14 +857,12 @@ static int fiolib_readfixed2(lua_State *L) // signed
 {
     FILE *f = lmt_valid_file(L);
     if (f) {
-        int a = getc(f);
-        if (a != EOF) {
-            int b = getc(f);
-            if (b != EOF) {
-                int16_t n = siolib_signed16(((uint32_t) a << 8) | (uint32_t) b);
-                lua_pushnumber(L, (double) n / 256.0);
-                return 1;
-            }
+    unsigned char b[2];
+        if (lmt_fread(b, 1, 2, f) == 2) {
+            uint32_t u = ((uint32_t) b[0] << 8) | (uint32_t) b[1];
+            int16_t n = siolib_signed16(u);
+            lua_pushnumber(L, (double) n / 256.0);
+            return 1;
         }
         lua_pushnil(L);
         return 1;
@@ -981,21 +890,12 @@ static int fiolib_readfixed4(lua_State *L) // signed
 {
     FILE *f = lmt_valid_file(L);
     if (f) {
-        int a = getc(f);
-        if (a != EOF) {
-            int b = getc(f);
-            if (b != EOF) {
-                int c = getc(f);
-                if (c != EOF) {
-                    int d = getc(f);
-                    if (d != EOF) {
-                        uint32_t u = ((uint32_t) a << 24) | ((uint32_t) b << 16) | ((uint32_t) c << 8) | (uint32_t) d;
-                        int32_t n = siolib_signed32(u);
-                        lua_pushnumber(L, (double) n / 65536.0);
-                        return 1;
-                    }
-                }
-            }
+    unsigned char b[4];
+        if (lmt_fread(b, 1, 4, f) == 4) {
+            uint32_t u = ((uint32_t) b[0] << 24) | ((uint32_t) b[1] << 16) | ((uint32_t) b[2] << 8) | (uint32_t) b[3];
+            int32_t n = siolib_signed32(u);
+            lua_pushnumber(L, (double) n / 65536.0);
+            return 1;
         }
         lua_pushnil(L);
         return 1;
@@ -1026,14 +926,12 @@ static int fiolib_read2dot14(lua_State *L)
 {
     FILE *f = lmt_valid_file(L);
     if (f) {
-        int a = getc(f);
-        if (a != EOF) {
-            int b = getc(f);
-            if (b != EOF) {
-                int16_t n = siolib_signed16(((uint32_t) a << 8) | (uint32_t) b);
-                lua_pushnumber(L, (double) n / 16384.0);
-                return 1;
-            }
+    unsigned char b[2];
+        if (lmt_fread(b, 1, 2, f) == 2) {
+            uint32_t u = ((uint32_t) b[0] << 8) | (uint32_t) b[1];
+            int16_t n = siolib_signed16(u);
+            lua_pushnumber(L, (double) n / 16384.0);
+            return 1;
         }
         lua_pushnil(L);
         return 1;
@@ -1081,57 +979,76 @@ static inline void copywithendian(char *dest, const char *src, unsigned size, in
 
 static inline int readwithendian4(char *dest, FILE *f, int islittle)  /* taken from lua */
 {
+    unsigned char buf[4];
+    if (lmt_fread(buf, 1, 4, f) != 4) {
+        return 0;
+    }
     if (islittle == nativeendian.little) {
-        for (unsigned i = 0; i < 4; i++) {
-            int c = getc(f);
-            if (c == EOF) {
-                return 0;
-            }
-            dest[i] = (char) c;
-        }
+        dest[0] = (char) buf[0];
+        dest[1] = (char) buf[1];
+        dest[2] = (char) buf[2];
+        dest[3] = (char) buf[3];
     } else {
-        for (unsigned i = 0; i < 4; i++) {
-            int c = getc(f);
-            if (c == EOF) {
-                return 0;
-            }
-            dest[3 - i] = (char) c;
-        }
+        dest[0] = (char) buf[3];
+        dest[1] = (char) buf[2];
+        dest[2] = (char) buf[1];
+        dest[3] = (char) buf[0];
     }
     return 1;
 }
 
 static inline int readwithendian8(char *dest, FILE *f, int islittle)  /* taken from lua */
 {
+    unsigned char buf[8];
+    if (lmt_fread(buf, 1, 8, f) != 8) {
+        return 0;
+    }
     if (islittle == nativeendian.little) {
         for (unsigned i = 0; i < 8; i++) {
-            int c = getc(f);
-            if (c == EOF) {
-                return 0;
-            }
-            dest[i] = (char) c;
+            dest[i] = (char) buf[i];
         }
     } else {
         for (unsigned i = 0; i < 8; i++) {
-            int c = getc(f);
-            if (c == EOF) {
-                return 0;
-            }
-            dest[7 - i] = (char) c;
+            dest[7 - i] = (char) buf[i];
         }
     }
     return 1;
 }
 
+// static inline void writewithendian(char *dest, FILE *f, unsigned size, int islittle)
+// {
+//     if (islittle == nativeendian.little) {
+//         for (unsigned i = 0; i < size; i++) {
+//             lmt_putc(dest[i], f);
+//         }
+//     } else {
+//         for (unsigned i = 0; i < size; i++) {
+//             lmt_putc(dest[size-1-i], f);
+//         }
+//     }
+// }
+
+/* We only have relative small slides */
+
 static inline void writewithendian(char *dest, FILE *f, unsigned size, int islittle)
 {
-    if (islittle == nativeendian.little) {
-        for (unsigned i = 0; i < size; i++) {
-            putc(dest[i], f);
-        }
-    } else {
-        for (unsigned i = 0; i < size; i++) {
-            putc(dest[size-1-i], f);
+    if (size > 0) {
+        unsigned char stack_buf[8]; /* double fits in */
+        unsigned char *buf = (size <= 8) ? stack_buf : (unsigned char *) lmt_memory_malloc(size);
+        if (buf) {
+            if (islittle == nativeendian.little) {
+                for (unsigned i = 0; i < size; i++) {
+                    buf[i] = (unsigned char) dest[i];
+                }
+            } else {
+                for (unsigned i = 0; i < size; i++) {
+                    buf[i] = (unsigned char) dest[size - 1 - i];
+                }
+            }
+            lmt_fwrite(buf, 1, (size_t) size, f);
+            if (buf != stack_buf) {
+                lmt_memory_free(buf);
+            }
         }
     }
 }
@@ -1361,7 +1278,7 @@ static int fiolib_getposition(lua_State *L)
 {
     FILE *f = lmt_valid_file(L);
     if (f) {
-        l_seeknum p = l_ftell(f);
+        lmt_seeknum p = lmt_ftell(f);
         if (p < 0) {
             lua_pushnil(L);
         } else {
@@ -1377,9 +1294,9 @@ static int fiolib_setposition(lua_State *L)
 {
     FILE *f = lmt_valid_file(L);
     if (f) {
-        l_seeknum p = (l_seeknum) lua_tointeger(L, 2);
-        if (l_fseek(f, p, SEEK_SET) == 0) {
-            lua_pushinteger(L, (lua_Integer) l_ftell(f));
+        lmt_seeknum p = (lmt_seeknum) lua_tointeger(L, 2);
+        if (lmt_fseek(f, p, SEEK_SET) == 0) {
+            lua_pushinteger(L, (lua_Integer) lmt_ftell(f));
         } else {
             lua_pushnil(L);
         }
@@ -1393,9 +1310,9 @@ static int fiolib_skipposition(lua_State *L)
 {
     FILE *f = lmt_valid_file(L);
     if (f) {
-        l_seeknum p = (l_seeknum) lua_tointeger(L, 2);
-        if (l_fseek(f, p, SEEK_CUR) == 0) {
-            lua_pushinteger(L, (lua_Integer) l_ftell(f));
+        lmt_seeknum p = (lmt_seeknum) lua_tointeger(L, 2);
+        if (lmt_fseek(f, p, SEEK_CUR) == 0) {
+            lua_pushinteger(L, (lua_Integer) lmt_ftell(f));
         } else {
             lua_pushnil(L);
         }
@@ -1405,19 +1322,50 @@ static int fiolib_skipposition(lua_State *L)
     }
 }
 
+// static int fiolib_readbytetable(lua_State *L)
+// {
+//     FILE *f = lmt_valid_file(L);
+//     if (f) {
+//         lua_Integer n = lua_tointeger(L, 2);
+//         lua_createtable(L, (int) n, 0);
+//         for (lua_Integer i = 1; i <= n; i++) {
+//             int a = lmt_getc(f);
+//             if (a == EOF) {
+//                 break;
+//             } else {
+//                 lua_pushinteger(L, a);
+//                 lua_rawseti(L, -2, i);
+//             }
+//         }
+//         return 1;
+//     } else {
+//         return 0;
+//     }
+// }
+
 static int fiolib_readbytetable(lua_State *L)
 {
     FILE *f = lmt_valid_file(L);
     if (f) {
         lua_Integer n = lua_tointeger(L, 2);
-        lua_createtable(L, (int) n, 0);
-        for (lua_Integer i = 1; i <= n; i++) {
-            int a = getc(f);
-            if (a == EOF) {
-                break;
-            } else {
-                lua_pushinteger(L, a);
-                lua_rawseti(L, -2, i);
+        if (n <= 0) {
+            lua_createtable(L, 0, 0);
+        } else {
+            lua_createtable(L, (int) n, 0);
+            unsigned char buf[1024];
+            lua_Integer loaded = 0;
+            while (loaded < n) {
+                size_t to_read    = (size_t) ((n - loaded > 1024) ? 1024 : (n - loaded));
+                size_t read_bytes = lmt_fread(buf, 1, to_read, f);
+                for (size_t i = 0; i < read_bytes; i++) {
+                    lua_pushinteger(L, (lua_Integer) buf[i]);
+                    lua_rawseti(L, -2, loaded + (lua_Integer) i + 1);
+                }
+                if (read_bytes < to_read) {
+                    /* EOF or read error reached early */
+                    break;
+                }
+                loaded += (lua_Integer) read_bytes;
             }
         }
         return 1;
@@ -1425,7 +1373,6 @@ static int fiolib_readbytetable(lua_State *L)
         return 0;
     }
 }
-
 static int siolib_readbytetable(lua_State *L)
 {
     size_t p, l;
@@ -1447,23 +1394,49 @@ static int siolib_readbytetable(lua_State *L)
     return 1;
 }
 
+// static int fiolib_readbytes(lua_State *L)
+// {
+//     FILE *f = lmt_valid_file(L);
+//     if (f) {
+//         lua_Integer n = lua_tointeger(L, 2);
+//         for (lua_Integer i = 1; i <= n; i++) {
+//             int a = lmt_lmt_getc(f);
+//             if (a == EOF) {
+//                 return (int) (i - 1);
+//             } else {
+//                 lua_pushinteger(L, a);
+//             }
+//         }
+//         return (int) n;
+//     } else {
+//         return 0;
+//     }
+// }
+
 static int fiolib_readbytes(lua_State *L)
 {
     FILE *f = lmt_valid_file(L);
     if (f) {
         lua_Integer n = lua_tointeger(L, 2);
-        for (lua_Integer i = 1; i <= n; i++) {
-            int a = getc(f);
-            if (a == EOF) {
-                return (int) (i - 1);
-            } else {
-                lua_pushinteger(L, a);
+        if (n > 0) {
+            unsigned char buf[1024];
+            lua_Integer loaded = 0;
+            while (loaded < n) {
+                size_t to_read    = (size_t) ((n - loaded > 1024) ? 1024 : (n - loaded));
+                size_t read_bytes = lmt_fread(buf, 1, to_read, f);
+                for (size_t i = 0; i < read_bytes; i++) {
+                    lua_pushinteger(L, (lua_Integer) buf[i]);
+                }
+                loaded += (lua_Integer) read_bytes;
+                if (read_bytes < to_read) {
+                    /* EOF or read error reached early */
+                    break;
+                }
             }
+            return (int) loaded;
         }
-        return (int) n;
-    } else {
-        return 0;
     }
+    return 0;
 }
 
 static int siolib_readbytes(lua_State *L)
@@ -1501,13 +1474,13 @@ static int fiolib_readcline(lua_State *L)
             char *b = luaL_prepbuffer(&buf);
             int i = 0;
             while (i < LUAL_BUFFERSIZE) {
-                c = fgetc(f);
+                c = lmt_getc(f);
                 if (c == '\n') {
                     goto GOOD;
                 } else if (c == '\r') {
-                    c = fgetc(f);
+                    c = lmt_getc(f);
                     if (c != EOF && c != '\n') {
-                        ungetc(c, f);
+                        lmt_ungetc(c, f);
                     }
                     goto GOOD;
                 } else if (c == EOF) {
@@ -1529,7 +1502,7 @@ static int fiolib_readcline(lua_State *L)
       GOOD:
         luaL_addsize(&buf, n);
         luaL_pushresult(&buf);
-        lua_pushinteger(L, (lua_Integer) l_ftell(f));
+        lua_pushinteger(L, (lua_Integer) lmt_ftell(f));
         return 2;
     }
   BAD:
@@ -1591,7 +1564,7 @@ static int fiolib_readcstring(lua_State *L)
             char *b = luaL_prepbuffer(&buf);
             int i = 0;
             while (i < LUAL_BUFFERSIZE) {
-                c = fgetc(f);
+                c = lmt_getc(f);
                 if (c == '\0') {
                     goto GOOD;
                 } else if (c == EOF) {
@@ -1614,7 +1587,7 @@ static int fiolib_readcstring(lua_State *L)
         } else {
             lua_pushliteral(L, "");
         }
-        lua_pushinteger(L, (lua_Integer) l_ftell(f));
+        lua_pushinteger(L, (lua_Integer) lmt_ftell(f));
         return 2;
     }
   BAD:
@@ -1670,17 +1643,17 @@ static int fiolib_readnstring(lua_State *L)
     }
     luaL_Buffer buf;
     char *b = luaL_buffinitsize(L, &buf, n);
-    size_t bytes_read = fread(b, 1, n, f);
+    size_t bytes_read = lmt_fread(b, 1, n, f);
     if (bytes_read == 0) {
         lua_pushliteral(L, "");
-        lua_pushinteger(L, (lua_Integer) l_ftell(f));
+        lua_pushinteger(L, (lua_Integer) lmt_ftell(f));
         return 2;
     }
     char *nul = memchr(b, '\0', bytes_read);
     size_t len = nul ? (size_t) (nul - b) : bytes_read;
     luaL_addsize(&buf, len);
     luaL_pushresult(&buf);
-    lua_pushinteger(L, (lua_Integer) l_ftell(f));
+    lua_pushinteger(L, (lua_Integer) lmt_ftell(f));
     return 2;
 }
 
@@ -1727,7 +1700,7 @@ static int fiolib_writecardinal1(lua_State *L)
     FILE *f = lmt_valid_file(L);
     if (f) {
         uint64_t n = (uint64_t) lua_tointeger(L, 2);
-        putc((char) (n & 0xFF), f);
+        lmt_putc((char) (n & 0xFF), f);
     }
     return 0;
 }
@@ -1745,8 +1718,11 @@ static int fiolib_writecardinal2(lua_State *L)
     FILE *f = lmt_valid_file(L);
     if (f) {
         uint64_t n = (uint64_t) lua_tointeger(L, 2);
-        putc((char) ((n >> 8) & 0xFF), f);
-        putc((char) ( n       & 0xFF), f);
+        char buffer[2] = {
+            (char) ((n >> 8) & 0xFF),
+            (char) ( n       & 0xFF)
+        };
+        lmt_fwrite(buffer, 1, 2, f);
     }
     return 0;
 }
@@ -1767,8 +1743,11 @@ static int fiolib_writecardinal2_le(lua_State *L)
     FILE *f = lmt_valid_file(L);
     if (f) {
         uint64_t n = (uint64_t) lua_tointeger(L, 2);
-        putc((char) ( n       & 0xFF), f);
-        putc((char) ((n >> 8) & 0xFF), f);
+        char buffer[2] = {
+            (char) ( n       & 0xFF),
+            (char) ((n >> 8) & 0xFF)
+        };
+        lmt_fwrite(buffer, 1, 2, f);
     }
     return 0;
 }
@@ -1789,9 +1768,12 @@ static int fiolib_writecardinal3(lua_State *L)
     FILE *f = lmt_valid_file(L);
     if (f) {
         uint64_t n = (uint64_t) lua_tointeger(L, 2);
-        putc((char) ((n >> 16) & 0xFF), f);
-        putc((char) ((n >>  8) & 0xFF), f);
-        putc((char) ( n        & 0xFF), f);
+        char buffer[3] = {
+            (char) ((n >> 16) & 0xFF),
+            (char) ((n >>  8) & 0xFF),
+            (char) ( n        & 0xFF)
+        };
+        lmt_fwrite(buffer, 1, 3, f);
     }
     return 0;
 }
@@ -1813,9 +1795,12 @@ static int fiolib_writecardinal3_le(lua_State *L)
     FILE *f = lmt_valid_file(L);
     if (f) {
         uint64_t n = (uint64_t) lua_tointeger(L, 2);
-        putc((char) ( n        & 0xFF), f);
-        putc((char) ((n >>  8) & 0xFF), f);
-        putc((char) ((n >> 16) & 0xFF), f);
+        char buffer[3] = {
+            (char) ( n        & 0xFF),
+            (char) ((n >>  8) & 0xFF),
+            (char) ((n >> 16) & 0xFF)
+        };
+        lmt_fwrite(buffer, 1, 3, f);
     }
     return 0;
 }
@@ -1837,10 +1822,13 @@ static int fiolib_writecardinal4(lua_State *L)
     FILE *f = lmt_valid_file(L);
     if (f) {
         uint64_t n = (uint64_t) lua_tointeger(L, 2);
-        putc((char) ((n >> 24) & 0xFF), f);
-        putc((char) ((n >> 16) & 0xFF), f);
-        putc((char) ((n >>  8) & 0xFF), f);
-        putc((char) ( n        & 0xFF), f);
+        char buffer[4] = {
+            (char) ((n >> 24) & 0xFF),
+            (char) ((n >> 16) & 0xFF),
+            (char) ((n >>  8) & 0xFF),
+            (char) ( n        & 0xFF)
+        };
+        lmt_fwrite(buffer, 1, 4, f);
     }
     return 0;
 }
@@ -1863,10 +1851,13 @@ static int fiolib_writecardinal4_le(lua_State *L)
     FILE *f = lmt_valid_file(L);
     if (f) {
         uint64_t n = (uint64_t) lua_tointeger(L, 2);
-        putc((char) ( n        & 0xFF), f);
-        putc((char) ((n >>  8) & 0xFF), f);
-        putc((char) ((n >> 16) & 0xFF), f);
-        putc((char) ((n >> 24) & 0xFF), f);
+        char buffer[4] = {
+            (char) ( n        & 0xFF),
+            (char) ((n >>  8) & 0xFF),
+            (char) ((n >> 16) & 0xFF),
+            (char) ((n >> 24) & 0xFF)
+        };
+        lmt_fwrite(buffer, 1, 4, f);
     }
     return 0;
 }
@@ -2098,7 +2089,7 @@ static int io_gobble(lua_State *L)
     if (f) {
         int c;
         int n = 0;
-        while ((c = getc(f)) != EOF && c != '\n') {
+        while ((c = lmt_getc(f)) != EOF && c != '\n') {
             n = 1;
         }
         lua_pushboolean(L, ((c == '\n') || n));

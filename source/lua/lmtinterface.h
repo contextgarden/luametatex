@@ -346,6 +346,7 @@ extern int  luaextend_xcomplex  (lua_State *L);
 
 # define TOKEN_METATABLE_INSTANCE "token.instance"
 # define TOKEN_METATABLE_PACKAGE  "token.package"
+# define TOKEN_METATABLE_MATCHER  "token.matcher"
 
 /*tex Used in |lmtlanguagelib|. */
 
@@ -1670,6 +1671,7 @@ make_lua_key_alias(L, node_properties_indirect, NODE_PROPERTIES_INDIRECT);\
 /* */ \
 make_lua_key_alias(L, token_instance,           TOKEN_METATABLE_INSTANCE);\
 make_lua_key_alias(L, token_package,            TOKEN_METATABLE_PACKAGE);\
+make_lua_key_alias(L, token_matcher,            TOKEN_METATABLE_MATCHER);\
 /* */ \
 make_lua_key_alias(L, language_instance,        LANGUAGE_METATABLE_INSTANCE);\
 make_lua_key_alias(L, language_functions,       LANGUAGE_FUNCTIONS_REGISTRY);\

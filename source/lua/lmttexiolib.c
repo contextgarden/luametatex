@@ -186,10 +186,10 @@ static void texiolib_aux_print_stdout(lua_State *L, const char *extra, int extra
             const char *s = lua_tolstring(L, i, &s_len);
             if (l == terminal_and_logfile_selector_code || l == terminal_selector_code) {
                 if (extra_len > 0) {
-                    fwrite(extra, 1, (size_t) extra_len, stdout);
+                    lmt_fwrite(extra, 1, (size_t) extra_len, stdout);
                 }
                 if (s_len > 0) {
-                    fwrite(s, 1, s_len, stdout);
+                    lmt_fwrite(s, 1, s_len, stdout);
                 }
             }
             if (l == terminal_and_logfile_selector_code || l == logfile_selector_code) {

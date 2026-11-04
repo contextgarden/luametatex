@@ -1183,7 +1183,7 @@ int tex_scan_keyword_case_sensitive(const char *s)
     if (*s) {
         halfword h = null;
         halfword p = null;
-        halfword save_cur_cs = cur_cs;
+        halfword save_cur_cs = cur_cs; // can go, happens at the caller
         int n = 0;
         while (*s) {
             tex_get_x_token();

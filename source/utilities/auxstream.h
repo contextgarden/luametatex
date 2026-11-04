@@ -96,17 +96,17 @@ typedef FILE *dumpstream;
 
     typedef FILE *undumpstream;
 
-    # define undump_items(f,p,item_size,nitems) fread ((void *) p, (size_t) item_size, (size_t) nitems, f)
+    # define undump_items(f,p,item_size,nitems) lmt_fread ((void *) p, (size_t) item_size, (size_t) nitems, f)
     # define undump_things(f,base,len)          undump_items(f, (char *) &(base), sizeof (base), (len))
 
     # define undump_mem(f,x)                    undump_things(f,x,1)
     # define undump_int(f,x)                    undump_things(f,x,1)
-    # define undump_char(f,x)                   x = (char) fgetc(f)
-    # define undump_uchar(f,x)                  x = (unsigned char) fgetc(f)
+    # define undump_char(f,x)                   x = (char) lmt_getc(f)
+    # define undump_uchar(f,x)                  x = (unsigned char) lmt_getc(f)
     # define undump_short(f,x)                  undump_things(f,x,1)
     # define undump_ushort(f,x)                 undump_things(f,x,1)
 
-    # define undump_total(f)                    ftell(f)
+    # define undump_total(f)                    lmt_ftell(f)
 
 # endif
 
