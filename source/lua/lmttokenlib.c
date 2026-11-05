@@ -4476,7 +4476,7 @@ static int tokenlib_matcher_tostring(lua_State *L)
 {
     keyword_matcher *n = tokenlib_aux_maybe_ismatcher(L, 1);
     if (n) {
-        lua_pushfstring(L, "<token matcher %p>", n);
+        lua_pushfstring(L, "<token matcher %p: %d keys>", n, n->count);
         return 1;
     } else {
         return 0;
@@ -4645,7 +4645,7 @@ static const struct luaL_Reg tokenlib_function_list[] = {
 # if token_sequenced_test
     { "setsequenced",          tokenlib_setsequenced          }, /* undocumented, just an experiment */
 # endif
-    /* */
+    /* */ /*tex This has to be tested for a while, rather \CONTEXT\ driven: */
     { "newmatcher",            tokenlib_newmatcher            },
     { "usematcher",            tokenlib_usematcher            },
     /* */

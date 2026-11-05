@@ -5548,6 +5548,132 @@ static int strlib_sequenced(lua_State *L)
     return 1;
 }
 
+/*tex 
+
+    This feature is mostly for storing streams (like we use in fonts) efficiently. We convert 
+    an array |0..n] into two strings, an index with packed integers that are offsets in a second 
+    string that has the data. We assume a zero based table so one has to set slot zero even if 
+    it is not used. Although access is actually slower we can safe on not allocating thousands
+    of strings of which we only need a handful. The \LUAMETATEX\ manual or instance only needs
+    a few thousand shapes (glyph streams).
+
+*/
+
+static int strlib_packstrings(lua_State *L) 
+{
+    luaL_checktype(L, 1, LUA_TTABLE);
+    /* we check if there is a slot [0] */
+    lua_rawgeti(L, 1, 0);
+    int has_zero = ! lua_isnil(L, -1);
+    lua_pop(L, 1);
+    if (! has_zero) {
+        return luaL_error(L, "strlib.packstrings expects a zero indexed table");
+    }
+    /* we count the number of strings btu also the total size */
+    size_t      count = 0;
+    size_t      total = 0;
+    lua_Integer i     = 0;
+    while (1) {
+        lua_rawgeti(L, 1, i);
+        if (lua_isnil(L, -1)) {
+            lua_pop(L, 1);
+            break;
+        } else {
+            size_t len;
+            if (! lua_tolstring(L, -1, &len)) {
+                return luaL_error(L, "strlib.packstrings has no string at index %i", (int) i);
+            }
+            total += len;
+            count++;
+            lua_pop(L, 1);
+            i++;
+        }
+    }
+    /* we store the offsets in a bytestream (we need to be aligned) */
+    size_t    offsets_bytes = (count + 1) * sizeof(uint32_t);
+    uint32_t *offsets       = lmt_memory_malloc_aligned(offsets_bytes, sizeof(uint32_t));
+    if (! offsets) {
+        return luaL_error(L, "strlib.packstrings ran out of memory");
+    }
+    /* we can preallocate the buffer */
+    luaL_Buffer data;
+    luaL_buffinit(L, &data);
+    char *data_ptr = luaL_prepbuffsize(&data, total);
+    /* we collect */    
+    offsets[0] = 0;
+    size_t data_offset   = 0;
+    size_t data_position = 0;
+    for (i = 0; i < (lua_Integer) count; i++) {
+        lua_rawgeti(L, 1, i);
+        size_t      len;
+        const char *str = lua_tolstring(L, -1, &len);
+        memcpy(data_ptr + data_position, str, len);
+        data_position += len;
+        data_offset   += len;
+        offsets[i + 1] = (uint32_t) data_offset;
+        lua_pop(L, 1);
+    }
+    /* we finalize the buffer */
+    luaL_addsize(&data, total);
+    /* we need to deal with the buffer being on the stack */
+    luaL_pushresult(&data); 
+    /* stack: [data] */
+    lua_pushlstring(L, (const char *) offsets, offsets_bytes); 
+    /* stack: [data] [index] */
+    lua_createtable(L, 0, 2); 
+    /* stack: [data] [index] [result] */
+    lua_pushvalue(L, -2); 
+    /* stack: [data] [index] [result] [index] */
+    lua_setfield(L, -2, "index"); 
+    /* stack: [data] [index] [result]  */
+    lua_pushvalue(L, -3);
+    /* stack: [data] [index] [result] [data] */
+    lua_setfield(L, -2, "data"); 
+    /* stack: [data] [index] [result] */
+    lua_remove(L, -2);
+    lua_remove(L, -2);
+    /* stack: [result] */
+    lmt_memory_free_aligned(offsets);
+    return 1;
+}
+
+static int strlib_getpackedstring(lua_State *L) 
+{
+    luaL_checktype(L, 1, LUA_TTABLE);
+    lua_Integer slot = luaL_checkinteger(L, 2);
+    if (slot < 0) {
+        return 0;
+    }
+    /* get and validate the index and offset of the slot */
+    lua_getfield(L, 1, "index"); /* todo : use key */
+    size_t      index_len;
+    const char *index_ptr = lua_tolstring(L, -1, &index_len);
+    if ((size_t) slot + 1 >= (index_len / sizeof(uint32_t))) {
+        return 0;
+    }
+ # if 0
+    /* This should normally work okay as we only read: */
+    const uint32_t *offsets = (const uint32_t *) index_ptr;
+    uint32_t        start   = offsets[slot];
+    uint32_t        end     = offsets[slot + 1];
+ # else 
+    /* But I cheched his on the web and got this suggested to prevent alignment issues: */
+    uint32_t start, end;
+    memcpy(&start, index_ptr +  (slot      * sizeof(uint32_t)), sizeof(uint32_t));
+    memcpy(&end,   index_ptr + ((slot + 1) * sizeof(uint32_t)), sizeof(uint32_t));
+ # endif 
+    lua_pop(L, 1);
+    /* filter the data of slot */
+    lua_getfield(L, 1, "data"); /* todo : use key */
+    size_t      data_len;
+    const char *data_ptr = lua_tolstring(L, -1, &data_len);
+    if (end > data_len || start > end) {
+        return 0;
+    }
+    lua_pushlstring(L, data_ptr + start, end - start);
+    return 1;
+}
+
 /*tex
 
     We define these function in the |strlib| namespace but eventually register them in their own
@@ -5577,6 +5703,9 @@ static const luaL_Reg sequencerlib_function_list[] = {
     { "addpackingtobuffer", strlib_buffer_addpacking  },
     { "getbufferdata",      strlib_buffer_get_data    },
     { "getbuffersize",      strlib_buffer_get_size    },
+    /* */
+    { "packstrings",        strlib_packstrings        },
+    { "getpackedstring",    strlib_getpackedstring    },
     /* */
     { NULL,                NULL                       },
 };
