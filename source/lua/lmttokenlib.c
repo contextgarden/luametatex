@@ -4634,6 +4634,7 @@ static const struct luaL_Reg tokenlib_function_list[] = {
     { "getparameters",         tokenlib_getparameters         },
     { "getconstant",           tokenlib_getconstant           },
     { "getmacro",              tokenlib_getmacro              },
+    { "getconstantmacro",      tokenlib_getconstantmacro      },
     { "getmeaning",            tokenlib_getmeaning            },
     { "getcmdchrcs",           tokenlib_getcmdchrcs           },
     { "getcstoken",            tokenlib_getcstoken            },
