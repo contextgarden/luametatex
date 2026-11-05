@@ -5,10 +5,9 @@
 # ifndef LMT_COMPILER_H
 # define LMT_COMPILER_H
 
-# if defined(__GLIBC__) && ! defined(_GNU_SOURCE)
-#   define _GNU_SOURCE
-# endif
-
+// # if defined(__GLIBC__) && ! defined(_GNU_SOURCE)
+// #   define _GNU_SOURCE
+// # endif
 
 # include <stdbool.h>
 # include <stdint.h>

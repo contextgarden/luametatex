@@ -4185,7 +4185,7 @@ static int tokenlib_getfunctionvalues(lua_State *L)
     a userdata approach might be better so I gave it a try.
     
     Because we scan token by token we need a tree to store the characters, which, contrary to 
-    the regular keyword scasnner, can be \UTF, so we can use numbers. Given that there are 
+    the regular keyword scanner (1), can be \UTF, so we can use numbers. Given that there are 
     several ways to implement such a tree I just asked Gemini for a reasonable approach also 
     given memory usage so it came up with one (actually few to choise from) that we stepwise 
     adapted to our needs (like a sprted insert to make the longest match working). The next
@@ -4228,6 +4228,9 @@ static int tokenlib_getfunctionvalues(lua_State *L)
     to be an expandable control sequence (constant or variable in \CONTEXT\ speak) which then 
     should also work when we ignore spaces. Of course there is a bit of optimization. 
 
+    (1) Actually when we use the case sentitive scanner \UTF\ works fine because then there 
+    is no \ASCII\ casing going on, as in regular \TEX\ interface keywords. 
+
 */
 
 typedef struct keyword_node {
@@ -4242,18 +4245,28 @@ typedef struct keyword_matcher {
     int           count;
 } keyword_matcher;
 
-static keyword_node *tokenlib_aux_trie_get_or_insert_child(keyword_node *curr, int cp)
+inline static keyword_node *tokenlib_aux_trie_allocate(void)
 {
-    int n    = curr->nofchildren;
+    keyword_node *n = lmt_memory_malloc(sizeof(keyword_node));
+    n->index       = 0;
+    n->nofchildren = 0;
+    n->keys        = NULL;
+    n->children    = NULL;
+    return n;
+}
+
+static keyword_node *tokenlib_aux_trie_get_or_insert_child(keyword_node *current, int uni)
+{
+    int n    = current->nofchildren;
     int low  = 0;
     int high = n - 1;
     /*tex binary search to see if the child already exists */
     while (low <= high) {
         int mid = low + (high - low) / 2;
-        if (curr->keys[mid] == cp) {
+        if (current->keys[mid] == uni) {
             /* existing child found */
-            return curr->children[mid];
-        } else if (curr->keys[mid] < cp) {
+            return current->children[mid];
+        } else if (current->keys[mid] < uni) {
             low = mid + 1;
         } else {
             high = mid - 1;
@@ -4261,40 +4274,75 @@ static keyword_node *tokenlib_aux_trie_get_or_insert_child(keyword_node *curr, i
     }
     /*tex |low| is now the correct sorted insertion index */
     int insert_idx = low;
-    curr->nofchildren++;
-    curr->keys = lmt_memory_realloc(curr->keys, curr->nofchildren * sizeof(int));
-    curr->children = lmt_memory_realloc(curr->children, curr->nofchildren * sizeof(keyword_node *));
+    current->nofchildren++;
+    current->keys     = lmt_memory_realloc(current->keys, current->nofchildren * sizeof(int));
+    current->children = lmt_memory_realloc(current->children, current->nofchildren * sizeof(keyword_node *));
     /*tex shift elements to the right to maintain ascending sorted order */
-    for (int i = curr->nofchildren - 1; i > insert_idx; i--) {
-        curr->keys[i] = curr->keys[i - 1];
-        curr->children[i] = curr->children[i - 1];
+    for (int i = current->nofchildren - 1; i > insert_idx; i--) {
+        current->keys    [i] = current->keys    [i - 1];
+        current->children[i] = current->children[i - 1];
     }
     /*tex insert the new child node at the correct position */
-    curr->keys[insert_idx] = cp;
-    keyword_node *new_node = lmt_memory_malloc(sizeof(keyword_node));
-    new_node->index       = 0;
-    new_node->nofchildren = 0;
-    new_node->keys        = NULL;
-    new_node->children    = NULL;
-    curr->children[insert_idx] = new_node;
+    current->keys[insert_idx] = uni;
+    keyword_node *new_node = tokenlib_aux_trie_allocate();
+    current->children[insert_idx] = new_node;
     return new_node;
 }
 
 static void tokenlib_aux_trie_insert(keyword_node *root, const char *str, int index)
 {
-    keyword_node *curr = root;
-    const unsigned char *p = (const unsigned char *) str;
-    size_t remaining = strlen(str);
+    keyword_node        *current   = root;
+    const unsigned char *p         = (const unsigned char *) str;
+    size_t               remaining = strlen(str);
     while (remaining > 0) {
-        int          ulen;
-        unsigned int cp = aux_str2uni_len(p, remaining, &ulen);
-        /* get or insert the child while keeping keys sorted */
-        curr = tokenlib_aux_trie_get_or_insert_child(curr, (int) cp);
-        p += ulen;
-        remaining -= (size_t) ulen;
+        int          len;
+        unsigned int uni = aux_str2uni_len(p, remaining, &len);
+        /*tex get or insert the child while keeping keys sorted */
+        current = tokenlib_aux_trie_get_or_insert_child(current, (int) uni);
+        p += len;
+        remaining -= (size_t) len;
     }
-    /* mark terminal node with its target index */
-    curr->index = index;
+    /*tex mark terminal node with its target index */
+    current->index = index;
+}
+
+static keyword_node *tokenlib_aux_find_child(keyword_node *current, int cp) 
+{
+    int n = current->nofchildren;
+    if (n < 6) {
+        /*tex Here the 6 is a bit of a gamble. */
+        for (int i = 0; i < n; i++) {
+            if (current->keys[i] == cp) {
+                return current->children[i];
+            }
+        }
+    } else {
+        int low = 0, high = n - 1;
+        while (low <= high) {
+            int mid = low + (high - low) / 2;
+            if (current->keys[mid] == cp) {
+                return current->children[mid];
+            } else if (current->keys[mid] < cp) { 
+                low = mid + 1;
+            } else { 
+                high = mid - 1;
+            }
+        }
+    }
+    return NULL;
+}
+
+static void tokenlib_aux_trie_free(keyword_node *node) 
+{
+    if (! node) { 
+        return;
+    }
+    for (int i = 0; i < node->nofchildren; i++) {
+        tokenlib_aux_trie_free(node->children[i]);
+    }
+    lmt_memory_free(node->keys);
+    lmt_memory_free(node->children);
+    lmt_memory_free(node);
 }
 
 /*tex 
@@ -4325,11 +4373,7 @@ static int tokenlib_newmatcher(lua_State *L)
 {
     luaL_checktype(L, 1, LUA_TTABLE);
     keyword_matcher *matcher = lua_newuserdata(L, sizeof(keyword_matcher));
-    matcher->root = lmt_memory_malloc(sizeof(keyword_node));
-    matcher->root->index = 0;
-    matcher->root->nofchildren = 0;
-    matcher->root->keys = NULL;
-    matcher->root->children = NULL;
+    matcher->root  = tokenlib_aux_trie_allocate();
     matcher->count = 0;
     int n = 0;
     lua_pushnil(L);
@@ -4346,32 +4390,6 @@ static int tokenlib_newmatcher(lua_State *L)
     lua_get_metatablelua(token_matcher);
     lua_setmetatable(L, -2);
     return 1;
-}
-
-static keyword_node *tokenlib_aux_find_child(keyword_node *curr, int cp) 
-{
-    int n = curr->nofchildren;
-    if (n < 6) {
-        /*tex Here the 6 is a bit of a gamble. */
-        for (int i = 0; i < n; i++) {
-            if (curr->keys[i] == cp) {
-                return curr->children[i];
-            }
-        }
-    } else {
-        int low = 0, high = n - 1;
-        while (low <= high) {
-            int mid = low + (high - low) / 2;
-            if (curr->keys[mid] == cp) {
-                return curr->children[mid];
-            } else if (curr->keys[mid] < cp) { 
-                low = mid + 1;
-            } else { 
-                high = mid - 1;
-            }
-        }
-    }
-    return NULL;
 }
 
 /*tex
@@ -4442,19 +4460,6 @@ static int tokenlib_usematcher(lua_State *L)
     }
     tokenlib_aux_unsave_tex_scanner(texstate);
     return 1;
-}
-
-static void tokenlib_aux_trie_free(keyword_node *node) 
-{
-    if (! node) { 
-        return;
-    }
-    for (int i = 0; i < node->nofchildren; i++) {
-        tokenlib_aux_trie_free(node->children[i]);
-    }
-    lmt_memory_free(node->keys);
-    lmt_memory_free(node->children);
-    lmt_memory_free(node);
 }
 
 static int tokenlib_matcher_gc(lua_State *L)

@@ -11,7 +11,7 @@
 # ifndef LMT_UTILITIES_MEMORY_H
 # define LMT_UTILITIES_MEMORY_H
 
-# define lmt_force_align 1
+# define lmt_memory_force_align 1
 
 # define LMT_MEMORY_ALIGNMENT 64
 
@@ -25,6 +25,7 @@
 
 # include <stdlib.h>
 # include <string.h>
+# include <stdint.h>
 
 # if defined(LUAMETATEX_USE_MIMALLOC)
 
@@ -109,20 +110,66 @@
             size_t alignment
         )
         {
-            void *ptr = NULL;
-            if (posix_memalign(&ptr, alignment < sizeof(void *) ? sizeof(void *) : alignment, size) != 0) {
+            size_t header_size = sizeof(size_t);
+            size_t total_size = size + alignment + header_size;
+            void *raw_ptr = NULL;
+            if (posix_memalign(&raw_ptr, alignment < sizeof(void *) ? sizeof(void *) : alignment, total_size) != 0) {
                 return NULL;
+            }
+            char *aligned_ptr = (char *) (((uintptr_t) raw_ptr + header_size + alignment - 1) & ~(uintptr_t)(alignment - 1));
+            ((size_t *) aligned_ptr)[-1] = size;
+            ((void **) aligned_ptr)[-2] = raw_ptr;
+            return (void *) aligned_ptr;
+        }
+
+        static inline void lmt_memory_fallback_free_aligned (
+            void *p
+        )
+        {
+            if (p) {
+                void *raw_ptr = ((void **) p)[-2];
+                free(raw_ptr);
+            }
+        }
+
+        static inline void *lmt_memory_fallback_realloc_aligned (
+            void *p,
+            size_t newsize,
+            size_t alignment
+        )
+        {
+            if (!p) {
+                return lmt_memory_fallback_malloc_aligned(newsize, alignment);
+            }
+            if (newsize == 0) {
+                lmt_memory_fallback_free_aligned(p);
+                return NULL;
+            }
+            size_t old_size = ((size_t *) p)[-1];
+            void *new_p = lmt_memory_fallback_malloc_aligned(newsize, alignment);
+            if (!new_p) {
+                return NULL;
+            }
+            memcpy(new_p, p, old_size < newsize ? old_size : newsize);
+            lmt_memory_fallback_free_aligned(p);
+            return new_p;
+        }
+
+        static inline void *lmt_memory_fallback_calloc_aligned (
+            size_t count,
+            size_t size,
+            size_t alignment
+        )
+        {
+            size_t bytes = count * size;
+            void *ptr = lmt_memory_fallback_malloc_aligned(bytes, alignment);
+            if (ptr) {
+                memset(ptr, 0, bytes);
             }
             return ptr;
         }
 
-        # define lmt_memory_malloc_aligned(size, alignment)         lmt_fallback_malloc_aligned(size, alignment)
-        # define lmt_memory_calloc_aligned(count, size, alignment)  lmt_fallback_calloc_aligned((count) * (size), alignment)
-        # define lmt_memory_free_aligned(p)                         free(p)
-
-        /* POSIX / C11 generic fallback for aligned realloc + zeroing */
-
-        static inline void *lmt_fallback_realloc_aligned (
+        static inline void *lmt_memory_fallback_recalloc_aligned (
             void   *p,
             size_t  oldcount,
             size_t  newcount,
@@ -132,36 +179,22 @@
         {
             size_t old_bytes = oldcount * size;
             size_t new_bytes = newcount * size;
-            /* shrinking or same size, standard realloc/resize */
-            void *new_p = lmt_fallback_malloc_aligned(new_bytes, alignment);
+            void *new_p = lmt_memory_fallback_realloc_aligned(p, new_bytes, alignment);
             if (! new_p) {
                 return NULL;
             }
-            if (p) {
-                memcpy(new_p, p, old_bytes < new_bytes ? old_bytes : new_bytes);
-                free(p);
-            }
             if (new_bytes > old_bytes) {
-                memset((char *)new_p + old_bytes, 0, new_bytes - old_bytes);
+                memset((char *) new_p + old_bytes, 0, new_bytes - old_bytes);
             }
             return new_p;
         }
 
-        /* use recalloc if zero-init needed, or implement raw realloc */
-
-        # define lmt_memory_realloc_aligned(p, newsize, alignment) 
-
-    # endif
-
-    # if defined(_MSC_VER) || defined(__MINGW32__)
-
+        # define lmt_memory_malloc_aligned(size, alignment)         lmt_memory_fallback_malloc_aligned(size, alignment)
+        # define lmt_memory_calloc_aligned(count, size, alignment)  lmt_memory_fallback_calloc_aligned(count, size, alignment)
+        # define lmt_memory_realloc_aligned(p, newsize, alignment)  lmt_memory_fallback_realloc_aligned(p, newsize, alignment)
+        # define lmt_memory_free_aligned(p)                         lmt_memory_fallback_free_aligned(p)
         # define lmt_memory_recalloc_aligned(p, oldcount, newcount, size, alignment) \
-            lmt_fallback_realloc_aligned(p, oldcount, newcount, size, alignment)
-
-    # else
-
-        # define lmt_memory_recalloc_aligned(p, oldcount, newcount, size, alignment) \
-            lmt_fallback_recalloc_aligned(p, oldcount, newcount, size, alignment)
+            lmt_memory_fallback_recalloc_aligned(p, oldcount, newcount, size, alignment)
 
     # endif
 
