@@ -3606,6 +3606,36 @@ static int tokenlib_getmacro(lua_State *L)
     return 0;
 }
 
+static int tokenlib_getconstantmacro(lua_State *L)
+{
+    if (lua_type(L, 1) == LUA_TSTRING) {
+        size_t lname = 0;
+        const char *name = lua_tolstring(L, 1, &lname);
+        halfword cs = tex_string_locate_only(name, lname);
+        if (cs == undefined_control_sequence) {
+            return 0;
+        } else {
+            halfword cmd = eq_type(cs);
+            if (cmd == constant_call_cmd) {
+                halfword chr = eq_value(cs);
+                halfword h = token_link(chr);
+                if (h) {
+                    luaL_Buffer b;
+                    luaL_buffinit(L, &b);
+                    while (h) {
+                        tokenlib_aux_add_utf_char_to_buffer(&b, token_chr(token_info(h)));
+                        h = token_link(h);
+                    }
+                    luaL_pushresult(&b);
+                } else {
+                    lua_pushliteral(L, "");
+                }
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
 /* maybe just memoryword */
 
 // todo: node lists:
