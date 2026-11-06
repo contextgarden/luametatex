@@ -246,12 +246,45 @@ static int strlib_onlyascii(lua_State *L)
 
 */
 
-static inline int is_allowed(unsigned char c)
-{
-    return (c >= '0' && c <= '9') ||
-           (c >= 'A' && c <= 'Z') ||
-           (c >= 'a' && c <= 'z') ||
-           (c > 127);
+// static inline int is_allowed(unsigned char c)
+// {
+//     return (c >= '0' && c <= '9') ||
+//            (c >= 'A' && c <= 'Z') ||
+//            (c >= 'a' && c <= 'z') ||
+//            (c > 127);
+// }
+
+/* A while later I decided for: */
+
+static inline int is_allowed(unsigned char c) {
+    static const uint8_t allowed_table[256] = {
+        // 0x00 - 0x0F (Bytes 0-15)
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        // 0x10 - 0x1F (Bytes 16-31)
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        // 0x20 - 0x2F (Bytes 32-47: includes space and punctuation)
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        // 0x30 - 0x3F (Bytes 48-63: '0'-'9' are allowed, symbols are not)
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
+        // 0x40 - 0x4F (Bytes 64-79: '@' is 0, 'A'-'O' are allowed)
+        0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        // 0x50 - 0x5F (Bytes 80-95: 'P'-'Z' are allowed, '[-\\_' are not)
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
+        // 0x60 - 0x6F (Bytes 96-111: '`' is 0, 'a'-'o' are allowed)
+        0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        // 0x70 - 0x7F (Bytes 112-127: 'p'-'z' are allowed, '{}-DEL' are not)
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
+        // 0x80 - 0xFF (Bytes 128-255: all > 127 are allowed)
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+    };
+    return allowed_table[c];
 }
 
 static int strlib_filter_weird(lua_State *L)
@@ -1020,6 +1053,11 @@ static int strlib_format_gd(lua_State *L)
 static const char hex_upper[] = "0123456789ABCDEF";
 static const char hex_lower[] = "0123456789abcdef";
 
+static inline void write_hex8(char *s, unsigned char val) {
+    s[0] = hex_upper[(val >> 4) & 0xF];
+    s[1] = hex_upper[ val       & 0xF];
+}
+
 static inline void write_hex16(char *s, unsigned int val)
 {
     s[0] = hex_upper[(val >> 12) & 0xF];
@@ -1027,29 +1065,6 @@ static inline void write_hex16(char *s, unsigned int val)
     s[2] = hex_upper[(val >> 4)  & 0xF];
     s[3] = hex_upper[ val        & 0xF];
 }
-
-// static int strlib_tounicode16(lua_State *L)
-// {
-//     lua_Integer u = lua_tointeger(L, 1);   
-//     if (u < 0 || u > MAXUNICODE || invalid_unicode(u)) {
-//         lua_pushliteral(L, "FFFD");
-//     } else if (u <= 0xFFFF) {
-//         /* basic multilingual plane: single 16-bit word */
-//         char s[4];
-//         write_hex16(s, (unsigned int) u);
-//         lua_pushlstring(L, s, 4);
-//     } else {
-//         /* supplementary planes (U+10000 .. U+10FFFF): UTF-16 surrogate pair */
-//         char s[8];
-//         unsigned int v = (unsigned int) (u - 0x10000);
-//         unsigned int u1 = (v >> 10)   + 0xD800; /* high surrogate */
-//         unsigned int u2 = (v & 0x3FF) + 0xDC00; /* low  surrogate */
-//         write_hex16(s, u1);
-//         write_hex16(s + 4, u2);
-//         lua_pushlstring(L, s, 8);
-//     }
-//     return 1;
-// }
 
 /*tex 
 
@@ -1613,6 +1628,102 @@ static int strlib_topdfstring(lua_State *L)
         luaL_addchar(&b, ')');
     }
     luaL_pushresult(&b);
+    return 1;
+}
+
+// static inline int needs_escape(unsigned char byte) 
+// {
+//     if (byte < 33 || byte > 126) { 
+//         return 1;
+//     } else { 
+//         switch (byte) {
+//             case '(': case ')':
+//             case '<': case '>':
+//             case '[': case ']':
+//             case '{': case '}':
+//             case '/': case '%': case '#': case '\\':
+//                 return 1;
+//             default:
+//                 return 0;
+//         }
+//     }
+// }
+
+static inline int needs_escape(unsigned char byte) {
+    static const uint8_t escape_table[256] = {
+        // 0x00 - 0x0F (Bytes 0-15: control chars < 33)
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        // 0x10 - 0x1F (Bytes 16-31: control chars < 33)
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        // 0x20 - 0x2F (Bytes 32-47: includes space, '#', '%', '(', ')', '/')
+        1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1,
+        // 0x30 - 0x3F (Bytes 48-63: includes '<', '>')
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0,
+        // 0x40 - 0x4F (Bytes 64-79: A-O)
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        // 0x50 - 0x5F (Bytes 80-95: includes '[', '\', ']')
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0,
+        // 0x60 - 0x6F (Bytes 96-111: a-o)
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        // 0x70 - 0x7F (Bytes 112-127: includes '{', '}', and DEL at 127)
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1,
+        // 0x80 - 0xFF (Bytes 128-255: all > 126)
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+    };
+    return escape_table[byte];
+}
+
+static int strlib_topdfname(lua_State *L) 
+{
+    size_t      len;
+    const char *str = luaL_checklstring(L, 1, &len);
+    if (len == 0) {
+        lua_pushstring(L, "/");
+    } else {
+        int    hasslash = (str[0] == '/');
+        size_t found    = 0;
+        for (size_t i = hasslash ? 1 : 0; i < len; i++) {
+            if (needs_escape((unsigned char) str[i])) {
+                found = 1;
+                break;
+            }
+        }
+        if (! found && hasslash) {
+            /* no need to copy and rehash */
+            lua_pushvalue(L, 1);
+        } else {
+            luaL_Buffer b;
+            luaL_buffinit(L, &b);    
+            if (! found) {
+                if (! hasslash) {
+                    luaL_addchar(&b, '/');
+                }
+                luaL_addlstring(&b, str, len);
+                luaL_pushresult(&b);
+            } else {
+                luaL_addchar(&b, '/');
+                for (size_t i = hasslash ? 1 : 0; i < len; i++) {
+                    unsigned char c = (unsigned char) str[i];
+                    if (needs_escape(c)) {
+                        char *p = luaL_prepbuffsize(&b, 3);
+                        p[0] = '#';
+                        write_hex8(p + 1, c);
+                        luaL_addsize(&b, 3);
+                    } else {
+                        luaL_addchar(&b, (char) c);
+                    }
+                }
+            }
+            luaL_pushresult(&b);
+        }
+    }
     return 1;
 }
 
@@ -5838,6 +5949,7 @@ static const luaL_Reg strlib_function_list[] = {
     { "topdfsixteen",      strlib_topdfsixteen      }, 
     { "topdfeight",        strlib_topdfeight        },
     { "topdfstring",       strlib_topdfstring       },
+    { "topdfname",         strlib_topdfname         },
     /* */                                           
     { NULL,                NULL                     },
 };
