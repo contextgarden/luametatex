@@ -1994,6 +1994,8 @@ static inline lua_Integer lmt_clamped_round(double d)
 # define lmt_rounded(d)              lmt_clamped_round((double) (d))
 # define lmt_roundedfloat(f)         lmt_clamped_round((double) (f))
 
+# define lmt_torounded(d,i)          lmt_clamped_round((double) lua_tonumber(L,i))
+
 # define lmt_todouble(L,i)           (double) lua_tonumber(L,i)
 # define lmt_optdouble(L,i,j)        (double) luaL_optnumber(L,i,j)
 

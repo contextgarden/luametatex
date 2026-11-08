@@ -1759,28 +1759,51 @@ typedef enum align_record_subtypes {
 
 static inline int tex_nodetype_is_complex     (halfword t) { return t <= last_complex_node; }
 static inline int tex_nodetype_has_attributes (halfword t) { return t <= last_node_with_attributes; }
-static inline int tex_nodetype_has_subtype    (halfword t) { return t != glue_spec_node && t != math_spec_node && t != font_spec_node; }
-static inline int tex_nodetype_has_prev       (halfword t) { return t != glue_spec_node && t != math_spec_node && t != font_spec_node && t != attribute_node; }
-static inline int tex_nodetype_has_next       (halfword t) { return t != glue_spec_node && t != math_spec_node && t != font_spec_node; }
 static inline int tex_nodetype_is_valid       (halfword t) { return (t >= 0) && (t <= max_node_type); }
 static inline int tex_nodetype_is_visible     (halfword t) { return (t >= 0) && (t <= max_node_type) && lmt_interface.node_data[t].visible; }
 static inline int tex_nodetype_is_definable   (halfword t) { return (t >= 0) && (t <= max_node_type) && lmt_interface.node_data[t].definable; }
 
-// static const uint64_t has_prev_map = 0xFFFFFFFFFFFFFFFF
-//     & (~ (uint64_t) ((uint64_t) 1 << ((node_types) (glue_spec_node)) << 1))
-//     & (~ (uint64_t) ((uint64_t) 1 << ((node_types) (math_spec_node)) << 1))
-//     & (~ (uint64_t) ((uint64_t) 1 << ((node_types) (font_spec_node)) << 1))
-//     & (~ (uint64_t) ((uint64_t) 1 << ((node_types) (attribute_node)) << 1))
-// ;
-//
-// static const uint64_t has_next_map = 0xFFFFFFFFFFFFFFFF
-//     & (~ (uint64_t) ((uint64_t) 1 << ((node_types) (glue_spec_node)) << 1))
-//     & (~ (uint64_t) ((uint64_t) 1 << ((node_types) (math_spec_node)) << 1))
-//     & (~ (uint64_t) ((uint64_t) 1 << ((node_types) (font_spec_node)) << 1))
-// ;
-//
-// static inline int tex_nodetype_has_prev (halfword t) { return has_prev_map & (uint64_t) (((uint64_t) 1 << (node_types) t) << 1); }
-// static inline int tex_nodetype_has_next (halfword t) { return has_next_map & (uint64_t) (((uint64_t) 1 << (node_types) t) << 1); }
+//     inline int tex_nodetype_has_subtype    (halfword t) { return t != glue_spec_node && t != math_spec_node && t != font_spec_node; }
+//     inline int tex_nodetype_has_prev       (halfword t) { return t != glue_spec_node && t != math_spec_node && t != font_spec_node && t != attribute_node; }
+//     inline int tex_nodetype_has_next       (halfword t) { return t != glue_spec_node && t != math_spec_node && t != font_spec_node; }
+
+/* more readable and the compiler makes it efficient: */
+
+static inline int tex_nodetype_has_subtype(halfword t) {
+    switch (t) {
+        case glue_spec_node:
+        case math_spec_node:
+        case font_spec_node:
+            return 0;
+        default:
+            return 1;
+    }
+}
+
+static inline int tex_nodetype_has_prev(halfword t)
+{
+    switch (t) {
+        case glue_spec_node:
+        case math_spec_node:
+        case font_spec_node:
+        case attribute_node:
+            return 0;
+        default:
+            return 1;
+    }
+}
+
+static inline int tex_nodetype_has_next(halfword t)
+{
+    switch (t) {
+        case glue_spec_node:
+        case math_spec_node:
+        case font_spec_node:
+            return 0;
+        default:
+            return 1;
+    }
+}
 
 /*tex
     This is a bit weird place to define them but anyway. In the meantime in \LUAMETATEX\ we no
@@ -3490,12 +3513,27 @@ static inline quarterword tex_valid_subtype(halfword type, quarterword subtype)
 
 /*tex This is a bit strange place but better than a macro elsewhere: */
 
+// static inline int tex_math_skip_boundary(halfword n)
+// {
+//     return (n && node_type(n) == glue_node
+//               && (node_subtype(n) == space_skip_glue  ||
+//                   node_subtype(n) == xspace_skip_glue ||
+//                   node_subtype(n) == zero_space_skip_glue));
+// }
+
 static inline int tex_math_skip_boundary(halfword n)
 {
-    return (n && node_type(n) == glue_node
-              && (node_subtype(n) == space_skip_glue  ||
-                  node_subtype(n) == xspace_skip_glue ||
-                  node_subtype(n) == zero_space_skip_glue));
+    if (! n || node_type(n) != glue_node) {
+        return 0;
+    }
+    switch (node_subtype(n)) {
+        case space_skip_glue:
+        case xspace_skip_glue:
+        case zero_space_skip_glue:
+            return 1;
+        default:
+            return 0;
+    }
 }
 
 typedef enum special_node_list_types { /* not in sycn with the above .. maybe add bogus ones */

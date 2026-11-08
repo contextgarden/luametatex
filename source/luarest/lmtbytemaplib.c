@@ -146,7 +146,7 @@ static int bytemaplib_slice_gray(lua_State *L)
             }
             slot += 4;
         }
-        s = lmt_tointeger(L, slot);
+        s = lmt_torounded(L, slot);
         bytemap_slice_gray(bytemap, x, y, dx, dy, s);
     }
     return 0;
@@ -169,9 +169,9 @@ static int bytemaplib_slice_rgb(lua_State *L)
             }
             slot += 4;
         }
-        r = lmt_tointeger(L, slot++);
-        g = lmt_tointeger(L, slot++);
-        b = lmt_tointeger(L, slot);
+        r = lmt_torounded(L, slot++);
+        g = lmt_torounded(L, slot++);
+        b = lmt_torounded(L, slot);
         bytemap_slice_rgb(bytemap, x, y, dx, dy, r, g, b);
     }
     return 0;
@@ -185,8 +185,8 @@ static int bytemaplib_slice_range(lua_State *L)
         if (!bytemaplib_aux_rectangle(L, 2, &x, &y, &dx, &dy)) {
             return 0;
         }
-        int min = lmt_tointeger(L, 6);
-        int max = lmt_tointeger(L, 7);
+        int min = lmt_torounded(L, 6);
+        int max = lmt_torounded(L, 7);
         bytemap_slice_range(bytemap, x, y, dx, dy, min, max);
     }
     return 0;
@@ -196,7 +196,7 @@ static int bytemaplib_bounds(lua_State *L)
 {
     bytemap_data *bytemap = bytemaplib_aux_valid(L, 1);
     if (bytemap) { 
-        int value = lmt_tointeger(L, 2);
+        int value = lmt_torounded(L, 2);
         int llx   = 0;
         int lly   = 1;
         int urx   = bytemap->nx - 1;
@@ -215,7 +215,7 @@ static int bytemaplib_clip(lua_State *L)
 {
     bytemap_data *bytemap = bytemaplib_aux_valid(L, 1);
     if (bytemap) {
-        int value = lmt_tointeger(L, 2);
+        int value = lmt_torounded(L, 2);
         bytemap_clip(bytemap, value, NULL);
     }
     return 0;
@@ -248,7 +248,7 @@ static int bytemaplib_has_byte_gray(lua_State *L)
 {
     bytemap_data *bytemap = bytemaplib_aux_valid(L, 1);
     if (bytemap) { 
-        int s = lmt_tointeger(L, 2);
+        int s = lmt_torounded(L, 2);
         lua_pushboolean(L, bytemap_has_byte_gray(bytemap, s));
         return 1;
     }
@@ -259,8 +259,8 @@ static int bytemaplib_has_byte_range(lua_State *L)
 {
     bytemap_data *bytemap = bytemaplib_aux_valid(L, 1);
     if (bytemap) { 
-        int min = lmt_tointeger(L, 2);
-        int max = lmt_tointeger(L, 3);
+        int min = lmt_torounded(L, 2);
+        int max = lmt_torounded(L, 3);
         lua_pushboolean(L, bytemap_has_byte_range(bytemap, min, max));
         return 1;
     }
@@ -271,9 +271,9 @@ static int bytemaplib_has_byte_rgb(lua_State *L)
 {
     bytemap_data *bytemap = bytemaplib_aux_valid(L, 1);
     if (bytemap) { 
-        int r = lmt_tointeger(L, 2);
-        int g = lmt_tointeger(L, 3);
-        int b = lmt_tointeger(L, 4);
+        int r = lmt_torounded(L, 2);
+        int g = lmt_torounded(L, 3);
+        int b = lmt_torounded(L, 4);
         lua_pushboolean(L, bytemap_has_byte_rgb(bytemap, r, g, b));
         return 1;
     } else { 
@@ -287,7 +287,7 @@ static int bytemaplib_set_gray(lua_State *L)
     if (bytemap) { 
         int x = lmt_tointeger(L, 2);
         int y = lmt_tointeger(L, 3);
-        int s = lmt_tointeger(L, 4);
+        int s = lmt_torounded(L, 4);
         bytemap_set_gray(bytemap, x, y, s);
     }
     return 0;
@@ -299,9 +299,9 @@ static int bytemaplib_set_rgb(lua_State *L)
     if (bytemap) { 
         int x = lmt_tointeger(L, 2);
         int y = lmt_tointeger(L, 3);
-        int r = lmt_tointeger(L, 4);
-        int g = lmt_tointeger(L, 5);
-        int b = lmt_tointeger(L, 6);
+        int r = lmt_torounded(L, 4);
+        int g = lmt_torounded(L, 5);
+        int b = lmt_torounded(L, 6);
         bytemap_set_rgb(bytemap, x, y, r, g, b);
     }
     return 0;
@@ -313,9 +313,9 @@ static int bytemaplib_set_gray_add(lua_State *L)
     if (bytemap) { 
         int x  = lmt_tointeger(L, 2);
         int y  = lmt_tointeger(L, 3);
-        int s1 = lmt_tointeger(L, 4);
-        int s2 = lmt_tointeger(L, 5);
-        int s3 = lmt_tointeger(L, 6);
+        int s1 = lmt_torounded(L, 4);
+        int s2 = lmt_torounded(L, 5);
+        int s3 = lmt_torounded(L, 6);
         bytemap_set_gray_add(bytemap, x, y, s1, s2, s3);
     }
     return 0;
@@ -327,9 +327,9 @@ static int bytemaplib_set_gray_min(lua_State *L)
     if (bytemap) { 
         int x  = lmt_tointeger(L, 2);
         int y  = lmt_tointeger(L, 3);
-        int s1 = lmt_tointeger(L, 4);
-        int s2 = lmt_tointeger(L, 5);
-        int s3 = lmt_tointeger(L, 6);
+        int s1 = lmt_torounded(L, 4);
+        int s2 = lmt_torounded(L, 5);
+        int s3 = lmt_torounded(L, 6);
         bytemap_set_gray_min(bytemap, x, y, s1, s2, s3);
     }
     return 0;

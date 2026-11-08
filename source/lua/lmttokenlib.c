@@ -31,14 +31,15 @@
 /*tex See |lmtinterface.h| for |TOKEN_METATABLE_INSTANCE|. */
 
 typedef struct lua_token_package {
+    halfword       chr;         /* 4 bytes (offset 0)  */
+    halfword       cs;          /* 4 bytes (offset 4)  */
     struct {
-        quarterword level; /* not used but it reflects the original */
-        quarterword how;   /* global */
+        quarterword level;      /* 2 bytes (offset 8)  */ /* not used but it reflects the original */
+        quarterword how;        /* 2 bytes (offset 10) */ /* global */
     };
-    singleword cmd;
-    singleword flag;
-    halfword   chr;
-    halfword   cs;
+    singleword     cmd;         /* 1 byte  (offset 12) */
+    singleword     flag;        /* 1 byte  (offset 13) */
+                                /* 2 bytes padding     */
 } lua_token_package;
 
 /*

@@ -1053,7 +1053,8 @@ static int strlib_format_gd(lua_State *L)
 static const char hex_upper[] = "0123456789ABCDEF";
 static const char hex_lower[] = "0123456789abcdef";
 
-static inline void write_hex8(char *s, unsigned char val) {
+static inline void write_hex8(char *s, unsigned char val) 
+{
     s[0] = hex_upper[(val >> 4) & 0xF];
     s[1] = hex_upper[ val       & 0xF];
 }
