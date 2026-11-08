@@ -5,9 +5,16 @@
 # ifndef LMT_LTEXLIB_H
 # define LMT_LTEXLIB_H
 
+typedef struct spindle_state {
+    halfword result;
+    int      cattable;
+    int      partial;
+    int      finalline;
+} spindle_state ;
+
 extern void lmt_cstring_start    (void);
 extern void lmt_cstring_close    (void);
-extern int  lmt_cstring_input    (halfword *result, int *cattable, int *partial, int *finalline);
+extern int  lmt_cstring_input    (spindle_state *state);
 
 extern void lmt_cstring_print    (int cattable, const char *s, int ispartial);
 extern void lmt_tstring_store    (strnumber s, int cattable);

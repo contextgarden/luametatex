@@ -1918,7 +1918,7 @@ static int mplib_inject_integer(lua_State *L)
 {
     MP mp = mplib_aux_is_mp(L, 1);
     if (mp) {
-        int i = lmt_tointeger(L, 2);
+        int i = lmt_torounded(L, 2);
         mp_push_integer_value(mp, i);
     }
     return 0;
@@ -2109,7 +2109,7 @@ static int mplib_new(lua_State *L)
                 if (lua_type(L, -2) == LUA_TSTRING) {
                     const char *s = lua_tostring(L, -2);
                     if (lua_key_eq(s, random_seed)) {
-                        options->random_seed = lmt_tointeger(L, -1);
+                        options->random_seed = lmt_torounded(L, -1);
                     } else if (lua_key_eq(s, interaction)) {
                         options->interaction = luaL_checkoption(L, -1, "silent", mplib_interaction_options);
                     } else if (lua_key_eq(s, job_name)) {
@@ -4128,7 +4128,7 @@ static int mplib_expand_tex(lua_State *L)
 {
     MP mp = mplib_aux_is_mp(L, 1);
     if (mp) {
-        int kind = lmt_tointeger(L, 2);
+        int      kind = lmt_tointeger(L, 2);
         halfword tail = null;
         halfword head = lmt_macro_to_tok(L, 3, &tail);
         if (head) {

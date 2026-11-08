@@ -183,6 +183,33 @@
 
 */
 
+static inline int nodelib_aux_attribute_index(lua_State *L, int slot) 
+{
+    // int index = lmt_opthalfword(L, slot, 0);
+    int index = lmt_tohalfword(L, slot);
+    return (index >= 0 && index <= max_attribute_register_index) ? index : -1;
+}
+
+# if check_attributes 
+
+    static inline int nodelib_aux_used_attribute_index(lua_State *L, int slot) 
+    {
+     // int index = lmt_opthalfword(L, slot, 0);
+        int index = lmt_tohalfword(L, slot);
+        return (index >= 0 && index <= lmt_node_memory_state.max_used_attribute && lmt_node_memory_state.attributes[index]) ? index : -1;
+    }
+
+# else 
+
+    static inline int nodelib_aux_used_attribute_index(lua_State *L, int slot) 
+    {
+     // int index = lmt_opthalfword(L, slot, 0);
+        int index = lmt_tohalfword(L, slot);
+        return (index >= 0 && index <= max_attribute_register_index) ? index : -1;
+    }
+
+# endif 
+
 /* 
     These we only have for the manual. We could have them in one of the 
 */
@@ -1300,10 +1327,12 @@ static void nodelib_aux_setattributelist(lua_State *L, halfword n, int index)
                     /* kind of slow because we need a sorted inject */
                     lua_pushnil(L); /* push initial key */
                     while (lua_next(L, index)) {
-                        halfword key = lmt_tohalfword(L, -2);
-                        halfword val = lmt_tohalfword(L, -1);
-                        a = tex_patch_attribute_list(a, key, val);
-                        lua_pop(L, 1); /* pop value, keep key */
+                        halfword index = nodelib_aux_attribute_index(L, -2);
+                        if (index >= 0) {
+                            halfword value = lmt_tohalfword(L, -1);
+                            a = tex_patch_attribute_list(a, index, value);
+                            lua_pop(L, 1); /* pop value, keep key */
+                        }
                     }
                     lua_pop(L, 1); /* pop key */
                 }
@@ -2078,50 +2107,6 @@ static int nodelib_direct_addmargins(lua_State *L)
     return 0;
 }
 
-// static int nodelib_direct_addxymargins(lua_State *L)
-// {
-//     halfword n = nodelib_valid_direct_from_index(L, 1);
-//     if (n && node_type(n) == glyph_node) {
-//         scaled s = glyph_scale(n);
-//         scaled x = glyph_x_scale(n);
-//         scaled y = glyph_y_scale(n);
-//         double sx, sy;
-//         if (s == 0 || s == 1000) {
-//             if (x == 0 || x == 1000) {
-//                 sx = 1;
-//             } else {
-//                 sx = 0.001 * x;
-//             }
-//             if (y == 0 || y == 1000) {
-//                 sy = 1;
-//             } else {
-//                 sy = 0.001 * y;
-//             }
-//         } else {
-//             if (x == 0 || x == 1000) {
-//                 sx = 0.001 * s;
-//             } else {
-//                 sx = 0.000001 * s * x;
-//             }
-//             if (y == 0 || y == 1000) {
-//                 sy = 0.001 * s;
-//             } else {
-//                 sy = 0.000001 * s * y;
-//             }
-//         }
-//         if (lua_type(L, 2) == LUA_TNUMBER) {
-//             glyph_left(n) += scaledround(sx * lua_tonumber(L, 2));
-//         }
-//         if (lua_type(L, 3) == LUA_TNUMBER) {
-//             glyph_right(n) += scaledround(sx * lua_tonumber(L, 3));
-//         }
-//         if (lua_type(L, 4) == LUA_TNUMBER) {
-//             glyph_raise(n) += scaledround(sy * lua_tonumber(L, 4));
-//         }
-//     }
-//     return 0;
-// }
-
 # if lmt_float_math
 
     static int nodelib_direct_addxymargins(lua_State *L)
@@ -2391,81 +2376,6 @@ static int nodelib_direct_getyscale(lua_State *L)
 # define xscaled_usage glyph_usage
 # define yscaled_usage xscaled_usage
 
-// static int nodelib_direct_xscaled(lua_State *L)
-// {
-//     halfword n = nodelib_valid_direct_from_index(L, 1);
-//     lua_Number v = lua_tonumber(L, 2);
-//     if (n && node_type(n) == glyph_node) {
-//         scaled s = glyph_scale(n);
-//         scaled x = glyph_x_scale(n);
-//         if (s == 0 || s == 1000) {
-//             if (x == 0 || x == 1000) {
-//                 /* okay */
-//             } else {
-//                 v = 0.001 * x * v;
-//             }
-//         } else if (x == 0 || x == 1000) {
-//             v = 0.001 * s * v;
-//         } else {
-//             v = 0.000001 * s * x * v;
-//         }
-//     }
-//     lua_pushnumber(L, v);
-//     return 1;
-// }
-//
-// static int nodelib_direct_yscaled(lua_State *L)
-// {
-//     halfword n = nodelib_valid_direct_from_index(L, 1);
-//     lua_Number v = lua_tonumber(L, 2);
-//     if (n && node_type(n) == glyph_node) {
-//         scaled s = glyph_scale(n);
-//         scaled y = glyph_y_scale(n);
-//         if (s == 0 || s == 1000) {
-//             if (y == 0 || y == 1000) {
-//                 /* okay */
-//             } else {
-//                 v = 0.001 * y * v;
-//             }
-//         } else if (y == 0 || y == 1000) {
-//             v = 0.001 * s * v;
-//         } else {
-//             v = 0.000001 * s * y * v;
-//         }
-//     }
-//     lua_pushnumber(L, v);
-//     return 1;
-// }
-//
-// static void nodelib_aux_pushxyscales(lua_State *L, halfword n)
-// {
-//     scaled s = glyph_scale(n);
-//     scaled x = glyph_x_scale(n);
-//     scaled y = glyph_y_scale(n);
-//     double dx;
-//     double dy;
-//     if (s && s != 1000) {
-//         dx = (x && x != 1000) ? 0.000001 * s * x : 0.001 * s;
-//     } else if (x && x != 1000) {
-//         dx = 0.001 * x;
-//     } else {
-//         lua_pushinteger(L, 1);
-//         goto DONEX;
-//     }
-//     lua_pushnumber(L, dx);
-//   DONEX:
-//     if (s && s != 1000) {
-//         dy = (y && y != 1000) ? 0.000001 * s * y : 0.001 * s;
-//     } else if (y && y != 1000) {
-//         dy = 0.001 * y;
-//     } else {
-//         lua_pushinteger(L, 1);
-//         goto DONEY;
-//     }
-//     lua_pushnumber(L, dy);
-//   DONEY: ;
-// }
-
 static inline double nodelib_aux_calculate_scale_factor(scaled s, scaled axis_scale)
 {
     s = (s == 0) ? 1000 : s;
@@ -2473,7 +2383,7 @@ static inline double nodelib_aux_calculate_scale_factor(scaled s, scaled axis_sc
     if (s == 1000 && axis_scale == 1000) {
         return 1.0;
     }
-    return 0.000001 * (double)s * (double)axis_scale;
+    return 0.000001 * (double) s * (double) axis_scale;
 }
 
 static int nodelib_direct_xscaled(lua_State *L)
@@ -6131,13 +6041,13 @@ static int nodelib_direct_rangedimensions(lua_State *L)
 {
     int top = lua_gettop(L);
     if lmt_likely(top > 1) {
-        scaledwhd siz = { .wd = 0, .ht = 0, .dp = 0, .ns = 0 };
-        int vertical = 0;
-        int nsizetoo = 0;
-        int index = 1;
-        halfword parent = nodelib_valid_direct_from_index(L, index++);
-        halfword first = nodelib_valid_direct_from_index(L, index++);
-        halfword last = first;
+        scaledwhd siz      = { .wd = 0, .ht = 0, .dp = 0, .ns = 0 };
+        int       vertical = 0;
+        int       nsizetoo = 0;
+        int       index    = 1;
+        halfword  parent   = nodelib_valid_direct_from_index(L, index++);
+        halfword  first    = nodelib_valid_direct_from_index(L, index++);
+        halfword  last     = first;
         if (lua_type(L, index) != LUA_TBOOLEAN) {
             last = nodelib_valid_direct_from_index(L, index++);
         }
@@ -6611,11 +6521,13 @@ static int nodelib_userdata_hasattribute(lua_State *L)
 {
     halfword n = lmt_check_isnode(L, 1);
     if (n) {
-        int key = lmt_tointeger(L, 2);
-        int val = tex_has_attribute(n, key, lmt_optinteger(L, 3, unused_attribute_value));
-        if (val > unused_attribute_value) {
-            lua_pushinteger(L, val);
-            return 1;
+        int index = nodelib_aux_used_attribute_index(L, 2);
+        if (index >= 0) {
+            int value = tex_has_attribute(n, index, lmt_optinteger(L, 3, unused_attribute_value));
+            if (value > unused_attribute_value) {
+                lua_pushinteger(L, value);
+                return 1;
+            }
         }
     }
     lua_pushnil(L);
@@ -6626,14 +6538,10 @@ static int nodelib_userdata_hasattribute(lua_State *L)
 
 # define hasattribute_usage common_usage
 
-# if check_attributes 
-
 static int nodelib_direct_hasattribute(lua_State *L)
 {
-    int index = nodelib_valid_direct_from_index(L, 2);
-    if (index >= 0 && index <= lmt_node_memory_state.max_used_attribute && ! lmt_node_memory_state.attributes[index]) {
-        /* */
-    } else { 
+    int index = nodelib_aux_used_attribute_index(L, 2);
+    if (index >= 0) {
         halfword n = nodelib_valid_direct_from_index(L, 1);
         if (n) {
             int value = tex_has_attribute(n, index, lmt_optinteger(L, 3, unused_attribute_value));
@@ -6647,25 +6555,6 @@ static int nodelib_direct_hasattribute(lua_State *L)
     return 1;
 }
 
-# else 
-
-static int nodelib_direct_hasattribute(lua_State *L)
-{
-    halfword n = nodelib_valid_direct_from_index(L, 1);
-    if (n) {
-        int index = nodelib_valid_direct_from_index(L, 2);
-        int value = tex_has_attribute(n, index, lmt_optinteger(L, 3, unused_attribute_value));
-        if (value > unused_attribute_value) {
-            lua_pushinteger(L, value);
-            return 1;
-        }
-    }
-    lua_pushnil(L);
-    return 1;
-}
-
-# endif 
-
 /* node.getattribute */
 
 static int nodelib_userdata_getattribute(lua_State *L)
@@ -6676,20 +6565,22 @@ static int nodelib_userdata_getattribute(lua_State *L)
         if (p) {
             p = node_next(p);
             if (p) {
-                int i = lmt_optinteger(L, 2, 0);
-                while (p) {
-                    if (attribute_index(p) == i) {
-                        int v = attribute_value(p);
-                        if (v == unused_attribute_value) {
+                int i = nodelib_aux_used_attribute_index(L, 2); /* todo: move test up */
+                if (i >= 0) {
+                    while (p) {
+                        if (attribute_index(p) == i) {
+                            int v = attribute_value(p);
+                            if (v == unused_attribute_value) {
+                                break;
+                            } else {
+                                lua_pushinteger(L, v);
+                                return 1;
+                            }
+                        } else if (attribute_index(p) > i) {
                             break;
-                        } else {
-                            lua_pushinteger(L, v);
-                            return 1;
                         }
-                    } else if (attribute_index(p) > i) {
-                        break;
+                        p = node_next(p);
                     }
-                    p = node_next(p);
                 }
             }
         }
@@ -6702,9 +6593,9 @@ static int nodelib_userdata_getattribute(lua_State *L)
 
 static int nodelib_direct_findattributerange(lua_State *L)
 {
-    halfword h = nodelib_valid_direct_from_index(L, 1);
-    if (h) {
-        halfword i = lmt_tohalfword(L, 2);
+    halfword i = nodelib_aux_used_attribute_index(L, 2);
+    if (i >= 0) {
+        halfword h = nodelib_valid_direct_from_index(L, 1);
         while (h) {
             if (tex_nodetype_has_attributes(node_type(h))) {
                 halfword p = node_attr(h);
@@ -6768,14 +6659,10 @@ static int nodelib_direct_findattributerange(lua_State *L)
 # define getattribute_usage  common_usage
 # define getattributes_usage common_usage
 
-# if check_attributes 
-
 static int nodelib_direct_getattribute(lua_State *L)
 {
-    halfword index = lmt_opthalfword(L, 2, 0);
-    if (index >= 0 && index < lmt_node_memory_state.max_used_attribute && ! lmt_node_memory_state.attributes[index]) {
-        /* */
-    } else {
+    int index = nodelib_aux_used_attribute_index(L, 2);
+    if (index >= 0) {
         halfword p = nodelib_valid_direct_from_index(L, 1);
         if (p) {
             if (node_type(p) == attribute_list_node) {
@@ -6786,45 +6673,6 @@ static int nodelib_direct_getattribute(lua_State *L)
                     p = node_next(p);
                 }
             }
-            if (p) {
-                while (p) {
-                    halfword i = attribute_index(p);
-                    if (i == index) {
-                        int v = attribute_value(p);
-                        if (v == unused_attribute_value) {
-                            break;
-                        } else {
-                            lua_pushinteger(L, v);
-                            return 1;
-                        }
-                    } else if (i > index) {
-                        break;
-                    }
-                    p = node_next(p);
-                }
-            }
-        }
-    }
-    lua_pushnil(L);
-    return 1;
-}
-
-# else
-
-static int nodelib_direct_getattribute(lua_State *L)
-{
-    halfword p = nodelib_valid_direct_from_index(L, 1);
-    if (p) {
-        if (node_type(p) == attribute_list_node) {
-            p = node_next(p);
-        } else {
-            p = tex_nodetype_has_attributes(node_type(p)) ? node_attr(p) : null;
-            if (p && node_type(p) == attribute_list_node) { /* no need to test */
-                p = node_next(p);
-            }
-        }
-        if (p) {
-            halfword index = lmt_opthalfword(L, 2, 0);
             while (p) {
                 halfword i = attribute_index(p);
                 if (i == index) {
@@ -6845,8 +6693,6 @@ static int nodelib_direct_getattribute(lua_State *L)
     lua_pushnil(L);
     return 1;
 }
-
-# endif 
 
 /*tex
     A dedicated code path for n=2|3 in a single loop is not faster. Quitting because we passed the
@@ -6888,8 +6734,6 @@ static int nodelib_direct_getattribute(lua_State *L)
     \stoptyping
 */
 
-# if check_attributes 
-
 static int nodelib_direct_getattributes(lua_State *L) /* maybe just getattr2 getattr3 */
 {
     /* We can delay p till first check needed (but often set anyways). */
@@ -6906,10 +6750,8 @@ static int nodelib_direct_getattributes(lua_State *L) /* maybe just getattr2 get
         if (p) {
             int top = lua_gettop(L);
             for (int slot = 2; slot <= top; slot++) {
-                halfword index = lmt_tohalfword(L, slot);
-                if (index >= 0 && index < lmt_node_memory_state.max_used_attribute && ! lmt_node_memory_state.attributes[index]) {
-                    lua_pushnil(L);
-                } else {
+                halfword index = nodelib_aux_used_attribute_index(L, slot);
+                if (index >= 0) {
                     halfword value = unused_attribute_value;
                     halfword n = p;
                     while (n) {
@@ -6928,49 +6770,8 @@ static int nodelib_direct_getattributes(lua_State *L) /* maybe just getattr2 get
                     } else {
                         lua_pushinteger(L, value);
                     }
-                }
-            }
-            return top - 1;
-        }
-    }
-    return 0;
-}
-
-# else 
-
-static int nodelib_direct_getattributes(lua_State *L) /* maybe just getattr2 getattr3 */
-{
-    halfword p = nodelib_valid_direct_from_index(L, 1);
-    if (p) {
-        if (node_type(p) == attribute_list_node) {
-            p = node_next(p);
-        } else {
-            p = tex_nodetype_has_attributes(node_type(p)) ? node_attr(p) : null;
-            if (p && node_type(p) == attribute_list_node) { /* no need to test */
-                p = node_next(p);
-            }
-        }
-        if (p) {
-            int top = lua_gettop(L);
-            for (int slot = 2; slot <= top; slot++) {
-                halfword index = lmt_tohalfword(L, slot);
-                halfword value = unused_attribute_value;
-                halfword n = p;
-                while (n) {
-                    halfword i = attribute_index(n);
-                    if (i == index) {
-                        value = attribute_value(n);
-                        break;
-                    } else if (i > index) {
-                        break;
-                    } else {
-                        n = node_next(n);
-                    }
-                }
-                if (value == unused_attribute_value) {
-                    lua_pushnil(L);
                 } else {
-                    lua_pushinteger(L, value);
+                    lua_pushnil(L);
                 }
             }
             return top - 1;
@@ -6978,8 +6779,6 @@ static int nodelib_direct_getattributes(lua_State *L) /* maybe just getattr2 get
     }
     return 0;
 }
-
-# endif 
 
 # define setattribute_usage        common_usage
 # define setattributes_usage       common_usage
@@ -6989,43 +6788,20 @@ static int nodelib_direct_setattribute(lua_State *L)
 {
     halfword n = nodelib_valid_direct_from_index(L, 1);
     if (n && tex_nodetype_has_attributes(node_type(n))) { // already checked
-        halfword index = lmt_tohalfword(L, 2);
-        halfword value = lmt_optinteger(L, 3, unused_attribute_value);
-     // if (value == unused_attribute_value) {
-     //     tex_unset_attribute(n, index, value);
-     // } else {
-            tex_set_attribute(n, index, value);
-     // }
+        halfword index = nodelib_aux_attribute_index(L, 2);
+        if (index >= 0) {
+            halfword value = lmt_optinteger(L, 3, unused_attribute_value);
+         // if (value == unused_attribute_value) {
+         //     tex_unset_attribute(n, index, value);
+         // } else {
+                tex_set_attribute(n, index, value);
+         // }
+        }
     }
     return 0;
 }
 
 /* set_attributes(n,[initial,]key1,val1,key2,val2,...) */
-
-// static int nodelib_direct_setattributes(lua_State *L)
-// {
-//     halfword n = nodelib_valid_direct_from_index(L, 1);
-//     if (n && tex_nodetype_has_attributes(node_type(n))) {
-//         int top = lua_gettop(L);
-//         int ini = 2;
-//         if (lua_type(L, 2) == LUA_TBOOLEAN) {
-//             ++ini;
-//             if (lua_toboolean(L, 2) && ! node_attr(n)) {
-//                 tex_attach_current_attribute_list(n);
-//             }
-//         }
-//         for (int i = ini; i <= top; i += 2) {
-//             halfword key = lmt_tohalfword(L, i);
-//             halfword val = lmt_optinteger(L, i + 1, unused_attribute_value);
-//          // if (val == unused_attribute_value) {
-//          //     tex_unset_attribute(p, key, val);
-//          // } else {
-//                 tex_set_attribute(n, key, val);
-//          // }
-//         }
-//     }
-//     return 0;
-// }
 
 static int nodelib_direct_setattributes(lua_State *L)
 {
@@ -7051,18 +6827,20 @@ static int nodelib_direct_setattributes(lua_State *L)
             } 
         }
         for (int i = ini; i <= top; i += 2) {
-            halfword key = lmt_tohalfword(L, i);
-            halfword val = lmt_optinteger(L, i + 1, unused_attribute_value);
-            // if (val == unused_attribute_value) {
-            //     tex_unset_attribute(p, key, val);
-            // } else {
-                if (a) { 
-                    tex_patch_attribute_list(a, key, val);
-                } else { 
-                    tex_set_attribute(n, key, val);
-                    a = node_attr(n);
-                }
-            // }
+            halfword index = nodelib_aux_attribute_index(L, i);
+            if (index >= 0) {
+                halfword value = lmt_optinteger(L, i + 1, unused_attribute_value);
+                // if (value == unused_attribute_value) {
+                //     tex_unset_attribute(p, index, value);
+                // } else {
+                    if (a) { 
+                        tex_patch_attribute_list(a, index, value);
+                    } else { 
+                        tex_set_attribute(n, index, value);
+                        a = node_attr(n);
+                    }
+                // }
+            }
         }
     }
     return 0;
@@ -7098,18 +6876,20 @@ static int nodelib_direct_setattributesinlist(lua_State *L)
                     } 
                 }
                 for (int i = ini; i <= top; i += 2) {
-                    halfword key = lmt_tohalfword(L, i);
-                    halfword val = lmt_optinteger(L, i + 1, unused_attribute_value);
-                    // if (val == unused_attribute_value) {
-                    //     tex_unset_attribute(p, key, val);
-                    // } else {
-                        if (a) { 
-                            tex_patch_attribute_list(a, key, val);
-                        } else { 
-                            tex_set_attribute(n, key, val);
-                            a = node_attr(n);
-                        }
-                    // }
+                    halfword index = nodelib_aux_attribute_index(L, i);
+                    if (index >= 0) {
+                        halfword value = lmt_optinteger(L, i + 1, unused_attribute_value);
+                        // if (val == unused_attribute_value) {
+                        //     tex_unset_attribute(p, index, value);
+                        // } else {
+                            if (a) { 
+                                tex_patch_attribute_list(a, index, value);
+                            } else { 
+                                tex_set_attribute(n, index, value);
+                                a = node_attr(n);
+                            }
+                        // }
+                    }
                 }
                 p = a;
             }
@@ -7128,12 +6908,14 @@ static int nodelib_direct_patchattributes(lua_State *L)
         halfword att = null;
         int top = lua_gettop(L);
         for (int i = 2; i <= top; i += 2) {
-            halfword index = lmt_tohalfword(L, i);
-            halfword value = lua_type(L, i + 1) == LUA_TNUMBER ? lmt_tohalfword(L, i + 1) : unused_attribute_value;
-            if (att) {
-                att = tex_patch_attribute_list(att, index, value);
-            } else {
-                att = tex_copy_attribute_list_set(node_attr(p), index, value);
+            halfword index = nodelib_aux_attribute_index(L, i);
+            if (index >= 0) {
+                halfword value = lua_type(L, i + 1) == LUA_TNUMBER ? lmt_tohalfword(L, i + 1) : unused_attribute_value;
+                if (att) {
+                    att = tex_patch_attribute_list(att, index, value);
+                } else {
+                    att = tex_copy_attribute_list_set(node_attr(p), index, value);
+                }
             }
         }
         tex_attach_attribute_list_attribute(p, att);
@@ -7145,14 +6927,10 @@ static int nodelib_direct_patchattributes(lua_State *L)
 
 # define findattribute_usage common_usage
 
-# if check_attributes 
-
 static int nodelib_direct_findattribute(lua_State *L) /* returns attr value and node */
 {
-    halfword index = lmt_tohalfword(L, 2);
-    if (index >= 0 && index < lmt_node_memory_state.max_used_attribute && ! lmt_node_memory_state.attributes[index]) {
-        return 0;
-    } else {
+    halfword index = nodelib_aux_used_attribute_index(L, 2);
+    if (index >= 0) {
         halfword c = nodelib_valid_direct_from_index(L, 1);
         if (c) {
             if (lua_type(L, 3) == LUA_TBOOLEAN && lua_toboolean(L, 3)) { 
@@ -7238,97 +7016,6 @@ static int nodelib_direct_findattribute(lua_State *L) /* returns attr value and 
     return 0;
 }
 
-# else 
-
-static int nodelib_direct_findattribute(lua_State *L) /* returns attr value and node */
-{
-    halfword c = nodelib_valid_direct_from_index(L, 1);
-    if (c) {
-        halfword index = lmt_tohalfword(L, 2);
-        if (lua_type(L, 3) == LUA_TBOOLEAN && lua_toboolean(L, 3)) { 
-            /* true: content */
-            halfword a = null;
-            while (c) {
-                switch (node_type(c)) {
-                    case hlist_node:
-                    case vlist_node:
-                        /*tex We're okay with an empty one here. */
-                    case rule_node:
-                    case disc_node:
-                    case glyph_node:
-                        goto CHECK;
-                    case glue_node:
-                        if (glue_leader_ptr(c)) {
-                            goto CHECK;
-                        } else {
-                            goto NEXT;
-                        }
-                    default: 
-                        goto NEXT;
-                }
-              CHECK:
-                {
-                    /* We skip if the previous value is the same and didn't match. */
-                    halfword p = node_attr(c);
-                    if (p && a != p) {
-                        a = p;
-                        p = node_next(p);
-                        while (p) {
-                            if (attribute_index(p) == index) {
-                                halfword value = attribute_value(p);
-                                if (value == unused_attribute_value) {
-                                    break;
-                                } else {
-                                    lua_pushinteger(L, value);
-                                    lua_pushinteger(L, c);
-                                    return 2;
-                                }
-                            } else if (attribute_index(p) > index) {
-                                break;
-                            }
-                            p = node_next(p);
-                        }
-                    }
-                }
-              NEXT:
-                c = node_next(c);
-            }
-        } else {
-            halfword t = lmt_optinteger(L, 3, -1);
-            halfword a = null;
-            while (c) {
-                if ((t < 0 || node_type(c) == t) && tex_nodetype_has_attributes(node_type(c))) {
-                    /* We skip if the previous value is the same and didn't match. */
-                    halfword p = node_attr(c);
-                    if (p && a != p) {
-                        a = p;
-                        p = node_next(p);
-                        while (p) {
-                            if (attribute_index(p) == index) {
-                                halfword value = attribute_value(p);
-                                if (value == unused_attribute_value) {
-                                    break;
-                                } else {
-                                    lua_pushinteger(L, value);
-                                    lua_pushinteger(L, c);
-                                    return 2;
-                                }
-                            } else if (attribute_index(p) > index) {
-                                break;
-                            }
-                            p = node_next(p);
-                        }
-                    }
-                }
-                c = node_next(c);
-            }
-        }
-    }
-    return 0;
-}
-
-# endif
-
 # define unsetattribute_usage  common_usage
 # define unsetattributes_usage common_usage
 
@@ -7336,26 +7023,31 @@ static int nodelib_direct_unsetattribute(lua_State *L)
 {
     halfword n = nodelib_valid_direct_from_index(L, 1);
     if (n) {
-        halfword key = lmt_checkhalfword(L, 2);
-        halfword val = lmt_opthalfword(L, 3, unused_attribute_value);
-        halfword ret = tex_unset_attribute(n, key, val);
-        if (ret > unused_attribute_value) { /* != */
-            lua_pushinteger(L, ret);
-        } else {
-            lua_pushnil(L);
+     // halfword index = nodelib_aux_used_attribute_index(L, 2); /* should be okay here */
+        halfword index = nodelib_aux_attribute_index(L, 2);
+        if (index >= 0) {
+            halfword value  = lmt_opthalfword(L, 3, unused_attribute_value);
+            halfword result = tex_unset_attribute(n, index, value);
+            if (result > unused_attribute_value) { /* != */
+                lua_pushinteger(L, result);
+                return 1;
+            }
         }
-    } else {
-        lua_pushnil(L);
     }
+    lua_pushnil(L);
     return 1;
 }
+
 static int nodelib_direct_unsetattributes(lua_State *L)
 {
-    halfword key = lmt_checkhalfword(L, 1);
-    halfword first = nodelib_valid_direct_from_index(L, 2);
-    halfword last = nodelib_valid_direct_from_index(L, 3);
-    if (first) {
-        tex_unset_attributes(first, last, key);
+ // halfword index = nodelib_aux_used_attribute_index(L, 1); /* should be okay here */
+    halfword index = nodelib_aux_attribute_index(L, 1);
+    if (index >= 0) {
+        halfword first = nodelib_valid_direct_from_index(L, 2);
+        halfword last  = nodelib_valid_direct_from_index(L, 3);
+        if (first) {
+            tex_unset_attributes(first, last, index);
+        }
     }
     return 0;
 }
@@ -7367,12 +7059,14 @@ static int nodelib_userdata_setattribute(lua_State *L)
 {
     halfword n = lmt_check_isnode(L, 1);
     if (n) {
-        halfword key = lmt_tohalfword(L, 2);
-        halfword val = lmt_opthalfword(L, 3, unused_attribute_value);
-        if (val == unused_attribute_value) {
-            tex_unset_attribute(n, key, val);
-        } else {
-            tex_set_attribute(n, key, val);
+        halfword index = nodelib_aux_attribute_index(L, 2);
+        if (index >= 0) {
+            halfword value = lmt_opthalfword(L, 3, unused_attribute_value);
+            if (value == unused_attribute_value) {
+                tex_unset_attribute(n, index, value);
+            } else {
+                tex_set_attribute(n, index, value);
+            }
         }
     }
     return 0;
@@ -7382,17 +7076,18 @@ static int nodelib_userdata_unsetattribute(lua_State *L)
 {
     halfword n = lmt_check_isnode(L, 1);
     if (n) {
-        halfword key = lmt_checkhalfword(L, 2);
-        halfword val = lmt_opthalfword(L, 3, unused_attribute_value);
-        halfword ret = tex_unset_attribute(n, key, val);
-        if (ret > unused_attribute_value) {
-            lua_pushinteger(L, ret);
-        } else {
-            lua_pushnil(L);
+     // halfword index = nodelib_aux_used_attribute_index(L, 2);
+        halfword index = nodelib_aux_attribute_index(L, 2);
+        if (index >= 0) {
+            halfword value  = lmt_opthalfword(L, 3, unused_attribute_value);
+            halfword result = tex_unset_attribute(n, index, value);
+            if (result > unused_attribute_value) {
+                lua_pushinteger(L, result);
+                return 1;
+            }
         }
-    } else {
-        lua_pushnil(L);
     }
+    lua_pushnil(L);
     return 1;
 }
 
@@ -8409,8 +8104,8 @@ static int nodelib_userdata_traverse_id(lua_State *L)
 static int nodelib_direct_length(lua_State *L)
 {
     halfword first = nodelib_valid_direct_from_index(L, 1);
-    halfword last = nodelib_valid_direct_from_index(L, 2);
-    int count = 0;
+    halfword last  = nodelib_valid_direct_from_index(L, 2);
+    int      count = 0;
     if (first) {
         while (first != last) {
             count++;
@@ -8423,9 +8118,9 @@ static int nodelib_direct_length(lua_State *L)
 
 static int nodelib_direct_count(lua_State *L)
 {
-    quarterword id = lmt_toquarterword(L, 1);
-    halfword first = nodelib_valid_direct_from_index(L, 2);
-    halfword last = nodelib_valid_direct_from_index(L, 3);
+    quarterword id    = lmt_toquarterword(L, 1);
+    halfword    first = nodelib_valid_direct_from_index(L, 2);
+    halfword    last  = nodelib_valid_direct_from_index(L, 3);
     int count = 0;
     if (first) {
         while (first != last) {
@@ -8441,27 +8136,31 @@ static int nodelib_direct_count(lua_State *L)
 
 /*tex A few helpers for later usage: */
 
-static inline int nodelib_getattribute_value(lua_State *L, halfword n, int index)
+static inline int nodelib_getattribute_value(lua_State *L, halfword n, int kindex)
 {
-    halfword key = (halfword) lua_tointeger(L, index);
-    halfword val = tex_has_attribute(n, key, unused_attribute_value);
-    if (val == unused_attribute_value) {
-        lua_pushnil(L);
-    } else {
-        lua_pushinteger(L, val);
+    halfword index = nodelib_aux_attribute_index(L, kindex);
+    if (index >= 0) {
+        halfword value = tex_has_attribute(n, index, unused_attribute_value);
+        if (value != unused_attribute_value) {
+            lua_pushinteger(L, value);
+            return 1;
+        }
     }
+    lua_pushnil(L);
     return 1;
 }
 
 static inline void nodelib_setattribute_value(lua_State *L, halfword n, int kindex, int vindex)
 {
     if lmt_likely(lua_gettop(L) >= kindex) {
-        halfword key = lmt_tohalfword(L, kindex);
-        halfword val = lmt_opthalfword(L, vindex, unused_attribute_value);
-        if (val == unused_attribute_value) {
-            tex_unset_attribute(n, key, val);
-        } else {
-            tex_set_attribute(n, key, val);
+        halfword index = nodelib_aux_attribute_index(L, kindex);
+        if (index >= 0) {
+            halfword value = lmt_opthalfword(L, vindex, unused_attribute_value);
+            if (value == unused_attribute_value) {
+                tex_unset_attribute(n, index, value);
+            } else {
+                tex_set_attribute(n, index, value);
+            }
         }
     } else {
        luaL_error(L, "incorrect number of arguments");
@@ -10412,14 +10111,12 @@ static int nodelib_direct_protectglyphs(lua_State *L)
 {
     halfword head = nodelib_valid_direct_from_index(L, 1);
     halfword tail = nodelib_valid_direct_from_index(L, 2);
-    if (head) {
-        while (head) {
-            nodelib_aux_protect_node(head);
-            if (head == tail) {
-                break;
-            } else {
-                head = node_next(head);
-            }
+    while (head) {
+        nodelib_aux_protect_node(head);
+        if (head == tail) {
+            break;
+        } else {
+            head = node_next(head);
         }
     }
     return 0;
@@ -10429,14 +10126,12 @@ static int nodelib_direct_unprotectglyphs(lua_State *L)
 {
     halfword head = nodelib_valid_direct_from_index(L, 1);
     halfword tail = nodelib_valid_direct_from_index(L, 2);
-    if (head) {
-        while (head) {
-            nodelib_aux_unprotect_node(head);
-            if (head == tail) {
-                break;
-            } else {
-                head = node_next(head);
-            }
+    while (head) {
+        nodelib_aux_unprotect_node(head);
+        if (head == tail) {
+            break;
+        } else {
+            head = node_next(head);
         }
     }
     return 0;
@@ -10499,14 +10194,12 @@ static int nodelib_direct_aux_protectglyphs(lua_State *L, singleword control)
 {
     halfword head = nodelib_valid_direct_from_index(L, 1);
     halfword tail = nodelib_valid_direct_from_index(L, 2);
-    if (head) {
-        while (head) {
-            nodelib_aux_protectglyphs(head, control);
-            if (head == tail) {
-                break;
-            } else {
-                head = node_next(head);
-            }
+    while (head) {
+        nodelib_aux_protectglyphs(head, control);
+        if (head == tail) {
+            break;
+        } else {
+            head = node_next(head);
         }
     }
     return 0;
@@ -11855,13 +11548,11 @@ static int nodelib_direct_effectiveglue(lua_State *L)
 
 static int nodelib_direct_checkdiscretionaries(lua_State *L) {
     halfword n = nodelib_valid_direct_from_index(L, 1);
-    if (n) {
-        while (n) {
-            if (node_type(n) == disc_node) {
-                tex_check_disc_field(n);
-            }
-            n = node_next(n) ;
+    while (n) {
+        if (node_type(n) == disc_node) {
+            tex_check_disc_field(n);
         }
+        n = node_next(n) ;
     }
     return 0;
 }
@@ -11894,9 +11585,9 @@ static int nodelib_direct_flattendiscretionaries(lua_State *L)
 
 static int nodelib_direct_softenhyphens(lua_State *L)
 {
-    int found = 0;
-    int replaced = 0;
-    halfword head = nodelib_valid_direct_from_index(L, 1);
+    int      found    = 0;
+    int      replaced = 0;
+    halfword head     = nodelib_valid_direct_from_index(L, 1);
     if (head) {
         tex_soften_hyphens(head, &found, &replaced);
     }
@@ -12380,9 +12071,9 @@ static int nodelib_direct_firstitalicglyph(lua_State *L)
 
 static int nodelib_direct_getspeciallist(lua_State *L)
 {
-    halfword head = null;
-    halfword tail = null;
-    int index = -1;
+    halfword head  = null;
+    halfword tail  = null;
+    int      index = -1;
     switch (lua_type(L, 1)) {
         case LUA_TNUMBER:
             {
@@ -12505,7 +12196,7 @@ static int nodelib_direct_getmvllist(lua_State *L)
 static int nodelib_direct_vbalance(lua_State *L)
 {
     halfword index = lmt_get_box_id(L, 1, 1);
-    halfword mode = nodelib_aux_packing(L, 2);
+    halfword mode  = nodelib_aux_packing(L, 2);
     halfword trial = lua_toboolean(L, 3); 
     nodelib_push_direct_or_nil(L, tex_vbalance(index, mode, trial));
     return 1;

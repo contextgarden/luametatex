@@ -332,8 +332,29 @@ extern void     tex_undump_specification_data (undumpstream f);
                          
 # define node_none(a)    lvalue(a,0)
 
-# define node_head(a)    memtwo(a,0) /*tex the head of a disc sublist */
-# define node_tail(a)    memone(a,1) /*tex the tail of a disc node, overlaps with |node_attr()| */
+# define node_head(a)    memtwo(a,0) /*tex the head of a |disc| sublist, overlaps with |node_next| */
+# define node_tail(a)    memone(a,1) /*tex the tail of a |disc| node, overlaps with |node_attr| */
+
+/*tex
+
+    If we let all nodes have |attr|, |prev| and |next| we can simplify some code because then we 
+    don't need to test for nodes having such fields. We then need to check all nodes! 
+
+    # define node_none(a)    lvalue(a,0)  // no longer to be used, we need to set 0 and 1
+
+    # define node_type(a)    memone0(a,0)
+    # define node_subtype(a) memone1(a,0)
+    # define node_attr(a)    memone(a,1)
+    # define node_prev(a)    memone(a,0)
+    # define node_next(a)    memtwo(a,1)
+
+    # define node_head(a)    memtwo(a,1)
+    # define node_tail(a)    memone(a,1) 
+
+    But ... nodes of size two (temp, nesting, etc) then might become 3 so then waste a bit more 
+    then we want now. 
+
+*/
 
 /*tex
 
@@ -476,6 +497,49 @@ extern void     tex_undump_specification_data (undumpstream f);
 # define attribute_index(a)       memone(a,1)
 # define attribute_value(a)       memtwo(a,1)
 # define attribute_reset(a)       lvalue(a,1)
+
+static inline int tex_clamped_attribute_index(int i)
+{
+    return (i < 0) ? 0 : ((i > max_attribute_register_index) ? max_attribute_register_index : i);
+}
+
+# if 0 
+
+    /*tex We can't have these large values at the \TEX\ end so a no-go for now. */
+
+    # define attribute_node_size      2
+    # define attribute_index(a)       node_subtype(a) /* a quarterword */
+    # define attribute_value(a)       lvalue(a,1)
+
+    //define BITSET_UNSET_64 0xFFFFFFFF80000001
+    # define BITSET_UNSET_64 ((int64_t) unused_attribute_value)
+
+    static inline int tex_attribute_bits_are_set(int64_t val) 
+    {
+        return val != BITSET_UNSET_64;
+    }
+
+    static inline int64_t tex_attribute_unset_bits(void) 
+    {
+        return BITSET_UNSET_64;
+    }
+
+    static inline int tex_attribute_bit_is_set(int64_t val, int bit) 
+    {
+        return (val != BITSET_UNSET_64) && ((val & (1LL << bit)) != 0);
+    }
+
+    static inline int64_t tex_attribute_set_bit(int64_t val, int bit) 
+    {
+        return ((val == BITSET_UNSET_64 ? 0 : val) | (1LL << bit));
+    }
+
+    static inline int64_t tex_attribute_unset_bit(int64_t val, int bit) 
+    {
+        return (val == BITSET_UNSET_64) ? BITSET_UNSET_64 : (val & ~(1LL << bit));
+    }
+
+# endif
 
 /*tex
     Penalties have only one primitive so we don't have |_code| here, also because it would conflict

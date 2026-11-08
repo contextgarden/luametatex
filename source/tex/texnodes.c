@@ -2476,6 +2476,7 @@ static inline halfword tex_aux_new_attribute_node(halfword index, int value)
 {
     halfword r = tex_get_node_type(attribute_node_size, attribute_node);
     attribute_index(r) = index;
+ // attribute_index(r) = tex_clamped_attribute_index(index); /* already checked */
     attribute_value(r) = value;
 # if track_attributes
     ++lmt_node_memory_state.attributes[index];

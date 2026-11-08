@@ -863,7 +863,7 @@ static int vectorlib_getvaluerc(lua_State *L)
 {
     vector a = vectorlib_aux_get(L, 1);
     if (a) {
-        int row = lmt_tointeger(L, 2) - 1;
+        int row    = lmt_tointeger(L, 2) - 1;
         int column = lmt_tointeger(L, 3) - 1;
         if (row >= 0 && row < a->rows && column >= 0 && column < a->columns) {
             lua_pushnumber(L, a->data[row * a->columns + column]);
@@ -878,7 +878,7 @@ static int vectorlib_setvaluerc(lua_State *L)
 {
     vector a = vectorlib_aux_get(L, 1);
     if (a) {
-        int row = lmt_tointeger(L, 2) - 1;
+        int row    = lmt_tointeger(L, 2) - 1;
         int column = lmt_tointeger(L, 3) - 1;
         if (row >= 0 && row < a->rows && column >= 0 && column < a->columns) {
             a->data[row * a->columns + column] = lua_type(L, 4) == LUA_TNUMBER ? lua_tonumber(L, 4) : 0.0;

@@ -757,7 +757,7 @@ static int texlib_isprintable(lua_State* L)
 
 /*tex We actually don't need to copy and could read from the string. */
 
-int lmt_cstring_input(halfword *result, int *cattable, int *partial, int *finalline)
+int lmt_cstring_input(spindle_state *state)
 {
     spindle_rope *rope = read_spindle.head;
     int type = eof_tex_input ;
@@ -783,9 +783,9 @@ int lmt_cstring_input(halfword *result, int *cattable, int *partial, int *finall
                             return type;
                         }
                     }
-                    *cattable = rope->cattable;
-                    *partial = rope->partial;
-                    *finalline = (rope->next == NULL);
+                    state->cattable  = rope->cattable;
+                    state->partial   = rope->partial;
+                    state->finalline = (rope->next == NULL);
                     type = string_tex_input;
                     break;
                 }
@@ -801,9 +801,9 @@ int lmt_cstring_input(halfword *result, int *cattable, int *partial, int *finall
                      //     lmt_fileio_state.io_buffer[lmt_fileio_state.io_last + i] = rope->data.c[i];
                      // }
                         lmt_fileio_state.io_last = newlast;
-                        *cattable = rope->cattable;
-                        *partial = rope->partial;
-                        *finalline = (rope->next == NULL);
+                        state->cattable  = rope->cattable;
+                        state->partial   = rope->partial;
+                        state->finalline = (rope->next == NULL);
                         type = string_tex_input;
                     } else {
                         return type;
@@ -812,19 +812,19 @@ int lmt_cstring_input(halfword *result, int *cattable, int *partial, int *finall
                 }
             case token_lua_input:
                 {
-                    *result = rope->data.h;
+                    state->result = rope->data.h;
                     type = token_tex_input;
                     break;
                 }
             case token_list_lua_input:
                 {
-                    *result = rope->data.h;
+                    state->result = rope->data.h;
                     type = token_list_tex_input;
                     break;
                 }
             case node_lua_input:
                 {
-                    *result = rope->data.h;
+                    state->result = rope->data.h;
                     type = node_tex_input;
                     break;
                 }

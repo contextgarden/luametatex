@@ -2070,11 +2070,13 @@ static inline next_line_retval tex_aux_next_line(void)
             switch (lmt_input_state.cur_input.name) {
                 case io_lua_input_code:
                     {
-                        halfword result = null;
-                        int cattable = 0;
-                        int partial = 0;
-                        int finalline = 0;
-                        int type = lmt_cstring_input(&result, &cattable, &partial, &finalline);
+                        spindle_state state = { 
+                            .result    = null,
+                            .cattable  = 0,
+                            .partial   = 0,
+                            .finalline = 0,
+                        };
+                        int type = lmt_cstring_input(&state);
                         switch (type) {
                             case eof_tex_input:
                                 lmt_token_state.force_eof = 1;
@@ -2082,40 +2084,40 @@ static inline next_line_retval tex_aux_next_line(void)
                             case string_tex_input:
                                 /*tex string */
                                 lmt_input_state.cur_input.limit = lmt_fileio_state.io_last;
-                                lmt_input_state.cur_input.cattable = (short) cattable;
-                                lmt_input_state.cur_input.partial = (signed char) partial;
-                                if (finalline || partial || cattable == no_catcode_table_preset) {
+                                lmt_input_state.cur_input.cattable = (short) state.cattable;
+                                lmt_input_state.cur_input.partial = (signed char) state.partial;
+                                if (state.finalline || state.partial || state.cattable == no_catcode_table_preset) {
                                     inhibit_eol = 1;
                                 }
-                                if (! partial) {
+                                if (! state.partial) {
                                     lmt_input_state.cur_input.state = new_line_state;
                                 }
                                 break;
                             case token_tex_input:
                                 /*tex token */
                                 {
-                                    halfword t = result - cs_token_flag;
+                                    halfword t = state.result - cs_token_flag;
                                     if (t >= 0 && eq_type(t) == input_cmd && eq_value(t) == end_of_input_code && lmt_input_state.cur_input.index > 0) {
                                         tex_end_file_reading();
                                     }
-                                    tex_back_input(result);
+                                    tex_back_input(state.result);
                                     return next_line_restart;
                                 }
                             case token_list_tex_input:
                                 /*tex token */
-                                if (result) {
-                                    tex_begin_backed_up_list(result);
+                                if (state.result) {
+                                    tex_begin_backed_up_list(state.result);
                                 }
                                 return next_line_restart;
                             case node_tex_input:
                                 /*tex node */
-                                if (node_token_overflow(result)) {
+                                if (node_token_overflow(state.result)) {
                                     /* we could link them and avoid one input level */
-                                    tex_back_input(token_val(ignore_cmd, node_token_lsb(result)));
-                                    tex_reinsert_token(token_val(node_cmd, node_token_msb(result)));
+                                    tex_back_input(token_val(ignore_cmd, node_token_lsb(state.result)));
+                                    tex_reinsert_token(token_val(node_cmd, node_token_msb(state.result)));
                                 } else {
                                     /*tex |0x10FFFF == 1114111| */
-                                    tex_back_input(token_val(node_cmd, result));
+                                    tex_back_input(token_val(node_cmd, state.result));
                                 }
                                 return next_line_restart;
                             default:
@@ -2128,11 +2130,13 @@ static inline next_line_retval tex_aux_next_line(void)
                 case io_token_eof_input_code:
                     {
                         /* can be simplified but room for extensions now */
-                        halfword result = null;
-                        int cattable = 0;
-                        int partial = 0;
-                        int finalline = 0;
-                        int type = lmt_cstring_input(&result, &cattable, &partial, &finalline);
+                        spindle_state state = { 
+                            .result    = null,
+                            .cattable  = 0,
+                            .partial   = 0,
+                            .finalline = 0,
+                        };
+                        int type = lmt_cstring_input(&state);
                         switch (type) {
                             case eof_tex_input:
                                 lmt_token_state.force_eof = 1;
@@ -2143,15 +2147,15 @@ static inline next_line_retval tex_aux_next_line(void)
                             case string_tex_input:
                                 /*tex string */
                                 lmt_input_state.cur_input.limit = lmt_fileio_state.io_last;
-                                lmt_input_state.cur_input.cattable = (short) cattable;
-                                lmt_input_state.cur_input.partial = (signed char) partial;
+                                lmt_input_state.cur_input.cattable = (short) state.cattable;
+                                lmt_input_state.cur_input.partial = (signed char) state.partial;
                                 inhibit_eol = lmt_input_state.cur_input.name != io_token_eof_input_code;
-                                if (! partial) {
+                                if (! state.partial) {
                                     lmt_input_state.cur_input.state = new_line_state;
                                 }
                                 break;
                             default:
-                                if (result) {
+                                if (state.result) {
                                     /*tex Can't happen: lua token and node output mixed in here */
                                 }
                                 lmt_token_state.force_eof = 1;
