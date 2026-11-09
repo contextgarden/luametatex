@@ -260,30 +260,6 @@ void lmt_tokenlib_initialize(void)
     }
 }
 
-typedef struct saved_tex_scanner {
-    int cmd;
-    int chr;
-    int cs;
-    int tok;
-} saved_tex_scanner;
-
-static inline saved_tex_scanner tokenlib_aux_save_tex_scanner(void) {
-    return (saved_tex_scanner) {
-        .cmd = cur_cmd,
-        .chr = cur_chr,
-        .cs  = cur_cs,
-        .tok = cur_tok
-    };
-}
-
-static inline void tokenlib_aux_unsave_tex_scanner(const saved_tex_scanner a)
-{
-    cur_cmd = a.cmd;
-    cur_chr = a.chr;
-    cur_cs  = a.cs;
-    cur_tok = a.tok;
-}
-
 static int tokenlib_aux_get_command_id(const char *s)
 {
     for (int i = 0; lmt_interface.command_names[i].id != -1; i++) {
@@ -719,37 +695,37 @@ static void tokenlib_aux_push_token(lua_State *L, int tok)
 
 static int tokenlib_scannext(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     halfword tok = tex_get_token();
     tokenlib_aux_make_new_token_tok(L, tok);
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
 static int tokenlib_scannextexpanded(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     halfword tok = tex_get_x_token();
     tokenlib_aux_make_new_token_tok(L, tok);
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
 static int tokenlib_skipnext(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     (void) L;
     tex_get_token();
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 0;
 }
 
 static int tokenlib_skipnextexpanded(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     (void) L;
     tex_get_x_token();
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 0;
 }
 
@@ -913,9 +889,9 @@ static int tokenlib_scankeyword(lua_State *L)
     const char *s = lua_tostring(L, 1);
     int v = 0;
     if (s) {
-        saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+        saved_tex_scanner texstate = tex_save_tex_scanner();
         v = tex_scan_keyword(s);
-        tokenlib_aux_unsave_tex_scanner(texstate);
+        tex_unsave_tex_scanner(texstate);
     }
     lua_pushboolean(L, v);
     return 1;
@@ -926,9 +902,9 @@ static int tokenlib_scankeywordcs(lua_State *L)
     const char *s = lua_tostring(L, 1);
     int v = 0;
     if (s) {
-        saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+        saved_tex_scanner texstate = tex_save_tex_scanner();
         v = tex_scan_keyword_case_sensitive(s);
-        tokenlib_aux_unsave_tex_scanner(texstate);
+        tex_unsave_tex_scanner(texstate);
     }
     lua_pushboolean(L, v);
     return 1;
@@ -937,7 +913,7 @@ static int tokenlib_scankeywordcs(lua_State *L)
 static int tokenlib_scancsname(lua_State *L)
 {
     int t;
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     if (lua_toboolean(L, 1)) {
         /*tex Not here: |tex_get_next_non_spacer()| unless we adapt more later on. */
         do {
@@ -967,13 +943,13 @@ static int tokenlib_scancsname(lua_State *L)
     } else {
         lua_pushnil(L);
     }
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
 static int tokenlib_scancstoken(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     if (lua_toboolean(L, 1)) {
         /*tex Not here: |tex_get_next_non_spacer()| unless we adapt more later on. */
         do {
@@ -991,34 +967,34 @@ static int tokenlib_scancstoken(lua_State *L)
             lua_pushnil(L);
         }
     }
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
 static int tokenlib_scaninteger(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     int eq = lua_toboolean(L, 1);
     halfword v = tex_scan_integer(eq, NULL, NULL);
     lua_pushinteger(L, (int) v);
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
 static int tokenlib_scancardinal(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     int eq = lua_toboolean(L, 1);
     unsigned int v = 0;
     tex_scan_cardinal(eq, &v, 0);
     lua_pushinteger(L, (unsigned int) v);
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
 static int tokenlib_gobbleinteger(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     int eq = lua_toboolean(L, 1);
     lmt_error_state.intercept = 1;
     lmt_error_state.last_intercept = 0;
@@ -1026,7 +1002,7 @@ static int tokenlib_gobbleinteger(lua_State *L)
     lua_pushboolean(L, ! lmt_error_state.last_intercept);
     lmt_error_state.intercept = 0;
     lmt_error_state.last_intercept = 0;
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
@@ -1074,7 +1050,7 @@ static inline void tokenlib_aux_add_utf_char_to_buffer(luaL_Buffer *b, halfword 
 
 static int tokenlib_scan_float_indeed(lua_State *L, int exponent, int hexadecimal)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     int negative = 0;
     luaL_Buffer b;
     luaL_buffinit(L, &b);
@@ -1241,13 +1217,13 @@ static int tokenlib_scan_float_indeed(lua_State *L, int exponent, int hexadecima
             lua_pushnil(L);
         }
     }
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
 static int tokenlib_scan_integer_indeed(lua_State *L, int cardinal)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     int negative = 0;
     luaL_Buffer b;
     luaL_buffinit(L, &b);
@@ -1339,7 +1315,7 @@ static int tokenlib_scan_integer_indeed(lua_State *L, int cardinal)
             lua_pushnil(L);
         }
     }
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
@@ -1370,24 +1346,24 @@ static int tokenlib_scanluacardinal(lua_State* L)
 
 static int tokenlib_scanscale(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     int eq = lua_toboolean(L, 1);
     halfword val = tex_scan_scale(eq);
     lua_pushinteger(L, val);
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
 static int tokenlib_scandimension(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     int inf = lua_toboolean(L, 1);
     int mu = lua_toboolean(L, 2);
     int eq = lua_toboolean(L, 3);
     halfword order = normal_glue_order;
     scaled val = tex_scan_dimension(mu, inf, 0, eq, &order, NULL);
     lua_pushinteger(L, val);
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     if (inf) {
         lua_pushinteger(L, order);
         return 2;
@@ -1398,7 +1374,7 @@ static int tokenlib_scandimension(lua_State *L)
 
 static int tokenlib_scanposit(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     int eq = lua_toboolean(L, 1);
     int fl = lua_toboolean(L, 1);
     halfword val = tex_scan_posit(eq);
@@ -1407,13 +1383,13 @@ static int tokenlib_scanposit(lua_State *L)
     } else {
         lua_pushinteger(L, val);
     }
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
 static int tokenlib_gobbledimension(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     int inf = lua_toboolean(L, 1);
     int mu = lua_toboolean(L, 2);
     int eq = lua_toboolean(L, 3);
@@ -1423,29 +1399,29 @@ static int tokenlib_gobbledimension(lua_State *L)
     lua_pushboolean(L, ! lmt_error_state.last_intercept);
     lmt_error_state.intercept = 0;
     lmt_error_state.last_intercept = 0;
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
 static int tokenlib_scanskip(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     int mu = lua_toboolean(L, 1) ? muglue_val_level : glue_val_level;
     int eq = lua_toboolean(L, 2);
     halfword v = tex_scan_glue(mu, eq, 0, NULL);
     lmt_push_node_fast(L, v);
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
 static int tokenlib_scanglue(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     int mu = lua_toboolean(L, 1) ? muglue_val_level : glue_val_level;
     int eq = lua_toboolean(L, 2);
     int t  = lua_toboolean(L, 3);
     halfword v = tex_scan_glue(mu, eq, 0, NULL);
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     if (t) {
         lua_createtable(L, 5, 0);
         lua_pushinteger(L, glue_amount(v));
@@ -1513,7 +1489,7 @@ void lmt_token_register_to_lua(lua_State *L, halfword h, int originals)
 
 static int tokenlib_scantoks(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     int macro = lua_toboolean(L, 1);
     int expand = lua_toboolean(L, 2);
     halfword defref = lmt_input_state.def_ref;
@@ -1523,7 +1499,7 @@ static int tokenlib_scantoks(lua_State *L)
     } else {
         result = expand ? tex_scan_toks_expand(0, NULL, 0, 0) : tex_scan_toks_normal(0, NULL);
     }
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     lmt_input_state.def_ref = defref;
     t = token_link(result);
     token_link(result) = null;
@@ -1534,7 +1510,7 @@ static int tokenlib_scantoks(lua_State *L)
 
 static int tokenlib_scantokenlist(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     int macro = lua_toboolean(L, 1);
     int expand = lua_toboolean(L, 2);
     halfword result;
@@ -1545,14 +1521,14 @@ static int tokenlib_scantokenlist(lua_State *L)
         result = expand ? tex_scan_toks_expand(0, NULL, 0, 0) : tex_scan_toks_normal(0, NULL);
     }
     tokenlib_aux_push_token(L, result);
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     lmt_input_state.def_ref = defref;
     return 1;
 }
 
 static int tokenlib_scandetokened(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     int expand = lua_toboolean(L, 1);
     halfword defref = lmt_input_state.def_ref;
     halfword result = null;
@@ -1576,7 +1552,7 @@ static int tokenlib_scandetokened(lua_State *L)
             tex_back_input(cur_tok);
             break;
     }
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     lmt_input_state.def_ref = defref;
     if (result) {
         if (token_link(result)) {
@@ -1604,13 +1580,13 @@ static int tokenlib_scandetokened(lua_State *L)
 static int tokenlib_scantokenstring(lua_State *L) /* noexpand noexpandconstant noexpandparameters */
 {
     /*tex is saving really needed here? */
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     halfword defref = lmt_input_state.def_ref;
     halfword result = lua_toboolean(L, 1) ? tex_scan_toks_normal(0, NULL) : tex_scan_toks_expand(0, NULL, ! lua_toboolean(L, 2), ! lua_toboolean(L, 3));
  // halfword result = tex_scan_toks_expand(0, NULL, 1, 1);
     lmt_token_list_to_luastring(L, result, 0, 0, 1);
     lmt_input_state.def_ref = defref;
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
@@ -1619,7 +1595,7 @@ static int tokenlib_scantokenstring(lua_State *L) /* noexpand noexpandconstant n
 static int tokenlib_scanstring(lua_State *L)
 {
     /*tex can be simplified, no need for intermediate list */
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     tokenlib_aux_goto_first_candidate_x(); /* actually this expands a following macro*/
     switch (cur_cmd) {
         case left_brace_cmd:
@@ -1670,7 +1646,7 @@ static int tokenlib_scanstring(lua_State *L)
                 break;
             }
     }
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
@@ -1679,7 +1655,7 @@ static int tokenlib_scanstring(lua_State *L)
 static int tokenlib_scanargument(lua_State *L)
 {
     /*tex can be simplified, no need for intermediate list */
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     tokenlib_aux_goto_first_candidate();
     switch (cur_cmd) {
         case left_brace_cmd:
@@ -1746,7 +1722,7 @@ static int tokenlib_scanargument(lua_State *L)
                 break;
             }
     }
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
@@ -1763,7 +1739,7 @@ static void show_right_brace_error(void)
 
 static int tokenlib_scanintegerargument(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     int wrapped = 0;
     int eq = lua_toboolean(L, 1);
     tokenlib_aux_goto_first_candidate();
@@ -1779,13 +1755,13 @@ static int tokenlib_scanintegerargument(lua_State *L)
             show_right_brace_error();
         }
     }
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
 static int tokenlib_scandimensionargument(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     int wrapped = 0;
     halfword order = normal_glue_order;
     int inf = lua_toboolean(L, 1);
@@ -1805,7 +1781,7 @@ static int tokenlib_scandimensionargument(lua_State *L)
             show_right_brace_error();
         }
     }
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     if (inf) {
         lua_pushinteger(L, order);
         return 2;
@@ -1821,7 +1797,7 @@ static int tokenlib_scandimensionargument(lua_State *L)
 
 static int tokenlib_scandelimited(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     halfword left = lua_type(L, 1) == LUA_TNUMBER ? lmt_tohalfword(L, 1) : 0;
     halfword right = lua_type(L, 2) == LUA_TNUMBER ? lmt_tohalfword(L, 2) : 0;
     int expand = (lua_type(L, 3) == LUA_TBOOLEAN) ? expand = lua_toboolean(L, 3) : 1;
@@ -1970,7 +1946,7 @@ static int tokenlib_scandelimited(lua_State *L)
         tex_back_input(cur_tok);
         lua_pushnil(L);
     }
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
@@ -1978,7 +1954,7 @@ static int tokenlib_gobble_until(lua_State *L) /* not ok because we can have dif
 {
     lua_token *left = tokenlib_aux_check_istoken(L, 1);
     lua_token *right = tokenlib_aux_check_istoken(L, 2);
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     int level = 1;
     int l = token_info(left->token);
     int r = token_info(right->token);
@@ -2015,7 +1991,7 @@ static int tokenlib_gobble_until(lua_State *L) /* not ok because we can have dif
             }
         }
     }
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 0;
 }
 
@@ -2036,7 +2012,7 @@ static int tokenlib_grab_until(lua_State *L)
         rstr = cs_text(r - cs_token_flag);
     }
     if (lstr && rstr) {
-        saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+        saved_tex_scanner texstate = tex_save_tex_scanner();
         halfword defref  = lmt_input_state.def_ref;
         halfword result  = get_reference_token();
         halfword p       = result;
@@ -2058,7 +2034,7 @@ static int tokenlib_grab_until(lua_State *L)
             }
             p = tex_store_new_token(p, cur_tok);
         }
-        tokenlib_aux_unsave_tex_scanner(texstate);
+        tex_unsave_tex_scanner(texstate);
         lmt_input_state.def_ref = defref;
         lmt_token_list_to_luastring(L, result, nospace, strip, 1);
     } else {
@@ -2106,7 +2082,7 @@ static int tokenlib_grab_string_until(lua_State *L)
         rstr = cs_text(r - cs_token_flag);
     }
     if (lstr && rstr) {
-        saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+        saved_tex_scanner texstate = tex_save_tex_scanner();
         halfword    defref = lmt_input_state.def_ref;
         int         level  = 1;
         luaL_Buffer b;
@@ -2156,7 +2132,7 @@ static int tokenlib_grab_string_until(lua_State *L)
             }
         }
       DONE:
-        tokenlib_aux_unsave_tex_scanner(texstate);
+        tex_unsave_tex_scanner(texstate);
         lmt_input_state.def_ref = defref;
         luaL_pushresult(&b);
     } else {
@@ -2167,7 +2143,7 @@ static int tokenlib_grab_string_until(lua_State *L)
 
 static int tokenlib_scanword(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     tokenlib_aux_goto_first_candidate_x();
     if (cur_cmd == letter_cmd || cur_cmd == other_char_cmd) {
         luaL_Buffer b;
@@ -2187,13 +2163,13 @@ static int tokenlib_scanword(lua_State *L)
         tex_back_input(cur_tok);
         lua_pushnil(L);
     }
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
 static int tokenlib_scanletters(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     tokenlib_aux_goto_first_candidate_x();
     if (cur_cmd == letter_cmd) {
         luaL_Buffer b;
@@ -2213,13 +2189,13 @@ static int tokenlib_scanletters(lua_State *L)
         tex_back_input(cur_tok);
         lua_pushnil(L);
     }
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
 static int tokenlib_scanchar(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     tokenlib_aux_goto_first_candidate(); /* no expansion */ /* optional expansion ? */ /* gobbles spaces */
     if (cur_cmd == letter_cmd || cur_cmd == other_char_cmd) {
         int c = lmt_tointeger(L, 1);
@@ -2233,13 +2209,13 @@ static int tokenlib_scanchar(lua_State *L)
         lua_pushboolean(L, 0);
         tex_back_input(cur_tok);
     }
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
 static int tokenlib_scannextchar(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     tex_get_token();
     switch (cur_cmd) {
         case escape_cmd:
@@ -2271,13 +2247,13 @@ static int tokenlib_scannextchar(lua_State *L)
             lua_pushstring(L, "");
             break;
     }
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
 static int tokenlib_isnextchar(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     tokenlib_aux_goto_first_candidate(); /* no expansion */ /* optional expansion ? */ /* gobbles spaces */
     if (cur_cmd == letter_cmd || cur_cmd == other_char_cmd ) {
         int c = lmt_tointeger(L, 1);
@@ -2286,13 +2262,13 @@ static int tokenlib_isnextchar(lua_State *L)
         lua_pushboolean(L, 0);
     }
     tex_back_input(cur_tok);
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
 static int tokenlib_peeknext(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     if (lua_toboolean(L, 1)) {
         tokenlib_aux_goto_first_candidate();
     } else {
@@ -2301,13 +2277,13 @@ static int tokenlib_peeknext(lua_State *L)
  // make_new_token(L, cur_cmd, cur_chr, cur_cs);
     tokenlib_aux_make_new_token_tok(L, cur_tok);
     tex_back_input(cur_tok);
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
 static int tokenlib_peeknextexpanded(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     if (lua_toboolean(L, 1)) {
         tokenlib_aux_goto_first_candidate_x();
     } else {
@@ -2316,13 +2292,13 @@ static int tokenlib_peeknextexpanded(lua_State *L)
  // make_new_token(L, cur_cmd, cur_chr, cur_cs);
     tokenlib_aux_make_new_token_tok(L, cur_tok);
     tex_back_input(cur_tok);
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
 static int tokenlib_peeknextchar(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     tokenlib_aux_goto_first_candidate(); /* no expansion */ /* optional expansion ? */ /* gobbles spaces */
     if (cur_cmd == letter_cmd || cur_cmd == other_char_cmd ) {
         lua_pushinteger(L, cur_chr);
@@ -2330,7 +2306,7 @@ static int tokenlib_peeknextchar(lua_State *L)
         lua_pushnil(L);
     }
     tex_back_input(cur_tok);
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
@@ -2346,7 +2322,7 @@ static int tokenlib_scankey(lua_State *L)
 {
     int c1 = lmt_optinteger(L, 1, '\0');
     int c2 = lmt_optinteger(L, 2, '\0');
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     tokenlib_aux_goto_first_candidate_x();
     if ((cur_cmd == letter_cmd || cur_cmd == other_char_cmd) && (cur_chr != c1) && (cur_chr != c2)) {
         luaL_Buffer b;
@@ -2369,7 +2345,7 @@ static int tokenlib_scankey(lua_State *L)
         tex_back_input(cur_tok);
         lua_pushnil(L);
     }
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
@@ -2381,7 +2357,7 @@ static int tokenlib_scanvalue(lua_State *L)
     /*tex can be simplified, no need for intermediate list */
     int c1 = lmt_optinteger(L, 1, '\0');
     int c2 = lmt_optinteger(L, 2, '\0');
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     tokenlib_aux_goto_first_candidate_x(); /* no _x */
     switch (cur_cmd) {
         case left_brace_cmd:
@@ -2493,7 +2469,7 @@ static int tokenlib_scanvalue(lua_State *L)
             }
             break;
     }
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
@@ -2501,7 +2477,7 @@ static int tokenlib_scanvalue(lua_State *L)
 
 static int tokenlib_future_expand(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     halfword spa = null;
     halfword yes = tex_get_token(); /* no expansion */
     halfword nop = tex_get_token(); /* no expansion */
@@ -2516,7 +2492,7 @@ static int tokenlib_future_expand(lua_State *L)
                 if (lua_tointeger(L, 1) == cur_chr) {
                     tex_back_input(t);
                     tex_back_input(yes); // maybe tex_reinsert_token 
-                    tokenlib_aux_unsave_tex_scanner(texstate);
+                    tex_unsave_tex_scanner(texstate);
                     return 0;
                 }
                 FALLTHROUGH
@@ -2526,7 +2502,7 @@ static int tokenlib_future_expand(lua_State *L)
                     tex_back_input(spa);
                 }
                 tex_back_input(nop);
-                tokenlib_aux_unsave_tex_scanner(texstate);
+                tex_unsave_tex_scanner(texstate);
                 return 0;
         }
     }
@@ -2535,7 +2511,7 @@ static int tokenlib_future_expand(lua_State *L)
 
 static int tokenlib_scancode(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     tex_get_x_token();
     if (cur_cmd <= max_char_code_cmd) {
         int cc = lmt_optinteger(L, 1, DEFAULT_SCAN_CODE_SET);
@@ -2549,13 +2525,13 @@ static int tokenlib_scancode(lua_State *L)
         lua_pushnil(L);
         tex_back_input(cur_tok);
     }
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
 static int tokenlib_scantokencode(lua_State *L)
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     halfword t = tex_get_token();
     /* maybe treat spaces as such */
     if (cur_cmd <= max_char_code_cmd) {
@@ -2569,7 +2545,7 @@ static int tokenlib_scantokencode(lua_State *L)
         lua_pushnil(L);
         tex_back_input(t);
     }
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
@@ -3414,11 +3390,11 @@ static int tokenlib_type(lua_State *L)
 
 static int tokenlib_scan_token(lua_State *L) /*tex Similer to |get_next_expanded|, expands and no skips. */
 {
-    saved_tex_scanner texstate = tokenlib_aux_save_tex_scanner();
+    saved_tex_scanner texstate = tex_save_tex_scanner();
     tex_get_x_token();
  // make_new_token(L, cur_cmd, cur_chr, cur_cs);
     tokenlib_aux_make_new_token_tok(L, cur_tok);
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
@@ -3446,9 +3422,9 @@ static int tokenlib_scan_box(lua_State *L)
     /*tex
         This is a tricky call as we are in \LUA\ and therefore mess with the main loop.
     */
-    texstate = tokenlib_aux_save_tex_scanner();
+    texstate = tex_save_tex_scanner();
     lmt_push_node_fast(L, tex_local_scan_box());
-    tokenlib_aux_unsave_tex_scanner(texstate);
+    tex_unsave_tex_scanner(texstate);
     return 1;
 }
 
@@ -4205,178 +4181,12 @@ static int tokenlib_getfunctionvalues(lua_State *L)
 
 # endif
 
-/*tex
-
-    An experiment!
-
-    After playing with a few alternatives in \LUA\ I wondered about delegating some work the
-    \CCODE\ end because we need to stop at a partial non-match (in order to be \TEX\
-    compatible). The initial idea was passing something |foobar,bar,foo| and getting an index
-    back. A bit if chatting came up with a different lookup approach and then I decided that
-    a userdata approach might be better so I gave it a try.
-    
-    Because we scan token by token we need a tree to store the characters, which, contrary to 
-    the regular keyword scanner (1), can be \UTF, so we can use numbers. Given that there are 
-    several ways to implement such a tree I just asked Gemini for a reasonable approach also 
-    given memory usage so it came up with one (actually few to choise from) that we stepwise 
-    adapted to our needs (like a sprted insert to make the longest match working). The next
-    picture was made to help figure out |catcode| alongside |category| matching. 
-
-    \starttyping
-    keyword_matcher
-     └── root ──> [ keyword_node ]
-                    ├── index       = 0
-                    ├── nofchildren = 1
-                    ├── keys        = [ 99 ('c') ]
-                    └── children    = [ &Node_C ]
-                                             │
-                                             ▼
-                                   [ keyword_node (&Node_C) ]
-                                    ├── index       = 0
-                                    ├── nofchildren = 1
-                                    ├── keys        = [ 97 ('a') ]
-                                    └── children    = [ &Node_CA ]
-                                             │
-                                             ▼
-                                   [ keyword_node (&Node_CA) ]
-                                    ├── index       = 0
-                                    ├── nofchildren = 2  <-- Sorted order: 112 ('p') < 116 ('t')
-                                    ├── keys        = [ 112 ('p'),  116 ('t') ]
-                                    └── children    = [ &Node_CAP,  &Node_CAT ]
-                                             │               │
-                                             ▼               ▼
-                                       [Node_CAP]      [Node_CAT]
-                                        index = 2      index = 1
-                                        nofchildren=0  nofchildren=0
-    \stoptyping
-    
-    The rest of the code is more or less like the normal keyword scanner but where that one 
-    tests against a string and quits when its end is reached here we need to go for the 
-    longest match and also explicitly quit when we're an an end point. In a |if ... 
-    orelse ... orelse ... orelse ... else ... end| we need to make sure that the longest match 
-    comes before a short, but here we need to deal with that immediately. It helps a bit if 
-    one knows how \TEX\ scans especially with look-ahead expansion (for instance want a value 
-    to be an expandable control sequence (constant or variable in \CONTEXT\ speak) which then 
-    should also work when we ignore spaces. Of course there is a bit of optimization. 
-
-    (1) Actually when we use the case sentitive scanner \UTF\ works fine because then there 
-    is no \ASCII\ casing going on, as in regular \TEX\ interface keywords. 
-
+/*tex 
+    The matcher code has been moved to the scanner module so that I can experiment with it at the 
+    \TEX\ end. 
 */
 
-typedef struct keyword_node {
-    int                   index;
-    int                   nofchildren;
-    int                  *keys;
-    struct keyword_node **children; 
-} keyword_node;
-
-typedef struct keyword_matcher {
-    keyword_node *root;
-    int           count;
-} keyword_matcher;
-
-inline static keyword_node *tokenlib_aux_trie_allocate(void)
-{
-    keyword_node *n = lmt_memory_malloc(sizeof(keyword_node));
-    n->index       = 0;
-    n->nofchildren = 0;
-    n->keys        = NULL;
-    n->children    = NULL;
-    return n;
-}
-
-static keyword_node *tokenlib_aux_trie_get_or_insert_child(keyword_node *current, int uni)
-{
-    int n    = current->nofchildren;
-    int low  = 0;
-    int high = n - 1;
-    /*tex binary search to see if the child already exists */
-    while (low <= high) {
-        int mid = low + (high - low) / 2;
-        if (current->keys[mid] == uni) {
-            /* existing child found */
-            return current->children[mid];
-        } else if (current->keys[mid] < uni) {
-            low = mid + 1;
-        } else {
-            high = mid - 1;
-        }
-    }
-    /*tex |low| is now the correct sorted insertion index */
-    int insert_idx = low;
-    current->nofchildren++;
-    current->keys     = lmt_memory_realloc(current->keys, current->nofchildren * sizeof(int));
-    current->children = lmt_memory_realloc(current->children, current->nofchildren * sizeof(keyword_node *));
-    /*tex shift elements to the right to maintain ascending sorted order */
-    for (int i = current->nofchildren - 1; i > insert_idx; i--) {
-        current->keys    [i] = current->keys    [i - 1];
-        current->children[i] = current->children[i - 1];
-    }
-    /*tex insert the new child node at the correct position */
-    current->keys[insert_idx] = uni;
-    keyword_node *new_node = tokenlib_aux_trie_allocate();
-    current->children[insert_idx] = new_node;
-    return new_node;
-}
-
-static void tokenlib_aux_trie_insert(keyword_node *root, const char *str, int index)
-{
-    keyword_node        *current   = root;
-    const unsigned char *p         = (const unsigned char *) str;
-    size_t               remaining = strlen(str);
-    while (remaining > 0) {
-        int          len;
-        unsigned int uni = aux_str2uni_len(p, remaining, &len);
-        /*tex get or insert the child while keeping keys sorted */
-        current = tokenlib_aux_trie_get_or_insert_child(current, (int) uni);
-        p += len;
-        remaining -= (size_t) len;
-    }
-    /*tex mark terminal node with its target index */
-    current->index = index;
-}
-
-static keyword_node *tokenlib_aux_find_child(keyword_node *current, int cp) 
-{
-    int n = current->nofchildren;
-    if (n < 6) {
-        /*tex Here the 6 is a bit of a gamble. */
-        for (int i = 0; i < n; i++) {
-            if (current->keys[i] == cp) {
-                return current->children[i];
-            }
-        }
-    } else {
-        int low = 0, high = n - 1;
-        while (low <= high) {
-            int mid = low + (high - low) / 2;
-            if (current->keys[mid] == cp) {
-                return current->children[mid];
-            } else if (current->keys[mid] < cp) { 
-                low = mid + 1;
-            } else { 
-                high = mid - 1;
-            }
-        }
-    }
-    return NULL;
-}
-
-static void tokenlib_aux_trie_free(keyword_node *node) 
-{
-    if (! node) { 
-        return;
-    }
-    for (int i = 0; i < node->nofchildren; i++) {
-        tokenlib_aux_trie_free(node->children[i]);
-    }
-    lmt_memory_free(node->keys);
-    lmt_memory_free(node->children);
-    lmt_memory_free(node);
-}
-
-/*tex 
+/*tex
     We now arrive at the \TEX\ and \LUA\ part of this experiment. We're in a rather predicable
     siuation so we can gain a little here: 
 */
@@ -4404,8 +4214,9 @@ static int tokenlib_newmatcher(lua_State *L)
 {
     luaL_checktype(L, 1, LUA_TTABLE);
     keyword_matcher *matcher = lua_newuserdata(L, sizeof(keyword_matcher));
-    matcher->root  = tokenlib_aux_trie_allocate();
-    matcher->count = 0;
+    matcher->root    = tex_matcher_trie_allocate();
+    matcher->count   = 0;
+    matcher->options = lmt_optunsigned(L, 2, 0);
     int n = 0;
     lua_pushnil(L);
     while (lua_next(L, 1) != 0) {
@@ -4413,7 +4224,7 @@ static int tokenlib_newmatcher(lua_State *L)
             size_t len;
             const char *s = lua_tolstring(L, -1, &len);
             n++;
-            tokenlib_aux_trie_insert(matcher->root, s, n);
+            tex_matcher_trie_insert(matcher->root, s, n);
         }
         lua_pop(L, 1);
     }
@@ -4423,81 +4234,100 @@ static int tokenlib_newmatcher(lua_State *L)
     return 1;
 }
 
-/*tex
-    As mentioned, one needs to know how \TEX\ picks up tokens, expands, pushed back, and so on,
-    but the regular keyword scanners and the ones wrapped above give a clue. The most critital 
-    bit is where we decide to quite matching. I had to make sure that existing \CONTEXT\ code was
-    still working, just in case we decide to go this route. 
-*/
+# if 1 
 
-static int tokenlib_usematcher(lua_State *L)
-{
-    keyword_matcher *matcher  = tokenlib_aux_maybe_ismatcher(L, 1);
-    if lmt_unlikely(! (matcher && matcher->root)) {
-        return luaL_error(L, "valid token matcher expected");
+    static int tokenlib_usematcher(lua_State *L)
+    {
+        keyword_matcher *matcher  = tokenlib_aux_maybe_ismatcher(L, 1);
+        if lmt_unlikely(! (matcher && matcher->root)) {
+            return luaL_error(L, "valid token matcher expected");
+        }
+        int found = tex_matcher_use(matcher, 1, 0);
+        if (found) { 
+            lua_pushinteger(L, found);
+        } else {
+            if (lmt_scanner_state.expected) {
+                tex_formatted_warning("matcher", "expected keyword: %s", lmt_scanner_state.expected);
+                lmt_memory_free(lmt_scanner_state.expected);
+                lmt_scanner_state.expected = NULL;
+            }
+            lua_pushnil(L);
+        }
+        return 1;
     }
-    saved_tex_scanner  texstate = tokenlib_aux_save_tex_scanner(); 
-    keyword_node      *current  = matcher->root;
-    halfword           h        = null;
-    halfword           p        = null;
-    int                n        = 0;    
-    int                best_i   = 0;
-    halfword           best_p   = null;
-    int                best_n   = 0;
-    tokenlib_aux_goto_first_candidate_x();
-    while (1) {
-        if (cur_cmd == letter_cmd || cur_cmd == other_char_cmd) {
-            int           cp   = cur_chr;
-            keyword_node *next = tokenlib_aux_find_child(current, cp);
-            if (! next) {
+
+# else 
+
+    static int tokenlib_usematcher(lua_State *L)
+    {
+        keyword_matcher *matcher  = tokenlib_aux_maybe_ismatcher(L, 1);
+        if lmt_unlikely(! (matcher && matcher->root)) {
+            return luaL_error(L, "valid token matcher expected");
+        }
+        saved_tex_scanner  texstate = tex_save_tex_scanner(); 
+        keyword_node      *current  = matcher->root;
+        halfword           h        = null;
+        halfword           p        = null;
+        int                n        = 0;    
+        int                best_i   = 0;
+        halfword           best_p   = null;
+        int                best_n   = 0;
+        tokenlib_aux_goto_first_candidate_x();
+        while (1) {
+            if (cur_cmd == letter_cmd || cur_cmd == other_char_cmd) {
+                int           cp   = cur_chr;
+                keyword_node *next = tex_matcher_find_child(current, cp);
+                if (! next) {
+                    tex_back_input(cur_tok);
+                    break;
+                }
+                current = next;
+                p       = tex_store_new_token(p, cur_tok);
+                if (! h) {
+                    h = p;
+                }
+                n++;
+                if (current->index > 0) {
+                    best_i = current->index;
+                    best_p = p;
+                    best_n = n;
+                    if (current->nofchildren == 0) {
+                        break;
+                    }
+                }
+            } else {
                 tex_back_input(cur_tok);
                 break;
             }
-            current = next;
-            p       = tex_store_new_token(p, cur_tok);
-            if (! h) {
-                h = p;
-            }
-            n++;
-            if (current->index > 0) {
-                best_i = current->index;
-                best_p = p;
-                best_n = n;
-                if (current->nofchildren == 0) {
-                    break;
+            tex_get_x_token();
+        }
+        if (best_i > 0) {
+            if (h) {
+                halfword t = token_link(best_p);    
+                token_link(best_p) = null; 
+                tex_flush_token_list_head_tail(h, best_p, best_n);
+                if (t) { /* unlikely */
+                    tex_begin_backed_up_list(t);
                 }
             }
+            lua_pushinteger(L, best_i);
         } else {
-            tex_back_input(cur_tok);
-            break;
-        }
-        tex_get_x_token();
-    }
-    if (best_i > 0) {
-        if (h) {
-            halfword t = token_link(best_p);    
-            token_link(best_p) = null; 
-            tex_flush_token_list_head_tail(h, best_p, best_n);
-            if (t) { /* unlikely */
-                tex_begin_backed_up_list(t);
+            if (h) {
+                tex_begin_backed_up_list(h);
             }
+            lua_pushnil(L);
         }
-        lua_pushinteger(L, best_i);
-    } else {
-        if (h) {
-            tex_begin_backed_up_list(h);
-        }
-        lua_pushnil(L);
+        tex_unsave_tex_scanner(texstate);
+        return 1;
     }
-    tokenlib_aux_unsave_tex_scanner(texstate);
-    return 1;
-}
+
+# endif
 
 static int tokenlib_matcher_gc(lua_State *L)
 {
     keyword_matcher *matcher = tokenlib_aux_maybe_ismatcher(L, 1);
     if (matcher && matcher->root) {
-        tokenlib_aux_trie_free(matcher->root);
+        tex_matcher_trie_free(matcher->root);
         matcher->root = NULL;
     }
     return 0;

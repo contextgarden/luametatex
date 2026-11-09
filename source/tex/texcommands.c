@@ -1544,6 +1544,7 @@ void tex_initialize_commands(void)
         tex_primitive(tex_command,        no_legacy,       "showlists",                      xray_cmd,               show_lists_code,                                 0);
         tex_primitive(tex_command,        no_legacy,       "showthe",                        xray_cmd,               show_the_code,                                   0);
         tex_primitive(etex_command,       no_legacy,       "showtokens",                     xray_cmd,               show_tokens_code,                                0);
+        tex_primitive(luametatex_command, no_legacy,       "showprivateidea",                xray_cmd,               show_private_idea_code,                          0);
 
         tex_primitive(luatex_command,     no_legacy,       "initcatcodetable",               catcode_table_cmd,      init_cat_code_table_code,                        0);
         tex_primitive(luatex_command,     no_legacy,       "savecatcodetable",               catcode_table_cmd,      save_cat_code_table_code,                        0);

@@ -173,7 +173,7 @@ static int tex_aux_pass_text_x(int tracing_ifs, int tracing_commands)
                 case or_unless_code:
                     if (level == 0) {
                         int unless = cur_chr == or_unless_code;
-                        if (tracing_commands > 1) {
+                        if lmt_unlikely(tracing_commands > 1) {
                             tex_print_format(unless ? "%<%l{orunless}%>" : "%<%l{orelse}%>");
                         } else if (tracing_ifs) {
                             tex_show_cmd_chr(cur_cmd, cur_chr);

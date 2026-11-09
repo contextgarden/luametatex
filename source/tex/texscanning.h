@@ -36,6 +36,7 @@ typedef struct scanner_state_info {
     halfword last_cs_name;      /*tex used in |\csname| and |\ifcsname| */
     int      arithmetic_error;
     int      expression_depth;
+    char    *expected;
 } scanner_state_info;
 
 extern scanner_state_info lmt_scanner_state;
@@ -235,5 +236,85 @@ static inline int tex_token_is_unit(halfword t) {
         || (t >= A_token_l && t <= Z_token_l) || (t >= A_token_o && t <= Z_token_o);
 }
 
-# endif
+/* */
 
+typedef struct saved_tex_scanner {
+    int cmd;
+    int chr;
+    int cs;
+    int tok;
+} saved_tex_scanner;
+
+static inline saved_tex_scanner tex_save_tex_scanner(void) {
+    return (saved_tex_scanner) {
+        .cmd = cur_cmd,
+        .chr = cur_chr,
+        .cs  = cur_cs,
+        .tok = cur_tok
+    };
+}
+
+static inline void tex_unsave_tex_scanner(const saved_tex_scanner a)
+{
+    cur_cmd = a.cmd;
+    cur_chr = a.chr;
+    cur_cs  = a.cs;
+    cur_tok = a.tok;
+}
+
+/*tex 
+    This started ou tas an experiment in |lmtnodelib| but I will also play with this at the \TEX\ 
+    end so now the cod emoved to the |texscanner| module. 
+*/
+
+typedef struct keyword_node {
+    int                   index;
+    int                   nofchildren;
+    int                  *keys;
+    struct keyword_node **children; 
+} keyword_node;
+
+typedef enum keyword_options {
+    keyword_exact_option    = 0x01,
+    keyword_terminal_option = 0x02,
+    keyword_ascii_option    = 0x04,
+} keyword_options;
+
+typedef struct keyword_matcher {
+    keyword_node *root;
+    int           count;
+    unsigned      options; 
+} keyword_matcher;
+
+keyword_node *tex_matcher_trie_allocate (void);
+void          tex_matcher_trie_insert   (keyword_node *root, const char *str, int index);
+void          tex_matcher_trie_free     (keyword_node *node); 
+int           tex_matcher_use           (const keyword_matcher *matcher, int intercept, int brace);
+keyword_node *tex_matcher_find_child    (const keyword_node *current, int cp);
+
+typedef enum keyword_matchers { 
+    private_idea_matcher,
+ // full_spec_matcher, 
+} keyword_matchers;
+
+// # define first_keyword_matcher full_spec_matcher
+// # define last_keyword_matcher  full_spec_matcher
+
+# define first_keyword_matcher private_idea_matcher
+# define last_keyword_matcher  private_idea_matcher
+
+typedef struct matcher_item {
+    const char **words;
+    unsigned     first;
+    unsigned     last;
+    unsigned     options;
+} matcher_item;
+
+extern keyword_matcher lmt_matchers     [last_keyword_matcher+1];
+extern matcher_item    lmt_matcher_items[last_keyword_matcher+1];
+
+void tex_initialize_matchers (void);
+void tex_cleanup_matchers    (void);
+void tex_report_matchers     (void);
+
+# endif

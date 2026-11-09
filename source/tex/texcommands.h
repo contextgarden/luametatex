@@ -903,6 +903,8 @@ typedef enum xray_codes {
     show_code_stack_code, /*tex |\showcodestack| */
     show_tokens_code,     /*tex |\showtokens|, must be odd! */
     show_ifs_code,        /*tex |\showifs| */
+    /* */
+    show_private_idea_code,
 } xray_codes;
 
 # define last_xray_code show_ifs_code

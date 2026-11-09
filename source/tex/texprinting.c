@@ -266,7 +266,7 @@ void tex_print_char(int s)
 
 /* no_print terminal | logfile | terminal_and_logfile | pseudo | new_string | luabuffer */
 
-static void tex_aux_uprint(int s)
+void tex_print_uchar(int s)
 {
     /*tex We're not sure about this so it's disabled for now! */
     /*
@@ -291,12 +291,12 @@ void tex_print_tex_str(int s)
         if (s < 0) {
             tex_normal_warning("print", "bad string offset");
         } else {
-            tex_aux_uprint(s);
+            tex_print_uchar(s);
         }
     } else if (lmt_print_state.selector == new_string_selector_code) {
         tex_append_string(str_getstr(s), str_getlen(s));
     } else {
-        lstring_string j = str_getstr(s);
+        lstring_string j = str_getstr(s); 
         for (lstring_length i = 0; i < str_getlen(s); i++) {
             tex_print_char(j[i]);
         }
@@ -1697,7 +1697,7 @@ inline const char *tex_print_format_args(const char *format, va_list args)
                     case 'c':
                         {
                             int chr = va_arg(args, int);
-                            tex_aux_uprint(chr);
+                            tex_print_uchar(chr);
                             break;
                         }
                     case 'd': /* detail */
@@ -1760,7 +1760,7 @@ inline const char *tex_print_format_args(const char *format, va_list args)
                             break;
                         }
                     case 'u':
-                        tex_aux_uprint(va_arg(args, int));
+                        tex_print_uchar(va_arg(args, int));
                         break;
                     case 'x':
                         {

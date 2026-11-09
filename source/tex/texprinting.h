@@ -78,6 +78,7 @@ typedef enum spec_units {
 
 extern void        tex_print_ln               (void);   /* always forces a newline */
 extern void        tex_print_char             (int s);
+extern void        tex_print_uchar            (int s);
 extern void        tex_print_tex_str          (int s);
 //     void        tex_print_tex_str_esc      (strnumber s);
 extern void        tex_print_nlp              (void);   /* flushes a line if we're doing one */

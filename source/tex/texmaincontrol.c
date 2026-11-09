@@ -7021,6 +7021,10 @@ static void tex_aux_run_show_whatever(void)
              // }
                 break;
             }
+        case show_private_idea_code:
+             // tex_begin_diagnostic();
+                tex_show_idea();
+             // tex_end_diagnostic();
         default:
             /* can't happen */
             break;

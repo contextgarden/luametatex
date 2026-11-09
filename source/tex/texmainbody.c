@@ -271,6 +271,9 @@ void tex_main_body(void)
         tex_initialize_hash_mem();
     }
 
+    tex_initialize_ideas();
+    tex_initialize_matchers();
+
     tex_initialize_errors();
     tex_initialize_nesting();
     tex_initialize_pagestate();
@@ -624,6 +627,10 @@ static int final_cleanup(int dump)
         Real late as we can have nexted files to check.
     */
     tex_cleanup_conditionals();
+
+    tex_cleanup_ideas();
+    tex_cleanup_matchers();
+
     if (badrun && lmt_callback_defined(stop_run_callback) <= 0 && lmt_error_state.history < error_message_issued) {
         lmt_error_state.history = error_message_issued;
     }
