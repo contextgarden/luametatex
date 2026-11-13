@@ -530,4 +530,10 @@ extern        void     tex_aux_set_specification        (int a, halfword target)
 extern        void     tex_aux_get_specification_value  (halfword specification);
 extern        void     tex_aux_get_specification_index  (halfword specification, int subindex);
 
+extern        void     tex_set_specification_matcher    (void);
+extern        void     tex_set_parpasses_matcher        (void);
+extern        void     tex_set_balancepasses_matcher    (void);
+extern        void     tex_set_balanceshape_matcher     (void);
+extern        void     tex_set_linesnapping_matcher     (void);
+
 # endif

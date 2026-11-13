@@ -790,11 +790,71 @@ static int tex_valid_mvl_id(halfword n)
     return 0;
 }
 
+# if use_matcher 
+
+typedef enum mvl_keys { 
+    mvl_key_no_match = 0,
+    /* */ 
+    mvl_key_index, 
+    mvl_key_options,
+    mvl_key_prevdepth,
+    /* */
+    mvl_key_left_brace,
+} mvl_keys;
+
+static const char *mvl_words[] = { 
+    NULL,
+    /* */
+    "index", 
+    "options",
+    "prevdepth",
+};
+
+void tex_set_mvl_matcher(void)
+{
+    lmt_matcher_items[mvl_matcher] = (matcher_item) { 
+        .words   = mvl_words, 
+        .name    = "mvl",
+        .first   = mvl_key_index,
+        .last    = mvl_key_prevdepth,
+        .group   = mvl_key_left_brace,
+        .options = default_matcher_options, 
+    };
+}
+
+# endif 
+
 void tex_start_mvl(void)
 {
-    halfword index = 0; 
-    halfword options = 0;
-    scaled prevdepth = max_dimen;
+    halfword index     = 0; 
+    halfword options   = 0;
+    scaled   prevdepth = max_dimen;
+
+# if use_matcher 
+
+    keyword_matcher *matcher = &lmt_matchers[mvl_matcher];
+    while (1) {
+        switch (tex_matcher_use(matcher, 1)) {
+            case mvl_key_no_match:
+                goto DONE;
+            case mvl_key_index:
+                index = tex_scan_integer(0, NULL, NULL);
+                break;
+            case mvl_key_options:
+                options = tex_scan_integer(0, NULL, NULL);
+                break;
+            case mvl_key_prevdepth:
+                prevdepth = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            default:
+                goto DONE;
+        }
+    }
+  DONE:
+    tex_check_matchers(mvl_matcher);
+
+# else 
+
     while (1) {
         switch (tex_scan_character("iop", 0, 1, 0)) {
             case 'i':
@@ -817,6 +877,9 @@ void tex_start_mvl(void)
         }
     }
   DONE:
+
+# endif
+
     if (! index) { 
         index = tex_scan_integer(0, NULL, NULL);
     }

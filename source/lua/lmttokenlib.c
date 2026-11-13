@@ -4214,9 +4214,15 @@ static int tokenlib_newmatcher(lua_State *L)
 {
     luaL_checktype(L, 1, LUA_TTABLE);
     keyword_matcher *matcher = lua_newuserdata(L, sizeof(keyword_matcher));
-    matcher->root    = tex_matcher_trie_allocate();
-    matcher->count   = 0;
-    matcher->options = lmt_optunsigned(L, 2, 0);
+    matcher->nodes      = NULL;
+    matcher->nodes_used = 0;
+    matcher->nodes_cap  = 0;
+    matcher->count      = 0;
+    matcher->options    = lmt_optunsigned(L, 2, 0);
+    matcher->group      = 0;
+
+    tex_matcher_trie_allocate(matcher);
+
     int n = 0;
     lua_pushnil(L);
     while (lua_next(L, 1) != 0) {
@@ -4224,111 +4230,46 @@ static int tokenlib_newmatcher(lua_State *L)
             size_t len;
             const char *s = lua_tolstring(L, -1, &len);
             n++;
-            tex_matcher_trie_insert(matcher->root, s, n);
+            tex_matcher_trie_insert(matcher, s, n);
         }
         lua_pop(L, 1);
     }
     matcher->count = n;
+# if trace_matchers
+    tex_matcher_trace(matcher, -1);
+# endif 
     lua_get_metatablelua(token_matcher);
     lua_setmetatable(L, -2);
     return 1;
 }
 
-# if 1 
 
-    static int tokenlib_usematcher(lua_State *L)
-    {
-        keyword_matcher *matcher  = tokenlib_aux_maybe_ismatcher(L, 1);
-        if lmt_unlikely(! (matcher && matcher->root)) {
-            return luaL_error(L, "valid token matcher expected");
-        }
-        int found = tex_matcher_use(matcher, 1, 0);
-        if (found) { 
-            lua_pushinteger(L, found);
-        } else {
-            if (lmt_scanner_state.expected) {
-                tex_formatted_warning("matcher", "expected keyword: %s", lmt_scanner_state.expected);
-                lmt_memory_free(lmt_scanner_state.expected);
-                lmt_scanner_state.expected = NULL;
-            }
-            lua_pushnil(L);
-        }
-        return 1;
+static int tokenlib_usematcher(lua_State *L)
+{
+    keyword_matcher *matcher = tokenlib_aux_maybe_ismatcher(L, 1);
+    // if lmt_unlikely(! (matcher && matcher->root)) {
+    if lmt_unlikely(! matcher) {
+        return luaL_error(L, "valid token matcher expected");
     }
-
-# else 
-
-    static int tokenlib_usematcher(lua_State *L)
-    {
-        keyword_matcher *matcher  = tokenlib_aux_maybe_ismatcher(L, 1);
-        if lmt_unlikely(! (matcher && matcher->root)) {
-            return luaL_error(L, "valid token matcher expected");
+    int found = tex_matcher_use(matcher, 1); 
+    if (found) { 
+        lua_pushinteger(L, found);
+    } else {
+        if (lmt_scanner_state.expected) {
+            tex_formatted_warning("matcher", "expected keyword: %s", lmt_scanner_state.expected);
+            lmt_memory_free(lmt_scanner_state.expected);
+            lmt_scanner_state.expected = NULL;
         }
-        saved_tex_scanner  texstate = tex_save_tex_scanner(); 
-        keyword_node      *current  = matcher->root;
-        halfword           h        = null;
-        halfword           p        = null;
-        int                n        = 0;    
-        int                best_i   = 0;
-        halfword           best_p   = null;
-        int                best_n   = 0;
-        tokenlib_aux_goto_first_candidate_x();
-        while (1) {
-            if (cur_cmd == letter_cmd || cur_cmd == other_char_cmd) {
-                int           cp   = cur_chr;
-                keyword_node *next = tex_matcher_find_child(current, cp);
-                if (! next) {
-                    tex_back_input(cur_tok);
-                    break;
-                }
-                current = next;
-                p       = tex_store_new_token(p, cur_tok);
-                if (! h) {
-                    h = p;
-                }
-                n++;
-                if (current->index > 0) {
-                    best_i = current->index;
-                    best_p = p;
-                    best_n = n;
-                    if (current->nofchildren == 0) {
-                        break;
-                    }
-                }
-            } else {
-                tex_back_input(cur_tok);
-                break;
-            }
-            tex_get_x_token();
-        }
-        if (best_i > 0) {
-            if (h) {
-                halfword t = token_link(best_p);    
-                token_link(best_p) = null; 
-                tex_flush_token_list_head_tail(h, best_p, best_n);
-                if (t) { /* unlikely */
-                    tex_begin_backed_up_list(t);
-                }
-            }
-            lua_pushinteger(L, best_i);
-        } else {
-            if (h) {
-                tex_begin_backed_up_list(h);
-            }
-            lua_pushnil(L);
-        }
-        tex_unsave_tex_scanner(texstate);
-        return 1;
+        lua_pushnil(L);
     }
-
-# endif
+    return 1;
+}
 
 static int tokenlib_matcher_gc(lua_State *L)
 {
     keyword_matcher *matcher = tokenlib_aux_maybe_ismatcher(L, 1);
-    if (matcher && matcher->root) {
-        tex_matcher_trie_free(matcher->root);
-        matcher->root = NULL;
+    if (matcher) {
+        tex_matcher_free(matcher);
     }
     return 0;
 }

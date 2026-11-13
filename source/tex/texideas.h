@@ -10,5 +10,6 @@
 void tex_initialize_ideas (void);
 void tex_cleanup_ideas    (void);
 void tex_show_idea        (void);
+void tex_set_idea_matcher (void);
 
 # endif

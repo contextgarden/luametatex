@@ -960,11 +960,17 @@ halfword tex_scan_character(const char *s, int left_brace, int skip_space, int s
         tex_get_x_token();
         switch (cur_cmd) {
             case spacer_cmd:
-                if (skip_space) { break; }
-                else { goto DONE; }
+                if (skip_space) { 
+                    break; 
+                } else { 
+                    goto DONE; 
+                }
             case relax_cmd:
-                if (skip_relax) { break; }
-                else { goto DONE; }
+                if (skip_relax) { 
+                    break; 
+                } else { 
+                    goto DONE; 
+                }
             case letter_cmd:
             case other_char_cmd: {
                 int c_lower = (cur_chr >= 'A' && cur_chr <= 'Z') ? (cur_chr + 32) : cur_chr;

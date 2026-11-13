@@ -1,6 +1,7 @@
 /*
     See license.txt in the root of this project.
 */
+
 # include "luametatex.h"
 
 /*tex 
@@ -87,6 +88,66 @@ bool tex_show_adjust_record(void)
     return true;
 }
 
+# if use_matcher 
+
+static const char *adjust_words[] = { 
+    NULL,
+    /* */
+    "after",
+    "attr",
+    "baseline",
+    "before",
+# if 0
+    "depth",
+# else
+    "depth after",
+    "depth before",
+    "depth check",
+    "depth last",
+# endif
+    "except",
+    "index",
+    "pre",
+    "post",
+};
+
+typedef enum adjust_keys { 
+    adjust_key_no_match = 0,
+    /* */ 
+    adjust_key_after,
+    adjust_key_attr,
+    adjust_key_baseline,
+    adjust_key_before,
+# if 0
+    adjust_key_depth,
+# else
+    adjust_key_depth_after,
+    adjust_key_depth_before,
+    adjust_key_depth_check,
+    adjust_key_depth_last,
+# endif
+    adjust_key_except,
+    adjust_key_index,
+    adjust_key_pre,
+    adjust_key_post,
+    /* */
+    adjust_key_left_brace,
+} adjust_keys;
+
+void tex_set_adjust_matcher(void)
+{
+    lmt_matcher_items[adjust_matcher] = (matcher_item) { 
+        .words   = adjust_words, 
+        .name    = "adjust specification",
+        .first   = adjust_key_after, 
+        .last    = adjust_key_post,
+        .group   = adjust_key_left_brace,
+        .options = default_matcher_options, 
+    };
+}
+
+# endif 
+
 static void tex_scan_adjust_keys(adjust_properties *properties)
 {
     properties->code        = post_adjust_code;
@@ -96,6 +157,100 @@ static void tex_scan_adjust_keys(adjust_properties *properties)
     properties->depthafter  = 0;
     properties->attrlist    = null;
     properties->except      = 0;
+
+# if use_matcher 
+
+    keyword_matcher *matcher = &lmt_matchers[adjust_matcher];
+    while (1) {
+        switch (tex_matcher_use(matcher, 1)) {
+            case adjust_key_no_match:
+                goto DONE;
+            case adjust_key_after:
+                properties->options &= ~adjust_option_before;
+                break;
+            case adjust_key_attr:
+                properties->attrlist = tex_scan_attribute(properties->attrlist);
+                break;
+            case adjust_key_baseline:
+                properties->options |= adjust_option_baseline;
+                break;
+            case adjust_key_before:
+                properties->options |= adjust_option_before;
+                break;
+# if 0
+            case adjust_key_depth:
+                switch (tex_scan_character("abcl", 0, 1, 0)) { /* space permitted */
+                    case 'a':
+                        if (tex_scan_mandate_keyword("after", 1)) {
+                            properties->options |= adjust_option_depth_after;
+                            properties->depthafter = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                        }
+                        break;
+                    case 'b':
+                        if (tex_scan_mandate_keyword("before", 1)) {
+                            properties->options |= adjust_option_depth_before;
+                            properties->depthbefore = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                        }
+                        break;
+                    case 'c':
+                        if (tex_scan_mandate_keyword("check", 1)) {
+                            properties->options |= adjust_option_depth_check;
+                        }
+                        break;
+                    case 'l':
+                        if (tex_scan_mandate_keyword("last", 1)) {
+                            properties->options |= adjust_option_depth_last;
+                        }
+                        break;
+                    default:
+                        tex_aux_show_keyword_error("after|before|check|last");
+                        goto DONE;
+                }
+                break;
+# else
+            case adjust_key_depth_after:
+                properties->options |= adjust_option_depth_after;
+                properties->depthafter = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case adjust_key_depth_before:
+                properties->options |= adjust_option_depth_before;
+                properties->depthbefore = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case adjust_key_depth_check:
+                properties->options |= adjust_option_depth_check;
+                break;
+            case adjust_key_depth_last:
+                properties->options |= adjust_option_depth_last;
+                break;
+# endif
+            case adjust_key_except:
+                properties->except = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                properties->options |= adjust_option_except;
+                break;
+            case adjust_key_index:
+                properties->index = tex_scan_integer(0, NULL, NULL);
+                if (! tex_valid_adjust_index(properties->index)) {
+                    properties->index = 0; /* for now no error */
+                }
+                break;
+            case adjust_key_pre:
+                properties->code = pre_adjust_code;
+                break;
+            case adjust_key_post:
+                properties->code = post_adjust_code;
+                break;
+         // case adjust_key_left_brace:
+         //  // brace = 1;
+         //     goto DONE;
+            default:
+                goto DONE;
+        }
+    }
+  DONE:
+    tex_check_matchers(adjust_matcher);
+
+# else 
+
     while (1) {
         switch (tex_scan_character("abdeip", 0, 1, 0)) {
             case 'a':
@@ -199,6 +354,9 @@ static void tex_scan_adjust_keys(adjust_properties *properties)
         }
     }
   DONE:
+
+# endif 
+
     if (properties->code == pre_adjust_code) {
         /* todo: maybe a warning */
         properties->except = 0;
@@ -220,20 +378,20 @@ void tex_set_vadjust(halfword target)
     adjust_properties properties;
     tex_scan_adjust_keys(&properties);
     saved_adjust_initialize();
-    saved_adjust_location = properties.code;
-    saved_adjust_options = properties.options;
-    saved_adjust_index = properties.index;
-    saved_adjust_attr_list = properties.attrlist;
+    saved_adjust_location     = properties.code;
+    saved_adjust_options      = properties.options;
+    saved_adjust_index        = properties.index;
+    saved_adjust_attr_list    = properties.attrlist;
     saved_adjust_depth_before = properties.depthbefore;
-    saved_adjust_depth_after = properties.depthafter;
-    saved_adjust_except = properties.except;
-    saved_adjust_target = target;
+    saved_adjust_depth_after  = properties.depthafter;
+    saved_adjust_except       = properties.except;
+    saved_adjust_target       = target;
     lmt_save_state.save_stack_data.ptr += saved_adjust_n_of_records;
     tex_new_save_level(vadjust_group);
     tex_scan_left_brace();
     tex_normal_paragraph(vadjust_par_context);
     tex_push_nest();
-    cur_list.mode = internal_vmode;
+    cur_list.mode       = internal_vmode;
     cur_list.prev_depth = ignore_depth_criterion_par;
 }
 
@@ -253,12 +411,12 @@ void tex_finish_vadjust_group(void)
         tex_pop_nest();
         adjust = tex_new_node(adjust_node, (quarterword) saved_adjust_location);
         target = saved_adjust_target;
-        adjust_list(adjust) = box_list(box);
-        adjust_options(adjust) = (halfword) saved_adjust_options;
-        adjust_index(adjust) = (halfword) saved_adjust_index;
+        adjust_list(adjust)         = box_list(box);
+        adjust_options(adjust)      = (halfword) saved_adjust_options;
+        adjust_index(adjust)        = (halfword) saved_adjust_index;
         adjust_depth_before(adjust) = (halfword) saved_adjust_depth_before;
-        adjust_depth_after(adjust) = (halfword) saved_adjust_depth_after;
-        adjust_except(adjust) = (halfword) saved_adjust_except;
+        adjust_depth_after(adjust)  = (halfword) saved_adjust_depth_after;
+        adjust_except(adjust)       = (halfword) saved_adjust_except;
         tex_attach_attribute_list_attribute(adjust, (halfword) saved_adjust_attr_list);
         delete_attribute_reference(saved_adjust_attr_list);
         if (has_adjust_option(adjust, adjust_option_except) && ! adjust_list(adjust)) { 
@@ -266,10 +424,10 @@ void tex_finish_vadjust_group(void)
                 We create a simple adjust node. Anything more complex is kind of weird anyway. We 
                 need something in the list in order to make migration work out anyway. 
             */
-            node_subtype(adjust) = post_adjust_code;
+            node_subtype(adjust)        = post_adjust_code;
             adjust_depth_before(adjust) = 0;
-            adjust_depth_after(adjust) = 0;
-            adjust_list(adjust) = tex_new_node(boundary_node, adjust_boundary);
+            adjust_depth_after(adjust)  = 0;
+            adjust_list(adjust)         = tex_new_node(boundary_node, adjust_boundary);
         }
         if (target == 0) {
             tex_flush_node(adjust);
@@ -313,7 +471,7 @@ halfword tex_append_adjust_list(halfword head, halfword tail, halfword adjust, c
 halfword tex_prepend_adjust_list(halfword head, halfword tail, halfword adjust, const char *detail)
 {
     halfword first = adjust;
-    halfword last = adjust;
+    halfword last  = adjust;
     if (! first || node_type(first) != adjust_node) {
         return tail;
     }

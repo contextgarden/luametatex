@@ -73,6 +73,161 @@ static int valid_specification_options[number_specification_pars] = {
 
 */
 
+typedef enum specification_keys { 
+    specification_key_no_match = 0,
+    /* */ 
+    specification_key_constant,
+    specification_key_default,
+    specification_key_double,
+    specification_key_factors,
+    specification_key_final,
+    specification_key_global,
+    specification_key_integer,
+    specification_key_largest,
+    specification_key_options,
+    specification_key_presets,
+    specification_key_repeat,
+    specification_key_rotate,
+    /* */
+    specification_key_left_brace,
+} specification_keys;
+
+static const char *specification_words[] = { 
+    NULL,
+    /* */
+    "constant",
+    "default",
+    "double",
+    "factors",
+    "final",
+    "global",
+    "integer",
+    "largest",
+    "options",
+    "presets",
+    "repeat",
+    "rotate",
+};
+
+void tex_set_specification_matcher(void)
+{
+    lmt_matcher_items[specification_matcher] = (matcher_item) { 
+        .words   = specification_words, 
+        .name    = "specification",
+        .first   = specification_key_constant,
+        .last    = specification_key_rotate,
+        .group   = specification_key_left_brace,
+        .options = default_matcher_options, 
+    };
+}
+
+# if use_matcher 
+
+static halfword tex_aux_scan_specification_options(quarterword code)
+{
+    halfword         options = 0; 
+    halfword         valid   = valid_specification_options[code];
+    keyword_matcher *matcher = &lmt_matchers[specification_matcher];
+    int              key     = 0;
+    while (1) {
+        /*tex Maybe |migrate <int>| makes sense here. */
+        key = tex_matcher_use(matcher, 1);
+        switch (key) {
+            case specification_key_no_match:
+                return options;
+            case specification_key_constant:
+                if (valid & specification_option_constant) {
+                    options |= specification_option_constant;
+                    break;
+                } else { 
+                    goto ISSUE;
+                }
+            case specification_key_default:
+                if (valid & specification_option_default) {
+                    options |= specification_option_default;
+                    break;
+                } else { 
+                    goto ISSUE;
+                }
+            case specification_key_double:
+                if (valid & specification_option_double) {
+                    options |= specification_option_double;
+                    break;
+                } else { 
+                    goto ISSUE;
+                }
+            case specification_key_factors:
+                if (valid & specification_option_factors) {
+                    options |= specification_option_factors;
+                    break;
+                } else { 
+                    goto ISSUE;
+                }
+            case specification_key_final:
+                if (valid & specification_option_final) {
+                    options |= specification_option_final;
+                    break;
+                } else { 
+                    goto ISSUE;
+                }
+            case specification_key_global:
+                if (valid & specification_option_global) {
+                    options |= specification_option_global;
+                    break;
+                } else { 
+                    goto ISSUE;
+                }
+            case specification_key_integer:
+                if (valid & specification_option_integer) {
+                    options |= specification_option_integer;
+                    break;
+                } else { 
+                    goto ISSUE;
+                }
+            case specification_key_largest:
+                if (valid & specification_option_largest) {
+                    options |= specification_option_largest;
+                    break;
+                } else { 
+                    goto ISSUE;
+                }
+            case specification_key_options:
+                options |= tex_scan_integer(0, NULL, NULL);
+                break;
+            case specification_key_presets:
+                if (valid & specification_option_presets) {
+                    options |= specification_option_presets;
+                    break;
+                } else { 
+                    goto ISSUE;
+                }
+            case specification_key_repeat:
+                if (valid & specification_option_repeat) {
+                    options |= specification_option_repeat;
+                    break;
+                } else { 
+                    goto ISSUE;
+                }
+            case specification_key_rotate:
+                if (valid & specification_option_rotate) {
+                    options |= specification_option_rotate;
+                    break;
+                } else { 
+                    goto ISSUE;
+                }
+           default:
+                return options;
+        }
+    }
+  ISSUE:
+    if (key) {
+        tex_ignore_matchers(specification_matcher, key);
+    }
+    return options;
+}
+
+# else 
+
 static halfword tex_aux_scan_specification_options(quarterword code)
 {
     halfword options = 0; 
@@ -168,6 +323,8 @@ static halfword tex_aux_scan_specification_options(quarterword code)
         }
     }
 }
+
+# endif 
 
 /*tex 
     We could have one function but this is cleaner because we have no parameters related to these
@@ -515,6 +672,130 @@ static halfword tex_aux_scan_specification_orphan_line_factors(void)
     return tex_aux_scan_specification_penalties(orphan_line_factors_code);
 }
 
+# if use_matcher 
+
+typedef enum parpasses_keys { 
+    parpasses_key_no_match = 0,
+    /* */ 
+    parpasses_key_adjdemerits,
+    parpasses_key_adjacentdemerits,
+    parpasses_key_adjustspacing,
+    parpasses_key_adjustspacingstep,
+    parpasses_key_adjustspacingstretch,
+    parpasses_key_adjustspacingshrink,
+    parpasses_key_callback,
+    parpasses_key_classes,
+    parpasses_key_demerits,
+    parpasses_key_doublehyphendemerits,
+    parpasses_key_emergencyfactor,
+    parpasses_key_emergencyleftextra,
+    parpasses_key_emergencypercentage,
+    parpasses_key_emergencyrightextra,
+    parpasses_key_emergencystretch,
+    parpasses_key_emergencyunit,
+    parpasses_key_emergencywidthextra,
+    parpasses_key_extrahyphenpenalty,
+    parpasses_key_finalhyphendemerits,
+    parpasses_key_fitnessclasses,
+    parpasses_key_hyphenation,
+    parpasses_key_identifier,
+    parpasses_key_ifadjustspacing,
+    parpasses_key_ifemergencystretch,
+    parpasses_key_iffactor,
+    parpasses_key_ifglue,
+    parpasses_key_iflooseness,
+    parpasses_key_ifmath,
+    parpasses_key_iftext,
+    parpasses_key_lefttwindemerits, 
+    parpasses_key_linebreakchecks,
+    parpasses_key_linebreakoptional,
+    parpasses_key_linepenalty,
+    parpasses_key_looseness,
+    parpasses_key_mathpenaltyfactor,
+    parpasses_key_next,
+    parpasses_key_orphanpenalties,
+    parpasses_key_orphanlinefactors,
+    parpasses_key_quit,
+    parpasses_key_raggedness,
+    parpasses_key_righttwindemerits,
+    parpasses_key_skip,
+    parpasses_key_sffactor,
+    parpasses_key_sfstretchfactor,
+    parpasses_key_threshold,
+    parpasses_key_toddlerpenalties,
+    parpasses_key_tolerance,
+    parpasses_key_unlessmath,
+    /* */
+    parpasses_key_left_brace,
+} parpasses_keys;
+
+static const char *parpasses_words[] = { 
+    NULL,
+    /* */
+    "adjdemerits",
+    "adjacentdemerits",
+    "adjustspacing",
+    "adjustspacingstep",
+    "adjustspacingstretch",
+    "adjustspacingshrink",
+    "callback",
+    "classes",
+    "demerits",
+    "doublehyphendemerits",
+    "emergencyfactor",
+    "emergencyleftextra",
+    "emergencypercentage",
+    "emergencyrightextra",
+    "emergencystretch",
+    "emergencyunit",
+    "emergencywidthextra",
+    "extrahyphenpenalty",
+    "finalhyphendemerits",
+    "fitnessclasses",
+    "hyphenation",
+    "identifier",
+    "ifadjustspacing",
+    "ifemergencystretch",
+    "iffactor",
+    "ifglue",
+    "iflooseness",
+    "ifmath",
+    "iftext",
+    "lefttwindemerits", 
+    "linebreakchecks",
+    "linebreakoptional",
+    "linepenalty",
+    "looseness",
+    "mathpenaltyfactor",
+    "next",
+    "orphanpenalties",
+    "orphanlinefactors",
+    "quit",
+    "raggedness",
+    "righttwindemerits",
+    "skip",
+    "sffactor",
+    "sfstretchfactor",
+    "threshold",
+    "toddlerpenalties",
+    "tolerance",
+    "unlessmath",
+};
+
+void tex_set_parpasses_matcher(void)
+{
+    lmt_matcher_items[parpasses_matcher] = (matcher_item) { 
+        .words   = parpasses_words, 
+        .name    = "parpasses",
+        .first   = parpasses_key_adjdemerits,
+        .last    = parpasses_key_unlessmath,
+        .group   = parpasses_key_left_brace,
+        .options = default_matcher_options, 
+    };
+}
+
+# endif 
+
 static halfword tex_aux_scan_specification_par_passes(void)
 {
     halfword p = null;
@@ -531,6 +812,222 @@ static halfword tex_aux_scan_specification_par_passes(void)
             count = 0xFF;
         }
         p = tex_new_specification_node(count, par_passes_code, options);
+
+# if use_matcher 
+
+        keyword_matcher *matcher = &lmt_matchers[parpasses_matcher];
+
+        while (n <= count) {
+            switch (tex_matcher_use(matcher, 1)) {
+                case parpasses_key_no_match:
+                    goto DONE;
+                case parpasses_key_adjdemerits:
+                    tex_set_passes_adjdemerits(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_okay(p, n, passes_adjdemerits_okay);
+                    break;
+                case parpasses_key_adjacentdemerits:
+                    tex_set_passes_adjacentdemerits(p, n, tex_aux_scan_par_specification(adjacent_demerits_code, tex_aux_scan_specification_adjacent_demerits));
+                    tex_set_passes_okay(p, n, passes_adjacentdemerits_okay);
+                    break;
+                case parpasses_key_adjustspacingstep:
+                    tex_set_passes_adjustspacingstep(p, n, tex_scan_integer(0, NULL, NULL));   
+                    tex_set_passes_okay(p, n, passes_adjustspacingstep_okay);
+                    break;
+                case parpasses_key_adjustspacingstretch:
+                    tex_set_passes_adjustspacingstretch(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_okay(p, n, passes_adjustspacingstretch_okay);
+                    break;
+                case parpasses_key_adjustspacingshrink:
+                    tex_set_passes_adjustspacingshrink(p, n, tex_scan_integer(0, NULL, NULL)); 
+                    tex_set_passes_okay(p, n, passes_adjustspacingshrink_okay);
+                    break;
+                case parpasses_key_adjustspacing:
+                    tex_set_passes_adjustspacing(p, n, tex_scan_integer(0, NULL, NULL));   
+                    tex_set_passes_okay(p, n, passes_adjustspacing_okay);
+                    break;
+                case parpasses_key_callback:
+                    tex_set_passes_callback(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_features(p, n, passes_callback_set);
+                    tex_set_passes_okay(p, n, passes_callback_okay);
+                    break;
+                case parpasses_key_classes:
+                    tex_set_passes_classes(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_features(p, n, passes_criterium_set);
+                    tex_set_passes_okay(p, n, passes_classes_okay);
+                    break;
+                case parpasses_key_demerits:
+                    tex_set_passes_demerits(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_features(p, n, passes_criterium_set);
+                    tex_set_passes_okay(p, n, passes_demerits_okay);
+                    break;
+                case parpasses_key_doublehyphendemerits:
+                    tex_set_passes_doublehyphendemerits(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_okay(p, n, passes_doublehyphendemerits_okay);
+                    break;
+                case parpasses_key_emergencyfactor:
+                    /* tex 
+                        Using a factor is better from the perspective 
+                        of |\specificationdef| usage because we don't 
+                        want hardcoded dimensions then. 
+                    */
+                    tex_set_passes_emergencyfactor(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_okay(p, n, passes_emergencyfactor_okay);
+                    break;
+                case parpasses_key_emergencyleftextra:
+                    tex_set_passes_emergencyleftextra(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_okay(p, n, passes_emergencyleftextra_okay);
+                    break;
+                case parpasses_key_emergencypercentage:
+                    tex_set_passes_emergencypercentage(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_okay(p, n, passes_emergencypercentage_okay);
+                    break;
+                case parpasses_key_emergencyrightextra:
+                    tex_set_passes_emergencyrightextra(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_okay(p, n, passes_emergencyrightextra_okay);
+                    break;
+                case parpasses_key_emergencystretch:
+                    tex_set_passes_emergencystretch(p, n, tex_scan_dimension(0, 0, 0, 0, NULL, NULL));
+                    tex_set_passes_okay(p, n, passes_emergencystretch_okay);
+                    break;
+                case parpasses_key_emergencyunit:
+                    tex_set_passes_emergencyunit(p, n, tex_scan_unit_register_number(0));
+                    tex_set_passes_okay(p, n, passes_emergencyunit_okay);
+                    break;
+                case parpasses_key_emergencywidthextra:
+                    tex_set_passes_emergencywidthextra(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_okay(p, n, passes_emergencywidthextra_okay);
+                    break;
+                case parpasses_key_extrahyphenpenalty:
+                    tex_set_passes_extrahyphenpenalty(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_okay(p, n, passes_extrahyphenpenalty_okay);
+                    break;
+                case parpasses_key_finalhyphendemerits:
+                    tex_set_passes_finalhyphendemerits(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_okay(p, n, passes_finalhyphendemerits_okay);
+                    break;
+                case parpasses_key_fitnessclasses:
+                    tex_set_passes_fitnessclasses(p, n, tex_aux_scan_par_specification(fitness_classes_code, tex_aux_scan_specification_fitness_classes));
+                    tex_set_passes_okay(p, n, passes_fitnessclasses_okay);
+                    break;
+                case parpasses_key_hyphenation:
+                    tex_set_passes_hyphenation(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_okay(p, n, passes_hyphenation_okay);
+                    break;
+                case parpasses_key_identifier:
+                    passes_identifier(p) = tex_scan_integer(0, NULL, NULL);
+                    break;
+                case parpasses_key_ifadjustspacing:
+                    tex_set_passes_features(p, n, passes_if_adjust_spacing);
+                    break;
+                case parpasses_key_ifemergencystretch:
+                    tex_set_passes_features(p, n, passes_if_emergency_stretch);
+                    break;
+                case parpasses_key_iffactor:
+                    tex_set_passes_features(p, n, passes_if_space_factor);
+                    break;
+                case parpasses_key_ifglue:
+                    tex_set_passes_features(p, n, passes_if_glue);
+                    break;
+                case parpasses_key_iflooseness:
+                    tex_set_passes_features(p, n, passes_if_looseness);
+                    break;
+                case parpasses_key_ifmath:
+                    tex_set_passes_features(p, n, passes_if_math);
+                    break;
+                case parpasses_key_iftext:
+                    tex_set_passes_features(p, n, passes_if_text);
+                    break;
+                case parpasses_key_lefttwindemerits:
+                    tex_set_passes_lefttwindemerits(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_okay(p, n, passes_lefttwindemerits_okay);
+                    break;
+                case parpasses_key_linebreakchecks:
+                    tex_set_passes_linebreakchecks(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_okay(p, n, passes_linebreakchecks_okay);
+                    break;
+                case parpasses_key_linebreakoptional:
+                    tex_set_passes_linebreakoptional(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_okay(p, n, passes_linebreakoptional_okay);
+                    break;
+                case parpasses_key_linepenalty:
+                    tex_set_passes_linepenalty(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_okay(p, n, passes_linepenalty_okay);
+                    break;
+                case parpasses_key_looseness:
+                    tex_set_passes_looseness(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_okay(p, n, passes_looseness_okay);
+                    break;
+                case parpasses_key_mathpenaltyfactor:
+                    {
+                        halfword v = tex_scan_integer(0, NULL, NULL);
+                        if (v < 0) {
+                            v = 0;
+                        } else if (v == scaling_factor) {
+                            v = 0;
+                        }
+                        tex_set_passes_mathpenaltyfactor(p, n, v);
+                        tex_set_passes_okay(p, n, passes_mathpenaltyfactor_okay);
+                    }
+                    break;
+                case parpasses_key_next:
+                    n++;
+                    break;
+                case parpasses_key_orphanpenalties:
+                    tex_set_passes_orphanpenalties(p, n, tex_aux_scan_par_specification(orphan_penalties_code, tex_aux_scan_specification_orphan_penalties));
+                    tex_set_passes_okay(p, n, passes_orphanpenalties_okay);
+                    break;
+                case parpasses_key_orphanlinefactors:
+                    tex_set_passes_orphanlinefactors(p, n, tex_aux_scan_par_specification(orphan_line_factors_code, tex_aux_scan_specification_orphan_line_factors));
+                    tex_set_passes_okay(p, n, passes_orphanlinefactors_okay);
+                    break;
+                case parpasses_key_quit:
+                    tex_set_passes_features(p, n, passes_quit_pass);
+                    break;
+                case parpasses_key_raggedness:
+                    tex_set_passes_raggedness(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_okay(p, n, passes_raggedness_okay);
+                    break;
+                case parpasses_key_righttwindemerits:
+                    tex_set_passes_righttwindemerits(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_okay(p, n, passes_righttwindemerits_okay);
+                    break;
+                case parpasses_key_skip:
+                    tex_set_passes_features(p, n, passes_skip_pass);
+                    break;
+                case parpasses_key_sffactor:
+                    tex_set_passes_sffactor(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_okay(p, n, passes_sffactor_okay);
+                    break;
+                case parpasses_key_sfstretchfactor:
+                    tex_set_passes_sfstretchfactor(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_okay(p, n, passes_sfstretchfactor_okay);
+                    break;
+                case parpasses_key_threshold:
+                    tex_set_passes_threshold(p, n, tex_scan_dimension(0, 0, 0, 0, NULL, NULL));
+                    tex_set_passes_features(p, n, passes_criterium_set);
+                    tex_set_passes_okay(p, n, passes_threshold_okay);
+                    break;
+                case parpasses_key_toddlerpenalties:
+                    tex_set_passes_toddlerpenalties(p, n, tex_aux_scan_par_specification(toddler_penalties_code, tex_aux_scan_specification_toddler_penalties));
+                    tex_set_passes_okay(p, n, passes_toddlerpenalties_okay);
+                    break;
+                case parpasses_key_tolerance:
+                    tex_set_passes_tolerance(p, n, tex_scan_integer(0, NULL, NULL));
+                    /* Not here! */ /* tex_set_passes_features(p, n, passes_criterium_set); */
+                    tex_set_passes_okay(p, n, passes_tolerance_okay);
+                    break;
+                case parpasses_key_unlessmath:
+                    tex_set_passes_features(p, n, passes_unless_math);
+                    break;
+                default:
+                    goto DONE;
+            }
+        }
+      DONE:
+        tex_check_matchers(parpasses_matcher);
+
+# else 
+
         while (n <= count) {
             switch (tex_scan_character("acdefhilmnoqrstu", 0, 1, 0)) {
                 case 0:
@@ -986,7 +1483,10 @@ static halfword tex_aux_scan_specification_par_passes(void)
                     goto DONE;
             }
         }
-        DONE:
+      DONE:
+
+# endif
+
         if lmt_unlikely(n < count) {
             tex_handle_error(
                 normal_error_type,
@@ -1016,6 +1516,73 @@ static halfword tex_aux_scan_specification_par_passes(void)
     return p;
 }
 
+# if use_matcher
+
+typedef enum balancepasses_keys { 
+    balancepasses_key_no_match = 0,
+    /* */ 
+    balancepasses_key_adjdemerits,
+    balancepasses_key_classes,
+    balancepasses_key_demerits,
+    balancepasses_key_emergencyfactor,
+    balancepasses_key_emergencypercentage,
+    balancepasses_key_emergencystretch,
+    balancepasses_key_emergencyshrink,
+    balancepasses_key_fitnessclasses,
+    balancepasses_key_identifier,
+    balancepasses_key_ifemergency,
+    balancepasses_key_ifemergencystretch,
+    balancepasses_key_ifemergencyshrink,
+    balancepasses_key_iflooseness,
+    balancepasses_key_looseness,
+    balancepasses_key_next,
+    balancepasses_key_pagebreakchecks,
+    balancepasses_key_pagepenalty,
+    balancepasses_key_quit,
+    balancepasses_key_threshold,
+    balancepasses_key_tolerance,
+    /* */
+    balancepasses_key_left_brace,
+} balancepasses_keys;
+
+static const char *balancepasses_words[] = { 
+    NULL,
+    /* */
+    "adjdemerits",
+    "classes",
+    "demerits",
+    "emergencyfactor",
+    "emergencypercentage",
+    "emergencystretch",
+    "emergencyshrink",
+    "fitnessclasses",
+    "identifier",
+    "ifemergency",
+    "ifemergencystretch",
+    "ifemergencyshrink",
+    "iflooseness",
+    "looseness",
+    "next",
+    "pagebreakchecks",
+    "pagepenalty",
+    "quit",
+    "threshold",
+    "tolerance",
+};
+
+void tex_set_balancepasses_matcher(void)
+{
+    lmt_matcher_items[balancepasses_matcher] = (matcher_item) { 
+        .words   = balancepasses_words, 
+        .name    = "balancepasses",
+        .first   = balancepasses_key_adjdemerits,
+        .last    = balancepasses_key_tolerance,
+        .group   = balancepasses_key_left_brace,
+        .options = default_matcher_options, 
+    };
+}
+
+# endif
 
 static halfword tex_aux_scan_specification_balance_passes(void)
 {
@@ -1033,6 +1600,97 @@ static halfword tex_aux_scan_specification_balance_passes(void)
             count = 0xFF;
         }
         p = tex_new_specification_node(count, balance_passes_code, options);
+
+# if use_matcher
+
+        keyword_matcher *matcher = &lmt_matchers[balancepasses_matcher];
+
+        while (n <= count) {
+            switch (tex_matcher_use(matcher, 1)) {
+                case balancepasses_key_no_match:
+                    goto DONE;
+                case balancepasses_key_adjdemerits:
+                    tex_set_balance_passes_adjdemerits(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_balance_passes_okay(p, n, (uint64_t) passes_adjdemerits_okay);
+                    break;
+                case balancepasses_key_classes:
+                    tex_set_balance_passes_classes(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_balance_passes_features(p, n, passes_criterium_set);
+                    tex_set_balance_passes_okay(p, n, (uint64_t) passes_classes_okay);
+                    break;
+                case balancepasses_key_demerits:
+                    tex_set_balance_passes_demerits(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_balance_passes_features(p, n, passes_criterium_set);
+                    tex_set_balance_passes_okay(p, n, (uint64_t) passes_demerits_okay);
+                    break;
+                case balancepasses_key_emergencyfactor:
+                    tex_set_balance_passes_emergencyfactor(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_balance_passes_okay(p, n, (uint64_t) passes_emergencyfactor_okay);
+                    break;
+                case balancepasses_key_emergencypercentage:
+                    tex_set_balance_passes_emergencypercentage(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_balance_passes_okay(p, n, (uint64_t) passes_emergencypercentage_okay);
+                    break;
+                case balancepasses_key_emergencystretch:
+                    tex_set_balance_passes_emergencystretch(p, n, tex_scan_dimension(0, 0, 0, 0, NULL, NULL));
+                    tex_set_balance_passes_okay(p, n, (uint64_t) passes_emergencystretch_okay);
+                    break;
+                case balancepasses_key_emergencyshrink:
+                    tex_set_balance_passes_emergencyshrink(p, n, tex_scan_dimension(0, 0, 0, 0, NULL, NULL));
+                    tex_set_balance_passes_okay(p, n, (uint64_t) passes_emergencyshrink_okay);
+                    break;
+                case balancepasses_key_fitnessclasses:
+                    tex_set_balance_passes_fitnessclasses(p, n, tex_aux_scan_par_specification(fitness_classes_code, tex_aux_scan_specification_fitness_classes));
+                    tex_set_balance_passes_okay(p, n, (uint64_t) passes_fitnessclasses_okay);
+                    break;
+                case balancepasses_key_identifier:
+                    passes_identifier(p) = tex_scan_integer(0, NULL, NULL);
+                    break;
+                case balancepasses_key_ifemergencystretch:
+                    tex_set_balance_passes_features(p, n, passes_if_emergency_stretch);
+                    break;
+                case balancepasses_key_ifemergencyshrink:
+                    tex_set_balance_passes_features(p, n, passes_if_emergency_shrink);
+                    break;
+                case balancepasses_key_iflooseness:
+                    tex_set_balance_passes_features(p, n, passes_if_looseness);
+                    break;
+                case balancepasses_key_looseness:
+                    tex_set_balance_passes_looseness(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_balance_passes_okay(p, n, (uint64_t) passes_looseness_okay);
+                    break;
+                case balancepasses_key_next:
+                    n++;
+                    break;
+                case balancepasses_key_pagebreakchecks:
+                    tex_set_balance_passes_pagebreakchecks(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_balance_passes_okay(p, n, (uint64_t) passes_balancechecks_okay);
+                    break;
+                case balancepasses_key_pagepenalty:
+                    tex_set_balance_passes_pagepenalty(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_balance_passes_okay(p, n, (uint64_t) passes_balancepenalty_okay);
+                    break;
+                case balancepasses_key_quit:
+                    tex_set_balance_passes_features(p, n, passes_quit_pass);
+                    break;
+                case balancepasses_key_threshold:
+                    tex_set_balance_passes_threshold(p, n, tex_scan_dimension(0, 0, 0, 0, NULL, NULL));
+                    tex_set_balance_passes_features(p, n, passes_criterium_set);
+                    tex_set_balance_passes_okay(p, n, (uint64_t) passes_threshold_okay);
+                    break;
+                case balancepasses_key_tolerance:
+                    tex_set_balance_passes_tolerance(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_balance_passes_okay(p, n, (uint64_t) passes_tolerance_okay);
+                    break;
+                default:
+                    goto DONE;
+            }
+        }
+      DONE:
+        tex_check_matchers(balancepasses_matcher);
+
+# else 
+
         while (n <= count) {
             switch (tex_scan_character("acdefilnpqt", 0, 1, 0)) {
                 case 0:
@@ -1232,6 +1890,9 @@ static halfword tex_aux_scan_specification_balance_passes(void)
             }
         }
       DONE:
+
+# endif
+
         if lmt_unlikely(n < count) {
             tex_handle_error(
                 normal_error_type,
@@ -1261,6 +1922,48 @@ static halfword tex_aux_scan_specification_balance_passes(void)
     return p;
 }
 
+# if use_matcher
+
+typedef enum balanceshape_keys { 
+    balanceshape_key_no_match = 0,
+    /* */ 
+    balanceshape_key_bottomskip,
+    balanceshape_key_identifier,
+    balanceshape_key_index,
+    balanceshape_key_next,
+    balanceshape_key_options,
+    balanceshape_key_topskip,
+    balanceshape_key_vsize,
+    /* */
+    balanceshape_key_left_brace,
+} balanceshape_keys;
+
+static const char *balanceshape_words[] = { 
+    NULL,
+    /* */
+    "bottomskip",
+    "identifier",
+    "index",
+    "next",
+    "options",
+    "topskip",
+    "vsize",
+};
+
+void tex_set_balanceshape_matcher(void)
+{
+    lmt_matcher_items[balanceshape_matcher] = (matcher_item) { 
+        .words   = balanceshape_words, 
+        .name    = "balanceshape",
+        .first   = balanceshape_key_bottomskip,
+        .last    = balanceshape_key_vsize,
+        .group   = balanceshape_key_left_brace,
+        .options = default_matcher_options, 
+    };
+}
+
+# endif
+
 static halfword tex_aux_scan_specification_balance_shape(void)
 {
     halfword p = null;
@@ -1277,6 +1980,44 @@ static halfword tex_aux_scan_specification_balance_shape(void)
             count = 0xFF;
         }
         p = tex_new_specification_node(count, balance_shape_code, options);
+
+# if use_matcher
+
+        keyword_matcher *matcher = &lmt_matchers[balanceshape_matcher];
+        while (n <= count) {
+            switch (tex_matcher_use(matcher, 1)) {
+                case balanceshape_key_no_match:
+                    goto DONE;
+                case balanceshape_key_bottomskip:
+                    tex_set_balance_bottomskip(p, n, tex_scan_glue(glue_val_level, 0, 0, NULL));
+                    break;
+                case balanceshape_key_identifier:
+                    balance_shape_identifier(p) = tex_scan_integer(0, NULL, NULL);
+                    break;
+                case balanceshape_key_index:
+                    tex_set_balance_index(p, n, tex_scan_integer(0, NULL, NULL));
+                    break;
+                case balanceshape_key_next:
+                    n++;
+                    break;
+                case balanceshape_key_options:
+                    tex_set_balance_options(p, n, tex_scan_integer(0, NULL, NULL));
+                    break;
+                case balanceshape_key_topskip:
+                    tex_set_balance_topskip(p, n, tex_scan_glue(glue_val_level, 0, 0, NULL));
+                    break;
+                case balanceshape_key_vsize:
+                    tex_set_balance_vsize(p, n, tex_scan_dimension(0, 0, 0, 1, NULL, NULL));
+                    break;
+                default:
+                    goto DONE;
+            }
+        }
+      DONE:
+        tex_check_matchers(balanceshape_matcher);
+
+# else
+
         while (n <= count) {
             switch (tex_scan_character("itbonv", 0, 1, 0)) {
                 case 0:
@@ -1328,6 +2069,9 @@ static halfword tex_aux_scan_specification_balance_shape(void)
             }
         }
       DONE:
+
+# endif
+
         if lmt_unlikely(n < count) {
             tex_handle_error(
                 normal_error_type,
@@ -1344,6 +2088,50 @@ static halfword tex_aux_scan_snapper(int factor)
     return factor ? tex_scan_integer(0, NULL, NULL) : tex_scan_dimension(0, 0, 0, 1, NULL, NULL);
 }
 
+# if use_matcher
+
+typedef enum linesnapping_keys { 
+    linesnapping_key_no_match = 0,
+    /* */ 
+    linesnapping_key_bottom,
+    linesnapping_key_depth,
+    linesnapping_key_dptolerance,
+    linesnapping_key_height,
+    linesnapping_key_httolerance,
+    linesnapping_key_next,
+    linesnapping_key_step,
+    linesnapping_key_top,
+    /* */
+    linesnapping_key_left_brace,
+} linesnapping_keys;
+
+static const char *linesnapping_words[] = { 
+    NULL,
+    /* */
+    "bottom",
+    "depth",
+    "dptolerance",
+    "height",
+    "httolerance",
+    "next",
+    "step",
+    "top",
+};
+
+void tex_set_linesnapping_matcher(void)
+{
+    lmt_matcher_items[linesnapping_matcher] = (matcher_item) { 
+        .words   = linesnapping_words, 
+        .name    = "linesnapping",
+        .first   = linesnapping_key_bottom,
+        .last    = linesnapping_key_top,
+        .group   = linesnapping_key_left_brace,
+        .options = default_matcher_options, 
+    };
+}
+
+# endif 
+
 static halfword tex_aux_scan_specification_line_snapping(quarterword code)
 {
     halfword p = null;
@@ -1357,6 +2145,54 @@ static halfword tex_aux_scan_specification_line_snapping(quarterword code)
         int factors = specification_option_factors(options);
         halfword n = 1;
         p = tex_new_specification_node(count, code, options);
+
+# if use_matcher
+
+        keyword_matcher *matcher = &lmt_matchers[linesnapping_matcher];
+        while (n <= count) {
+            switch (tex_matcher_use(matcher, 1)) {
+                case linesnapping_key_no_match:
+                    goto DONE;
+                case linesnapping_key_bottom:
+                    tex_add_line_snapping_options(p, n, line_snapping_option_bottom);
+                    break;
+                case linesnapping_key_depth:
+                    tex_set_line_snapping_depth(p, n, tex_aux_scan_snapper(factors));
+                    break;
+                case linesnapping_key_dptolerance:
+                    tex_set_line_snapping_dptolerance(p, n, tex_aux_scan_snapper(factors));
+                    break;
+             // case linesnapping_key_global:
+             //     tex_add_line_snapping_options(p, n, line_snapping_option_global);
+             //     break;
+                case linesnapping_key_height:
+                    tex_set_line_snapping_height(p, n, tex_aux_scan_snapper(factors));
+                    break;
+                case linesnapping_key_httolerance:
+                    tex_set_line_snapping_httolerance(p, n, tex_aux_scan_snapper(factors));
+                    break;
+             // case linesnapping_key_line:
+             //     /* reserved, not yet used */
+             //     tex_add_line_snapping_options(p, n, line_snapping_option_line);
+             //     break;
+                case linesnapping_key_next:
+                    n++;
+                    break;
+                case linesnapping_key_step:
+                    tex_set_line_snapping_step(p, n, tex_scan_integer(0, NULL, NULL));
+                    break;
+                case linesnapping_key_top:
+                    tex_add_line_snapping_options(p, n, line_snapping_option_top);
+                    break;
+                default:
+                    goto DONE;
+            }
+        }
+      DONE:
+        tex_check_matchers(linesnapping_matcher);
+
+# else 
+
         while (n <= count) {
          // switch (tex_scan_character("hdstbngl", 0, 1, 0)) {
             switch (tex_scan_character("hdstbn", 0, 1, 0)) {
@@ -1432,6 +2268,9 @@ static halfword tex_aux_scan_specification_line_snapping(quarterword code)
             }
         }
       DONE:
+
+# endif 
+
         if lmt_unlikely(n < count) {
             tex_handle_error(
                 normal_error_type,

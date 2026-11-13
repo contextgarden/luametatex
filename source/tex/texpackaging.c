@@ -213,27 +213,270 @@ int tex_show_packaging_record(void)
 int tex_get_packaging_context(void) { return saved_box_context; }
 int tex_get_packaging_shift  (void) { return saved_box_shift; }
 
+# if use_matcher
+
+typedef enum list_keys { 
+    list_key_no_match = 0,
+    /* */ 
+    list_key_adapt,
+    list_key_alignsplit,
+    list_key_anchor,
+    list_key_anchors,
+    list_key_attr,
+    list_key_axis,
+    list_key_class,
+    list_key_container,
+    list_key_delay,
+    list_key_dir_tlt,
+    list_key_dir_trt,
+    list_key_direction,
+    list_key_discardable,
+    list_key_keepspacing,
+    list_key_limit,
+    list_key_linesnapping,
+    list_key_mathtext,
+    list_key_nokerning,
+    list_key_noprofiling,
+    list_key_nosnapping,
+    list_key_orientation,
+    list_key_prune,
+    list_key_retain,
+    list_key_reverse,
+    list_key_shift,
+    list_key_snapping,
+    list_key_source,
+    list_key_spread,
+    list_key_swap,
+    list_key_target,
+    list_key_to,
+    list_key_xmove,
+    list_key_xoffset,
+    list_key_ymove,
+    list_key_yoffset,
+    /* */
+    list_key_left_brace,
+} full_spec_keys;
+
+static const char *list_words[] = { 
+    NULL,
+    /* */
+    "adapt",
+    "alignsplit",
+    "anchor",
+    "anchors",
+    "attr",
+    "axis",
+    "class",
+    "container",
+    "delay",
+    "dir tlt",
+    "dir trt",
+    "direction",
+    "discardable",
+    "keepspacing",
+    "limit",
+    "linesnapping",
+    "mathtext",
+    "nokerning",
+    "noprofiling",
+    "nosnapping",
+    "orientation",
+    "prune",
+    "retain",
+    "reverse",
+    "shift",
+    "snapping",
+    "source",
+    "spread",
+    "swap",
+    "target",
+    "to",
+    "xmove",
+    "xoffset",
+    "ymove",
+    "yoffset",
+};
+
+void tex_set_list_matcher(void)
+{
+    lmt_matcher_items[list_matcher] = (matcher_item) { 
+        .words   = list_words, 
+        .name    = "list",
+        .first   = list_key_adapt, 
+        .last    = list_key_yoffset,
+        .group   = list_key_left_brace,
+        .options = default_matcher_options 
+                 | keyword_group_option
+                 | keyword_relax_option, 
+    };
+}
+
+# endif
+
 static void tex_aux_scan_full_spec(halfword context, quarterword c, quarterword spec_direction, int just_pack, scaled shift, halfword slot, halfword callback, halfword leaders)
 {
     quarterword spec_packing = packing_additional;
-    int spec_amount = 0;
-    halfword attrlist = null;
-    halfword orientation = 0;
-    scaled   xoffset = 0;
-    scaled   yoffset = 0;
-    scaled   xmove = 0;
-    scaled   ymove = 0;
-    halfword source = 0;
-    halfword target = 0;
-    halfword anchor = 0;
-    halfword geometry = 0;
-    halfword axis = 0;
-    halfword state = 0;
-    halfword retain = 0;
-    halfword mainclass = unset_noad_class;
-    halfword options = 0;
-    halfword snapping = null;
-    int brace = 0;
+    int         spec_amount  = 0;
+    halfword    attrlist     = null;
+    halfword    orientation  = 0;
+    scaled      xoffset      = 0;
+    scaled      yoffset      = 0;
+    scaled      xmove        = 0;
+    scaled      ymove        = 0;
+    halfword    source       = 0;
+    halfword    target       = 0;
+    halfword    anchor       = 0;
+    halfword    geometry     = 0;
+    halfword    axis         = 0;
+    halfword    state        = 0;
+    halfword    retain       = 0;
+    halfword    mainclass    = unset_noad_class;
+    halfword    options      = 0;
+    halfword    snapping     = null;
+    int         brace        = 0;
+
+# if use_matcher
+
+    keyword_matcher *matcher = &lmt_matchers[list_matcher];
+    while (1) {
+        /*tex Maybe |migrate <int>| makes sense here. */
+        switch (tex_matcher_use(matcher, 1)) {
+            case list_key_no_match:
+                goto DONE;
+            case list_key_adapt:
+                spec_packing = packing_adapted;
+                spec_amount = tex_scan_limited_scale(0);
+                break;
+            case list_key_alignsplit:
+                options |= saved_box_align_split_option;
+                break;
+            case list_key_anchor:
+                anchor = tex_scan_anchor(0);
+                break;
+            case list_key_anchors:
+                anchor = tex_scan_anchors(0);
+                break;
+            case list_key_attr:
+                attrlist = tex_scan_attribute(attrlist);
+                break;
+            case list_key_axis:
+                axis = tex_scan_box_axis();
+                break;
+            case list_key_container:
+                options |= saved_box_container_option;
+                break;
+            case list_key_class:
+                mainclass = tex_scan_math_class_number(0);
+                break;
+            case list_key_delay:
+                state |= package_u_leader_delayed;
+                break;
+            case list_key_dir_tlt:
+                /*tex
+                    For the sake of third party code that assumes \LUATEX's old directives
+                    we can support |dir TRT| and |dir TLT|; only these. But \unknown\ that
+                    would also mean we have to deal with |\textdir| and such. This will be
+                    dropped at some point.
+                */
+                spec_direction = 0;
+                break;
+            case list_key_dir_trt:
+                /*tex
+                    See above. 
+                */
+                spec_direction = 1;
+                break;
+            case list_key_direction:
+                spec_direction = tex_scan_direction(0);
+                break;
+            case list_key_discardable:
+                options |= saved_box_discardable_option;
+                break;
+            case list_key_keepspacing:
+                options |= saved_box_keep_spacing_option;
+                break;
+            case list_key_linesnapping:
+                snapping = tex_snapping_scan();
+                break;
+            case list_key_limit:
+                options |= saved_box_limit_option;
+                break;
+            case list_key_mathtext:
+                options |= saved_box_mathtext_option;
+                break;
+            case list_key_nokerning:
+                options |= saved_box_no_kerning_option;
+                break;
+            case list_key_noprofiling:
+                options |= saved_box_no_profiling_option;
+                break;
+            case list_key_nosnapping:
+                options |= saved_box_no_snapping_option;
+                break;
+            case list_key_prune:
+                options |= saved_box_prune_option;
+                break;
+            case list_key_orientation:
+                orientation = tex_scan_orientation(0);
+                break;
+            case list_key_retain:
+                retain = tex_scan_integer(0, NULL, NULL);
+                break;
+            case list_key_reverse:
+                options |= saved_box_reverse_option;
+                break;
+            case list_key_shift:
+                /*tex
+                    This is a bonus because we decoupled the shift amount from the context,
+                    where it can be somewhat confusing as that is a hybrid amount, kind, or
+                    flag field. The keyword overloads an already given |move_cmd|.
+                */
+                shift = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case list_key_snapping:
+                options |= saved_box_snapping_option;
+                break;
+            case list_key_source:
+                source = tex_scan_integer(1, NULL, NULL);
+                break;
+            case list_key_spread:
+                spec_packing = packing_additional;
+                spec_amount = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case list_key_swap:
+                options |= saved_box_swap_htdp_option;
+                break;
+            case list_key_target:
+                target = tex_scan_integer(1, NULL, NULL);
+                break;
+            case list_key_to:
+                spec_packing = packing_exactly;
+                spec_amount = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case list_key_xoffset:
+                xoffset = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case list_key_xmove:
+                xmove = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case list_key_yoffset:
+                yoffset = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case list_key_ymove:
+                ymove = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case list_key_left_brace:
+                brace = 1;
+                goto DONE;
+            default:
+                goto DONE;
+        }
+    }
+  DONE:
+    tex_check_matchers(list_matcher);
+
+# else 
+
     while (1) {
         /*tex Maybe |migrate <int>| makes sense here. */
         switch (tex_scan_character("tascdoxyrklmnp", 1, 1, 1)) {
@@ -529,6 +772,9 @@ static void tex_aux_scan_full_spec(halfword context, quarterword c, quarterword 
         }
     }
   DONE:
+
+# endif 
+
     if (anchor || source || target) {
         geometry |= anchor_geometry;
     }
@@ -4376,6 +4622,40 @@ halfword tex_vsplit(halfword n, scaled h, int m)
 
 */
 
+# if use_matcher 
+
+typedef enum split_keys { 
+    split_key_no_match = 0,
+    /* */ 
+    split_key_attr,
+    split_key_to,
+    split_key_upto,
+    /* */
+    split_key_left_brace,
+} split_keys;
+
+static const char *split_words[] = { 
+    NULL,
+    /* */
+    "attr",
+    "to",
+    "upto",
+};
+
+void tex_set_split_matcher(void)
+{
+    lmt_matcher_items[split_matcher] = (matcher_item) { 
+        .words   = split_words, 
+        .name    = "split",
+        .first   = split_key_attr,
+        .last    = split_key_upto,
+        .group   = split_key_left_brace,
+        .options = default_matcher_options, 
+    };
+}
+
+# endif 
+
 void tex_begin_box(int boxcontext, scaled shift, halfword slot, halfword callback, halfword leaders)
 {
     halfword code = cur_chr;
@@ -4443,10 +4723,38 @@ void tex_begin_box(int boxcontext, scaled shift, halfword slot, halfword callbac
                     things like |\vsplit 13 to 100pt|. Maybe todo: just split off one line.
 
                 */
-                halfword mode = packing_exactly ;
-                halfword index = tex_scan_box_register_number();
-                scaled size = 0;
+                halfword mode     = packing_exactly ;
+                halfword index    = tex_scan_box_register_number();
+                scaled   size     = 0;
                 halfword attrlist = null;
+
+# if use_matcher 
+
+                keyword_matcher *matcher = &lmt_matchers[split_matcher];
+                while (1) {
+                    switch (tex_matcher_use(matcher, 1)) {
+                        case split_key_no_match:
+                            goto DONE1;
+                        case split_key_attr:
+                            attrlist = tex_scan_attribute(attrlist);
+                            break;
+                        case split_key_to:
+                            mode = packing_exactly;
+                            size = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                            break;
+                        case split_key_upto:
+                            mode = packing_additional;
+                            size = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                            break;
+                        default:
+                            goto DONE1;
+                    }
+                }
+              DONE1:
+                tex_check_matchers(split_matcher);
+
+# else 
+
                 while (1) {
                     switch (tex_scan_character("atu", 0, 1, 0)) {
                         case 0:
@@ -4473,7 +4781,10 @@ void tex_begin_box(int boxcontext, scaled shift, halfword slot, halfword callbac
                             goto DONE1;
                     }
                 }
-              DONE1:
+                DONE1:
+
+# endif
+
                 if (attrlist) {
                     /*tex It should survive. */
                     add_attribute_reference(attrlist);

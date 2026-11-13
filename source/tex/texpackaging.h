@@ -175,6 +175,9 @@ extern int       tex_show_packaging_record (void);
 extern int       tex_get_packaging_context (void);
 extern int       tex_get_packaging_shift   (void);
 
+extern void      tex_set_split_matcher     (void);
+extern void      tex_set_list_matcher      (void);
+
 extern int       tex_is_effectively_empty  (halfword n, halfword options); 
 
 typedef enum effective_empty_options {

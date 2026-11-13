@@ -637,6 +637,13 @@ extern scaled   tex_get_math_quad_size_unscaled  (int size);
 extern void     tex_initialize_math              (void);
 extern void     tex_initialize_math_spacing      (void);
 
+extern void     tex_set_mathatom_matcher         (void);
+extern void     tex_set_mathradical_matcher      (void);
+extern void     tex_set_mathaccent_matcher       (void);
+extern void     tex_set_mathdiscretionary_matcher(void);
+extern void     tex_set_mathfraction_matcher     (void);
+extern void     tex_set_mathfence_matcher        (void);
+
 extern void     tex_set_display_styles           (halfword code, halfword value, halfword level, halfword indirect);
 extern void     tex_set_text_styles              (halfword code, halfword value, halfword level, halfword indirect);
 extern void     tex_set_main_styles              (halfword code, halfword value, halfword level, halfword indirect);

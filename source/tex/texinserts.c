@@ -614,12 +614,79 @@ void tex_undump_insert_data(undumpstream f) {
     Inserts, not the easiest mechanism and a candidate for more opening up.
 */
 
+# if use_matcher
+
+typedef enum insert_keys { 
+    insert_key_no_match = 0,
+    /* */ 
+    insert_key_callback,
+    insert_key_data,
+    insert_key_index,
+    /* */
+    insert_key_left_brace,
+} insert_keys;
+
+static const char *insert_words[] = { 
+    NULL,
+    /* */
+    "callback",
+    "data",
+    "index",
+    /* */
+    NULL,
+};
+
+void tex_set_insert_matcher(void)
+{
+    lmt_matcher_items[insert_matcher] = (matcher_item) { 
+        .words   = insert_words, 
+        .name    = "insert",
+        .first   = insert_key_callback,
+        .last    = insert_key_index,
+        .group   = insert_key_left_brace,
+        .options = default_matcher_options 
+                 | keyword_group_option
+                 | keyword_relax_option, 
+    };
+}
+
+# endif 
+
 void tex_run_insert(void)
 {
-    int brace = 0;
+    int      brace    = 0;
     halfword callback = 0;
-    halfword data = 0;
-    halfword index = -1;
+    halfword data     = 0;
+    halfword index    = -1;
+
+# if use_matcher
+
+    keyword_matcher *matcher = &lmt_matchers[insert_matcher];
+    while (1) {
+        switch (tex_matcher_use(matcher, 1)) {
+            case insert_key_no_match:
+                goto DONE;
+            case insert_key_callback:
+                callback = tex_scan_integer(0, NULL, NULL);
+                break;
+            case insert_key_data:
+                data = tex_scan_integer(0, NULL, NULL);
+                break;
+            case insert_key_index:
+                index = tex_scan_insert_index();
+                break;
+            case insert_key_left_brace:
+                brace = 1;
+                goto DONE;
+            default:
+                goto DONE;
+        }
+    }
+  DONE:
+     tex_check_matchers(insert_matcher);
+
+# else
+
     while (1) {
         switch (tex_scan_character("cdi", 1, 1, 1)) {
             case 0:
@@ -648,6 +715,9 @@ void tex_run_insert(void)
         }
     }
   DONE:
+
+# endif 
+
     if (index < 0) {
         index = tex_scan_insert_index();
     }

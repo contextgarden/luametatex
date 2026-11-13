@@ -747,8 +747,7 @@ void tex_begin_parameter_list(halfword t)
     lmt_input_state.cur_input.token_type = parameter_text;
 }
 
-/*
-void tex_begin_backed_up_list_checked(halfword t)
+void tex_begin_checked_up_list(halfword t)
 {
     if (lmt_input_state.cur_input.state == token_list_state && lmt_input_state.cur_input.start == lmt_input_state.cur_input.loc && lmt_input_state.cur_input.token_type == backed_up_text) {
         halfword c = t ; 
@@ -764,7 +763,6 @@ void tex_begin_backed_up_list_checked(halfword t)
     lmt_input_state.cur_input.start = t;
     lmt_input_state.cur_input.loc = t;
 }
-*/
 
 void tex_begin_backed_up_list(halfword t)
 {

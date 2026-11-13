@@ -2776,6 +2776,72 @@ void tex_run_math_delimiter_number(void) {
     drives the rendering, the others the spacing etc.
 */
 
+# if use_matcher
+
+typedef enum mathatom_keys { 
+    mathatom_key_no_match = 0,
+    /* */ 
+    mathatom_key_all,
+    mathatom_key_attr,
+    mathatom_key_carryover,
+    mathatom_key_class,
+    mathatom_key_continuation,
+    mathatom_key_leftclass,
+    mathatom_key_limits,
+    mathatom_key_mathfont,
+    mathatom_key_nolimits,
+    mathatom_key_nooverflow,
+    mathatom_key_options,
+    mathatom_key_phantom,
+    mathatom_key_rightclass,
+    mathatom_key_single,
+    mathatom_key_source,
+    mathatom_key_textfont,
+    mathatom_key_unpack,
+    mathatom_key_unroll,
+    mathatom_key_void,
+    /* */
+    mathatom_key_left_brace,
+} mathatom_keys;
+
+static const char *mathatom_words[] = { 
+    NULL,
+    /* */
+    "all",
+    "attr",
+    "carryover",
+    "class",
+    "continuation",
+    "leftclass",
+    "limits",
+    "mathfont",
+    "nolimits",
+    "nooverflow",
+    "options",
+    "phantom",
+    "rightclass",
+    "single",
+    "source",
+    "textfont",
+    "unpack",
+    "unroll",
+    "void",
+};
+
+# endif
+
+void tex_set_mathatom_matcher(void)
+{
+    lmt_matcher_items[mathatom_matcher] = (matcher_item) { 
+        .words   = mathatom_words, 
+        .name    = "mathatom",
+        .first   = mathatom_key_all,
+        .last    = mathatom_key_void,
+        .group   = mathatom_key_left_brace,
+        .options = default_matcher_options, 
+    };
+}
+
 static void tex_aux_math_math_component(halfword target, int append)
 {
     quarterword subtype = unset_noad_class;
@@ -2840,6 +2906,101 @@ static void tex_aux_math_math_component(halfword target, int append)
         case math_component_atom_code:
             {
                 halfword attrlist = null;
+
+# if use_matcher
+
+                keyword_matcher *matcher = &lmt_matchers[mathatom_matcher];
+
+                while (1) {
+                    switch (tex_matcher_use(matcher, 1)) {
+                        case mathatom_key_no_match:
+                            goto DONE;
+                        case mathatom_key_all:
+                            allclass = (quarterword) tex_scan_math_class_number(0);
+                            if (! valid_math_class_code(allclass)) {
+                                allclass = unset_noad_class;
+                            }
+                            break;
+                        case mathatom_key_attr:
+                            attrlist = tex_scan_attribute(attrlist);
+                            break;
+                        case mathatom_key_carryover:
+                            noad_options(target) |= noad_option_carry_over_classes;
+                            break;
+                        case mathatom_key_class:
+                            subtype = (quarterword) tex_scan_math_class_number(0);
+                            if (! valid_math_class_code(subtype)) {
+                                subtype = ordinary_noad_subtype;
+                            }
+                            set_noad_main_class(target, subtype);
+                            break;
+                        case mathatom_key_continuation:
+                            noad_options(target) |= noad_option_continuation;
+                            break;
+                        case mathatom_key_leftclass:
+                            {
+                                halfword c = tex_scan_math_class_number(0);
+                                if (! valid_math_class_code(c)) {
+                                    c = ordinary_noad_subtype;
+                                }
+                                set_noad_left_class(target, c);
+                            }
+                            break;
+                        case mathatom_key_limits:
+                            noad_options(target) |= noad_option_limits;
+                            break;
+                        case mathatom_key_mathfont:
+                            usetextfont = math_atom_math_font_option;
+                            break;
+                        case mathatom_key_nolimits:
+                            noad_options(target) |= noad_option_no_limits;
+                            break;
+                        case mathatom_key_nooverflow:
+                            noad_options(target) |= noad_option_no_overflow;
+                            break;
+                        case mathatom_key_options:
+                            /* no names, just numbers, we might also do that with other noads */
+                            noad_options(target) = tex_scan_integer(0, NULL, NULL);
+                            break;
+                        case mathatom_key_phantom:
+                            noad_options(target) |= noad_option_phantom;
+                            break;
+                        case mathatom_key_rightclass:
+                            {
+                                halfword c = tex_scan_math_class_number(0);
+                                if (! valid_math_class_code(c)) {
+                                    c = ordinary_noad_subtype;
+                                }
+                                set_noad_right_class(target, c);
+                            }
+                            break;
+                        case mathatom_key_single:
+                            noad_options(target) |= noad_option_single;
+                            break;
+                        case mathatom_key_source:
+                            noad_source(target) = tex_scan_integer(0, NULL, NULL);
+                            break;
+                        case mathatom_key_textfont:
+                            usetextfont = math_atom_text_font_option;
+                            break;
+                        case mathatom_key_unpack:
+                            noad_options(target) |= noad_option_unpack_list;
+                            break;
+                        case mathatom_key_unroll:
+                            noad_options(target) |= noad_option_unroll_list;
+                            break;
+                        case mathatom_key_void:
+                            noad_options(target) |= noad_option_void;
+                            break;
+                        default:
+                            goto DONE;
+                    }
+                }
+              DONE:
+                tex_check_matchers(mathatom_matcher);
+
+# else
+
                 while (1) {
                     switch (tex_scan_character("aclmnoprstuv", 0, 1, 0)) {
                         case 'a':
@@ -3006,6 +3167,9 @@ static void tex_aux_math_math_component(halfword target, int append)
                     }
                 }
               DONE:
+
+# endif
+
                 if (attrlist) {
                     tex_attach_attribute_list_attribute(target, attrlist);
                 }
@@ -3274,22 +3438,189 @@ static int tex_math_valid_tail(halfword p, halfword type)
     }
 }
 
+# if use_matcher
+
+typedef enum mathradical_keys { 
+    mathradical_key_no_match = 0,
+    /* */ 
+    mathradical_key_attr, 
+    mathradical_key_bottom,
+    mathradical_key_callback,
+    mathradical_key_depth,
+    mathradical_key_exact,
+    mathradical_key_height,
+    mathradical_key_left,
+    mathradical_key_middle,
+    mathradical_key_norule,
+    mathradical_key_nooverflow,
+    mathradical_key_right,
+    mathradical_key_reflected,
+    mathradical_key_shrink,
+    mathradical_key_size,
+    mathradical_key_stretch,
+    mathradical_key_style,
+    mathradical_key_source,
+    mathradical_key_symbolattr,
+    mathradical_key_top,
+    mathradical_key_usecallback,
+    mathradical_key_width,
+    /* */
+    mathradical_key_left_brace,
+} mathradical_keys;
+
+static const char *mathradical_words[] = { 
+    NULL,
+    /* */
+    "attr", 
+    "bottom",
+    "callback",
+    "depth",
+    "exact",
+    "height",
+    "left",
+    "middle",
+    "norule",
+    "nooverflow",
+    "right",
+    "reflected",
+    "shrink",
+    "size",
+    "stretch",
+    "style",
+    "source",
+    "symbolattr",
+    "top",
+    "usecallback",
+    "width",
+};
+
+void tex_set_mathradical_matcher(void)
+{
+    lmt_matcher_items[mathradical_matcher] = (matcher_item) { 
+        .words   = mathradical_words, 
+        .name    = "mathradical",
+        .first   = mathradical_key_attr,
+        .last    = mathradical_key_width,
+        .group   = mathradical_key_left_brace,
+        .options = default_matcher_options, 
+    };
+}
+
+# endif
+
 void tex_run_math_radical(void)
 {
-    halfword code = cur_chr;
-    fullword options = 0;
-    halfword radical = tex_new_node(radical_noad, (quarterword) code);
-    halfword style = yet_unset_math_style;
-    halfword variant = 0; /* quad, harmless */
-    halfword attrlist = null;
+    halfword code           = cur_chr;
+    fullword options        = 0;
+    halfword radical        = tex_new_node(radical_noad, (quarterword) code);
+    halfword style          = yet_unset_math_style;
+    halfword variant        = 0; /* quad, harmless */
+    halfword attrlist       = null;
     halfword symbolattrlist = null;
-    halfword top = null;
-    halfword bottom = null;
+    halfword top            = null;
+    halfword bottom         = null;
     radical = tex_tail_append_callback(radical);
     if (! tex_math_valid_tail(radical, radical_noad)) {
         return;
     }
     /* only kewords to UI ones? */
+
+# if use_matcher
+
+    keyword_matcher *matcher = &lmt_matchers[mathradical_matcher];
+
+    while (1) {
+        switch (tex_matcher_use(matcher, 1)) {
+            case mathradical_key_no_match:
+                goto DONE;
+            case mathradical_key_attr:
+                if (tex_scan_mandate_keyword("attr", 1)) {
+                    attrlist = tex_scan_attribute(attrlist);
+                }
+                break;
+            case mathradical_key_bottom:
+                bottom = 1;
+                break;
+            case mathradical_key_callback:
+                noad_callback(radical) = tex_scan_integer(0, NULL, NULL);
+                break;
+            case mathradical_key_depth:
+                radical_depth(radical) = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case mathradical_key_exact:
+                options |= noad_option_exact;
+                break;
+            case mathradical_key_height:
+                radical_height(radical) = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case mathradical_key_left:
+                options |= noad_option_left;
+                break;
+            case mathradical_key_middle:
+                options |= noad_option_middle;
+                break;
+            case mathradical_key_norule:
+                options |= noad_option_no_rule;
+                break;
+            case mathradical_key_nooverflow:
+                options |= noad_option_no_overflow;
+                break;
+            case mathradical_key_right:
+                options |= noad_option_right;
+                break;
+            case mathradical_key_reflected:
+                options |= noad_option_reflected;
+                break;
+            case mathradical_key_shrink:
+                options |= noad_option_shrink;
+                break;
+            case mathradical_key_size:
+                radical_size(radical) = tex_scan_integer(0, NULL, NULL);
+                break;
+            case mathradical_key_stretch:
+                options |= noad_option_stretch;
+                break;
+            case mathradical_key_style:
+                switch (code) {
+                    case normal_radical_subtype:
+                    case radical_radical_subtype:
+                    case root_radical_subtype:
+                    case rooted_radical_subtype:
+                    case delimited_radical_subtype:
+                        style = tex_scan_math_style_identifier(1, 0); /* tolerant */
+                        if (style < 0) {
+                            style = yet_unset_math_style;
+                        }
+                        break;
+                    default:
+                        /* ignore */
+                        break;
+                }
+                break;
+            case mathradical_key_source:
+                noad_source(radical) = tex_scan_integer(0, NULL, NULL);
+                break;
+            case mathradical_key_symbolattr:
+                symbolattrlist = tex_scan_extra_attribute(symbolattrlist);
+                break;
+            case mathradical_key_top:
+                top = 1;
+                break;
+            case mathradical_key_usecallback:
+                options |= noad_option_use_callback;
+                break;
+            case mathradical_key_width:
+                noad_width(radical) = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            default:
+                goto DONE;
+        }
+    }
+  DONE:
+    tex_check_matchers(mathradical_matcher);
+
+# else
+
     while (1) {
         switch (tex_scan_character("abcdehlmnrstuw", 0, 1, 0)) {
             case 0:
@@ -3453,6 +3784,9 @@ void tex_run_math_radical(void)
         }
     }
   DONE:
+
+# endif 
+
     if (style == yet_unset_math_style) {
         switch (code) {
             case normal_radical_subtype:
@@ -3605,17 +3939,85 @@ void tex_finish_math_radical(void)
     }
 }
 
+# if use_matcher
+
+typedef enum mathaccent_keys { 
+    mathaccent_key_no_match = 0,
+    /* */ 
+    mathaccent_key_attr,
+    mathaccent_key_base,
+    mathaccent_key_both,
+    mathaccent_key_bottom,
+    mathaccent_key_callback,
+    mathaccent_key_center,
+    mathaccent_key_class,
+    mathaccent_key_exact,
+    mathaccent_key_fraction,
+    mathaccent_key_fixed, 
+    mathaccent_key_keepbase,
+    mathaccent_key_nooverflow,
+    mathaccent_key_overlay,
+    mathaccent_key_shrink,
+    mathaccent_key_single,
+    mathaccent_key_source,
+    mathaccent_key_stretch,
+    mathaccent_key_symbolattr,
+    mathaccent_key_top,
+    mathaccent_key_usecallback,
+    /* */
+    mathaccent_key_left_brace,
+} mathaccent_keys;
+
+static const char *mathaccent_words[] = { 
+    NULL,
+    /* */
+    "attr",
+    "base",
+    "both",
+    "bottom",
+    "callback",
+    "center",
+    "class",
+    "exact",
+    "fraction",
+    "fixed", 
+    "keepbase",
+    "nooverflow",
+    "overlay",
+    "shrink",
+    "single",
+    "source",
+    "stretch",
+    "symbolattr",
+    "top",
+    "usecallback",
+};
+
+void tex_set_mathaccent_matcher(void)
+{
+    lmt_matcher_items[mathaccent_matcher] = (matcher_item) { 
+        .words   = mathaccent_words, 
+        .name    = "mathaccent",
+        .first   = mathaccent_key_attr,
+        .last    = mathaccent_key_usecallback,
+        .group   = mathaccent_key_left_brace,
+        .options = default_matcher_options, 
+    };
+}
+
+# endif
+
 void tex_run_math_accent(void)
 {
-    mathcodeval t = tex_no_math_code();
-    mathcodeval b = tex_no_math_code();
-    mathcodeval o = tex_no_math_code();
-    halfword code = cur_chr;
-    halfword accent = tex_new_node(accent_noad, bothflexible_accent_subtype);
-    quarterword subtype = ordinary_noad_subtype;
-    halfword mathclass = accent_noad_subtype;
-    halfword attrlist = null;
-    halfword symbolattrlist = null;
+    mathcodeval t              = tex_no_math_code();
+    mathcodeval b              = tex_no_math_code();
+    mathcodeval o              = tex_no_math_code();
+    halfword    code           = cur_chr;
+    halfword    accent         = tex_new_node(accent_noad, bothflexible_accent_subtype);
+    quarterword subtype        = ordinary_noad_subtype;
+    halfword    mathclass      = accent_noad_subtype;
+    halfword    attrlist       = null;
+    halfword    symbolattrlist = null;
     if (cur_cmd == accent_cmd) {
         tex_handle_error(
             normal_error_type,
@@ -3634,190 +4036,305 @@ void tex_run_math_accent(void)
             break;
         case math_uaccent_code:
             /*tex |\Umathaccent| */
-            while (1) {
-                switch (tex_scan_character("abcefknostu", 0, 1, 0)) {
-                    case 'a':
-                        switch (tex_scan_character("tx", 0, 0, 0)) {
-                            case 't':
-                                if (tex_scan_mandate_keyword("attr", 2)) {
-                                    attrlist = tex_scan_attribute(attrlist);
-                                }
-                                break;
-                         // case 'x':
-                         //     if (tex_scan_mandate_keyword("axis", 2)) {
-                         //         noad_options(accent) |= noad_option_axis;
-                         //     }
-                         //     break;
-                            default:
-                         //     tex_aux_show_keyword_error("attr|axis");
-                                tex_aux_show_keyword_error("attr");
-                                goto DONE;
-                        }
-                        break;
-                    case 'b':
-                        switch (tex_scan_character("ao", 0, 0, 0)) {
-                            case 'a':
-                                if (tex_scan_mandate_keyword("base", 2)) {
-                                    noad_options(accent) |= noad_option_auto_base;
-                                }
-                                break;
-                            case 'o':
-                                /*tex bottom [fixed] <char> */
-                                /*tex both [fixed] <char> [fixed] <char> */
-                                if (tex_scan_character("t", 0, 0, 0)) {
-                                     switch (tex_scan_character("ht", 0, 0, 0)) {
-                                         case 'h':
-                                            /*tex top bottom */
-                                            if (tex_scan_keyword("fixed")) {
-                                                node_subtype(accent) = fixedtop_accent_subtype;
-                                            }
-                                            t = tex_scan_mathchar(umath_mathcode);
-                                            if (tex_scan_keyword("fixed")) {
-                                                node_subtype(accent) = fixedboth_accent_subtype;
-                                            }
-                                            b = tex_scan_mathchar(umath_mathcode);
-                                            goto DONE;
-                                         case 't':
-                                             if (tex_scan_mandate_keyword("bottom", 4)) {
-                                                /*tex bottom */
-                                                if (tex_scan_keyword("fixed")) {
-                                                    node_subtype(accent) = fixedbottom_accent_subtype;
-                                                }
-                                                b = tex_scan_mathchar(umath_mathcode);
-                                             }
-                                            goto DONE;
-                                        default:
-                                            tex_aux_show_keyword_error("both|bottom");
-                                            goto DONE;
-                                     }
-                                }
-                                goto DONE;
-                            default:
-                                tex_aux_show_keyword_error("base|both|bottom");
-                                goto DONE;
-                        }
-                        break;
-                    case 'c':
-                        switch (tex_scan_character("ael", 0, 0, 0)) {
-                            case 'a':
-                                if (tex_scan_mandate_keyword("callback", 2)) {
-                                    noad_callback(accent) = tex_scan_integer(0, NULL, NULL);
-                                }
-                                break;
-                            case 'e':
-                                if (tex_scan_mandate_keyword("center", 2)) {
-                                    noad_options(accent) |= noad_option_center;
-                                }
-                                break;
-                            case 'l':
-                                if (tex_scan_mandate_keyword("class", 2)) {
-                                    mathclass = (quarterword) tex_scan_math_class_number(0);
-                                }
-                                break;
-                            default:
-                                tex_aux_show_keyword_error("callback|center|class");
-                                goto DONE;
-                        }
-                        break;
-                    case 'e':
-                        if (tex_scan_mandate_keyword("exact", 1)) {
+            {
+
+# if use_matcher
+
+                keyword_matcher *matcher = &lmt_matchers[mathaccent_matcher];
+
+                while (1) {
+                    switch (tex_matcher_use(matcher, 1)) {
+                        case mathaccent_key_no_match:
+                            goto DONE1;
+                        case mathaccent_key_attr:
+                            attrlist = tex_scan_attribute(attrlist);
+                            break;
+                     // case mathaccent_key_axis:
+                     //     noad_options(accent) |= noad_option_axis;
+                     //     break;
+                        case mathaccent_key_base:
+                            noad_options(accent) |= noad_option_auto_base;
+                            break;
+                        case mathaccent_key_both:
+                            /*tex top bottom */
+                            if (tex_scan_keyword("fixed")) {
+                                node_subtype(accent) = fixedtop_accent_subtype;
+                            }
+                            t = tex_scan_mathchar(umath_mathcode);
+                            if (tex_scan_keyword("fixed")) {
+                                node_subtype(accent) = fixedboth_accent_subtype;
+                            }
+                            b = tex_scan_mathchar(umath_mathcode);
+                            goto DONE1;
+                        case mathaccent_key_bottom:
+                            /*tex bottom */
+                            if (tex_scan_keyword("fixed")) {
+                                node_subtype(accent) = fixedbottom_accent_subtype;
+                            }
+                            b = tex_scan_mathchar(umath_mathcode);
+                            goto DONE1;
+                        case mathaccent_key_callback:
+                            noad_callback(accent) = tex_scan_integer(0, NULL, NULL);
+                            break;
+                        case mathaccent_key_center:
+                            noad_options(accent) |= noad_option_center;
+                            break;
+                        case mathaccent_key_class:
+                            mathclass = (quarterword) tex_scan_math_class_number(0);
+                            break;
+                        case mathaccent_key_exact:
                             noad_options(accent) |= noad_option_exact;
-                        }
-                        break;
-                    case 'f':
-                        switch (tex_scan_character("ri", 0, 0, 0)) {
-                            case 'r':
-                                if (tex_scan_mandate_keyword("fraction", 2)) {
-                                    accent_fraction(accent) = tex_scan_integer(0, NULL, NULL);
-                                }
-                                break;
-                            case 'i':
-                                /*tex fixed <char> */
-                                if (tex_scan_mandate_keyword("fixed", 2)) {
-                                    node_subtype(accent) = fixedtop_accent_subtype;
-                                    t = tex_scan_mathchar(umath_mathcode);
-                                }
-                                goto DONE;
-                            default:
-                                tex_aux_show_keyword_error("fraction|fixed");
-                                goto DONE;
-                        }
-                        break;
-                    case 'k':
-                        if (tex_scan_mandate_keyword("keepbase", 1)) {
+                            break;
+                        case mathaccent_key_fraction:
+                            accent_fraction(accent) = tex_scan_integer(0, NULL, NULL);
+                            break;
+                        case mathaccent_key_fixed:
+                            node_subtype(accent) = fixedtop_accent_subtype;
+                            t = tex_scan_mathchar(umath_mathcode);
+                            goto DONE1;
+                        case mathaccent_key_keepbase:
                             noad_options(accent) |= noad_option_keep_base;
-                        }
-                        break;
-                    case 'n':
-                        if (tex_scan_mandate_keyword("nooverflow", 1)) {
+                            break;
+                        case mathaccent_key_nooverflow:
                             /*tex
                                 Actually there never is an overflow but for consistency we do
                                 accept this key. Maybe in the future it will be used.
                             */
                             noad_options(accent) |= noad_option_no_overflow;
-                        }
-                        break;
-                    case 'o':
-                        /*tex overlay [fixed] <char> */
-                        if (tex_scan_mandate_keyword("overlay", 1)) {
+                            break;
+                        case mathaccent_key_overlay:
+                            /*tex overlay [fixed] <char> */
                             if (tex_scan_keyword("fixed")) {
                                 node_subtype(accent) = fixedtop_accent_subtype;
                             }
                             o = tex_scan_mathchar(umath_mathcode);
-                        }
-                        goto DONE;
-                    case 's':
-                        switch (tex_scan_character("hioty", 0, 0, 0)) {
-                            case 'h':
-                                if (tex_scan_mandate_keyword("shrink", 2)) {
-                                    noad_options(accent) |= noad_option_shrink;
-                                }
-                                break;
-                            case 'i':
-                                if (tex_scan_mandate_keyword("single", 2)) {
-                                    noad_options(accent) |= noad_option_single;
-                                }
-                                break;
-                            case 'o':
-                                if (tex_scan_mandate_keyword("source", 2)) {
-                                    noad_source(accent) = tex_scan_integer(0, NULL, NULL);
-                                }
-                                break;
-                            case 't':
-                                if (tex_scan_mandate_keyword("stretch", 2)) {
-                                    noad_options(accent) |= noad_option_stretch;
-                                }
-                                break;
-                            case 'y':
-                                if (tex_scan_mandate_keyword("symbolattr", 2)) {
-                                    symbolattrlist = tex_scan_extra_attribute(symbolattrlist);
-                                }
-                                break;
-                            default:
-                                tex_aux_show_keyword_error("source|stretch|shrink|single|symbolattr");
-                                goto DONE;
-                        }
-                        break;
-                    case 't':
-                        /*tex top [fixed] <char> */
-                        if (tex_scan_mandate_keyword("top", 1)) {
+                            goto DONE1;
+                        case mathaccent_key_shrink:
+                            noad_options(accent) |= noad_option_shrink;
+                            break;
+                        case mathaccent_key_single:
+                            noad_options(accent) |= noad_option_single;
+                            break;
+                        case mathaccent_key_source:
+                            noad_source(accent) = tex_scan_integer(0, NULL, NULL);
+                            break;
+                        case mathaccent_key_stretch:
+                            noad_options(accent) |= noad_option_stretch;
+                            break;
+                        case mathaccent_key_symbolattr:
+                            symbolattrlist = tex_scan_extra_attribute(symbolattrlist);
+                            break;
+                        case mathaccent_key_top:
+                            /*tex top [fixed] <char> */
                             if (tex_scan_keyword("fixed")) {
                                 node_subtype(accent) = fixedtop_accent_subtype;
                             }
                             t = tex_scan_mathchar(umath_mathcode);
-                        }
-                 goto DONE;
-                    case 'u':
-                        if (tex_scan_mandate_keyword("usecallback", 1)) {
+                            goto DONE1;
+                        case mathaccent_key_usecallback:
                             noad_options(accent) |= noad_option_use_callback;
-                        }
-                        break;
-                    default:
-                        /*tex top <char> */
-                        t = tex_scan_mathchar(umath_mathcode);
-                        goto DONE;
+                            break;
+                        default:
+                            /*tex top <char> */
+                            t = tex_scan_mathchar(umath_mathcode);
+                            goto DONE1;
+                    }
                 }
-            }
+              DONE1:
+                tex_check_matchers(mathaccent_matcher);
+                goto DONE;
+
+# else 
+
+                while (1) {
+                    switch (tex_scan_character("abcefknostu", 0, 1, 0)) {
+                        case 'a':
+                            switch (tex_scan_character("tx", 0, 0, 0)) {
+                                case 't':
+                                    if (tex_scan_mandate_keyword("attr", 2)) {
+                                        attrlist = tex_scan_attribute(attrlist);
+                                    }
+                                    break;
+                             // case 'x':
+                             //     if (tex_scan_mandate_keyword("axis", 2)) {
+                             //         noad_options(accent) |= noad_option_axis;
+                             //     }
+                             //     break;
+                                default:
+                             //     tex_aux_show_keyword_error("attr|axis");
+                                    tex_aux_show_keyword_error("attr");
+                                    goto DONE;
+                            }
+                            break;
+                        case 'b':
+                            switch (tex_scan_character("ao", 0, 0, 0)) {
+                                case 'a':
+                                    if (tex_scan_mandate_keyword("base", 2)) {
+                                        noad_options(accent) |= noad_option_auto_base;
+                                    }
+                                    break;
+                                case 'o':
+                                    /*tex bottom [fixed] <char> */
+                                    /*tex both [fixed] <char> [fixed] <char> */
+                                    if (tex_scan_character("t", 0, 0, 0)) {
+                                         switch (tex_scan_character("ht", 0, 0, 0)) {
+                                             case 'h':
+                                                /*tex top bottom */
+                                                if (tex_scan_keyword("fixed")) {
+                                                    node_subtype(accent) = fixedtop_accent_subtype;
+                                                }
+                                                t = tex_scan_mathchar(umath_mathcode);
+                                                if (tex_scan_keyword("fixed")) {
+                                                    node_subtype(accent) = fixedboth_accent_subtype;
+                                                }
+                                                b = tex_scan_mathchar(umath_mathcode);
+                                                goto DONE;
+                                             case 't':
+                                                 if (tex_scan_mandate_keyword("bottom", 4)) {
+                                                    /*tex bottom */
+                                                    if (tex_scan_keyword("fixed")) {
+                                                        node_subtype(accent) = fixedbottom_accent_subtype;
+                                                    }
+                                                    b = tex_scan_mathchar(umath_mathcode);
+                                                 }
+                                                goto DONE;
+                                            default:
+                                                tex_aux_show_keyword_error("both|bottom");
+                                                goto DONE;
+                                         }
+                                    }
+                                    goto DONE;
+                                default:
+                                    tex_aux_show_keyword_error("base|both|bottom");
+                                    goto DONE;
+                            }
+                            break;
+                        case 'c':
+                            switch (tex_scan_character("ael", 0, 0, 0)) {
+                                case 'a':
+                                    if (tex_scan_mandate_keyword("callback", 2)) {
+                                        noad_callback(accent) = tex_scan_integer(0, NULL, NULL);
+                                    }
+                                    break;
+                                case 'e':
+                                    if (tex_scan_mandate_keyword("center", 2)) {
+                                        noad_options(accent) |= noad_option_center;
+                                    }
+                                    break;
+                                case 'l':
+                                    if (tex_scan_mandate_keyword("class", 2)) {
+                                        mathclass = (quarterword) tex_scan_math_class_number(0);
+                                    }
+                                    break;
+                                default:
+                                    tex_aux_show_keyword_error("callback|center|class");
+                                    goto DONE;
+                            }
+                            break;
+                        case 'e':
+                            if (tex_scan_mandate_keyword("exact", 1)) {
+                                noad_options(accent) |= noad_option_exact;
+                            }
+                            break;
+                        case 'f':
+                            switch (tex_scan_character("ri", 0, 0, 0)) {
+                                case 'r':
+                                    if (tex_scan_mandate_keyword("fraction", 2)) {
+                                        accent_fraction(accent) = tex_scan_integer(0, NULL, NULL);
+                                    }
+                                    break;
+                                case 'i':
+                                    /*tex fixed <char> */
+                                    if (tex_scan_mandate_keyword("fixed", 2)) {
+                                        node_subtype(accent) = fixedtop_accent_subtype;
+                                        t = tex_scan_mathchar(umath_mathcode);
+                                    }
+                                    goto DONE;
+                                default:
+                                    tex_aux_show_keyword_error("fraction|fixed");
+                                    goto DONE;
+                            }
+                            break;
+                        case 'k':
+                            if (tex_scan_mandate_keyword("keepbase", 1)) {
+                                noad_options(accent) |= noad_option_keep_base;
+                            }
+                            break;
+                        case 'n':
+                            if (tex_scan_mandate_keyword("nooverflow", 1)) {
+                                /*tex
+                                    Actually there never is an overflow but for consistency we do
+                                    accept this key. Maybe in the future it will be used.
+                                */
+                                noad_options(accent) |= noad_option_no_overflow;
+                            }
+                            break;
+                        case 'o':
+                            /*tex overlay [fixed] <char> */
+                            if (tex_scan_mandate_keyword("overlay", 1)) {
+                                if (tex_scan_keyword("fixed")) {
+                                    node_subtype(accent) = fixedtop_accent_subtype;
+                                }
+                                o = tex_scan_mathchar(umath_mathcode);
+                            }
+                            goto DONE;
+                        case 's':
+                            switch (tex_scan_character("hioty", 0, 0, 0)) {
+                                case 'h':
+                                    if (tex_scan_mandate_keyword("shrink", 2)) {
+                                        noad_options(accent) |= noad_option_shrink;
+                                    }
+                                    break;
+                                case 'i':
+                                    if (tex_scan_mandate_keyword("single", 2)) {
+                                        noad_options(accent) |= noad_option_single;
+                                    }
+                                    break;
+                                case 'o':
+                                    if (tex_scan_mandate_keyword("source", 2)) {
+                                        noad_source(accent) = tex_scan_integer(0, NULL, NULL);
+                                    }
+                                    break;
+                                case 't':
+                                    if (tex_scan_mandate_keyword("stretch", 2)) {
+                                        noad_options(accent) |= noad_option_stretch;
+                                    }
+                                    break;
+                                case 'y':
+                                    if (tex_scan_mandate_keyword("symbolattr", 2)) {
+                                        symbolattrlist = tex_scan_extra_attribute(symbolattrlist);
+                                    }
+                                    break;
+                                default:
+                                    tex_aux_show_keyword_error("source|stretch|shrink|single|symbolattr");
+                                    goto DONE;
+                            }
+                            break;
+                        case 't':
+                            /*tex top [fixed] <char> */
+                            if (tex_scan_mandate_keyword("top", 1)) {
+                                if (tex_scan_keyword("fixed")) {
+                                    node_subtype(accent) = fixedtop_accent_subtype;
+                                }
+                                t = tex_scan_mathchar(umath_mathcode);
+                            }
+                     goto DONE;
+                        case 'u':
+                            if (tex_scan_mandate_keyword("usecallback", 1)) {
+                                noad_options(accent) |= noad_option_use_callback;
+                            }
+                            break;
+                        default:
+                            /*tex top <char> */
+                            t = tex_scan_mathchar(umath_mathcode);
+                            goto DONE;
+                    }
+                }
+
+# endif
+
+        }
+
         default:
             tex_confusion("scan math accent");
     }
@@ -3861,6 +4378,38 @@ void tex_run_math_accent(void)
 
 */
 
+// "class"
+
+# if use_matcher
+
+typedef enum mathdiscretionary_keys { 
+    mathdiscretionary_key_no_match = 0,
+    /* */ 
+    mathdiscretionary_key_class,
+    /* */
+    mathdiscretionary_key_left_brace,
+} mathdiscretionary_keys;
+
+static const char *mathdiscretionary_words[] = { 
+    NULL,
+    /* */
+    "class",
+};
+
+void tex_set_mathdiscretionary_matcher(void)
+{
+    lmt_matcher_items[mathdiscretionary_matcher] = (matcher_item) { 
+        .words   = mathdiscretionary_words, 
+        .name    = "mathdiscretionary",
+        .first   = mathdiscretionary_key_class,
+        .last    = mathdiscretionary_key_class,
+        .group   = mathdiscretionary_key_left_brace,
+        .options = default_matcher_options, 
+    };
+}
+
+# endif
+
 void tex_run_math_choice(void) {
     switch (cur_chr) {
         case math_choice_code:
@@ -3880,6 +4429,27 @@ void tex_run_math_choice(void) {
             {
                 halfword n = tex_new_node(choice_node, discretionary_choice_subtype);
                 choice_class(n) = unset_noad_class;
+
+# if use_matcher 
+
+                keyword_matcher *matcher = &lmt_matchers[mathdiscretionary_matcher];
+
+                while (1) {
+                    switch (tex_matcher_use(matcher, 1)) {
+                        case mathdiscretionary_key_no_match:
+                            goto DONE;
+                        case mathdiscretionary_key_class:
+                            choice_class(n) = tex_scan_math_class_number(0);
+                            break;
+                        default:
+                            goto DONE;
+                    }
+                }
+              DONE:
+                tex_check_matchers(mathdiscretionary_matcher);
+
+# else 
+
                 while (1) {
                     switch (tex_scan_character("c", 0, 1, 0)) {
                         case 0:
@@ -3894,6 +4464,9 @@ void tex_run_math_choice(void) {
                     }
                 }
               DONE:
+
+# endif 
+
                 tex_tail_append(n);
                 saved_choice_initialize();
                 saved_choice_count = math_pre_break_choice;
@@ -4307,6 +4880,64 @@ void tex_run_math_script(void)
 
 */
 
+# if use_matcher
+
+typedef enum mathfraction_keys { 
+    mathfraction_key_no_match = 0,
+    /* */ 
+    mathfraction_key_attr, 
+    mathfraction_key_class,
+    mathfraction_key_callback,
+    mathfraction_key_exact,
+    mathfraction_key_font, 
+    mathfraction_key_hfactor, 
+    mathfraction_key_noaxis,
+    mathfraction_key_nooverflow,
+    mathfraction_key_proportional,
+    mathfraction_key_style, 
+    mathfraction_key_source,
+    mathfraction_key_symbolattr,
+    mathfraction_key_thickness,
+    mathfraction_key_usecallback,
+    mathfraction_key_vfactor,
+    /* */
+    mathfraction_key_left_brace,
+} mathfraction_keys;
+
+static const char *mathfraction_words[] = { 
+    NULL,
+    /* */
+    "attr", 
+    "class",
+    "callback",
+    "exact",
+    "font", 
+    "hfactor", 
+    "noaxis",
+    "nooverflow",
+    "proportional",
+    "style", 
+    "source",
+    "symbolattr",
+    "thickness",
+    "usecallback",
+    "vfactor",
+};
+
+void tex_set_mathfraction_matcher(void)
+{
+    lmt_matcher_items[mathfraction_matcher] = (matcher_item) { 
+        .words   = mathfraction_words, 
+        .name    = "mathfraction",
+        .first   = mathfraction_key_attr,
+        .last    = mathfraction_key_vfactor,
+        .group   = mathfraction_key_left_brace,
+        .options = default_matcher_options, 
+    };
+}
+
+# endif
+
 void tex_run_math_fraction(void)
 {
     /*tex The type of generalized fraction we are scanning: */
@@ -4350,17 +4981,17 @@ void tex_run_math_fraction(void)
             "'x \\over {y \\over z}'."
         );
     } else {
-        halfword fraction = tex_new_node(fraction_noad, 0);
-        halfword numerator = tex_new_node(sub_mlist_node, 0);
-        halfword denominator = null;
-        halfword autostyle = tex_math_style_variant(cur_list.math_style, math_parameter_fraction_variant);
-        halfword userstyle = -1; // todo: yet_unset_math_style;
-        halfword attrlist = null;
+        halfword fraction       = tex_new_node(fraction_noad, 0);
+        halfword numerator      = tex_new_node(sub_mlist_node, 0);
+        halfword denominator    = null;
+        halfword autostyle      = tex_math_style_variant(cur_list.math_style, math_parameter_fraction_variant);
+        halfword userstyle      = -1; // todo: yet_unset_math_style;
+        halfword attrlist       = null;
         halfword symbolattrlist = null;
-        fullword options = 0;
-        halfword mathclass = fraction_noad_subtype;
-        scaled rulethickness = preset_rule_thickness;
-        int ruledone = 0;
+        fullword options        = 0;
+        halfword mathclass      = fraction_noad_subtype;
+        scaled   rulethickness  = preset_rule_thickness;
+        int      ruledone       = 0;
         fraction_h_factor(fraction) = scaling_factor;
         fraction_v_factor(fraction) = scaling_factor;
         switch (code) {
@@ -4480,128 +5111,208 @@ void tex_run_math_fraction(void)
             case math_u_stretched_delimited_code:
             case math_u_skewed_code:
             case math_u_skewed_delimited_code:
-                ruledone = 1;
-              OPTIONS:
-                while (1) {
-                    switch (tex_scan_character("acefhnpstuv", 0, 1, 0)) {
-                        case 'a':
-                            if (tex_scan_mandate_keyword("attr", 1)) {
+                {
+                    ruledone = 1;
+                  OPTIONS:
+
+# if use_matcher
+
+                    keyword_matcher *matcher = &lmt_matchers[mathfraction_matcher];
+
+                    while (1) {
+                        switch (tex_matcher_use(matcher, 1)) {
+                            case mathfraction_key_no_match:
+                                goto DONE;
+                            case mathfraction_key_attr:
                                 attrlist = tex_scan_attribute(attrlist);
-                            }
-                            break;
-                        case 'c':
-                            switch (tex_scan_character("al", 0, 0, 0)) {
-                                case 'l':
-                                    if (tex_scan_mandate_keyword("class", 2)) {
-                                        mathclass = (quarterword) tex_scan_math_class_number(0);
-                                    }
-                                    break;
-                                case 'a':
-                                    if (tex_scan_mandate_keyword("callback", 2)) {
-                                        noad_callback(fraction) = tex_scan_integer(0, NULL, NULL);
-                                    }
-                                    break;
-                                default:
-                                    tex_aux_show_keyword_error("class|callback");
-                                    goto DONE;
-                            }
-                            break;
-                        case 'e':
-                            /* not used */
-                            if (tex_scan_mandate_keyword("exact", 1)) {
+                                break;
+                            case mathfraction_key_class:
+                                mathclass = (quarterword) tex_scan_math_class_number(0);
+                                break;
+                            case mathfraction_key_callback:
+                                noad_callback(fraction) = tex_scan_integer(0, NULL, NULL);
+                                break;
+                            case mathfraction_key_exact:
+                                /* not used */
                                 options |= noad_option_exact;
-                            }
-                            break;
-                        case 'f':
-                            if (tex_scan_mandate_keyword("font", 1)) {
+                                break;
+                            case mathfraction_key_font:
                                 ruledone = 1;
                                 options |= noad_option_prefer_font_thickness;
-                            }
-                            break;
-                        case 'h':
-                            if (tex_scan_mandate_keyword("hfactor", 1)) {
+                                break;
+                            case mathfraction_key_hfactor:
                                 fraction_h_factor(fraction) = tex_scan_integer(0, NULL, NULL);
-                            }
-                            break;
-                        case 'n':
-                            /*tex A bit over the top, three steps but a push back is still worse. */
-                            if (tex_scan_character("o", 0, 0, 0)) {
-                                switch (tex_scan_character("ao", 0, 0, 0)) {
-                                    case 'a':
-                                        if (tex_scan_mandate_keyword("noaxis", 3)) {
-                                            options |= noad_option_no_axis;
+                                break;
+                            case mathfraction_key_noaxis:
+                                options |= noad_option_no_axis;
+                                break;
+                            case mathfraction_key_nooverflow:
+                                options |= noad_option_no_overflow;
+                                break;
+                            case mathfraction_key_proportional:
+                                /* not used */
+                                options |= noad_option_proportional;
+                                break;
+                            case mathfraction_key_style:
+                                {
+                                    halfword style = tex_scan_math_style_identifier(1, 0); /* tolerant */
+                                    if (denominator && style >= 0) {
+                                        userstyle = style;
+                                    } else {
+                                        /* just ignore */
+                                    }
+                                }
+                                break;
+                            case mathfraction_key_source:
+                                noad_source(fraction) = tex_scan_integer(0, NULL, NULL);
+                                break;
+                            case mathfraction_key_symbolattr:
+                                symbolattrlist = tex_scan_extra_attribute(symbolattrlist);
+                                break;
+                            case mathfraction_key_thickness:
+                                ruledone = 1;
+                                rulethickness = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                                break;
+                            case mathfraction_key_usecallback:
+                                ruledone = 1;
+                                options |= noad_option_use_callback;
+                                break;
+                            case mathfraction_key_vfactor:
+                                fraction_v_factor(fraction) = tex_scan_integer(0, NULL, NULL);
+                                break;
+                            default:
+                                goto DONE;
+                        }
+                    }
+                  DONE:
+                    tex_check_matchers(mathfraction_matcher);
+
+# else
+
+                    while (1) {
+                        switch (tex_scan_character("acefhnpstuv", 0, 1, 0)) {
+                            case 'a':
+                                if (tex_scan_mandate_keyword("attr", 1)) {
+                                    attrlist = tex_scan_attribute(attrlist);
+                                }
+                                break;
+                            case 'c':
+                                switch (tex_scan_character("al", 0, 0, 0)) {
+                                    case 'l':
+                                        if (tex_scan_mandate_keyword("class", 2)) {
+                                            mathclass = (quarterword) tex_scan_math_class_number(0);
                                         }
                                         break;
-                                    case 'o':
-                                        if (tex_scan_mandate_keyword("nooverflow", 3)) {
-                                            options |= noad_option_no_overflow;
+                                    case 'a':
+                                        if (tex_scan_mandate_keyword("callback", 2)) {
+                                            noad_callback(fraction) = tex_scan_integer(0, NULL, NULL);
                                         }
                                         break;
                                     default:
-                                        tex_aux_show_keyword_error("noaxis|nooverflow");
+                                        tex_aux_show_keyword_error("class|callback");
                                         goto DONE;
                                 }
-                            }
-                            break;
-                        case 'p':
-                            /* not used */
-                            if (tex_scan_mandate_keyword("proportional", 1)) {
-                                options |= noad_option_proportional;
-                            }
-                            break;
-                        case 's':
-                            switch (tex_scan_character("toy", 0, 0, 0)) {
-                                case 't':
-                                    if (tex_scan_mandate_keyword("style", 2)) {
-                                        halfword style = tex_scan_math_style_identifier(1, 0); /* tolerant */
-                                        if (denominator && style >= 0) {
-                                            userstyle = style;
-                                        } else {
-                                            /* just ignore */
+                                break;
+                            case 'e':
+                                /* not used */
+                                if (tex_scan_mandate_keyword("exact", 1)) {
+                                    options |= noad_option_exact;
+                                }
+                                break;
+                            case 'f':
+                                if (tex_scan_mandate_keyword("font", 1)) {
+                                    ruledone = 1;
+                                    options |= noad_option_prefer_font_thickness;
+                                }
+                                break;
+                            case 'h':
+                                if (tex_scan_mandate_keyword("hfactor", 1)) {
+                                    fraction_h_factor(fraction) = tex_scan_integer(0, NULL, NULL);
+                                }
+                                break;
+                            case 'n':
+                                /*tex A bit over the top, three steps but a push back is still worse. */
+                                if (tex_scan_character("o", 0, 0, 0)) {
+                                    switch (tex_scan_character("ao", 0, 0, 0)) {
+                                        case 'a':
+                                            if (tex_scan_mandate_keyword("noaxis", 3)) {
+                                                options |= noad_option_no_axis;
+                                            }
+                                            break;
+                                        case 'o':
+                                            if (tex_scan_mandate_keyword("nooverflow", 3)) {
+                                                options |= noad_option_no_overflow;
+                                            }
+                                            break;
+                                        default:
+                                            tex_aux_show_keyword_error("noaxis|nooverflow");
+                                            goto DONE;
+                                    }
+                                }
+                                break;
+                            case 'p':
+                                /* not used */
+                                if (tex_scan_mandate_keyword("proportional", 1)) {
+                                    options |= noad_option_proportional;
+                                }
+                                break;
+                            case 's':
+                                switch (tex_scan_character("toy", 0, 0, 0)) {
+                                    case 't':
+                                        if (tex_scan_mandate_keyword("style", 2)) {
+                                            halfword style = tex_scan_math_style_identifier(1, 0); /* tolerant */
+                                            if (denominator && style >= 0) {
+                                                userstyle = style;
+                                            } else {
+                                                /* just ignore */
+                                            }
                                         }
-                                    }
-                                    break;
-                                case 'o':
-                                    if (tex_scan_mandate_keyword("source", 2)) {
-                                        noad_source(fraction) = tex_scan_integer(0, NULL, NULL);
-                                    }
-                                    break;
-                                case 'y':
-                                    if (tex_scan_mandate_keyword("symbolattr", 2)) {
-                                        symbolattrlist = tex_scan_extra_attribute(symbolattrlist);
-                                    }
-                                    break;
-                                default:
-                                    tex_aux_show_keyword_error("style|source|symbolattr");
-                                    goto DONE;
-                            }
-                            break;
-                        case 't':
-                            if (tex_scan_mandate_keyword("thickness", 1)) {
-                                ruledone = 1;
-                                rulethickness = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
-                            }
-                            break;
-                        case 'u':
-                            if (tex_scan_mandate_keyword("usecallback", 1)) {
-                                ruledone = 1;
-                                options |= noad_option_use_callback;
-                            }
-                            break;
-                        case 'v':
-                            if (tex_scan_mandate_keyword("vfactor", 1)) {
-                                fraction_v_factor(fraction) = tex_scan_integer(0, NULL, NULL);
-                            }
-                            break;
-                        default:
-                            goto DONE;
+                                        break;
+                                    case 'o':
+                                        if (tex_scan_mandate_keyword("source", 2)) {
+                                            noad_source(fraction) = tex_scan_integer(0, NULL, NULL);
+                                        }
+                                        break;
+                                    case 'y':
+                                        if (tex_scan_mandate_keyword("symbolattr", 2)) {
+                                            symbolattrlist = tex_scan_extra_attribute(symbolattrlist);
+                                        }
+                                        break;
+                                    default:
+                                        tex_aux_show_keyword_error("style|source|symbolattr");
+                                        goto DONE;
+                                }
+                                break;
+                            case 't':
+                                if (tex_scan_mandate_keyword("thickness", 1)) {
+                                    ruledone = 1;
+                                    rulethickness = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                                }
+                                break;
+                            case 'u':
+                                if (tex_scan_mandate_keyword("usecallback", 1)) {
+                                    ruledone = 1;
+                                    options |= noad_option_use_callback;
+                                }
+                                break;
+                            case 'v':
+                                if (tex_scan_mandate_keyword("vfactor", 1)) {
+                                    fraction_v_factor(fraction) = tex_scan_integer(0, NULL, NULL);
+                                }
+                                break;
+                            default:
+                                goto DONE;
+                        }
                     }
+                  DONE:
+
+# endif
+
+                    if (! ruledone) {
+                        rulethickness = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                    }
+                    break;
                 }
-              DONE:
-                if (! ruledone) {
-                    rulethickness = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
-                }
-                break;
         }
         fraction_rule_thickness(fraction) = rulethickness;
         noad_options(fraction) = options;
@@ -4696,7 +5407,7 @@ static void tex_aux_flatten_math_list(halfword parent)
                 {
                     // how about the options and class
                  // if (! noad_has_following_scripts(p) && tex_math_has_class_option(node_subtype(p), flatten_class_option) && ! noad_source(p)) {
-if (! noad_has_scripts(p) && tex_math_has_class_option(node_subtype(p), flatten_class_option) && ! noad_source(p)) {
+                    if (! noad_has_scripts(p) && tex_math_has_class_option(node_subtype(p), flatten_class_option) && ! noad_source(p)) {
                         halfword n = noad_nucleus(p);
                         halfword s = parent;
                         node_type(s) = node_type(n);
@@ -4797,25 +5508,107 @@ void tex_finish_math_group(void)
 
 */
 
+# if use_matcher
+
+typedef enum mathfence_keys { 
+    mathfence_key_no_match = 0,
+    /* */ 
+    mathfence_key_attr,
+    mathfence_key_auto,
+    mathfence_key_axis,
+    mathfence_key_bottom,
+    mathfence_key_class, 
+    mathfence_key_callback,
+    mathfence_key_depth, 
+    mathfence_key_exact, 
+    mathfence_key_factor,
+    mathfence_key_height,
+    mathfence_key_leftclass, 
+    mathfence_key_limits,
+    mathfence_key_noaxis,
+    mathfence_key_nocheck,
+    mathfence_key_nolimits,
+    mathfence_key_nooverflow,
+    mathfence_key_middle, 
+    mathfence_key_phantom,
+    mathfence_key_rightclass, 
+    mathfence_key_scale, 
+    mathfence_key_single,
+    mathfence_key_source,
+    mathfence_key_symbolattr,
+    mathfence_key_top, 
+    mathfence_key_usecallback,
+    mathfence_key_variant,
+    mathfence_key_void, 
+    /* */
+    mathfence_key_left_brace,
+} mathfence_keys;
+
+static const char *mathfence_words[] = { 
+    NULL,
+    /* */
+    "attr",
+    "auto",
+    "axis",
+    "bottom",
+    "class", 
+    "callback",
+    "depth", 
+    "exact", 
+    "factor",
+    "height",
+    "leftclass", 
+    "limits",
+    "noaxis",
+    "nocheck",
+    "nolimits",
+    "nooverflow",
+    "middle", 
+    "phantom",
+    "rightclass", 
+    "scale", 
+    "single",
+    "source",
+    "symbolattr",
+    "top", 
+    "usecallback",
+    "variant",
+    "void", 
+};
+
+void tex_set_mathfence_matcher(void)
+{
+    lmt_matcher_items[mathfence_matcher] = (matcher_item) { 
+        .words   = mathfence_words, 
+        .name    = "mathfence",
+        .first   = mathfence_key_attr,
+        .last    = mathfence_key_void,
+        .group   = mathfence_key_left_brace,
+        .options = default_matcher_options, 
+    };
+}
+
+# endif 
+
 void tex_run_math_fence(void)
 {
-    scaled ht = 0;
-    scaled dp = 0;
-    scaled top = 0;
-    scaled bottom = 0;
-    fullword options = 0;
-    halfword variant = 0;
-    halfword mainclass = unset_noad_class;
-    halfword leftclass = unset_noad_class;
-    halfword rightclass = unset_noad_class;
-    halfword source = 0;
-    halfword factor = scaling_factor;
-    halfword attrlist = null;
-    halfword symbolattrlist = null;
-    quarterword st = (quarterword) cur_chr;
-    halfword style = cur_list.math_style;
-    halfword call = tex_tail_fetch_callback();
-    halfword callback = 0;
+    scaled      ht             = 0;
+    scaled      dp             = 0;
+    scaled      top            = 0;
+    scaled      bottom         = 0;
+    fullword    options        = 0;
+    halfword    variant        = 0;
+    halfword    mainclass      = unset_noad_class;
+    halfword    leftclass      = unset_noad_class;
+    halfword    rightclass     = unset_noad_class;
+    halfword    source         = 0;
+    halfword    factor         = scaling_factor;
+    halfword    attrlist       = null;
+    halfword    symbolattrlist = null;
+    quarterword st             = (quarterword) cur_chr;
+    halfword    style          = cur_list.math_style;
+    halfword    call           = tex_tail_fetch_callback();
+    halfword    callback       = 0;
     if (math_check_fences_par) {
         options |= noad_option_no_check;
     }
@@ -4835,6 +5628,118 @@ void tex_run_math_fence(void)
         default :
             goto CHECK_PAIRING;
     }
+
+ # if use_matcher
+
+    keyword_matcher *matcher = &lmt_matchers[mathfence_matcher];
+
+    while (1) {
+        switch (tex_matcher_use(matcher, 1)) {
+            case mathfence_key_no_match:
+                goto DONE;
+            case mathfence_key_attr:
+                attrlist = tex_scan_attribute(attrlist);
+                break;
+            case mathfence_key_auto:
+                options |= noad_option_auto;
+                break;
+            case mathfence_key_axis:
+                options |= noad_option_axis;
+                break;
+            case mathfence_key_bottom:
+                bottom = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case mathfence_key_class:
+                mainclass = (quarterword) tex_scan_math_class_number(0);
+                break;
+            case mathfence_key_callback:
+                callback = tex_scan_integer(0, NULL, NULL);
+                break;
+            case mathfence_key_depth:
+                dp = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case mathfence_key_exact:
+                options |= noad_option_exact;
+                break;
+            case mathfence_key_factor:
+                factor = tex_scan_integer(0, NULL, NULL);
+                break;
+            case mathfence_key_height:
+                ht = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case mathfence_key_leftclass:
+                {
+                    halfword c = tex_scan_math_class_number(0);
+                    if (valid_math_class_code(c)) {
+                        leftclass = c;
+                    }
+                }
+                break;
+            case mathfence_key_limits:
+                options = unset_option(options, noad_option_no_limits);
+                options |= noad_option_limits;
+                break;
+            case mathfence_key_noaxis:
+                options |= noad_option_no_axis;
+                break;
+            case mathfence_key_nocheck:
+                options |= noad_option_no_check;
+                break;
+            case mathfence_key_nolimits:
+                options = unset_option(options, noad_option_limits);
+                options |= noad_option_no_limits;
+                break;
+            case mathfence_key_nooverflow:
+                options |= noad_option_no_overflow;
+                break;
+            case mathfence_key_middle:
+                options |= noad_option_auto_middle;
+                break;
+            case mathfence_key_phantom:
+                options |= noad_option_phantom;
+                break;
+            case mathfence_key_rightclass:
+                {
+                    halfword c = tex_scan_math_class_number(0);
+                    if (valid_math_class_code(c)) {
+                        rightclass = c;
+                    }
+                }
+                break;
+            case mathfence_key_scale:
+                options |= noad_option_scale;
+                break;
+            case mathfence_key_single:
+                options |= noad_option_single;
+                break;
+            case mathfence_key_source:
+                source = tex_scan_integer(0, NULL, NULL);
+                break;
+            case mathfence_key_symbolattr:
+                symbolattrlist = tex_scan_extra_attribute(symbolattrlist);
+                break;
+            case mathfence_key_top:
+                top = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case mathfence_key_usecallback:
+                options |= noad_option_use_callback;
+                break;
+            case mathfence_key_variant:
+                variant = tex_scan_integer(0, NULL, NULL);
+                break;
+            case mathfence_key_void:
+                options |= noad_option_void;
+                break;
+            default:
+                goto DONE;
+        }
+    }
+  DONE:
+    tex_check_matchers(mathfence_matcher);
+  CHECK_PAIRING:
+
+ # else 
+
     while (1) {
         /* todo: break down  */
         switch (tex_scan_character("abcdefhlmnprstuv", 0, 1, 0)) {
@@ -5037,6 +5942,9 @@ void tex_run_math_fence(void)
         }
     }
   CHECK_PAIRING:
+
+# endif
+
     switch (st) {
         case no_fence_side:
         case left_fence_side:

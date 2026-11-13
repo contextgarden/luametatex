@@ -62,6 +62,7 @@ set(tex_sources
     source/tex/texrules.c
     source/tex/texbalance.c
     source/tex/texideas.c
+    source/tex/texmatcher.c
 )
 
 add_library(tex STATIC ${tex_sources})

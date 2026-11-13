@@ -161,4 +161,6 @@ extern void     tex_set_insert_category      (halfword i, halfword v);
 extern halfword tex_get_insert_category      (halfword i);
 extern int      tex_insert_is_top            (halfword i);
 
+extern void     tex_set_insert_matcher       (void);
+
 # endif

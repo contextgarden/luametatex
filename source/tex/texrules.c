@@ -35,6 +35,80 @@
 
 */
 
+# if use_matcher 
+
+static const char *rule_words[] = { 
+    NULL,
+    /* */
+    "attr",
+    "bottom",
+    "char",
+    "depth",
+    "discardable",
+    "fam",
+    "font",
+    "height",
+    "keepspacing",
+    "left",
+    "linesnapping",
+    "nosnapping",
+    "off",
+    "on",
+    "pair",
+    "resetspacing",
+    "right",
+    "running",
+    "snapping",
+    "top",
+    "width",
+    "xoffset",
+    "yoffset",
+};
+
+typedef enum rule_keys { 
+    rule_key_no_match = 0,
+    /* */ 
+    rule_key_attr,
+    rule_key_bottom,
+    rule_key_char,
+    rule_key_depth,
+    rule_key_discardable,
+    rule_key_fam,
+    rule_key_font,
+    rule_key_height,
+    rule_key_keepspacing,
+    rule_key_left,
+    rule_key_linesnapping,
+    rule_key_nosnapping,
+    rule_key_off,
+    rule_key_on,
+    rule_key_pair,
+    rule_key_resetspacing,
+    rule_key_right,
+    rule_key_running,
+    rule_key_snapping,
+    rule_key_top,
+    rule_key_width,
+    rule_key_xoffset,
+    rule_key_yoffset,
+    /* */
+    rule_key_left_brace,
+} rule_keys;
+
+void tex_set_rule_matcher(void)
+{
+    lmt_matcher_items[rule_matcher] = (matcher_item) {
+        .words   = rule_words, 
+        .name    = "rule specification",
+        .first   = rule_key_attr, 
+        .last    = rule_key_yoffset,
+        .group   = rule_key_left_brace,
+        .options = default_matcher_options, 
+    };
+}
+
+# endif
+
 halfword tex_aux_scan_rule_spec(rule_types type, halfword code, int maysnap)
 {
     /*tex |width|, |depth|, and |height| all equal |null_flag| now */
@@ -69,6 +143,97 @@ halfword tex_aux_scan_rule_spec(rule_types type, halfword code, int maysnap)
                 break;
         }
     }
+    /* maybe also three in one go but what keyword */
+
+# if use_matcher 
+
+    keyword_matcher *matcher = &lmt_matchers[rule_matcher];
+    while (1) {
+        switch (tex_matcher_use(matcher, 1)) {
+            case rule_key_no_match:
+                goto DONE;
+            case rule_key_attr:
+                attrlist = tex_scan_attribute(attrlist);
+                break;
+            case rule_key_bottom:
+                rule_right(rule) = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case rule_key_char:
+                rule_strut_character(rule) = tex_scan_char_number(0);
+                break;
+            case rule_key_depth:
+                rule_depth(rule) = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case rule_key_discardable:
+                rule_options(rule) |= rule_option_discardable;
+                break;
+            case rule_key_fam:
+                tex_set_rule_family(rule, tex_scan_math_family_number());
+                break;
+            case rule_key_font:
+                tex_set_rule_font(rule, tex_scan_font_identifier(NULL));
+                break;
+            case rule_key_height:
+                rule_height(rule) = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case rule_key_keepspacing:
+                rule_options(rule) |= rule_option_keep_spacing;
+                break;
+            case rule_key_left:
+                rule_left(rule) = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case rule_key_linesnapping:
+                snapping = tex_snapping_scan();
+                break;
+            case rule_key_nosnapping:
+                rule_options(rule) |= rule_option_no_snapping;
+                maysnap = 0; /* so no need to test the option later */
+                break;
+            case rule_key_off:
+                rule_line_off(rule) = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case rule_key_on:
+                rule_line_on(rule) = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case rule_key_pair:
+                rule_height(rule) = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                rule_depth(rule) = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case rule_key_resetspacing:
+                tex_remove_rule_option(rule, rule_option_keep_spacing);
+                break;
+            case rule_key_right:
+                rule_right(rule) = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case rule_key_running:
+                rule_width (rule) = null_flag;
+                rule_height(rule) = null_flag;
+                rule_depth (rule) = null_flag;
+                break;
+            case rule_key_snapping:
+                rule_options(rule) |= rule_option_snapping;
+                break;
+            case rule_key_top:
+                rule_left(rule) = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case rule_key_width:
+                rule_width(rule) = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case rule_key_xoffset:
+                rule_x_offset(rule) = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case rule_key_yoffset:
+                rule_y_offset(rule) = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            default:
+                goto DONE;
+        }
+    }
+  DONE:
+    tex_check_matchers(rule_matcher);
+
+# else 
+
     while (1) {
         /* maybe also three in one go but what keyword */
         switch (tex_scan_character("awhdkpxylrtbcfons", 0, 1, 0)) {
@@ -231,6 +396,10 @@ halfword tex_aux_scan_rule_spec(rule_types type, halfword code, int maysnap)
         }
     }
   DONE:
+
+# endif
+
+    /* */
     if (attrlist) {
         tex_attach_attribute_list_attribute(rule, attrlist);
     }

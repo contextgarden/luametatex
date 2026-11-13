@@ -258,10 +258,91 @@ halfword tex_use_local_boxes(halfword p, halfword location)
 
 /* */
 
+# if use_matcher
+
+typedef enum localboxes_keys { 
+    localboxes_key_no_match = 0,
+    /* */ 
+    localboxes_key_always,
+    localboxes_key_index,
+    localboxes_key_keep,
+    localboxes_key_local,
+    localboxes_key_move,
+    localboxes_key_par,
+    localboxes_key_retain,
+    /* */
+    localboxes_key_left_brace,
+} localboxes_keys;
+
+static const char *localboxes_words[] = { 
+    NULL,
+    /* */
+    "always",
+    "index",
+    "keep",
+    "local",
+    "move",
+    "par",
+    "retain",
+};
+
+void tex_set_localboxes_matcher(void)
+{
+    lmt_matcher_items[localboxes_matcher] = (matcher_item) { 
+        .words   = localboxes_words, 
+        .name    = "localboxes",
+        .first   = localboxes_key_always,
+        .last    = localboxes_key_retain,
+        .group   = localboxes_key_left_brace,
+        .options = default_matcher_options, 
+    };
+}
+
 void tex_scan_local_boxes_keys(quarterword *options, halfword *index)
 {
     *options = 0;
     *index = 0;
+    keyword_matcher *matcher = &lmt_matchers[localboxes_matcher];
+    while (1) {
+        switch (tex_matcher_use(matcher, 1)) {
+            case localboxes_key_no_match:
+                goto DONE;
+            case localboxes_key_always:
+                *options |= local_box_always_option;
+                break;
+            case localboxes_key_index:
+                *index = tex_scan_box_index();
+                break;
+            case localboxes_key_keep:
+                *options |= local_box_keep_option;
+                break;
+            case localboxes_key_local:
+                *options |= local_box_local_option;
+                break;
+            case localboxes_key_move:
+                *options |= local_box_move_option;
+                break;
+            case localboxes_key_par:
+                *options |= local_box_par_option;
+                break;
+            case localboxes_key_retain:
+                /* This is undocumented and only for testing (jump over group)! */
+                *options |= local_box_retain_option;
+                break;
+            default:
+                goto DONE;
+        }
+    }
+  DONE:
+    tex_check_matchers(localboxes_matcher);
+}
+
+# else 
+
+void tex_scan_local_boxes_keys(quarterword *options, halfword *index)
+{
+    *options = 0;
+    *index   = 0;
     while (1) {
         switch (tex_scan_character("aiklmpr", 0, 1, 0)) {
             case 'a':
@@ -305,6 +386,8 @@ void tex_scan_local_boxes_keys(quarterword *options, halfword *index)
         }
     }
 }
+
+# endif 
 
 int tex_is_localbox_always(halfword p) {
     return p && node_type(p) == hlist_node && box_anchoring(p) ? 1 : 0;

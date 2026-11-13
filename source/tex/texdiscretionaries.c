@@ -239,6 +239,50 @@ int tex_show_discretionary_record(void)
     return 1;
 }
 
+# if use_matcher 
+
+typedef enum discretionary_keys { 
+    discretionary_key_no_match = 0,
+    /* */ 
+    discretionary_key_break,
+    discretionary_key_class,
+    discretionary_key_nobreak,
+    discretionary_key_options,
+    discretionary_key_penalty,
+    discretionary_key_postword,
+    discretionary_key_preword,
+    discretionary_key_standalone,
+    /* */
+    discretionary_key_left_brace,
+} discretionary_keys;
+
+static const char *discretionary_words[] = { 
+    NULL,
+    /* */
+    "break",
+    "class",
+    "nobreak",
+    "options",
+    "penalty",
+    "postword",
+    "preword",
+    "standalone",
+};
+
+void tex_set_discretionary_matcher(void)
+{
+    lmt_matcher_items[discretionary_matcher] = (matcher_item) { 
+        .words   = discretionary_words, 
+        .name    = "discretionary",
+        .first   = discretionary_key_break,
+        .last    = discretionary_key_standalone,
+        .group   = discretionary_key_left_brace,
+        .options = default_matcher_options, 
+    };
+}
+
+# endif 
+
 void tex_run_discretionary(void)
 {
     switch (cur_chr) {
@@ -247,6 +291,47 @@ void tex_run_discretionary(void)
             {
                 halfword d = tex_new_disc_node(normal_discretionary_code);
                 tex_tail_append(d);
+
+# if use_matcher 
+
+                keyword_matcher *matcher = &lmt_matchers[discretionary_matcher];
+                while (1) {
+                    switch (tex_matcher_use(matcher, 1)) {
+                        case discretionary_key_no_match:
+                            goto DONE;
+                        case discretionary_key_penalty:
+                            set_disc_penalty(d, tex_scan_integer(0, NULL, NULL));
+                            break;
+                        case discretionary_key_postword:
+                            set_disc_option(d, disc_option_post_word);
+                            break;
+                        case discretionary_key_preword:
+                            set_disc_option(d, disc_option_pre_word);
+                            break;
+                        case discretionary_key_break:
+                            set_disc_option(d, disc_option_prefer_break);
+                            break;
+                        case discretionary_key_nobreak:
+                            set_disc_option(d, disc_option_prefer_nobreak);
+                            break;
+                        case discretionary_key_options:
+                            set_disc_options(d, tex_scan_integer(0, NULL, NULL) & disc_option_valid);
+                            break;
+                        case discretionary_key_class:
+                            set_disc_class(d, tex_scan_math_class_number(0));
+                            break;
+                        case discretionary_key_standalone:
+                            set_disc_option(d, disc_option_stand_alone);
+                            break;
+                        default:
+                            goto DONE;
+                    }
+                }
+              DONE:
+                tex_check_matchers(discretionary_matcher);
+
+# else 
+
                 while (1) {
                     switch (tex_scan_character("pocbns", 0, 1, 0)) {
                         case 0:
@@ -302,7 +387,10 @@ void tex_run_discretionary(void)
                             goto DONE;
                     }
                 }
-            DONE:
+              DONE:
+
+# endif 
+
                 saved_discretionary_initialize();
                 saved_discretionary_component = 0;
                 lmt_save_state.save_stack_data.ptr += saved_discretionary_n_of_records;

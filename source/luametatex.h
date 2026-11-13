@@ -127,7 +127,7 @@
 # define luametatex_release          10
 # define luametatex_version_string   "2.11.10"
 # define luametatex_version_number   211.10
-# define luametatex_functionality    20261109
+# define luametatex_functionality    20261112
 # define luametatex_distribution     "regular" /* LMT_DISTRIBUTION_USED */
 # define luametatex_name_camelcase   "LuaMetaTeX"
 # define luametatex_name_lowercase   "luametatex"
@@ -348,6 +348,7 @@ extern version_state_info lmt_version_state;
 # include "tex/texlocalboxes.h"
 # include "tex/texpackaging.h"
 # include "tex/texscanning.h"
+# include "tex/texmatcher.h"
 # include "tex/texbuildpage.h"
 # include "tex/texmaincontrol.h"
 # include "tex/texnodes.h"

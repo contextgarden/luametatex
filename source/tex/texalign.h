@@ -35,4 +35,8 @@ extern void     tex_alignment_scan_options       (void);
 extern void     tex_alignment_set_options        (halfword options);
 extern halfword tex_alignment_get_options        (void);
 
+extern void     tex_set_alignment_matcher        (void);
+extern void     tex_set_align_matcher            (void);
+extern void     tex_set_noalign_matcher          (void);
+
 # endif

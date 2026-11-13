@@ -124,6 +124,8 @@ extern halfword tex_preroll_mvl          (halfword n);
 extern int      tex_appended_mvl         (halfword context, halfword boundary);
 extern int      tex_current_mvl          (halfword *head, halfword *tail);
 
+extern void     tex_set_mvl_matcher      (void);
+
 # if (delayed_glue_supported == 1)
 
 typedef enum delayed_glue_targets {

@@ -19,6 +19,8 @@ extern void       tex_add_local_boxes             (halfword p);
 extern void       tex_scan_local_boxes_keys       (quarterword *options, halfword *index);
 extern halfword   tex_valid_box_index             (halfword n);
 
+extern void       tex_set_localboxes_matcher      (void);
+
 /*tex Helpers, just in case we decide to be more sparse. */
 
 extern scaled     tex_get_local_left_width        (halfword p);

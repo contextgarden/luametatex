@@ -478,6 +478,7 @@ extern void        tex_set_trick_count         (void);
 extern void        tex_begin_token_list        (halfword t, quarterword kind); /* include some tracing */
 extern void        tex_begin_parameter_list    (halfword t);
 extern void        tex_begin_backed_up_list    (halfword t);
+extern void        tex_begin_checked_up_list   (halfword t);
 extern void        tex_begin_inserted_list     (halfword t);
 extern void        tex_begin_associated_list   (halfword t);
 extern void        tex_begin_macro_list        (halfword t);

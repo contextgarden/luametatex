@@ -36,4 +36,6 @@ extern halfword tex_get_rule_off              (halfword n);
 extern void     tex_set_rule_on               (halfword n, halfword value);
 extern void     tex_set_rule_off              (halfword n, halfword value);
 
+extern void     tex_set_rule_matcher          (void);
+
 # endif

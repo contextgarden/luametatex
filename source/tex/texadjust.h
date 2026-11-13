@@ -30,4 +30,6 @@ extern halfword tex_flush_adjust_prepend (halfword adjust, halfword tail);
 extern void     tex_show_adjust_group    (void);
 extern bool     tex_show_adjust_record   (void);
 
+extern void     tex_set_adjust_matcher   (void);
+
 # endif

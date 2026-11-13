@@ -9993,10 +9993,7 @@ static int nodelib_direct_hyphenating(lua_State *L)
     halfword t = nodelib_valid_direct_from_index(L, 2);
     if (h) {
         if (! t) {
-            t = h;
-            while (node_next(t)) {
-                t = node_next(t);
-            }
+            t = tex_tail_of_node_list(h);
         }
         tex_hyphenate_list(h, t); /* todo: grab new tail */
     } else {

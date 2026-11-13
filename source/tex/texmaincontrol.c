@@ -197,6 +197,62 @@ static void tex_aux_adjust_space_factor(halfword chr)
     cur_list.space_penalty = sp;
 }
 
+# if use_matcher
+
+typedef enum glyph_keys { 
+    glyph_key_no_match = 0,
+    /* */ 
+    glyph_key_font,
+    glyph_key_id,
+    glyph_key_keepspacing,
+    glyph_key_left, 
+    glyph_key_scale,
+    glyph_key_slant,
+    glyph_key_options,
+    glyph_key_right,
+    glyph_key_raise,
+    glyph_key_weight,
+    glyph_key_xoffset,
+    glyph_key_xscale, 
+    glyph_key_yoffset,
+    glyph_key_yscale, 
+    /* */
+    glyph_key_left_brace,
+} glyph_keys;
+
+static const char *glyph_words[] = { 
+    NULL,
+    /* */
+    "font",
+    "id",
+    "keepspacing",
+    "left", 
+    "scale",
+    "slant",
+    "options",
+    "right",
+    "raise",
+    "weight",
+    "xoffset",
+    "xscale", 
+    "yoffset",
+    "yscale", 
+};
+
+void tex_set_glyph_matcher(void)
+{
+    lmt_matcher_items[glyph_matcher] = (matcher_item) { 
+        .words   = glyph_words, 
+        .name    = "glyph",
+        .first   = glyph_key_font,
+        .last    = glyph_key_yscale,
+        .group   = glyph_key_left_brace,
+        .options = default_matcher_options, 
+    };
+}
+
+# endif
+
 static void tex_aux_run_text_char_number(void)
 {
     switch (cur_chr) {
@@ -209,20 +265,85 @@ static void tex_aux_run_text_char_number(void)
             }
         case glyph_number_code:
             {
-                scaled xoffset = glyph_x_offset_par;
-                scaled yoffset = glyph_y_offset_par;
-                halfword xscale = glyph_x_scale_par;
-                halfword yscale = glyph_y_scale_par;
-                halfword scale = glyph_scale_par;
-                halfword slant = glyph_slant_par;
-                halfword weight = glyph_weight_par;
+                scaled   xoffset = glyph_x_offset_par;
+                scaled   yoffset = glyph_y_offset_par;
+                halfword xscale  = glyph_x_scale_par;
+                halfword yscale  = glyph_y_scale_par;
+                halfword scale   = glyph_scale_par;
+                halfword slant   = glyph_slant_par;
+                halfword weight  = glyph_weight_par;
                 halfword options = glyph_options_par;
-                halfword font = cur_font_par;
-                scaled left = 0;
-                scaled right = 0;
-                scaled raise = 0;
-                halfword chr = 0;
+                halfword font    = cur_font_par;
+                scaled   left    = 0;
+                scaled   right   = 0;
+                scaled   raise   = 0;
+                halfword chr     = 0;
                 halfword glyph;
+
+# if use_matcher
+
+                keyword_matcher *matcher = &lmt_matchers[glyph_matcher];
+                while (1) {
+                    switch (tex_matcher_use(matcher, 1)) {
+                        case glyph_key_no_match:
+                            goto DONE;
+                        case glyph_key_xoffset:
+                            xoffset = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                            break;
+                        case glyph_key_xscale:
+                            xscale = tex_scan_integer(0, NULL, NULL);
+                            break;
+                        case glyph_key_yoffset:
+                            yoffset = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                            break;
+                        case glyph_key_yscale:
+                            yscale = tex_scan_integer(0, NULL, NULL);
+                            break;
+                        case glyph_key_options:
+                            /* resets ! */
+                            options = tex_scan_integer(0, NULL, NULL) & glyph_option_valid;
+                            break;
+                        case glyph_key_keepspacing:
+                            options |= glyph_option_keep_spacing;
+                            break;
+                        case glyph_key_font:
+                            font = tex_scan_font_identifier(NULL);
+                            break;
+                        case glyph_key_id:
+                            {
+                                halfword f = tex_scan_integer(0, NULL, NULL);
+                                if (f > 0 && tex_is_valid_font(f)) {
+                                    font = f;
+                                }
+                            }
+                            break;
+                        case glyph_key_scale:
+                            scale = tex_scan_integer(0, NULL, NULL);
+                            break;
+                        case glyph_key_slant:
+                            slant = tex_scan_integer(0, NULL, NULL);
+                            break;
+                        case glyph_key_left:
+                            left = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                            break;
+                        case glyph_key_right:
+                            right = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                            break;
+                        case glyph_key_raise:
+                            raise = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                            break;
+                        case glyph_key_weight:
+                            weight = tex_scan_integer(0, NULL, NULL);
+                            break;
+                        default:
+                            goto DONE;
+                    }
+                }
+              DONE:
+                tex_check_matchers(glyph_matcher);
+
+# else
+
                 while (1) {
                     switch (tex_scan_character("xyofisklrw", 0, 1, 0)) {
                         case 0:
@@ -334,6 +455,9 @@ static void tex_aux_run_text_char_number(void)
                     }
                 }
               DONE:
+
+# endif
+
                 chr = tex_scan_char_number(0);
                 if (! (options & glyph_option_keep_spacing)) { 
                     tex_aux_adjust_space_factor(chr);
@@ -988,11 +1112,75 @@ static int leader_flags[] = {
     u_leaders_flag,
 };
 
+
+# if use_matcher
+
+typedef enum leader_keys { 
+    leader_key_no_match = 0,
+    /* */ 
+    leader_key_callback,
+    leader_key_line,
+    leader_key_nobreak, 
+    /* */
+    leader_key_left_brace,
+} leader_keys;
+
+static const char *leader_words[] = { 
+    NULL,
+    /* */
+    "callback",
+    "line",
+    "nobreak", 
+};
+
+void tex_set_leader_matcher(void)
+{
+    lmt_matcher_items[leader_matcher] = (matcher_item) { 
+        .words   = leader_words, 
+        .name    = "leader",
+        .first   = leader_key_callback,
+        .last    = leader_key_nobreak,
+        .group   = leader_key_left_brace,
+        .options = default_matcher_options, 
+    };
+}
+
 static void tex_aux_run_leader(void) 
 {
-    halfword code = cur_chr; 
+    halfword code     = cur_chr; 
     halfword callback = 0; 
-    halfword options = 0;
+    halfword options  = 0;
+
+    keyword_matcher *matcher = &lmt_matchers[leader_matcher];
+    while (1) {
+        switch (tex_matcher_use(matcher, 1)) {
+            case leader_key_no_match:
+                goto DONE;
+            case leader_key_callback:
+                callback = tex_scan_integer(0, NULL, NULL);
+                break;
+            case leader_key_line:
+                options |= glue_option_u_leaders_line;
+                break;
+            case leader_key_nobreak:
+                options |= glue_option_no_auto_break;
+                break;
+            default:
+                goto DONE;
+        }
+    }
+  DONE: 
+    tex_check_matchers(leader_matcher);
+    tex_aux_scan_box(leader_flags[code], 0, null_flag, -1, callback, options);
+}
+
+# else 
+
+static void tex_aux_run_leader(void) 
+{
+    halfword code     = cur_chr; 
+    halfword callback = 0; 
+    halfword options  = 0;
     if (code == u_leaders_code) { 
         while (1) {
             switch (tex_scan_character("cln", 0, 1, 0)) {
@@ -1022,6 +1210,8 @@ static void tex_aux_run_leader(void)
     }
     tex_aux_scan_box(leader_flags[code], 0, null_flag, -1, callback, options);
 }
+
+# endif
 
 static void tex_aux_run_legacy(void) 
 {
@@ -3527,13 +3717,68 @@ static void tex_aux_run_text_italic_correction(void)
 
 */
 
+# if use_matcher
+
+typedef enum accent_keys { 
+    accent_key_no_match = 0,
+    /* */ 
+    accent_key_xoffset,
+    accent_key_yoffset,
+    /* */
+    accent_key_left_brace,
+} accent_keys;
+
+static const char *accent_words[] = { 
+    NULL,
+    /* */
+    "xoffset",
+    "yoffset",
+};
+
+void tex_set_accent_matcher(void)
+{
+    lmt_matcher_items[accent_matcher] = (matcher_item) { 
+        .words   = accent_words, 
+        .name    = "accent",
+        .first   = accent_key_xoffset,
+        .last    = accent_key_yoffset,
+        .group   = accent_key_left_brace,
+        .options = default_matcher_options, 
+    };
+}
+
+# endif
+
 static void tex_aux_run_text_accent(void)
 {
-    halfword fnt = cur_font_par;
-    halfword accent = null;
-    halfword base = null;
-    scaled xoffset = 0;
-    scaled yoffset = 0;
+    halfword fnt     = cur_font_par;
+    halfword accent  = null;
+    halfword base    = null;
+    scaled   xoffset = 0;
+    scaled   yoffset = 0;
+
+# if use_matcher
+
+    keyword_matcher *matcher = &lmt_matchers[accent_matcher];
+    while (1) {
+        switch (tex_matcher_use(matcher, 1)) {
+            case accent_key_no_match:
+                goto DONE;
+            case accent_key_xoffset:
+                xoffset = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            case accent_key_yoffset:
+                yoffset = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                break;
+            default:
+                goto DONE;
+        }
+    }
+  DONE:
+    tex_check_matchers(accent_matcher);
+
+# else
+
     while (1) {
         switch (tex_scan_character("xy", 0, 1, 0)) {
             case 'x':
@@ -3551,6 +3796,9 @@ static void tex_aux_run_text_accent(void)
         }
     }
   DONE:
+
+# endif 
+
     accent = tex_new_char_node(glyph_unset_subtype, fnt, tex_scan_char_number(0), 1);
     if (accent) {
         /*tex
@@ -6865,6 +7113,45 @@ static void tex_aux_run_case_shift(void)
 
 */
 
+
+# if use_matcher
+
+typedef enum showbox_keys { 
+    showbox_key_no_match = 0,
+    /* */ 
+    showbox_key_all,
+    showbox_key_content,
+    showbox_key_diagnose,
+    showbox_key_nolevels,
+    showbox_key_online,
+    /* */
+    showbox_key_left_brace,
+} showbox_keys;
+
+static const char *showbox_words[] = { 
+    NULL,
+    /* */
+    "all",
+    "content",
+    "diagnose",
+    "nolevels",
+    "online",
+};
+
+void tex_set_showbox_matcher(void)
+{
+    lmt_matcher_items[showbox_matcher] = (matcher_item) { 
+        .words   = showbox_words, 
+        .name    = "showbox",
+        .first   = showbox_key_all,
+        .last    = showbox_key_online,
+        .group   = showbox_key_left_brace,
+        .options = default_matcher_options, 
+    };
+}
+
+# endif
+
 static void tex_aux_run_show_whatever(void)
 {
     int justshow = 1;
@@ -6886,9 +7173,41 @@ static void tex_aux_run_show_whatever(void)
             {
                 int nolevels = 0;
                 int diagnose = 0;
-                int content = 0;
-                int online = 0;
-                int max = 0;
+                int content  = 0;
+                int online   = 0;
+                int max      = 0;
+
+# if use_matcher
+
+                keyword_matcher *matcher = &lmt_matchers[showbox_matcher];
+                while (1) {
+                    switch (tex_matcher_use(matcher, 1)) {
+                        case showbox_key_no_match:
+                            goto DONE;
+                        case showbox_key_all:
+                            max = 1;
+                            break;
+                        case showbox_key_content:
+                            content = 1;
+                            break;
+                        case showbox_key_diagnose:
+                            diagnose = 1;
+                            break;
+                        case showbox_key_nolevels:
+                            nolevels = 1;
+                            break;
+                        case showbox_key_online:
+                            online = 1;
+                            break;
+                        default:
+                            goto DONE;
+                    }
+                }
+              DONE:
+                tex_check_matchers(showbox_matcher);
+
+# else
+
                 while (1) {
                     switch (tex_scan_character("ocdna", 0, 1, 0)) {
                         case 'a':
@@ -6921,6 +7240,9 @@ static void tex_aux_run_show_whatever(void)
                     }
                 }
               DONE:
+
+# endif
+
                 /*tex This can become a general helper. */
                 {
                     halfword n = tex_scan_box_register_number();

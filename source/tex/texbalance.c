@@ -422,44 +422,44 @@ static inline halfword tex_normalized_tight_badness(halfword b, halfword fitness
 
 static void tex_aux_set_quality(halfword active, halfword passive, scaled shrt, scaled glue, scaled height, halfword badness)
 {
-    halfword quality = 0;
-    scaled deficiency = 0;
-    active_short(active) = shrt;
-    active_glue(active) = glue;
+    halfword quality    = 0;
+    scaled   deficiency = 0;
+    active_short(active)       = shrt;
+    active_glue(active)        = glue;
     active_page_height(active) = height;
     if (shrt < 0) {
         shrt = -shrt;
         if (shrt > glue) {
-            quality = page_is_overfull;
+            quality    = page_is_overfull;
             deficiency = shrt - glue;
         }
     } else if (shrt > 0) {
         if (shrt > glue) {
-            quality = page_is_underfull;
+            quality    = page_is_underfull;
             deficiency = shrt - glue;
         }
     }
-    passive_quality(passive) = quality;
+    passive_quality(passive)    = quality;
     passive_deficiency(passive) = deficiency;
-    passive_demerits(passive) = active_total_demerits(active); /* ... */
-    passive_badness(passive) = badness;
-    active_quality(active) = quality;
-    active_deficiency(active) = deficiency;
+    passive_demerits(passive)   = active_total_demerits(active); /* ... */
+    passive_badness(passive)    = badness;
+    active_quality(active)      = quality;
+    active_deficiency(active)   = deficiency;
 }
 
 static void tex_check_skips_shortfall(const balance_properties *properties, halfword breakpoint, halfword first, halfword current, halfword page_topskip, halfword page_bottomskip, scaled *shortfall, scaled *stretch, scaled *shrink, halfword options)
 {
-    halfword left = active_break_node(breakpoint) ? passive_cur_break(active_break_node(breakpoint)) : first; /* nasty */
-    scaled top = 0;
-    scaled bottom = 0;
+    halfword left   = active_break_node(breakpoint) ? passive_cur_break(active_break_node(breakpoint)) : first; /* nasty */
+    scaled   top    = 0;
+    scaled   bottom = 0;
     *stretch = 0;
     *shrink = 0;
  // if (! tex_glue_is_zero(page_topskip)) {
     if (1) {
         /* todo: check breakable */
         halfword c = left;
-        scaled h = 0;
-        scaled e = 0;
+        scaled   h = 0;
+        scaled   e = 0;
         while (c) {
             switch (node_type(c)) {
                 case hlist_node:
@@ -489,15 +489,15 @@ static void tex_check_skips_shortfall(const balance_properties *properties, half
         if (glue_amount(page_topskip) > h) {
             top = glue_amount(page_topskip) - h;
             *shortfall -= top;
-            *stretch += glue_stretch(page_topskip);
-            *shrink += glue_shrink(page_topskip);
+            *stretch   += glue_stretch(page_topskip);
+            *shrink    += glue_shrink(page_topskip);
         }
         *shortfall -= e;
     }
     if (1) { // ! tex_glue_is_zero(page_bottomskip)) {
         halfword c = current ? node_prev(current) : tex_tail_of_node_list(first);
-        scaled d = 0;
-        scaled e = 0;
+        scaled   d = 0;
+        scaled   e = 0;
         while (c) {
             switch (node_type(c)) {
                 case hlist_node:
@@ -523,8 +523,8 @@ static void tex_check_skips_shortfall(const balance_properties *properties, half
         if (glue_amount(page_bottomskip) > d) {
             bottom = glue_amount(page_bottomskip) - d;
             *shortfall -= bottom;
-            *stretch += glue_stretch(page_bottomskip);
-            *shrink += glue_shrink(page_bottomskip);
+            *stretch   += glue_stretch(page_bottomskip);
+            *shrink    += glue_shrink(page_bottomskip);
         }
         *shortfall -= e;
     }
@@ -564,20 +564,20 @@ static void tex_aux_set_height(
         } else {
             lmt_balance_state.last_special_page = specification_count(properties->shape) - 1;
         }
-        lmt_balance_state.second_height = tex_get_balance_vsize(properties->shape, specification_count(properties->shape)) + tex_get_balance_extra(properties->shape, specification_count(properties->shape));
-        lmt_balance_state.second_topskip = tex_get_balance_topskip(properties->shape, specification_count(properties->shape));
+        lmt_balance_state.second_height     = tex_get_balance_vsize(properties->shape, specification_count(properties->shape)) + tex_get_balance_extra(properties->shape, specification_count(properties->shape));
+        lmt_balance_state.second_topskip    = tex_get_balance_topskip(properties->shape, specification_count(properties->shape));
         lmt_balance_state.second_bottomskip = tex_get_balance_bottomskip(properties->shape, specification_count(properties->shape));
-        lmt_balance_state.second_options = tex_get_balance_options(properties->shape, specification_count(properties->shape));
+        lmt_balance_state.second_options    = tex_get_balance_options(properties->shape, specification_count(properties->shape));
     } else {
         lmt_balance_state.last_special_page = 0;
-        lmt_balance_state.second_height = properties->vsize;
-        lmt_balance_state.second_topskip = properties->topskip;
+        lmt_balance_state.second_height     = properties->vsize;
+        lmt_balance_state.second_topskip    = properties->topskip;
         lmt_balance_state.second_bottomskip = properties->bottomskip;
-        lmt_balance_state.second_options = 0;
+        lmt_balance_state.second_options    = 0;
     }
     /* This first is never used: */
-    lmt_balance_state.first_height = properties->vsize;
-    lmt_balance_state.first_topskip = properties->topskip;
+    lmt_balance_state.first_height     = properties->vsize;
+    lmt_balance_state.first_topskip    = properties->topskip;
     lmt_balance_state.first_bottomskip = properties->bottomskip;
     lmt_balance_state.first_options = 0;
     if(! properties->shape || specification_count(properties->shape) < 2) {
@@ -619,29 +619,29 @@ static void tex_aux_update_height_and_skips(
 )
 {
     if (page > lmt_balance_state.easy_page) {
-        *height = lmt_balance_state.second_height;
-        *topskip = lmt_balance_state.second_topskip;
+        *height     = lmt_balance_state.second_height;
+        *topskip    = lmt_balance_state.second_topskip;
         *bottomskip = lmt_balance_state.second_bottomskip;
-        *options = lmt_balance_state.second_options;
+        *options    = lmt_balance_state.second_options;
     } else if (page > lmt_balance_state.last_special_page) {
-        *height = lmt_balance_state.second_height;
-        *topskip = lmt_balance_state.second_topskip;
+        *height     = lmt_balance_state.second_height;
+        *topskip    = lmt_balance_state.second_topskip;
         *bottomskip = lmt_balance_state.second_bottomskip;
-        *options = lmt_balance_state.second_options;
+        *options    = lmt_balance_state.second_options;
     } else if (properties->shape && specification_count(properties->shape) > 0) {
-        *height = tex_get_balance_vsize(properties->shape, page) + (final ? 0 : tex_get_balance_extra(properties->shape, page));
-        *topskip = tex_get_balance_topskip(properties->shape, page);
+        *height     = tex_get_balance_vsize(properties->shape, page) + (final ? 0 : tex_get_balance_extra(properties->shape, page));
+        *topskip    = tex_get_balance_topskip(properties->shape, page);
         *bottomskip = tex_get_balance_bottomskip(properties->shape, page);
-        *options = tex_get_balance_options(properties->shape, page);
+        *options    = tex_get_balance_options(properties->shape, page);
         if (page < specification_count(properties->shape)) { 
             /*tex We permits zero height before the last specification. */
             return;
         }
     } else {
-        *height = lmt_balance_state.first_height;
-        *topskip = lmt_balance_state.first_topskip;
+        *height     = lmt_balance_state.first_height;
+        *topskip    = lmt_balance_state.first_topskip;
         *bottomskip = lmt_balance_state.first_bottomskip;
-        *options = lmt_balance_state.first_options;
+        *options    = lmt_balance_state.first_options;
     }
     tex_aux_check_height(height);
 }
@@ -662,29 +662,29 @@ static scaled tex_aux_try_balance(
     int      artificial
 )
 {
-    halfword previous = active_head;
+    halfword previous        = active_head;
     halfword before_previous = null;
-    scaled current_active_height[n_of_glue_amounts] = { 0 };
+    scaled   current_active_height[n_of_glue_amounts] = { 0 };
     halfword best_place      [max_n_of_fitness_values] = { 0 };
     halfword best_place_page [max_n_of_fitness_values] = { 0 };
     scaled   best_place_short[max_n_of_fitness_values] = { 0 };
     scaled   best_place_glue [max_n_of_fitness_values] = { 0 };
-    halfword badness = 0;
-    halfword prev_badness = 0;
-    int demerits = 0;
-    scaled glue = 0;
-    scaled shortfall = 0;
-    scaled stretch = 0;
-    scaled shrink = 0;
-    halfword old_page = 0;
-    bool no_break_yet = true;
-    int current_stays_active;
+    halfword badness         = 0;
+    halfword prev_badness    = 0;
+    int      demerits        = 0;
+    scaled   glue            = 0;
+    scaled   shortfall       = 0;
+    scaled   stretch         = 0;
+    scaled   shrink          = 0;
+    halfword old_page        = 0;
+    bool     no_break_yet    = true;
+    int      current_stays_active;
     halfword fit_class;
-    int artificial_demerits;
-    scaled page_height = 0;
-    halfword page_topskip = 0;
+    int      artificial_demerits;
+    scaled   page_height     = 0;
+    halfword page_topskip    = 0;
     halfword page_bottomskip = 0;
-    halfword page = 0;
+    halfword page            = 0;
     if (penalty >= infinite_penalty) {
         return shortfall;
     } else if (penalty <= -infinite_penalty) {
@@ -697,7 +697,7 @@ static scaled tex_aux_try_balance(
         if (node_type(current) == delta_node) {
             tex_aux_add_to_target_from_delta(current_active_height, current);
             before_previous = previous;
-            previous = current;
+            previous        = current;
             continue;
         } else {
             /*tex We have an |unhyphenated_node|. */
@@ -728,7 +728,7 @@ static scaled tex_aux_try_balance(
                     tex_aux_set_delta_from_difference(q, lmt_balance_state.break_height, current_active_height);
                     node_next(previous) = q;
                     before_previous = previous;
-                    previous = q;
+                    previous        = q;
                 }
                 if (properties->max_adj_demerits >= awful_bad - lmt_balance_state.minimum_demerits) {
                     lmt_balance_state.minimum_demerits = awful_bad - 1;
@@ -737,21 +737,21 @@ static scaled tex_aux_try_balance(
                 }
                 for (halfword fit_class = default_fitness; fit_class <= tex_max_fitness(properties->fitness_classes); fit_class++) {
                     if (lmt_balance_state.minimal_demerits[fit_class] <= lmt_balance_state.minimum_demerits) {
-                        halfword passive = tex_new_node(passive_node, (quarterword) fit_class);
-                        halfword active = tex_new_node((quarterword) break_type, (quarterword) fit_class);
+                        halfword passive    = tex_new_node(passive_node, (quarterword) fit_class);
+                        halfword active     = tex_new_node((quarterword) break_type, (quarterword) fit_class);
                         halfword prev_break = best_place[fit_class];
                         /*tex Initialize the passive node: */
-                        active_n_of_fitness_classes(active) = tex_max_fitness(properties->fitness_classes);
+                        active_n_of_fitness_classes(active)   = tex_max_fitness(properties->fitness_classes);
                         passive_n_of_fitness_classes(passive) = tex_max_fitness(properties->fitness_classes);
-                        passive_cur_break(passive) = cur_p;
-                        passive_serial(passive) = ++lmt_balance_state.serial_number;
-                        passive_ref_count(passive) = 1;
+                        passive_cur_break(passive)  = cur_p;
+                        passive_serial(passive)     = ++lmt_balance_state.serial_number;
+                        passive_ref_count(passive)  = 1;
                         passive_prev_break(passive) = prev_break;
                         if (prev_break) {
                             passive_ref_count(prev_break) += 1;
                         }
                         /*tex Initialize the active node: */
-                        active_break_node(active) = passive;
+                        active_break_node(active)  = passive;
                         active_page_number(active) = best_place_page[fit_class] + 1;
                         active_total_demerits(active) = lmt_balance_state.minimal_demerits[fit_class];
                         /*tex Store additional data in the new active node. */
@@ -791,7 +791,7 @@ static scaled tex_aux_try_balance(
                         node_next(passive) = lmt_balance_state.passive;
                         lmt_balance_state.passive = passive;
                         /*tex Append the active node. */
-                        node_next(active) = current;
+                        node_next(active)   = current;
                         node_next(previous) = active;
                         previous = active;
                         /* */
@@ -814,7 +814,7 @@ static scaled tex_aux_try_balance(
                     tex_aux_set_delta_from_difference(delta, current_active_height, lmt_balance_state.break_height);
                     node_next(previous) = delta;
                     before_previous = previous;
-                    previous = delta;
+                    previous        = delta;
                 }
             }
             if (page > lmt_balance_state.easy_page) {
@@ -849,7 +849,7 @@ static scaled tex_aux_try_balance(
                 /*tex Infinite stretch. */
                 fit_class = tex_get_specification_decent(properties->fitness_classes) - 1;
             } else if (shortfall > large_height_excess && (current_active_height[total_stretch_amount] + stretch) < small_stretchability) {
-                badness = infinite_bad;
+                badness   = infinite_bad;
                 fit_class = default_fitness;
             } else {
                 badness = tex_badness(shortfall, current_active_height[total_stretch_amount] + stretch);
@@ -865,7 +865,7 @@ static scaled tex_aux_try_balance(
         }
         if (! cur_p) {
             shortfall = 0;
-            glue = 0;
+            glue      = 0;
         } else if (shortfall > 0) {
             glue = current_active_height[total_stretch_amount] + stretch;
         } else if (shortfall < 0) {
@@ -894,7 +894,7 @@ static scaled tex_aux_try_balance(
         } else {
             /*tex Compute the demerits, |d|, from |r| to |cur_p|. */
             int fit_current = (halfword) active_fitness(current);
-            int distance = abs(fit_class - fit_current);
+            int distance    = abs(fit_class - fit_current);
             demerits = badness + properties->penalty; 
             if (abs(demerits) >= infinite_bad) {
                 demerits = extremely_deplorable;
@@ -918,10 +918,10 @@ static scaled tex_aux_try_balance(
         demerits += active_total_demerits(current);
         if (demerits <= lmt_balance_state.minimal_demerits[fit_class]) {
             lmt_balance_state.minimal_demerits[fit_class] = demerits;
-            best_place[fit_class] = active_break_node(current);
-            best_place_page[fit_class] = page;
+            best_place[fit_class]       = active_break_node(current);
+            best_place_page[fit_class]  = page;
             best_place_short[fit_class] = shortfall;
-            best_place_glue[fit_class] = glue;
+            best_place_glue[fit_class]  = glue;
             if (demerits < lmt_balance_state.minimum_demerits) {
                 lmt_balance_state.minimum_demerits = demerits;
             }
@@ -1008,9 +1008,9 @@ static inline int tex_aux_emergency(const balance_properties *properties)
 
 static scaled tex_check_balance_quality(scaled shortfall, scaled *overfull, scaled *underfull, halfword *verdict, halfword *classified)
 {
-    halfword active = lmt_balance_state.best_bet;
+    halfword active        = lmt_balance_state.best_bet;
     halfword final_passive = active_break_node(active);
-    halfword passive = passive_prev_break(final_passive);
+    halfword passive       = passive_prev_break(final_passive);
     int result = 1;
     /* last page ... */
     switch (active_quality(active)) {
@@ -1073,13 +1073,13 @@ static scaled tex_check_balance_quality(scaled shortfall, scaled *overfull, scal
 static inline void tex_aux_set_initial_active(const balance_properties *properties)
 {
     halfword initial = tex_new_node(unhyphenated_node, (quarterword) tex_get_specification_decent(properties->fitness_classes) - 1);
-    node_next(initial) = active_head;
-    active_break_node(initial) = null;
-    active_page_number(initial) = 1;
+    node_next            (initial) = active_head;
+    active_break_node    (initial) = null;
+    active_page_number   (initial) = 1;
     active_total_demerits(initial) = 0; // default
-    active_short(initial) = 0;          // default
-    active_glue(initial) = 0;           // default
-    active_page_height(initial) = 0;    // default
+    active_short         (initial) = 0; // default
+    active_glue          (initial) = 0; // default
+    active_page_height   (initial) = 0; // default
     node_next(active_head) = initial;
 }
 
@@ -1159,7 +1159,7 @@ static int tex_aux_set_sub_pass_parameters(
         properties->emergency_stretch = 0;
     }
     lmt_balance_state.background[total_stretch_amount] -= lmt_balance_state.extra_background_stretch;
-    lmt_balance_state.extra_background_stretch = properties->emergency_stretch;
+    lmt_balance_state.extra_background_stretch          = properties->emergency_stretch;
     lmt_balance_state.background[total_stretch_amount] += properties->emergency_stretch;
     /* */
     if (okay & passes_emergencyshrink_okay) {
@@ -1196,7 +1196,7 @@ static int tex_aux_set_sub_pass_parameters(
         }
     }
     lmt_balance_state.background[total_shrink_amount] -= lmt_balance_state.extra_background_shrink;
-    lmt_balance_state.extra_background_shrink = properties->emergency_shrink;
+    lmt_balance_state.extra_background_shrink          = properties->emergency_shrink;
     lmt_balance_state.background[total_shrink_amount] += properties->emergency_shrink;
     /* */
     if (okay & passes_looseness_okay) {
@@ -1306,13 +1306,13 @@ static inline int tex_aux_check_sub_pass(balance_properties *properties, scaled 
                 } else if (features & passes_skip_pass) {
                     continue;
                 } else {
-                    scaled threshold = tex_get_balance_passes_threshold(passes, subpass);
-                    halfword demerits = tex_get_balance_passes_demerits(passes, subpass); /* here we just use defaults */
-                    halfword classes = tex_get_balance_passes_classes(passes, subpass);   /* here we just use defaults */  
-                    int callback = features & passes_callback_set;
-                    int success = 0;
-                    int details = properties->tracing_passes > 1;
-                    int retry = callback ? 1 : overfull > threshold || verdict > demerits || (classes && (classes & classified) != 0);
+                    scaled   threshold = tex_get_balance_passes_threshold(passes, subpass);
+                    halfword demerits  = tex_get_balance_passes_demerits(passes, subpass); /* here we just use defaults */
+                    halfword classes   = tex_get_balance_passes_classes(passes, subpass);   /* here we just use defaults */  
+                    int      callback  = features & passes_callback_set;
+                    int      success   = 0;
+                    int      details   = properties->tracing_passes > 1;
+                    int      retry     = callback ? 1 : overfull > threshold || verdict > demerits || (classes && (classes & classified) != 0);
                     if (tracing) {
                         int id = passes_identifier(passes);
                         tex_begin_diagnostic();
@@ -1433,9 +1433,9 @@ static void tex_aux_trace_penalty(halfword current, const char *action)
 static inline halfword tex_aux_balance_list(const balance_properties *properties, halfword pass, halfword subpass, halfword current, halfword first, int artificial)
 {
     halfword callback_id = lmt_balance_state.callback_id;
-    halfword checks = properties->checks;
-    int line = 0;
-    int tracing = properties->tracing_balancing > 2; 
+    halfword checks      = properties->checks;
+    int      line        = 0;
+    int      tracing     = properties->tracing_balancing > 2; 
     lmt_balance_state.balancing = 1;
     while (current && (node_next(active_head) != active_head)) { /* we check the cycle */
         switch (node_type(current)) {
@@ -1502,8 +1502,8 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                     if (properties->shape && specification_count(properties->shape) > 0) { 
                         int callback = lmt_callback_defined(balance_boundary_callback);
                         if (callback > 0) {
-                            halfword penalty = 0;
-                            halfword extra = 0;
+                            halfword penalty  = 0;
+                            halfword extra    = 0;
                             halfword trybreak = 0;
                             lmt_run_callback(lmt_lua_state.lua_instance, callback, "dddddd->drr", // r: optional
                                 boundary_data(current),
@@ -1547,7 +1547,7 @@ static inline halfword tex_aux_balance_list(const balance_properties *properties
                      //     tex_aux_try_balance(properties, insert_float_cost(current), 0, unhyphenated_node, first, current, callback_id, checks, pass, subpass, artificial);
                      // }
                         scaled stretch = insert_stretch(current);
-                        scaled shrink = insert_shrink(current);
+                        scaled shrink  = insert_shrink(current);
                         lmt_balance_state.active_height[total_advance_amount] += height;
                         if (stretch || shrink) {
                             lmt_balance_state.active_height[total_stretch_amount] += stretch;
@@ -1579,20 +1579,20 @@ static int tex_aux_quit_balance(const balance_properties *properties, int pass)
     if (properties->looseness == 0) {
         return 1;
     } else {
-        halfword r = node_next(active_head);
+        halfword r                = node_next(active_head);
         halfword actual_looseness = 0;
-        halfword best_page = lmt_balance_state.best_page;
-        int verdict = 0;
-        int tracing = tracing_looseness_par;
+        halfword best_page        = lmt_balance_state.best_page;
+        int      verdict          = 0;
+        int      tracing          = tracing_looseness_par;
         if (tracing) {
             tex_begin_diagnostic();
             tex_print_format("%l[looseness: pass %i, pages %i, looseness %i]\n", pass, best_page - 1, properties->looseness);
         }
         do {
             if (node_type(r) != delta_node) {
-                halfword page_number = active_page_number(r);
+                halfword page_number     = active_page_number(r);
                 halfword page_difference = page_number - best_page;
-                halfword total_demerits = active_total_demerits(r);
+                halfword total_demerits  = active_total_demerits(r);
                 if ((page_difference < actual_looseness && properties->looseness <= page_difference) || (page_difference > actual_looseness && properties->looseness >= page_difference)) {
                     lmt_balance_state.best_bet = r;
                     actual_looseness = page_difference;
@@ -1615,7 +1615,7 @@ static int tex_aux_quit_balance(const balance_properties *properties, int pass)
             r = node_next(r);
         } while (r != active_head);
         lmt_balance_state.actual_looseness = actual_looseness;
-        lmt_balance_state.best_page = active_page_number(lmt_balance_state.best_bet);
+        lmt_balance_state.best_page        = active_page_number(lmt_balance_state.best_bet);
         verdict = actual_looseness == properties->looseness;
         if (tracing) {
             tex_print_format("%l[looseness: pass %i, looseness %i, page %i, demerits %i, %s]\n", pass, actual_looseness, lmt_balance_state.best_page - 1, lmt_balance_state.fewest_demerits, verdict ? "success" : "failure");
@@ -1632,7 +1632,7 @@ static void tex_aux_find_best_bet(void)
     do {
         if ((node_type(r) != delta_node) && (active_total_demerits(r) < lmt_balance_state.fewest_demerits)) {
             lmt_balance_state.fewest_demerits = active_total_demerits(r);
-            lmt_balance_state.best_bet = r;
+            lmt_balance_state.best_bet        = r;
         }
         r = node_next(r);
     } while (r != active_head);
@@ -1752,7 +1752,7 @@ void tex_balance_reset(balance_properties *properties)
 static void tex_aux_check_extra(halfword head)
 {
     halfword current = head;
-    scaled extra = 0;
+    scaled   extra   = 0;
     while (current) {
         switch (node_type(current)) {
             case hlist_node:
@@ -1783,11 +1783,11 @@ static void tex_aux_check_extra(halfword head)
 
 void tex_balance(balance_properties *properties, halfword head)
 {
-    halfword passes = properties->passes;
-    int subpasses = passes ? tex_get_specification_count(passes) : 0;
-    int subpass = -2;
-    int pass = balance_no_pass;
-    halfword first = node_next(temp_head);
+    halfword passes    = properties->passes;
+    int      subpasses = passes ? tex_get_specification_count(passes) : 0;
+    int      subpass   = -2;
+    int      pass      = balance_no_pass;
+    halfword first     = node_next(temp_head);
     /*tex Some helpers use temp_head so we need to use that! */
     properties->original_stretch = properties->emergency_stretch;
     properties->original_shrink  = properties->emergency_shrink;
@@ -1834,9 +1834,9 @@ void tex_balance(balance_properties *properties, halfword head)
     lmt_balance_state.last_special_page        = 0;
  /* lmt_balance_state.default_fitness_classes  = null  */ /* shared */ 
     for (int i = 0; i < n_of_glue_amounts; i++) {
-        lmt_balance_state.active_height[i] = 0;
-        lmt_balance_state.background[i] = 0;
-        lmt_balance_state.break_height[i] = 0;
+        lmt_balance_state.active_height   [i] = 0;
+        lmt_balance_state.background      [i] = 0;
+        lmt_balance_state.break_height    [i] = 0;
         lmt_balance_state.minimal_demerits[i] = 0;
     }
     for (int i = 0; i < max_n_of_fitness_values; i++) {
@@ -1877,8 +1877,8 @@ void tex_balance(balance_properties *properties, halfword head)
         tex_aux_balance_callback_initialize(lmt_balance_state.callback_id, properties->checks, subpasses);
     }
     while (1) {
-        halfword current = first;
-        int artificial = 0;
+        halfword current    = first;
+        int      artificial = 0;
         switch (pass) {
             case balance_no_pass:
                 goto DONE;
@@ -1956,7 +1956,7 @@ void tex_balance(balance_properties *properties, halfword head)
         tex_aux_set_initial_active(properties);
         {
             halfword page = 1;
-            scaled page_height;
+            scaled   page_height;
             lmt_balance_state.current_slot_number = page; 
             tex_aux_update_height(properties, page, &page_height);
             lmt_balance_state.background[total_stretch_amount] -= lmt_balance_state.emergency_amount;
@@ -2079,13 +2079,13 @@ static void tex_aux_pre_balance(const balance_properties *properties, int callba
 
 static void tex_vbalanced_process_insert(halfword insert, double factor)
 {
-    scaled height = tex_insert_height(insert);
+    scaled height  = tex_insert_height(insert);
     scaled stretch = insert_stretch(insert);
-    scaled shrink = insert_shrink(insert);
+    scaled shrink  = insert_shrink(insert);
     if (height > 0 && (stretch || shrink)) {
-        scaled amount = 0;
+        scaled   amount   = 0;
         halfword callback = insert_callback(insert);
-        halfword packed = tex_vpack(insert_list(insert), 0, packing_additional, 0, 0, holding_none_option, NULL);
+        halfword packed   = tex_vpack(insert_list(insert), 0, packing_additional, 0, 0, holding_none_option, NULL);
         tex_attach_attribute_list_copy(packed, insert);
         if (factor > 0) {
             amount = scaledround(factor * stretch);
@@ -2132,18 +2132,18 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
             We're only interested in the natural dimensions. So we create a fitting vertical empty 
             box with a height and depth matching the expected result. 
         */
-        halfword page = 1;
-        scaled target = 0;
-        halfword topskip = null;
+        halfword page       = 1;
+        scaled   target     = 0;
+        halfword topskip    = null;
         halfword bottomskip = null;
-        halfword first = node_next(temp_head); 
+        halfword first      = node_next(temp_head); 
         do {
-            halfword last = passive_cur_break(cur_p);
-            scaled top = -1;
-            scaled bottom = -1;
-            halfword options = 0;
-            int discardable = 0;
-            scaled discard = 0;
+            halfword last        = passive_cur_break(cur_p);
+            scaled   top         = -1;
+            scaled   bottom      = -1;
+            halfword options     = 0;
+            int      discardable = 0;
+            scaled   discard     = 0;
             if (last) {
                 switch (node_type(last)) {
                     case glue_node:
@@ -2164,8 +2164,8 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
 //            if (first && ! tex_glue_is_zero(topskip)) { 
             if (first) { 
                 halfword current = first;
-                scaled height = 0; 
-                scaled extra = 0;
+                scaled   height  = 0; 
+                scaled   extra   = 0;
                 while (current) {
                     switch (node_type(current)) {
                         case hlist_node:
@@ -2178,7 +2178,7 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
                                 }
                             } else if ((box_options(current) & box_option_discardable) && (options & balance_step_option_top)) {
                                 discard = box_total(current);
-                                extra = -discard;
+                                extra   = -discard;
                             }
                             goto ADDTOPSKIP1;
                         case rule_node:
@@ -2190,7 +2190,7 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
                                 }
                             } else if ((rule_options(current) & rule_option_discardable) && (options & balance_step_option_top)) {
                                 discard = rule_total(current);
-                                extra = -discard;
+                                extra   = -discard;
                             }
                             goto ADDTOPSKIP1;
                         default:
@@ -2242,9 +2242,9 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
                     whd.ht += bottom; 
                     whd.dp = 0; 
                 }
-                box_width(lmt_balance_state.just_box) = whd.wd;
-                box_height(lmt_balance_state.just_box) = whd.ht;
-                box_depth(lmt_balance_state.just_box) = whd.dp;
+                box_width(lmt_balance_state.just_box)    = whd.wd;
+                box_height(lmt_balance_state.just_box)   = whd.ht;
+                box_depth(lmt_balance_state.just_box)    = whd.dp;
                 node_subtype(lmt_balance_state.just_box) = balance_slot_list;
             }
             if (discardable) { 
@@ -2277,16 +2277,16 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
             }
         } while (cur_p);
     } else { 
-        halfword page = 1;
-        scaled target = 0;
-        halfword topskip = null;
+        halfword page       = 1;
+        scaled   target     = 0;
+        halfword topskip    = null;
         halfword bottomskip = null;
         do {
-            halfword first = node_next(temp_head); 
-            halfword last  = passive_cur_break(cur_p);
-            halfword options = 0;
-            int discardable = 0;
-            scaled discard = 0;
+            halfword first       = node_next(temp_head); 
+            halfword last        = passive_cur_break(cur_p);
+            halfword options     = 0;
+            int      discardable = 0;
+            scaled   discard     = 0;
             if (last) {
                 switch (node_type(last)) {
                     case glue_node:
@@ -2312,9 +2312,9 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
              || ((node_type(last) == vlist_node || node_type(last) == hlist_node) && (box_options(last)  & box_option_discardable ))
             );
             if (first) { 
-                halfword current = first;
-                scaled height = 0; 
-                scaled extra = 0;
+                halfword current  = first;
+                scaled   height   = 0; 
+                scaled   extra    = 0;
                 halfword gluenode = tex_new_glue_node(topskip, top_skip_glue);
                 tex_attach_attribute_list_copy(gluenode, current);
                 while (current) {
@@ -2337,7 +2337,7 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
                                 rule_discardable(current) = 0;
                             } else if ((rule_options(current) & rule_option_discardable) && (options & balance_step_option_top)) {
                                 discard = -rule_total(current);
-                                extra = -discard; /* test this */
+                                extra   = -discard; /* test this */
                             }
                             goto ADDTOPSKIP2;
                         default:
@@ -2358,7 +2358,7 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
         }
 //            if (last && ! tex_glue_is_zero(bottomskip)) { 
             if (last) { 
-                scaled depth = 0; 
+                scaled   depth    = 0; 
                 halfword gluenode = tex_new_glue_node(bottomskip, bottom_skip_glue); 
                 tex_attach_attribute_list_copy(gluenode, last);
                 switch (node_type(last)) {
@@ -2404,7 +2404,7 @@ static void tex_aux_post_balance(const balance_properties *properties, int callb
             }
             if (discardable) { 
                 box_height(lmt_balance_state.just_box) = 0;
-                box_depth(lmt_balance_state.just_box) = 0;
+                box_depth(lmt_balance_state.just_box)  = 0;
             }
             if (discard || discardable) {
                 box_balance_state(lmt_balance_state.just_box) |= balance_state_discards;
@@ -2506,7 +2506,7 @@ static void tex_aux_check_balance_penalties(halfword tail)
       INJECT_1:
         while (tail && node_type(tail) == hlist_node && node_subtype(tail) == line_list && index <= count) { 
             halfword penalty = null;
-            halfword prev = node_prev(tail);
+            halfword prev    = node_prev(tail);
             while (1) {
                 switch (node_type(prev)) { 
                     case glue_node:
@@ -2523,7 +2523,7 @@ static void tex_aux_check_balance_penalties(halfword tail)
                             return;
                         } else {
                             penalty = prev;
-                            prev = node_prev(prev);
+                            prev    = node_prev(prev);
                             goto INJECT_2;
                         }
                     default: 
@@ -2569,7 +2569,7 @@ extern halfword tex_vbalance (
         );
         return null;
     } else {
-        halfword head = box_list(box);
+        halfword head   = box_list(box);
         halfword result = null;
         if (head) {
             balance_properties properties;
@@ -2581,7 +2581,7 @@ extern halfword tex_vbalance (
             node_next(temp_head) = head;
             tex_balance_preset(&properties);
             properties.packing = mode; 
-            properties.trial = trial;
+            properties.trial   = trial;
             tex_aux_check_balance_penalties(tail);
             tex_balance(&properties, head);
             tex_balance_reset(&properties);
@@ -2674,7 +2674,7 @@ halfword tex_vbalanced(
 ) 
 {
     halfword registered = box_register(n); /* keep it in case we error */
-    halfword box = tex_aux_locate_balance_target(n, balance_list, 0); // no descend 
+    halfword box        = tex_aux_locate_balance_target(n, balance_list, 0); // no descend 
     if (box < 0) {
         return null;
     } else if (box) {
@@ -2692,11 +2692,11 @@ halfword tex_vbalanced(
             head = next; 
         }
         if (head) {
-            halfword rest = node_next(head);
-         // halfword list = box_list(head);
+            halfword rest   = node_next(head);
+         // halfword list   = box_list(head);
             node_prev(head) = null;
             node_next(head) = null;
-            box_list(box) = rest;
+            box_list(box)   = rest;
             if (rest) { 
                 node_prev(rest) = null;
             } else { 
@@ -2863,8 +2863,8 @@ halfword tex_vbalanced_insert(
         return null;
     } else if (box) {
         halfword current = box_list(box);
-        halfword head = null;
-        halfword tail = null;
+        halfword head    = null;
+        halfword tail    = null;
         while (current) { 
             halfword next = node_next(current);
             if (node_type(current) == insert_node && insert_index(current) == i) {
@@ -2907,8 +2907,8 @@ void tex_vbalanced_deinsert(
     if (box < 0) {
         return;
     } else if (box) {
-        halfword current = box_list(box);
-        int forcedepth = options & balance_deinsert_linedepth;
+        halfword current    = box_list(box);
+        int      forcedepth = options & balance_deinsert_linedepth;
         halfword belongs_to = 0;
         while (current) { 
             halfword next = node_next(current);
@@ -3055,15 +3055,15 @@ static inline int tex_aux_compact_insert_belongs_to(halfword current, halfword b
 
 static halfword tex_aux_compact_insert(halfword insert, halfword boxhead)
 {
-    halfword first = insert;
-    halfword last = insert;
-    halfword head = null;
-    halfword tail = null;
-    halfword prev = null;
-    halfword next = null;
-    scaled total = insert_total_height(insert);
+    halfword first      = insert;
+    halfword last       = insert;
+    halfword head       = null;
+    halfword tail       = null;
+    halfword prev       = null;
+    halfword next       = null;
+    scaled  total       = insert_total_height(insert);
     halfword belongs_to = insert_belongs_to(insert);
-    halfword current = node_prev(insert);
+    halfword current    = node_prev(insert);
     while (current && tex_aux_compact_insert_belongs_to(current, belongs_to)) {
         first = current; 
         current = node_prev(current);
@@ -3143,7 +3143,7 @@ void tex_vbalanced_reinsert(
     if (box < 0) {
         return;
     } else if (box) {
-        halfword head = box_list(box);
+        halfword head    = box_list(box);
         halfword current = head;
         while (current) { 
             if (node_type(current) == insert_node) { 
