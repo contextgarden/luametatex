@@ -35,7 +35,7 @@
 # ifndef __CERF_C_H
 #   define __CERF_C_H
 
-# define _GNU_SOURCE // enable GNU libc NAN extension if possible
+// # define _GNU_SOURCE // enable GNU libc NAN extension if possible
 
 /*
     Constructing complex numbers like 0+i*NaN is problematic in C99

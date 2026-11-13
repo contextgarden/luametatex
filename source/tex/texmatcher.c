@@ -207,20 +207,44 @@ void tex_matcher_free(keyword_matcher *matcher)
     Todo: return a string with expected keys in case of an error. 
 */
 
-static void tex_matcher_aux_collect_expected(const keyword_matcher *matcher, uint16_t node_idx, int depth)
+#define MAX_MATCHER_DEPTH 32 // We need a "depth first search" so we use a buffer. 
+
+static void tex_matcher_aux_collect_from_node(const keyword_matcher *matcher, uint16_t node_idx, int *buf, int depth, int *first)
 {
     const keyword_node *node = &matcher->nodes[node_idx];
-    if (! node || node->index > 0) {
+    if (! node) {
         return;
     }
-    for (int i = 0; i < node->nofchildren; i++) {
-        int cp = node->keys[i];
-        if (i > 0) { 
+    
+    if (node->index > 0) {
+        if (*first == 0) {
             tex_print_char('|');
         }
-        tex_print_uchar(cp);
-        tex_matcher_aux_collect_expected(matcher, node->children[i], depth + 1);
+        int print_len = depth < MAX_MATCHER_DEPTH ? depth : MAX_MATCHER_DEPTH;
+        for (int i = 0; i < print_len; i++) {
+            tex_print_uchar(buf[i]);
+        }
+        if (depth >= MAX_MATCHER_DEPTH) {
+            tex_print_str("...");
+        }
+        *first = 0;
     }
+    
+    if (depth >= MAX_MATCHER_DEPTH) {
+        return; /* Stop descending further if we've hit our display limit */
+    }
+
+    for (int i = 0; i < node->nofchildren; i++) {
+        buf[depth] = node->keys[i];
+        tex_matcher_aux_collect_from_node(matcher, node->children[i], buf, depth + 1, first);
+    }
+}
+
+static void tex_matcher_aux_collect_expected(const keyword_matcher *matcher, uint16_t node_idx)
+{
+    int buf[MAX_MATCHER_DEPTH];
+    int first = 1;
+    tex_matcher_aux_collect_from_node(matcher, node_idx, buf, 0, &first);
 }
 
 /*tex
@@ -413,7 +437,7 @@ int tex_matcher_use(const keyword_matcher *matcher, int intercept)
                 const keyword_node *collect_node = &matcher->nodes[collect_idx];
                 if (collect_node && collect_node->index == 0) {
                     tex_print_char('[');
-                    tex_matcher_aux_collect_expected(matcher, collect_idx, 0);
+                    tex_matcher_aux_collect_expected(matcher, collect_idx);
                     tex_print_char(']');
                 }
                 lmt_memory_free(lmt_scanner_state.expected);

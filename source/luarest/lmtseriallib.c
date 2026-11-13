@@ -174,6 +174,7 @@
     {
         int            success  = 0;
         int            handle   = -1;
+        speed_t        speed    = 0;;
         const char    *portname = lua_type(L, 1) == LUA_TSTRING ? lua_tostring (L, 1) : NULL;
         lua_Integer    baudrate = lua_type(L, 2) == LUA_TNUMBER ? lua_tointeger(L, 2) : 19200;
         struct termios settings;
@@ -191,7 +192,7 @@
             goto DONE;
         }
 
-        speed_t speed = seriallib_aux_get_baud_constant(baudrate);
+        speed = seriallib_aux_get_baud_constant(baudrate);
         cfsetispeed(&settings, speed);
         cfsetospeed(&settings, speed);
 
