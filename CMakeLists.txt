@@ -330,6 +330,7 @@ else()
 
         -Wcast-align
         -Wcast-qual
+        -Wjump-misses-init
 
         -Wno-unknown-pragmas
         -Wno-unused-result

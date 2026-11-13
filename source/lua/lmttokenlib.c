@@ -4213,12 +4213,14 @@ static inline keyword_matcher *tokenlib_aux_maybe_ismatcher(lua_State *L, int ud
 static int tokenlib_newmatcher(lua_State *L)
 {
     luaL_checktype(L, 1, LUA_TTABLE);
+    unsigned         options = lmt_optunsigned(L, 2, 0);
     keyword_matcher *matcher = lua_newuserdata(L, sizeof(keyword_matcher));
+
     matcher->nodes      = NULL;
     matcher->nodes_used = 0;
     matcher->nodes_cap  = 0;
     matcher->count      = 0;
-    matcher->options    = lmt_optunsigned(L, 2, 0);
+    matcher->options    = options;
     matcher->group      = 0;
 
     tex_matcher_trie_allocate(matcher);

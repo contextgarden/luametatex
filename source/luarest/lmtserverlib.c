@@ -170,18 +170,18 @@ typedef enum {
 } client_states;
 
 typedef struct client {
-    socket_t    fd;                  /* aka |filedescriptor|, the common name for this */
-    char        peer_ip[INET_ADDRSTRLEN];
-    char        read_buffer[65536];  /* if we even need more we can have some dynamic fallback */
-    size_t      read_bytes;
-    const char *write_buffer;        /* pointer to Lua string data (no copy needed) */
-    size_t      write_length;
-    size_t      write_position;
-    int         write_reference;     /* registry reference to anchor Lua string |write_buffer| */
-    int         state;
-    time_t      last_time;
-    struct      client *prev;
-    struct      client *next;
+    socket_t      fd;                  /* aka |filedescriptor|, the common name for this */
+    char          peer_ip[INET_ADDRSTRLEN];
+    char          read_buffer[65536];  /* if we even need more we can have some dynamic fallback */
+    size_t        read_bytes;
+    const char   *write_buffer;        /* pointer to Lua string data (no copy needed) */
+    size_t        write_length;
+    size_t        write_position;
+    int           write_reference;     /* registry reference to anchor Lua string |write_buffer| */
+    int           state;
+    time_t        last_time;
+    struct client *prev;
+    struct client *next;
 } client;
 
 /* We have a more extensive list of messages (and mimes) at the \LUA\ end. */
@@ -684,18 +684,23 @@ static void serverlib_aux_process_request(
 
 static int serverlib_httpserver(lua_State *L)
 {
-    int  port               = 0;
-    int  client_timeout     = default_timeout;
-    int  trace              = 0;
-    int  stats              = 0;
-    int  callback_ref       = LUA_NOREF;
-    int  report_ref         = LUA_NOREF;
-    int  step_ref           = LUA_NOREF;
+    int                port            = 0;
+    int                client_timeout  = default_timeout;
+    client            *clients         = NULL;
+    int                trace           = 0;
+    int                stats           = 0;
+    int                callback_ref    = LUA_NOREF;
+    int                report_ref      = LUA_NOREF;
+    int                step_ref        = LUA_NOREF;
 # ifdef _WIN32
-    int  wsa_initialized    = 0;
+    int                wsa_initialized = 0;
+    WSADATA            wsa;
 # endif
-    long select_sec         = default_delay;
-    long select_usec        = 0;
+    long               select_sec      = default_delay;
+    long               select_usec     = 0;
+    int                opt             = 1;
+    struct sockaddr_in addr;
+    socket_t           server_fd;
 
     server_statistics statistics;
     memset(&statistics, 0, sizeof(server_statistics));
@@ -769,7 +774,6 @@ static int serverlib_httpserver(lua_State *L)
     }
 
 # ifdef _WIN32
-    WSADATA wsa;
     if (WSAStartup(MAKEWORD(2, 2), &wsa) == 0) {
         wsa_initialized = 1;
     } else {
@@ -778,7 +782,7 @@ static int serverlib_httpserver(lua_State *L)
     }
 # endif
 
-    socket_t server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (invalid_socket(server_fd)) {
         serverlib_aux_report(L, report_ref, "failed to create socket");
         goto DONE;
@@ -792,7 +796,6 @@ static int serverlib_httpserver(lua_State *L)
     }
 # endif
 
-    int opt = 1;
     setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, (const char*) &opt, sizeof(opt));
     if (! set_nonblocking(server_fd)) {
         serverlib_aux_report(L, report_ref, "failed to configure socket");
@@ -800,7 +803,6 @@ static int serverlib_httpserver(lua_State *L)
         goto DONE;
     }
 
-    struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(port);
@@ -816,8 +818,6 @@ static int serverlib_httpserver(lua_State *L)
 # endif
 
     serverlib_aux_report(L, report_ref, "non-blocking event loop started on http://localhost:%i", port);
-
-    client *clients = NULL;
 
     while (1) {
         fd_set read_fds, write_fds;

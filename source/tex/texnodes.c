@@ -5925,3 +5925,39 @@ scaled tex_effective_glue(halfword parent, halfword n)
     }
     return 0;
 }
+
+int tex_validate_hlist(halfword n)
+{
+    while (n) { 
+        if lmt_likely(node_natures[node_type(n)] & node_nature_hlist) {
+            n = node_next(n);
+        } else { 
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int tex_validate_vlist(halfword n)
+{
+    while (n) { 
+        if lmt_likely(node_natures[node_type(n)] & node_nature_vlist) {
+            n = node_next(n);
+        } else { 
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int tex_validate_mlist(halfword n)
+{
+    while (n) { 
+        if lmt_likely(node_natures[node_type(n)] & node_nature_mlist) {
+            n = node_next(n);
+        } else { 
+            return 0;
+        }
+    }
+    return 1;
+}

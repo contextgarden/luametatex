@@ -381,12 +381,13 @@ static int openssllib_verify(lua_State * L)
         if (lua_getfield(L, 1, "signature") == LUA_TSTRING) { signature = lua_tolstring(L, -1, &signaturesize); } lua_pop(L, 1);
         if (lua_getfield(L, 1, "password")  == LUA_TSTRING) { password  = lua_tostring (L, -1);                 } lua_pop(L, 1);
         if (certfile && password && (data || datafile) && signature) {
-            int    okay        = -1;
-            PKCS7 *p7          = NULL;
-            BIO   *input       = NULL;
-            X509  *x509        = NULL;
-            int    flags       = PKCS7_NOVERIFY | PKCS7_BINARY;
-            BIO   *certificate = openssllib_state.BIO_new_file(certfile, "rb");
+            const unsigned char *p           = NULL;
+            int                  okay        = -1;
+            PKCS7               *p7          = NULL;
+            BIO                 *input       = NULL;
+            X509                *x509        = NULL;
+            int                  flags       = PKCS7_NOVERIFY | PKCS7_BINARY;
+            BIO                 *certificate = openssllib_state.BIO_new_file(certfile, "rb");
             if (! certificate) {
                 message = m_invalid_certificate_file;
                 goto DONE;
@@ -396,7 +397,7 @@ static int openssllib_verify(lua_State * L)
                 message = m_invalid_certificate;
                 goto DONE;
             }
-            const unsigned char *p = (const unsigned char *) signature;
+            p  = (const unsigned char *) signature;
             p7 = openssllib_state.d2i_PKCS7(NULL, &p, (long) signaturesize);
             if (! p7) {
                 message = m_invalid_signature;

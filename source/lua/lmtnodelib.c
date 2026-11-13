@@ -7216,6 +7216,41 @@ static int nodelib_direct_setsnapped(lua_State *L)
     return 0;
 }
 
+# define isvalidlist_usage  (common_usage)
+
+static int nodelib_direct_isvalidhlist(lua_State *L)
+{
+    halfword n = nodelib_valid_direct_from_index(L, 1);
+    if (n) {
+        lua_pushboolean(L, tex_validate_hlist(n));
+    } else {
+        lua_pushnil(L);
+    }
+    return 1;
+}
+
+static int nodelib_direct_isvalidvlist(lua_State *L)
+{
+    halfword n = nodelib_valid_direct_from_index(L, 1);
+    if (n) {
+        lua_pushboolean(L, tex_validate_vlist(n));
+    } else {
+        lua_pushnil(L);
+    }
+    return 1;
+}
+
+static int nodelib_direct_isvalidmlist(lua_State *L)
+{
+    halfword n = nodelib_valid_direct_from_index(L, 1);
+    if (n) {
+        lua_pushboolean(L, tex_validate_mlist(n));
+    } else {
+        lua_pushnil(L);
+    }
+    return 1;
+}
+
 /* direct.startofpar */
 
 # define startofpar_usage common_usage
@@ -12942,6 +12977,9 @@ static const usage_record usage_data[] = {
     { .name = "isvalid",                 .target = direct_usage_target,   .usage = isvalid_usage                 },
     { .name = "iszeroglue",              .target = direct_usage_target,   .usage = iszeroglue_usage              },
     { .name = "issnapped",               .target = direct_usage_target,   .usage = issnapped_usage               },
+    { .name = "isvalidhlist",            .target = direct_usage_target,   .usage = isvalidlist_usage             },
+    { .name = "isvalidvlist",            .target = direct_usage_target,   .usage = isvalidlist_usage             },
+    { .name = "isvalidmlist",            .target = direct_usage_target,   .usage = isvalidlist_usage             },
     { .name = "setsnapped",              .target = direct_usage_target,   .usage = setsnapped_usage              },
     { .name = "kerning",                 .target = direct_usage_target,   .usage = kerning_usage                 },
     { .name = "lastnode",                .target = direct_usage_target,   .usage = lastnode_usage                },
@@ -13351,6 +13389,9 @@ static const struct luaL_Reg nodelib_direct_function_list[] = {
     { "isvalid",                 nodelib_direct_isvalid                 },
     { "iszeroglue",              nodelib_direct_iszeroglue              },
     { "issnapped",               nodelib_direct_issnapped               },
+    { "isvalidhlist",            nodelib_direct_isvalidhlist            },
+    { "isvalidvlist",            nodelib_direct_isvalidvlist            },
+    { "isvalidmlist",            nodelib_direct_isvalidmlist            },
     { "setsnapped",              nodelib_direct_setsnapped              },
     { "kerning",                 nodelib_direct_kerning                 },
     { "lastnode",                nodelib_direct_lastnode                },

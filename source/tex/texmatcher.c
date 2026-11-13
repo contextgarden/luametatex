@@ -272,11 +272,10 @@ static inline halfword tex_matcher_build_token_list(const halfword *arr, int sta
 
 int tex_matcher_use(const keyword_matcher *matcher, int intercept)
 {
- // saved_tex_scanner texstate = tex_save_tex_scanner();
     halfword  save_cur_cs = cur_cs;
-    int       best_i      = 0;
     const int options     = matcher->options;
     halfword  group       = matcher->group;
+
     /* The usual space skipper: */
     if (options & keyword_relax_option) {
         do {
@@ -287,25 +286,26 @@ int tex_matcher_use(const keyword_matcher *matcher, int intercept)
             tex_get_x_token();
         } while (cur_cmd == spacer_cmd);
     }
+
     /* A fast first check so that we don't initialize when not needed. */    
     if (group && cur_cmd == left_brace_cmd) {
-        best_i = group;
-        goto RETURN;
+        cur_cs = save_cur_cs;
+        return group;
     }
-
     if (lmt_unlikely(! matcher->nodes)) {
         tex_back_input(cur_tok);
-        goto RETURN;
+        cur_cs = save_cur_cs;
+        return 0;
     }
-    /* Efficient shortcuts (the compiler doesn't know the state of matcher). */
-    uint16_t  curr_idx = 0;
-    const int is_ascii = (options & keyword_ascii_option) != 0;
-   /* Status info: */
+
+    uint16_t  curr_idx    = 0;
+    const int is_ascii    = (options & keyword_ascii_option) != 0;
     halfword  stack_arr[32];
-    halfword *token_arr = stack_arr;
-    int       capacity  = 32;
-    int       n         = 0;
-    int       best_n    = 0;
+    halfword *token_arr   = stack_arr;
+    int       capacity    = 32;
+    int       best_i      = 0;
+    int       n           = 0;
+    int       best_n      = 0;
 
     while (1) {
         switch (cur_cmd) { 
@@ -357,27 +357,26 @@ int tex_matcher_use(const keyword_matcher *matcher, int intercept)
                 } else {
                     goto DEFAULT;
                 }
-            case left_brace_cmd: 
-                if (group) {
-                    best_i = group;
-                    goto DONE;
-                }
-             // FALLTHROUGH
-                goto DEFAULT;
+         // case left_brace_cmd: 
+         //     if (group) {
+         //         best_i = group;
+         //         goto DONE;
+         //     }
+         //  // FALLTHROUGH
+         //     goto DEFAULT;
             default:
               DEFAULT:
                 if ((options & keyword_exact_option) && (best_n != n)) { 
                     best_i = 0;
                 }
               BACKUP:
-                if (best_i == 0 && n > 0) {
-                    token_arr = tex_matcher_ensure_capacity(token_arr, stack_arr, &capacity, n);
-                    token_arr[n++] = cur_tok;
-                    goto DONE;
-                } else {
-                    tex_back_input(cur_tok);
-                    goto RETURN;
-                }
+                /*tex
+                    As in the regular keyword scanner we use |back_input| because it compensates
+                    the |align_state| for braces. After |DONE| we push back the matched tokens
+                    (no match) or the ones after the best match (longer partial match).
+                */
+                tex_back_input(cur_tok);
+                goto DONE;
         }
         tex_get_x_token();
     }
@@ -387,8 +386,6 @@ int tex_matcher_use(const keyword_matcher *matcher, int intercept)
             if (best_n < n) {
                 halfword h_rest = tex_matcher_build_token_list(token_arr, best_n, n);
                 tex_begin_backed_up_list(h_rest);
-//                tex_begin_checked_up_list(h_rest);
-//            tex_insert_input(h_rest);
             }
         } else {
             halfword h = tex_matcher_build_token_list(token_arr, 0, n);
@@ -424,15 +421,11 @@ int tex_matcher_use(const keyword_matcher *matcher, int intercept)
                 lmt_print_state.selector = saved_selector;
             }
             tex_begin_backed_up_list(h);
-//            tex_begin_checked_up_list(h);
-//            tex_insert_input(h);
          }
-    }   
-  RETURN:
+    }
     if (token_arr != stack_arr) {
         lmt_memory_free(token_arr);
     }
- // tex_unsave_tex_scanner(texstate);
     cur_cs = save_cur_cs;
     return best_i;
 }

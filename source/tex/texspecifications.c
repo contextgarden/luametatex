@@ -134,6 +134,7 @@ static halfword tex_aux_scan_specification_options(quarterword code)
         key = tex_matcher_use(matcher, 1);
         switch (key) {
             case specification_key_no_match:
+                tex_check_matchers(specification_matcher);
                 return options;
             case specification_key_constant:
                 if (valid & specification_option_constant) {
@@ -1530,7 +1531,6 @@ typedef enum balancepasses_keys {
     balancepasses_key_emergencyshrink,
     balancepasses_key_fitnessclasses,
     balancepasses_key_identifier,
-    balancepasses_key_ifemergency,
     balancepasses_key_ifemergencystretch,
     balancepasses_key_ifemergencyshrink,
     balancepasses_key_iflooseness,
@@ -1557,7 +1557,6 @@ static const char *balancepasses_words[] = {
     "emergencyshrink",
     "fitnessclasses",
     "identifier",
-    "ifemergency",
     "ifemergencystretch",
     "ifemergencyshrink",
     "iflooseness",

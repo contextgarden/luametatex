@@ -188,18 +188,19 @@ static int xzlib_decompresssize(lua_State *L)
 
 static int xzlib_decompress(lua_State *L)
 {
-    size_t       size       = 0;
-    const char  *data       = luaL_checklstring(L, 1, &size);
-    lua_Integer  max        = luaL_optinteger(L, 2, 0);
-    int          success    = 0;
-    int64_t      targetsize = xzlib_aux_targetsize(data, size);
+    size_t         size       = 0;
+    const char    *data       = luaL_checklstring(L, 1, &size);
+    lua_Integer    max        = luaL_optinteger(L, 2, 0);
+    int            success    = 0;
+    int64_t        targetsize = xzlib_aux_targetsize(data, size);
+    struct xz_dec *decoder    = NULL;
 
     if (max > 0 && targetsize > max) {
      // tex_formatted_warning("xz decompress", "target size: %i, max size: %i, overflow", targetsize, max);
         goto DONE;
     }
 
-    struct xz_dec *decoder = xz_dec_init(XZ_DYNALLOC, 1 << 26);
+    decoder = xz_dec_init(XZ_DYNALLOC, 1 << 26);
 
     if (! decoder) {
         goto DONE;

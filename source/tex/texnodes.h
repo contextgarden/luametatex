@@ -150,6 +150,67 @@ typedef enum node_types {
     passive_node,
 } node_types;
 
+typedef enum node_nature {
+    node_nature_system = 0x0,
+    node_nature_hlist  = 0x1,
+    node_nature_vlist  = 0x2,
+    node_nature_mlist  = 0x4,
+} node_nature;
+
+static const uint8_t node_natures[] = {
+    [hlist_node]           = node_nature_hlist | node_nature_vlist | node_nature_mlist,
+    [vlist_node]           = node_nature_hlist | node_nature_vlist | node_nature_mlist,
+    [rule_node]            = node_nature_hlist | node_nature_vlist | node_nature_mlist,
+    [insert_node]          = node_nature_hlist | node_nature_vlist | node_nature_mlist,
+    [mark_node]            = node_nature_hlist | node_nature_vlist | node_nature_mlist,
+    [adjust_node]          = node_nature_hlist | node_nature_vlist | node_nature_mlist,
+    [boundary_node]        = node_nature_hlist | node_nature_vlist | node_nature_mlist,
+    [disc_node]            = node_nature_hlist                     | node_nature_mlist,
+    [whatsit_node]         = node_nature_hlist | node_nature_vlist | node_nature_mlist,
+    [par_node]             = node_nature_hlist,
+    [dir_node]             = node_nature_hlist                     | node_nature_mlist,
+    [math_node]            = node_nature_hlist,
+    [glue_node]            = node_nature_hlist | node_nature_vlist | node_nature_mlist,
+    [kern_node]            = node_nature_hlist | node_nature_vlist | node_nature_mlist,
+    [penalty_node]         = node_nature_hlist | node_nature_vlist | node_nature_mlist,
+    [style_node]           =                                         node_nature_mlist,
+    [choice_node]          =                                         node_nature_mlist,
+    [parameter_node]       =                                         node_nature_mlist,
+    [simple_noad]          =                                         node_nature_mlist,
+    [radical_noad]         =                                         node_nature_mlist,
+    [fraction_noad]        =                                         node_nature_mlist,
+    [accent_noad]          =                                         node_nature_mlist,
+    [fence_noad]           =                                         node_nature_mlist,
+    [math_char_node]       =                                         node_nature_mlist,
+    [math_text_char_node]  =                                         node_nature_mlist,
+    [sub_box_node]         =                                         node_nature_mlist,
+    [sub_mlist_node]       =                                         node_nature_mlist,
+    [delimiter_node]       = node_nature_system,
+    [glyph_node]           = node_nature_hlist                     | node_nature_mlist,
+    [unset_node]           = node_nature_system,
+    [specification_node]   = node_nature_system,
+    [align_record_node]    = node_nature_system,
+    [attribute_list_node]  = node_nature_system,
+    [attribute_node]       = node_nature_system,
+    [glue_spec_node]       = node_nature_system,
+    [temp_node]            = node_nature_system,
+    [split_node]           = node_nature_system,
+    [expression_node]      = node_nature_system,
+    [lmtx_expression_node] = node_nature_system,
+    [rpn_expression_node]  = node_nature_system,
+    [loop_state_node]      = node_nature_system,
+    [math_spec_node]       = node_nature_system,
+    [font_spec_node]       = node_nature_system,
+    [nesting_node]         = node_nature_system,
+    [span_node]            = node_nature_system,
+    [align_stack_node]     = node_nature_system,
+    [if_node]              = node_nature_system,
+    [unhyphenated_node]    = node_nature_system,
+    [hyphenated_node]      = node_nature_system,
+    [delta_node]           = node_nature_system,
+    [passive_node]         = node_nature_system,
+} ;
+
 # define first_nodetype hlist_node
 # define last_nodetype  passive_node
 
@@ -3621,5 +3682,9 @@ typedef enum special_node_list_types { /* not in sycn with the above .. maybe ad
 extern int      tex_is_special_node_list  (halfword n, int *istail);
 extern halfword tex_get_special_node_list (special_node_list_types list, halfword *tail);
 extern void     tex_set_special_node_list (special_node_list_types list, halfword head);
+
+extern int      tex_validate_hlist(halfword n);
+extern int      tex_validate_vlist(halfword n);
+extern int      tex_validate_mlist(halfword n);
 
 # endif

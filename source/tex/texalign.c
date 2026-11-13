@@ -918,6 +918,7 @@ static void tex_aux_scan_align_spec(quarterword c)
                 attrlist = tex_scan_attribute(attrlist);
                 break;
             case align_key_callback:
+                options |= align_option_callback;
                 callback = tex_scan_integer(0, NULL, NULL);
                 break;
             case align_key_callbacks:
@@ -1304,9 +1305,11 @@ static void tex_aux_run_no_align(void)
                 break;
             case noalign_key_anchors:
                 lmt_alignment_state.row_state.anchor = tex_scan_anchors(0);
+                done = 1;
                 break;
             case noalign_key_anchor:
                 lmt_alignment_state.row_state.anchor = tex_scan_anchor(0);
+                done = 1;
                 break;
             case noalign_key_reset:
                 if (lmt_alignment_state.row_state.attrlist) {

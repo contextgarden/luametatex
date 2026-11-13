@@ -15,6 +15,7 @@ typedef enum private_idea_keys {
     /* */ 
     private_idea_key_depth,
     private_idea_key_height,
+    private_idea_key_okay,
     private_idea_key_width,
     /* */
     private_idea_key_left_brace,
@@ -25,6 +26,7 @@ static const char *private_idea_words[] = {
     /* */
     "depth",
     "height",
+    "okay",
     "width",
 };
 
@@ -36,7 +38,9 @@ void tex_set_idea_matcher(void)
         .first   = private_idea_key_depth,
         .last    = private_idea_key_width,
         .group   = private_idea_key_left_brace,
-        .options = keyword_exact_option | keyword_terminal_option | keyword_ascii_option, 
+        .options = keyword_exact_option 
+                 | keyword_terminal_option 
+                 | keyword_ascii_option, 
     };
 }
 
@@ -49,17 +53,28 @@ void tex_show_idea(void)
             case private_idea_key_no_match:
                 goto DONE;
             case private_idea_key_depth:
-                scaled depth = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
-                tex_print_format("%<depth : %p%>",depth);
-                break;
+                {
+                    scaled depth = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                    tex_print_format("%<idea depth : %p%>",depth);
+                    break;
+                }
             case private_idea_key_height:
-                scaled height = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
-                tex_print_format("%<height : %p%>", height);
-                break;
+                {
+                    scaled height = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                    tex_print_format("%<idea height : %p%>", height);
+                    break;
+                }
+            case private_idea_key_okay:
+                {
+                    tex_print_format("%<idea okay%>");
+                    break;
+                }
             case private_idea_key_width:
-                scaled width = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
-                tex_print_format("%<width : %p%>",width);
-                break;
+                {
+                    scaled width = tex_scan_dimension(0, 0, 0, 0, NULL, NULL);
+                    tex_print_format("%<idea width : %p%>",width);
+                    break;
+                }
             case private_idea_key_left_brace:
              // brace = 1;
                 goto DONE;

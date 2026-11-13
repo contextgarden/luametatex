@@ -99,7 +99,7 @@ void tex_set_rule_matcher(void)
 {
     lmt_matcher_items[rule_matcher] = (matcher_item) {
         .words   = rule_words, 
-        .name    = "rule specification",
+        .name    = "rule",
         .first   = rule_key_attr, 
         .last    = rule_key_yoffset,
         .group   = rule_key_left_brace,
