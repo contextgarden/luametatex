@@ -76,7 +76,6 @@ keyword_node *tex_matcher_trie_allocate(keyword_matcher *matcher)
     keyword_node *n   = &matcher->nodes[idx];
     n->index       = 0;
     n->nofchildren = 0;
-    n->keys        = NULL;
     n->children    = NULL;
     return n;
 }
@@ -87,33 +86,35 @@ static uint16_t tex_matcher_aux_trie_get_or_insert_child(keyword_matcher *matche
     int           n       = current->nofchildren;
     int           low     = 0;
     int           high    = n - 1;
+    const int     is_ascii = (matcher->options & keyword_ascii_option) != 0;
+
+    int target_key = (is_ascii && ((uni >= 'a' && uni <= 'z') || (uni >= 'A' && uni <= 'Z'))) ?
+                     ((uni >= 'A' && uni <= 'Z') ? uni + 32 : uni) : uni;
 
     /*tex binary search to see if the child already exists */
     while (low <= high) {
         int mid = low + (high - low) / 2;
-        if (current->keys[mid] == uni) {
-            return current->children[mid];
-        } else if (current->keys[mid] < uni) {
+        int mid_key = is_ascii ? current->children[mid].case_pair.lower : current->children[mid].key;
+        if (mid_key == target_key) {
+            return current->children[mid].child;
+        } else if (mid_key < target_key) {
             low = mid + 1;
         } else {
             high = mid - 1;
         }
     }
      
-    int       insert_idx   = low;
-    uint16_t  new_count    = (uint16_t) (n + 1);
-    int      *new_keys     = lmt_memory_realloc_aligned(current->keys, new_count * sizeof(int), LMT_MEMORY_ALIGNMENT);
-    uint16_t *new_children = lmt_memory_realloc_aligned(current->children, new_count * sizeof(uint16_t), LMT_MEMORY_ALIGNMENT);
+    int            insert_idx   = low;
+    uint16_t       new_count    = (uint16_t) (n + 1);
+    keyword_child *new_children = lmt_memory_realloc_aligned(current->children, new_count * sizeof(keyword_child), LMT_MEMORY_ALIGNMENT);
 
-    if (! new_keys || ! new_children) {
+    if (! new_children) {
         return 0; 
     }
 
     current           = &matcher->nodes[curr_idx];
-    current->keys     = new_keys;
     current->children = new_children;
     for (int i = new_count - 1; i > insert_idx; i--) {
-        current->keys    [i] = current->keys    [i - 1];
         current->children[i] = current->children[i - 1];
     }
     
@@ -124,10 +125,17 @@ static uint16_t tex_matcher_aux_trie_get_or_insert_child(keyword_matcher *matche
     /* Compute index of the newly allocated node */
     uint16_t new_node_idx = (uint16_t) (new_node - matcher->nodes);
 
-    current                       = &matcher->nodes[curr_idx];
-    current->nofchildren          = new_count;
-    current->keys[insert_idx]     = uni;
-    current->children[insert_idx] = new_node_idx;
+    current              = &matcher->nodes[curr_idx];
+    current->nofchildren = new_count;
+
+    if (is_ascii && ((uni >= 'a' && uni <= 'z') || (uni >= 'A' && uni <= 'Z'))) {
+        current->children[insert_idx].case_pair.lower = (uni >= 'A' && uni <= 'Z') ? uni + 32 : uni;
+        current->children[insert_idx].case_pair.upper = (uni >= 'A' && uni <= 'Z') ? uni : uni - 32;
+    } else {
+        current->children[insert_idx].key = uni;
+        current->children[insert_idx].case_pair.upper = uni;
+    }
+    current->children[insert_idx].child = new_node_idx;
 
     return new_node_idx;
 }
@@ -152,25 +160,45 @@ void tex_matcher_trie_insert(keyword_matcher *matcher, const char *str, int inde
 
 uint16_t tex_matcher_find_child(const keyword_matcher *matcher, uint16_t node_idx, int cp) 
 {
-    const keyword_node *current = &matcher->nodes[node_idx];
-    int                 n       = current->nofchildren;
+    const keyword_node *current  = &matcher->nodes[node_idx];
+    int                 n        = current->nofchildren;
+    const int           is_ascii = (matcher->options & keyword_ascii_option) != 0;
+
     if (n < 6) {
         for (int i = 0; i < n; i++) {
-            if (current->keys[i] == cp) {
-                return current->children[i];
+            if (is_ascii) {
+                if (cp == current->children[i].case_pair.lower || cp == current->children[i].case_pair.upper) {
+                    return current->children[i].child;
+                }
+            } else {
+                if (current->children[i].key == cp) {
+                    return current->children[i].child;
+                }
             }
         }
     } else {
         int low  = 0; 
         int high = n - 1;
+        int search_cp = (is_ascii && cp >= 'A' && cp <= 'Z') ? cp + 32 : cp;
         while (low <= high) {
             int mid = low + (high - low) / 2;
-            if (current->keys[mid] == cp) {
-                return current->children[mid];
-            } else if (current->keys[mid] < cp) { 
-                low = mid + 1;
-            } else { 
-                high = mid - 1;
+            int mid_key = current->children[mid].case_pair.lower;
+            if (is_ascii) {
+                if (search_cp == mid_key || cp == current->children[mid].case_pair.upper) {
+                    return current->children[mid].child;
+                } else if (mid_key > search_cp) {
+                    high = mid - 1;
+                } else {
+                    low = mid + 1;
+                }
+            } else {
+                if (current->children[mid].key == cp) {
+                    return current->children[mid].child;
+                } else if (current->children[mid].key < cp) { 
+                    low = mid + 1;
+                } else { 
+                    high = mid - 1;
+                }
             }
         }
     }
@@ -184,7 +212,6 @@ void tex_matcher_free(keyword_matcher *matcher)
     }
     if (matcher->nodes) {
         for (int i = 0; i < matcher->nodes_used; i++) {
-            lmt_memory_free_aligned(matcher->nodes[i].keys);
             lmt_memory_free_aligned(matcher->nodes[i].children);
         }
         lmt_memory_free_aligned(matcher->nodes);
@@ -195,6 +222,7 @@ void tex_matcher_free(keyword_matcher *matcher)
 }
 
 /*tex
+
     As mentioned, one needs to know how \TEX\ picks up tokens, expands, pushed back, and so on,
     but the regular keyword scanners and the ones wrapped above give a clue. The most critital 
     bit is where we decide to quite matching. I had to make sure that existing \CONTEXT\ code was
@@ -202,9 +230,8 @@ void tex_matcher_free(keyword_matcher *matcher)
 
     That is why we have the brace option, it is in the |texideas.c| spec parser (abstraction ) 
     code. If we ever drop in, we need to use another |_use| variant: one that is case insensitive 
-    in orde to be compatible in which case we assume \ASCII\.  
-
-    Todo: return a string with expected keys in case of an error. 
+    in order to be compatible in which case we assume \ASCII\.  
+    
 */
 
 #define MAX_MATCHER_DEPTH 32 // We need a "depth first search" so we use a buffer. 
@@ -231,12 +258,13 @@ static void tex_matcher_aux_collect_from_node(const keyword_matcher *matcher, ui
     }
     
     if (depth >= MAX_MATCHER_DEPTH) {
-        return; /* Stop descending further if we've hit our display limit */
+        return; /* Stop descending further if we've hit our display limit. */
     }
 
+    const int is_ascii = (matcher->options & keyword_ascii_option) != 0;
     for (int i = 0; i < node->nofchildren; i++) {
-        buf[depth] = node->keys[i];
-        tex_matcher_aux_collect_from_node(matcher, node->children[i], buf, depth + 1, first);
+        buf[depth] = is_ascii ? node->children[i].case_pair.lower : node->children[i].key;
+        tex_matcher_aux_collect_from_node(matcher, node->children[i].child, buf, depth + 1, first);
     }
 }
 
@@ -257,12 +285,6 @@ static void tex_matcher_aux_collect_expected(const keyword_matcher *matcher, uin
     optimized character based aproach). It might be extended as we go. 
 
 */
-
-static inline int tex_matcher_normalize_char(int cp, int is_ascii) 
-{
-    int is_upper = is_ascii && (cp >= 'A') && (cp <= 'Z');
-    return cp + (is_upper * 32);
-}
 
 static inline halfword *tex_matcher_ensure_capacity(halfword *arr, halfword *stack_arr, int *capacity, int n) 
 {
@@ -294,6 +316,58 @@ static inline halfword tex_matcher_build_token_list(const halfword *arr, int sta
     return h;
 }
 
+/*tex
+
+    Because this is critital code we tested this on Hans and Mikaels machine with various 
+    documents and the test suite. We also ley Claude check both code paths for error made 
+    in the transition. A particular (new) feature |terminal| was only tested on \LUA\ 
+    defined scanners and tests showed some issues. So we formulated the conditions: 
+
+    A terminal keyword can be followed by anything but a letter, so |depth1sp|, |depth 1sp| and
+    |foo\relax| are fine but |fooxx| is not. Detokenized letters (catcode other) count as 
+    letters. So: reject the keyword only when the next token is a letter. That means catcode 
+    11, or an ASCII letter with catcode 12. The second check matters because the matcher already 
+    accepts catcode-12 letters inside a keyword, so \detokenize{okayx} should be rejected too.
+    Anything else ends the keyword: a space, a digit, ., a brace, |\relax| (common when we parse 
+    for e.g. a number or dimension) or any other control sequence.
+
+    Claude then suggested to move the text from the switch to after it and test more strict and 
+    that worked out okay (we used |okay| as test keyword without parameter scanning). It made 
+    thsi report: 
+
+    ┌──────────────────────────────────────────┬──────────┐
+    │ okay\relax, okay x, depth 1sp            │ accepted │
+    ├──────────────────────────────────────────┼──────────┤
+    │ depth1sp                                 │ accepted │
+    ├──────────────────────────────────────────┼──────────┤
+    │ okayxx                                   │ rejected │
+    ├──────────────────────────────────────────┼──────────┤
+    │ okay1, okay., OKAY1                      │ accepted │
+    ├──────────────────────────────────────────┼──────────┤
+    │ \detokenize{okayx}, okayokay             │ rejected │
+    ├──────────────────────────────────────────┼──────────┤
+    │ Lua matcher with foo/foobar: foox, foobx │ rejected │
+    ├──────────────────────────────────────────┼──────────┤
+    │ Same Lua matcher: foobar1                │ accepted │
+    └──────────────────────────────────────────┴──────────┘
+
+    This feature might be enabled in the future if we decide to modernize scanning and error
+    reporting (read: away from some traditional \TEX\ artifacts). 
+
+*/
+
+static inline int tex_matcher_is_letter(halfword cmd, halfword chr)
+{
+    switch (cmd) {
+        case letter_cmd:
+            return 1;
+        case other_char_cmd:
+            return (chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z');
+        default:
+            return 0;
+    }
+}
+
 int tex_matcher_use(const keyword_matcher *matcher, int intercept)
 {
     halfword  save_cur_cs = cur_cs;
@@ -323,7 +397,7 @@ int tex_matcher_use(const keyword_matcher *matcher, int intercept)
     }
 
     uint16_t  curr_idx    = 0;
-    const int is_ascii    = (options & keyword_ascii_option) != 0;
+    const int is_terminal = (options & keyword_terminal_option) != 0;
     halfword  stack_arr[32];
     halfword *token_arr   = stack_arr;
     int       capacity    = 32;
@@ -336,8 +410,7 @@ int tex_matcher_use(const keyword_matcher *matcher, int intercept)
             case letter_cmd:
             case other_char_cmd:
                 {
-                    int cp = tex_matcher_normalize_char(cur_chr, is_ascii);
-                    uint16_t next_idx = tex_matcher_find_child(matcher, curr_idx, cp);
+                    uint16_t next_idx = tex_matcher_find_child(matcher, curr_idx, cur_chr);
                     if (lmt_unlikely(! next_idx)) {
                         goto BACKUP;
                     }
@@ -349,17 +422,9 @@ int tex_matcher_use(const keyword_matcher *matcher, int intercept)
                         best_i = current->index;
                         best_n = n;                     
                         if (current->nofchildren == 0) {
-                            if (options & keyword_terminal_option) { 
+                            if (is_terminal) { 
+                                /*tex We need to see the next token, the check is done after |DONE|. */
                                 tex_get_x_token();
-                                if (cur_cmd == letter_cmd || cur_cmd == other_char_cmd) {
-                                    if (is_ascii) {
-                                        int next_cp = tex_matcher_normalize_char(cur_chr, is_ascii);
-                                        if (next_cp >= 'a' && next_cp <= 'z') {
-                                            goto BACKUP;
-                                        }
-                                    }
-                                    best_i = 0;
-                                }
                                 goto BACKUP;
                             }              
                             goto DONE;
@@ -381,13 +446,6 @@ int tex_matcher_use(const keyword_matcher *matcher, int intercept)
                 } else {
                     goto DEFAULT;
                 }
-         // case left_brace_cmd: 
-         //     if (group) {
-         //         best_i = group;
-         //         goto DONE;
-         //     }
-         //  // FALLTHROUGH
-         //     goto DEFAULT;
             default:
               DEFAULT:
                 if ((options & keyword_exact_option) && (best_n != n)) { 
@@ -405,6 +463,16 @@ int tex_matcher_use(const keyword_matcher *matcher, int intercept)
         tex_get_x_token();
     }
   DONE:
+    /*tex
+        The token after the best match is either one we collected while trying a longer keyword
+        or the current one, which is also the lookahead after a keyword without children.
+    */
+    if (best_i && is_terminal) {
+        if (best_n < n ? tex_matcher_is_letter(token_cmd(token_arr[best_n]), token_chr(token_arr[best_n]))
+                       : tex_matcher_is_letter(cur_cmd, cur_chr)) {
+            best_i = 0;
+        }
+    }
     if (lmt_likely(n > 0)) {
         if (best_i > 0) {
             if (best_n < n) {
@@ -421,7 +489,7 @@ int tex_matcher_use(const keyword_matcher *matcher, int intercept)
                 uint16_t collect_idx   = 0;
                 int      matched_count = 0;
                 for (int i = 0; i < n; i++) {
-                    int cp = tex_matcher_normalize_char(token_chr(token_arr[i]), is_ascii);
+                    int cp = token_chr(token_arr[i]);
                     uint16_t next_idx = tex_matcher_find_child(matcher, collect_idx, cp);
                     if (! next_idx) {
                         break;
@@ -510,12 +578,25 @@ static void tex_matcher_aux_build_single(unsigned i)
             tex_formatted_warning("matcher", "matcher item index %u has a valid range but null word list", i);
             return;
         }
+        
+        int only_ascii = 1;
+        for (unsigned j = item.first; j <= item.last; j++) {
+            if (only_ascii && item.words[j] && ! aux_onlyascii(item.words[j], strlen(item.words[j]))) {
+                only_ascii = 0;
+            }
+        }
+
+        unsigned final_options = item.options;
+        if (only_ascii) {
+            final_options |= keyword_ascii_option;
+        }
+
         keyword_matcher m;
         m.nodes      = NULL;
         m.nodes_used = 0;
         m.nodes_cap  = 0;
         m.count      = (item.last - item.first) + 1;
-        m.options    = item.options;
+        m.options    = final_options;
         m.group      = 0;
         tex_matcher_trie_allocate(&m);
         for (unsigned j = item.first; j <= item.last; j++) { 

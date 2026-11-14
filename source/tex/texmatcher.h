@@ -10,11 +10,21 @@
     end so now the code moved to the |texscanner| module. 
 */
 
+typedef struct keyword_child {
+    union {
+        int key;
+        struct {
+            int lower;
+            int upper;
+        } case_pair;
+    };
+    uint16_t  child;        /* 16-bit node indices into matcher->nodes[] */
+} keyword_child;
+
 typedef struct keyword_node {
-    uint16_t   index;
-    uint16_t   nofchildren;
-    int       *keys;        /* 32-bit unicode keys */
-    uint16_t  *children;    /* 16-bit node indices into matcher->nodes[] */
+    uint16_t       index;
+    uint16_t       nofchildren;
+    keyword_child *children;
 } keyword_node;
 
 typedef enum keyword_options {

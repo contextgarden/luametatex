@@ -4245,7 +4245,6 @@ static int tokenlib_newmatcher(lua_State *L)
     return 1;
 }
 
-
 static int tokenlib_usematcher(lua_State *L)
 {
     keyword_matcher *matcher = tokenlib_aux_maybe_ismatcher(L, 1);
