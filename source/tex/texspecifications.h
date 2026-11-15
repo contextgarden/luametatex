@@ -53,7 +53,7 @@ typedef enum specification_option_flags {
 
 // static inline halfword specification_n(halfword a, halfword n) { return specification_repeat(a) ? ((n - 1) % specification_count(a) + 1) : (n > specification_count(a) ? specification_count(a) : n); }
 
-# define par_passes_size     21
+# define par_passes_size     22
 # define balance_shape_size   5
 # define balance_passes_size  9
 # define line_snapping_size   4
@@ -308,12 +308,15 @@ typedef enum passes_parameter_okay {
 
 /*tex The Microsoft compiler truncates to int, so: */
 
-# define passes_threshold_okay           (uint64_t) 0x0000000100000000
-# define passes_demerits_okay            (uint64_t) 0x0000000200000000
-# define passes_tolerance_okay           (uint64_t) 0x0000000400000000
-# define passes_classes_okay             (uint64_t) 0x0000000800000000
-# define passes_emergencyunit_okay       (uint64_t) 0x0000001000000000
-# define passes_badness_okay             (uint64_t) 0x0000002000000000
+# define passes_threshold_okay       (uint64_t) 0x0000000100000000
+# define passes_demerits_okay        (uint64_t) 0x0000000200000000
+# define passes_tolerance_okay       (uint64_t) 0x0000000400000000
+# define passes_classes_okay         (uint64_t) 0x0000000800000000
+# define passes_emergencyunit_okay   (uint64_t) 0x0000001000000000
+# define passes_badness_okay         (uint64_t) 0x0000002000000000
+# define passes_ratiodemerits_okay   (uint64_t) 0x0000004000000000
+# define passes_hyphendemerits_okay  (uint64_t) 0x0000008000000000
+# define passes_emergencyhonest_okay (uint64_t) 0x0000010000000000
 
 static const uint64_t passes_basics_okay = 
     passes_hyphenation_okay 
@@ -392,6 +395,9 @@ static inline void     tex_set_passes_orphanpenalties      (halfword a, halfword
 static inline void     tex_set_passes_emergencyunit        (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,19)).half1    = v; }
 static inline void     tex_set_passes_raggedness           (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,20)).half0    = v; } // quart
 static inline void     tex_set_passes_badness              (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,20)).half1    = v; }
+static inline void     tex_set_passes_ratiodemerits        (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,21)).half0    = v; }
+static inline void     tex_set_passes_hyphendemerits       (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,21)).half1    = v; }
+static inline void     tex_set_passes_emergencyhonest      (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,22)).half0    = v; } // quart
 
 static inline uint64_t tex_get_passes_okay                 (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 1)).long0;   }
 static inline halfword tex_get_passes_features             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 2)).quart00; }
@@ -433,6 +439,9 @@ static inline halfword tex_get_passes_orphanpenalties      (halfword a, halfword
 static inline halfword tex_get_passes_emergencyunit        (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,19)).half1;   }
 static inline halfword tex_get_passes_raggedness           (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,20)).half0;   }
 static inline halfword tex_get_passes_badness              (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,20)).half1;   }
+static inline halfword tex_get_passes_ratiodemerits        (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,21)).half0;   }
+static inline halfword tex_get_passes_hyphendemerits       (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,21)).half1;   }
+static inline halfword tex_get_passes_emergencyhonest      (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,22)).half0;   }
 
 /* balance shape */
 

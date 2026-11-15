@@ -950,6 +950,7 @@ make_lua_key(L, hsize);\
 make_lua_key(L, hskip);\
 make_lua_key(L, hyphenate);\
 make_lua_key(L, hyphenated);\
+make_lua_key(L, hyphendemerits);\
 make_lua_key(L, hyphenation);\
 make_lua_key(L, hyphenationmode);\
 make_lua_key(L, hyphenchar);\

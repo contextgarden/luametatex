@@ -480,6 +480,7 @@ void tex_line_break(int group_context, int par_context, int display_math)
                     .ex_hyphen_penalty       = tex_get_par_par(par, par_ex_hyphen_penalty_code),
                     .fitness_classes         = tex_get_par_par(par, par_fitness_classes_code),
                     .adjacent_demerits       = tex_get_par_par(par, par_adjacent_demerits_code),
+                    .hyphen_demerits         = tex_get_par_par(par, par_hyphen_demerits_code),
                     .orphan_line_factors     = tex_get_par_par(par, par_orphan_line_factors_code),
                     .orphan_penalties        = tex_get_par_par(par, par_orphan_penalties_code),
                     .broken_penalty          = tex_get_par_par(par, par_broken_penalty_code),
@@ -501,6 +502,8 @@ void tex_line_break(int group_context, int par_context, int display_math)
                     .math_penalty_factor     = 0,
                     .sf_factor               = 0,
                     .sf_stretch_factor       = 0,
+                    .ratio_demerits          = 0,
+                    .emergency_honest        = 0,
                     .max_adj_demerits        = 0,
                     .raggedness              = 0,
                     .par_fill_mode           = tex_get_par_par(par, par_par_fill_mode_code),
@@ -1276,7 +1279,7 @@ static void tex_aux_add_to_widths(halfword s, int adjust_spacing, int adjust_spa
                 break;
             case kern_node:
                 widths[total_advance_amount] += kern_amount(s);
-                if (adjust_spacing == adjust_spacing_full && node_subtype(s) == font_kern_subtype) {
+                if (adjust_spacing_with_kerns(adjust_spacing) && node_subtype(s) == font_kern_subtype) {
                     halfword n = node_prev(s);
                     if (n && node_type(n) == glyph_node && ! tex_has_glyph_option(node_next(s), glyph_option_no_expansion)) {
                         widths[font_stretch_amount] += tex_kern_stretch(s);
@@ -1334,7 +1337,7 @@ static void tex_aux_sub_from_widths(halfword s, int adjust_spacing, int adjust_s
                 break;
             case kern_node:
                 widths[total_advance_amount] -= kern_amount(s);
-                if (adjust_spacing == adjust_spacing_full && node_subtype(s) == font_kern_subtype) {
+                if (adjust_spacing_with_kerns(adjust_spacing) && node_subtype(s) == font_kern_subtype) {
                     halfword n = node_prev(s);
                     if (n && node_type(n) == glyph_node && ! tex_has_glyph_option(node_next(s), glyph_option_no_expansion)) {
                         widths[font_stretch_amount] -= tex_kern_stretch(s);
@@ -2499,6 +2502,128 @@ static void tex_aux_trace_special_break(const line_break_properties *properties,
 
 # endif
 
+/*tex
+
+    Experimental. The glue ratio of a line as the line breaker sees it (so after the correction for
+    font expansion), in units of 1/1000: zero is natural spacing, 1000 means that all stretch is
+    used and -1000 that all shrink is used. We clip at -1000 (overfull) and 5000 (way beyond badness
+    10000). The previous line is known from |active_short| and |active_glue| of the active node we
+    come from, which are always set (also without last line fit). As with |adj_demerits| this is
+    an approximation: only the best path into an active node of a given fitness class is kept.
+
+*/
+
+static inline halfword tex_aux_line_ratio(scaled shortfall, scaled glue)
+{
+    if (shortfall == 0) {
+        return 0;
+    } else if (glue <= 0) {
+        return shortfall > 0 ? 5000 : -1000;
+    } else {
+        long long r = ((long long) shortfall * scaling_factor) / glue;
+        return r > 5000 ? 5000 : (r < -1000 ? -1000 : (halfword) r);
+    }
+}
+
+static inline halfword tex_aux_ratio_demerits(halfword factor, scaled shortfall, scaled glue, scaled previous_shortfall, scaled previous_glue)
+{
+    long long d = (long long) tex_aux_line_ratio(shortfall, glue) - (long long) tex_aux_line_ratio(previous_shortfall, previous_glue);
+    long long v = ((long long) factor * d * d + scaling_factor_squared / 2) / scaling_factor_squared;
+    return v > extremely_deplorable ? extremely_deplorable : (halfword) v;
+}
+
+/*tex
+
+    Experimental. When |\hyphendemerits| (or the par pass key) is set, it replaces the special case
+    |\doublehyphendemerits|: entry |k| is added for a line that ends with a discretionary and is
+    the |k|-th such line in a row, the last entry for all lines after that, so |\hyphendemerits 2 0
+    10000| does the same as |\doublehyphendemerits 10000|. Negative values count as zero. We look
+    back via the passive nodes, so this is an approximation, as with the adjacent demerits: we only
+    see the best path into the active node that we come from. Only the entries from the second on
+    depend on that path, so their spread is added to the margin used for pruning.
+
+*/
+
+static inline halfword tex_aux_hyphen_demerits_entry(halfword demerits, halfword k)
+{
+    halfword value = tex_get_specification_penalty(demerits, k);
+    return value < 0 ? 0 : (value > extremely_deplorable ? extremely_deplorable : value);
+}
+
+static inline halfword tex_aux_hyphen_demerits(halfword demerits, halfword active)
+{
+    halfword count = tex_get_specification_count(demerits);
+    halfword run = 1;
+    if (node_type(active) == hyphenated_node) {
+        halfword passive = active_break_node(active);
+        run = 2;
+        while (run < count && passive) {
+            passive = passive_prev_break(passive);
+            if (passive && passive_cur_break(passive) && node_type(passive_cur_break(passive)) == disc_node) {
+                ++run;
+            } else {
+                break;
+            }
+        }
+    }
+    return tex_aux_hyphen_demerits_entry(demerits, run);
+}
+
+static inline halfword tex_aux_hyphen_demerits_spread(halfword demerits)
+{
+    halfword count = tex_get_specification_count(demerits);
+    halfword min = 0;
+    halfword max = 0;
+    for (halfword k = 2; k <= count; k++) {
+        halfword value = tex_aux_hyphen_demerits_entry(demerits, k);
+        if (k == 2 || value < min) {
+            min = value;
+        }
+        if (k == 2 || value > max) {
+            max = value;
+        }
+    }
+    return max - min;
+}
+
+/*tex
+
+    In the modes |adjust_spacing_full_glue| and |adjust_spacing_font_glue| the glyphs (and kerns)
+    share the excess of a line with the glue, in proportion to their stretch (or shrink). With $x$
+    the excess, $G$ the glue stretch and $F$ the font stretch the ratio is $x/(G+F)$, and as the
+    badness is computed against $G$ we scale the shortfall to $x\,G/(G+F)$. Beyond $G+F$ the
+    glyphs are at their limit and the glue takes the rest, which is what the normal code also does.
+    Without glue we keep the normal approach. This is what |hpack| does when it sets the line in
+    these modes.
+
+*/
+
+static inline scaled tex_aux_shared_shortfall(scaled shortfall, scaled stretch, scaled shrink, scaled font_stretch, scaled font_shrink)
+{
+    if (shortfall > 0) {
+        if (font_stretch > 0) {
+            if (stretch <= 0) {
+                return font_stretch > shortfall ? font_stretch / 2 : shortfall - font_stretch;
+            } else if (shortfall < stretch + font_stretch) {
+                return tex_xn_over_d(shortfall, stretch, stretch + font_stretch);
+            } else {
+                return shortfall - font_stretch;
+            }
+        }
+    } else if (shortfall < 0) {
+        if (font_shrink > 0) {
+            if (shrink <= 0) {
+                return font_shrink > -shortfall ? - font_shrink / 2 : shortfall + font_shrink;
+            } else if (-shortfall < shrink + font_shrink) {
+                return - tex_xn_over_d(-shortfall, shrink, shrink + font_shrink);
+            } else {
+                return shortfall + font_shrink;
+            }
+        }
+    }
+    return shortfall;
+}
+
 static scaled tex_aux_try_break(
     const    line_break_properties *properties,
     halfword penalty,
@@ -2528,11 +2653,14 @@ static scaled tex_aux_try_break(
     /*tex
         The badness of the line that ends at the best place. We used to store the badness of the
         most recently tested line but that can be a line from another active node so it is not
-        always the badness of the line that ends up in the paragraph.
+        always the badness of the line that ends up in the paragraph. This situation was reported
+        in one of Keith's Claude sessions where extensive tests were done with various parpasses. 
     */
     halfword best_place_badness[max_n_of_fitness_values] = { 0 };
     /*tex badness of test line */
     halfword badness = 0;
+    /*tex the shortfall before the font expansion correction */
+    scaled natural_shortfall = 0;
     /*tex demerits of test line */
     int demerits = 0;
     /*tex glue stretch or shrink of test line, adjustment for last line */
@@ -2701,10 +2829,14 @@ static scaled tex_aux_try_break(
                         before_previous = previous;
                         previous = q;
                     }
-                    if (properties->max_adj_demerits >= awful_bad - lmt_linebreak_state.minimum_demerits) {
-                        lmt_linebreak_state.minimum_demerits = awful_bad - 1;
-                    } else {
-                        lmt_linebreak_state.minimum_demerits += properties->max_adj_demerits;
+                    {
+                        /*tex Experimental: the ratio and hyphen demerits also depend on the path. */
+                        long long margin = (long long) properties->max_adj_demerits + properties->ratio_demerits + tex_aux_hyphen_demerits_spread(properties->hyphen_demerits);
+                        if (margin >= (long long) awful_bad - lmt_linebreak_state.minimum_demerits) {
+                            lmt_linebreak_state.minimum_demerits = awful_bad - 1;
+                        } else {
+                            lmt_linebreak_state.minimum_demerits += (halfword) margin;
+                        }
                     }
                     for (halfword fit_class = default_fitness; fit_class <= tex_max_fitness(properties->fitness_classes); fit_class++) {
                         if (lmt_linebreak_state.minimal_demerits[fit_class] <= lmt_linebreak_state.minimum_demerits) {
@@ -2927,8 +3059,27 @@ static scaled tex_aux_try_break(
             so ... The division by 2 comes from \PDFTEX\ where it isn't explained but it seems to
             work ok. Removing gives more overfull boxes and a different value gives different
             results.
+            
+            But ... in one of our experiments Keith discussed quality with his Claude and it had some 
+            questions. When we discussed this with Mikaels Claude it did similar anlysis including 
+            the large test files we use. It was puzzled about this division in the perspective of 
+            \LUAMETATEX\ because we use a more dynamic expansion approach. It also had couple of 
+            suggestions and when Mikael and Hans considered those we ended up with a couple of 
+            (little code) extensions: instead if the suggested triple hyphen demerits we went for 
+            an array. Another suggestion involved including glue in the quality decision but 
+            instead of some extra flag we decided that adding 3 and 4 to "|\adjustspacing| made 
+            more sense; these take the glue into account. The third extension concerned emergency 
+            stretch, see the comment that starts with \type {Experimental}. 
+
         */
-        if (shortfall > 0) {
+        natural_shortfall = shortfall;
+        if (adjust_spacing_with_glue(properties->adjust_spacing)) {
+            /*tex The glyphs and the glue share the excess. */
+            shortfall = tex_aux_shared_shortfall(shortfall,
+                current_active_width[total_stretch_amount], current_active_width[total_shrink_amount],
+                current_active_width[font_stretch_amount], current_active_width[font_shrink_amount]
+            );
+        } else if (shortfall > 0) {
             scaled total_stretch = current_active_width[font_stretch_amount];
             if (total_stretch > 0) {
                 if (total_stretch > shortfall) {
@@ -3045,6 +3196,10 @@ static scaled tex_aux_try_break(
                   NOT_FOUND:
                     shortfall = 0;
                 }
+                if (properties->ratio_demerits) {
+                    /*tex Experimental: the finite glue in this line is not stretched at all. */
+                    shortfall = 0;
+                }
                 badness = 0;
                 /*tex Infinite stretch. */
                 fit_class = tex_get_specification_decent(properties->fitness_classes) - 1;
@@ -3119,6 +3274,29 @@ static scaled tex_aux_try_break(
                 current_stays_active = 1;
             }
         }
+        if (properties->emergency_honest && ! artificial_demerits && shortfall > 0 && glue > 0
+            && ! (current_active_width[total_fi_amount]   || current_active_width[total_fil_amount] ||
+                  current_active_width[total_fill_amount] || current_active_width[total_filll_amount])) {
+            /*tex
+                Experimental. The emergency stretch has been used to decide if this line is
+                feasible, but because it is not present in the packed line we rate the line
+                (badness, fitness class and demerits) without (the given part of) it.
+            */
+            scaled fake = lmt_linebreak_state.extra_background_stretch + lmt_linebreak_state.emergency_amount;
+            if (fake > 0) {
+                glue -= tex_xn_over_d_factor(fake, properties->emergency_honest);
+                if (adjust_spacing_with_glue(properties->adjust_spacing) && glue > 0) {
+                    shortfall = tex_aux_shared_shortfall(natural_shortfall, glue, 0, current_active_width[font_stretch_amount], 0);
+                }
+                if (glue <= 0 || (shortfall > large_width_excess && glue < small_stretchability)) {
+                    badness = infinite_bad;
+                    fit_class = default_fitness;
+                } else {
+                    badness = tex_badness(shortfall, glue);
+                    fit_class = tex_normalized_loose_badness(badness, properties->fitness_classes);
+                }
+            }
+        }
         /*tex
 
             Record a new feasible break. When we get to this part of the code, the line from |r| to
@@ -3161,7 +3339,10 @@ static scaled tex_aux_try_break(
                 is already quite penalized and one has to go very tolerant and stretch so then the
                 solution space gets better and the threesome likely goes away.
             */
-            if (break_type == hyphenated_node && node_type(current) == hyphenated_node) {
+            if (break_type == hyphenated_node && cur_p && tex_get_specification_count(properties->hyphen_demerits)) {
+                /*tex Experimental: a list instead of |\doublehyphendemerits|. */
+                demerits += tex_aux_hyphen_demerits(properties->hyphen_demerits, current);
+            } else if (break_type == hyphenated_node && node_type(current) == hyphenated_node) {
                 if (cur_p) {
                     demerits += properties->double_hyphen_demerits;
                 } else {
@@ -3175,6 +3356,10 @@ static scaled tex_aux_try_break(
                 used.
             */
             demerits += tex_get_demerits(properties, distance, fit_current, fit_class);
+            if (properties->ratio_demerits && active_break_node(current) && (cur_p || ! lmt_linebreak_state.do_last_line_fit)) {
+                /*tex Experimental: not for the first line, and the last line has ratio zero. */
+                demerits += tex_aux_ratio_demerits(properties->ratio_demerits, shortfall, glue, active_short(current), active_glue(current));
+            }
         }
         if lmt_unlikely(properties->tracing_paragraphs > 0) {
          // tex_begin_diagnostic();
@@ -3183,6 +3368,10 @@ static scaled tex_aux_try_break(
         }
         /*tex This is the minimum total demerits from the beginning to |cur_p| via |r|. */
         demerits += active_total_demerits(current);
+        if (properties->emergency_honest && demerits >= awful_bad) {
+            /*tex Experimental: we don't want to loose feasible paths. */
+            demerits = awful_bad - 1;
+        }
         if (demerits <= lmt_linebreak_state.minimal_demerits[fit_class]) {
             lmt_linebreak_state.minimal_demerits[fit_class] = demerits;
             best_place[fit_class] = active_break_node(current);
@@ -4309,6 +4498,18 @@ static int tex_aux_set_sub_pass_parameters(
         properties->math_penalty_factor = tex_get_passes_mathpenaltyfactor(passes, subpass);
     }
     /*tex
+        Experimental:
+    */
+    if (okay & passes_ratiodemerits_okay) {
+        properties->ratio_demerits = tex_get_passes_ratiodemerits(passes, subpass);
+    }
+    if (okay & passes_hyphendemerits_okay) {
+        properties->hyphen_demerits = tex_get_passes_hyphendemerits(passes, subpass);
+    }
+    if (okay & passes_emergencyhonest_okay) {
+        properties->emergency_honest = tex_get_passes_emergencyhonest(passes, subpass);
+    }
+    /*tex
         Kind of neat:
     */
     if (okay & passes_looseness_okay) {
@@ -4443,6 +4644,7 @@ static int tex_aux_set_sub_pass_parameters(
         tex_print_format ("%s emergencypercentage    %i\n", is_okay(passes_emergencypercentage_okay), lmt_linebreak_state.emergency_percentage);
         tex_print_format ("%s emergencyleftextra     %i\n", is_okay(passes_emergencyleftextra_okay), lmt_linebreak_state.emergency_left_extra);
         tex_print_format ("%s emergencyrightextra    %i\n", is_okay(passes_emergencyrightextra_okay), lmt_linebreak_state.emergency_right_extra);
+        tex_print_format ("%s emergencyhonest        %i\n", is_okay(passes_emergencyhonest_okay), properties->emergency_honest);
         tex_print_str_len("  --------------------------------\n", 35);
         tex_print_format ("%s mathpenaltyfactor      %i\n", is_okay(passes_mathpenaltyfactor_okay), properties->math_penalty_factor);
         tex_print_str_len("  --------------------------------\n", 35);
@@ -4457,6 +4659,16 @@ static int tex_aux_set_sub_pass_parameters(
         tex_print_format ("%s finalhyphendemerits    %i\n", is_okay(passes_finalhyphendemerits_okay), properties->final_hyphen_demerits);
         tex_print_format ("%s lefttwindemerits       %i\n", is_okay(passes_lefttwindemerits_okay), properties->left_twin_demerits);
         tex_print_format ("%s righttwindemerits      %i\n", is_okay(passes_righttwindemerits_okay), properties->right_twin_demerits);
+        tex_print_format ("%s hyphendemerits         %i",   is_okay(passes_hyphendemerits_okay), tex_get_specification_count(properties->hyphen_demerits));
+        if (tex_get_specification_count(properties->hyphen_demerits) > 0) {
+            tex_print_str_len(" [", 2);
+            for (halfword c = 1; c <= tex_get_specification_count(properties->hyphen_demerits); c++) {
+                tex_print_format(" %i", tex_get_specification_penalty(properties->hyphen_demerits, c));
+            }
+            tex_print_str_len(" ]", 2);
+        }
+        tex_print_char('\n');
+        tex_print_format ("%s ratiodemerits          %i\n", is_okay(passes_ratiodemerits_okay), properties->ratio_demerits);
         tex_print_str_len("  --------------------------------\n", 35);
         tex_print_format ("%s linepenalty            %i\n", is_okay(passes_linepenalty_okay), properties->line_penalty);
         tex_print_format ("%s extrahyphenpenalty     %i\n", is_okay(passes_extrahyphenpenalty_okay),properties->extra_hyphen_penalty);
@@ -5027,7 +5239,7 @@ static inline halfword tex_aux_break_list(const line_break_properties *propertie
                  // case left_correction_kern_subtype:
                  //     break;
                     case font_kern_subtype:
-                        if (properties->adjust_spacing == adjust_spacing_full) {
+                        if (adjust_spacing_with_kerns(properties->adjust_spacing)) {
                             lmt_linebreak_state.active_width[font_stretch_amount] += tex_kern_stretch(current);
                             lmt_linebreak_state.active_width[font_shrink_amount] += tex_kern_shrink(current);
                         }

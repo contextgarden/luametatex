@@ -778,6 +778,7 @@ void tex_initialize_commands(void)
         tex_primitive(luametatex_command, no_legacy,       "fitnessclasses",                 specification_cmd,      fitness_classes_code,                     internal_specification_base);
         tex_primitive(luametatex_command, no_legacy,       "adjacentdemerits",               specification_cmd,      adjacent_demerits_code,                   internal_specification_base);
         tex_primitive(luametatex_command, no_legacy,       "orphanlinefactors",              specification_cmd,      orphan_line_factors_code,                 internal_specification_base);
+        tex_primitive(luametatex_command, no_legacy,       "hyphendemerits",                 specification_cmd,      hyphen_demerits_code,                     internal_specification_base);
 
         tex_primitive(etex_command,       no_legacy,       "detokenize",                     the_cmd,                detokenize_code,                          0); /* maybe convert_cmd */
         tex_primitive(luametatex_command, no_legacy,       "expandeddetokenize",             the_cmd,                expanded_detokenize_code,                 0); /* maybe convert_cmd */

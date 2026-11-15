@@ -1027,6 +1027,7 @@ void lmt_nodelib_initialize(void) {
     lmt_interface.par_data[par_fitness_classes_code        ] = (par_info) { .cmd = specification_cmd,      .chr = fitness_classes_code,         .category = par_fitness_classes_category     };
     lmt_interface.par_data[par_adjacent_demerits_code      ] = (par_info) { .cmd = specification_cmd,      .chr = adjacent_demerits_code,       .category = par_demerits_category            };
     lmt_interface.par_data[par_orphan_line_factors_code    ] = (par_info) { .cmd = specification_cmd,      .chr = orphan_line_factors_code,     .category = par_orphan_penalty_category      };
+    lmt_interface.par_data[par_hyphen_demerits_code        ] = (par_info) { .cmd = specification_cmd,      .chr = hyphen_demerits_code,         .category = par_demerits_category            };
     lmt_interface.par_data[par_baseline_skip_code          ] = (par_info) { .cmd = internal_glue_cmd,      .chr = baseline_skip_code,           .category = par_line_category                };
     lmt_interface.par_data[par_line_skip_code              ] = (par_info) { .cmd = internal_glue_cmd,      .chr = line_skip_code,               .category = par_line_category                };
     lmt_interface.par_data[par_line_skip_limit_code        ] = (par_info) { .cmd = internal_dimension_cmd, .chr = line_skip_limit_code,         .category = par_line_category                };
@@ -1640,6 +1641,7 @@ halfword tex_copy_node(halfword original)
                     par_fitness_classes(copy) = null;
                     par_adjacent_demerits(copy) = null;
                     par_orphan_line_factors(copy) = null;
+                    par_hyphen_demerits(copy) = null;
                     par_par_passes(copy) = null;
                     par_line_snapping(copy) = null;
                     /* really copy fields */
@@ -1661,6 +1663,7 @@ halfword tex_copy_node(halfword original)
                     tex_set_par_par(copy, par_fitness_classes_code, tex_get_par_par(original, par_fitness_classes_code), 1);
                     tex_set_par_par(copy, par_adjacent_demerits_code, tex_get_par_par(original, par_adjacent_demerits_code), 1);
                     tex_set_par_par(copy, par_orphan_line_factors_code, tex_get_par_par(original, par_orphan_line_factors_code), 1);
+                    tex_set_par_par(copy, par_hyphen_demerits_code, tex_get_par_par(original, par_hyphen_demerits_code), 1);
                     tex_set_par_par(copy, par_par_passes_code, tex_get_par_par(original, par_par_passes_code), 1);
                     tex_set_par_par(copy, par_line_snapping_code, tex_get_par_par(original, par_line_snapping_code), 1);
                     /* tokens, we could mess with a ref count instead */
@@ -1786,6 +1789,7 @@ void tex_flush_node(halfword p)
                     tex_flush_specification_node(par_fitness_classes(p));
                     tex_flush_specification_node(par_adjacent_demerits(p));
                     tex_flush_specification_node(par_orphan_line_factors(p));
+                    tex_flush_specification_node(par_hyphen_demerits(p));
                     tex_flush_specification_node(par_par_passes(p));
                     tex_flush_specification_node(par_line_snapping(p));
                     /* tokens */
@@ -2020,6 +2024,7 @@ static void tex_aux_check_node(halfword p)
             tex_aux_node_range_test(p, par_fitness_classes(p));
             tex_aux_node_range_test(p, par_adjacent_demerits(p));
             tex_aux_node_range_test(p, par_orphan_line_factors(p));
+            tex_aux_node_range_test(p, par_hyphen_demerits(p));
             tex_aux_node_range_test(p, par_par_fill_left_skip(p));
             tex_aux_node_range_test(p, par_par_fill_right_skip(p));
             tex_aux_node_range_test(p, par_par_init_left_skip(p));
@@ -3504,6 +3509,7 @@ void tex_show_node_list(halfword p, int threshold, int max)
                             if (tex_par_state_is_set(p, par_fitness_classes_code)         ) { v = par_fitness_classes(p)         ; if (v)                     { tex_print_str_len(", fitnessdemerits * ",       20); } }
                             if (tex_par_state_is_set(p, par_adjacent_demerits_code)       ) { v = par_adjacent_demerits(p)       ; if (v)                     { tex_print_str_len(", adjacentdemerits * ",      21); } }
                             if (tex_par_state_is_set(p, par_orphan_line_factors_code)     ) { v = par_orphan_line_factors(p)     ; if (v)                     { tex_print_str_len(", orphanlinefactors * ",     21); } }
+                            if (tex_par_state_is_set(p, par_hyphen_demerits_code)         ) { v = par_hyphen_demerits(p)         ; if (v)                     { tex_print_str_len(", hyphendemerits * ",        19); } }
 
                             if (tex_par_state_is_set(p, par_hang_indent_code)             ) { v = par_hang_indent(p)             ; if (v)                     { tex_print_format (", hangindent %p",             v); } }
                             if (tex_par_state_is_set(p, par_hang_after_code)              ) { v = par_hang_after(p)              ; if (v)                     { tex_print_format (", hangafter %i",              v); } }
@@ -4584,6 +4590,7 @@ static halfword tex_aux_internal_to_par_code(halfword cmd, halfword index) {
                 case fitness_classes_code        : return par_fitness_classes_code;
                 case adjacent_demerits_code      : return par_adjacent_demerits_code;
                 case orphan_line_factors_code    : return par_orphan_line_factors_code;
+                case hyphen_demerits_code        : return par_hyphen_demerits_code;
                 case par_passes_code             : return par_par_passes_code;
                 case line_snapping_code          : return par_line_snapping_code;
             }
@@ -4617,6 +4624,7 @@ halfword tex_get_par_par(halfword p, halfword what)
         case par_fitness_classes_code:         return set ? par_fitness_classes(p)         : fitness_classes_par;
         case par_adjacent_demerits_code:       return set ? par_adjacent_demerits(p)       : adjacent_demerits_par;
         case par_orphan_line_factors_code:     return set ? par_orphan_line_factors(p)     : orphan_line_factors_par;
+        case par_hyphen_demerits_code:         return set ? par_hyphen_demerits(p)         : hyphen_demerits_par;
         case par_hang_indent_code:             return set ? par_hang_indent(p)             : hang_indent_par;
         case par_hang_after_code:              return set ? par_hang_after(p)              : hang_after_par;
         case par_hsize_code:                   return set ? par_hsize(p)                   : hsize_par;
@@ -4842,6 +4850,10 @@ void tex_set_par_par(halfword p, halfword what, halfword v, int force)
             case par_orphan_line_factors_code:
                 tex_flush_specification_node(par_orphan_line_factors(p));
                 par_orphan_line_factors(p) = tex_copy_specification_node(v);
+                break;
+            case par_hyphen_demerits_code:
+                tex_flush_specification_node(par_hyphen_demerits(p));
+                par_hyphen_demerits(p) = tex_copy_specification_node(v);
                 break;
             case par_baseline_skip_code:
                 if (par_baseline_skip(p)) {
@@ -5102,6 +5114,11 @@ void tex_snapshot_par(halfword p, halfword what)
             tex_flush_specification_node(par_orphan_line_factors(p));
             par_orphan_line_factors(p) = tex_copy_specification_node(v);
         }
+        if (tex_par_to_be_set(what, par_hyphen_demerits_code)) {
+            halfword v = unset ? null : hyphen_demerits_par;
+            tex_flush_specification_node(par_hyphen_demerits(p));
+            par_hyphen_demerits(p) = tex_copy_specification_node(v);
+        }
         if (tex_par_to_be_set(what, par_baseline_skip_code)) {
             halfword v = unset ? null : baseline_skip_par;
             if (par_baseline_skip(p)) {
@@ -5304,6 +5321,11 @@ void tex_dispose_specification_list(halfword a)
                         tex_flush_node(n);
                         tex_set_passes_orphanlinefactors(a, i, null); 
                     }
+                    n = tex_get_passes_hyphendemerits(a, i);
+                    if (n) {
+                        tex_flush_node(n);
+                        tex_set_passes_hyphendemerits(a, i, null);
+                    }
                     n = tex_get_passes_orphanpenalties(a, i);
                     if (n) {
                         tex_flush_node(n);
@@ -5382,6 +5404,11 @@ void tex_copy_specification_list(halfword target, halfword source)
                         if (n) { 
                             halfword c = tex_aux_copy_specification_child(n);
                             tex_set_passes_orphanlinefactors(target, i, c); 
+                        }
+                        n = tex_get_passes_hyphendemerits(source, i);
+                        if (n) {
+                            halfword c = tex_aux_copy_specification_child(n);
+                            tex_set_passes_hyphendemerits(target, i, c);
                         }
                         n = tex_get_passes_orphanpenalties(source, i);
                         if (n) {

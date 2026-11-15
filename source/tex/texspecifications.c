@@ -50,6 +50,7 @@ static int valid_specification_options[number_specification_pars] = {
     [adjacent_demerits_code]       = specification_option_double
                                    | specification_option_constant,
     [orphan_line_factors_code]     = specification_option_constant,
+    [hyphen_demerits_code]         = specification_option_constant,
     [math_forward_penalties_code]  = specification_option_constant,
     [math_backward_penalties_code] = specification_option_constant,
     [integer_list_code]            = specification_option_double 
@@ -673,6 +674,11 @@ static halfword tex_aux_scan_specification_orphan_line_factors(void)
     return tex_aux_scan_specification_penalties(orphan_line_factors_code);
 }
 
+static halfword tex_aux_scan_specification_hyphen_demerits(void)
+{
+    return tex_aux_scan_specification_penalties(hyphen_demerits_code);
+}
+
 # if use_matcher 
 
 typedef enum parpasses_keys { 
@@ -690,6 +696,7 @@ typedef enum parpasses_keys {
     parpasses_key_demerits,
     parpasses_key_doublehyphendemerits,
     parpasses_key_emergencyfactor,
+    parpasses_key_emergencyhonest,
     parpasses_key_emergencyleftextra,
     parpasses_key_emergencypercentage,
     parpasses_key_emergencyrightextra,
@@ -699,6 +706,7 @@ typedef enum parpasses_keys {
     parpasses_key_extrahyphenpenalty,
     parpasses_key_finalhyphendemerits,
     parpasses_key_fitnessclasses,
+    parpasses_key_hyphendemerits,
     parpasses_key_hyphenation,
     parpasses_key_identifier,
     parpasses_key_ifadjustspacing,
@@ -719,6 +727,7 @@ typedef enum parpasses_keys {
     parpasses_key_orphanlinefactors,
     parpasses_key_quit,
     parpasses_key_raggedness,
+    parpasses_key_ratiodemerits,
     parpasses_key_righttwindemerits,
     parpasses_key_skip,
     parpasses_key_sffactor,
@@ -746,6 +755,7 @@ static const char *parpasses_words[] = {
     "demerits",
     "doublehyphendemerits",
     "emergencyfactor",
+    "emergencyhonest",
     "emergencyleftextra",
     "emergencypercentage",
     "emergencyrightextra",
@@ -755,6 +765,7 @@ static const char *parpasses_words[] = {
     "extrahyphenpenalty",
     "finalhyphendemerits",
     "fitnessclasses",
+    "hyphendemerits",
     "hyphenation",
     "identifier",
     "ifadjustspacing",
@@ -775,6 +786,7 @@ static const char *parpasses_words[] = {
     "orphanlinefactors",
     "quit",
     "raggedness",
+    "ratiodemerits",
     "righttwindemerits",
     "skip",
     "sffactor",
@@ -881,6 +893,14 @@ static halfword tex_aux_scan_specification_par_passes(void)
                     tex_set_passes_emergencyfactor(p, n, tex_scan_integer(0, NULL, NULL));
                     tex_set_passes_okay(p, n, passes_emergencyfactor_okay);
                     break;
+                case parpasses_key_emergencyhonest:
+                    /*tex Experimental: a per mille value between 0 and 1000. */
+                    {
+                        halfword v = tex_scan_integer(0, NULL, NULL);
+                        tex_set_passes_emergencyhonest(p, n, v < 0 ? 0 : (v > scaling_factor ? scaling_factor : v));
+                        tex_set_passes_okay(p, n, passes_emergencyhonest_okay);
+                    }
+                    break;
                 case parpasses_key_emergencyleftextra:
                     tex_set_passes_emergencyleftextra(p, n, tex_scan_integer(0, NULL, NULL));
                     tex_set_passes_okay(p, n, passes_emergencyleftextra_okay);
@@ -916,6 +936,11 @@ static halfword tex_aux_scan_specification_par_passes(void)
                 case parpasses_key_fitnessclasses:
                     tex_set_passes_fitnessclasses(p, n, tex_aux_scan_par_specification(fitness_classes_code, tex_aux_scan_specification_fitness_classes));
                     tex_set_passes_okay(p, n, passes_fitnessclasses_okay);
+                    break;
+                case parpasses_key_hyphendemerits:
+                    /*tex Experimental: a list, see |tex_aux_hyphen_demerits|. */
+                    tex_set_passes_hyphendemerits(p, n, tex_aux_scan_par_specification(hyphen_demerits_code, tex_aux_scan_specification_hyphen_demerits));
+                    tex_set_passes_okay(p, n, passes_hyphendemerits_okay);
                     break;
                 case parpasses_key_hyphenation:
                     tex_set_passes_hyphenation(p, n, tex_scan_integer(0, NULL, NULL));
@@ -994,6 +1019,14 @@ static halfword tex_aux_scan_specification_par_passes(void)
                 case parpasses_key_raggedness:
                     tex_set_passes_raggedness(p, n, tex_scan_integer(0, NULL, NULL));
                     tex_set_passes_okay(p, n, passes_raggedness_okay);
+                    break;
+                case parpasses_key_ratiodemerits:
+                    /*tex Experimental: we limit the value so that we can safely add it. */
+                    {
+                        halfword v = tex_scan_integer(0, NULL, NULL);
+                        tex_set_passes_ratiodemerits(p, n, v < 0 ? 0 : (v > extremely_deplorable ? extremely_deplorable : v));
+                        tex_set_passes_okay(p, n, passes_ratiodemerits_okay);
+                    }
                     break;
                 case parpasses_key_righttwindemerits:
                     tex_set_passes_righttwindemerits(p, n, tex_scan_integer(0, NULL, NULL));
@@ -2500,6 +2533,7 @@ void tex_aux_get_specification_value(halfword specification)
             case fitness_classes_code:
             case adjacent_demerits_code:
             case orphan_line_factors_code:
+            case hyphen_demerits_code:
             case math_forward_penalties_code:
             case math_backward_penalties_code:
                 {
@@ -2604,6 +2638,7 @@ void tex_aux_get_specification_index(halfword specification, int subindex)
             case fitness_classes_code:
             case adjacent_demerits_code:
             case orphan_line_factors_code:
+            case hyphen_demerits_code:
             case math_forward_penalties_code:
             case math_backward_penalties_code:
                 {

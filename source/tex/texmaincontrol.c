@@ -6860,9 +6860,8 @@ void tex_assign_internal_integer_value(int a, halfword p, int val)
         case adjust_spacing_code:
             if (val < adjust_spacing_off) {
                 val = adjust_spacing_off;
-            }
-            else if (val > adjust_spacing_font) {
-                val = adjust_spacing_font;
+            } else if (val > adjust_spacing_font_glue) {
+                val = adjust_spacing_font_glue;
             }
             goto DEFINE; /* par property */
         case protrude_chars_code:

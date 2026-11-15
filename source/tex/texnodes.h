@@ -2987,6 +2987,7 @@ typedef enum par_codes {                   /* extrahyphenpenalty : in parpass   
     par_hyphen_penalty_code,
     par_ex_hyphen_penalty_code,
     par_par_fill_mode_code,
+    par_hyphen_demerits_code,              /* parpass */
     par_n_of_codes,
 } par_codes;
 
@@ -3050,6 +3051,7 @@ static int par_category_to_codes[par_n_of_codes] = { /* explicit size is check *
     par_hyphen_penalty_category,      // par_hyphen_penalty_code
     par_hyphen_penalty_category,      // par_ex_hyphen_penalty_code
     par_skip_category,                // par_fill_mode_code
+    par_demerits_category,            // par_hyphen_demerits_code
 };
 
 typedef enum par_options {
@@ -3070,7 +3072,7 @@ typedef enum par_fillmodes {
 // todo: less because we can pack some
 // todo: reorder memone and memtwo 
 
-# define par_node_size                   36
+# define par_node_size                   37
 
 # define par_direction(a)                memtwo00(a, 2)
 # define par_options(a)                  memtwo01(a, 2)
@@ -3141,6 +3143,7 @@ typedef enum par_fillmodes {
 # define par_orphan_line_factors(a)      memone(a,34)
 # define par_line_snapping(a)            memtwo(a,35)
 # define par_par_fill_mode(a)            memone(a,35) /* can be single */
+# define par_hyphen_demerits(a)          memtwo(a,36)
 
 /*
     At some point we will have this (array with double values), depends on the outcome of an

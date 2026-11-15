@@ -3471,6 +3471,7 @@ int lmt_push_specification(lua_State *L, halfword ptr, int onlycount)
             case orphan_penalties_code:
             case toddler_penalties_code:
             case orphan_line_factors_code:
+            case hyphen_demerits_code:
             case math_forward_penalties_code:
             case math_backward_penalties_code:
             case integer_list_code:
@@ -4409,7 +4410,7 @@ static halfword texlib_tobalancepasses(lua_State *L, int i)
 
 static int texlib_getlinebreakparameterfields(lua_State *L)
 {
-    lua_createtable(L, 61, 0);
+    lua_createtable(L, 62, 0);
     lua_push_key_at_index(L, direction,              1);
     lua_push_key_at_index(L, tracingparagraphs,      2);
     lua_push_key_at_index(L, tracingfitness ,        3);
@@ -4471,6 +4472,7 @@ static int texlib_getlinebreakparameterfields(lua_State *L)
     lua_push_key_at_index(L, parfillrightskip,      59);
     lua_push_key_at_index(L, parinitleftskip,       60);
     lua_push_key_at_index(L, parinitrightskip,      61);
+    lua_push_key_at_index(L, hyphendemerits,        62);
     return 1;
 }
 
@@ -4539,6 +4541,8 @@ static int texlib_linebreak(lua_State *L)
         properties.sf_factor = 0;
         properties.sf_stretch_factor = 0;
         properties.raggedness = 0;
+        properties.ratio_demerits = 0;
+        properties.emergency_honest = 0;
         while (tail) {
             switch (node_type(tail)) {
                 case glue_node:
@@ -4689,6 +4693,7 @@ static int texlib_linebreak(lua_State *L)
         get_demerits_par     (properties.fitness_classes,              fitnessclasses,            tex_get_par_par(par, par_fitness_classes_code), fitness_classes_code);
         get_demerits_par     (properties.adjacent_demerits,            adjacentdemerits,          tex_get_par_par(par, par_adjacent_demerits_code), adjacent_demerits_code);
         get_penalties_par    (properties.orphan_line_factors,          orphanlinefactors,         tex_get_par_par(par, par_orphan_line_factors_code), orphan_line_factors_code);
+        get_penalties_par    (properties.hyphen_demerits,              hyphendemerits,            tex_get_par_par(par, par_hyphen_demerits_code), hyphen_demerits_code);
         get_par_passes_par   (properties.par_passes,                   parpasses,                 line_break_passes_par > 0 ? tex_get_par_par(par, par_par_passes_code) : null);
         get_line_snapping_par(properties.line_snapping,                linesnapping,              tex_get_par_par(par, par_line_snapping_code));
         get_integer_par      (properties.line_break_checks,            linebreakchecks,           tex_get_par_par(par, par_line_break_checks_code));
@@ -4766,6 +4771,7 @@ static int texlib_linebreak(lua_State *L)
         if (properties.fitness_classes         != tex_get_par_par(par, par_fitness_classes_code))         { tex_flush_specification_node(properties.fitness_classes); }
         if (properties.adjacent_demerits       != tex_get_par_par(par, par_adjacent_demerits_code))       { tex_flush_specification_node(properties.adjacent_demerits); }
         if (properties.orphan_line_factors     != tex_get_par_par(par, par_orphan_line_factors_code))     { tex_flush_specification_node(properties.orphan_line_factors); }
+        if (properties.hyphen_demerits         != tex_get_par_par(par, par_hyphen_demerits_code))         { tex_flush_specification_node(properties.hyphen_demerits); }
         if (properties.line_snapping           != tex_get_par_par(par, par_line_snapping_code))           { tex_flush_specification_node(properties.line_snapping); }
         return 2;
     } else {

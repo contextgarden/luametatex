@@ -2209,7 +2209,7 @@ halfword tex_hpack(halfword p, scaled target, int method, singleword pack_direct
                     break;
                 }
             case kern_node:
-                if (adjust_spacing == adjust_spacing_full && node_subtype(p) == font_kern_subtype) {
+                if (adjust_spacing_with_kerns(adjust_spacing) && node_subtype(p) == font_kern_subtype) {
                     switch (method) {
                         case packing_expanded:
                             {
@@ -2366,7 +2366,8 @@ halfword tex_hpack(halfword p, scaled target, int method, singleword pack_direct
         halfword order = tex_aux_used_order(lmt_packaging_state.total_stretch);
         if ((method == packing_expanded) && (order == normal_glue_order) && (font_stretch > 0)) {
          // lmt_packaging_state.font_expansion_ratio = tex_divide_scaled_n(excess, font_stretch, scaling_factor_double);
-            lmt_packaging_state.font_expansion_ratio = tex_divide_scaled_factor(excess, font_stretch);
+            /*tex In the |*_glue| modes the glyphs and the glue share the excess. */
+            lmt_packaging_state.font_expansion_ratio = tex_divide_scaled_factor(excess, adjust_spacing_with_glue(adjust_spacing) ? font_stretch + lmt_packaging_state.total_stretch[normal_glue_order] : font_stretch);
             goto EXIT;
         }
         box_glue_order(result) = order;
@@ -2428,7 +2429,7 @@ halfword tex_hpack(halfword p, scaled target, int method, singleword pack_direct
         halfword order = tex_aux_used_order(lmt_packaging_state.total_shrink);
         if ((method == packing_expanded) && (order == normal_glue_order) && (font_shrink > 0)) {
          // lmt_packaging_state.font_expansion_ratio = tex_divide_scaled_n(excess, font_shrink, scaling_factor_double);
-            lmt_packaging_state.font_expansion_ratio = tex_divide_scaled_factor(excess, font_shrink);
+            lmt_packaging_state.font_expansion_ratio = tex_divide_scaled_factor(excess, adjust_spacing_with_glue(adjust_spacing) ? font_shrink + lmt_packaging_state.total_shrink[normal_glue_order] : font_shrink);
             goto EXIT;
         }
         box_glue_order(result) = order;

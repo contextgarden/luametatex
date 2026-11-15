@@ -699,9 +699,14 @@ typedef enum math_extension_modes {
 typedef enum adjust_spacing_modes {
     adjust_spacing_off,
     adjust_spacing_unused, 
-    adjust_spacing_full,   /* glyphs and kerns */
-    adjust_spacing_font,   /* glyphs */
+    adjust_spacing_full,       /* glyphs and kerns */
+    adjust_spacing_font,       /* glyphs */
+    adjust_spacing_full_glue,  /* glyphs and kerns + glue shared */
+    adjust_spacing_font_glue,  /* glyphs + glue shared  */
 } adjust_spacing_modes;
+
+# define adjust_spacing_with_kerns(a) ((a) == adjust_spacing_full      || (a) == adjust_spacing_full_glue)
+# define adjust_spacing_with_glue(a)  ((a) == adjust_spacing_full_glue || (a) == adjust_spacing_font_glue)
 
 typedef enum protrude_chars_modes {
     protrude_chars_off,

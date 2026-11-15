@@ -55,7 +55,7 @@
 
 */
 
-# define luametatex_format_fingerprint 738
+# define luametatex_format_fingerprint 739
 
 typedef enum dump_statistics {
     dump_stat_fingerprint,

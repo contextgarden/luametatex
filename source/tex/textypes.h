@@ -880,6 +880,7 @@ typedef struct line_break_properties {
     halfword right_twin_demerits;
     halfword fitness_classes;
     halfword adjacent_demerits;
+    halfword hyphen_demerits;
     halfword orphan_line_factors;
     halfword broken_penalty;
     halfword broken_penalties;
@@ -904,6 +905,9 @@ typedef struct line_break_properties {
     halfword math_penalty_factor;
     halfword sf_factor;
     halfword sf_stretch_factor;
+    /*tex Experimental, only in par passes (for now). */
+    halfword ratio_demerits;
+    halfword emergency_honest;
     /* */
     halfword raggedness;
     halfword par_fill_mode;

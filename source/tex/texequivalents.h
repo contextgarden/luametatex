@@ -410,6 +410,7 @@ typedef enum specification_codes {
     orphan_line_factors_code,
     math_forward_penalties_code,
     math_backward_penalties_code,
+    hyphen_demerits_code,
     integer_list_code,
     dimension_list_code,
     posit_list_code,
@@ -417,7 +418,7 @@ typedef enum specification_codes {
 } specification_codes;
 
 # define first_specification_code       par_shape_code
-# define last_specification_code        math_backward_penalties_code
+# define last_specification_code        hyphen_demerits_code
 # define first_specification_list_code  integer_list_code
 # define last_specification_list_code   posit_list_code
 
@@ -1759,6 +1760,7 @@ extern void tex_word_define        (int g, halfword p, halfword w);
 # define output_routine_par               toks_parameter(output_routine_code)
 
 # define adjacent_demerits_par            specification_parameter(adjacent_demerits_code)
+# define hyphen_demerits_par              specification_parameter(hyphen_demerits_code)
 # define balance_passes_par               specification_parameter(balance_passes_code)
 # define balance_shape_par                specification_parameter(balance_shape_code)
 # define balance_final_penalties_par      specification_parameter(balance_final_penalties_code)
