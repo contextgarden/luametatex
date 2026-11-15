@@ -319,53 +319,59 @@ static inline halfword tex_matcher_build_token_list(const halfword *arr, int sta
 /*tex
 
     Because this is critital code we tested this on Hans and Mikaels machine with various 
-    documents and the test suite. We also ley Claude check both code paths for error made 
-    in the transition. A particular (new) feature |terminal| was only tested on \LUA\ 
-    defined scanners and tests showed some issues. So we formulated the conditions: 
+    documents and the test suite. We also ley Claude check both code paths for possible errors 
+    made in the transition. A particular (new) feature |terminal| was only tested on \LUA\ 
+    defined scanners and tests showed some issues. 
+    
+    As the code evolved I decided to automate the \ASCII\ detection and then we moved the lower 
+    and uppercase codes in a union. That made for a different terminator test (now also okay for 
+    \UNICODE). We formulated the conditions and let Claude wrap them up and perform tests: 
 
-    A terminal keyword can be followed by anything but a letter, so |depth1sp|, |depth 1sp| and
-    |foo\relax| are fine but |fooxx| is not. Detokenized letters (catcode other) count as 
-    letters. So: reject the keyword only when the next token is a letter. That means catcode 
-    11, or an ASCII letter with catcode 12. The second check matters because the matcher already 
-    accepts catcode-12 letters inside a keyword, so \detokenize{okayx} should be rejected too.
-    Anything else ends the keyword: a space, a digit, ., a brace, |\relax| (common when we parse 
-    for e.g. a number or dimension) or any other control sequence.
+    \startquotation 
+    Instead of rejecting letters we only accept what can start a number, dimension or glue (see
+    |scan_integer| and |scan_dimension|): digits, signs, a period or comma, the octal, hexadecimal
+    and alphabetic prefixes, and an equal sign because |source| and |target| accept one. As these
+    are all \ASCII\ (catcode other) we don't need to know what is a letter in other scripts. All
+    other tokens (spaces, braces, |\relax| and other control sequences) end the keyword too.
+    \stopquotation 
 
-    Claude then suggested to move the text from the switch to after it and test more strict and 
-    that worked out okay (we used |okay| as test keyword without parameter scanning). It made 
-    thsi report: 
+    So: 
 
-    ┌──────────────────────────────────────────┬──────────┐
-    │ okay\relax, okay x, depth 1sp            │ accepted │
-    ├──────────────────────────────────────────┼──────────┤
-    │ depth1sp                                 │ accepted │
-    ├──────────────────────────────────────────┼──────────┤
-    │ okayxx                                   │ rejected │
-    ├──────────────────────────────────────────┼──────────┤
-    │ okay1, okay., OKAY1                      │ accepted │
-    ├──────────────────────────────────────────┼──────────┤
-    │ \detokenize{okayx}, okayokay             │ rejected │
-    ├──────────────────────────────────────────┼──────────┤
-    │ Lua matcher with foo/foobar: foox, foobx │ rejected │
-    ├──────────────────────────────────────────┼──────────┤
-    │ Same Lua matcher: foobar1                │ accepted │
-    └──────────────────────────────────────────┴──────────┘
+    ┌────────────────────────────────────────────────────────────────────────────────────┬───────────┐
+    │ depth-1sp, depth+1sp, depth,5pt, depth"10sp, depth'7sp, depth`a sp, depth{1pt+1pt} │ accepted  │
+    ├────────────────────────────────────────────────────────────────────────────────────┼───────────┤
+    │ okay=                                                                              │ accepted  │
+    ├────────────────────────────────────────────────────────────────────────────────────┼───────────┤
+    │ okay;, okay)                                                                       │ rejected  │
+    ├────────────────────────────────────────────────────────────────────────────────────┼───────────┤
+    │ \detokenize{okayé}, \detokenize{okayα}                                             │ rejected  │
+    ├────────────────────────────────────────────────────────────────────────────────────┼───────────┤
+    │ okayα (catcode 11)                                                                 │ rejected  │
+    └────────────────────────────────────────────────────────────────────────────────────┴───────────┘
 
     This feature might be enabled in the future if we decide to modernize scanning and error
     reporting (read: away from some traditional \TEX\ artifacts). 
 
 */
 
-static inline int tex_matcher_is_letter(halfword cmd, halfword chr)
+static inline int tex_matcher_is_terminator(halfword cmd, halfword chr)
 {
-    switch (cmd) {
-        case letter_cmd:
-            return 1;
-        case other_char_cmd:
-            return (chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z');
-        default:
+     switch (cmd) {
+         case letter_cmd:
             return 0;
-    }
+         case other_char_cmd:
+            switch (chr) {
+                case '0': case '1': case '2': case '3': case '4':
+                case '5': case '6': case '7': case '8': case '9':
+                case '+': case '-': case '.': case ',':
+                case '\'': case '"': case '`': case '=':
+                    return 1;
+                default:
+                    return 0;
+            }
+         default:
+            return 1;
+     }
 }
 
 int tex_matcher_use(const keyword_matcher *matcher, int intercept)
@@ -468,8 +474,8 @@ int tex_matcher_use(const keyword_matcher *matcher, int intercept)
         or the current one, which is also the lookahead after a keyword without children.
     */
     if (best_i && is_terminal) {
-        if (best_n < n ? tex_matcher_is_letter(token_cmd(token_arr[best_n]), token_chr(token_arr[best_n]))
-                       : tex_matcher_is_letter(cur_cmd, cur_chr)) {
+        if (best_n < n ? ! tex_matcher_is_terminator(token_cmd(token_arr[best_n]), token_chr(token_arr[best_n]))
+                       : ! tex_matcher_is_terminator(cur_cmd, cur_chr)) {
             best_i = 0;
         }
     }

@@ -2525,9 +2525,14 @@ static scaled tex_aux_try_break(
     halfword best_place_line [max_n_of_fitness_values] = { 0 };
     scaled   best_place_short[max_n_of_fitness_values] = { 0 };
     scaled   best_place_glue [max_n_of_fitness_values] = { 0 };
+    /*tex
+        The badness of the line that ends at the best place. We used to store the badness of the
+        most recently tested line but that can be a line from another active node so it is not
+        always the badness of the line that ends up in the paragraph.
+    */
+    halfword best_place_badness[max_n_of_fitness_values] = { 0 };
     /*tex badness of test line */
     halfword badness = 0;
-    halfword prev_badness = 0;
     /*tex demerits of test line */
     int demerits = 0;
     /*tex glue stretch or shrink of test line, adjustment for last line */
@@ -2750,7 +2755,7 @@ static scaled tex_aux_try_break(
                             active_hang_r_index(active) = (quarterword) lmt_linebreak_state.local_hang_r_index;
                             active_total_demerits(active) = lmt_linebreak_state.minimal_demerits[fit_class];
                             /*tex Store additional data in the new active node. */
-                            tex_aux_set_quality(active, passive, best_place_short[fit_class], best_place_glue[fit_class], line_width, prev_badness);
+                            tex_aux_set_quality(active, passive, best_place_short[fit_class], best_place_glue[fit_class], line_width, best_place_badness[fit_class]);
                             /*tex Append the passive node. */
                             node_next(passive) = lmt_linebreak_state.passive;
                             lmt_linebreak_state.passive = passive;
@@ -3171,7 +3176,6 @@ static scaled tex_aux_try_break(
             */
             demerits += tex_get_demerits(properties, distance, fit_current, fit_class);
         }
-        prev_badness = badness;
         if lmt_unlikely(properties->tracing_paragraphs > 0) {
          // tex_begin_diagnostic();
             tex_aux_print_feasible_break(cur_p, current, badness, penalty, demerits, artificial_demerits, fit_class, lmt_linebreak_state.printed_node);
@@ -3190,6 +3194,7 @@ static scaled tex_aux_try_break(
             */
             best_place_short[fit_class] = shortfall;
             best_place_glue[fit_class] = glue;
+            best_place_badness[fit_class] = badness;
             if (demerits < lmt_linebreak_state.minimum_demerits) {
                 lmt_linebreak_state.minimum_demerits = demerits;
             }
@@ -3413,11 +3418,24 @@ static inline int tex_aux_emergency_skip(halfword s)
     return ! tex_glue_is_zero(s) && glue_stretch_order(s) == normal_glue_order && glue_shrink_order(s) == normal_glue_order;
 }
 
-static scaled tex_check_linebreak_quality(scaled shortfall, scaled *overfull, scaled *underfull, halfword *verdict, halfword *classified)
+/*tex
+    The |best_bet| is an active node. Its break node is the passive node of the last line and from
+    there we walk back over the lines of the chosen solution. (This used to start at that passive
+    node and then read it with the active node accessors, as a consequence of which the data of the
+    last line was not seen and the verdict started out with an unrelated value. The |badness| is the 
+    largest badness of a line in the solution: an overfull line has |infinite_bad + 1|. Contrary to 
+    the |overfull| value this also sees the last line when there are more lines: the shortfall of 
+    the last line is set to zero in |tex_aux_try_break| (last line fit). For a single line we get 
+    its shortfall passed, see the |else| branch below.
+*/
+
+static scaled tex_check_linebreak_quality(scaled shortfall, scaled *overfull, scaled *underfull, halfword *verdict, halfword *classified, halfword *badness)
 {
-    halfword active = active_break_node(lmt_linebreak_state.best_bet);
-    halfword passive = passive_prev_break(active);
+    halfword active = lmt_linebreak_state.best_bet;
+    halfword final_passive = active_break_node(active);
+    halfword passive = passive_prev_break(final_passive);
     int result = 1;
+    *badness = passive_badness(final_passive);
     /* last line ... */
     switch (active_quality(active)) {
         case par_is_overfull:
@@ -3458,6 +3476,9 @@ static scaled tex_check_linebreak_quality(scaled shortfall, scaled *overfull, sc
             if (passive_demerits(passive) > *verdict) {
                 *verdict = passive_demerits(passive);
             }
+            if (passive_badness(passive) > *badness) {
+                *badness = passive_badness(passive);
+            }
             passive = passive_prev_break(passive);
         }
     } else {
@@ -3467,11 +3488,8 @@ static scaled tex_check_linebreak_quality(scaled shortfall, scaled *overfull, sc
             might need an option to disable this branch when we go for par passes only in order
             to be compatible with regular TeX.
         */
-        if (passive_demerits(active) > *verdict) {
-            *verdict = passive_demerits(active);
-            result = 2;
-        }
-        if (-shortfall > *overfull) {
+      // if (-shortfall > *overfull) { /* saves useless pass: */
+         if (*badness > infinite_bad && -shortfall > *overfull) {
             *overfull = -shortfall;
             result = 2;
         }
@@ -4377,6 +4395,7 @@ static int tex_aux_set_sub_pass_parameters(
         tex_print_str_len("  --------------------------------\n", 35);
         tex_print_format ("%s threshold              %p\n", is_okay(passes_threshold_okay), tex_get_passes_threshold(passes, subpass));
         tex_print_format ("%s demerits               %i\n", is_okay(passes_demerits_okay), tex_get_passes_demerits(passes, subpass));
+        tex_print_format ("%s badness                %i\n", is_okay(passes_badness_okay), tex_get_passes_badness(passes, subpass));
         tex_print_format ("%s classes                %X\n", is_okay(passes_classes_okay), tex_get_passes_classes(passes, subpass));
         tex_print_str_len("  --------------------------------\n", 35);
         tex_print_format ("%s tolerance              %i\n", is_okay(passes_tolerance_okay), properties->tolerance);
@@ -4587,8 +4606,9 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
     scaled underfull = 0;
     halfword verdict = 0;
     halfword classified = 0;
+    halfword worst = 0;
     int tracing = properties->tracing_paragraphs > 0 || properties->tracing_passes > 0;
-    int result = tex_check_linebreak_quality(shortfall, &overfull, &underfull, &verdict, &classified);
+    int result = tex_check_linebreak_quality(shortfall, &overfull, &underfull, &verdict, &classified, &worst);
     if (result) {
         if lmt_unlikely(tracing && result > 1) {
             tex_print_format(
@@ -4611,6 +4631,7 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
                     scaled threshold = tex_get_passes_threshold(passes, subpass);
                     halfword demerits = tex_get_passes_demerits(passes, subpass);
                     halfword classes = tex_get_passes_classes(passes, subpass);
+                    halfword badness = tex_get_passes_badness(passes, subpass);
                     /* */
                     int callback = features & passes_callback_set;
                     int success = 0;
@@ -4620,6 +4641,7 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
                               ? 1
                               : ((okay & passes_threshold_okay ) && (overfull > threshold))
                              || ((okay & passes_demerits_okay  ) && (verdict  > demerits))
+                             || ((okay & passes_badness_okay   ) && (worst    > badness))
                              || ((okay & passes_classes_okay   ) && (classes && (classes & classified) != 0))
                     ;
                     if lmt_unlikely(properties->tracing_passes > 1) {
@@ -4638,6 +4660,11 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
                                 verdict > demerits, verdict, demerits
                             );
                         }
+                        if (okay & passes_badness_okay) {
+                            tex_print_format("%l[linebreak:   %i : worst    > badness     : %i > %i]\n",
+                                worst > badness, worst, badness
+                            );
+                        }
                         if (classes && (okay & passes_classes_okay)) {
                             tex_print_format("%l[linebreak:   %i : classes  & classified  : %X & %X]\n",
                                  (classes & classified) != 0, classes, classified
@@ -4652,8 +4679,8 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
                         int id = passes_identifier(passes);
                         tex_begin_diagnostic();
                         if (callback) {
-                            tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, classified %x, %s]\n",
-                                id, subpass, nofsubpasses, overfull, underfull, verdict, classified, "callback"
+                            tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, worst %i, classified %x, %s]\n",
+                                id, subpass, nofsubpasses, overfull, underfull, verdict, worst, classified, "callback"
                             );
                         } else {
                             const char *action = retry ? "retry" : "skipped";
@@ -4662,22 +4689,22 @@ static inline int tex_aux_check_sub_pass(line_break_properties *properties, half
                             }
                             if (threshold == max_dimension) {
                                 if (demerits == max_dimension) {
-                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, classified %x, %s]\n",
-                                        id, subpass, nofsubpasses, overfull, underfull, verdict, classified, action
+                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, worst %i, classified %x, %s]\n",
+                                        id, subpass, nofsubpasses, overfull, underfull, verdict, worst, classified, action
                                     );
                                 } else {
-                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, demerits %i, classified %x, %s]\n",
-                                        id, subpass, nofsubpasses, overfull, underfull, verdict, demerits, classified, action
+                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, worst %i, demerits %i, classified %x, %s]\n",
+                                        id, subpass, nofsubpasses, overfull, underfull, verdict, worst, demerits, classified, action
                                     );
                                 }
                             } else {
                                 if (demerits == max_dimension) {
-                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, threshold %p, classified %x, %s]\n",
-                                        id, subpass, nofsubpasses, overfull, underfull, verdict, threshold, classified, action
+                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, worst %i, threshold %p, classified %x, %s]\n",
+                                        id, subpass, nofsubpasses, overfull, underfull, verdict, worst, threshold, classified, action
                                     );
                                 } else {
-                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, threshold %p, demerits %i, classified %x, %s]\n",
-                                        id, subpass, nofsubpasses, overfull, underfull, verdict, threshold, demerits, classified, action
+                                    tex_print_format("%l[linebreak: id %i, subpass %i of %i, overfull %p, underfull %p, verdict %i, worst %i, threshold %p, demerits %i, classified %x, %s]\n",
+                                        id, subpass, nofsubpasses, overfull, underfull, verdict, worst, threshold, demerits, classified, action
                                     );
                                 }
                             }
@@ -5814,10 +5841,15 @@ void tex_do_line_break(line_break_properties *properties)
                 } else {
                     switch (subpass) {
                         case -2:
-                            lmt_linebreak_state.threshold = properties->pretolerance;
-                            lmt_linebreak_state.force_check_hyphenation = 0;
-                            subpass = -1;
-                            break;
+                            /*tex As in \TEX\ a negative |\pretolerance| skips the first pass. */
+                            if (properties->pretolerance >= 0) {
+                                lmt_linebreak_state.threshold = properties->pretolerance;
+                                lmt_linebreak_state.force_check_hyphenation = 0;
+                                subpass = -1;
+                                break;
+                            } else {
+                                FALLTHROUGH
+                            }
                         case -1:
                             lmt_linebreak_state.threshold = properties->tolerance;
                             lmt_linebreak_state.force_check_hyphenation = 1;
@@ -6004,7 +6036,14 @@ void tex_do_line_break(line_break_properties *properties)
                 }
             }
         }
-        if (subpass <= passes_first_final(passes)) {
+        /*tex
+            When the |\pretolerance| run (now at |-1|) failed we still have to do the |\tolerance|
+            run, so like after a successful run we don't advance here. Advancing to |0| would skip
+            the |-1| step that sets the tolerance and the next runs would use the pretolerance.
+        */
+        if (pass == linebreak_specification_pass && subpass < 0) {
+            /*tex Next we do the |\tolerance| run. */
+        } else if (subpass <= passes_first_final(passes)) {
             ++subpass;
         }
       HERE:
@@ -6060,7 +6099,8 @@ void tex_do_line_break(line_break_properties *properties)
             scaled underfull = 0;
             halfword verdict = 0;
             halfword classified = 0;
-            tex_check_linebreak_quality(0, &overfull, &underfull, &verdict, &classified);
+            halfword worst = 0;
+            tex_check_linebreak_quality(0, &overfull, &underfull, &verdict, &classified, &worst);
             tex_aux_quality_callback(callback_id, first,
                 passes ? passes_identifier(passes) : 0, pass, subpass, subpasses, state,
                 overfull, underfull, verdict, classified

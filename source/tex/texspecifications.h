@@ -313,6 +313,7 @@ typedef enum passes_parameter_okay {
 # define passes_tolerance_okay           (uint64_t) 0x0000000400000000
 # define passes_classes_okay             (uint64_t) 0x0000000800000000
 # define passes_emergencyunit_okay       (uint64_t) 0x0000001000000000
+# define passes_badness_okay             (uint64_t) 0x0000002000000000
 
 static const uint64_t passes_basics_okay = 
     passes_hyphenation_okay 
@@ -390,6 +391,7 @@ static inline void     tex_set_passes_orphanlinefactors    (halfword a, halfword
 static inline void     tex_set_passes_orphanpenalties      (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,19)).half0    = v; }
 static inline void     tex_set_passes_emergencyunit        (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,19)).half1    = v; }
 static inline void     tex_set_passes_raggedness           (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,20)).half0    = v; } // quart
+static inline void     tex_set_passes_badness              (halfword a, halfword n, halfword v) { specification_index(a,par_passes_slot(n,20)).half1    = v; }
 
 static inline uint64_t tex_get_passes_okay                 (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 1)).long0;   }
 static inline halfword tex_get_passes_features             (halfword a, halfword n) { return specification_index(a,par_passes_slot(n, 2)).quart00; }
@@ -430,6 +432,7 @@ static inline halfword tex_get_passes_orphanlinefactors    (halfword a, halfword
 static inline halfword tex_get_passes_orphanpenalties      (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,19)).half0;   }
 static inline halfword tex_get_passes_emergencyunit        (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,19)).half1;   }
 static inline halfword tex_get_passes_raggedness           (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,20)).half0;   }
+static inline halfword tex_get_passes_badness              (halfword a, halfword n) { return specification_index(a,par_passes_slot(n,20)).half1;   }
 
 /* balance shape */
 

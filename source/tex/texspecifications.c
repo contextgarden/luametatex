@@ -684,6 +684,7 @@ typedef enum parpasses_keys {
     parpasses_key_adjustspacingstep,
     parpasses_key_adjustspacingstretch,
     parpasses_key_adjustspacingshrink,
+    parpasses_key_badness,
     parpasses_key_callback,
     parpasses_key_classes,
     parpasses_key_demerits,
@@ -739,6 +740,7 @@ static const char *parpasses_words[] = {
     "adjustspacingstep",
     "adjustspacingstretch",
     "adjustspacingshrink",
+    "badness",
     "callback",
     "classes",
     "demerits",
@@ -845,6 +847,11 @@ static halfword tex_aux_scan_specification_par_passes(void)
                 case parpasses_key_adjustspacing:
                     tex_set_passes_adjustspacing(p, n, tex_scan_integer(0, NULL, NULL));   
                     tex_set_passes_okay(p, n, passes_adjustspacing_okay);
+                    break;
+                case parpasses_key_badness:
+                    tex_set_passes_badness(p, n, tex_scan_integer(0, NULL, NULL));
+                    tex_set_passes_features(p, n, passes_criterium_set);
+                    tex_set_passes_okay(p, n, passes_badness_okay);
                     break;
                 case parpasses_key_callback:
                     tex_set_passes_callback(p, n, tex_scan_integer(0, NULL, NULL));
@@ -1030,7 +1037,7 @@ static halfword tex_aux_scan_specification_par_passes(void)
 # else 
 
         while (n <= count) {
-            switch (tex_scan_character("acdefhilmnoqrstu", 0, 1, 0)) {
+            switch (tex_scan_character("abcdefhilmnoqrstu", 0, 1, 0)) {
                 case 0:
                     goto DONE;
                 case 'a':
@@ -1093,6 +1100,13 @@ static halfword tex_aux_scan_specification_par_passes(void)
                       NOTDONE1:
                         tex_aux_show_keyword_error("adjdemerits|adjacentdemerits|adjustspacing|adjustspacingstep|adjustspacingshrink|adjustspacingstretch");
                         goto DONE;
+                    }
+                    break;
+                case 'b':
+                    if (tex_scan_mandate_keyword("badness", 1)) {
+                        tex_set_passes_badness(p, n, tex_scan_integer(0, NULL, NULL));
+                        tex_set_passes_features(p, n, passes_criterium_set);
+                        tex_set_passes_okay(p, n, passes_badness_okay);
                     }
                     break;
                 case 'c':
