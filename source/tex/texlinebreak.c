@@ -428,85 +428,88 @@ void tex_line_break(int group_context, int par_context, int display_math)
                 }
             } else {
                 line_break_properties properties = {
-                    .initial_par             = par,
-                    .group_context           = group_context,
-                    .par_context             = par_context,
-                    .tracing_paragraphs      = tracing_paragraphs_par,
-                    .tracing_fitness         = tracing_fitness_par,
-                    .tracing_passes          = tracing_passes_par,
-                    .tracing_raggedness      = tracing_raggedness_par,
-                    .tracing_toddlers        = tracing_toddlers_par,
-                    .tracing_orphans         = tracing_orphans_par,
-                    .paragraph_direction     = par_direction(par),
-                    .paragraph_options       = par_options(par),
-                    .parfill_left_skip       = parfill_left_skip_glue,
-                    .parfill_right_skip      = parfill_right_skip_glue,
-                    .parinit_left_skip       = parinit_left_skip_glue,
-                    .parinit_right_skip      = parinit_right_skip_glue,
-                    .tolerance               = tex_get_par_par(par, par_tolerance_code),
-                    .emergency_stretch       = tex_get_par_par(par, par_emergency_stretch_code),
-                    .emergency_original      = 0, /*tex This one is set afterwards. */
-                    .looseness               = tex_get_par_par(par, par_looseness_code),
-                    .adjust_spacing          = tex_get_par_par(par, par_adjust_spacing_code),
-                    .protrude_chars          = tex_get_par_par(par, par_protrude_chars_code),
-                    .adj_demerits            = tex_get_par_par(par, par_adj_demerits_code),
-                    .line_penalty            = tex_get_par_par(par, par_line_penalty_code),
-                    .last_line_fit           = tex_get_par_par(par, par_last_line_fit_code),
-                    .double_hyphen_demerits  = tex_get_par_par(par, par_double_hyphen_demerits_code),
-                    .final_hyphen_demerits   = tex_get_par_par(par, par_final_hyphen_demerits_code),
-                    .hsize                   = tex_get_par_par(par, par_hsize_code),
-                    .left_skip               = tex_get_par_par(par, par_left_skip_code),
-                    .right_skip              = tex_get_par_par(par, par_right_skip_code),
-                    .emergency_left_skip     = tex_get_par_par(par, par_emergency_left_skip_code),
-                    .emergency_right_skip    = tex_get_par_par(par, par_emergency_right_skip_code),
-                    .pretolerance            = tex_get_par_par(par, par_pre_tolerance_code),
-                    .hang_indent             = tex_get_par_par(par, par_hang_indent_code),
-                    .hang_after              = tex_get_par_par(par, par_hang_after_code),
-                    .par_shape               = tex_get_par_par(par, par_par_shape_code),
-                    .inter_line_penalty      = tex_get_par_par(par, par_inter_line_penalty_code),
-                    .inter_line_penalties    = tex_get_par_par(par, par_inter_line_penalties_code),
-                    .club_penalty            = tex_get_par_par(par, par_club_penalty_code),
-                    .club_penalties          = tex_get_par_par(par, par_club_penalties_code),
-                    .widow_penalty           = tex_get_par_par(par, par_widow_penalty_code),
-                    .widow_penalties         = tex_get_par_par(par, par_widow_penalties_code),
-                    .display_widow_penalty   = tex_get_par_par(par, par_display_widow_penalty_code),
-                    .display_widow_penalties = tex_get_par_par(par, par_display_widow_penalties_code),
-                    .broken_penalties        = tex_get_par_par(par, par_broken_penalties_code),
-                    .toddler_penalties       = tex_get_par_par(par, par_toddler_penalties_code),
-                    .left_twin_demerits      = tex_get_par_par(par, par_left_twin_demerits_code),
-                    .right_twin_demerits     = tex_get_par_par(par, par_right_twin_demerits_code),
-                    .single_line_penalty     = tex_get_par_par(par, par_single_line_penalty_code),
-                    .hyphen_penalty          = tex_get_par_par(par, par_hyphen_penalty_code),
-                    .ex_hyphen_penalty       = tex_get_par_par(par, par_ex_hyphen_penalty_code),
-                    .fitness_classes         = tex_get_par_par(par, par_fitness_classes_code),
-                    .adjacent_demerits       = tex_get_par_par(par, par_adjacent_demerits_code),
-                    .hyphen_demerits         = tex_get_par_par(par, par_hyphen_demerits_code),
-                    .orphan_line_factors     = tex_get_par_par(par, par_orphan_line_factors_code),
-                    .orphan_penalties        = tex_get_par_par(par, par_orphan_penalties_code),
-                    .broken_penalty          = tex_get_par_par(par, par_broken_penalty_code),
-                    .baseline_skip           = tex_get_par_par(par, par_baseline_skip_code),
-                    .line_skip               = tex_get_par_par(par, par_line_skip_code),
-                    .line_skip_limit         = tex_get_par_par(par, par_line_skip_limit_code),
-                    .adjust_spacing_step     = tex_get_par_par(par, par_adjust_spacing_step_code),
-                    .adjust_spacing_shrink   = tex_get_par_par(par, par_adjust_spacing_shrink_code),
-                    .adjust_spacing_stretch  = tex_get_par_par(par, par_adjust_spacing_stretch_code),
-                    .hyphenation_mode        = tex_get_par_par(par, par_hyphenation_mode_code),
-                    .shaping_penalties_mode  = tex_get_par_par(par, par_shaping_penalties_mode_code),
-                    .shaping_penalty         = tex_get_par_par(par, par_shaping_penalty_code),
-                    .emergency_extra_stretch = tex_get_par_par(par, par_emergency_extra_stretch_code),
-                    .par_passes              = line_break_passes_par > 0 ? tex_get_par_par(par, par_par_passes_code) : 0,
-                    .line_snapping           = tex_get_par_par(par, par_line_snapping_code),
-                    .line_break_checks       = tex_get_par_par(par, par_line_break_checks_code),
-                    .extra_hyphen_penalty    = 0,
-                    .line_break_optional     = line_break_optional_par, /* hm, why different than above */
-                    .math_penalty_factor     = 0,
-                    .sf_factor               = 0,
-                    .sf_stretch_factor       = 0,
-                    .ratio_demerits          = 0,
-                    .emergency_honest        = 0,
-                    .max_adj_demerits        = 0,
-                    .raggedness              = 0,
-                    .par_fill_mode           = tex_get_par_par(par, par_par_fill_mode_code),
+                    .initial_par                = par,
+                    .group_context              = group_context,
+                    .par_context                = par_context,
+                    .tracing_paragraphs         = tracing_paragraphs_par,
+                    .tracing_fitness            = tracing_fitness_par,
+                    .tracing_passes             = tracing_passes_par,
+                    .tracing_raggedness         = tracing_raggedness_par,
+                    .tracing_toddlers           = tracing_toddlers_par,
+                    .tracing_orphans            = tracing_orphans_par,
+                    .paragraph_direction        = par_direction(par),
+                    .paragraph_options          = par_options(par),
+                    .parfill_left_skip          = parfill_left_skip_glue,
+                    .parfill_right_skip         = parfill_right_skip_glue,
+                    .parinit_left_skip          = parinit_left_skip_glue,
+                    .parinit_right_skip         = parinit_right_skip_glue,
+                    .tolerance                  = tex_get_par_par(par, par_tolerance_code),
+                    .emergency_stretch          = tex_get_par_par(par, par_emergency_stretch_code),
+                    .emergency_original         = 0, /*tex This one is set afterwards. */
+                    .looseness                  = tex_get_par_par(par, par_looseness_code),
+                    .adjust_spacing             = tex_get_par_par(par, par_adjust_spacing_code),
+                    .protrude_chars             = tex_get_par_par(par, par_protrude_chars_code),
+                    .adj_demerits               = tex_get_par_par(par, par_adj_demerits_code),
+                    .line_penalty               = tex_get_par_par(par, par_line_penalty_code),
+                    .last_line_fit              = tex_get_par_par(par, par_last_line_fit_code),
+                    .double_hyphen_demerits     = tex_get_par_par(par, par_double_hyphen_demerits_code),
+                    .final_hyphen_demerits      = tex_get_par_par(par, par_final_hyphen_demerits_code),
+                    .hsize                      = tex_get_par_par(par, par_hsize_code),
+                    .left_skip                  = tex_get_par_par(par, par_left_skip_code),
+                    .right_skip                 = tex_get_par_par(par, par_right_skip_code),
+                    .emergency_left_skip        = tex_get_par_par(par, par_emergency_left_skip_code),
+                    .emergency_right_skip       = tex_get_par_par(par, par_emergency_right_skip_code),
+                    .pretolerance               = tex_get_par_par(par, par_pre_tolerance_code),
+                    .hang_indent                = tex_get_par_par(par, par_hang_indent_code),
+                    .hang_after                 = tex_get_par_par(par, par_hang_after_code),
+                    .par_shape                  = tex_get_par_par(par, par_par_shape_code),
+                    .inter_line_penalty         = tex_get_par_par(par, par_inter_line_penalty_code),
+                    .inter_line_penalties       = tex_get_par_par(par, par_inter_line_penalties_code),
+                    .club_penalty               = tex_get_par_par(par, par_club_penalty_code),
+                    .club_penalties             = tex_get_par_par(par, par_club_penalties_code),
+                    .widow_penalty              = tex_get_par_par(par, par_widow_penalty_code),
+                    .widow_penalties            = tex_get_par_par(par, par_widow_penalties_code),
+                    .display_widow_penalty      = tex_get_par_par(par, par_display_widow_penalty_code),
+                    .display_widow_penalties    = tex_get_par_par(par, par_display_widow_penalties_code),
+                    .broken_penalties           = tex_get_par_par(par, par_broken_penalties_code),
+                    .toddler_penalties          = tex_get_par_par(par, par_toddler_penalties_code),
+                    .left_twin_demerits         = tex_get_par_par(par, par_left_twin_demerits_code),
+                    .right_twin_demerits        = tex_get_par_par(par, par_right_twin_demerits_code),
+                    .single_line_penalty        = tex_get_par_par(par, par_single_line_penalty_code),
+                    .hyphen_penalty             = tex_get_par_par(par, par_hyphen_penalty_code),
+                    .ex_hyphen_penalty          = tex_get_par_par(par, par_ex_hyphen_penalty_code),
+                    .fitness_classes            = tex_get_par_par(par, par_fitness_classes_code),
+                    .adjacent_demerits          = tex_get_par_par(par, par_adjacent_demerits_code),
+                    .hyphen_demerits            = tex_get_par_par(par, par_hyphen_demerits_code),
+                    .orphan_line_factors        = tex_get_par_par(par, par_orphan_line_factors_code),
+                    .orphan_penalties           = tex_get_par_par(par, par_orphan_penalties_code),
+                    .broken_penalty             = tex_get_par_par(par, par_broken_penalty_code),
+                    .baseline_skip              = tex_get_par_par(par, par_baseline_skip_code),
+                    .line_skip                  = tex_get_par_par(par, par_line_skip_code),
+                    .line_skip_limit            = tex_get_par_par(par, par_line_skip_limit_code),
+                    .adjust_spacing_step        = tex_get_par_par(par, par_adjust_spacing_step_code),
+                    .adjust_spacing_shrink      = tex_get_par_par(par, par_adjust_spacing_shrink_code),
+                    .adjust_spacing_stretch     = tex_get_par_par(par, par_adjust_spacing_stretch_code),
+                    .hyphenation_mode           = tex_get_par_par(par, par_hyphenation_mode_code),
+                    .shaping_penalties_mode     = tex_get_par_par(par, par_shaping_penalties_mode_code),
+                    .shaping_penalty            = tex_get_par_par(par, par_shaping_penalty_code),
+                    .emergency_extra_stretch    = tex_get_par_par(par, par_emergency_extra_stretch_code),
+                    .par_passes                 = line_break_passes_par > 0 ? tex_get_par_par(par, par_par_passes_code) : 0,
+                    .line_snapping              = tex_get_par_par(par, par_line_snapping_code),
+                    .line_break_checks          = tex_get_par_par(par, par_line_break_checks_code),
+                    .extra_hyphen_penalty       = 0,
+                    .line_break_optional        = line_break_optional_par, /* hm, why different than above */
+                    .math_penalty_factor        = 0,
+                    .sf_factor                  = 0,
+                    .sf_stretch_factor          = 0,
+                    .ratio_demerits             = 0,
+                    .emergency_honest           = 0,
+                    .expansion_demerits         = 0,
+                    .expansion_demerits_stretch = 0,
+                    .expansion_demerits_shrink  = 0,
+                    .max_adj_demerits           = 0,
+                    .raggedness                 = 0,
+                    .par_fill_mode              = tex_get_par_par(par, par_par_fill_mode_code),
                 };
              /* properties.emergency_original = properties.emergency_stretch; */
                 tex_do_line_break(&properties);
@@ -2624,6 +2627,64 @@ static inline scaled tex_aux_shared_shortfall(scaled shortfall, scaled stretch, 
     return shortfall;
 }
 
+/*tex
+
+    Experimental. Demerits for the font expansion of a line, on top of what the badness already
+    says. The expansion is computed as |hpack| will set it: the excess divided by the font stretch
+    (plus the glue stretch in the |*_glue| modes, where the two share the excess), at most the
+    limit, so in the units of |adjustspacingstretch|. The emergency stretch is not there when the
+    line is packed, so it is not counted as glue here. Expansion up to the given free amount costs
+    nothing, beyond that we add |factor * (excess / 1%)^2|. The value only depends on the line
+    itself so, unlike the ratio and hyphen demerits, it needs no margin when pruning.
+
+*/
+
+static inline halfword tex_aux_expansion_demerits(const line_break_properties *properties, scaled shortfall, const scaled *widths)
+{
+    halfword limit;
+    halfword free;
+    scaled font;
+    scaled glue;
+    if (widths[total_fi_amount] || widths[total_fil_amount] || widths[total_fill_amount] || widths[total_filll_amount]) {
+        /*tex There is no expansion when the line has infinite stretch. */
+        return 0;
+    } else if (shortfall > 0) {
+        limit = lmt_font_state.adjust_stretch;
+        free = properties->expansion_demerits_stretch;
+        font = widths[font_stretch_amount];
+        glue = widths[total_stretch_amount] - lmt_linebreak_state.extra_background_stretch - lmt_linebreak_state.emergency_amount;
+    } else if (shortfall < 0) {
+        shortfall = -shortfall;
+        limit = lmt_font_state.adjust_shrink;
+        free = properties->expansion_demerits_shrink;
+        font = widths[font_shrink_amount];
+        glue = widths[total_shrink_amount];
+    } else {
+        return 0;
+    }
+    if (limit <= free || font <= 0) {
+        return 0;
+    } else {
+        long long e;
+        long long v;
+        if (glue < 0 || ! adjust_spacing_with_glue(properties->adjust_spacing)) {
+            glue = 0;
+        }
+        /*tex In units of 1/1000 of those of |adjustspacingstretch|, so 10000 is 1\%. */
+        e = ((long long) shortfall * limit * scaling_factor) / ((long long) font + glue);
+        if (e > (long long) limit * scaling_factor) {
+            e = (long long) limit * scaling_factor;
+        }
+        e -= (long long) free * scaling_factor;
+        if (e <= 0) {
+            return 0;
+        }
+        v = (e * e + 5000) / 10000;
+        v = ((long long) properties->expansion_demerits * v + 5000) / 10000;
+        return v > extremely_deplorable ? extremely_deplorable : (halfword) v;
+    }
+}
+
 static scaled tex_aux_try_break(
     const    line_break_properties *properties,
     halfword penalty,
@@ -3061,13 +3122,13 @@ static scaled tex_aux_try_break(
             results.
             
             But ... in one of our experiments Keith discussed quality with his Claude and it had some 
-            questions. When we discussed this with Mikaels Claude it did similar anlysis including 
+            questions. When we discussed this with Mikael's Claude it did similar anlysis including 
             the large test files we use. It was puzzled about this division in the perspective of 
-            \LUAMETATEX\ because we use a more dynamic expansion approach. It also had couple of 
+            \LUAMETATEX\ because we use a more dynamic expansion approach. It also had a couple of 
             suggestions and when Mikael and Hans considered those we ended up with a couple of 
-            (little code) extensions: instead if the suggested triple hyphen demerits we went for 
+            (little code) extensions: instead of the suggested triple hyphen demerits we went for 
             an array. Another suggestion involved including glue in the quality decision but 
-            instead of some extra flag we decided that adding 3 and 4 to "|\adjustspacing| made 
+            instead of some extra flag we decided that adding 4 and 5 to |\adjustspacing| made 
             more sense; these take the glue into account. The third extension concerned emergency 
             stretch, see the comment that starts with \type {Experimental}. 
 
@@ -3359,6 +3420,10 @@ static scaled tex_aux_try_break(
             if (properties->ratio_demerits && active_break_node(current) && (cur_p || ! lmt_linebreak_state.do_last_line_fit)) {
                 /*tex Experimental: not for the first line, and the last line has ratio zero. */
                 demerits += tex_aux_ratio_demerits(properties->ratio_demerits, shortfall, glue, active_short(current), active_glue(current));
+            }
+            if (properties->expansion_demerits && properties->adjust_spacing) {
+                /*tex Experimental: see |tex_aux_expansion_demerits|. */
+                demerits += tex_aux_expansion_demerits(properties, natural_shortfall, current_active_width);
             }
         }
         if lmt_unlikely(properties->tracing_paragraphs > 0) {
@@ -4509,6 +4574,11 @@ static int tex_aux_set_sub_pass_parameters(
     if (okay & passes_emergencyhonest_okay) {
         properties->emergency_honest = tex_get_passes_emergencyhonest(passes, subpass);
     }
+    if (okay & passes_expansiondemerits_okay) {
+        properties->expansion_demerits = tex_get_passes_expansiondemerits(passes, subpass);
+        properties->expansion_demerits_stretch = tex_get_passes_expansionstretch(passes, subpass);
+        properties->expansion_demerits_shrink = tex_get_passes_expansionshrink(passes, subpass);
+    }
     /*tex
         Kind of neat:
     */
@@ -4669,6 +4739,7 @@ static int tex_aux_set_sub_pass_parameters(
         }
         tex_print_char('\n');
         tex_print_format ("%s ratiodemerits          %i\n", is_okay(passes_ratiodemerits_okay), properties->ratio_demerits);
+        tex_print_format ("%s expansiondemerits      %i %i %i\n", is_okay(passes_expansiondemerits_okay), properties->expansion_demerits, properties->expansion_demerits_stretch, properties->expansion_demerits_shrink);
         tex_print_str_len("  --------------------------------\n", 35);
         tex_print_format ("%s linepenalty            %i\n", is_okay(passes_linepenalty_okay), properties->line_penalty);
         tex_print_format ("%s extrahyphenpenalty     %i\n", is_okay(passes_extrahyphenpenalty_okay),properties->extra_hyphen_penalty);

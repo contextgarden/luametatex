@@ -703,6 +703,7 @@ typedef enum parpasses_keys {
     parpasses_key_emergencystretch,
     parpasses_key_emergencyunit,
     parpasses_key_emergencywidthextra,
+    parpasses_key_expansiondemerits,
     parpasses_key_extrahyphenpenalty,
     parpasses_key_finalhyphendemerits,
     parpasses_key_fitnessclasses,
@@ -762,6 +763,7 @@ static const char *parpasses_words[] = {
     "emergencystretch",
     "emergencyunit",
     "emergencywidthextra",
+    "expansiondemerits",
     "extrahyphenpenalty",
     "finalhyphendemerits",
     "fitnessclasses",
@@ -924,6 +926,22 @@ static halfword tex_aux_scan_specification_par_passes(void)
                 case parpasses_key_emergencywidthextra:
                     tex_set_passes_emergencywidthextra(p, n, tex_scan_integer(0, NULL, NULL));
                     tex_set_passes_okay(p, n, passes_emergencywidthextra_okay);
+                    break;
+                case parpasses_key_expansiondemerits:
+                    /*tex
+                        Experimental: a factor and the free stretch and shrink of the glyphs (in
+                        the units of |adjustspacingstretch|). We limit the factor so that we can
+                        safely add the result.
+                    */
+                    {
+                        halfword v = tex_scan_integer(0, NULL, NULL);
+                        halfword t = tex_scan_integer(0, NULL, NULL);
+                        halfword h = tex_scan_integer(0, NULL, NULL);
+                        tex_set_passes_expansiondemerits(p, n, v < 0 ? 0 : (v > extremely_deplorable ? extremely_deplorable : v));
+                        tex_set_passes_expansionstretch(p, n, t < 0 ? 0 : (t > max_font_adjust_stretch_factor ? max_font_adjust_stretch_factor : t));
+                        tex_set_passes_expansionshrink(p, n, h < 0 ? 0 : (h > max_font_adjust_shrink_factor ? max_font_adjust_shrink_factor : h));
+                        tex_set_passes_okay(p, n, passes_expansiondemerits_okay);
+                    }
                     break;
                 case parpasses_key_extrahyphenpenalty:
                     tex_set_passes_extrahyphenpenalty(p, n, tex_scan_integer(0, NULL, NULL));

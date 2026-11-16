@@ -908,6 +908,9 @@ typedef struct line_break_properties {
     /*tex Experimental, only in par passes (for now). */
     halfword ratio_demerits;
     halfword emergency_honest;
+    halfword expansion_demerits;
+    halfword expansion_demerits_stretch;
+    halfword expansion_demerits_shrink;
     /* */
     halfword raggedness;
     halfword par_fill_mode;

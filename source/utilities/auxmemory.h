@@ -82,9 +82,21 @@
     # if defined(_MSC_VER) || defined(__MINGW32__)
 
         # define lmt_memory_malloc_aligned(size, alignment)         _aligned_malloc(size, alignment)
-        # define lmt_memory_calloc_aligned(count, size, alignment)  lmt_fallback_calloc_aligned((count) * (size), alignment)
+        # define lmt_memory_calloc_aligned(count, size, alignment)  lmt_memory_windows_calloc_aligned((count) * (size), alignment)
         # define lmt_memory_realloc_aligned(p, newsize, alignment)  _aligned_realloc(p, newsize, alignment)
         # define lmt_memory_free_aligned(p)                         _aligned_free(p)
+
+        static inline void *lmt_memory_windows_calloc_aligned (
+            size_t bytes,
+            size_t alignment
+        )
+        {
+            void *ptr = _aligned_malloc(bytes, alignment);
+            if (ptr) {
+                memset(ptr, 0, bytes);
+            }
+            return ptr;
+        }
 
         static inline void *lmt_memory_recalloc_aligned (
             void   *p,
@@ -110,10 +122,17 @@
             size_t alignment
         )
         {
-            size_t header_size = sizeof(size_t);
+            /*tex
+                We store the size at |[-1]| and the raw pointer at |[-2]| so we need room for two
+                words in front of the aligned pointer, also when the alignment is small.
+            */
+            size_t header_size = 2 * sizeof(void *);
+            if (alignment < sizeof(void *)) {
+                alignment = sizeof(void *);
+            }
             size_t total_size = size + alignment + header_size;
             void *raw_ptr = NULL;
-            if (posix_memalign(&raw_ptr, alignment < sizeof(void *) ? sizeof(void *) : alignment, total_size) != 0) {
+            if (posix_memalign(&raw_ptr, alignment, total_size) != 0) {
                 return NULL;
             }
             char *aligned_ptr = (char *) (((uintptr_t) raw_ptr + header_size + alignment - 1) & ~(uintptr_t)(alignment - 1));

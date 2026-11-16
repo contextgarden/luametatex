@@ -100,7 +100,7 @@ static inline void tex_aux_decrement_pool_string(int n)
 static void tex_aux_flush_cur_string(void) /* how often, todo: check it */
 {
     if (lmt_string_pool_state.string_temp) {
-        aux_deallocate_array(lmt_string_pool_state.string_temp);
+        lmt_memory_free(lmt_string_pool_state.string_temp);
     }
     lmt_string_pool_state.string_temp = NULL;
     lmt_string_pool_state.string_temp_top = 0;
@@ -109,7 +109,12 @@ static void tex_aux_flush_cur_string(void) /* how often, todo: check it */
 
 void tex_reset_cur_string(void) /* how often, todo: check it */
 {
-    unsigned char *tmp = aux_allocate_clear_array(sizeof(unsigned char), initial_temp_string_slots, reserved_temp_string_slots);
+    /*tex
+        The temporary string becomes a pool string (|tex_make_string|) or is handed over to the
+        caller (|tex_take_string|) and is then freed with |lmt_memory_free|, so we can't use the
+        aligned |aux_*_array| helpers here.
+    */
+    unsigned char *tmp = lmt_memory_calloc((size_t) initial_temp_string_slots + reserved_temp_string_slots + 1, sizeof(unsigned char));
     if lmt_likely(tmp) {
         lmt_string_pool_state.string_temp = tmp;
         lmt_string_pool_state.string_temp_top = 0;
@@ -131,7 +136,7 @@ static int tex_aux_room_in_string(int wsize)
         if (size < wsize) {
             size = wsize + STRING_EXTRA_AMOUNT;
         }
-        tmp = aux_reallocate_array(lmt_string_pool_state.string_temp, sizeof(unsigned char), size, reserved_temp_string_slots);
+        tmp = lmt_memory_realloc(lmt_string_pool_state.string_temp, (size_t) size + reserved_temp_string_slots + 1);
         if lmt_likely(tmp) {
             lmt_string_pool_state.string_temp = tmp;
             memset(tmp + lmt_string_pool_state.string_temp_top, 0, (size_t) size - lmt_string_pool_state.string_temp_top);
@@ -674,7 +679,7 @@ void tex_undump_string_pool(undumpstream f)
             if (l >= 0) {
                 /* we can overflow reserved_string_slots */
                 int n = l + 1;
-                unsigned char *s = aux_allocate_clear_array(sizeof(unsigned char), n, reserved_string_slots);
+                unsigned char *s = lmt_memory_calloc((size_t) n + reserved_string_slots + 1, sizeof(unsigned char)); /* freed in |tex_flush_str| */
                 if lmt_likely(s) {
                     lmt_string_pool_state.string_pool[j].str = (lstring_string) s;
                     undump_things(f, s[0], l);

@@ -4543,6 +4543,9 @@ static int texlib_linebreak(lua_State *L)
         properties.raggedness = 0;
         properties.ratio_demerits = 0;
         properties.emergency_honest = 0;
+        properties.expansion_demerits = 0;
+        properties.expansion_demerits_stretch = 0;
+        properties.expansion_demerits_shrink = 0;
         while (tail) {
             switch (node_type(tail)) {
                 case glue_node:
