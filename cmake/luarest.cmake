@@ -44,6 +44,7 @@ set(luarest_sources
     source/luarest/lmtclientlib.c
     source/luarest/lmtserverlib.c
     source/luarest/lmtxzlib.c
+    source/luarest/lmttifflib.c
 )
 
 add_library(luarest STATIC ${luarest_sources})

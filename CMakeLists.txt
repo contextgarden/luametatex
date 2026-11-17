@@ -538,6 +538,7 @@ include(cmake/qrcodegen.cmake)
 include(cmake/nanojpeg.cmake)
 include(cmake/triangles.cmake)
 include(cmake/xzembedded.cmake)
+include(cmake/tiff_g4.cmake)
 
 # include(cmake/qhull.cmake)
 

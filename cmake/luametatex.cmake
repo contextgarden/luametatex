@@ -35,6 +35,7 @@ target_link_libraries(luametatex
     nanojpeg    
     filib
     xzembedded
+    tiff_g4
 
 #   qhull
 )

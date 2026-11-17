@@ -343,6 +343,7 @@ static void enginelib_show_credits(void)
         "  effects    : Ken Perlin and Stefan Gustavson (adapted)\n"
         "  filib      : Werner Hofschuster, Walter Kraemer (adapted)\n"
         "  xzembedded : Igor Pavlov, Lasse Collin (partial)\n"
+        "  tiff_g4    : Larry Bank (partial)\n"
         "\n"
         "The code base contains more names and references. Some libraries are partially adapted or\n"
         "have been replaced. The MetaPost library has additional functionality, some of which is\n"
@@ -1142,12 +1143,13 @@ static const luaL_Reg lmt_libs_extra_function_list[] = {
     { "potrace",   luaopen_potrace   },
     { "qrcodegen", luaopen_qrcodegen },
     { "nanojpeg",  luaopen_nanojpeg  },
+    { "tinytiff",  luaopen_tinytiff  },
     { "effects",   luaopen_effects   },
     { "bytemap",   luaopen_bytemap   },
     { "kdtree",    luaopen_kdtree    },
     { "serial",    luaopen_serial    },
     { "process",   luaopen_process   },
-    { "watcher", luaopen_watcher },
+    { "watcher",   luaopen_watcher   },
     { "timer",     luaopen_timer     },
     { "security",  luaopen_security  },
  // { "specific",  luaopen_specific  },

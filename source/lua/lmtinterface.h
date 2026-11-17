@@ -159,6 +159,7 @@ extern int  luaopen_posit       (lua_State *L);
 extern int  luaopen_potrace     (lua_State *L);
 extern int  luaopen_qrcodegen   (lua_State *L);
 extern int  luaopen_nanojpeg    (lua_State *L);
+extern int  luaopen_tinytiff    (lua_State *L);
 extern int  luaopen_effects     (lua_State *L);
 extern int  luaopen_bytemap     (lua_State *L);
 extern int  luaopen_kdtree      (lua_State *L);

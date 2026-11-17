@@ -938,8 +938,8 @@ static halfword tex_aux_scan_specification_par_passes(void)
                         halfword t = tex_scan_integer(0, NULL, NULL);
                         halfword h = tex_scan_integer(0, NULL, NULL);
                         tex_set_passes_expansiondemerits(p, n, v < 0 ? 0 : (v > extremely_deplorable ? extremely_deplorable : v));
-                        tex_set_passes_expansionstretch(p, n, t < 0 ? 0 : (t > max_font_adjust_stretch_factor ? max_font_adjust_stretch_factor : t));
-                        tex_set_passes_expansionshrink(p, n, h < 0 ? 0 : (h > max_font_adjust_shrink_factor ? max_font_adjust_shrink_factor : h));
+                        tex_set_passes_expansionstretch (p, n, t < 0 ? 0 : (t > max_font_adjust_stretch_factor ? max_font_adjust_stretch_factor : t));
+                        tex_set_passes_expansionshrink  (p, n, h < 0 ? 0 : (h > max_font_adjust_shrink_factor ? max_font_adjust_shrink_factor : h));
                         tex_set_passes_okay(p, n, passes_expansiondemerits_okay);
                     }
                     break;
