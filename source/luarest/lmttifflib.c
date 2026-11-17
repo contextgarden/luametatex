@@ -23,6 +23,10 @@
     supporting rgb and gray scale is that we then can load them in a bytemap and mess with 
     them in \LUAMETAFUN.
 
+    Anyway, just in case one needs to include some fax file. Therefore this module is 
+    dedicated to (the late) Hermann Zapf, the last one I faxed with. A bit of nostalgia 
+    doesn't hurt in an already age old but upgraded typesetting machinery.  
+
 */
 
 # include "luametatex.h"
