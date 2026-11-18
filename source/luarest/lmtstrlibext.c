@@ -1934,7 +1934,7 @@ static int strlib_utftabletostring(lua_State *L)
                 for (lua_Integer i = f; i <= l; i++) {
                     if (lua_rawgeti(L, 1, i) == LUA_TNUMBER) {
                         strlib_aux_add_utfnumber(L, &b, -1);
-                    }
+                    } // wr could; also handle tables 
                     lua_pop(L, 1);
                 }
                 luaL_pushresult(&b);

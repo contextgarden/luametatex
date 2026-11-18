@@ -678,7 +678,23 @@ static int nodelib_direct_getexpansion(lua_State *L)
     if (n) {
         switch (node_type(n)) {
             case glyph_node:
-                lua_pushinteger(L, glyph_expansion(n));
+                if (lua_toboolean(L, 2)) {
+                    /* mostly useful for context tracing */
+                    double ratio     = 0;
+                    scaled expansion = glyph_expansion(n);
+                    if (expansion != 0) {
+                        scaled ef = tex_char_ef_from_font(glyph_font(n), glyph_character(n));
+                     // scaled cf = tex_char_cf_from_font(glyph_font(n), glyph_character(n));
+                        if (ef != 0) {
+                            ratio = fabs((double) expansion / (double) ef);
+                        }
+                    }
+                    lua_pushnumber(L, ratio);
+                    lua_pushinteger(L, glyph_character(n));
+                    return 2;
+                } else {
+                    lua_pushinteger(L, glyph_expansion(n));
+                }
                 break;
             case kern_node:
                 lua_pushinteger(L, kern_expansion(n));
