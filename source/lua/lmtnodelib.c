@@ -679,14 +679,17 @@ static int nodelib_direct_getexpansion(lua_State *L)
         switch (node_type(n)) {
             case glyph_node:
                 if (lua_toboolean(L, 2)) {
-                    /* mostly useful for context tracing */
+                    /*
+                        Mostly useful for context tracing: the expansion relative to the expansion
+                        factor of the character, negative when the glyph is shrunk.
+                    */
                     double ratio     = 0;
                     scaled expansion = glyph_expansion(n);
                     if (expansion != 0) {
                         scaled ef = tex_char_ef_from_font(glyph_font(n), glyph_character(n));
                      // scaled cf = tex_char_cf_from_font(glyph_font(n), glyph_character(n));
                         if (ef != 0) {
-                            ratio = fabs((double) expansion / (double) ef);
+                            ratio = (double) expansion / (double) ef;
                         }
                     }
                     lua_pushnumber(L, ratio);

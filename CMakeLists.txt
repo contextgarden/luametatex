@@ -494,6 +494,10 @@ elseif (MSVC)
 elseif (CMAKE_C_COMPILER MATCHES "musl-gcc")
     # Disable mimalloc for musl static builds to prevent allocator symbol collisions
   # unset(luametatex_use_mimalloc)
+elseif (APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)$" AND NOT ("x86_64" IN_LIST CMAKE_OSX_ARCHITECTURES))
+    # Keith, 18 Nov 2026: tested on osx arm64 (format made, book set, identical print);
+    # not for intel or universal builds
+    set(luametatex_use_mimalloc 1)
 elseif (CMAKE_HOST_APPLE AND NOT (${CMAKE_C_COMPILER} MATCHES "arm"))
     # fails on the osx intel
 elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "armv7l")
