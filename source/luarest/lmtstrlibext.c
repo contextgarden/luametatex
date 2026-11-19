@@ -829,6 +829,237 @@ static int strlib_utflength(lua_State *L)
     return 1;
 }
 
+/*tex 
+
+    We seldom need this but I wondered about this instead of some \LPEG\ magick which works okay 
+    for what we need and can make some dedicated pattern. I made a protyotype based on the length 
+    loop (just integrated) but then did some timing and asked Gemini about backward scanning so 
+    here is a co-product. After that it made sense to add a check for \ASCII\ as we already had 
+    that code present. It was kind of fun checking the differences in long and short mixed \UTF\
+    and pure \ASCII\ strings: win here and loose there so the nest one is kind of optimal for 
+    the often relatively short strings we feed. 
+
+*/
+
+static inline size_t utf8_next(const char *s, size_t ls, size_t pos)
+{
+    size_t next = pos;
+    strlib_aux_tounicode(s, ls, &next);
+    return (next <= pos) ? (pos + 1) : next;
+}
+
+static inline size_t utf8_prev(const char *s, size_t pos)
+{
+    if (pos == 0) {
+        return 0;
+    }
+    pos--;
+    while (pos > 0 && (((unsigned char) s[pos] & 0xC0) == 0x80)) {
+        pos--;
+    }
+    return pos;
+}
+
+static inline void push_slice_buffer(lua_State *L, const char *s, size_t start_byte, size_t end_byte)
+{
+    luaL_Buffer b;
+    luaL_buffinit(L, &b);
+    if (end_byte > start_byte) {
+        luaL_addlstring(&b, s + start_byte, end_byte - start_byte);
+    }
+    luaL_pushresult(&b);
+}
+
+static inline void push_ascii_slice(lua_State *L, const char *s, size_t ls, lua_Integer i, lua_Integer j)
+{
+    lua_Integer start = (i >= 0) ? i : ((lua_Integer) ls + i + 1);
+    lua_Integer end   = (j >= 0) ? j : ((lua_Integer) ls + j + 1);
+    if (start < 1) {
+        start = 1;
+    }
+    if (end > (lua_Integer)ls) {
+        end = (lua_Integer)ls;
+    }
+    luaL_Buffer b;
+    luaL_buffinit(L, &b);
+    if (start <= end && ls > 0) {
+        size_t off = (size_t) (start - 1);
+        size_t cnt = (size_t) (end - start + 1);
+        luaL_addlstring(&b, s + off, cnt);
+    }
+    luaL_pushresult(&b);
+}
+
+static int strlib_utfsubstring(lua_State *L)
+{
+    /* We have properly clamped integers. */
+
+    size_t      len = 0;
+    const char *str = luaL_checklstring(L, 1, &len);
+
+    if (len == 0) {
+        lua_pushlstring(L, "", 0);
+        return 1;
+    }
+
+    lua_Integer i = lmt_checkinteger(L, 2);
+    lua_Integer j = lmt_optinteger(L, 3, -1);
+
+    /* Fast path for pure ASCII: byte offsets equal character indices. */
+
+    if (aux_onlyascii(str, len)) {
+        push_ascii_slice(L, str, len, i, j);
+        return 1;
+    }
+
+    /* Forward path: both i and j are positive 1-based indices. */
+
+    if (i > 0 && j > 0) {
+        if (i > j) {
+            lua_pushlstring(L, "", 0);
+            return 1;
+        }
+
+        size_t need       = (size_t) (j - i + 1);
+        size_t pos        = 0;
+        size_t idx        = 1;
+        size_t start_byte = 0;
+        size_t end_byte   = len;
+        int    found      = 0;
+
+        while (pos < len) {
+            size_t next = utf8_next(str, len, pos);
+            if ((lua_Integer) idx == i) {
+                start_byte = pos;
+                found = 1;
+            }
+            if (found) {
+                end_byte = next;
+                if (--need == 0) {
+                    break;
+                }
+            }
+            pos = next;
+            idx++;
+        }
+
+        if (! found) {
+            lua_pushlstring(L, "", 0);
+            return 1;
+        }
+
+        push_slice_buffer(L, str, start_byte, end_byte);
+        return 1;
+    }
+
+    /* Backward path: both i and j are negative indices. */
+
+    if (i < 0 && j < 0) {
+        if (i > j) {
+            lua_pushlstring(L, "", 0);
+            return 1;
+        }
+
+        size_t pos         = len;
+        size_t back_to_end = (size_t) (-j) - 1;
+        for (size_t step = 0; step < back_to_end && pos > 0; step++) {
+            pos = utf8_prev(str, pos);
+        }
+
+        if (pos == 0 && back_to_end > 0) {
+            lua_pushlstring(L, "", 0);
+            return 1;
+        }
+
+        size_t end_byte = pos;
+        size_t span = (size_t)(j - i + 1);
+        for (size_t step = 0; step < span && pos > 0; step++) {
+            pos = utf8_prev(str, pos);
+        }
+
+        push_slice_buffer(L, str, pos, end_byte);
+        return 1;
+    }
+
+    /* General path: count UTF-8 characters when indices mix signs or include 0. */
+
+    size_t total = 0;
+    size_t ind   = 0;
+    while (ind < len) {
+        ind = utf8_next(str, len, ind);
+        total++;
+    }
+
+    lua_Integer start = (i >= 0) ? i : ((lua_Integer) total + i + 1);
+    lua_Integer end   = (j >= 0) ? j : ((lua_Integer) total + j + 1);
+
+    if (start < 1) {
+        start = 1;
+    }
+    if (end > (lua_Integer)total) {
+        end = (lua_Integer)total;
+    }
+
+    if (start > end || total == 0) {
+        lua_pushlstring(L, "", 0);
+        return 1;
+    }
+
+    size_t need       = (size_t) (end - start + 1);
+    size_t pos        = 0;
+    size_t char_idx   = 1;
+    size_t start_byte = 0;
+    size_t end_byte   = 0;
+    int    found      = 0;
+
+    while (pos < len && need > 0) {
+        size_t next = utf8_next(str, len, pos);
+        if ((lua_Integer) char_idx == start) {
+            start_byte = pos;
+            found      = 1;
+        }
+        if (found) {
+            end_byte = next;
+            need--;
+        }
+        pos = next;
+        char_idx++;
+    }
+
+    if (! found) {
+        lua_pushlstring(L, "", 0);
+        return 1;
+    }
+
+    push_slice_buffer(L, str, start_byte, end_byte);
+    return 1;
+}
+
+static int strlib_utfreverse(lua_State *L)
+{
+    size_t      len = 0;
+    const char *str = luaL_checklstring(L, 1, &len);
+    if (len <= 1) {
+        lua_pushlstring(L, str, len);
+        return 1;
+    }
+    luaL_Buffer b;
+    luaL_buffinit(L, &b);
+ // size_t end = len;
+ // while (end > 0) {
+ //     size_t start = utf8_prev(str, end);
+ //     luaL_addlstring(&b, str + start, end - start);
+ //     end = start;
+ // }
+    while (len > 0) {
+        size_t start = utf8_prev(str, len);
+        luaL_addlstring(&b, str + start, len - start);
+        len = start;
+    }
+    luaL_pushresult(&b);
+    return 1;
+}
+
 /*tex
     This one is uses quite a bit in \CONTEXT\ and it formats a float where it strips trailing zeros;
     it also checks for zeros and ones. It started out as \LUA\ code but we wanted a bit more
@@ -5920,6 +6151,8 @@ static const luaL_Reg strlib_function_list[] = {
     { "utfcharacter",      strlib_utfcharacter      },
     { "utfvalue",          strlib_utfvalue          },
     { "utflength",         strlib_utflength         },
+    { "utfsubstring",      strlib_utfsubstring      },
+    { "utfreverse",        strlib_utfreverse        },
     { "utfvaluetable",     strlib_utfvaluetable     },
     { "utfcharactertable", strlib_utfcharactertable },
     { "utftabletostring",  strlib_utftabletostring  },
