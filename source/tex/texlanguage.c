@@ -55,16 +55,16 @@ language_state_info lmt_language_state = {
 static void tex_aux_reset_language(halfword id)
 {
     tex_language lang = lmt_language_state.languages[id];
-    lang->id = id;
-    lang->exceptions = 0;
-    lang->patterns = NULL;
-    lang->wordhandler = 0;
-    lang->pre_hyphen_char = '-';
-    lang->post_hyphen_char = 0;
-    lang->pre_exhyphen_char = 0;
+    lang->id                 = id;
+    lang->exceptions         = 0;
+    lang->patterns           = NULL;
+    lang->wordhandler        = 0;
+    lang->pre_hyphen_char    = '-';
+    lang->post_hyphen_char   = 0;
+    lang->pre_exhyphen_char  = 0;
     lang->post_exhyphen_char = 0;
-    lang->hyphenation_min = -1;
-    lang->hjcode_head = NULL;
+    lang->hyphenation_min    = -1;
+    lang->hjcode_head        = NULL;
 }
 
 /*tex
@@ -112,9 +112,9 @@ static halfword tex_aux_new_language_id(halfword id)
             for (int i = lmt_language_state.language_data.top + 1; i <= top; i++) {
                 tmp[i] = NULL;
             }
-            lmt_language_state.languages = tmp;
+            lmt_language_state.languages               = tmp;
             lmt_language_state.language_data.allocated = top;
-            lmt_language_state.language_data.top = top;
+            lmt_language_state.language_data.top       = top;
             if (id >= 0) {
                 if (id > lmt_language_state.language_data.ptr) {
                     lmt_language_state.language_data.ptr = id;
@@ -170,7 +170,7 @@ tex_language tex_new_language(halfword n)
     if (id >= 0) {
         tex_language lang = lmt_memory_malloc(sizeof(tex_language_data));
         if (lang) {
-            lmt_language_state.languages[id] = lang;
+            lmt_language_state.languages[id]        = lang;
             lmt_language_state.language_data.extra += sizeof(tex_language_data);
             tex_aux_reset_language(id);
             if (saving_hyph_codes_par) {
@@ -258,9 +258,9 @@ void tex_undump_language_data(undumpstream f)
         */
         tex_language *tmp = aux_allocate_clear_array(sizeof(tex_language), top, 0);
         if (tmp) {
-            lmt_language_state.language_data.top = top;
-            lmt_language_state.language_data.ptr = ptr;
-            lmt_language_state.languages = tmp;
+            lmt_language_state.language_data.top       = top;
+            lmt_language_state.language_data.ptr       = ptr;
+            lmt_language_state.languages               = tmp;
             lmt_language_state.language_data.allocated = top;
             /* Watch the <= */
             for (int i = 0; i <= top; i++) {
@@ -272,10 +272,10 @@ void tex_undump_language_data(undumpstream f)
                 } else if (marker == 1) {
                     tex_language lang = lmt_memory_malloc(sizeof(tex_language_data));
                     if (lang) {
-                        lmt_language_state.languages[i] = lang;
+                        lmt_language_state.languages[i]         = lang;
                         lmt_language_state.language_data.extra += sizeof(tex_language_data);
-                        lang->exceptions = 0;
-                        lang->patterns = NULL;
+                        lang->exceptions  = 0;
+                        lang->patterns    = NULL;
                         lang->wordhandler = 0;
                         lang->hjcode_head = NULL;
                         undump_int(f, lang->id);
@@ -535,10 +535,10 @@ void tex_load_hyphenation(tex_language lang, const unsigned char *buff)
     if ((! lang) || (! buff) || strlen((const char *) buff) == 0) {
         return;
     } else {
-        lua_State *L = lmt_lua_state.lua_instance;
-        const char *s = (const char *) buff;
-        char *cleaned = NULL;
-        int id = lang->id;
+        lua_State  *L       = lmt_lua_state.lua_instance;
+        const char *s       = (const char *) buff;
+        char       *cleaned = NULL;
+        int         id      = lang->id;
         if (lang->exceptions == 0) {
             lua_newtable(L);
             lang->exceptions = luaL_ref(L, LUA_REGISTRYINDEX);
@@ -637,7 +637,7 @@ static halfword tex_aux_compound_word_break(halfword t, halfword clang, halfword
 {
     halfword prechar, postchar, pre, post, disc;
     if (chr == ex_hyphen_char_par) {
-        halfword pre_exhyphen_char = tex_get_pre_exhyphen_char(clang);
+        halfword pre_exhyphen_char  = tex_get_pre_exhyphen_char(clang);
         halfword post_exhyphen_char = tex_get_post_exhyphen_char(clang);
         prechar  = pre_exhyphen_char  > 0 ? pre_exhyphen_char  : ex_hyphen_char_par;
         postchar = post_exhyphen_char > 0 ? post_exhyphen_char : null;
@@ -689,11 +689,11 @@ static char *tex_aux_hyphenation_exception(int exceptions, char *w)
 
 static halfword tex_aux_find_exception_part(unsigned int *j, unsigned int *uword, int len, halfword parent, char final)
 {
-    halfword head = null;
-    halfword tail = null;
-    unsigned i = *j;
-    int noligature = 0;
-    int nokerning = 0;
+    halfword head       = null;
+    halfword tail       = null;
+    unsigned i          = *j;
+    int      noligature = 0;
+    int      nokerning  = 0;
     /*tex This puts uword[i] on the |{|. */
     i++;
     while (i < (unsigned) len && uword[i + 1] && uword[i + 1] != (unsigned int) final) {
@@ -701,11 +701,11 @@ static halfword tex_aux_find_exception_part(unsigned int *j, unsigned int *uword
             switch (uword[i + 1]) {
                 case zwj:
                     noligature = 1;
-                    nokerning = 0;
+                    nokerning  = 0;
                     break;
                 case zwnj:
                     noligature = 1;
-                    nokerning = 1;
+                    nokerning  = 1;
                     break;
                 default:
                     {
@@ -784,14 +784,15 @@ static void tex_aux_flush_exception_parts(halfword pre, halfword post, halfword 
 
 */
 
-static void tex_aux_do_exception(halfword wordstart, halfword r, char *replacement)
+static int tex_aux_do_exception(halfword wordstart, halfword r, char *replacement)
 {
-    halfword t = wordstart;
+    unsigned           uword[max_size_of_word_buffer]; //  = { 0 };
+    halfword           t     = wordstart;
+    unsigned           len   = aux_splitutf2uni(uword, replacement);
+    int                clang = get_glyph_language(wordstart);
+    int                redo  = 0;
     language_variables langdata;
-    unsigned uword[max_size_of_word_buffer]; //  = { 0 };
-    unsigned len = aux_splitutf2uni(uword, replacement);
-    int clang = get_glyph_language(wordstart);
-    langdata.pre_hyphen_char = tex_get_pre_hyphen_char(clang);
+    langdata.pre_hyphen_char  = tex_get_pre_hyphen_char(clang);
     langdata.post_hyphen_char = tex_get_post_hyphen_char(clang);
     for (unsigned i = 0; i < len; i++) {
         if (uword[i + 1] == 0 ) {
@@ -811,11 +812,12 @@ static void tex_aux_do_exception(halfword wordstart, halfword r, char *replaceme
             t = node_next(t);
         } else if (uword[i + 1] == '{') {
             /*tex We ran into an exception |{}{}{}| or |{}{}{}[]|. */
-            halfword pre = null;
-            halfword post = null;
-            halfword replace = null;
-            int count = 0;
-            int alternative = null;
+            halfword pre         = null;
+            halfword post        = null;
+            halfword replace     = null;
+            int      count       = 0;
+            int      compound    = 0;
+            int      alternative = null;
             halfword penalty;
             /*tex |pre| */
             pre = tex_aux_find_exception_part(&i, uword, (int) len, wordstart, '}');
@@ -848,6 +850,14 @@ static void tex_aux_do_exception(halfword wordstart, halfword r, char *replaceme
             /*tex Let's check if we have a penalty spec. If we have more then we're toast, we just ignore them. */
             if (uword[i] && uword[i + 1] == '[') {
                 i += 2;
+                if (uword[i] == 'R') {
+                    i += 1;
+                    redo = 1;
+                } else if (uword[i] == 'C') {
+                    i += 1;
+                    redo = 1;
+                    compound = 1;
+                }
                 if (uword[i] && uword[i] >= '0' && uword[i] <= '9') {
                     if (exception_penalty_par > 0) {
                         if (exception_penalty_par > infinite_penalty) {
@@ -934,6 +944,9 @@ static void tex_aux_do_exception(halfword wordstart, halfword r, char *replaceme
                 }
                 /*tex And now we insert a disc node (this was |syllable_discretionary_code|). */
                 t = tex_aux_insert_discretionary(t, pre, post, replace, normal_discretionary_code, penalty);
+                if (compound) {
+                    disc_options(t) |= disc_option_pre_word & disc_option_post_word;
+                }
                 /*tex We skip the new disc node. */
                 t = node_next(t);
                 /*tex 
@@ -953,6 +966,7 @@ static void tex_aux_do_exception(halfword wordstart, halfword r, char *replaceme
             break;
         }
     }
+    return redo;
 }
 
 /*tex
@@ -1273,7 +1287,7 @@ static int tex_aux_hnj_hyphen_hyphenate(
 {
     /*tex +2 for dots at each end, +1 for points outside characters. */
     int ext_word_len = length + 2;
-    int hyphen_len = ext_word_len + 1;
+    int hyphen_len   = ext_word_len + 1;
     /*tex 
         Because we have a limit we could just use a static array here but then we 
         need to either zero the (large) array or do some more testing in order to 
@@ -1282,14 +1296,14 @@ static int tex_aux_hnj_hyphen_hyphenate(
     char *hyphens = lmt_memory_calloc(hyphen_len, sizeof(unsigned char));
     if lmt_likely(hyphens) {
         halfword here;
-        int state = 0;
-        int char_num = 0;
-        int done = 0;
+        int      state    = 0;
+        int      char_num = 0;
+        int      done     = 0;
         ++lmt_language_state.word_count;
         /*tex Add a '.' to beginning and end to facilitate matching. */
         node_next(begin_period) = first;
-        node_next(end_period) = node_next(last);
-        node_next(last) = end_period;
+        node_next(end_period)   = node_next(last);
+        node_next(last)         = end_period;
         /*tex Now, run the finite state machine. */
         for (here = begin_period, char_num = 0; here != node_next(end_period); here = node_next(here)) {
             int ch;
@@ -1489,9 +1503,9 @@ void tex_hyphenate_list(halfword head, halfword tail)
     /*tex Let's play safe: */
     if (tail) {
         halfword first_language = first_valid_language_par; /* combine with check below */
-        halfword trace = tracing_hyphenation_par;
-        halfword r = head;
-        halfword nothing = 1;
+        halfword trace          = tracing_hyphenation_par;
+        halfword r              = head;
+        halfword nothing        = 1;
         ++lmt_language_state.list_count;
         /*tex
             This first movement assures two things:
@@ -1513,10 +1527,10 @@ void tex_hyphenate_list(halfword head, halfword tail)
         }
         if (r) {
             /* maybe pass used_hyphen_penalty_par and used_ex_hyphen_penalty_par */
-            halfword saved_hyphen_penalty_par = hyphen_penalty_par;
+            halfword saved_hyphen_penalty_par    = hyphen_penalty_par;
             halfword saved_ex_hyphen_penalty_par = ex_hyphen_penalty_par;
-            halfword p = tex_find_par_par(head);
-            int penalties_pushed = node_type(p) == par_node; /* maybe check for h|v subtype */
+            halfword p                           = tex_find_par_par(head);
+            int      penalties_pushed            = node_type(p) == par_node; /* maybe check for h|v subtype */
             ++lmt_language_state.checked_count;
             if (penalties_pushed) {
                 hyphen_penalty_par = tex_get_par_par(p, par_hyphen_penalty_code); 
@@ -1526,17 +1540,17 @@ void tex_hyphenate_list(halfword head, halfword tail)
             r = tex_aux_find_next_wordstart(r, first_language);
             if (r) {
                 language_variables langdata;
-                char utf8word[max_size_of_word_buffer];
-                char utf8original[max_size_of_word_buffer];
-                char *utf8ptr = utf8word;
-                char *utf8ori = utf8original;
-                int word_length = 0;
-                int explicit_hyphen = 0;
-                int last_char = 0;
-                int valid = 0;
-                halfword explicit_start = null;
-                halfword saved_tail = node_next(tail);
-                halfword penalty = tex_new_penalty_node(0, word_penalty_subtype);
+                char     utf8word[max_size_of_word_buffer];
+                char     utf8original[max_size_of_word_buffer];
+                char    *utf8ptr         = utf8word;
+                char    *utf8ori         = utf8original;
+                int      word_length     = 0;
+                int      explicit_hyphen = 0;
+                int      last_char       = 0;
+                int      valid           = 0;
+                halfword explicit_start  = null;
+                halfword saved_tail      = node_next(tail);
+                halfword penalty         = tex_new_penalty_node(0, word_penalty_subtype);
                 /* kind of curious hack, this addition that we later remove */
                 tex_attach_attribute_list_copy(penalty, r);
                 tex_couple_nodes(tail, penalty); /* todo: attribute */
@@ -1544,10 +1558,10 @@ void tex_hyphenate_list(halfword head, halfword tail)
                     halfword word_start = r;
                     int word_language = get_glyph_language(word_start);
                     if (tex_is_valid_language(word_language)) {
-                        halfword word_end = r;
-                        int lhmin = get_glyph_lhmin(word_start);
-                        int rhmin = get_glyph_rhmin(word_start);
-                        int hmin = tex_get_hyphenation_min(word_language);
+                        halfword word_end  = r;
+                        int      lhmin     = get_glyph_lhmin(word_start);
+                        int      rhmin     = get_glyph_rhmin(word_start);
+                        int      hmin      = tex_get_hyphenation_min(word_language);
                         halfword word_font = glyph_font(word_start);
                         if (! tex_is_valid_font(word_font) || font_hyphen_char(word_font) < 0) {
                             /*tex For backward compatibility we set: */
@@ -1612,8 +1626,8 @@ void tex_hyphenate_list(halfword head, halfword tail)
                                         }
                                         last_char = chr ;
                                     }
-                                    utf8ori = aux_uni2string(utf8ori, (unsigned) chr);
-                                    utf8ptr = aux_uni2string(utf8ptr, (unsigned) last_char);
+                                    utf8ori  = aux_uni2string(utf8ori, (unsigned) chr);
+                                    utf8ptr  = aux_uni2string(utf8ptr, (unsigned) last_char);
                                     word_end = r;
                                     r = node_next(r);
                                 }
@@ -1679,12 +1693,12 @@ void tex_hyphenate_list(halfword head, halfword tail)
                                 /*tex We have a language, actually we already tested that. */
                                 tex_language lang = lmt_language_state.languages[word_language];
                                 if (lang) {
-                                    char *replacement = NULL;
-                                    int size = 0;
-                                    halfword start = explicit_start ? explicit_start : word_start;
-                                    int okay = (word_length >= lhmin + rhmin) && (hmin <= 0 || word_length >= hmin) && hyphenation_permitted(glyph_hyphenate(start), syllable_hyphenation_mode);
-                                    *utf8ptr = '\0';
-                                    *utf8ori = '\0';
+                                    char     *replacement = NULL;
+                                    int       size        = 0;
+                                    halfword  start       = explicit_start ? explicit_start : word_start;
+                                    int       okay        = (word_length >= lhmin + rhmin) && (hmin <= 0 || word_length >= hmin) && hyphenation_permitted(glyph_hyphenate(start), syllable_hyphenation_mode);
+                                             *utf8ptr     = '\0';
+                                             *utf8ori     = '\0';
                                     if (lang->wordhandler && hyphenation_permitted(glyph_hyphenate(start), force_handler_hyphenation_mode)) {
                                         halfword restart = node_prev(start); /*tex before the word. */
                                         int done = lmt_handle_word(lang, utf8original, utf8word, word_length, start, word_end, &replacement, &size);
@@ -1766,11 +1780,12 @@ void tex_hyphenate_list(halfword head, halfword tail)
                                   EXCEPTIONS2:
                                     if (replacement) {
                                         /*tex handle the exception and go on to the next word */
-                                        halfword start = explicit_start ? explicit_start : word_start;
-                                        halfword beg = node_prev(start);
+                                        halfword start   = explicit_start ? explicit_start : word_start;
+                                        halfword beg     = node_prev(start);
+                                        int      redo    = 0;
+                                                 nothing = 0;
                                         ++lmt_language_state.exceptions_count;
-                                        nothing = 0;
-                                        tex_aux_do_exception(start, r, replacement); // r == next_node(word_end)
+                                        redo = tex_aux_do_exception(start, r, replacement); // r == next_node(word_end)
                                         if (trace > 1) {
                                             tex_begin_diagnostic();
                                             tex_print_format("%l[language: exception %s to %s]", utf8original, replacement);
@@ -1780,7 +1795,11 @@ void tex_hyphenate_list(halfword head, halfword tail)
                                             tex_end_diagnostic();
                                         }
                                         lmt_memory_free(replacement);
-                                        goto PICKUP;
+                                        if (redo) {
+                                               explicit_start = 0;
+                                        } else {
+                                            goto PICKUP;
+                                        }
                                     }
                                   PATTERNS:
                                     if (lang->patterns) {
@@ -1830,11 +1849,11 @@ void tex_hyphenate_list(halfword head, halfword tail)
                         }
                     }
                   PICKUP:
-                    explicit_start = null ;
+                    explicit_start  = null ;
                     explicit_hyphen = 0;
-                    word_length = 0;
-                    utf8ptr = utf8word;
-                    utf8ori = utf8original;
+                    word_length     = 0;
+                    utf8ptr         = utf8word;
+                    utf8ori         = utf8original;
                     if (r) {
                         r = tex_aux_find_next_wordstart(r, first_language);
                     } else {
