@@ -64,6 +64,10 @@ static void tex_aux_reset_language(halfword id)
     lang->pre_exhyphen_char  = 0;
     lang->post_exhyphen_char = 0;
     lang->hyphenation_min    = -1;
+    lang->left_min           = 0,
+    lang->right_min          = 0,
+    lang->left_default       = 0,
+    lang->right_default      = 0,
     lang->hjcode_head        = NULL;
 }
 
@@ -1275,6 +1279,10 @@ void tex_handle_hyphenation(halfword head, halfword tail)
     }
 }
 
+/*
+    It's fast enough but bet we can do better with this begin and end trickery. 
+*/
+
 static int tex_aux_hnj_hyphen_hyphenate(
     hjn_dictionary     *dict,
     halfword            first,
@@ -1299,13 +1307,15 @@ static int tex_aux_hnj_hyphen_hyphenate(
         int      state    = 0;
         int      char_num = 0;
         int      done     = 0;
+        halfword end      =  node_next(last);
         ++lmt_language_state.word_count;
-        /*tex Add a '.' to beginning and end to facilitate matching. */
+        /*tex Add a '.' to beginning and end to facilitate matching. No prev here */
         node_next(begin_period) = first;
-        node_next(end_period)   = node_next(last);
+        node_next(end_period)   = end; // node_next(last);
         node_next(last)         = end_period;
         /*tex Now, run the finite state machine. */
-        for (here = begin_period, char_num = 0; here != node_next(end_period); here = node_next(here)) {
+     // for (here = begin_period, char_num = 0; here != node_next(end_period); here = node_next(here)) {
+        for (here = begin_period, char_num = 0; here != end; here = node_next(here)) {
             int ch;
             if (here == begin_period || here == end_period) {
                 ch = '.';
@@ -1348,7 +1358,8 @@ static int tex_aux_hnj_hyphen_hyphenate(
             char_num++;
         }
         /*tex Restore the correct pointers. */
-        node_next(last) = node_next(end_period);
+     // node_next(last) = node_next(end_period);
+        node_next(last) = end;
         /*tex
             Pattern is |.word.| and |word_len| is 4, |ext_word_len| is 6 and |hyphens| is 7; drop first
             two and stop after |word_len-1|.
@@ -1533,7 +1544,7 @@ void tex_hyphenate_list(halfword head, halfword tail)
             int      penalties_pushed            = node_type(p) == par_node; /* maybe check for h|v subtype */
             ++lmt_language_state.checked_count;
             if (penalties_pushed) {
-                hyphen_penalty_par = tex_get_par_par(p, par_hyphen_penalty_code); 
+                hyphen_penalty_par    = tex_get_par_par(p, par_hyphen_penalty_code); 
                 ex_hyphen_penalty_par = tex_get_par_par(p, par_ex_hyphen_penalty_code); 
             }
             /* */
@@ -1701,6 +1712,8 @@ void tex_hyphenate_list(halfword head, halfword tail)
                                              *utf8ori     = '\0';
                                     if (lang->wordhandler && hyphenation_permitted(glyph_hyphenate(start), force_handler_hyphenation_mode)) {
                                         halfword restart = node_prev(start); /*tex before the word. */
+                                        lang->left_min  = lhmin; // we can save and restore 
+                                        lang->right_min = rhmin;
                                         int done = lmt_handle_word(lang, utf8original, utf8word, word_length, start, word_end, &replacement, &size);
                                         if (size < 0 || size >= max_size_of_word_buffer) {
                                             tex_formatted_warning(
@@ -1775,6 +1788,7 @@ void tex_hyphenate_list(halfword head, halfword tail)
                                     */
                                   EXCEPTIONS1:
                                     if (lang->exceptions) {
+                                        /* we make a copy but can as not do it as we don't free the exceptions list  */
                                         replacement = tex_aux_hyphenation_exception(lang->exceptions, utf8word);
                                     }
                                   EXCEPTIONS2:

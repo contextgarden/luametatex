@@ -13,6 +13,10 @@ typedef struct tex_language_data {
     halfword        pre_exhyphen_char;
     halfword        post_exhyphen_char;
     halfword        hyphenation_min;
+    halfword        left_min;
+    halfword        right_min;
+    halfword        left_default;
+    halfword        right_default;
     halfword        id;
     hjn_dictionary *patterns;
     int             exceptions;

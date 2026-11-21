@@ -1020,23 +1020,6 @@ static inline void tokenlib_aux_goto_first_candidate_x(void)
     } while (cur_cmd == spacer_cmd);
 }
 
-static inline void tokenlib_aux_add_utf_char_to_buffer(luaL_Buffer *b, halfword chr)
-{
-    if (chr <= ascii_max) {
-        luaL_addchar(b, (unsigned char) chr);
-    } else {
-        /*
-        unsigned char word[5 + 1];
-        char *uindex = aux_uni2string((char *) word, (unsigned int) chr);
-        *uindex = '\0';
-        luaL_addstring(b, (char *) word);
-        */
-        unsigned char word[5 + 1];
-        aux_uni2string((char *) word, (unsigned int) chr);
-        luaL_addlstring(b, (char *) word, utf8_size(chr));
-    }
-}
-
 /*tex
     We could of course work with sets or ranges but the bit of duplicate code doesn't harm that
     much. The hexadecimal variant also deals with \LUA\ serialized numbers like |123.345E67| being
@@ -1629,7 +1612,7 @@ static int tokenlib_scanstring(lua_State *L)
                 luaL_Buffer b;
                 luaL_buffinit(L, &b);
                 while (1) {
-                    tokenlib_aux_add_utf_char_to_buffer(&b, cur_chr);
+                    lmt_add_utf8_char(&b, (unsigned) cur_chr);
                     tex_get_x_token();
                     if (cur_cmd != letter_cmd && cur_cmd != other_char_cmd) {
                         break;
@@ -1696,7 +1679,7 @@ static int tokenlib_scanargument(lua_State *L)
                     luaL_Buffer b;
                     luaL_buffinit(L, &b);
                     while (h) {
-                        tokenlib_aux_add_utf_char_to_buffer(&b, token_chr(token_info(h)));
+                        lmt_add_utf8_char(&b, (unsigned) token_chr(token_info(h)));
                         h = token_link(h);
                     }
                     luaL_pushresult(&b);
@@ -1711,7 +1694,7 @@ static int tokenlib_scanargument(lua_State *L)
                 /*tex Contrary to |scanstring| we only grab one \UTF\ character. */
                 luaL_Buffer b;
                 luaL_buffinit(L, &b);
-                tokenlib_aux_add_utf_char_to_buffer(&b, cur_chr);
+                lmt_add_utf8_char(&b, (unsigned) cur_chr);
                 luaL_pushresult(&b);
                 break;
             }
@@ -2107,7 +2090,7 @@ static int tokenlib_grab_string_until(lua_State *L)
                 case letter_cmd:
                 case other_char_cmd:
                 case active_char_cmd:
-                    tokenlib_aux_add_utf_char_to_buffer(&b, cur_chr);
+                    lmt_add_utf8_char(&b, (unsigned) cur_chr);
                     break;
                 default:
                     if (cur_tok >= cs_token_flag) {
@@ -2149,7 +2132,7 @@ static int tokenlib_scanword(lua_State *L)
         luaL_Buffer b;
         luaL_buffinit(L, &b);
         while (1) {
-            tokenlib_aux_add_utf_char_to_buffer(&b, cur_chr);
+            lmt_add_utf8_char(&b, (unsigned) cur_chr);
             tex_get_x_token();
             if (cur_cmd != letter_cmd && cur_cmd != other_char_cmd) {
                 break;
@@ -2175,7 +2158,7 @@ static int tokenlib_scanletters(lua_State *L)
         luaL_Buffer b;
         luaL_buffinit(L, &b);
         while (1) {
-            tokenlib_aux_add_utf_char_to_buffer(&b, cur_chr);
+            lmt_add_utf8_char(&b, (unsigned) cur_chr);
             tex_get_x_token();
             if (cur_cmd != letter_cmd) {
                 break ;
@@ -2236,13 +2219,19 @@ static int tokenlib_scannextchar(lua_State *L)
         case other_char_cmd:
         case active_char_cmd: /* needs testing */
             {
-                /* see elsewhere, we can make a shared helper */
                 char buffer[6];
                 char *uindex = aux_uni2string((char *) buffer, (unsigned int) cur_chr);
                 *uindex = '\0';
                 lua_pushstring(L, buffer);
                 break;
             }
+         // {
+         //     luaL_Buffer b;
+         //     luaL_buffinit(L, &b);
+         //     lmt_add_utf8_char(&b, (unsigned) cur_chr);
+         //     luaL_pushresult(&b);
+         //     break;
+         // }
         default:
             lua_pushstring(L, "");
             break;
@@ -2328,7 +2317,7 @@ static int tokenlib_scankey(lua_State *L)
         luaL_Buffer b;
         luaL_buffinit(L, &b);
         while (1) {
-            tokenlib_aux_add_utf_char_to_buffer(&b, cur_chr);
+            lmt_add_utf8_char(&b, (unsigned) cur_chr);
             tex_get_x_token();
             if ((cur_cmd != letter_cmd && cur_cmd != other_char_cmd) || (cur_chr == c1) || (cur_chr == c2)) {
                 break ;
@@ -2447,12 +2436,12 @@ static int tokenlib_scanvalue(lua_State *L)
                             if (cur_chr == c1 || cur_chr == c2) {
                                 goto DONE;
                             } else {
-                                tokenlib_aux_add_utf_char_to_buffer(&b, cur_chr);
+                                lmt_add_utf8_char(&b, (unsigned) cur_chr);
                             }
                             break;
                         default:
                             /* what to do */
-                            tokenlib_aux_add_utf_char_to_buffer(&b, cur_chr);
+                            lmt_add_utf8_char(&b, (unsigned) cur_chr);
                             break;
                     }
                     tex_get_x_token();
@@ -3600,7 +3589,7 @@ static int tokenlib_getconstantmacro(lua_State *L)
                     luaL_Buffer b;
                     luaL_buffinit(L, &b);
                     while (h) {
-                        tokenlib_aux_add_utf_char_to_buffer(&b, token_chr(token_info(h)));
+                        lmt_add_utf8_char(&b, (unsigned) token_chr(token_info(h)));
                         h = token_link(h);
                     }
                     luaL_pushresult(&b);

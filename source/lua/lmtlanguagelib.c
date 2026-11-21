@@ -434,6 +434,168 @@ static int languagelib_haslanguage(lua_State *L)
     return 1;
 }
 
+/* hyphenatestring(language, word [, leftmin [, rightmin [, separator]]]) */
+
+/*tex 
+    This is basically a translation of the code in texlanguage but simplified and for special 
+    purposes. We also have a pure \LUA\ variant that we use as a reference. I played with a 
+    variant that obeys compound word markers and such but in practice these are handled before
+    we get here. 
+
+    We return the number of hyphens so that the \LUA\ end can have a quick check. Of course a
+    change in length also can be used. 
+
+*/
+
+# define MAX_WORD_LEN 64
+
+static int languagelib_hyphenatestring(lua_State *L)
+{
+    tex_language_data *lang = languagelib_object(L);
+    if (! lang) {
+        return 0;
+    }
+
+    size_t          bytes     = 0; /* we have utf so let's not call it |length|. */
+    const char     *word      = luaL_checklstring(L, 2, &bytes);
+    int             leftmin   = lmt_optinteger(L, 3, lang->left_min  ? lang->left_min  : (lang->left_default  ? lang->left_default  : 2));
+    int             rightmin  = lmt_optinteger(L, 4, lang->right_min ? lang->right_min : (lang->right_default ? lang->right_default : 2));
+    int             separator = lmt_optinteger(L,5,lang->pre_hyphen_char ? lang->pre_hyphen_char : '-');
+    hjn_dictionary *dict      = lang->patterns;
+
+    if (! dict || ! word || bytes == 0) {
+        lua_pushlstring(L, word ? word : "", word ? bytes : 0);
+        lua_pushinteger(L, 0);
+        return 2;
+    }
+
+    int codepoints = (int) aux_utf8len(word, bytes);
+    if (codepoints <= 0) {
+        lua_pushlstring(L, word, bytes);
+        lua_pushinteger(L, 0);
+        return 2;
+    }
+
+    if (lang->hyphenation_min > 0 && codepoints < (int) lang->hyphenation_min) {
+        lua_pushlstring(L, word, bytes);
+        lua_pushinteger(L, 0);
+        return 2;
+    }
+
+    /*tex We stop at MAX_WORD_LEN just like \TEX's word length limit does. */
+
+    if (codepoints > MAX_WORD_LEN) {
+        codepoints = MAX_WORD_LEN;
+    }
+
+    /*tex We have these virtual '.' at 0 and codepoint_count + 1 (nodes at the \TEX\ end). */
+
+    int ext_word_len = codepoints   + 2;
+    int hyphen_len   = ext_word_len + 1;
+
+    unsigned chars  [MAX_WORD_LEN]     = { 0 }; /* on the stack */
+    char     hyphens[MAX_WORD_LEN + 3] = { 0 }; /* on the stack */
+
+    /*tex 
+        The pointer runs over the string taking the \UTF\ length into account. A dedicated \ASCII\
+        code path makes no sense because in most cases languages have non \ASCII\ characters and a run 
+        over the string also takes time. It's not like we call this a lot anyway.
+    */
+
+    const unsigned char *ptr    = (const unsigned char *) word;
+    const unsigned char *endptr = ptr + bytes;
+    int                  state  = 0;
+    int                  done   = 0;
+
+    ++lmt_language_state.word_count;
+
+    /* tex We collect the remapped characters in an array. */
+
+    for (int i = 0; i < codepoints && ptr < endptr; i++) {
+        int      ulen  = 0;
+        unsigned uchr  = aux_str2uni_len(ptr, (size_t) (endptr - ptr), &ulen);
+        if (ulen <= 0) {
+            codepoints   = i;
+            ext_word_len = codepoints + 2;
+            break;
+        }
+        ptr += (size_t) ulen;
+
+        int hjchr = tex_get_hj_code(lang->id, (int) uchr);
+
+        chars[i] = (unsigned) ((hjchr <= 32) ? (int) uchr : hjchr);
+    }
+
+    /*tex 
+        Here comes some the magic hjn code, see \TEX\ end code where have it the Taco way. The 
+        states are stored in the the hyphens array and later on drive insertion of a seprator. 
+    */
+
+    for (int i = 0; i < ext_word_len; i++) {
+        unsigned ch = (i == 0 || i == codepoints + 1) ? '.' : chars[i - 1];
+        while (state != -1) {
+            hjn_state *hstate = &dict->states[state];
+            for (int k = 0; k < hstate->num_trans; k++) {
+                if (hstate->trans[k].uni_ch == (int)ch) {
+                    state = hstate->trans[k].new_state;
+                    char *match = dict->states[state].match;
+                    if (match) {
+                        int offset = i + 2 - (int) strlen(match);
+                        for (int m = 0; match[m]; m++) {
+                            if (offset + m >= 0 && offset + m < hyphen_len) {
+                                if (hyphens[offset + m] < match[m]) {
+                                    hyphens[offset + m] = match[m];
+                                }
+                            }
+                        }
+                    }
+                    goto NEXT;
+                }
+            }
+            state = hstate->fallback_state;
+        }
+        state = 0;
+      NEXT:;
+    }
+
+    /* 
+        We put all in a \LUA\ buffer which is more efficient. Normally the separator is just one 
+        character but we can go wild here. 
+    */
+
+    luaL_Buffer buf;
+    luaL_buffinit(L, &buf);
+
+    int    first_break_idx = (leftmin > 1) ? (leftmin - 1) : 0;
+    int    last_break_idx  = codepoints - ((rightmin > 1) ? rightmin : 1);
+    /* reuse */ ptr        = (const unsigned char *) word;
+
+    for (int idx = 0; idx < codepoints && ptr < endptr; idx++) {
+        int ulen = 0;
+        aux_str2uni_len(ptr, (size_t) (endptr - ptr), &ulen);
+        if (ulen <= 0) {
+            break;
+        }
+        luaL_addlstring(&buf, (const char *) ptr, (size_t) ulen);
+        ptr += (size_t) ulen;
+        if (idx >= first_break_idx && idx < last_break_idx && (hyphens[idx + 2] & 1)) {
+            lmt_add_utf8_char(&buf, separator);
+            done += 1;
+        }
+    }
+    /*tex
+        If the input had more than MAX_WORD_LEN codepoints, append the remainder unchanged, but we
+        can decide for some message instead. 
+    */
+    if (ptr < endptr) {
+        luaL_addlstring(&buf, (const char *) ptr, (size_t) (endptr - ptr));
+    }
+
+    luaL_pushresult(&buf);
+    lua_pushinteger(L, done);
+    return 2;
+}
+
 static const struct luaL_Reg languagelib_metatable[] = {
     { "clearpatterns",     languagelib_clear_patterns     },
     { "clearhyphenation",  languagelib_clear_hyphenation  },
@@ -448,6 +610,7 @@ static const struct luaL_Reg languagelib_metatable[] = {
     { "gethjcode",         languagelib_gethjcode          },
     { "setwordhandler",    languagelib_setwordhandler     },
     { "id",                languagelib_id                 },
+    { "hyphenatestring",   languagelib_hyphenatestring    },
     { NULL,                NULL                           },
 };
 
@@ -470,6 +633,7 @@ static const struct luaL_Reg languagelib_function_list[] = {
     { "hyphenate",         languagelib_hyphenate          },
     { "current",           languagelib_current            },
     { "new",               languagelib_new                },
+    { "hyphenatestring",   languagelib_hyphenatestring    },
     { NULL,                NULL                           },
 };
 

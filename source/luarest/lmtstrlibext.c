@@ -683,6 +683,12 @@ static int strlib_linetable(lua_State *L)
     a price.
 */
 
+# if 1 
+
+# define strlib_aux_add_utfchar lmt_add_valid_utf8_char
+
+# else 
+
 static inline void strlib_aux_add_utfchar(luaL_Buffer *b, unsigned u)
 {
     if (u <= MAXUNICODE && (u < 0xD800 || u > 0xDFFF)) {
@@ -705,10 +711,7 @@ static inline void strlib_aux_add_utfchar(luaL_Buffer *b, unsigned u)
     }
 }
 
-static inline void strlib_aux_add_utfnumber(lua_State *L, luaL_Buffer *b, int index)
-{
-    strlib_aux_add_utfchar(b, (unsigned) lmt_tounsigned(L, index));
-}
+# endif
 
 /*tex
     When we loop over a table we push its elements, which is not permitted when a \LUA\ buffer has
@@ -1649,7 +1652,7 @@ static int strlib_utf16toutf8(lua_State *L)
             be = lua_toboolean(L, 3);
         }
         luaL_Buffer b;
-        luaL_buffinitsize(L, &b, (ls - i) * 3 / 2 + 1);
+        luaL_buffinitsize(L, &b, ((ls - i) * 3) / 2 + 1);
         unsigned int high_surrogate = 0;
         while (i < ls) {
             unsigned char c1   = (unsigned char) s[i++];
@@ -2161,11 +2164,12 @@ static int strlib_utftabletostring(lua_State *L)
             if (l > n) { l = n; }
             if (l >= f) {
                 luaL_Buffer b;
-                luaL_buffinitsize(L, &b, (size_t) (l-f+1) * 4);
+                luaL_buffinitsize(L, &b, (size_t) (l - f + 1) * 4);
                 for (lua_Integer i = f; i <= l; i++) {
                     if (lua_rawgeti(L, 1, i) == LUA_TNUMBER) {
-                        strlib_aux_add_utfnumber(L, &b, -1);
-                    } // wr could; also handle tables 
+                        unsigned u = (unsigned) lua_tointeger(L, -1);
+                        strlib_aux_add_utfchar(&b, u); /* or lmt_add_valid_utf8_char(&b, u) */
+                    }                    
                     lua_pop(L, 1);
                 }
                 luaL_pushresult(&b);

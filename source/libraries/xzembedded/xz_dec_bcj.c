@@ -71,6 +71,8 @@ struct xz_dec_bcj {
 		 * ARM              4           0
 		 * ARM-Thumb        2           2
 		 * SPARC            4           0
+		 * ARM64            4           0
+		 * RISC-V           2           6
 		 */
 		uint8_t buf[16];
 	} temp;
@@ -558,7 +560,7 @@ static void bcj_flush(struct xz_dec_bcj *s, struct xz_buf *b)
 {
 	size_t copy_size;
 
-	copy_size = min_t(size_t, s->temp.filtered, b->out_size - b->out_pos);
+	copy_size = min(s->temp.filtered, b->out_size - b->out_pos);
 	memcpy(b->out + b->out_pos, s->temp.buf, copy_size);
 	b->out_pos += copy_size;
 

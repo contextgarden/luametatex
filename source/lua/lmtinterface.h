@@ -2230,4 +2230,56 @@ static inline void lmt_newline_to_buffer(void)
     target = (lua_rawget(L, -2) != LUA_TNIL); \
     lua_pop_one(L);
 
+/* best here */
+
+static inline void lmt_add_utf8_char(luaL_Buffer *buf, unsigned unic)
+{
+    char *p = luaL_prepbuffsize(buf, 4);
+    char *q = p;
+    if (unic > 0x10FFFF || (unic >= 0xD800 && unic <= 0xDFFF)) {
+        unic = 0xFFFD;
+    }
+    if (unic < 0x80) {
+        *q++ = (char) unic;
+    } else if (unic < 0x800) {
+        *q++ = (char) (0xC0 | (unic >> 6));
+        *q++ = (char) (0x80 | (unic & 0x3F));
+    } else if (unic < 0x10000) {
+        *q++ = (char) (0xE0 | (unic >> 12));
+        *q++ = (char) (0x80 | ((unic >> 6) & 0x3F));
+        *q++ = (char) (0x80 | (unic & 0x3F));
+    } else {
+        *q++ = (char) (0xF0 | (unic >> 18));
+        *q++ = (char) (0x80 | ((unic >> 12) & 0x3F));
+        *q++ = (char) (0x80 | ((unic >> 6) & 0x3F));
+        *q++ = (char) (0x80 | (unic & 0x3F));
+    }
+    luaL_addsize(buf, (size_t) (q - p));
+}
+
+static inline void lmt_add_valid_utf8_char(luaL_Buffer *buf, unsigned unic)
+{
+    if (unic > 0x10FFFF || (unic >= 0xD800 && unic <= 0xDFFF)) {
+        return;
+    }
+    char *p = luaL_prepbuffsize(buf, 4);
+    char *q = p;
+    if (unic < 0x80) {
+        *q++ = (char) unic;
+    } else if (unic < 0x800) {
+        *q++ = (char) (0xC0 | (unic >> 6));
+        *q++ = (char) (0x80 | (unic & 0x3F));
+    } else if (unic < 0x10000) {
+        *q++ = (char) (0xE0 | (unic >> 12));
+        *q++ = (char) (0x80 | ((unic >> 6) & 0x3F));
+        *q++ = (char) (0x80 | (unic & 0x3F));
+    } else {
+        *q++ = (char) (0xF0 | (unic >> 18));
+        *q++ = (char) (0x80 | ((unic >> 12) & 0x3F));
+        *q++ = (char) (0x80 | ((unic >> 6) & 0x3F));
+        *q++ = (char) (0x80 | (unic & 0x3F));
+    }
+    luaL_addsize(buf, (size_t) (q - p));
+}
+
 # endif

@@ -18,7 +18,7 @@ static inline int aux_is_utf8_follow(unsigned char c)
 
 static inline unsigned aux_normalize_unicode(unsigned unic)
 {
-    return unic <= 0x10FFFF && !(unic >= 0xD800 && unic <= 0xDFFF) ? unic : 0xFFFD;
+    return unic <= 0x10FFFF && ! (unic >= 0xD800 && unic <= 0xDFFF) ? unic : 0xFFFD;
 }
 
 unsigned aux_str2uni_len(const unsigned char *text, size_t size, int *len)
