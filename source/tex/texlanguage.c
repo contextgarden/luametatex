@@ -852,15 +852,29 @@ static int tex_aux_do_exception(halfword wordstart, halfword r, char *replacemen
                 }
             }
             /*tex Let's check if we have a penalty spec. If we have more then we're toast, we just ignore them. */
+int subtype = normal_discretionary_code;
             if (uword[i] && uword[i + 1] == '[') {
                 i += 2;
-                if (uword[i] == 'R') {
-                    i += 1;
-                    redo = 1;
-                } else if (uword[i] == 'C') {
-                    i += 1;
-                    redo = 1;
-                    compound = 1;
+                switch (uword[i]) { 
+                    case 'R':
+                        i += 1;
+                        redo = 1;
+                        break;
+                    case 'C':
+                        i += 1;
+                        redo = 1;
+                        compound = 1;
+                        break;
+                    case 'N':
+subtype = normal_discretionary_code;      /* needed when we default to syllable */
+                        i += 1;
+                        redo = 1;
+                    case 'S':
+subtype = syllable_discretionary_code;    /* needed when we default to normal */
+                        i += 1;
+                        redo = 1;
+                    default:
+                        break;
                 }
                 if (uword[i] && uword[i] >= '0' && uword[i] <= '9') {
                     if (exception_penalty_par > 0) {
@@ -947,7 +961,8 @@ static int tex_aux_do_exception(halfword wordstart, halfword r, char *replacemen
                     }
                 }
                 /*tex And now we insert a disc node (this was |syllable_discretionary_code|). */
-                t = tex_aux_insert_discretionary(t, pre, post, replace, normal_discretionary_code, penalty);
+//                t = tex_aux_insert_discretionary(t, pre, post, replace, normal_discretionary_code, penalty);
+t = tex_aux_insert_discretionary(t, pre, post, replace, subtype, penalty);
                 if (compound) {
                     disc_options(t) |= disc_option_pre_word & disc_option_post_word;
                 }

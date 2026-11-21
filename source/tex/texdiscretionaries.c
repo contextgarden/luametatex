@@ -252,6 +252,7 @@ typedef enum discretionary_keys {
     discretionary_key_postword,
     discretionary_key_preword,
     discretionary_key_standalone,
+    discretionary_key_syllable,
     /* */
     discretionary_key_left_brace,
 } discretionary_keys;
@@ -267,6 +268,7 @@ static const char *discretionary_words[] = {
     "postword",
     "preword",
     "standalone",
+    "syllable",
 };
 
 void tex_set_discretionary_matcher(void)
@@ -275,7 +277,7 @@ void tex_set_discretionary_matcher(void)
         .words   = discretionary_words, 
         .name    = "discretionary",
         .first   = discretionary_key_break,
-        .last    = discretionary_key_standalone,
+        .last    = discretionary_key_syllable,
         .group   = discretionary_key_left_brace,
         .options = default_matcher_options, 
     };
@@ -322,6 +324,9 @@ void tex_run_discretionary(void)
                             break;
                         case discretionary_key_standalone:
                             set_disc_option(d, disc_option_stand_alone);
+                            break;
+                        case discretionary_key_syllable:
+                            node_subtype(d) = syllable_discretionary_code;
                             break;
                         default:
                             goto DONE;
@@ -379,8 +384,20 @@ void tex_run_discretionary(void)
                             }
                             break;
                         case 's':
-                            if (tex_scan_mandate_keyword("standalone", 1)) {
-                                set_disc_option(d, disc_option_stand_alone);
+                            switch (tex_scan_character("ty", 0, 0, 0)) {
+                                case 't':
+                                    if (tex_scan_mandate_keyword("standalone", 2)) {
+                                        set_disc_option(d, disc_option_stand_alone);
+                                    }
+                                    break;
+                                case 'y':
+                                    if (tex_scan_mandate_keyword("syllable", 2)) {
+                                        node_subtype(d) = syllable_discretionary_code;
+                                    }
+                                    break;
+                                default:
+                                    tex_aux_show_keyword_error("standalone|syllable");
+                                    goto DONE;
                             }
                             break;
                         default:
