@@ -6157,7 +6157,7 @@ static int texlib_getparagraphfillmodevalues(lua_State *L)
 
 static int texlib_getdiscoptionvalues(lua_State *L)
 {
-    lua_createtable(L, 2, 7);
+    lua_createtable(L, 2, 9);
     lua_set_string_by_index(L, disc_option_normal_word,               "normalword");
     lua_set_string_by_index(L, disc_option_pre_word,                  "preword");
     lua_set_string_by_index(L, disc_option_post_word,                 "postword");
@@ -6166,6 +6166,8 @@ static int texlib_getdiscoptionvalues(lua_State *L)
     lua_set_string_by_index(L, disc_option_no_italic_correction,      "noitaliccorrection");
     lua_set_string_by_index(L, disc_option_no_zero_italic_correction, "nozeroitaliccorrection");
     lua_set_string_by_index(L, disc_option_stand_alone,               "standalone");
+    lua_set_string_by_index(L, disc_option_exception,                 "exception");
+    lua_set_string_by_index(L, disc_option_compound,                  "compound");
     lua_set_string_by_index(L, disc_option_user_first,                "userfirst");
     lua_set_string_by_index(L, disc_option_user_last,                 "userlast");
     return 1;

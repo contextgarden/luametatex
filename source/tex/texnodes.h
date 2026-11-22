@@ -997,6 +997,9 @@ typedef enum disc_option_codes {
     disc_option_no_italic_correction      = 0x00000040,
     disc_option_no_zero_italic_correction = 0x00000080,
     disc_option_stand_alone               = 0x00000100,
+    /* */
+    disc_option_exception                 = 0x00000200,
+    disc_option_compound                  = 0x00000400,
     /*tex We permit user options. */
     disc_option_user_first                = 0x00010000,
     disc_option_user_last                 = 0x40000000,

@@ -788,6 +788,8 @@ static void tex_aux_flush_exception_parts(halfword pre, halfword post, halfword 
 
 */
 
+# define default_exception_code syllable_discretionary_code;
+
 static int tex_aux_do_exception(halfword wordstart, halfword r, char *replacement)
 {
     unsigned           uword[max_size_of_word_buffer]; //  = { 0 };
@@ -820,7 +822,6 @@ static int tex_aux_do_exception(halfword wordstart, halfword r, char *replacemen
             halfword post        = null;
             halfword replace     = null;
             int      count       = 0;
-            int      compound    = 0;
             int      alternative = null;
             halfword penalty;
             /*tex |pre| */
@@ -851,32 +852,55 @@ static int tex_aux_do_exception(halfword wordstart, halfword r, char *replacemen
                     break;
                 }
             }
-            /*tex Let's check if we have a penalty spec. If we have more then we're toast, we just ignore them. */
-int subtype = normal_discretionary_code;
+            /*tex 
+                Let's check if we have a penalty spec. If we have more then we're toast, we just 
+                ignore them. The options |disc_option_exception| and {|isc_option_compound| are 
+                only for tracing. So, we now have this format (as experiment): 
+
+                {pre}{post}{replace}[[A|B|C|N|R|S][0|1|2|3|4|5|6|7|8|9]]
+            */
+            int subtype = default_exception_code; 
+            int options = disc_option_exception;
             if (uword[i] && uword[i + 1] == '[') {
                 i += 2;
                 switch (uword[i]) { 
-                    case 'R':
+                    case 'A': /* compound after */
                         i += 1;
                         redo = 1;
+                        options |= disc_option_compound & disc_option_post_word;
                         break;
-                    case 'C':
+                    case 'B': /* compound before */
                         i += 1;
                         redo = 1;
-                        compound = 1;
+                        options |= disc_option_compound & disc_option_pre_word;
+                        break;
+                    case 'C': /* compound both */
+                        i += 1;
+                        redo = 1;
+                        options |= disc_option_compound & disc_option_pre_word & disc_option_post_word;
                         break;
                     case 'N':
-subtype = normal_discretionary_code;      /* needed when we default to syllable */
+                        /* When set to normal it will also kick in when we do the first pass. */
+                        subtype = normal_discretionary_code;
+                        i += 1;
+                        break;
+                    case 'R':  
                         i += 1;
                         redo = 1;
+                        break;
                     case 'S':
-subtype = syllable_discretionary_code;    /* needed when we default to normal */
+                        /* We default to syllable but keep this option just in case. */
+                        subtype = syllable_discretionary_code;
                         i += 1;
-                        redo = 1;
+                        break;
                     default:
                         break;
                 }
-                if (uword[i] && uword[i] >= '0' && uword[i] <= '9') {
+                /* As we can have stepped up, we rely on the NUL terminator. */
+                if (uword[i] == ']') {
+                    penalty = hyphen_penalty_par;
+                    break;
+                } else  if (uword[i] && uword[i] >= '0' && uword[i] <= '9') {
                     if (exception_penalty_par > 0) {
                         if (exception_penalty_par > infinite_penalty) {
                             penalty = exception_penalty_par;
@@ -961,11 +985,7 @@ subtype = syllable_discretionary_code;    /* needed when we default to normal */
                     }
                 }
                 /*tex And now we insert a disc node (this was |syllable_discretionary_code|). */
-//                t = tex_aux_insert_discretionary(t, pre, post, replace, normal_discretionary_code, penalty);
-t = tex_aux_insert_discretionary(t, pre, post, replace, subtype, penalty);
-                if (compound) {
-                    disc_options(t) |= disc_option_pre_word & disc_option_post_word;
-                }
+                t = tex_aux_insert_discretionary(t, pre, post, replace, subtype, penalty);
                 /*tex We skip the new disc node. */
                 t = node_next(t);
                 /*tex 
