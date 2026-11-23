@@ -226,6 +226,9 @@ typedef struct charinfo {
 
 */
 
+# define max_n_of_design_sizes  50
+# define design_size_step      100
+
 typedef struct texfont {
     /* --- 8-byte fields (pointers and doubles) --- */
     sa_tree     characters;          /* 8 bytes */
@@ -255,6 +258,7 @@ typedef struct texfont {
     int         mathweights[3];      /* 12 bytes */
     int         hyphen_char;         /* 4 bytes */
     int         skew_char;           /* 4 bytes */
+    halfword    design_sizes[max_n_of_design_sizes];
 } texfont;
 
 /*tex
@@ -453,6 +457,8 @@ extern halfword tex_get_scaled_parameter_glue (quarterword p, quarterword s);
 extern halfword tex_get_parameter_glue        (quarterword p, quarterword s);
 
 extern halfword tex_get_font_identifier       (halfword fs);
+
+extern void     tex_optimize_design_size      (halfword g);
 
 /*tex
     The \OPENTYPE\ math fonts have four edges and reference points for kerns. Here we go:

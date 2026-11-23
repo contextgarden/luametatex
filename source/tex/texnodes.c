@@ -1399,6 +1399,9 @@ static halfword tex_aux_new_char_node(quarterword subtype, halfword fnt, halfwor
         glyph_input_line(n) = 0;
     }
     tex_attach_current_attribute_list(n);
+    /* */
+    tex_optimize_design_size(n);
+    /* */
     return n;
 }
 

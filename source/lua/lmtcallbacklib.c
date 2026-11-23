@@ -89,6 +89,7 @@ callback_state_info lmt_callback_state = {
         { .value = 0, .state = 0,                          .name = "balance_boundary"     },
         { .value = 0, .state = 0,                          .name = "balance_insert"       },
         { .value = 0, .state = 0,                          .name = "page_boundary"        },
+        { .value = 0, .state = callback_state_fundamental, .name = "design_size"          },
 # if (delayed_glue_supported == 1)
         { .value = 0, .state = 0,                          .name = "delayed_glue"         },
 # endif

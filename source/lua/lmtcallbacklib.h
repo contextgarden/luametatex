@@ -80,6 +80,7 @@ typedef enum callback_types {
     balance_boundary_callback,
     balance_insert_callback,
     page_boundary_callback,
+    design_size_callback,
 # if (delayed_glue_supported == 1)
     delayed_glue_callback,
 # endif

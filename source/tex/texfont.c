@@ -928,6 +928,7 @@ static void tex_aux_reset_font(halfword f)
     tf->chardata = ci;
     tf->chardata_size = 1;
     tf->weight = 1.0;
+    memset(&(tf->design_sizes), 0, max_n_of_design_sizes * sizeof(halfword));
     tex_set_font_parameters(f, last_font_parameter);
     for (int i = 0; i <= last_font_parameter; i++) {
         tex_set_font_parameter(f, i, 0);
@@ -2585,6 +2586,48 @@ void tex_run_font_spec(void)
     if (font_spec_property_is_set(cur_chr, font_spec_weight_set)) {
         if (font_spec_weight(cur_chr) != glyph_weight_par) {
             update_tex_glyph_weight(font_spec_weight(cur_chr));
+        }
+    }
+}
+
+/*tex 
+    Experiment.
+*/
+
+void tex_optimize_design_size(halfword g)
+{
+    halfword fnt = glyph_font(g);
+    if (tex_is_valid_font(fnt)) {
+        halfword scale = glyph_scale(g);
+        halfword size  = scale / design_size_step;  
+        if (size >= 1 && size <= max_n_of_design_sizes) {
+            halfword okay = lmt_font_state.fonts[fnt]->design_sizes[size-1];
+            if (! okay) { 
+                int callback_id = lmt_callback_defined(design_size_callback);
+                okay = fnt;
+                if (callback_id > 0) {
+                    lua_State *L = lmt_lua_state.lua_instance;
+                    int top = 0;
+                    if (lmt_callback_okay(L, callback_id, &top)) {
+                        int i;
+                        lua_pushinteger(L, fnt);
+                        lua_pushinteger(L, size * design_size_step);
+                        i = lmt_callback_call(L, 2, 1, top);
+                        if lmt_unlikely(i) {
+                            lmt_callback_error(L, top, i);
+                        } else {
+                            int f = lmt_tointeger(L, -1);
+                            if (tex_is_valid_font(f)) {
+                               okay = f;
+                            }
+                            lmt_callback_wrapup(L, top);
+                        }
+                    }
+                }
+             // printf("font %i, size %i, okay %i\n",fnt,size,okay);
+                lmt_font_state.fonts[fnt]->design_sizes[size-1] = okay;
+            }
+            glyph_font(g) = okay;
         }
     }
 }
