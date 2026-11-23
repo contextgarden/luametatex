@@ -226,7 +226,7 @@ typedef struct charinfo {
 
 */
 
-# define max_n_of_design_sizes  50
+# define max_n_of_design_sizes 150
 # define design_size_step      100
 
 typedef struct texfont {
@@ -258,6 +258,8 @@ typedef struct texfont {
     int         mathweights[3];      /* 12 bytes */
     int         hyphen_char;         /* 4 bytes */
     int         skew_char;           /* 4 bytes */
+    int         use_design_sizes;
+    int         base_design_size;
     halfword    design_sizes[max_n_of_design_sizes];
 } texfont;
 
@@ -458,6 +460,7 @@ extern halfword tex_get_parameter_glue        (quarterword p, quarterword s);
 
 extern halfword tex_get_font_identifier       (halfword fs);
 
+extern halfword tex_get_design_size_font      (halfword fnt, halfword scale);
 extern void     tex_optimize_design_size      (halfword g);
 
 /*tex

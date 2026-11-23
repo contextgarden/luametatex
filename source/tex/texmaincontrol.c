@@ -593,6 +593,8 @@ static void tex_aux_run_math_space(void)
 
 static void tex_aux_run_space(void) 
 {
+    /*tex The design size variant that glyphs at the current scale also get. */
+    halfword font = tex_get_design_size_font(cur_font_par, glyph_scale_par);
     switch (no_spaces_par) {
         case no_spaces_discard_mode:
             /*tex Don't inject anything, not even zero skip. */
@@ -600,7 +602,7 @@ static void tex_aux_run_space(void)
         case no_spaces_zero_mode:
             /*tex Inject nothing but zero glue. */
             tex_tail_append(tex_new_glue_node(zero_glue, zero_space_skip_glue)); /* todo: subtype, zero_space_glue? */
-            glue_font(cur_list.tail) = cur_font_par;
+            glue_font(cur_list.tail) = font;
             break;
         case no_spaces_char_mode:
             tex_aux_adjust_space_factor(cur_chr);
@@ -608,17 +610,17 @@ static void tex_aux_run_space(void)
             break;
         case no_spaces_font_mode:
             {
-                halfword p = tex_get_scaled_glue(cur_font_par);
+                halfword p = tex_get_scaled_glue(font);
                 glue_options(p) |= glue_option_no_auto_break;
-                glue_font(p) = cur_font_par;
+                glue_font(p) = font;
                 tex_tail_append(p);
             }
             break;
         case no_spaces_font_fixed_mode:
             {
-                halfword p = tex_get_scaled_glue(cur_font_par);
+                halfword p = tex_get_scaled_glue(font);
                 glue_options(p) |= glue_option_no_auto_break;
-                glue_font(p) = cur_font_par;
+                glue_font(p) = font;
                 glue_stretch(p) = 0;
                 glue_shrink(p) = 0;
                 tex_tail_append(p);
@@ -627,8 +629,8 @@ static void tex_aux_run_space(void)
         case no_spaces_char_width_mode:
             {
                 halfword p = tex_new_glue_node(zero_glue, space_skip_glue);
-                glue_amount(p) = tex_font_x_scaled(tex_char_width_from_font(cur_font_par, '0'));
-                glue_font(p) = cur_font_par;
+                glue_amount(p) = tex_font_x_scaled(tex_char_width_from_font(font, '0'));
+                glue_font(p) = font;
                 glue_options(p) |= glue_option_no_auto_break;
                 tex_tail_append(p);
             }
@@ -647,7 +649,6 @@ static void tex_aux_run_space(void)
                     if ((cur_list.space_factor >= space_factor_threshold) && (! tex_glue_is_zero(xspace_skip_par))) {
                         p = tex_get_scaled_parameter_glue(xspace_skip_code, xspace_skip_glue);
                     } else {
-                        halfword font = cur_font_par; 
                         if (tex_glue_is_zero(space_skip_par)) {
                             p = tex_get_scaled_glue(font);
                         } else {
@@ -703,7 +704,7 @@ static void tex_aux_run_space(void)
                     }
                 } else if (tex_glue_is_zero(space_skip_par)) {
                     /*tex Find the glue specification for text spaces in the current font. */
-                    p = tex_get_scaled_glue(cur_font_par);
+                    p = tex_get_scaled_glue(font);
                 } else {
                     /*tex Append a normal inter-word space to the current list. */
                     p = tex_get_parameter_glue(space_skip_code, space_skip_glue); /* not scaled */
@@ -712,7 +713,7 @@ static void tex_aux_run_space(void)
                     glue_penalty(p) = cur_list.space_penalty;
                     glue_options(p) |= glue_option_has_penalty;
                 }
-                glue_font(p) = cur_font_par;
+                glue_font(p) = font;
                 tex_tail_append(p);
                 if (space_skip_mode_par) {
                     if (space_skip_mode_par & space_skip_no_amount_mode) {

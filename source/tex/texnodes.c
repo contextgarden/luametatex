@@ -1371,7 +1371,7 @@ static halfword tex_aux_new_char_node(quarterword subtype, halfword fnt, halfwor
     glyph_language  (n) = (quarterword) cur_lang_par;
     glyph_script    (n) = (quarterword) glyph_script_par;
     glyph_control   (n) = (quarterword) tex_get_cc_code(chr);
-    glyph_unused    (n) = 0;
+    glyph_design    (n) = 0;
     glyph_lhmin     (n) = (singleword) left_hyphen_min_par;
     glyph_rhmin     (n) = (singleword) right_hyphen_min_par;
     glyph_discpart  (n) = 0;

@@ -1504,7 +1504,7 @@ static inline int  tex_has_rule_option    (halfword a, halfword r) { return (rul
 # define glyph_language(a)   memone0(a,7)
 # define glyph_script(a)     memone1(a,7)
 # define glyph_control(a)    memtwo0(a,7)  /*tex we store 0xXXXX in the |\cccode| */
-# define glyph_unused(a)     memtwo1(a,7) 
+# define glyph_design(a)     memtwo1(a,7) 
 
 # define glyph_lhmin(a)      memone00(a,8)
 # define glyph_rhmin(a)      memone01(a,8)
@@ -1640,6 +1640,12 @@ typedef enum glyph_processing_codes {
 } glyph_processing_codes;
 
 /* todo: make this a bitset so that we can also register breakpoints */
+
+typedef enum glyph_design_codes {
+    glyph_design_unset    = 0x0,
+    glyph_design_set      = 0x1,
+    glyph_design_overload = 0x2,
+} glyph_design_codes;
 
 typedef enum glyph_discpart_codes {
     glyph_discpart_unset   = 0x0,

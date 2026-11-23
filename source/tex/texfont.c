@@ -928,6 +928,8 @@ static void tex_aux_reset_font(halfword f)
     tf->chardata = ci;
     tf->chardata_size = 1;
     tf->weight = 1.0;
+    tf->use_design_sizes = 1; /* to be done: set explicitly */
+    tf->base_design_size = 1000; /* to be done: set explicitly */
     memset(&(tf->design_sizes), 0, max_n_of_design_sizes * sizeof(halfword));
     tex_set_font_parameters(f, last_font_parameter);
     for (int i = 0; i <= last_font_parameter; i++) {
@@ -2591,16 +2593,21 @@ void tex_run_font_spec(void)
 }
 
 /*tex 
-    Experiment.
+    Experiment. The font that is used for a scale is cached per font and per step of 
+    |design_size_step|. The scale is rounded to the nearest step and scales beyond the last 
+    step share that step, so that large sizes still get the largest design (an opsz axis 
+    clamps anyway). As long as there is no callback nothing is cached, so that a callback 
+    that is set later still applies.
 */
 
-void tex_optimize_design_size(halfword g)
+halfword tex_get_design_size_font(halfword fnt, halfword scale)
 {
-    halfword fnt = glyph_font(g);
     if (tex_is_valid_font(fnt)) {
-        halfword scale = glyph_scale(g);
-        halfword size  = scale / design_size_step;  
-        if (size >= 1 && size <= max_n_of_design_sizes) {
+        halfword size = (scale + design_size_step / 2) / design_size_step;
+        if (size > max_n_of_design_sizes) {
+            size = max_n_of_design_sizes;
+        }
+        if (size >= 1) {
             halfword okay = lmt_font_state.fonts[fnt]->design_sizes[size-1];
             if (! okay) { 
                 int callback_id = lmt_callback_defined(design_size_callback);
@@ -2623,11 +2630,19 @@ void tex_optimize_design_size(halfword g)
                             lmt_callback_wrapup(L, top);
                         }
                     }
+                    lmt_font_state.fonts[fnt]->design_sizes[size-1] = okay;
                 }
-             // printf("font %i, size %i, okay %i\n",fnt,size,okay);
-                lmt_font_state.fonts[fnt]->design_sizes[size-1] = okay;
             }
-            glyph_font(g) = okay;
+            return okay;
         }
+    }
+    return fnt;
+}
+
+void tex_optimize_design_size(halfword g)
+{
+    if (glyph_design(g) == glyph_design_unset) {
+        glyph_font(g) = tex_get_design_size_font(glyph_font(g), glyph_scale(g));
+        glyph_design(g) = glyph_design_set;
     }
 }

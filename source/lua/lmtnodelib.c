@@ -735,8 +735,68 @@ static int nodelib_direct_setexpansion(lua_State *L)
 /* node.direct.getfont */
 /* node.direct.setfont */
 
-# define getfont_usage (glyph_usage | rule_usage | glue_usage | math_char_usage | math_text_char_usage | delimiter_usage)
-# define setfont_usage (glyph_usage | rule_usage | glue_usage)
+# define adaptfont_usage   glyph_usage
+# define adaptglyphs_usage (glyph_usage | disc_usage)
+# define getfont_usage     (glyph_usage | rule_usage | glue_usage | math_char_usage | math_text_char_usage | delimiter_usage)
+# define setfont_usage     (glyph_usage | rule_usage | glue_usage)
+
+/*tex
+    Experiment: give a glyph that is made or rescaled at the \LUA\ end the font that the
+    engine picks for its scale (see |tex_get_design_size_font|), so the |design_size|
+    callback applies to those glyphs too.
+*/
+
+static int nodelib_direct_adaptfont(lua_State *L)
+{
+    halfword n = nodelib_valid_direct_from_index(L, 1);
+    if (n && node_type(n) == glyph_node) {
+        tex_optimize_design_size(n);
+        lua_pushinteger(L, glyph_font(n));
+    } else {
+        lua_pushnil(L);
+    }
+    return 1;
+}
+
+static inline void nodelib_aux_adapt_all(halfword h)
+{
+    while (h) {
+        if (node_type(h) == glyph_node) {
+            if (glyph_design(h) == glyph_design_unset) {
+                tex_optimize_design_size(h);
+            }
+        }
+        h = node_next(h);
+    }
+}
+
+static int nodelib_direct_adaptglyphs(lua_State *L)
+{
+    halfword head = nodelib_valid_direct_from_index(L, 1);
+    halfword tail = nodelib_valid_direct_from_index(L, 2);
+    while (head) {
+        switch (node_type(head)) {
+            case glyph_node:
+                if (glyph_design(head) == glyph_design_unset) {
+                    tex_optimize_design_size(head);
+                }
+                break;
+            case disc_node:
+                nodelib_aux_adapt_all(disc_no_break_head(head));
+                nodelib_aux_adapt_all(disc_pre_break_head(head));
+                nodelib_aux_adapt_all(disc_post_break_head(head));
+                break;
+        }
+        if (head == tail) {
+            break;
+        } else {
+            head = node_next(head);
+        }
+    }
+    return 0;
+}
+
+
 
 static int nodelib_direct_getfont(lua_State *L)
 {
@@ -779,6 +839,11 @@ static int nodelib_direct_setfont(lua_State *L)
                 if (lua_type(L, 3) == LUA_TNUMBER) {
                     glyph_character(n) = lmt_tohalfword(L, 3);
                 }
+glyph_design(n) = glyph_design_unset;
+tex_optimize_design_size(n);
+if (glyph_design(n)) { 
+    glyph_design(n) = glyph_design_overload;
+}
                 break;
             case rule_node:
                 tex_set_rule_font(n, tex_checked_font(lmt_tohalfword(L, 2)));
@@ -2196,8 +2261,9 @@ static int nodelib_direct_addmargins(lua_State *L)
 
 /* node.direct.getscale   */
 
-# define getscale_usage glyph_usage
-# define setscale_usage getscale_usage
+# define getscale_usage  glyph_usage
+# define setscale_usage  getscale_usage
+# define getdesign_usage glyph_usage
 
 static int nodelib_direct_getscale(lua_State *L)
 {
@@ -2218,6 +2284,18 @@ static int nodelib_direct_getscale(lua_State *L)
     return 0;
 }
 
+static int nodelib_direct_getdesign(lua_State *L)
+{
+    halfword n = nodelib_valid_direct_from_index(L, 1);
+    if (n) { 
+        if (node_type(n) == glyph_node) {
+            lua_pushinteger(L, glyph_design(n));
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static int nodelib_direct_setscale(lua_State *L)
 {
     halfword n = nodelib_valid_direct_from_index(L, 1);
@@ -2229,6 +2307,11 @@ static int nodelib_direct_setscale(lua_State *L)
                     if (! glyph_scale(n)) {
                         glyph_scale(n) = scaling_factor;
                     }
+glyph_design(n) = glyph_design_unset;
+tex_optimize_design_size(n);
+if (glyph_design(n)) { 
+    glyph_design(n) = glyph_design_overload;
+}
                 }
                 break;
             case style_node:
@@ -2277,6 +2360,11 @@ static int nodelib_direct_setscales(lua_State *L)
             if (! glyph_scale(n)) {
                 glyph_scale(n) = scaling_factor;
             }
+glyph_design(n) = glyph_design_unset;
+tex_optimize_design_size(n);
+if (glyph_design(n)) { 
+    glyph_design(n) = glyph_design_overload;
+}
         }
         if (lua_type(L, 3) == LUA_TNUMBER) {
             glyph_x_scale(n) = (halfword) lmt_roundnumber(L, 3);
@@ -12835,6 +12923,8 @@ typedef struct usage_record {
 } usage_record;
 
 static const usage_record usage_data[] = {
+    { .name = "adaptfont",               .target = direct_usage_target,   .usage = adaptfont_usage               },
+    { .name = "adaptglyphs",             .target = direct_usage_target,   .usage = adaptglyphs_usage             },
     { .name = "addmargins",              .target = direct_usage_target,   .usage = addmargins_usage              },
     { .name = "addxoffset",              .target = direct_usage_target,   .usage = addxoffset_usage              },
     { .name = "addxymargins",            .target = direct_usage_target,   .usage = addxymargins_usage            },
@@ -12889,6 +12979,7 @@ static const usage_record usage_data[] = {
     { .name = "getdelimiter",            .target = direct_usage_target,   .usage = getdelimiter_usage            },
     { .name = "getdenominator",          .target = direct_usage_target,   .usage = getdenominator_usage          },
     { .name = "getdepth",                .target = direct_usage_target,   .usage = getdepth_usage                },
+    { .name = "getdesign",               .target = direct_usage_target,   .usage = getdesign_usage               },
     { .name = "getdirection",            .target = direct_usage_target,   .usage = getdirection_usage            },
     { .name = "getdisc",                 .target = direct_usage_target,   .usage = getdisc_usage                 },
     { .name = "getdiscpart",             .target = direct_usage_target,   .usage = getdiscpart_usage             },
@@ -13249,6 +13340,8 @@ static int nodelib_direct_getusage(lua_State *L)
 
 static const struct luaL_Reg nodelib_direct_function_list[] = {
 
+    { "adaptfont",               nodelib_direct_adaptfont               },
+    { "adaptglyphs",             nodelib_direct_adaptglyphs             },
     { "addmargins",              nodelib_direct_addmargins              },
     { "addxoffset",              nodelib_direct_addxoffset              },
     { "addxymargins",            nodelib_direct_addxymargins            },
@@ -13301,6 +13394,7 @@ static const struct luaL_Reg nodelib_direct_function_list[] = {
     { "getdelimiter",            nodelib_direct_getdelimiter            },
     { "getdenominator",          nodelib_direct_getdenominator          },
     { "getdepth",                nodelib_direct_getdepth                },
+    { "getdesign",               nodelib_direct_getdesign               },
     { "getdirection",            nodelib_direct_getdirection            },
     { "getdisc",                 nodelib_direct_getdisc                 },
     { "getdiscpart",             nodelib_direct_getdiscpart             },
