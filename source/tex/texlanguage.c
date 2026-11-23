@@ -512,6 +512,7 @@ const char *tex_clean_hyphenation(halfword id, const char *buff, char **cleaned)
                 }
                 /* skip penalty: [digit] but we intercept multiple digits */
                 if (uword_buffer[i] == '[') {
+                    /* For now no letter directives here. If so then share code. */
                     if (uword_buffer[i+1] && uword_buffer[i+1] >= '0' && uword_buffer[i+1] <= '9' && uword_buffer[i+2] && uword_buffer[i+2] == ']') {
                         i += 3;
                     } else {
@@ -793,10 +794,11 @@ static void tex_aux_flush_exception_parts(halfword pre, halfword post, halfword 
 static int tex_aux_do_exception(halfword wordstart, halfword r, char *replacement)
 {
     unsigned           uword[max_size_of_word_buffer]; //  = { 0 };
-    halfword           t     = wordstart;
-    unsigned           len   = aux_splitutf2uni(uword, replacement);
-    int                clang = get_glyph_language(wordstart);
-    int                redo  = 0;
+    halfword           t        = wordstart;
+    unsigned           len      = aux_splitutf2uni(uword, replacement);
+    int                clang    = get_glyph_language(wordstart);
+    int                redo     = 0;
+    int                inserted = 0;
     language_variables langdata;
     langdata.pre_hyphen_char  = tex_get_pre_hyphen_char(clang);
     langdata.post_hyphen_char = tex_get_post_hyphen_char(clang);
@@ -812,6 +814,7 @@ static int tex_aux_do_exception(halfword wordstart, halfword r, char *replacemen
                 tex_aux_insert_syllable_discretionary(t, &langdata);
                 /*tex Skip the new disc */
                 t = node_next(t);
+                inserted = 1;
             }
         } else if (uword[i + 1] == '=') {
             /*tex We skip a disc. */
@@ -857,7 +860,7 @@ static int tex_aux_do_exception(halfword wordstart, halfword r, char *replacemen
                 ignore them. The options |disc_option_exception| and {|isc_option_compound| are 
                 only for tracing. So, we now have this format (as experiment): 
 
-                {pre}{post}{replace}[[A|B|C|N|R|S][0|1|2|3|4|5|6|7|8|9]]
+                {pre}{post}{replace}[[A|B|C|N|S][0|1|2|3|4|5|6|7|8|9]]
             */
             int subtype = default_exception_code; 
             int options = disc_option_exception;
@@ -867,26 +870,22 @@ static int tex_aux_do_exception(halfword wordstart, halfword r, char *replacemen
                     case 'A': /* compound after */
                         i += 1;
                         redo = 1;
-                        options |= disc_option_compound & disc_option_post_word;
+                        options |= disc_option_compound | disc_option_post_word;
                         break;
                     case 'B': /* compound before */
                         i += 1;
                         redo = 1;
-                        options |= disc_option_compound & disc_option_pre_word;
+                        options |= disc_option_compound | disc_option_pre_word;
                         break;
                     case 'C': /* compound both */
                         i += 1;
                         redo = 1;
-                        options |= disc_option_compound & disc_option_pre_word & disc_option_post_word;
+                        options |= disc_option_compound | disc_option_pre_word | disc_option_post_word;
                         break;
                     case 'N':
                         /* When set to normal it will also kick in when we do the first pass. */
                         subtype = normal_discretionary_code;
                         i += 1;
-                        break;
-                    case 'R':  
-                        i += 1;
-                        redo = 1;
                         break;
                     case 'S':
                         /* We default to syllable but keep this option just in case. */
@@ -899,7 +898,6 @@ static int tex_aux_do_exception(halfword wordstart, halfword r, char *replacemen
                 /* As we can have stepped up, we rely on the NUL terminator. */
                 if (uword[i] == ']') {
                     penalty = hyphen_penalty_par;
-                    break;
                 } else  if (uword[i] && uword[i] >= '0' && uword[i] <= '9') {
                     if (exception_penalty_par > 0) {
                         if (exception_penalty_par > infinite_penalty) {
@@ -984,8 +982,10 @@ static int tex_aux_do_exception(halfword wordstart, halfword r, char *replacemen
                         }
                     }
                 }
-                /*tex And now we insert a disc node (this was |syllable_discretionary_code|). */
+                /*tex And now we insert a disc node; this was |syllable_discretionary_code|. */
                 t = tex_aux_insert_discretionary(t, pre, post, replace, subtype, penalty);
+                disc_options(t) |= options;
+                inserted = 1;
                 /*tex We skip the new disc node. */
                 t = node_next(t);
                 /*tex 
@@ -1005,7 +1005,7 @@ static int tex_aux_do_exception(halfword wordstart, halfword r, char *replacemen
             break;
         }
     }
-    return redo;
+    return redo && inserted;
 }
 
 /*tex
@@ -1829,10 +1829,10 @@ void tex_hyphenate_list(halfword head, halfword tail)
                                   EXCEPTIONS2:
                                     if (replacement) {
                                         /*tex handle the exception and go on to the next word */
-                                        halfword start   = explicit_start ? explicit_start : word_start;
-                                        halfword beg     = node_prev(start);
-                                        int      redo    = 0;
-                                                 nothing = 0;
+                                        halfword start    = explicit_start ? explicit_start : word_start;
+                                        halfword beg      = node_prev(start);
+                                        int      redo     = 0;
+                                                 nothing  = 0;
                                         ++lmt_language_state.exceptions_count;
                                         redo = tex_aux_do_exception(start, r, replacement); // r == next_node(word_end)
                                         if (trace > 1) {
@@ -1844,11 +1844,11 @@ void tex_hyphenate_list(halfword head, halfword tail)
                                             tex_end_diagnostic();
                                         }
                                         lmt_memory_free(replacement);
-                                        if (redo) {
-                                               explicit_start = 0;
-                                        } else {
-                                            goto PICKUP;
+                                        if (redo && beg) {
+                                            /*tex Rescan from before the word, the parts are now separated by discs. */
+                                            r = beg;
                                         }
+                                        goto PICKUP;
                                     }
                                   PATTERNS:
                                     if (lang->patterns) {
