@@ -841,7 +841,7 @@ static int nodelib_direct_setfont(lua_State *L)
                 }
 glyph_design(n) = glyph_design_unset;
 tex_optimize_design_size(n);
-if (glyph_design(n)) { 
+if (glyph_design(n) == glyph_design_set) { 
     glyph_design(n) = glyph_design_overload;
 }
                 break;
@@ -2309,7 +2309,7 @@ static int nodelib_direct_setscale(lua_State *L)
                     }
 glyph_design(n) = glyph_design_unset;
 tex_optimize_design_size(n);
-if (glyph_design(n)) { 
+if (glyph_design(n) == glyph_design_set) { 
     glyph_design(n) = glyph_design_overload;
 }
                 }
@@ -2362,7 +2362,7 @@ static int nodelib_direct_setscales(lua_State *L)
             }
 glyph_design(n) = glyph_design_unset;
 tex_optimize_design_size(n);
-if (glyph_design(n)) { 
+if (glyph_design(n) == glyph_design_set) { 
     glyph_design(n) = glyph_design_overload;
 }
         }

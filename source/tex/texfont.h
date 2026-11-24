@@ -258,8 +258,7 @@ typedef struct texfont {
     int         mathweights[3];      /* 12 bytes */
     int         hyphen_char;         /* 4 bytes */
     int         skew_char;           /* 4 bytes */
-    int         use_design_sizes;
-    int         base_design_size;
+    int         use_design_sizes;    /* 4 bytes */
     halfword    design_sizes[max_n_of_design_sizes];
 } texfont;
 
@@ -300,6 +299,8 @@ extern font_state_info lmt_font_state;
 # define set_font_name(a,b)             lmt_font_state.fonts[a]->name = b
 # define set_font_original(a,b)         lmt_font_state.fonts[a]->original = b
 # define set_font_design_size(a,b)      lmt_font_state.fonts[a]->design_size = b
+# define font_use_design_sizes(a)       lmt_font_state.fonts[a]->use_design_sizes
+# define set_font_use_design_sizes(a,b) lmt_font_state.fonts[a]->use_design_sizes = b
 # define set_font_first_character(a,b)  lmt_font_state.fonts[a]->first_character = b
 # define set_font_last_character(a,b)   lmt_font_state.fonts[a]->last_character = b
 # define set_font_compactmath(a,b)      lmt_font_state.fonts[a]->compactmath = b

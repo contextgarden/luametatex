@@ -576,7 +576,7 @@ static void fontlib_aux_font_char_from_lua(lua_State *L, halfword f, int i, int 
 
 static int fontlib_getfontfields(lua_State *L)
 {
-    lua_createtable(L, 21, 0);
+    lua_createtable(L, 22, 0);
     lua_push_key_at_index(L, name,                 1);
     lua_push_key_at_index(L, designsize,           2);
     lua_push_key_at_index(L, size,                 3);
@@ -598,6 +598,7 @@ static int fontlib_getfontfields(lua_State *L)
     lua_push_key_at_index(L, characters,          19);
     lua_push_key_at_index(L, parameters,          20);
     lua_push_key_at_index(L, MathConstants,       21);
+    lua_push_key_at_index(L, usedesignsizes,      22);
     return 1;
 }
 
@@ -623,6 +624,8 @@ static int lmt_font_from_lua(lua_State *L, int f)
         set_font_mathcontrol(f, j);
         set_numeric_field_by_index(j, textcontrol, 0);
         set_font_textcontrol(f, j);
+        set_boolean_field_by_index(j, usedesignsizes, 0);
+        set_font_use_design_sizes(f, j);
         /* */
         set_numeric_field_by_index(j, textscale, 0);
         set_font_textsize(f, j);

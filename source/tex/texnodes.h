@@ -1645,6 +1645,7 @@ typedef enum glyph_design_codes {
     glyph_design_unset    = 0x0,
     glyph_design_set      = 0x1,
     glyph_design_overload = 0x2,
+    glyph_design_default  = 0x4, /*tex Checked: the font is already the design for this scale. */
 } glyph_design_codes;
 
 typedef enum glyph_discpart_codes {

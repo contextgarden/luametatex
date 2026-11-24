@@ -928,8 +928,7 @@ static void tex_aux_reset_font(halfword f)
     tf->chardata = ci;
     tf->chardata_size = 1;
     tf->weight = 1.0;
-    tf->use_design_sizes = 1; /* to be done: set explicitly */
-    tf->base_design_size = 1000; /* to be done: set explicitly */
+    tf->use_design_sizes = 0; /*tex set at the \LUA\ end: |usedesignsizes|. */
     memset(&(tf->design_sizes), 0, max_n_of_design_sizes * sizeof(halfword));
     tex_set_font_parameters(f, last_font_parameter);
     for (int i = 0; i <= last_font_parameter; i++) {
@@ -2602,7 +2601,7 @@ void tex_run_font_spec(void)
 
 halfword tex_get_design_size_font(halfword fnt, halfword scale)
 {
-    if (tex_is_valid_font(fnt)) {
+    if (tex_is_valid_font(fnt) && font_use_design_sizes(fnt)) {
         /*tex A glyph made at the \LUA\ end has scale zero, which is drawn as |scaling_factor|. */
         halfword size = ((scale ? scale : scaling_factor) + design_size_step / 2) / design_size_step;
         if (size > max_n_of_design_sizes) {
@@ -2642,12 +2641,15 @@ halfword tex_get_design_size_font(halfword fnt, halfword scale)
 
 void tex_optimize_design_size(halfword g)
 {
-    if (glyph_design(g) == glyph_design_unset) {
+    /*tex A glyph in a font without design sizes stays unset, so tracing can skip it. */
+    if (glyph_design(g) == glyph_design_unset && tex_is_valid_font(glyph_font(g)) && font_use_design_sizes(glyph_font(g))) {
         halfword fnt = tex_get_design_size_font(glyph_font(g), glyph_scale(g));
         /*tex A variant can have fewer characters (EB Garamond 08 lacks 880 of the 12). */
         if (fnt != glyph_font(g) && tex_char_exists(fnt, glyph_character(g))) {
             glyph_font(g) = fnt;
+            glyph_design(g) = glyph_design_set;
+        } else {
+            glyph_design(g) = glyph_design_default;
         }
-        glyph_design(g) = glyph_design_set;
     }
 }
