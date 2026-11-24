@@ -474,6 +474,11 @@ static void tex_aux_run_text_char_number(void)
                 set_glyph_y_offset(glyph, yoffset);
                 set_glyph_weight(glyph, weight);
                 set_glyph_slant(glyph, slant);
+                if (scale != glyph_scale_par) {
+                    /*tex The design size variant belongs to this scale and not to |\glyphscale|. */
+                    glyph_design(glyph) = glyph_design_unset;
+                    tex_optimize_design_size(glyph);
+                }
                 tex_tail_append(glyph);
                 break;
             }

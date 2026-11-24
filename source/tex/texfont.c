@@ -2603,7 +2603,8 @@ void tex_run_font_spec(void)
 halfword tex_get_design_size_font(halfword fnt, halfword scale)
 {
     if (tex_is_valid_font(fnt)) {
-        halfword size = (scale + design_size_step / 2) / design_size_step;
+        /*tex A glyph made at the \LUA\ end has scale zero, which is drawn as |scaling_factor|. */
+        halfword size = ((scale ? scale : scaling_factor) + design_size_step / 2) / design_size_step;
         if (size > max_n_of_design_sizes) {
             size = max_n_of_design_sizes;
         }
@@ -2642,7 +2643,11 @@ halfword tex_get_design_size_font(halfword fnt, halfword scale)
 void tex_optimize_design_size(halfword g)
 {
     if (glyph_design(g) == glyph_design_unset) {
-        glyph_font(g) = tex_get_design_size_font(glyph_font(g), glyph_scale(g));
+        halfword fnt = tex_get_design_size_font(glyph_font(g), glyph_scale(g));
+        /*tex A variant can have fewer characters (EB Garamond 08 lacks 880 of the 12). */
+        if (fnt != glyph_font(g) && tex_char_exists(fnt, glyph_character(g))) {
+            glyph_font(g) = fnt;
+        }
         glyph_design(g) = glyph_design_set;
     }
 }
