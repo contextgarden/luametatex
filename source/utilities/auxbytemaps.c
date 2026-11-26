@@ -58,14 +58,17 @@ int bytemap_reset(bytemap_data *bytemap, size_t *count)
             done = 1;
         }
         *bytemap = (bytemap_data) {
-            .data    = NULL,
-            .nx      = 0,
-            .ny      = 0,
-            .nz      = 0,
-            .ox      = 0,
-            .oy      = 0,
-            .options = 0,
-            .model   = bytemap_gray,
+            .data     = NULL,
+            .nx       = 0,
+            .ny       = 0,
+            .nz       = 0,
+            .ox       = 0,
+            .oy       = 0,
+            .options  = 0,
+            .model    = bytemap_gray,
+            .usage    = 0,
+            .scale    = 1,
+            .advance  = 0,
         };
     }
     return done; 
@@ -383,6 +386,9 @@ void bytemap_wipe(bytemap_data *bytemap)
             .oy      = 0,
             .options = 0,
             .model   = bytemap_gray,
+            .usage   = 0,
+            .scale   = 1,
+            .advance = 0,
         };
     }
 }
@@ -400,6 +406,9 @@ void bytemap_allocate(bytemap_data *bytemap, int nx, int ny, int nz, size_t *cou
             .oy      = 0,
             .options = 0,
             .model   = nz == 3 ? bytemap_rgb : bytemap_gray,
+            .usage   = 0,
+            .scale   = 1,
+            .advance = 0,
         };
         if (count) { 
             *count += size;
@@ -427,6 +436,9 @@ void bytemap_copy(bytemap_data *source, bytemap_data *target, size_t *count)
                 .oy      = source->oy,
                 .options = source->options,
                 .model   = source->model,
+                .usage   = source->usage,
+                .scale   = source->scale,
+                .advance = source->advance,
             };
             if (count) {
                 *count -= oldsize;

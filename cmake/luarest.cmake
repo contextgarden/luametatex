@@ -38,6 +38,7 @@ set(luarest_sources
     source/luarest/lmttimerlib.c
     source/luarest/lmtvectorlib.c
     source/luarest/lmtbytemaplib.c
+    source/luarest/lmtrenderlib.c
     source/luarest/lmteffectslib.c
     source/luarest/lmtzbufferlib.c
     source/luarest/lmtkdtreelib.c

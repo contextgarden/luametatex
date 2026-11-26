@@ -34,6 +34,11 @@ typedef enum bytemap_models {
     bytemap_cmyk = 3,
 } bytemap_models;
 
+typedef enum bytemap_usage {
+    bytemap_usage_unset = 0,
+    bytemap_usage_glyph = 1,
+} bytemap_usage;
+
 typedef struct bytemap_slot {
     union {
         unsigned      value;
@@ -60,13 +65,17 @@ typedef struct bytemap_data {
         bytemap_slot  *rgba;                /* nz = 4   */
         bytemap_slot  *cmyk;                /* nz = 4   */
     };
-    int nx;
-    int ny;
-    int nz;
-    int ox;
-    int oy;
-    int options;
-    int model;
+    int    nx;
+    int    ny;
+    int    nz;
+    int    ox;
+    int    oy;
+    int    options;
+    int    model;
+    /* */
+    int    usage;
+    double scale;   // glyph-units-to-pixel scale used during rendering
+    double advance; // unshifted glyph width in font units (so kerning/positioning math knows the original advance alongside ox/oy)
 } bytemap_data;
 
 # define bm_current_y(ny,y)  (ny-y-1)

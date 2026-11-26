@@ -162,6 +162,7 @@ extern int  luaopen_nanojpeg    (lua_State *L);
 extern int  luaopen_tinytiff    (lua_State *L);
 extern int  luaopen_effects     (lua_State *L);
 extern int  luaopen_bytemap     (lua_State *L);
+extern int  luaopen_render      (lua_State *L);
 extern int  luaopen_kdtree      (lua_State *L);
 extern int  luaopen_sha2        (lua_State *L);
 extern int  luaopen_sio         (lua_State *L);

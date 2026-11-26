@@ -4235,15 +4235,15 @@ static int mplib_bytemap_new(lua_State *L)
 {
     MP mp = mplib_aux_is_mp(L, 1);
     if (mp) {
-        int index = lmt_tointeger(L, 2);
-        bytemap_data * bytemap = bytemaplib_valid(L, 3);
-        size_t size = 0;
-        unsigned char *data = NULL;
+        int            index   = lmt_tointeger(L, 2);
+        bytemap_data  *bytemap = bytemaplib_valid(L, 3);
+        size_t         size    = 0;
+        unsigned char *data    = NULL;
         int nx, ny, nz;
         if (bytemap) {
-            nx = bytemap->nx;
-            ny = bytemap->ny;
-            nz = bytemap->nz;
+            nx   = bytemap->nx;
+            ny   = bytemap->ny;
+            nz   = bytemap->nz;
             size = nx * ny * nz; 
             if (size > 0) { 
                 data = mp_memory_allocate(size);
