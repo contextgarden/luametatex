@@ -1276,15 +1276,9 @@ static int renderlib_heatmap(lua_State *L)
     for (int i = 1; i <= n_items; i++) {
         lua_rawgeti(L, 1, i);
         if (lua_type(L, -1) == LUA_TTABLE) {
-            lua_getfield(L, -1, "bm");
+            lua_getfield(L, -1, "bytemap");
             bytemap_data *bm = bytemaplib_valid(L, -1);
-            if (! bm) {
-                lua_pop(L, 1);
-                lua_getfield(L, -1, "bytemap");
-                bm = bytemaplib_valid(L, -1);
-            }
             lua_pop(L, 1);
-
             if (bm && bm->data && bm->nx > 0 && bm->ny > 0) {
                 int x_px   = (int) lround(lua_opt_field_num(L, -1, "x_px", 0.0));
                 int ox     = x_px + shift_x;
@@ -1624,7 +1618,9 @@ static int renderlib_scankern(lua_State *L)
     }
 
     lmt_memory_free(dist1);
-    if (samples) lmt_memory_free(samples);
+    if (samples) { 
+        lmt_memory_free(samples);
+    }
 
     lua_pushnumber(L, has_best ? best_k : 0.0);
     lua_pushnumber(L, has_best ? best_score : 0.0);
@@ -1640,13 +1636,349 @@ static int renderlib_scankern(lua_State *L)
     return 3;
 }
 
+/* Replace aux_check_bytemap / lmt_render_protrusion with your exact lmtrenderlib macros/names */
+
+/*tex
+
+Practical Default Baseline for \type{render.protrusion(bm, opts)}:
+
+\startitemize
+
+\startitem
+    \type{ink_thresh = 0.25}: Pixel coverage threshold (in \type{[0.0, 1.0]}, mapped to
+    \type{0..255}) separating inked edges from subpixel anti-aliasing fringes. Requires
+    \type{invert = true} when rasterizing glyphs so ink corresponds to high byte values.
+\stopitem
+
+\startitem
+    \type{deadzone = 0.03}: Normalized inset fraction subtracted per active scanline
+    relative to \type{[g_min_x, g_max_x]} divided by \type{ink_span}, suppressing minor
+    stem and rounding noise.
+\stopitem
+
+\startitem
+    \type{gain = 0.40}: Linear multiplier applied to the mean above-deadzone left and
+    right inset ratios across active rows.
+\stopitem
+
+\startitem
+    \type{max_protrusion = 0.07}: Upper clamp on resulting left and right protrusion
+    fractions so overhangs and wide shapes stay restrained prior to class or punctuation
+    scaling.
+\stopitem
+
+startitem
+    \type{left_y_bias = 0.0} and \type{right_y_bias = 0.0}: Vertical row weighting
+    biases over active scanlines (\type{y} from \type{0} at top to \type{ny - 1} at
+    bottom), centered at \type{0.5} via \type{1.0 + bias * (u - 0.5)} and clamped
+    at \type{0.0}. Positive \type{left_y_bias} favors lower rows on the left margin,
+    while negative \type{right_y_bias} favors upper rows on the right margin; zero
+    leaves left and right row averages unweighted.
+\stopitem
+
+\stopitemize
+
+*/
+
+static int renderlib_protrusion(lua_State *L)
+{
+    bytemap_data *bm = bytemaplib_valid(L, 1);
+    if (! bm || ! bm->data || ! bytemap_okay(bm->nx, bm->ny, bm->nz)) {
+        lua_createtable(L, 0, 5);
+        lua_pushnumber (L, 0.0); lua_setfield(L, -2, "left");
+        lua_pushnumber (L, 0.0); lua_setfield(L, -2, "right");
+        lua_pushnumber (L, 0.0); lua_setfield(L, -2, "left_ratio");
+        lua_pushnumber (L, 0.0); lua_setfield(L, -2, "right_ratio");
+        lua_pushinteger(L, 0);   lua_setfield(L, -2, "active_rows");
+        return 1;
+    }
+
+    int    opts_idx       = (lua_type(L, 2) == LUA_TTABLE) ? 2 : 0;
+    double ink_thresh     = lua_opt_field_num(L, opts_idx, "ink_thresh",     0.25);
+    double deadzone       = lua_opt_field_num(L, opts_idx, "deadzone",       0.03);
+    double gain           = lua_opt_field_num(L, opts_idx, "gain",           0.40);
+    double max_protrusion = lua_opt_field_num(L, opts_idx, "max_protrusion", 0.07);
+    double left_y_bias    = lua_opt_field_num(L, opts_idx, "left_y_bias",    0.0);
+    double right_y_bias   = lua_opt_field_num(L, opts_idx, "right_y_bias",   0.0);
+
+    if (ink_thresh < 0.0)     { ink_thresh = 0.0; }
+    if (ink_thresh > 1.0)     { ink_thresh = 1.0; }
+    if (deadzone < 0.0)       { deadzone = 0.0; }
+    if (gain < 0.0)           { gain = 0.0; }
+    if (max_protrusion < 0.0) { max_protrusion = 0.0; }
+
+    int thresh_byte = (int) lround(ink_thresh * 255.0);
+    int nx = bm->nx;
+    int ny = bm->ny;
+    int nz = bm->nz;
+
+    int *row_y     = lmt_memory_malloc((size_t) ny * sizeof(int));
+    int *row_left  = lmt_memory_malloc((size_t) ny * sizeof(int));
+    int *row_right = lmt_memory_malloc((size_t) ny * sizeof(int));
+
+    if (! row_y || ! row_left || ! row_right) {
+        if (row_y)     { lmt_memory_free(row_y); }
+        if (row_left)  { lmt_memory_free(row_left); }
+        if (row_right) { lmt_memory_free(row_right); }
+        return luaL_error(L, "out of memory in render.protrusion");
+    }
+
+    int active_rows = 0;
+    int g_min_x     = nx;
+    int g_max_x     = -1;
+
+    for (int y = 0; y < ny; y++) {
+        int l_x = -1;
+        int r_x = -1;
+        const unsigned char *row_ptr = bm->data + ((size_t) y * (size_t) nx * (size_t) nz);
+
+        for (int x = 0; x < nx; x++) {
+            int v;
+            if (nz == 1) {
+                v = (int) row_ptr[x];
+            } else {
+                const unsigned char *px = row_ptr + ((size_t) x * (size_t) nz);
+                v = (int) px[0];
+                for (int c = 1; c < nz; c++) {
+                    if ((int) px[c] > v) {
+                        v = (int) px[c];
+                    }
+                }
+            }
+            if (v >= thresh_byte) {
+                if (l_x < 0) {
+                    l_x = x;
+                }
+                r_x = x;
+            }
+        }
+
+        if (l_x >= 0 && r_x >= l_x) {
+            row_y[active_rows]     = y;
+            row_left[active_rows]  = l_x;
+            row_right[active_rows] = r_x;
+            active_rows++;
+            if (l_x < g_min_x) { 
+                g_min_x = l_x; 
+            }
+            if (r_x > g_max_x) { 
+                g_max_x = r_x; 
+            }
+        }
+    }
+
+    double left_ratio  = 0.0;
+    double right_ratio = 0.0;
+    double left_p      = 0.0;
+    double right_p     = 0.0;
+
+    if (active_rows > 0 && g_max_x >= g_min_x) {
+        double ink_span = (double) (g_max_x - g_min_x + 1);
+        if (ink_span < 1.0) { 
+            ink_span = 1.0; 
+        }
+
+        double denom_y      = (ny > 1) ? (double) (ny - 1) : 1.0;
+        double left_w_sum   = 0.0;
+        double left_wt_sum  = 0.0;
+        double right_w_sum  = 0.0;
+        double right_wt_sum = 0.0;
+
+        for (int i = 0; i < active_rows; i++) {
+            double u        = (double) row_y[i] / denom_y;
+            double centered = u - 0.5;
+
+            double w_l = 1.0 + left_y_bias  * centered;
+            double w_r = 1.0 + right_y_bias * centered;
+            if (w_l < 0.0) { 
+                w_l = 0.0; 
+            }
+            if (w_r < 0.0) { 
+                w_r = 0.0; 
+            }
+
+            double l_in = ((double) (row_left[i] - g_min_x) / ink_span) - deadzone;
+            double r_in = ((double) (g_max_x - row_right[i]) / ink_span) - deadzone;
+
+            if (l_in > 0.0) {
+                left_w_sum  += l_in * w_l;
+                left_wt_sum += w_l;
+            }
+            if (r_in > 0.0) {
+                right_w_sum  += r_in * w_r;
+                right_wt_sum += w_r;
+            }
+        }
+
+        left_ratio  = (left_wt_sum  > 0.0) ? (left_w_sum  / left_wt_sum)  : 0.0;
+        right_ratio = (right_wt_sum > 0.0) ? (right_w_sum / right_wt_sum) : 0.0;
+
+        left_p  = left_ratio  * gain;
+        right_p = right_ratio * gain;
+        if (left_p  > max_protrusion) {
+            left_p  = max_protrusion; 
+        }
+        if (right_p > max_protrusion) { 
+            right_p = max_protrusion; 
+        }
+    }
+
+    lmt_memory_free(row_y);
+    lmt_memory_free(row_left);
+    lmt_memory_free(row_right);
+
+    lua_createtable(L, 0, 5);
+    lua_pushnumber (L, left_p);      lua_setfield(L, -2, "left");
+    lua_pushnumber (L, right_p);     lua_setfield(L, -2, "right");
+    lua_pushnumber (L, left_ratio);  lua_setfield(L, -2, "left_ratio");
+    lua_pushnumber (L, right_ratio); lua_setfield(L, -2, "right_ratio");
+    lua_pushinteger(L, active_rows); lua_setfield(L, -2, "active_rows");
+    return 1;
+}
+
+/*tex
+
+Asymmetric raster expansion and compression heuristic for \type{render.expansion(bm, opts)}:
+
+\startitemize
+
+\startitem
+    \type{ink_thresh = 0.25}: Pixel coverage threshold (in \type{[0.0, 1.0]}, mapped to
+    \type{0..255}) separating inked pixels from background/anti-aliasing fringe. Requires
+    \type{invert = true} during glyph rasterization so ink corresponds to high values.
+\stopitem
+
+\startitem
+    \type{stretch_gain = 0.50} and \type{shrink_gain = 0.35}: Separate sensitivity weights
+    for stretching (expansion) vs. shrinking (compression). Stretching penalizes wide
+    \type{aspect_ratio} and high \type{fill_ratio} so round or wide shapes (\type{O},
+    \type{o}, \type{W}) do not look bloated; shrinking penalizes dense/heavy fill more
+    cautiously so tight counters and stems do not clog during line compression.
+\stopitem
+
+\startitem
+    \type{min_exp = 0.45} and \type{max_exp = 1.00} (with optional \type{min_comp} /
+    \type{max_comp} falling back to \type{min_exp} / \type{max_exp}): Clamps each directional
+    factor independently so both vectors stay in a predictable range.
+\stopitem
+
+\stopitemize
+
+*/
+
+static int renderlib_expansion(lua_State *L)
+{
+    bytemap_data *bm = bytemaplib_valid(L, 1);
+    if (! bm || ! bm->data || ! bytemap_okay(bm->nx, bm->ny, bm->nz)) {
+        lua_createtable(L, 0, 4);
+        lua_pushnumber(L, 1.0); lua_setfield(L, -2, "expansion");
+        lua_pushnumber(L, 1.0); lua_setfield(L, -2, "compression");
+        lua_pushnumber(L, 0.0); lua_setfield(L, -2, "fill_ratio");
+        lua_pushnumber(L, 0.0); lua_setfield(L, -2, "aspect_ratio");
+        return 1;
+    }
+
+    int    opts_idx     = (lua_type(L, 2) == LUA_TTABLE) ? 2 : 0;
+    double ink_thresh   = lua_opt_field_num(L, opts_idx, "ink_thresh",   0.25);
+    double stretch_gain = lua_opt_field_num(L, opts_idx, "stretch_gain", lua_opt_field_num(L, opts_idx, "gain", 0.50));
+    double shrink_gain  = lua_opt_field_num(L, opts_idx, "shrink_gain",  stretch_gain * 0.70);
+    double min_exp      = lua_opt_field_num(L, opts_idx, "min_exp",      0.45);
+    double max_exp      = lua_opt_field_num(L, opts_idx, "max_exp",      1.00);
+    double min_comp     = lua_opt_field_num(L, opts_idx, "min_comp",     min_exp);
+    double max_comp     = lua_opt_field_num(L, opts_idx, "max_comp",     max_exp);
+
+    if (ink_thresh < 0.0)   { ink_thresh = 0.0; }
+    if (ink_thresh > 1.0)   { ink_thresh = 1.0; }
+    if (stretch_gain < 0.0) { stretch_gain = 0.0; }
+    if (shrink_gain < 0.0)  { shrink_gain = 0.0; }
+    if (min_exp < 0.0)      { min_exp = 0.0; }
+    if (max_exp < min_exp)  { max_exp = min_exp; }
+    if (min_comp < 0.0)     { min_comp = 0.0; }
+    if (max_comp < min_comp){ max_comp = min_comp; }
+
+    int thresh_byte = (int) lround(ink_thresh * 255.0);
+    int nx = bm->nx;
+    int ny = bm->ny;
+    int nz = bm->nz;
+
+    int       active_rows = 0;
+    int       g_min_x     = nx;
+    int       g_max_x     = -1;
+    long long ink_pixels  = 0;
+
+    for (int y = 0; y < ny; y++) {
+        int l_x = -1;
+        int r_x = -1;
+        const unsigned char *row_ptr = bm->data + ((size_t) y * (size_t) nx * (size_t) nz);
+
+        for (int x = 0; x < nx; x++) {
+            int v;
+            if (nz == 1) {
+                v = (int) row_ptr[x];
+            } else {
+                const unsigned char *px = row_ptr + ((size_t) x * (size_t) nz);
+                v = (int) px[0];
+                for (int c = 1; c < nz; c++) {
+                    if ((int) px[c] > v) {
+                        v = (int) px[c];
+                    }
+                }
+            }
+            if (v >= thresh_byte) {
+                if (l_x < 0) { l_x = x; }
+                r_x = x;
+                ink_pixels++;
+            }
+        }
+
+        if (l_x >= 0 && r_x >= l_x) {
+            active_rows++;
+            if (l_x < g_min_x) { g_min_x = l_x; }
+            if (r_x > g_max_x) { g_max_x = r_x; }
+        }
+    }
+
+    double expansion    = max_exp;
+    double compression  = max_comp;
+    double fill_ratio   = 0.0;
+    double aspect_ratio = 0.0;
+
+    if (active_rows > 0 && g_max_x >= g_min_x) {
+        double ink_span = (double) (g_max_x - g_min_x + 1);
+        double box_area = ink_span * (double) active_rows;
+        fill_ratio   = (box_area > 0.0) ? ((double) ink_pixels / box_area) : 0.0;
+        aspect_ratio = ink_span / (double) active_rows;
+
+        /* Stretch is sensitive to wide aspect + fill; shrink focuses more on fill density */
+        double stretch_penalty = (fill_ratio * 0.55 + aspect_ratio * 0.25) * stretch_gain;
+        double shrink_penalty  = (fill_ratio * 0.65 + aspect_ratio * 0.10) * shrink_gain;
+
+        expansion   = max_exp  - stretch_penalty;
+        compression = max_comp - shrink_penalty;
+
+        if (expansion < min_exp)     { expansion = min_exp; }
+        if (expansion > max_exp)     { expansion = max_exp; }
+        if (compression < min_comp)  { compression = min_comp; }
+        if (compression > max_comp)  { compression = max_comp; }
+    }
+
+    lua_createtable(L, 0, 4);
+    lua_pushnumber(L, expansion);    lua_setfield(L, -2, "expansion");
+    lua_pushnumber(L, compression);  lua_setfield(L, -2, "compression");
+    lua_pushnumber(L, fill_ratio);   lua_setfield(L, -2, "fill_ratio");
+    lua_pushnumber(L, aspect_ratio); lua_setfield(L, -2, "aspect_ratio");
+    return 1;
+}
+
 static struct luaL_Reg renderlib_function_list[] = {
-    { "glyph",     renderlib_glyph     },
-    { "chamfer",   renderlib_chamfer   },
-    { "scorepair", renderlib_scorepair },
-    { "heatmap",   renderlib_heatmap   },
-    { "scankern",  renderlib_scankern  },
-    { NULL,        NULL                },
+    { "glyph",      renderlib_glyph      },
+    { "chamfer",    renderlib_chamfer    },
+    { "scorepair",  renderlib_scorepair  },
+    { "heatmap",    renderlib_heatmap    },
+    { "scankern",   renderlib_scankern   },
+    { "protrusion", renderlib_protrusion },
+    { "expansion",  renderlib_expansion  },
+    { NULL,         NULL                 },
 };
 
 int luaopen_render(lua_State *L)
