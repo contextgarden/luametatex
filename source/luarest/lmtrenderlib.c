@@ -9,6 +9,13 @@
 
 /*tex 
 
+This is experimental and I might change keys and defaults depending on current experiment with
+documents and fonts and such. 
+
+*/
+
+/*tex 
+
 The code was prototyped in \LUA\ with Gemini: formulating a demand, showing a rough setup, pointing
 to template code, setting boundary conditions and from there a at first sight simple solution 
 evolved so the code became a bit more complex than originally intended. We also had to bring 
@@ -155,6 +162,8 @@ typedef struct glyph_render_opts {
     int    invert;
     double xoff;
     double yoff;
+    double max_depth;   /* strut depth  (>= 0, in font units; 0 = none) */
+    double max_height;  /* strut height (>= 0, in font units; 0 = none) */
 } glyph_render_opts;
 
 typedef struct glyph_mapper {
@@ -288,6 +297,8 @@ static int read_glyph_options(lua_State *L, int idx, glyph_render_opts *opts)
     opts->invert        = 0;
     opts->xoff          = 0.0;
     opts->yoff          = 0.0;
+    opts->max_depth     = 0.0;
+    opts->max_height    = 0.0;
 
     if (lua_type(L, idx) != LUA_TTABLE) {
         return 1;
@@ -338,8 +349,8 @@ static int read_glyph_options(lua_State *L, int idx, glyph_render_opts *opts)
     lua_getfield(L, idx, "invert");
     if (lua_type(L, -1) == LUA_TBOOLEAN) {
         opts->invert = lua_toboolean(L, -1);
-    } else if (lua_type(L, -1) == LUA_TNUMBER) { 
-        opts->invert = lmt_tointeger(L, -1) != 0;
+ // } else if (lua_type(L, -1) == LUA_TNUMBER) { 
+ //     opts->invert = lmt_tointeger(L, -1) != 0;
     }
     lua_pop(L, 1);
 
@@ -374,6 +385,16 @@ static int read_glyph_options(lua_State *L, int idx, glyph_render_opts *opts)
 
     /* */
 
+    opts->max_depth  = lua_opt_field_num(L, idx, "max_depth",  lua_opt_field_num(L, idx, "depth",  0.0));
+    opts->max_height = lua_opt_field_num(L, idx, "max_height", lua_opt_field_num(L, idx, "height", 0.0));
+
+    if (opts->max_depth < 0.0)  { 
+        opts->max_depth  = 0.0; 
+    }
+    if (opts->max_height < 0.0) { 
+        opts->max_height = 0.0; 
+    }
+
     return 1;
 }
 
@@ -396,8 +417,21 @@ static void build_mapper(
     m->ury     = bb_ury + m->yoff;
     m->min_x   = opts->use_width ? fmin(fmin(0.0, m->xoff), m->llx) : m->llx;
     m->max_x   = opts->use_width ? fmax(adv + m->xoff, m->urx) : m->urx;
-    m->min_y   = m->lly;
-    m->max_y   = m->ury;
+ // m->min_y   = m->lly;
+ // m->max_y   = m->ury;
+
+    double ref_min_y = m->lly;
+    double ref_max_y = m->ury;
+
+    if (opts->max_depth > 0.0 || opts->max_height > 0.0) {
+        double strut_bot = -fabs(opts->max_depth) + m->yoff;
+        double strut_top =  fabs(opts->max_height) + m->yoff;
+        ref_min_y = (opts->max_depth > 0.0)  ? fmin(m->lly, strut_bot) : m->lly;
+        ref_max_y = (opts->max_height > 0.0) ? fmax(m->ury, strut_top) : m->ury;
+    }
+
+    m->min_y = ref_min_y;
+    m->max_y = ref_max_y;
 
     double span_x = fmax(m->max_x - m->min_x, 1.0);
     double span_y = fmax(m->max_y - m->min_y, 1.0);
@@ -858,7 +892,7 @@ static int renderlib_glyph(lua_State *L)
         return 0;
     }
 
-    int grid  = opts.grid < 1 ? 1 : opts.grid;
+    int grid  = opts.grid  < 1 ? 1 : opts.grid;
     int steps = opts.steps < 1 ? 1 : opts.steps;
 
     glyph_scratch scratch;
@@ -868,7 +902,12 @@ static int renderlib_glyph(lua_State *L)
     int           ok      = 0;
     int           seg_idx = 0;
 
-    if (!glyph_init_subpixel_grid(&scratch, grid)) {
+    double base_y_font = mapper.yoff; /* baseline y=0 shifted by yoff */
+    double base_py = mapper.flip_y
+        ? ((double) mapper.padding + (mapper.max_y - base_y_font) * mapper.scale)
+        : ((double) mapper.padding + (base_y_font - mapper.min_y) * mapper.scale);
+
+    if (! glyph_init_subpixel_grid(&scratch, grid)) {
         goto cleanup;
     }
 
@@ -881,12 +920,14 @@ static int renderlib_glyph(lua_State *L)
     lua_pop(L, 1);
 
     bm = alloc_bytemap_userdata(L, mapper.width, mapper.height, 1);
+
     if (! bm) {
         goto cleanup;
     }
 
     bm->ox      = isfinite(mapper.xoff) ? (int) lround(mapper.xoff) : 0;
-    bm->oy      = isfinite(mapper.yoff) ? (int) lround(mapper.yoff) : 0;
+ // bm->oy      = isfinite(mapper.yoff) ? (int) lround(mapper.yoff) : 0;
+    bm->oy      = (int) lround(base_py);
     bm->usage   = bytemap_usage_glyph;
     bm->scale   = mapper.scale;
     bm->advance = adv;
@@ -1301,7 +1342,7 @@ static int renderlib_heatmap(lua_State *L)
         lua_pop(L, 1);
     }
 
-    if (!chamfer_px_from_mask(mask, width, height, px_dist)) {
+    if (! chamfer_px_from_mask(mask, width, height, px_dist)) {
         lmt_memory_free(mask);
         lmt_memory_free(px_dist);
         return 0;
@@ -1676,6 +1717,14 @@ startitem
     leaves left and right row averages unweighted.
 \stopitem
 
+\startitem
+    \type{flip_y = true} and \type{center_u}: Respects vertical row orientation
+    (\type{flip_y}, passed as an option rather than stored on the bytemap) and
+    anchors the \type{u - center_u} weighting pivot to \type{bm->oy / (ny - 1)}
+    when available (falling back to \type{0.5}) so strutted or baseline-shifted
+    bitmaps keep vertical bias aligned with the baseline.
+\stopitem
+
 \stopitemize
 
 */
@@ -1700,6 +1749,17 @@ static int renderlib_protrusion(lua_State *L)
     double max_protrusion = lua_opt_field_num(L, opts_idx, "max_protrusion", 0.07);
     double left_y_bias    = lua_opt_field_num(L, opts_idx, "left_y_bias",    0.0);
     double right_y_bias   = lua_opt_field_num(L, opts_idx, "right_y_bias",   0.0);
+
+    int flip_y = 1;
+    if (opts_idx) {
+        lua_getfield(L, opts_idx, "flip_y");
+        if (lua_type(L, -1) == LUA_TBOOLEAN) {
+            flip_y = lua_toboolean(L, -1);
+        } else if (lua_type(L, -1) == LUA_TNUMBER) {
+            flip_y = lmt_tointeger(L, -1) != 0;
+        }
+        lua_pop(L, 1);
+    }
 
     if (ink_thresh < 0.0)     { ink_thresh = 0.0; }
     if (ink_thresh > 1.0)     { ink_thresh = 1.0; }
@@ -1758,11 +1818,11 @@ static int renderlib_protrusion(lua_State *L)
             row_left[active_rows]  = l_x;
             row_right[active_rows] = r_x;
             active_rows++;
-            if (l_x < g_min_x) { 
-                g_min_x = l_x; 
+            if (l_x < g_min_x) {
+                g_min_x = l_x;
             }
-            if (r_x > g_max_x) { 
-                g_max_x = r_x; 
+            if (r_x > g_max_x) {
+                g_max_x = r_x;
             }
         }
     }
@@ -1774,27 +1834,33 @@ static int renderlib_protrusion(lua_State *L)
 
     if (active_rows > 0 && g_max_x >= g_min_x) {
         double ink_span = (double) (g_max_x - g_min_x + 1);
-        if (ink_span < 1.0) { 
-            ink_span = 1.0; 
+        if (ink_span < 1.0) {
+            ink_span = 1.0;
         }
 
-        double denom_y      = (ny > 1) ? (double) (ny - 1) : 1.0;
+        double denom_y    = (ny > 1) ? (double) (ny - 1) : 1.0;
+        double default_cy = (bm->oy != 0) ? ((double) bm->oy / denom_y) : 0.5;
+        double center_u   = lua_opt_field_num(L, opts_idx, "center_u", default_cy);
+        if (center_u < 0.0) { center_u = 0.0; }
+        if (center_u > 1.0) { center_u = 1.0; }
+
         double left_w_sum   = 0.0;
         double left_wt_sum  = 0.0;
         double right_w_sum  = 0.0;
         double right_wt_sum = 0.0;
 
         for (int i = 0; i < active_rows; i++) {
-            double u        = (double) row_y[i] / denom_y;
-            double centered = u - 0.5;
+            double raw_u    = (double) row_y[i] / denom_y;
+            double u        = flip_y ? raw_u : (1.0 - raw_u);
+            double centered = u - center_u;
 
             double w_l = 1.0 + left_y_bias  * centered;
             double w_r = 1.0 + right_y_bias * centered;
-            if (w_l < 0.0) { 
-                w_l = 0.0; 
+            if (w_l < 0.0) {
+                w_l = 0.0;
             }
-            if (w_r < 0.0) { 
-                w_r = 0.0; 
+            if (w_r < 0.0) {
+                w_r = 0.0;
             }
 
             double l_in = ((double) (row_left[i] - g_min_x) / ink_span) - deadzone;
@@ -1816,10 +1882,10 @@ static int renderlib_protrusion(lua_State *L)
         left_p  = left_ratio  * gain;
         right_p = right_ratio * gain;
         if (left_p  > max_protrusion) {
-            left_p  = max_protrusion; 
+            left_p  = max_protrusion;
         }
-        if (right_p > max_protrusion) { 
-            right_p = max_protrusion; 
+        if (right_p > max_protrusion) {
+            right_p = max_protrusion;
         }
     }
 
